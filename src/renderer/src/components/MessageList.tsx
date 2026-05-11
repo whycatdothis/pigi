@@ -1,6 +1,12 @@
 import { useRef, useLayoutEffect, useEffect, useCallback, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { IconArrowDown, IconCopy, IconCheck } from '@tabler/icons-react';
+import {
+  IconArrowDown,
+  IconCopy,
+  IconCheck,
+  IconGitFork,
+  IconGitBranch,
+} from '@tabler/icons-react';
 import {
   type TranscriptNode,
   type AssistantNode,
@@ -15,6 +21,8 @@ import { cn } from '../lib/utils';
 
 interface MessageListProps {
   nodes: TranscriptNode[];
+  onFork?: (entryId: string) => void;
+  onNavigateTree?: (entryId: string) => void;
 }
 
 const MESSAGE_ROW_GAP = 16;
@@ -34,7 +42,11 @@ interface UserMessagePreview {
   text: string;
 }
 
-export default function MessageList({ nodes }: MessageListProps): React.JSX.Element {
+export default function MessageList({
+  nodes,
+  onFork,
+  onNavigateTree,
+}: MessageListProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
   const lastNodeIdRef = useRef<string | null>(null);
@@ -175,7 +187,7 @@ export default function MessageList({ nodes }: MessageListProps): React.JSX.Elem
                   className="absolute left-0 top-0 w-full"
                   style={{ transform: `translateY(${virtualItem.start}px)` }}
                 >
-                  <NodeRenderer node={node} />
+                  <NodeRenderer node={node} onFork={onFork} onNavigateTree={onNavigateTree} />
                 </div>
               );
             })}
@@ -288,12 +300,20 @@ function isRenderableNode(node: TranscriptNode): boolean {
   return Boolean(node.text || node.thinking || node.errorMessage);
 }
 
-function NodeRenderer({ node }: { node: TranscriptNode }): React.JSX.Element {
+function NodeRenderer({
+  node,
+  onFork,
+  onNavigateTree,
+}: {
+  node: TranscriptNode;
+  onFork?: (entryId: string) => void;
+  onNavigateTree?: (entryId: string) => void;
+}): React.JSX.Element {
   switch (node.role) {
     case 'user':
-      return <UserBubble node={node} />;
+      return <UserBubble node={node} onFork={onFork} onNavigateTree={onNavigateTree} />;
     case 'assistant':
-      return <AssistantBubble node={node} />;
+      return <AssistantBubble node={node} onNavigateTree={onNavigateTree} />;
     case 'tool':
       return (
         <div className="group">
@@ -306,11 +326,29 @@ function NodeRenderer({ node }: { node: TranscriptNode }): React.JSX.Element {
   }
 }
 
-function UserBubble({ node }: { node: UserNode }): React.JSX.Element {
+function UserBubble({
+  node,
+  onFork,
+  onNavigateTree,
+}: {
+  node: UserNode;
+  onFork?: (entryId: string) => void;
+  onNavigateTree?: (entryId: string) => void;
+}): React.JSX.Element {
   const { text } = node;
   const [expanded, setExpanded] = useState(false);
   const preview = useMemo(() => getUserMessagePreview(text), [text]);
   const displayText = expanded || !preview.isLong ? text : preview.text;
+  // Only enable fork/tree for messages with real session entry IDs (not local node-X IDs)
+  const hasEntryId = !node.id.startsWith('node-');
+
+  const handleFork = useCallback(() => {
+    onFork?.(node.id);
+  }, [onFork, node.id]);
+
+  const handleNavigateTree = useCallback(() => {
+    onNavigateTree?.(node.id);
+  }, [onNavigateTree, node.id]);
 
   return (
     <div className="flex justify-end pb-2 pt-6" data-testid="user-message">
@@ -340,6 +378,26 @@ function UserBubble({ node }: { node: UserNode }): React.JSX.Element {
         </div>
         <div className="flex h-6 w-full items-center justify-end gap-2 pt-1 opacity-0 transition-opacity group-hover:opacity-100">
           <MessageToolbar text={node.text} />
+          {hasEntryId && (
+            <button
+              type="button"
+              className="flex items-center justify-center rounded p-0.5 text-muted-foreground hover:text-foreground"
+              onClick={handleNavigateTree}
+              title="Navigate to this point"
+            >
+              <IconGitBranch size={14} />
+            </button>
+          )}
+          {hasEntryId && (
+            <button
+              type="button"
+              className="flex items-center justify-center rounded p-0.5 text-muted-foreground hover:text-foreground"
+              onClick={handleFork}
+              title="Fork from this message"
+            >
+              <IconGitFork size={14} />
+            </button>
+          )}
           <span className="text-xs text-muted-foreground">
             {formatUserMessageTime(node.sentAt)}
           </span>
@@ -391,9 +449,20 @@ function isSameLocalYear(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear();
 }
 
-function AssistantBubble({ node }: { node: AssistantNode }): React.JSX.Element {
+function AssistantBubble({
+  node,
+  onNavigateTree,
+}: {
+  node: AssistantNode;
+  onNavigateTree?: (entryId: string) => void;
+}): React.JSX.Element {
   const showThinking = node.thinking.length > 0;
   const showText = node.text.length > 0;
+  const hasEntryId = !node.id.startsWith('node-');
+
+  const handleNavigateTree = useCallback(() => {
+    onNavigateTree?.(node.id);
+  }, [onNavigateTree, node.id]);
 
   return (
     <div className="group flex justify-start" data-testid="assistant-message">
@@ -411,7 +480,19 @@ function AssistantBubble({ node }: { node: AssistantNode }): React.JSX.Element {
           </div>
         )}
 
-        <MessageToolbar text={node.text || node.thinking} />
+        <div className="flex items-center gap-2">
+          <MessageToolbar text={node.text || node.thinking} />
+          {hasEntryId && (
+            <button
+              type="button"
+              className="flex items-center justify-center rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+              onClick={handleNavigateTree}
+              title="Navigate to this point"
+            >
+              <IconGitBranch size={14} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

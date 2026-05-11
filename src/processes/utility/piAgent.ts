@@ -398,8 +398,95 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
       };
     }
 
-    case 'get_messages':
-      return runtime.session.messages;
+    case 'get_messages': {
+      // Enrich messages with entry IDs so the renderer can use them for fork/tree.
+      // Use getUserMessagesForForking() for user messages (SDK-provided, safe).
+      // Use sessionManager path walk for assistant messages (entry IDs are stable).
+      const messages = runtime.session.messages;
+      const sessionManager = runtime.session.sessionManager;
+
+      // User messages: use SDK method, match by text content
+      const forkableMessages = runtime.session.getUserMessagesForForking();
+      const pendingUserByText = new Map<string, string[]>();
+      for (const { entryId, text } of forkableMessages) {
+        const queue = pendingUserByText.get(text);
+        if (queue) {
+          queue.push(entryId);
+        } else {
+          pendingUserByText.set(text, [entryId]);
+        }
+      }
+
+      // Assistant messages: walk root→leaf path to collect entry IDs in order.
+      // This is safe because assistant message entries have a stable 1:1 mapping
+      // to assistant messages in the output (they aren't affected by compaction
+      // summary injection which only adds non-assistant synthetic messages).
+      const entries = sessionManager.getEntries();
+      const leafId = sessionManager.getLeafId();
+      const byId = new Map(entries.map((entry) => [entry.id, entry]));
+      type Entry = (typeof entries)[number];
+      const path: Entry[] = [];
+      let current: Entry | undefined = leafId ? byId.get(leafId) : entries[entries.length - 1];
+      while (current) {
+        path.unshift(current);
+        current = current.parentId ? byId.get(current.parentId) : undefined;
+      }
+
+      // Collect assistant entry IDs from the visible portion of the path
+      const assistantEntryIds: string[] = [];
+      const compactionEntry = path.findLast((e) => e.type === 'compaction') as
+        | { type: 'compaction'; id: string; firstKeptEntryId: string }
+        | undefined;
+
+      const collectAssistant = (entry: Entry): void => {
+        if (entry.type === 'message' && entry.message?.role === 'assistant') {
+          assistantEntryIds.push(entry.id);
+        }
+      };
+
+      if (compactionEntry) {
+        const compactionIdx = path.findIndex(
+          (e) => e.type === 'compaction' && e.id === compactionEntry.id,
+        );
+        let foundFirstKept = false;
+        for (let i = 0; i < compactionIdx; i++) {
+          if (path[i].id === compactionEntry.firstKeptEntryId) foundFirstKept = true;
+          if (foundFirstKept) collectAssistant(path[i]);
+        }
+        for (let i = compactionIdx + 1; i < path.length; i++) {
+          collectAssistant(path[i]);
+        }
+      } else {
+        for (const entry of path) {
+          collectAssistant(entry);
+        }
+      }
+
+      // Enrich messages
+      let assistantIndex = 0;
+      const enrichedMessages = messages.map((message) => {
+        if (message.role === 'user') {
+          const text =
+            typeof message.content === 'string'
+              ? message.content
+              : message.content
+                  .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
+                  .map((block) => block.text)
+                  .join('');
+          const queue = pendingUserByText.get(text);
+          if (queue && queue.length > 0) {
+            const entryId = queue.shift()!;
+            return { ...message, id: entryId };
+          }
+        } else if (message.role === 'assistant') {
+          const entryId = assistantEntryIds[assistantIndex++];
+          if (entryId) return { ...message, id: entryId };
+        }
+        return message;
+      });
+
+      return enrichedMessages;
+    }
 
     case 'get_session_options': {
       const session = runtime.session;
@@ -445,6 +532,25 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
       }
       runtime.session.sessionManager.appendSessionInfo(command.name.trim());
       return { success: true };
+    }
+
+    case 'fork': {
+      const result = await runtime.fork(command.entryId);
+      if (result.cancelled) {
+        return { success: true, cancelled: true };
+      }
+      // After fork, the session is replaced inside the runtime. Re-subscribe events.
+      unsubscribeEvents?.();
+      unsubscribeEvents = subscribeToSession(runtime, dataPort!, batcher!);
+      return { success: true, cancelled: false, text: result.selectedText ?? '' };
+    }
+
+    case 'navigate_tree': {
+      const result = await runtime.session.navigateTree(command.entryId, { summarize: false });
+      if (result.cancelled) {
+        return { success: true, cancelled: true };
+      }
+      return { success: true, cancelled: false, editorText: result.editorText ?? '' };
     }
 
     case 'debug': {

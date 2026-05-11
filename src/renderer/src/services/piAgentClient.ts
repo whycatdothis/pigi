@@ -185,6 +185,34 @@ export async function renameSession(sessionId: string, name: string): Promise<vo
   }
 }
 
+export async function forkAtMessage(
+  sessionId: string,
+  entryId: string,
+): Promise<{ cancelled: boolean; text: string }> {
+  const result = await send<CommandResult & { cancelled: boolean; text: string }>(sessionId, {
+    type: 'fork',
+    entryId,
+  });
+  if (!result.success) {
+    throw new Error(result.error || 'fork failed');
+  }
+  return { cancelled: result.cancelled, text: result.text };
+}
+
+export async function navigateTree(
+  sessionId: string,
+  entryId: string,
+): Promise<{ cancelled: boolean; editorText: string }> {
+  const result = await send<CommandResult & { cancelled: boolean; editorText: string }>(sessionId, {
+    type: 'navigate_tree',
+    entryId,
+  });
+  if (!result.success) {
+    throw new Error(result.error || 'navigate_tree failed');
+  }
+  return { cancelled: result.cancelled, editorText: result.editorText };
+}
+
 // =============================================================================
 // Authentication
 // =============================================================================

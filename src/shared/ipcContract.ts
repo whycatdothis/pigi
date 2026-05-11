@@ -124,6 +124,8 @@ export type PiCommand =
   | { type: 'set_model'; provider: string; modelId: string }
   | { type: 'set_thinking_level'; level: ThinkingLevel }
   | { type: 'rename_session'; name: string }
+  | { type: 'fork'; entryId: string }
+  | { type: 'navigate_tree'; entryId: string }
   | { type: 'get_auth_providers' }
   | { type: 'login_oauth'; providerId: string }
   | { type: 'login_api_key'; providerId: string; apiKey: string }

@@ -16,6 +16,7 @@ import {
   getProjects,
   getGitBranch,
   getState,
+  getMessages,
   getSessionOptions,
   getAuthProviders,
   loginOAuth,
@@ -33,6 +34,8 @@ import {
   removeProject,
   reorderProjects,
   renameSession,
+  forkAtMessage,
+  navigateTree,
 } from './services/piAgentClient';
 import type {
   AuthProviderInfo,
@@ -304,6 +307,46 @@ function App(): React.JSX.Element {
 
   const handleRestoredText = useCallback(() => setRestoreText(null), []);
 
+  const handleFork = useCallback(
+    async (entryId: string) => {
+      if (!activeSessionId) return;
+      try {
+        const result = await forkAtMessage(activeSessionId, entryId);
+        if (!result.cancelled && result.text) {
+          setRestoreText(result.text);
+        }
+        // After fork, the session is replaced. Re-hydrate messages and refresh state.
+        const messages = await getMessages(activeSessionId);
+        transcriptControllerRef.current?.hydrate(messages);
+        void refreshSessionState(activeSessionId);
+      } catch (err) {
+        console.error('Failed to fork:', err);
+        toast.error('Fork failed');
+      }
+    },
+    [activeSessionId, refreshSessionState, transcriptControllerRef],
+  );
+
+  const handleNavigateTree = useCallback(
+    async (entryId: string) => {
+      if (!activeSessionId) return;
+      try {
+        const result = await navigateTree(activeSessionId, entryId);
+        if (!result.cancelled && result.editorText) {
+          setRestoreText(result.editorText);
+        }
+        // After tree navigation, messages change. Re-hydrate and refresh state.
+        const messages = await getMessages(activeSessionId);
+        transcriptControllerRef.current?.hydrate(messages);
+        void refreshSessionState(activeSessionId);
+      } catch (err) {
+        console.error('Failed to navigate tree:', err);
+        toast.error('Tree navigation failed');
+      }
+    },
+    [activeSessionId, refreshSessionState, transcriptControllerRef],
+  );
+
   // Global Escape key to abort streaming
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent): void {
@@ -572,7 +615,11 @@ function App(): React.JSX.Element {
           className="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize"
           onPointerDown={handleSidebarResizeStart}
         />
-        <MessageList nodes={transcript.nodes} />
+        <MessageList
+          nodes={transcript.nodes}
+          onFork={handleFork}
+          onNavigateTree={handleNavigateTree}
+        />
         <StreamingQueue
           isStreaming={transcript.status !== 'idle'}
           queuedSteering={transcript.queuedSteering}
