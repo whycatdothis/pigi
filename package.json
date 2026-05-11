@@ -5,7 +5,7 @@
   "description": "A high performance pi GUI",
   "main": "./out/main/index.js",
   "author": "Mingxin Wei",
-  "homepage": "",
+  "homepage": "https://github.com/mingxinwei/pigi",
   "scripts": {
     "check": "npm run typecheck && npm run lint:fix && npm run format",
     "format": "prettier --write .",
