@@ -2,8 +2,15 @@ import { useEffect, useState } from 'react';
 import type { ShortcutBinding, ShortcutDefinition } from '../../../shared/ipcContract';
 import { resolveShortcutBindings } from '../shortcuts/shortcutRegistry';
 
+const SHIFTED_BRACKET_KEYS: Record<string, string> = { '{': '[', '}': ']' };
+
 function bindingMatches(binding: ShortcutBinding, event: KeyboardEvent): boolean {
-  if (event.key.toLowerCase() !== binding.key.toLowerCase()) {
+  // Shift produces braces on bracket keys; bindings retain their unshifted labels.
+  const key = event.shiftKey ? (SHIFTED_BRACKET_KEYS[event.key] ?? event.key) : event.key;
+  if (
+    event.key.toLowerCase() !== binding.key.toLowerCase() &&
+    key.toLowerCase() !== binding.key.toLowerCase()
+  ) {
     return false;
   }
   if (Boolean(binding.meta) !== event.metaKey) {

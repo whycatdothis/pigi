@@ -65,6 +65,7 @@ import SessionSwitcher from './components/SessionSwitcher';
 import { SidebarProvider } from './components/ui/sidebar';
 import { Empty, EmptyTitle, EmptyDescription, EmptyHeader } from './components/ui/empty';
 import { ESCAPE_ABORT_SCOPE_SELECTOR } from './lib/focusScopes';
+import { getProjectSessions } from './lib/projectSessions';
 const WELCOME_TITLE = 'Welcome to pigi';
 
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
@@ -899,6 +900,34 @@ function App(): React.JSX.Element {
     [projectSessions],
   );
 
+  const handleCycleProjectSession = useCallback(
+    (direction: -1 | 1) => {
+      if (pendingSelectedPath) return;
+      const orderedSessions = getProjectSessions(activeCwd, projectSessions, sessions);
+      if (orderedSessions.length === 0) return;
+      const currentIndex = isDraftChat
+        ? -1
+        : orderedSessions.findIndex((session) => session.path === activeSessionPath);
+      const nextIndex =
+        currentIndex < 0
+          ? direction === 1
+            ? 0
+            : orderedSessions.length - 1
+          : (currentIndex + direction + orderedSessions.length) % orderedSessions.length;
+      if (nextIndex === currentIndex) return;
+      void handleResumeSession(orderedSessions[nextIndex]);
+    },
+    [
+      activeCwd,
+      activeSessionPath,
+      handleResumeSession,
+      isDraftChat,
+      pendingSelectedPath,
+      projectSessions,
+      sessions,
+    ],
+  );
+
   const shortcutActions = useMemo(
     () => ({
       'sidebar.newChat': () => {
@@ -934,11 +963,24 @@ function App(): React.JSX.Element {
           }
         }
       },
+      'navigation.previousProjectThread': () => {
+        handleCycleProjectSession(-1);
+      },
+      'navigation.nextProjectThread': () => {
+        handleCycleProjectSession(1);
+      },
       'terminal.toggle': () => {
         toggleTerminal();
       },
     }),
-    [handleNewSession, handleOpenProject, handleResumeSession, findSessionByPath, toggleTerminal],
+    [
+      handleNewSession,
+      handleOpenProject,
+      handleResumeSession,
+      handleCycleProjectSession,
+      findSessionByPath,
+      toggleTerminal,
+    ],
   );
   const shortcutBindings = useKeyboardShortcuts(shortcutActions);
   const terminalToggleBinding = shortcutBindings?.get('terminal.toggle');
