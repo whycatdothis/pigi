@@ -42,6 +42,16 @@ export const SHORTCUT_DEFAULTS: ShortcutEntry[] = [
     defaultBinding: { key: ']', meta: true },
   },
   {
+    id: 'navigation.previousProjectThread',
+    label: 'Previous project thread',
+    defaultBinding: { key: '[', meta: true, shift: true },
+  },
+  {
+    id: 'navigation.nextProjectThread',
+    label: 'Next project thread',
+    defaultBinding: { key: ']', meta: true, shift: true },
+  },
+  {
     id: 'terminal.toggle',
     label: 'Toggle terminal',
     defaultBinding: { key: 'j', meta: true },

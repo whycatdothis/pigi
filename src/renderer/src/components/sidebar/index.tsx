@@ -23,6 +23,7 @@ import { MenuItem } from '../MenuItem';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import type { SidebarProps } from './types';
 import { ProjectList } from './projectList';
+import { getProjectSessions as getOrderedProjectSessions } from '../../lib/projectSessions';
 
 export default function Sidebar({
   sessions,
@@ -141,24 +142,8 @@ export default function Sidebar({
   }, [selectedSessionPath, projectSessions]);
 
   const getProjectSessions = useCallback(
-    (projectPath: string): PiSessionInfo[] => {
-      const listedSessions = projectSessions[projectPath] ?? [];
-      const listedPaths = new Set(listedSessions.map((session) => session.path));
-      const runningSessions = Array.from(sessions.values())
-        .filter((session) => session.cwd === projectPath && !listedPaths.has(session.sessionPath))
-        .map<PiSessionInfo>((session) => ({
-          path: session.sessionPath ?? '',
-          id: session.persistedSessionId,
-          cwd: session.cwd,
-          created: session.createdAt,
-          modified: session.createdAt,
-          messageCount: 0,
-          firstMessage: session.title,
-          allMessagesText: session.title,
-        }));
-
-      return [...runningSessions, ...listedSessions];
-    },
+    (projectPath: string): PiSessionInfo[] =>
+      getOrderedProjectSessions(projectPath, projectSessions, sessions),
     [projectSessions, sessions],
   );
 
