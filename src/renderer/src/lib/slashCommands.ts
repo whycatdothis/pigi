@@ -27,6 +27,11 @@ const BUILTIN_COMMANDS: SlashCommand[] = [
     argPlaceholder: 'new name',
   },
   { name: 'new', description: 'Start a new chat', source: 'builtin' },
+  {
+    name: 'reload',
+    description: 'Reload extensions, skills, prompts, settings and context files',
+    source: 'builtin',
+  },
 ];
 
 function toSkillCommand(skill: SkillSlashCommand): SlashCommand {
