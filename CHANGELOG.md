@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Use Cmd+Shift+[ and Cmd+Shift+] to cycle through threads in the current project in sidebar order, wrapping between the first and last threads
+
 ## [0.4.7] - 2026-09-06
 
 ### Fixed
