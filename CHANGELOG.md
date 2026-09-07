@@ -10,6 +10,7 @@
 
 - Switching back to a session now restores the position you left it at — previously it could land at the previous session's position or an unrelated spot
 - Auto-follow no longer stalls or vibrates while new output streams in, and streaming cards no longer overflow the breathing room below the last message
+- Arrow-up/down history recall now respects soft-wrapped lines — previously it triggered history even when the cursor was on a wrapped (visual) line that wasn't the first or last
 
 ## [0.4.7] - 2026-09-06
 
