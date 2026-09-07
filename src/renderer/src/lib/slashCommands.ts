@@ -9,6 +9,13 @@ export interface SlashCommand {
   argPlaceholder?: string;
 }
 
+export interface SlashCommandMatches {
+  builtin: SlashCommand[];
+  skill: SlashCommand[];
+}
+
+export const EMPTY_SLASH_MATCHES: SlashCommandMatches = { builtin: [], skill: [] };
+
 const BUILTIN_COMMANDS: SlashCommand[] = [
   { name: 'compact', description: 'Compact session context', source: 'builtin' },
   { name: 'login', description: 'Configure provider authentication', source: 'builtin' },
@@ -53,12 +60,12 @@ export function getAllSlashCommands(skills: SkillSlashCommand[]): SlashCommand[]
 export function matchSlashCommands(
   input: string,
   allCommands: SlashCommand[],
-): { builtin: SlashCommand[]; skill: SlashCommand[] } {
+): SlashCommandMatches {
   const trimmed = input.trim();
-  if (!trimmed.startsWith('/')) return { builtin: [], skill: [] };
+  if (!trimmed.startsWith('/')) return EMPTY_SLASH_MATCHES;
 
   const partial = trimmed.slice(1).toLowerCase();
-  if (partial.includes(' ')) return { builtin: [], skill: [] }; // already typed arg, no autocomplete
+  if (partial.includes(' ')) return EMPTY_SLASH_MATCHES; // already typed arg, no autocomplete
 
   const builtinCommands = allCommands.filter((c) => c.source === 'builtin');
   const skillCommands = allCommands.filter((c) => c.source === 'skill');

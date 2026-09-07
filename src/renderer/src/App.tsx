@@ -59,7 +59,7 @@ import Sidebar from './components/Sidebar';
 import SessionToolbar from './components/SessionToolbar';
 import MessageList from './components/MessageList';
 import TerminalPanel from './components/TerminalPanel';
-import ChatInput, { type ChatInputHandle } from './components/ChatInput';
+import ChatInput, { type ChatInputHandle } from './components/chatInput';
 import StreamingQueue from './components/StreamingQueue';
 import LoginDialog from './components/LoginDialog';
 import SessionSwitcher from './components/SessionSwitcher';
