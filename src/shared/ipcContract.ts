@@ -147,6 +147,7 @@ export type PiCommand =
   | { type: 'abort' }
   | { type: 'clear_queue' }
   | { type: 'compact' }
+  | { type: 'reload' }
   | { type: 'get_state' }
   | { type: 'get_session_options' }
   | { type: 'get_messages' }

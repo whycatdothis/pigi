@@ -19,6 +19,7 @@ import {
   steer,
   abort,
   compact,
+  reload,
   getProjects,
   getGitBranch,
   getState,
@@ -1104,6 +1105,23 @@ function App(): React.JSX.Element {
             await compact(activeSessionPath);
             break;
           }
+          case 'reload': {
+            if (!activeSessionPath) return;
+            let modelsJsonError: string | undefined;
+            try {
+              ({ modelsJsonError } = await reload(activeSessionPath));
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : String(err));
+              return;
+            }
+            await refreshSessionState(activeSessionPath);
+            await refreshSessionOptions(activeSessionPath);
+            if (modelsJsonError) {
+              toast.error(`models.json error: ${modelsJsonError}`);
+            }
+            toast.success('Reloaded extensions, skills, prompts, settings and context files');
+            break;
+          }
 
           case 'name': {
             if (!activeSessionPath || !arg) return;
@@ -1169,6 +1187,7 @@ function App(): React.JSX.Element {
       addSession,
       handleNewSession,
       refreshSessionOptions,
+      refreshSessionState,
       setActiveSession,
     ],
   );

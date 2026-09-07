@@ -265,6 +265,22 @@ async function refreshModelRuntimeModels(modelRuntime: ModelRuntime): Promise<vo
   }
 }
 
+// session.reload() re-registers extension providers and immediately swaps the
+// session model to the registry copy, but the registry's async refresh (which
+// applies oauth.modifyModels, e.g. per-model baseUrl) lands later and nothing
+// re-syncs the session model afterwards. Wait for it and re-sync here.
+async function syncSessionModelWithRegistry(rt: AgentSessionRuntime): Promise<void> {
+  const currentModel = rt.session.model;
+  if (!currentModel) {
+    return;
+  }
+  await rt.services.modelRuntime.refresh({ allowNetwork: false });
+  const refreshed = rt.services.modelRuntime.getModel(currentModel.provider, currentModel.id);
+  if (refreshed && refreshed !== currentModel) {
+    rt.session.agent.state.model = refreshed;
+  }
+}
+
 // =============================================================================
 // Runtime factory
 // =============================================================================
@@ -506,6 +522,22 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
     case 'compact':
       await runtime.session.compact();
       return { success: true };
+
+    case 'reload': {
+      if (runtime.session.isStreaming) {
+        return {
+          success: false,
+          error: 'Wait for the current response to finish before reloading',
+        };
+      }
+      if (runtime.session.isCompacting) {
+        return { success: false, error: 'Wait for compaction to finish before reloading' };
+      }
+      await runtime.session.reload();
+      await syncSessionModelWithRegistry(runtime);
+      const modelsJsonError = runtime.services.modelRuntime.getError();
+      return { success: true, modelsJsonError };
+    }
 
     case 'get_state': {
       const s = runtime.session;

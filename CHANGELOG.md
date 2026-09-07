@@ -5,6 +5,7 @@
 ### Added
 
 - Use Cmd+Shift+[ and Cmd+Shift+] to cycle through threads in the current project in sidebar order, wrapping between the first and last threads
+- `/reload` slash command reloads extensions, skills, prompts, settings and context files without restarting the session
 
 ### Fixed
 

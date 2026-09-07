@@ -172,6 +172,17 @@ export async function compact(sessionPath: string): Promise<void> {
   }
 }
 
+/** Reload extensions, skills, prompts, settings and context files in the session process. */
+export async function reload(sessionPath: string): Promise<{ modelsJsonError?: string }> {
+  const result = await send<CommandResult<{ modelsJsonError?: string }>>(sessionPath, {
+    type: 'reload',
+  });
+  if (!result.success) {
+    throw new Error(result.error || 'reload failed');
+  }
+  return { modelsJsonError: result.modelsJsonError };
+}
+
 export async function getState(sessionPath: string): Promise<SessionState> {
   return send<SessionState>(sessionPath, { type: 'get_state' });
 }
