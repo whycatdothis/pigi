@@ -1,6 +1,12 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/* The scanner emits `.container` (with five width media queries) because the
+   word appears in identifiers and comments; nothing uses the class. Crossing a
+   width media query forces Blink to rebuild this layered sheet, which
+   invalidates every font and re-lays out the whole document on window resize. */
+@source not inline('container');
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

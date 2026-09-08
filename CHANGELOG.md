@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Resizing the window no longer stutters or makes messages jump when the width passes 768, 1024, 1280 or 1536px
+
 - Opening or resizing the terminal no longer covers messages; the latest messages stay visible while reading history preserves your position
 - Dragging the terminal resize handle now smoothly resizes the chat input and message list
 - Dragging the sidebar edge no longer re-renders the whole app on every pointer move; the width follows the pointer and is saved on release

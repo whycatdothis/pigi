@@ -127,7 +127,7 @@ export default function LoginDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Authentication</DialogTitle>
           <DialogDescription>Sign in to an AI provider.</DialogDescription>
