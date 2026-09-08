@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore, type SessionEntry } from './state/appStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { formatShortcutLabel } from './shortcuts/formatShortcutLabel';
@@ -67,6 +68,7 @@ import { SidebarProvider } from './components/ui/sidebar';
 import { Empty, EmptyTitle, EmptyDescription, EmptyHeader } from './components/ui/empty';
 import { ESCAPE_ABORT_SCOPE_SELECTOR } from './lib/focusScopes';
 import { getProjectSessions } from './lib/projectSessions';
+import { TERMINAL_HEIGHT_PROPERTY, TERMINAL_HEIGHT_VALUE } from './lib/layoutConstants';
 const WELCOME_TITLE = 'Welcome to pigi';
 
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
@@ -97,8 +99,28 @@ function App(): React.JSX.Element {
     terminalMounted,
     toggleTerminal,
     terminalHeight,
-    terminalDragging,
-  } = useAppStore();
+  } = useAppStore(
+    useShallow((state) => ({
+      activeSessionPath: state.activeSessionPath,
+      sessions: state.sessions,
+      addSession: state.addSession,
+      addSessionEntry: state.addSessionEntry,
+      setActiveSession: state.setActiveSession,
+      removeSession: state.removeSession,
+      activeProject: state.activeProject,
+      recentProjects: state.recentProjects,
+      projectSessions: state.projectSessions,
+      setProjectSessionList: state.setProjectSessionList,
+      navigationBackStack: state.navigationBackStack,
+      navigationForwardStack: state.navigationForwardStack,
+      pushNavigationHistory: state.pushNavigationHistory,
+      removeFromNavigationHistory: state.removeFromNavigationHistory,
+      terminalOpen: state.terminalOpen,
+      terminalMounted: state.terminalMounted,
+      toggleTerminal: state.toggleTerminal,
+      terminalHeight: state.terminalHeight,
+    })),
+  );
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [switcherAutoPreselect, setSwitcherAutoPreselect] = useState(false);
@@ -1192,44 +1214,19 @@ function App(): React.JSX.Element {
     ],
   );
 
-  // The input stack (queue + chat input) slides up (GPU transform) by the
-  // terminal height when the panel opens, in sync with the panel, so nothing
-  // re-lays-out per frame. The message list is NOT part of the transform:
-  // only the input rides above the terminal, the list stays put. Closing is
-  // the mirror: the transform returns to zero immediately so the input slides
-  // down in sync with the panel (holding -height for the close would expose a
-  // bare strip between the input and the descending panel). Once the close
-  // animation settles the transform must be dropped entirely: any lingering
-  // transform (even identity) turns this layer into a containing block,
-  // silently breaking every `position: fixed` descendant (dropdowns, popovers).
-  const [terminalPushSettled, setTerminalPushSettled] = useState(false);
-  useEffect(() => {
-    if (terminalOpen) {
-      // Opening: the next close must animate back to zero, so clear the
-      // settled flag (deferred a frame out of the effect body — a synchronous
-      // setState here would trigger a cascading render).
-      const clearTimer = setTimeout(() => setTerminalPushSettled(false), 0);
-      return () => clearTimeout(clearTimer);
-    }
-    // Closing: once the slide-down has settled, drop the transform entirely.
-    const timer = setTimeout(() => setTerminalPushSettled(true), 260);
-    return () => clearTimeout(timer);
-  }, [terminalHeight, terminalOpen]);
-  const terminalPushTransform = terminalOpen
-    ? `translateY(-${terminalHeight}px)`
-    : terminalPushSettled
-      ? 'none'
-      : 'translateY(0)';
-  const terminalPushClassName = `relative z-10 will-change-transform ${
-    terminalDragging
-      ? 'transition-none'
-      : `transition-transform motion-reduce:transition-none ${
-          terminalOpen
-            ? 'duration-[340ms] ease-[cubic-bezier(0.32,0.72,0,1)]'
-            : 'duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)]'
-        }`
+  // Reserve the terminal's height in the chat layout so the message list's
+  // actual scroll viewport ends above the input. Match the drawer timing,
+  // and resize immediately during dragging. No transform on the input means
+  // its fixed-position menus retain the window as their containing block.
+  const chatLayoutClassName = `absolute inset-x-0 top-0 flex flex-col transition-[bottom] motion-reduce:transition-none group-data-[terminal-resizing]/terminal-layout:transition-none ${
+    terminalOpen
+      ? 'duration-[340ms] ease-[cubic-bezier(0.32,0.72,0,1)]'
+      : 'duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)]'
   }`;
-  const terminalPushStyle = { transform: terminalPushTransform };
+  const chatLayoutStyle = { bottom: terminalOpen ? TERMINAL_HEIGHT_VALUE : 0 };
+  const terminalLayoutStyle: React.CSSProperties & { [TERMINAL_HEIGHT_PROPERTY]: string } = {
+    [TERMINAL_HEIGHT_PROPERTY]: `${terminalHeight}px`,
+  };
 
   return (
     <SidebarProvider
@@ -1256,7 +1253,10 @@ function App(): React.JSX.Element {
         />
       </div>
 
-      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-l-xl border-l-[0.5px] border-foreground/27 bg-background">
+      <main
+        className="group/terminal-layout relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-l-xl border-l-[0.5px] border-foreground/27 bg-background"
+        style={terminalLayoutStyle}
+      >
         <div
           aria-label="Resize sidebar"
           role="separator"
@@ -1274,18 +1274,15 @@ function App(): React.JSX.Element {
               onToggleTerminal={toggleTerminal}
               terminalShortcutLabel={terminalShortcutLabel}
             />
-            {/* Clipping viewport: the input stack slides up (GPU transform) by
-                the terminal height when the panel opens, in sync with the panel,
-                so nothing re-lays-out per frame. The list stays static and fills
-                the clip; the input rides over it. Clipped below the toolbar. */}
+            {/* Keep the toolbar fixed while the chat viewport resizes above the terminal. */}
             <div className="relative min-h-0 flex-1 overflow-hidden">
-              <div className="absolute inset-0 flex flex-col">
+              <div className={chatLayoutClassName} style={chatLayoutStyle}>
                 <MessageList
                   key={activeSessionPath ?? 'draft'}
                   nodes={transcript.nodes}
                   sessionPath={activeSessionPath ?? ''}
                 />
-                <div className={`${terminalPushClassName} shrink-0`} style={terminalPushStyle}>
+                <div className="relative z-10 shrink-0">
                   {/* Zero-height flow anchor: the queue is absolutely positioned
                       above the input, so its appear/disappear at turn boundaries
                       never resizes the message list (the turn-end clamp jolt). Its
@@ -1328,12 +1325,9 @@ function App(): React.JSX.Element {
           </>
         ) : isDraftChat ? (
           <div className="relative min-h-0 flex-1 overflow-hidden">
-            <div className="absolute inset-0 flex flex-col">
+            <div className={chatLayoutClassName} style={chatLayoutStyle}>
               {isDraftEmpty ? (
-                <div
-                  className={`${terminalPushClassName} flex flex-1 flex-col`}
-                  style={terminalPushStyle}
-                >
+                <div className="relative z-10 flex flex-1 flex-col">
                   <ChatInput
                     ref={chatInputRef}
                     onSend={handleSend}
@@ -1362,7 +1356,7 @@ function App(): React.JSX.Element {
               ) : (
                 <>
                   <MessageList nodes={draftState.nodes} sessionPath="" />
-                  <div className={`${terminalPushClassName} shrink-0`} style={terminalPushStyle}>
+                  <div className="relative z-10 shrink-0">
                     <ChatInput
                       ref={chatInputRef}
                       onSend={handleSend}

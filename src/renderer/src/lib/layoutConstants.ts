@@ -38,6 +38,10 @@ export const MESSAGE_LIST_SCROLL_END_THRESHOLD = 72;
 
 /** Bottom terminal panel sizing. */
 export const TERMINAL_DEFAULT_HEIGHT = 280;
+/** Shared by the terminal and chat viewport, including live pointer resizing. */
+export const TERMINAL_HEIGHT_PROPERTY = '--terminal-height';
+export const TERMINAL_HEIGHT_VALUE = `var(${TERMINAL_HEIGHT_PROPERTY})`;
+export const TERMINAL_RESIZING_ATTRIBUTE = 'data-terminal-resizing';
 export const TERMINAL_MIN_HEIGHT = 120;
 /** Cap the panel at this fraction of the window height. */
 export const TERMINAL_MAX_HEIGHT_RATIO = 0.8;
