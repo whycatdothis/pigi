@@ -67,6 +67,7 @@ import { SidebarProvider } from './components/ui/sidebar';
 import { Empty, EmptyTitle, EmptyDescription, EmptyHeader } from './components/ui/empty';
 import { ESCAPE_ABORT_SCOPE_SELECTOR } from './lib/focusScopes';
 import { getProjectSessions } from './lib/projectSessions';
+import { STREAMING_QUEUE_RESERVE_ALLOWANCE_PX } from './lib/layoutConstants';
 const WELCOME_TITLE = 'Welcome to pigi';
 
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
@@ -105,10 +106,19 @@ function App(): React.JSX.Element {
 
   const activeSession = activeSessionPath ? (sessions.get(activeSessionPath) ?? null) : null;
   const activeCwd = activeSession?.cwd ?? activeProject?.path ?? window.piApi.getCwd();
-  // Terminal tabs are grouped per project, so use the project path (not a
-  // per-session cwd) as the group key; switching sessions within a project
-  // keeps the same terminal tabs.
-  const terminalProjectCwd = activeProject?.path ?? activeCwd;
+  // Terminal tabs are grouped per project, so the project path (not a
+  // per-session cwd) is the group key; switching sessions within a project
+  // keeps the same terminal tabs. Prefer the pending selection's project: it
+  // is known synchronously, while the store's activeProject lands via IPC —
+  // deriving the key from activeProject alone could briefly open the group of
+  // the project the user just left.
+  const pendingTerminalSession = pendingSelectedPath
+    ? Object.values(projectSessions)
+        .flat()
+        .find((session) => session.path === pendingSelectedPath)
+    : undefined;
+  const terminalProjectCwd =
+    activeSession?.cwd ?? pendingTerminalSession?.cwd ?? activeProject?.path ?? activeCwd;
   const [gitBranch, setGitBranch] = useState<string | null>(null);
   // The picker has two model sources: the session-scoped list (authoritative
   // for sessions created with an explicit model list) and the global catalog
@@ -1215,6 +1225,33 @@ function App(): React.JSX.Element {
     const timer = setTimeout(() => setTerminalPushSettled(true), 260);
     return () => clearTimeout(timer);
   }, [terminalHeight, terminalOpen]);
+
+  // The queue (steer/follow-up bars) floats absolutely above the chat input,
+  // so its growth never reserves layout space and would cover list content.
+  // Measure it and reserve the excess as the list's bottom margin: the lone
+  // Working bar still overlaps by design (allowance), each queued bar beyond
+  // it raises the list bottom so content stays visible. The margin animates,
+  // so bars appearing/disappearing never step the list (turn-end jolt).
+  // Attached via a ref callback (not an effect): the wrapper only exists while
+  // a session is active, so the observer must follow the element's mount, not
+  // App's. observe() fires immediately with the current size.
+  const queueWrapperRef = useRef<HTMLDivElement | null>(null);
+  const queueObserverCleanupRef = useRef<(() => void) | null>(null);
+  const [queueReservePx, setQueueReservePx] = useState(0);
+  const attachQueueObserver = useCallback((element: HTMLDivElement | null) => {
+    if (queueWrapperRef.current === element) return;
+    queueWrapperRef.current = element;
+    queueObserverCleanupRef.current?.();
+    queueObserverCleanupRef.current = null;
+    if (!element) return;
+    const observer = new ResizeObserver((entries) => {
+      const height =
+        entries[0]?.borderBoxSize?.[0]?.blockSize ?? element.getBoundingClientRect().height;
+      setQueueReservePx(Math.max(0, height - STREAMING_QUEUE_RESERVE_ALLOWANCE_PX));
+    });
+    observer.observe(element);
+    queueObserverCleanupRef.current = () => observer.disconnect();
+  }, []);
   const terminalPushTransform = terminalOpen
     ? `translateY(-${terminalHeight}px)`
     : terminalPushSettled
@@ -1284,6 +1321,7 @@ function App(): React.JSX.Element {
                   key={activeSessionPath ?? 'draft'}
                   nodes={transcript.nodes}
                   sessionPath={activeSessionPath ?? ''}
+                  bottomReservePx={queueReservePx}
                 />
                 <div className={`${terminalPushClassName} shrink-0`} style={terminalPushStyle}>
                   {/* Zero-height flow anchor: the queue is absolutely positioned
@@ -1291,9 +1329,12 @@ function App(): React.JSX.Element {
                       never resizes the message list (the turn-end clamp jolt). Its
                       -mb-14 lets the input overlap its bottom padding — the
                       "grow out from behind" effect — and ChatInput (DOM-later,
-                      z-10) renders on top. */}
+                      z-10) renders on top. The queue's excess height beyond the
+                      allowance is reserved as the list's bottom margin (see the
+                      ResizeObserver above), so long queues raise the list bottom
+                      instead of covering it. */}
                   <div className="relative z-10 h-0 shrink-0">
-                    <div className="absolute inset-x-0 bottom-0">
+                    <div ref={attachQueueObserver} className="absolute inset-x-0 bottom-0">
                       <StreamingQueue
                         isStreaming={transcript.status !== 'idle'}
                         queuedSteering={transcript.queuedSteering}

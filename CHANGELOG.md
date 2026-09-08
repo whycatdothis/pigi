@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Picking a model now keeps the picker open and opens the thinking-level menu so you can confirm a thinking level for the new model; the picker closes once you pick one (or dismiss it)
+
+### Fixed
+
+- The sidebar no longer wobbles sideways after expanding many sessions with "Show more"
+- The view-mode menu in the toolbar has proper list sizing and spacing again, with the check mark right beside the selected label
+- Queued steer/follow-up messages no longer cover the transcript: the message list raises its bottom edge as the queue grows taller
+- The terminal opens in the current project's directory even when the shell was left in another folder
+- Selected text in the terminal is clearly visible again in light and dark themes
+- Cmd+K clears the terminal buffer while the terminal is focused
+
 ## [0.4.8] - 2026-09-07
 
 ### Added

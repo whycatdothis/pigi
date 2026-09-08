@@ -70,6 +70,8 @@ function readTerminalTheme(): TerminalTheme {
     background: color('--background'),
     foreground: color('--terminal-foreground'),
     cursor: color('--terminal-cursor'),
+    selectionBackground: color('--terminal-selection'),
+    selectionInactiveBackground: color('--terminal-selection-inactive'),
     black: color('--terminal-black'),
     red: color('--terminal-red'),
     green: color('--terminal-green'),
@@ -299,12 +301,45 @@ class TerminalController {
     useAppStore.getState().setTerminalTabs(tabs, group?.activeTabId ?? null);
   }
 
+  private tabById(id: string): TerminalTab | null {
+    for (const group of this.groups.values()) {
+      const tab = group.tabs.find((candidate) => candidate.id === id);
+      if (tab) return tab;
+    }
+    return null;
+  }
+
+  /** Clear a tab's scrollback (macOS-style Cmd+K "Clear Buffer"). */
+  private clearTab(id: string): void {
+    this.tabById(id)?.terminal.clear();
+  }
+
+  /**
+   * Move the active tab's shell back into its project directory. Cached
+   * shells can drift (interactive `cd` into another project); the drawer is
+   * project-scoped, so on open/project-switch the shell is re-anchored.
+   * \x15 (kill line) first so the cd lands on a clean prompt even when a
+   * line was half-typed.
+   */
+  private sendCwdCorrection(projectKey: string): void {
+    const tab = this.activeTab;
+    if (!tab) return;
+    const escaped = projectKey.replace(/'/g, "'\\''");
+    window.piApi.terminal.write(tab.id, `\x15cd -- '${escaped}'\n`);
+  }
+
   private handleMacKeyBindings(id: string, event: KeyboardEvent): boolean {
     if (event.type !== 'keydown') return true;
     const { metaKey, altKey, ctrlKey, key } = event;
 
     // Command: jump/kill by line (Cmd is not sent to the shell by default).
     if (metaKey && !altKey && !ctrlKey) {
+      // Cmd+K clears the scrollback (macOS Terminal's "Clear Buffer").
+      if (key === 'k') {
+        event.preventDefault();
+        this.clearTab(id);
+        return false;
+      }
       const sequence =
         key === 'ArrowLeft'
           ? '\x01' // start of line (Ctrl+A)
@@ -352,8 +387,10 @@ class TerminalController {
    * Show the group for `projectKey`, auto-following project switches. Creates the
    * group (evicting the LRU project when at capacity) and its first tab on demand,
    * then starts the active tab's shell. Existing groups/tabs are left untouched.
+   * With `ensureCwd`, a shell that was already running gets a `cd` back into the
+   * project directory (fresh shells spawn there, so only they are exempt).
    */
-  activateProject(projectKey: string): void {
+  activateProject(projectKey: string, options?: { ensureCwd?: boolean }): void {
     let group = this.groups.get(projectKey);
     if (!group) {
       if (this.groups.size >= PROJECT_LRU_MAX) {
@@ -387,7 +424,13 @@ class TerminalController {
 
     this.attachActiveTab();
     this.syncActiveGroupToStore();
+    // Capture before ensureActiveStarted flips the flag: only a shell that was
+    // already running can have drifted out of the project directory.
+    const activeWasStarted = this.activeTab?.started ?? false;
     this.ensureActiveStarted();
+    if (options?.ensureCwd && activeWasStarted) {
+      this.sendCwdCorrection(projectKey);
+    }
   }
 
   /** Open a new tab in the active group (in the project's cwd) and switch to it. */
