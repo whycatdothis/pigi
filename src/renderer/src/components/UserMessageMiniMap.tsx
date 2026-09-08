@@ -6,7 +6,7 @@ import { MESSAGE_LIST_HORIZONTAL_PADDING, MESSAGE_LIST_MAX_WIDTH } from '../lib/
 
 interface UserMessageMiniMapProps {
   nodes: TranscriptNode[];
-  containerWidth: number;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   /** Index in the displayNodes array of the user message closest to viewport center */
   activeUserMessageIndex: number;
   onScrollToIndex: (index: number) => void;
@@ -55,7 +55,7 @@ function getLineWidth(index: number, total: number, maxWidth: number): number {
 
 export default React.memo(function UserMessageMiniMap({
   nodes,
-  containerWidth,
+  containerRef,
   activeUserMessageIndex,
   onScrollToIndex,
 }: UserMessageMiniMapProps): React.JSX.Element | null {
@@ -65,12 +65,28 @@ export default React.memo(function UserMessageMiniMap({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const activeItemRef = useRef<HTMLButtonElement>(null);
 
-  const maxLineWidth = useMemo(() => {
-    const centerGap = Math.max(0, (containerWidth - MESSAGE_LIST_MAX_WIDTH) / 2);
-    const availableSpace = centerGap + MESSAGE_LIST_HORIZONTAL_PADDING;
-    const effectiveMax = Math.min(LINE_WIDTH_MAX_CAP, availableSpace - LINE_WIDTH_RIGHT_MARGIN);
-    return Math.max(LINE_WIDTH_MIN_CAP, effectiveMax);
-  }, [containerWidth]);
+  const [maxLineWidth, setMaxLineWidth] = useState(
+    MESSAGE_LIST_HORIZONTAL_PADDING - LINE_WIDTH_RIGHT_MARGIN,
+  );
+  // Width affects only this small overlay, not the transcript. Publish the
+  // clamped result so widths beyond the cap do not cause React updates.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      const centerGap = Math.max(0, (entry.contentRect.width - MESSAGE_LIST_MAX_WIDTH) / 2);
+      const availableSpace = centerGap + MESSAGE_LIST_HORIZONTAL_PADDING;
+      setMaxLineWidth(
+        Math.max(
+          LINE_WIDTH_MIN_CAP,
+          Math.min(LINE_WIDTH_MAX_CAP, availableSpace - LINE_WIDTH_RIGHT_MARGIN),
+        ),
+      );
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [containerRef]);
 
   // Cleanup timers on unmount
   useEffect(() => {
