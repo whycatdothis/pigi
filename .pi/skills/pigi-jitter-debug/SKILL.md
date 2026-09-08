@@ -107,6 +107,53 @@ HMR does not re-run unchanged-signature effects) and confirm the probe flags
 it, then `git stash pop` and confirm it passes. One clean + one dirty run
 validates both the fix and the probe.
 
+## Window resize jank (native drag)
+
+The window resize is owned by macOS/Electron; the app only sees `resize`
+events and a new viewport. Do NOT drive the drag yourself with CGEvent or
+AppleScript while the user is working — install the probe, ask the user to
+drag, then read the log.
+
+Workflow:
+
+1. `node scripts/cdp.mjs eval "$(cat .pi/skills/pigi-jitter-debug/scripts/resizeProbe.js)"`
+   User drags. Then `node scripts/cdp.mjs eval 'JSON.stringify(window.__resizeSummary())'`.
+   - `rowJumps > 0`: message rows moved > 20px in a painted frame (layout-shift
+     entries are computed at paint time and scroll-compensated, so unlike a rAF
+     probe they cannot be fooled by pre-paint transients).
+   - `longFrames` with `scripts: []` and small `styleLayout`: main-thread time
+     outside app JS. Do not go optimize React; get a trace.
+   - `rowMutations > 0`: rows remounting — that IS an app problem.
+2. `node .pi/skills/pigi-jitter-debug/scripts/resizeTrace.mjs 60` and have the user
+   drag inside the window. It prints one line per viewport step: CSS width,
+   cost of the task that applied it, and any breakpoint crossed. Steps that
+   cost ~1ms vs 55-80ms, with every expensive one on a breakpoint, is the
+   stylesheet-rebuild trap below. Expensive steps everywhere in a narrow range
+   is genuine reflow cost instead.
+3. `node .pi/skills/pigi-jitter-debug/scripts/stylesheetRebuildCost.mjs` reproduces
+   one rebuild without any resize (flips an emulated `prefers-reduced-motion`
+   that exists in the CSS) and prints the resulting long frame. Use it to check
+   a CSS change without asking the user to drag again. Window must be visible.
+
+The stylesheet-rebuild trap (root cause of the 2026-09 resize jank): when a
+viewport-width media query result changes, Blink rebuilds that sheet's rule
+set with `kActiveSheetsChanged`. Tailwind v4 output contains `@layer`, and
+`StyleEngine::ApplyRuleSetChanges` treats any layer-containing change as
+`kRuleSetFlagsAll`: it rebuilds the font face cache, invalidates every font
+(`InvalidateStyleAndLayoutForFontUpdates` in the trace), recalcs style for the
+whole document and re-lays out everything with text reshaping — 60-80ms per
+crossing regardless of whether the query matches anything. The renderer falls
+behind, resize events coalesce into 300px steps, rows jump. Fix: no width
+media queries in the renderer CSS (see AGENTS.md; enforced by ESLint and
+`scripts/checkCssMediaQueries.mjs`). Verify with the production build, not the
+dev server — Tailwind's Vite plugin keeps previously seen class candidates
+until restart.
+
+Tracing note: start `Tracing.start` on the page session (attach with
+`flatten: true` and pass `sessionId`); starting it on the browser endpoint
+yields almost no renderer events. A hidden window produces no frames, so
+resize/flip measurements need the window visible.
+
 ## Secondary tool: frame shift analysis
 
 When you need per-frame content movement (e.g. verifying smoothness rather

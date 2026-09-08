@@ -40,6 +40,7 @@ For DeepSeek model: do not overthink, think less and act more.
 - Scope live CSS custom properties to the smallest layout subtree that consumes them. Inherited variables on the app root can invalidate styles throughout a long transcript on every frame; use flex/grid to resize unaffected siblings naturally.
 - Keep virtual row measurement refs stable. Use the virtualizer's measurement callbacks for height caching instead of reading every row's height on each render.
 - Subscribe to specific store fields; use shallow selectors for multiple fields. Do not subscribe an app/layout component to the entire store.
+- No viewport-width media queries in the renderer CSS: no Tailwind breakpoint variants (`sm:` `md:` `lg:` `xl:` `2xl:` `max-*:`), no `.container` utility, and check third-party CSS before adding it. Tailwind v4 output is layered, and Blink treats any rule-set change in a layered sheet as a change to all rules: every breakpoint crossing during a native window resize rebuilds the font cache, invalidates every font, and re-runs style and layout for the whole document (60-80ms per crossing). This is a desktop app with a fixed minimum width; write the desktop style unconditionally. Enforced by an ESLint rule and `scripts/checkCssMediaQueries.mjs` (runs in `npm run build`).
 - Validate resize changes with long conversations: panel dragging, native window resizing, bottom follow, history reading, and interrupted gestures. Document the reusable behavior in `docs/architecture.md`.
 
 ## Naming Conventions
