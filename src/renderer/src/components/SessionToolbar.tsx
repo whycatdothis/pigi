@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { IconFilter2, IconNotebook, IconTerminal2 } from '@tabler/icons-react';
+import { IconCheck, IconFilter2, IconNotebook, IconTerminal2 } from '@tabler/icons-react';
 import { useAppStore } from '../state/appStore';
 import { useTypewriter } from '../hooks/useTypewriter';
 import { useRenameSuppress } from '../hooks/useRenameSuppress';
@@ -12,6 +12,14 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+
+// 13px menu text (app's text-xs scale, keeps the theme line-height — an
+// arbitrary text-[13px] would drop it and inherit body's 1.6 line-height).
+// The check icon renders inline right after the label (showCheckIcon={false}
+// disables the component's far-right absolute indicator), so the menu hugs
+// its content instead of reserving pr-8 + min-w-32 for a distant checkmark.
+const viewModeItemClassName =
+  'gap-1 pl-2 pr-2 py-1 text-xs transition-colors data-[state=checked]:bg-[var(--system-accent)]/10 data-[state=checked]:text-[var(--system-accent)] data-[state=checked]:focus:bg-[var(--system-accent)]/10 data-[state=checked]:focus:text-[var(--system-accent)] data-[state=checked]:focus:**:text-[var(--system-accent)]';
 
 interface SessionToolbarProps {
   sessionPath: string;
@@ -145,7 +153,7 @@ export default React.memo(function SessionToolbar({
         <DropdownMenuContent
           align="end"
           sideOffset={6}
-          className="min-w-0 w-fit bg-popover/50 p-1.5 backdrop-blur-md"
+          className="menu-content flex w-fit min-w-0 flex-col gap-1 bg-popover/50 backdrop-blur-md"
         >
           <DropdownMenuRadioGroup
             value={toolBlockViewMode}
@@ -158,9 +166,11 @@ export default React.memo(function SessionToolbar({
                 <TooltipTrigger asChild>
                   <DropdownMenuRadioItem
                     value="minimal"
-                    className="pl-2 pr-8 py-1.5 text-[13px] transition-colors data-[state=checked]:bg-[var(--system-accent)]/10 data-[state=checked]:text-[var(--system-accent)] data-[state=checked]:focus:bg-[var(--system-accent)]/10 data-[state=checked]:focus:text-[var(--system-accent)] data-[state=checked]:focus:**:text-[var(--system-accent)]"
+                    className={viewModeItemClassName}
+                    showCheckIcon={false}
                   >
                     Minimal
+                    {toolBlockViewMode === 'minimal' && <IconCheck />}
                   </DropdownMenuRadioItem>
                 </TooltipTrigger>
                 <TooltipContent side="left">
@@ -171,9 +181,11 @@ export default React.memo(function SessionToolbar({
                 <TooltipTrigger asChild>
                   <DropdownMenuRadioItem
                     value="compact_read"
-                    className="pl-2 pr-8 py-1.5 text-[13px] transition-colors data-[state=checked]:bg-[var(--system-accent)]/10 data-[state=checked]:text-[var(--system-accent)] data-[state=checked]:focus:bg-[var(--system-accent)]/10 data-[state=checked]:focus:text-[var(--system-accent)] data-[state=checked]:focus:**:text-[var(--system-accent)]"
+                    className={viewModeItemClassName}
+                    showCheckIcon={false}
                   >
                     Compact
+                    {toolBlockViewMode === 'compact_read' && <IconCheck />}
                   </DropdownMenuRadioItem>
                 </TooltipTrigger>
                 <TooltipContent side="left">
@@ -184,9 +196,11 @@ export default React.memo(function SessionToolbar({
                 <TooltipTrigger asChild>
                   <DropdownMenuRadioItem
                     value="default"
-                    className="pl-2 pr-8 py-1.5 text-[13px] transition-colors data-[state=checked]:bg-[var(--system-accent)]/10 data-[state=checked]:text-[var(--system-accent)] data-[state=checked]:focus:bg-[var(--system-accent)]/10 data-[state=checked]:focus:text-[var(--system-accent)] data-[state=checked]:focus:**:text-[var(--system-accent)]"
+                    className={viewModeItemClassName}
+                    showCheckIcon={false}
                   >
                     Show All
+                    {toolBlockViewMode === 'default' && <IconCheck />}
                   </DropdownMenuRadioItem>
                 </TooltipTrigger>
                 <TooltipContent side="left">

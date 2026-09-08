@@ -43,6 +43,10 @@ export function ModelSettingsPicker({
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [modelSearch, setModelSearch] = useState('');
+  // Selecting a new model keeps the popover open and forces the thinking
+  // flyout open so the user confirms a thinking level for that model; the
+  // popover closes once a level is picked (or the user dismisses it).
+  const [pendingThinkingConfirm, setPendingThinkingConfirm] = useState(false);
   const modelListRef = useRef<HTMLDivElement>(null);
   const selectedKey = modelValue ? modelOptionKey(modelValue) : '';
   const canOpen = modelOptions.length > 0 || thinkingOptions.length > 0;
@@ -60,6 +64,7 @@ export function ModelSettingsPicker({
       setOpen(nextOpen);
       if (!nextOpen) {
         setModelSearch('');
+        setPendingThinkingConfirm(false);
       }
     },
     [canOpen, onRequestModelRefresh],
@@ -116,7 +121,16 @@ export function ModelSettingsPicker({
                     className="rounded-lg"
                     onSelect={() => {
                       onSelectModel(model);
-                      setOpen(false);
+                      // Same model or a model without thinking levels:
+                      // nothing to confirm, close immediately.
+                      if (key === selectedKey || thinkingOptions.length === 0) {
+                        setOpen(false);
+                        return;
+                      }
+                      // New model: keep the popover open, normalize the list
+                      // view, and ask for a thinking-level confirmation.
+                      setModelSearch('');
+                      setPendingThinkingConfirm(true);
                     }}
                   >
                     <span className="flex min-w-0 flex-col">
@@ -135,11 +149,13 @@ export function ModelSettingsPicker({
           <Separator className="bg-foreground/25 !h-[0.5px]" />
         </div>
         <ThinkingLevelFlyout
+          forceOpen={pendingThinkingConfirm}
           value={thinkingValue}
           label={thinkingLabel}
           options={thinkingOptions}
           onSelect={(level) => {
             onSelectThinkingLevel(level);
+            setPendingThinkingConfirm(false);
             setOpen(false);
           }}
         />
@@ -175,31 +191,49 @@ function ModelSettingsButton({
 }
 
 function ThinkingLevelFlyout({
+  forceOpen = false,
   label,
   value,
   options,
   onSelect,
 }: {
+  /** Kept open regardless of hover: the model picker forces a thinking confirmation. */
+  forceOpen?: boolean;
   label: string;
   value: ThinkingLevel | null;
   options: ThinkingLevel[];
   onSelect: (thinkingLevel: ThinkingLevel) => void;
 }): React.JSX.Element {
-  const [open, setOpen] = useState(false);
+  const [hoverOpen, setHoverOpen] = useState(false);
+  const open = (forceOpen || hoverOpen) && options.length > 0;
+  const checkedItemRef = useRef<HTMLButtonElement | null>(null);
+
+  // When forced open (a new model was just selected), focus the current
+  // level so a single Enter (or click) confirms it and closes the picker.
+  const wasForceOpenRef = useRef(false);
+  useEffect(() => {
+    if (forceOpen && !wasForceOpenRef.current) {
+      checkedItemRef.current?.focus();
+    }
+    wasForceOpenRef.current = forceOpen;
+  }, [forceOpen]);
 
   return (
     <div
       className="relative px-2 py-1.5"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
+      onMouseEnter={() => setHoverOpen(true)}
+      onMouseLeave={() => setHoverOpen(false)}
+      onFocus={() => setHoverOpen(true)}
     >
       <Button
         type="button"
         variant="ghost"
         size="sm"
         disabled={options.length === 0}
-        className="h-8 w-full justify-start gap-2 rounded-lg px-1.5 text-sm font-normal hover:bg-muted/60 border-0"
+        className={cn(
+          'h-8 w-full justify-start gap-2 rounded-lg px-1.5 text-sm font-normal hover:bg-muted/60 border-0',
+          forceOpen && 'bg-muted/70',
+        )}
         aria-haspopup="menu"
         aria-expanded={open}
       >
@@ -210,7 +244,7 @@ function ThinkingLevelFlyout({
         <IconChevronRight data-icon="inline-end" className="ml-auto text-muted-foreground" />
       </Button>
 
-      {open && options.length > 0 && (
+      {open && (
         <div className="absolute bottom-1 left-full pl-1">
           <div
             role="menu"
@@ -219,6 +253,9 @@ function ThinkingLevelFlyout({
             {options.map((level) => (
               <Button
                 key={level}
+                ref={(element) => {
+                  if (level === value) checkedItemRef.current = element;
+                }}
                 type="button"
                 variant="ghost"
                 size="sm"

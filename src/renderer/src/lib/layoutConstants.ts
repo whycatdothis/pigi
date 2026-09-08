@@ -42,6 +42,15 @@ export const TERMINAL_MIN_HEIGHT = 120;
 /** Cap the panel at this fraction of the window height. */
 export const TERMINAL_MAX_HEIGHT_RATIO = 0.8;
 
+/** Streaming queue (queued steer/follow-up bars above the chat input):
+ *  the bottom STREAMING_QUEUE_INPUT_OVERLAP_PX of the last bar is covered by
+ *  the chat input, and the lone "Working" bar's visible sliver above the
+ *  input is the designed turn-boundary overlap — so the message list only
+ *  needs to reserve space beyond that (each additional queued bar rises
+ *  another ~29px, which is what would otherwise cover list content). */
+export const STREAMING_QUEUE_INPUT_OVERLAP_PX = 56;
+export const STREAMING_QUEUE_RESERVE_ALLOWANCE_PX = 85;
+
 /** Used by Dialog, Popover, and ContextMenu — these need backdrop-blur but blur renders incorrectly in vibrant regions, so they use a separate configuration. */
 export const VIBRANCY_OVERLAY_CONTENT =
   'rounded-xl bg-popover/88 backdrop-blur-sm p-4 text-sm text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25 outline-hidden duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';

@@ -13,6 +13,10 @@
 :root {
   --terminal-foreground: #383a42;
   --terminal-cursor: #383a42;
+  /* Selection blends the app accent into the background — solid colors, so
+     every xterm renderer (DOM/Canvas/WebGL) shows the same contrast. */
+  --terminal-selection: color-mix(in srgb, var(--system-accent) 30%, var(--background));
+  --terminal-selection-inactive: color-mix(in srgb, var(--system-accent) 16%, var(--background));
   --terminal-black: #383a42;
   --terminal-red: #e45649;
   --terminal-green: #50a14f;
@@ -34,6 +38,9 @@
 .dark {
   --terminal-foreground: #abb2bf;
   --terminal-cursor: #abb2bf;
+  /* Darker background needs a stronger mix for the selection to read. */
+  --terminal-selection: color-mix(in srgb, var(--system-accent) 42%, var(--background));
+  --terminal-selection-inactive: color-mix(in srgb, var(--system-accent) 24%, var(--background));
   --terminal-black: #3f4451;
   --terminal-red: #e06c75;
   --terminal-green: #98c379;
