@@ -250,9 +250,9 @@ export function useMessageListScrollController({
 
     const containerRo = new ResizeObserver(() => {
       handleResize();
-      // Normal-mode viewport resize: re-pin to the bottom while auto-follow
-      // is engaged (see the observer comment above).
-      if (!isMinimal && autoScrollRef.current) {
+      // Viewport resize (terminal, input, window): keep completed minimal
+      // turns at the bottom too. Active minimal turns retain their pin phase.
+      if (autoScrollRef.current && (!isMinimal || pinRef.current.phase === 'idle')) {
         container!.scrollTop = container!.scrollHeight;
       }
       setContainerWidth(container!.clientWidth);

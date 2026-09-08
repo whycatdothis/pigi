@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Opening or resizing the terminal no longer covers messages; the latest messages stay visible while reading history preserves your position
+- Dragging the terminal resize handle now smoothly resizes the chat input and message list
+
 ## [0.4.8] - 2026-09-07
 
 ### Added
