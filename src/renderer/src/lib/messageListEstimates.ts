@@ -5,11 +5,19 @@ import {
   getToolArgs,
 } from '../state/transcriptController';
 import type { RenderItem } from './readGrouping';
-import { BLOCK_CONTENT_MAX_HEIGHT, READ_GROUP_MAX_COLLAPSED_ENTRIES } from './layoutConstants';
+import {
+  BLOCK_CONTENT_MAX_HEIGHT,
+  READ_GROUP_MAX_COLLAPSED_ENTRIES,
+  TOOL_BLOCK_BODY_MIN_HEIGHT,
+  TOOL_BLOCK_LINE_HEIGHT,
+} from './layoutConstants';
+import { getToolBlockBodyMaxHeight } from './toolDisplay';
 import { parseSkillBlock } from './skillBlock';
 
-const TOOL_BLOCK_ESTIMATE_BUFFER = 24;
-const TOOL_STATUS_LINE_ESTIMATE_HEIGHT = 24;
+/** Tool block chrome around the body: border, header padding, reserved
+ *  Show more row, status row, and the hover toolbar below the card. */
+const TOOL_BLOCK_CHROME_HEIGHT = 76;
+const TOOL_BLOCK_COMMAND_LINE_HEIGHT = 20;
 const USER_MESSAGE_TOOLBAR_HEIGHT = 24;
 const USER_MESSAGE_LEADING_PADDING = 24;
 const USER_MESSAGE_TRAILING_PADDING = 8;
@@ -81,18 +89,27 @@ function estimateAssistantHeight(node: AssistantNode): number {
 }
 
 function estimateToolHeight(node: ToolNode): number {
-  const outputLineCount = node.output ? node.output.split('\n').length : 0;
-  const commandLineCount = estimateToolCommandLineCount(node);
-  const contentHeight = outputLineCount * 20;
-  const cappedContentHeight = Math.min(contentHeight, BLOCK_CONTENT_MAX_HEIGHT);
-
-  return Math.max(
-    96,
-    commandLineCount * 24 +
-      cappedContentHeight +
-      TOOL_STATUS_LINE_ESTIMATE_HEIGHT +
-      TOOL_BLOCK_ESTIMATE_BUFFER,
+  const bodyHeight = Math.min(
+    Math.max(estimateToolBodyLineCount(node) * TOOL_BLOCK_LINE_HEIGHT, TOOL_BLOCK_BODY_MIN_HEIGHT),
+    getToolBlockBodyMaxHeight(node),
   );
+  return (
+    estimateToolCommandLineCount(node) * TOOL_BLOCK_COMMAND_LINE_HEIGHT +
+    bodyHeight +
+    TOOL_BLOCK_CHROME_HEIGHT
+  );
+}
+
+/** Only edit/write bodies can exceed the min height, so only their content matters. */
+function estimateToolBodyLineCount(node: ToolNode): number {
+  if (node.name === 'edit') {
+    return countLines(node.details?.diff ?? '');
+  }
+  if (node.name === 'write') {
+    const content = getToolArgs(node)?.content;
+    return countLines(typeof content === 'string' ? content : '');
+  }
+  return 0;
 }
 
 function countLines(text: string): number {

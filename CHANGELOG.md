@@ -10,6 +10,8 @@
 ### Changed
 
 - Picking a model now keeps the picker open and opens the thinking-level menu so you can confirm a thinking level for the new model; the picker closes once you pick one (or dismiss it)
+- Tool cards keep a stable size while a tool runs: the body reserves space from the first frame, the "Show more" row no longer pushes content around when it appears, and the card's header, footer and toggle are tighter
+- Long lines in tool output scroll horizontally instead of wrapping
 
 ### Fixed
 

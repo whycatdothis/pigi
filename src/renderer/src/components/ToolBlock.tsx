@@ -1,13 +1,22 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { cn } from '../lib/utils';
 import { type ToolNode, getToolArgs } from '../state/transcriptController';
-import { MESSAGE_CONTENT_MAX_WIDTH, BLOCK_CONTENT_MAX_HEIGHT } from '../lib/layoutConstants';
+import {
+  MESSAGE_CONTENT_MAX_WIDTH,
+  TOOL_BLOCK_BODY_MIN_HEIGHT,
+  TOOL_BLOCK_LINE_HEIGHT,
+} from '../lib/layoutConstants';
 import SyntaxHighlightedCode from './syntaxHighlightedCode';
 import DiffView from './DiffView';
 import type { EditEntry, DiffLine } from '../lib/diffUtils';
 import { parseDiffString } from '../lib/diffUtils';
 import ImagePreview from './ImagePreview';
-import { getToolCommandParts, cleanReadOutput, READ_IMAGE_RE } from '../lib/toolDisplay';
+import {
+  getToolCommandParts,
+  cleanReadOutput,
+  getToolBlockBodyMaxHeight,
+  READ_IMAGE_RE,
+} from '../lib/toolDisplay';
 import OverflowClamp from './overflowClamp';
 import { Skeleton } from './ui/skeleton';
 import { IconCheck, IconX, IconMinus } from '@tabler/icons-react';
@@ -25,8 +34,8 @@ function WritePreview({
   // Strip trailing newline to avoid rendering an extra empty line
   const trimmed = content.endsWith('\n') ? content.slice(0, -1) : content;
   return (
-    <div className="mt-2 overflow-hidden rounded font-mono text-[13px] leading-5">
-      <pre className="overflow-hidden whitespace-pre-wrap break-words text-muted-foreground [overflow-wrap:anywhere]">
+    <div className="overflow-hidden rounded font-mono text-[13px] leading-5">
+      <pre className="overflow-x-auto whitespace-pre text-muted-foreground">
         <SyntaxHighlightedCode code={trimmed} language={language} isStreaming={isStreaming} />
         {isStreaming && <span className="animate-pulse text-muted-foreground/50">▋</span>}
       </pre>
@@ -34,38 +43,51 @@ function WritePreview({
   );
 }
 
+/** Skeleton rows cycle through these patterns until they fill the minimum body
+ *  height, so the card never shrinks when real content replaces the placeholder. */
+const DIFF_SKELETON_ROWS = [
+  { tint: '', width: 'w-2/3' },
+  { tint: 'bg-red-500/10', width: 'w-1/2' },
+  { tint: 'bg-red-500/10', width: 'w-2/5' },
+  { tint: 'bg-green-500/10', width: 'w-3/4' },
+  { tint: 'bg-green-500/10', width: 'w-2/5' },
+  { tint: '', width: 'w-3/5' },
+];
+const WRITE_SKELETON_WIDTHS = ['w-1/2', 'w-4/5', 'w-2/3', 'w-3/4', 'w-1/3', 'w-3/5'];
+const BASH_SKELETON_WIDTHS = ['w-3/4', 'w-2/3', 'w-1/2', 'w-3/5'];
+
+const SKELETON_ROW_INDEXES = Array.from(
+  { length: Math.floor(TOOL_BLOCK_BODY_MIN_HEIGHT / TOOL_BLOCK_LINE_HEIGHT) },
+  (_, index) => index,
+);
+
 /** Diff-styled placeholder shown while an edit is still running */
 function DiffSkeleton(): React.JSX.Element {
-  // Faint add/remove tints so the placeholder reads as an upcoming diff
-  const rows = [
-    { tint: '', width: 'w-2/3' },
-    { tint: 'bg-red-500/10', width: 'w-1/2' },
-    { tint: 'bg-red-500/10', width: 'w-2/5' },
-    { tint: 'bg-green-500/10', width: 'w-3/4' },
-    { tint: 'bg-green-500/10', width: 'w-2/5' },
-    { tint: '', width: 'w-3/5' },
-  ];
   return (
     <div className="overflow-hidden rounded font-mono text-[13px] leading-5" aria-hidden>
-      {rows.map((row, index) => (
-        <div key={index} className={cn('flex h-7 items-center gap-2 px-2', row.tint)}>
-          <Skeleton className="h-4 w-6 shrink-0" />
-          <Skeleton className={cn('h-4', row.width)} />
-        </div>
-      ))}
+      {SKELETON_ROW_INDEXES.map((index) => {
+        const row = DIFF_SKELETON_ROWS[index % DIFF_SKELETON_ROWS.length];
+        return (
+          <div key={index} className={cn('flex h-5 items-center gap-2 px-2', row.tint)}>
+            <Skeleton className="h-3.5 w-6 shrink-0" />
+            <Skeleton className={cn('h-3.5', row.width)} />
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 /** File-content placeholder shown while a write is still streaming */
 function WriteSkeleton(): React.JSX.Element {
-  const widths = ['w-1/2', 'w-4/5', 'w-2/3', 'w-3/4', 'w-1/3', 'w-3/5'];
   return (
-    <div className="mt-2 flex flex-col font-mono text-[13px] leading-5" aria-hidden>
-      {widths.map((width, index) => (
-        <div key={index} className="flex h-7 items-center gap-2">
-          <Skeleton className="h-4 w-6 shrink-0" />
-          <Skeleton className={cn('h-4', width)} />
+    <div className="flex flex-col font-mono text-[13px] leading-5" aria-hidden>
+      {SKELETON_ROW_INDEXES.map((index) => (
+        <div key={index} className="flex h-5 items-center gap-2">
+          <Skeleton className="h-3.5 w-6 shrink-0" />
+          <Skeleton
+            className={cn('h-3.5', WRITE_SKELETON_WIDTHS[index % WRITE_SKELETON_WIDTHS.length])}
+          />
         </div>
       ))}
     </div>
@@ -75,12 +97,13 @@ function WriteSkeleton(): React.JSX.Element {
 /** Terminal-output placeholder shown while a bash command runs with no output yet.
  *  No line-number gutter, unlike WriteSkeleton, to read as log/terminal lines. */
 function BashSkeleton(): React.JSX.Element {
-  const widths = ['w-3/4', 'w-2/3'];
   return (
     <div className="flex flex-col font-mono text-[14px] leading-5" aria-hidden>
-      {widths.map((width, index) => (
-        <div key={index} className="flex h-7 items-center">
-          <Skeleton className={cn('h-4', width)} />
+      {SKELETON_ROW_INDEXES.map((index) => (
+        <div key={index} className="flex h-5 items-center">
+          <Skeleton
+            className={cn('h-3.5', BASH_SKELETON_WIDTHS[index % BASH_SKELETON_WIDTHS.length])}
+          />
         </div>
       ))}
     </div>
@@ -127,9 +150,6 @@ function ElapsedTimer({ startedAt }: { startedAt?: number }): React.JSX.Element 
 
   return <span className="tabular-nums">{elapsed.toFixed(1)}s</span>;
 }
-
-/** Min height for running tool blocks to reserve space and reduce layout shift */
-const TOOL_BLOCK_RUNNING_MIN_HEIGHT = '80px';
 
 /** Tools that stream output while running (shown immediately, not gated on completion) */
 const STREAMING_OUTPUT_TOOLS = new Set(['bash', 'read']);
@@ -248,6 +268,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
     node.name === 'write' && node.status === 'running' && (writeEntries?.length ?? 0) === 0;
   const showBashSkeleton = node.name === 'bash' && node.status === 'running' && !hasOutput;
   const outputLanguage = getToolOutputLanguage(node);
+  const bodyMaxHeight = getToolBlockBodyMaxHeight(node);
   const durationLabel = formatDuration(node.durationMs);
   const args = getToolArgs(node);
   const timeout = typeof args?.timeout === 'number' ? args.timeout : undefined;
@@ -255,15 +276,12 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
   return (
     <>
       <div
-        className="overflow-clip rounded-md border border-border/65 bg-muted/25 px-3 pt-0 pb-1.5 text-sm text-muted-foreground flex flex-col"
-        style={{
-          maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px`,
-          minHeight: node.status === 'running' ? TOOL_BLOCK_RUNNING_MIN_HEIGHT : undefined,
-        }}
+        className="overflow-clip rounded-md border border-border/65 bg-muted/25 px-3 pt-0 pb-1.5 text-sm text-muted-foreground"
+        style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
         data-testid={`tool-block-${node.toolCallId}`}
       >
         {command.body ? (
-          <div className="-mx-3 flex items-start gap-1 px-3 pt-1.5 pb-1 font-mono text-[14px] font-medium leading-5 text-foreground">
+          <div className="-mx-3 flex items-start gap-1 px-3 pt-1.5 font-mono text-[14px] font-medium leading-5 text-foreground">
             <span className="shrink-0">{command.prefix}</span>
             <span
               ref={commandRef}
@@ -285,16 +303,17 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
             )}
           </div>
         ) : (
-          <div className="-mx-3 flex items-start gap-1 px-3 pt-1.5 pb-1 font-mono text-[14px] font-medium leading-5 text-foreground">
+          <div className="-mx-3 flex items-start gap-1 px-3 pt-1.5 font-mono text-[14px] font-medium leading-5 text-foreground">
             <span className="shrink-0">{command.prefix}</span>
             <span className="min-w-0 text-muted-foreground">…</span>
           </div>
         )}
 
         <OverflowClamp
-          maxHeight={BLOCK_CONTENT_MAX_HEIGHT}
-          className="pt-1 pb-2"
+          minHeight={TOOL_BLOCK_BODY_MIN_HEIGHT}
+          maxHeight={bodyMaxHeight}
           tailAnchor={node.name !== 'edit'}
+          reserveButtonSpace
         >
           {node.status !== 'running' && node.status !== 'error' && editDiffFromDetails && (
             <DiffView lines={editDiffFromDetails} />
@@ -316,7 +335,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
           {(node.status !== 'running' || STREAMING_OUTPUT_TOOLS.has(node.name)) &&
             hasOutput &&
             ((node.name !== 'edit' && node.name !== 'write') || node.status === 'error') && (
-              <pre className="overflow-hidden whitespace-pre-wrap break-words font-mono text-[14px] leading-5 text-muted-foreground [overflow-wrap:anywhere]">
+              <pre className="overflow-x-auto whitespace-pre font-mono text-[14px] leading-5 text-muted-foreground">
                 <SyntaxHighlightedCode
                   code={cleanedOutput}
                   language={outputLanguage}
@@ -331,7 +350,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
         <div
           data-search-ignore
           className={cn(
-            '-mx-3 -mb-2 mt-auto flex items-center justify-between gap-1.5 px-3 py-1.5 text-xs font-medium rounded-b-md',
+            '-mx-3 -mb-2 flex items-center justify-between gap-1.5 px-3 py-1.5 text-xs font-medium rounded-b-md',
             statusClassName,
           )}
         >

@@ -18,13 +18,17 @@ const BOTTOM_FADE_MASK = 'linear-gradient(to top, transparent, black 16px)';
  * useful for user messages. The button sits below the clamped area.
  */
 export default function OverflowClamp({
+  minHeight,
   maxHeight,
   children,
   className,
   contentStyle,
   buttonClassName,
   tailAnchor = false,
+  reserveButtonSpace = false,
 }: {
+  /** Min height in px while collapsed; pass the same value as `maxHeight` for a fixed box */
+  minHeight?: number;
   /** Max visible height in px while collapsed */
   maxHeight: number;
   children: React.ReactNode;
@@ -37,6 +41,9 @@ export default function OverflowClamp({
   /** When true (default), content is bottom-aligned and clipped at the top.
    *  When false, content is top-aligned and clipped at the bottom. */
   tailAnchor?: boolean;
+  /** Always lay out the button row (invisible when nothing overflows) so its
+   *  appearance never shifts surrounding content. */
+  reserveButtonSpace?: boolean;
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -84,16 +91,18 @@ export default function OverflowClamp({
 
   const fadeMask = tailAnchor ? TOP_FADE_MASK : BOTTOM_FADE_MASK;
 
-  const buttonNode = isOverflowing && (
+  const buttonNode = (isOverflowing || reserveButtonSpace) && (
     <>
       <div ref={sentinelRef} aria-hidden className="h-0" />
       <button
         ref={buttonRef}
         type="button"
         data-action="expand-overflow"
+        disabled={!isOverflowing}
         onClick={() => setExpanded((current) => !current)}
         className={cn(
-          'z-10 mb-0 flex w-fit items-center gap-1 rounded-full py-0.5 text-[14px] text-muted-foreground transition-colors hover:text-foreground',
+          'z-10 mb-0 flex w-fit items-center gap-1 rounded-full py-0.5 text-xs leading-4 text-muted-foreground transition-colors hover:text-foreground',
+          !isOverflowing && 'invisible',
           tailAnchor && 'sticky bottom-4',
           isStuck && tailAnchor && 'bg-background/70 shadow-sm backdrop-blur-sm',
           buttonClassName,
@@ -103,18 +112,18 @@ export default function OverflowClamp({
           <>
             Show less
             {tailAnchor ? (
-              <IconChevronDown className="size-4" />
+              <IconChevronDown className="size-3.5" />
             ) : (
-              <IconChevronUp className="size-4" />
+              <IconChevronUp className="size-3.5" />
             )}
           </>
         ) : (
           <>
             Show more
             {tailAnchor ? (
-              <IconChevronUp className="size-4" />
+              <IconChevronUp className="size-3.5" />
             ) : (
-              <IconChevronDown className="size-4" />
+              <IconChevronDown className="size-3.5" />
             )}
           </>
         )}
@@ -126,11 +135,15 @@ export default function OverflowClamp({
     <div
       className={cn(
         'flex flex-col overflow-hidden',
-        tailAnchor ? 'justify-end' : 'justify-start',
+        // Short content sits at the top even in tail-anchor mode; the two
+        // alignments coincide exactly when content reaches the box height,
+        // so the switch is invisible.
+        tailAnchor && isOverflowing ? 'justify-end' : 'justify-start',
         className,
       )}
       style={{
         ...contentStyle,
+        minHeight: expanded ? undefined : minHeight,
         maxHeight: expanded ? undefined : maxHeight,
         maskImage: clamped ? fadeMask : undefined,
         WebkitMaskImage: clamped ? fadeMask : undefined,
