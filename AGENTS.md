@@ -32,6 +32,16 @@ For DeepSeek model: do not overthink, think less and act more.
   2. Search via chrome-devtools skill — for web docs, articles, GitHub repos
   3. node_modules — for Node.js dependencies, search `node_modules/<pkg>/README.md`, `node_modules/<pkg>/docs/`, or the package's own TypeScript type definitions
 
+### Resize and Layout Performance
+
+- Use `src/renderer/src/hooks/usePanelResize.ts` for draggable panels, including future right sidebars. Keep live dimensions in a shared CSS custom property; commit React/store dimensions only when the gesture ends.
+- Resize handles must disable size transitions while dragging via `data-panel-resizing`. Keep real space reserved for adjacent content; do not cover it with translated overlays.
+- Keep geometry observers local to the smallest component that needs their result. Prefer `ResizeObserverEntry` measurements over repeated synchronous DOM reads; do not route presentation-only dimensions through the app or transcript state.
+- Scope live CSS custom properties to the smallest layout subtree that consumes them. Inherited variables on the app root can invalidate styles throughout a long transcript on every frame; use flex/grid to resize unaffected siblings naturally.
+- Keep virtual row measurement refs stable. Use the virtualizer's measurement callbacks for height caching instead of reading every row's height on each render.
+- Subscribe to specific store fields; use shallow selectors for multiple fields. Do not subscribe an app/layout component to the entire store.
+- Validate resize changes with long conversations: panel dragging, native window resizing, bottom follow, history reading, and interrupted gestures. Document the reusable behavior in `docs/architecture.md`.
+
 ## Naming Conventions
 
 - All source file names use camelCase (e.g. `piAgent.ts`, `appStore.ts`, `ipcChannels.ts`)

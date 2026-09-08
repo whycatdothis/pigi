@@ -6,6 +6,8 @@
 
 - Opening or resizing the terminal no longer covers messages; the latest messages stay visible while reading history preserves your position
 - Dragging the terminal resize handle now smoothly resizes the chat input and message list
+- Dragging the sidebar edge no longer re-renders the whole app on every pointer move; the width follows the pointer and is saved on release
+- Resizing the window does less work per frame in long conversations: the message minimap tracks its own width and virtual rows reuse observed heights instead of re-measuring every visible row
 
 ## [0.4.8] - 2026-09-07
 

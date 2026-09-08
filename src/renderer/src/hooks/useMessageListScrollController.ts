@@ -50,7 +50,6 @@ interface MessageListScrollControllerOptions {
 export interface MessageListScrollController {
   topPaddingPx: number;
   showScrollButton: boolean;
-  containerWidth: number;
   /** Disables bottom auto-follow (search jump, minimap jump, group toggle...). */
   suspendAutoScroll: () => void;
   handleScrollToBottom: () => void;
@@ -81,7 +80,6 @@ export function useMessageListScrollController({
   // The turn id that was pinned before details expanded — re-pin on collapse.
   const lastPinnedTurnIdRef = useRef<string | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [containerWidth, setContainerWidth] = useState(0);
 
   // Viewport-height spacer below the active turn so it can reach the top.
   const [topPaddingPx, setTopPaddingPx] = useState(0);
@@ -255,10 +253,8 @@ export function useMessageListScrollController({
       if (autoScrollRef.current && (!isMinimal || pinRef.current.phase === 'idle')) {
         container!.scrollTop = container!.scrollHeight;
       }
-      setContainerWidth(container!.clientWidth);
     });
     containerRo.observe(container);
-    setContainerWidth(container.clientWidth);
 
     function handleWheel(event: WheelEvent): void {
       restoreAnimRef.current?.cancel();
@@ -639,7 +635,6 @@ export function useMessageListScrollController({
   return {
     topPaddingPx,
     showScrollButton,
-    containerWidth,
     suspendAutoScroll,
     handleScrollToBottom,
     handleMinimalTurnEnd,

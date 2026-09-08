@@ -68,7 +68,15 @@ import { SidebarProvider } from './components/ui/sidebar';
 import { Empty, EmptyTitle, EmptyDescription, EmptyHeader } from './components/ui/empty';
 import { ESCAPE_ABORT_SCOPE_SELECTOR } from './lib/focusScopes';
 import { getProjectSessions } from './lib/projectSessions';
-import { TERMINAL_HEIGHT_PROPERTY, TERMINAL_HEIGHT_VALUE } from './lib/layoutConstants';
+import {
+  TERMINAL_HEIGHT_PROPERTY,
+  TERMINAL_HEIGHT_VALUE,
+  SIDEBAR_DEFAULT_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_WIDTH_PROPERTY,
+} from './lib/layoutConstants';
+import { usePanelResize } from './hooks/usePanelResize';
 const WELCOME_TITLE = 'Welcome to pigi';
 
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
@@ -77,7 +85,9 @@ function extractUserHistory(nodes: TranscriptNode[]): string[] {
 }
 
 function App(): React.JSX.Element {
-  const [sidebarWidth, setSidebarWidth] = useState(244);
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   // Used only for immediate sidebar feedback while a persisted session is resuming.
   const [pendingSelectedPath, setPendingSelectedPath] = useState<string | null>(null);
   const {
@@ -321,27 +331,14 @@ function App(): React.JSX.Element {
 
   const thinkingLevelOptions = activeSessionPath ? sessionThinkingLevels : draftThinkingLevels;
 
-  const handleSidebarResizeStart = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      const startX = event.clientX;
-      const startWidth = sidebarWidth;
-
-      function handlePointerMove(moveEvent: PointerEvent): void {
-        const nextWidth = Math.min(360, Math.max(220, startWidth + moveEvent.clientX - startX));
-        setSidebarWidth(nextWidth);
-      }
-
-      function handlePointerUp(): void {
-        window.removeEventListener('pointermove', handlePointerMove);
-        window.removeEventListener('pointerup', handlePointerUp);
-      }
-
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
-    },
-    [sidebarWidth],
-  );
+  const handleSidebarResizeStart = usePanelResize({
+    containerRef: sidebarRef,
+    property: SIDEBAR_WIDTH_PROPERTY,
+    edge: 'right',
+    size: sidebarWidth,
+    getBounds: () => ({ minimum: SIDEBAR_MIN_WIDTH, maximum: SIDEBAR_MAX_WIDTH }),
+    onCommit: setSidebarWidth,
+  });
 
   const refreshProjectSessions = useCallback(
     async (projects: ProjectDirectory[]): Promise<void> => {
@@ -1218,7 +1215,7 @@ function App(): React.JSX.Element {
   // actual scroll viewport ends above the input. Match the drawer timing,
   // and resize immediately during dragging. No transform on the input means
   // its fixed-position menus retain the window as their containing block.
-  const chatLayoutClassName = `absolute inset-x-0 top-0 flex flex-col transition-[bottom] motion-reduce:transition-none group-data-[terminal-resizing]/terminal-layout:transition-none ${
+  const chatLayoutClassName = `absolute inset-x-0 top-0 flex flex-col transition-[bottom] motion-reduce:transition-none group-data-[panel-resizing]/terminal-layout:transition-none ${
     terminalOpen
       ? 'duration-[340ms] ease-[cubic-bezier(0.32,0.72,0,1)]'
       : 'duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)]'
@@ -1228,13 +1225,13 @@ function App(): React.JSX.Element {
     [TERMINAL_HEIGHT_PROPERTY]: `${terminalHeight}px`,
   };
 
+  const sidebarLayoutStyle: React.CSSProperties & { [SIDEBAR_WIDTH_PROPERTY]: string } = {
+    [SIDEBAR_WIDTH_PROPERTY]: `${sidebarWidth}px`,
+  };
+
   return (
-    <SidebarProvider
-      style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
-      className="h-screen min-h-0"
-      data-testid="app-shell"
-    >
-      <div className="relative flex h-full shrink-0">
+    <SidebarProvider className="h-screen min-h-0" data-testid="app-shell">
+      <div ref={sidebarRef} className="relative flex h-full shrink-0" style={sidebarLayoutStyle}>
         <Sidebar
           sessions={sessions}
           selectedSessionPath={selectedSessionPath}
@@ -1254,6 +1251,7 @@ function App(): React.JSX.Element {
       </div>
 
       <main
+        ref={mainRef}
         className="group/terminal-layout relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-l-xl border-l-[0.5px] border-foreground/27 bg-background"
         style={terminalLayoutStyle}
       >
@@ -1409,6 +1407,7 @@ function App(): React.JSX.Element {
         )}
         {terminalMounted && (
           <TerminalPanel
+            resizeContainerRef={mainRef}
             projectCwd={terminalProjectCwd}
             visible={terminalOpen}
             onClose={toggleTerminal}

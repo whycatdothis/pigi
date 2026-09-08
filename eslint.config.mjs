@@ -47,6 +47,19 @@ export default defineConfig(
     },
   },
   {
+    files: ['src/renderer/src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.name='useAppStore'][arguments.length=0]",
+          message:
+            'Select the app store fields this component needs; use useShallow for multiple fields to avoid layout-wide renders.',
+        },
+      ],
+    },
+  },
+  {
     files: ['scripts/**/*.mjs', '.pi/skills/**/scripts/**/*.mjs'],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
