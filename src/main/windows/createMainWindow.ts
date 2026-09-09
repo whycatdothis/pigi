@@ -28,6 +28,7 @@ export function createMainWindow(): BrowserWindow {
       : { backgroundColor: '#ffffff' }),
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
+      scrollBounce: process.platform === 'darwin',
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
     },
