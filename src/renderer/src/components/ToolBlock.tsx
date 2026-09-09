@@ -1,11 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { cn } from '../lib/utils';
 import { type ToolNode, getToolArgs } from '../state/transcriptController';
-import {
-  MESSAGE_CONTENT_MAX_WIDTH,
-  TOOL_BLOCK_BODY_MIN_HEIGHT,
-  TOOL_BLOCK_LINE_HEIGHT,
-} from '../lib/layoutConstants';
+import { MESSAGE_CONTENT_MAX_WIDTH } from '../lib/layoutConstants';
 import SyntaxHighlightedCode from './syntaxHighlightedCode';
 import DiffView from './DiffView';
 import type { EditEntry, DiffLine } from '../lib/diffUtils';
@@ -14,7 +10,7 @@ import ImagePreview from './ImagePreview';
 import {
   getToolCommandParts,
   cleanReadOutput,
-  getToolBlockBodyMaxHeight,
+  getToolBlockBodyHeightRange,
   READ_IMAGE_RE,
 } from '../lib/toolDisplay';
 import OverflowClamp from './overflowClamp';
@@ -43,8 +39,8 @@ function WritePreview({
   );
 }
 
-/** Skeleton rows cycle through these patterns until they fill the minimum body
- *  height, so the card never shrinks when real content replaces the placeholder. */
+/** Six 20px rows fill TOOL_BLOCK_BODY_MIN_HEIGHT_LARGE exactly, so the card
+ *  never shrinks when the real diff/file replaces the placeholder. */
 const DIFF_SKELETON_ROWS = [
   { tint: '', width: 'w-2/3' },
   { tint: 'bg-red-500/10', width: 'w-1/2' },
@@ -56,24 +52,16 @@ const DIFF_SKELETON_ROWS = [
 const WRITE_SKELETON_WIDTHS = ['w-1/2', 'w-4/5', 'w-2/3', 'w-3/4', 'w-1/3', 'w-3/5'];
 const BASH_SKELETON_WIDTHS = ['w-3/4', 'w-2/3', 'w-1/2', 'w-3/5'];
 
-const SKELETON_ROW_INDEXES = Array.from(
-  { length: Math.floor(TOOL_BLOCK_BODY_MIN_HEIGHT / TOOL_BLOCK_LINE_HEIGHT) },
-  (_, index) => index,
-);
-
 /** Diff-styled placeholder shown while an edit is still running */
 function DiffSkeleton(): React.JSX.Element {
   return (
     <div className="overflow-hidden rounded font-mono text-[13px] leading-5" aria-hidden>
-      {SKELETON_ROW_INDEXES.map((index) => {
-        const row = DIFF_SKELETON_ROWS[index % DIFF_SKELETON_ROWS.length];
-        return (
-          <div key={index} className={cn('flex h-5 items-center gap-2 px-2', row.tint)}>
-            <Skeleton className="h-3.5 w-6 shrink-0" />
-            <Skeleton className={cn('h-3.5', row.width)} />
-          </div>
-        );
-      })}
+      {DIFF_SKELETON_ROWS.map((row, index) => (
+        <div key={index} className={cn('flex h-5 items-center gap-2 px-2', row.tint)}>
+          <Skeleton className="h-3.5 w-6 shrink-0" />
+          <Skeleton className={cn('h-3.5', row.width)} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -82,12 +70,10 @@ function DiffSkeleton(): React.JSX.Element {
 function WriteSkeleton(): React.JSX.Element {
   return (
     <div className="flex flex-col font-mono text-[13px] leading-5" aria-hidden>
-      {SKELETON_ROW_INDEXES.map((index) => (
+      {WRITE_SKELETON_WIDTHS.map((width, index) => (
         <div key={index} className="flex h-5 items-center gap-2">
           <Skeleton className="h-3.5 w-6 shrink-0" />
-          <Skeleton
-            className={cn('h-3.5', WRITE_SKELETON_WIDTHS[index % WRITE_SKELETON_WIDTHS.length])}
-          />
+          <Skeleton className={cn('h-3.5', width)} />
         </div>
       ))}
     </div>
@@ -99,11 +85,9 @@ function WriteSkeleton(): React.JSX.Element {
 function BashSkeleton(): React.JSX.Element {
   return (
     <div className="flex flex-col font-mono text-[14px] leading-5" aria-hidden>
-      {SKELETON_ROW_INDEXES.map((index) => (
+      {BASH_SKELETON_WIDTHS.map((width, index) => (
         <div key={index} className="flex h-5 items-center">
-          <Skeleton
-            className={cn('h-3.5', BASH_SKELETON_WIDTHS[index % BASH_SKELETON_WIDTHS.length])}
-          />
+          <Skeleton className={cn('h-3.5', width)} />
         </div>
       ))}
     </div>
@@ -268,7 +252,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
     node.name === 'write' && node.status === 'running' && (writeEntries?.length ?? 0) === 0;
   const showBashSkeleton = node.name === 'bash' && node.status === 'running' && !hasOutput;
   const outputLanguage = getToolOutputLanguage(node);
-  const bodyMaxHeight = getToolBlockBodyMaxHeight(node);
+  const bodyHeightRange = getToolBlockBodyHeightRange(node);
   const durationLabel = formatDuration(node.durationMs);
   const args = getToolArgs(node);
   const timeout = typeof args?.timeout === 'number' ? args.timeout : undefined;
@@ -310,10 +294,9 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
         )}
 
         <OverflowClamp
-          minHeight={TOOL_BLOCK_BODY_MIN_HEIGHT}
-          maxHeight={bodyMaxHeight}
+          minHeight={bodyHeightRange.minHeight}
+          maxHeight={bodyHeightRange.maxHeight}
           tailAnchor={node.name !== 'edit'}
-          reserveButtonSpace
         >
           {node.status !== 'running' && node.status !== 'error' && editDiffFromDetails && (
             <DiffView lines={editDiffFromDetails} />

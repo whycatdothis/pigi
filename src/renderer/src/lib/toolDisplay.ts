@@ -1,5 +1,9 @@
 import { type ToolNode, getToolArgs } from '../state/transcriptController';
-import { TOOL_BLOCK_BODY_MAX_HEIGHT_LARGE, TOOL_BLOCK_BODY_MIN_HEIGHT } from './layoutConstants';
+import {
+  TOOL_BLOCK_BODY_MAX_HEIGHT,
+  TOOL_BLOCK_BODY_MAX_HEIGHT_LARGE,
+  TOOL_BLOCK_BODY_MIN_HEIGHT_LARGE,
+} from './layoutConstants';
 
 export interface ToolCommandParts {
   prefix: string;
@@ -83,9 +87,14 @@ export function getToolSearchText(node: ToolNode): string {
   return cleanReadOutput(node);
 }
 
-/** Collapsed body height cap; edit/write may grow taller, everything else is fixed at the min. */
-export function getToolBlockBodyMaxHeight(node: ToolNode): number {
+export interface ToolBlockBodyHeightRange {
+  minHeight?: number;
+  maxHeight: number;
+}
+
+/** Collapsed body height bounds; only edit/write reserve a floor and grow taller. */
+export function getToolBlockBodyHeightRange(node: ToolNode): ToolBlockBodyHeightRange {
   return node.name === 'edit' || node.name === 'write'
-    ? TOOL_BLOCK_BODY_MAX_HEIGHT_LARGE
-    : TOOL_BLOCK_BODY_MIN_HEIGHT;
+    ? { minHeight: TOOL_BLOCK_BODY_MIN_HEIGHT_LARGE, maxHeight: TOOL_BLOCK_BODY_MAX_HEIGHT_LARGE }
+    : { maxHeight: TOOL_BLOCK_BODY_MAX_HEIGHT };
 }
