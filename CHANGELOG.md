@@ -13,6 +13,11 @@
 - Queued steer/follow-up messages no longer cover the transcript: the message list raises its bottom edge as the queue grows taller
 - Selected text in the terminal is clearly visible again in light and dark themes
 - Cmd+K clears the terminal buffer while the terminal is focused
+- Resizing the window no longer stutters or makes messages jump when the width passes 768, 1024, 1280 or 1536px
+- Opening or resizing the terminal no longer covers messages; the latest messages stay visible while reading history preserves your position
+- Dragging the terminal resize handle now smoothly resizes the chat input and message list
+- Dragging the sidebar edge no longer re-renders the whole app on every pointer move; the width follows the pointer and is saved on release
+- Resizing the window does less work per frame in long conversations: the message minimap tracks its own width and virtual rows reuse observed heights instead of re-measuring every visible row
 
 ## [0.4.8] - 2026-09-07
 

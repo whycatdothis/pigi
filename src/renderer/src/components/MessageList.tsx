@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../state/appStore';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
 import { IconArrowDown } from '@tabler/icons-react';
 import type { TranscriptNode } from '../state/transcriptController';
 import {
@@ -116,6 +116,14 @@ export default React.memo(function MessageList({
     getScrollElement: () => containerRef.current,
     getItemKey,
     estimateSize,
+    // Use the observer's measurement instead of forcing an offsetHeight read
+    // for every visible row during each viewport resize render.
+    measureElement: (element, entry, instance) => {
+      const height = measureElement(element, entry, instance);
+      const itemId = element.getAttribute('data-item-id');
+      if (itemId) recordMeasuredRowHeight(itemId, height);
+      return height;
+    },
     overscan: 8,
     // gap makes the virtualizer's coordinate model match the DOM flow layout:
     // rows are laid out in-flow with marginBottom = MESSAGE_ROW_GAP, so without
@@ -171,7 +179,6 @@ export default React.memo(function MessageList({
   const {
     topPaddingPx,
     showScrollButton,
-    containerWidth,
     suspendAutoScroll,
     handleScrollToBottom,
     handleMinimalTurnEnd,
@@ -328,12 +335,7 @@ export default React.memo(function MessageList({
                   return (
                     <div
                       key={item.id}
-                      ref={(element) => {
-                        rowVirtualizer.measureElement(element);
-                        if (element) {
-                          recordMeasuredRowHeight(item.id, element.offsetHeight);
-                        }
-                      }}
+                      ref={rowVirtualizer.measureElement}
                       data-index={virtualItem.index}
                       data-item-id={item.id}
                       style={{
@@ -375,7 +377,7 @@ export default React.memo(function MessageList({
       )}
       <UserMessageMiniMap
         nodes={displayNodes}
-        containerWidth={containerWidth}
+        containerRef={containerRef}
         activeUserMessageIndex={activeUserMessageIndex}
         onScrollToIndex={handleScrollToIndex}
       />

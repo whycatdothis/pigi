@@ -1,5 +1,37 @@
 # Architecture
 
+## Resizable Panels
+
+`usePanelResize` is the shared pointer resize path for the sidebar and terminal.
+Use it for future panels instead of adding another `pointermove` state setter.
+It takes a container ref, a CSS custom property, the dragged edge, the committed
+size, bounds, and a commit callback. A right sidebar uses `edge: 'left'`; the
+existing left sidebar uses `edge: 'right'` and the bottom terminal uses `edge: 'top'`.
+
+The hook retains the latest pointer position and writes the dimension at most
+once per animation frame. Both a panel and its adjacent content consume that
+same property, so their actual layout stays aligned. React/store state receives
+the final dimension on release, cancellation, window blur, or unmount. Pending
+frames and event listeners are cleaned up. Bounds are evaluated during movement
+so they can follow the current window size.
+
+The hook marks the owning container with `data-panel-resizing` during the gesture.
+Disable geometry transitions beneath this marker; dragging should follow the
+pointer immediately. Reserve space with flex/grid or insets rather than moving
+an overlay over a full-size message viewport.
+
+Scope the live property narrowly. The sidebar width lives on its own wrapper,
+so changing an inherited CSS variable does not invalidate styles throughout the
+transcript. Flex layout gives the chat the remaining width automatically. The
+terminal height lives on the common chat/terminal container because both consume it.
+
+Native window resizing remains CSS-driven. Keep resize measurements scoped to
+their consumers: the message minimap observes its own available width without
+publishing it through the transcript component. Virtual rows use a stable
+measurement ref and cache heights from the virtualizer's measurements, avoiding
+an extra synchronous height read per row on every resize render. Bottom-follow
+and user-controlled history reading remain owned by the scroll controller.
+
 ## Process Model
 
 ```

@@ -1,7 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
+import { usePanelResize } from '../hooks/usePanelResize';
 import { IconPlus, IconTerminal2, IconX } from '@tabler/icons-react';
 import { cn } from '../lib/utils';
-import { TERMINAL_MIN_HEIGHT, TERMINAL_MAX_HEIGHT_RATIO } from '../lib/layoutConstants';
+import {
+  TERMINAL_MIN_HEIGHT,
+  TERMINAL_MAX_HEIGHT_RATIO,
+  TERMINAL_HEIGHT_PROPERTY,
+  TERMINAL_HEIGHT_VALUE,
+} from '../lib/layoutConstants';
 import { useAppStore } from '../state/appStore';
 import { terminalController } from './terminalController';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
@@ -12,11 +19,12 @@ const RESIZE_DEBOUNCE_MS = 80;
 
 // Purpose-built drawer curve (fast start, clean settle) in both directions;
 // open is slightly slower than close for enter/exit asymmetry. Kept identical
-// to the chat-content slide in App so the two move as one.
+// to the chat viewport resize in App so the two move as one.
 const OPEN_TRANSITION = 'duration-[340ms] ease-[cubic-bezier(0.32,0.72,0,1)]';
 const CLOSE_TRANSITION = 'duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)]';
 
 interface TerminalPanelProps {
+  resizeContainerRef: RefObject<HTMLElement | null>;
   /** The active project's working directory: group key for its tabs and the cwd new tabs open in. */
   projectCwd: string;
   /** Whether the panel is currently shown. Kept mounted when hidden so shells persist. */
@@ -31,11 +39,11 @@ interface TerminalPanelProps {
  * active terminal's DOM node, forwarding fit/focus/theme signals. Stays mounted
  * while hidden so shells persist.
  *
- * It is an absolute overlay (never a flex child), so opening it never reflows
- * the message list. The panel slides in via a GPU `transform`, and the chat
- * content above slides up by the same height in sync (see App.tsx).
+ * It is an absolute overlay. The panel slides in via a GPU `transform`, while
+ * App reserves its height in the chat layout so messages remain unobscured.
  */
 export default function TerminalPanel({
+  resizeContainerRef,
   projectCwd,
   visible,
   onClose,
@@ -122,32 +130,22 @@ export default function TerminalPanel({
     return () => window.removeEventListener('resize', clampToWindow);
   }, [setTerminalHeight]);
 
-  const handleResizeStart = useCallback(
-    (event: React.PointerEvent) => {
-      event.preventDefault();
-      const startY = event.clientY;
-      const startHeight = height;
-      const maxHeight = window.innerHeight * TERMINAL_MAX_HEIGHT_RATIO;
-
-      const handlePointerMove = (moveEvent: PointerEvent): void => {
-        const next = startHeight + (startY - moveEvent.clientY);
-        setTerminalHeight(Math.min(Math.max(next, TERMINAL_MIN_HEIGHT), maxHeight));
-      };
-      const handlePointerUp = (): void => {
-        setTerminalDragging(false);
-        window.removeEventListener('pointermove', handlePointerMove);
-        window.removeEventListener('pointerup', handlePointerUp);
-      };
-      setTerminalDragging(true);
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
-    },
-    [height, setTerminalHeight, setTerminalDragging],
-  );
+  const handleResizeStart = usePanelResize({
+    containerRef: resizeContainerRef,
+    property: TERMINAL_HEIGHT_PROPERTY,
+    edge: 'top',
+    size: height,
+    getBounds: () => ({
+      minimum: TERMINAL_MIN_HEIGHT,
+      maximum: Math.max(TERMINAL_MIN_HEIGHT, window.innerHeight * TERMINAL_MAX_HEIGHT_RATIO),
+    }),
+    onCommit: setTerminalHeight,
+    onDraggingChange: setTerminalDragging,
+  });
 
   return (
     // Absolute overlay pinned to the bottom of the main area. Only `transform`
-    // animates, so the compositor slides it without any layout of the transcript.
+    // animates here; App independently resizes the chat viewport above it.
     <div
       className={cn(
         'absolute inset-x-0 bottom-0 z-10 flex flex-col border-t-[0.5px] border-foreground/27 bg-background will-change-transform',
@@ -158,7 +156,10 @@ export default function TerminalPanel({
               slidIn ? OPEN_TRANSITION : CLOSE_TRANSITION,
             ),
       )}
-      style={{ height, transform: slidIn ? 'translateY(0)' : 'translateY(100%)' }}
+      style={{
+        height: TERMINAL_HEIGHT_VALUE,
+        transform: slidIn ? 'translateY(0)' : 'translateY(100%)',
+      }}
       aria-hidden={!visible}
       onTransitionEnd={(event) => {
         if (event.propertyName === 'transform' && slidIn) terminalController.focus();

@@ -65,8 +65,8 @@ interface AppState {
   terminalMounted: boolean;
   toggleTerminal: () => void;
   setTerminalOpen: (open: boolean) => void;
-  // Panel height and live drag state are shared so the chat content can slide up
-  // by exactly the panel height, in sync with the panel, using GPU transforms.
+  // Committed panel height. Live dragging updates the shared layout CSS value
+  // directly, then saves the final height here when the gesture ends.
   terminalHeight: number;
   setTerminalHeight: (height: number) => void;
   terminalDragging: boolean;
