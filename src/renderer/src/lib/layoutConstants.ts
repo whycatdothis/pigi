@@ -38,6 +38,9 @@ export const MESSAGE_LIST_SCROLL_END_THRESHOLD = 72;
 
 /** Bottom terminal panel sizing. */
 export const TERMINAL_DEFAULT_HEIGHT = 280;
+/** Shared by the terminal and chat viewport, including live pointer resizing. */
+export const TERMINAL_HEIGHT_PROPERTY = '--terminal-height';
+export const TERMINAL_HEIGHT_VALUE = `var(${TERMINAL_HEIGHT_PROPERTY})`;
 export const TERMINAL_MIN_HEIGHT = 120;
 /** Cap the panel at this fraction of the window height. */
 export const TERMINAL_MAX_HEIGHT_RATIO = 0.8;
@@ -49,6 +52,11 @@ export const TERMINAL_MAX_HEIGHT_RATIO = 0.8;
  *  content). Published as a CSS custom property on the session column. */
 export const STREAMING_QUEUE_RESERVE_ALLOWANCE_PX = 85;
 export const STREAMING_QUEUE_RESERVE_CSS_VAR = '--streaming-queue-reserve';
+
+export const SIDEBAR_DEFAULT_WIDTH = 244;
+export const SIDEBAR_MIN_WIDTH = 220;
+export const SIDEBAR_MAX_WIDTH = 360;
+export const SIDEBAR_WIDTH_PROPERTY = '--sidebar-width';
 
 /** Used by Dialog, Popover, and ContextMenu — these need backdrop-blur but blur renders incorrectly in vibrant regions, so they use a separate configuration. */
 export const VIBRANCY_OVERLAY_CONTENT =

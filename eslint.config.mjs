@@ -5,6 +5,9 @@ import eslintPluginReact from 'eslint-plugin-react';
 import eslintPluginReactHooks from 'eslint-plugin-react-hooks';
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh';
 
+// Tailwind class strings such as `md:flex` or `data-[side=left]:sm:max-w-sm`.
+const BREAKPOINT_VARIANT_PATTERN = '(^|[\\s:])(max-)?(sm|md|lg|xl|2xl):[a-z\\[-]';
+
 export default defineConfig(
   { ignores: ['**/node_modules', '**/dist', '**/out', 'scripts/**/*.cjs'] },
   tseslint.configs.recommended,
@@ -38,7 +41,6 @@ export default defineConfig(
     files: [
       'src/renderer/src/components/ui/**/*.{ts,tsx}',
       'src/renderer/src/components/themeProvider.tsx',
-      'src/renderer/src/hooks/useMobile.ts',
     ],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
@@ -47,7 +49,25 @@ export default defineConfig(
     },
   },
   {
-    files: ['scripts/**/*.mjs', '.pi/skills/**/scripts/**/*.mjs'],
+    files: ['src/renderer/src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.name='useAppStore'][arguments.length=0]",
+          message:
+            'Select the app store fields this component needs; use useShallow for multiple fields to avoid layout-wide renders.',
+        },
+        {
+          selector: `:matches(Literal[value=/${BREAKPOINT_VARIANT_PATTERN}/], TemplateElement[value.raw=/${BREAKPOINT_VARIANT_PATTERN}/])`,
+          message:
+            'No responsive breakpoint variants: a viewport-width media query forces a full style and layout pass on every crossing during window resize. Write the desktop style unconditionally.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['scripts/**/*.mjs', '.pi/skills/**/scripts/**/*.{js,mjs}'],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
     },
