@@ -9,6 +9,7 @@ import {
   MESSAGE_LIST_SCROLL_END_THRESHOLD,
   MESSAGE_LIST_TOP_INSET,
   MESSAGE_ROW_GAP,
+  STREAMING_QUEUE_RESERVE_CSS_VAR,
 } from '../lib/layoutConstants';
 import { buildRenderItems } from '../lib/readGrouping';
 import { estimateRenderItemHeight } from '../lib/messageListEstimates';
@@ -26,10 +27,6 @@ import { analyzeTurn, buildTurns } from '../lib/minimalTurns';
 interface MessageListProps {
   nodes: TranscriptNode[];
   sessionPath: string;
-  /** Bottom space to yield (px) for overlays that float above the input
-   *  (streaming queue bars). Applied as an animated bottom margin so the
-   *  list viewport shrinks instead of being covered. */
-  bottomReservePx?: number;
 }
 
 function isRenderableNode(node: TranscriptNode): boolean {
@@ -40,7 +37,6 @@ function isRenderableNode(node: TranscriptNode): boolean {
 export default React.memo(function MessageList({
   nodes,
   sessionPath,
-  bottomReservePx = 0,
 }: MessageListProps): React.JSX.Element {
   // Created here (not inside the scroll controller) because the virtualizer
   // needs containerRef for getScrollElement while the controller needs the
@@ -261,9 +257,12 @@ export default React.memo(function MessageList({
   );
 
   return (
+    // Bottom margin yields to overlays floating above the input (streaming
+    // queue bars); App publishes the reserve as a CSS variable on the session
+    // column. Animated so bars appearing/disappearing never step the list.
     <div
       className="relative min-h-0 flex-1 transition-[margin-bottom] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
-      style={{ marginBottom: `${bottomReservePx}px` }}
+      style={{ marginBottom: `var(${STREAMING_QUEUE_RESERVE_CSS_VAR}, 0px)` }}
     >
       <div
         ref={containerRef}
