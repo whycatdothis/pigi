@@ -76,12 +76,11 @@ export default function TerminalPanel({
 
   // Show the active project's terminal group whenever the panel becomes visible
   // or the project changes. The controller keeps a per-project cache, so
-  // switching back to a project restores its tabs exactly; ensureCwd re-anchors
-  // a running shell that has drifted out of the project directory.
+  // switching back to a project restores its tabs exactly.
   useEffect(() => {
     if (!visible) return;
     const frame = requestAnimationFrame(() => {
-      terminalController.activateProject(projectCwd, { ensureCwd: true });
+      terminalController.activateProject(projectCwd);
       terminalController.fit();
       terminalController.focus();
     });

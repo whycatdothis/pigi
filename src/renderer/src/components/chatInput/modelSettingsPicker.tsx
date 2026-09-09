@@ -123,7 +123,7 @@ export function ModelSettingsPicker({
                       onSelectModel(model);
                       // Same model or a model without thinking levels:
                       // nothing to confirm, close immediately.
-                      if (key === selectedKey || thinkingOptions.length === 0) {
+                      if (key === selectedKey || model.thinkingLevels.length === 0) {
                         setOpen(false);
                         return;
                       }

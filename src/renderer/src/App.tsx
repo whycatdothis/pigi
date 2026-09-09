@@ -67,7 +67,10 @@ import { SidebarProvider } from './components/ui/sidebar';
 import { Empty, EmptyTitle, EmptyDescription, EmptyHeader } from './components/ui/empty';
 import { ESCAPE_ABORT_SCOPE_SELECTOR } from './lib/focusScopes';
 import { getProjectSessions } from './lib/projectSessions';
-import { STREAMING_QUEUE_RESERVE_ALLOWANCE_PX } from './lib/layoutConstants';
+import {
+  STREAMING_QUEUE_RESERVE_ALLOWANCE_PX,
+  STREAMING_QUEUE_RESERVE_CSS_VAR,
+} from './lib/layoutConstants';
 const WELCOME_TITLE = 'Welcome to pigi';
 
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
@@ -106,19 +109,25 @@ function App(): React.JSX.Element {
 
   const activeSession = activeSessionPath ? (sessions.get(activeSessionPath) ?? null) : null;
   const activeCwd = activeSession?.cwd ?? activeProject?.path ?? window.piApi.getCwd();
-  // Terminal tabs are grouped per project, so the project path (not a
-  // per-session cwd) is the group key; switching sessions within a project
-  // keeps the same terminal tabs. Prefer the pending selection's project: it
-  // is known synchronously, while the store's activeProject lands via IPC —
-  // deriving the key from activeProject alone could briefly open the group of
-  // the project the user just left.
+  const findSessionByPath = useCallback(
+    (path: string): PiSessionInfo | undefined => {
+      for (const cwd of Object.keys(projectSessions)) {
+        const found = projectSessions[cwd].find((s) => s.path === path);
+        if (found) return found;
+      }
+      return undefined;
+    },
+    [projectSessions],
+  );
+  // Terminal tabs are grouped per project (a session's cwd is its project
+  // path), so switching sessions within a project keeps the same terminal
+  // tabs. Prefer the pending selection: it is known synchronously, while the
+  // store's activeProject lands via IPC — deriving the key from activeProject
+  // alone could briefly open the group of the project the user just left.
   const pendingTerminalSession = pendingSelectedPath
-    ? Object.values(projectSessions)
-        .flat()
-        .find((session) => session.path === pendingSelectedPath)
+    ? findSessionByPath(pendingSelectedPath)
     : undefined;
-  const terminalProjectCwd =
-    activeSession?.cwd ?? pendingTerminalSession?.cwd ?? activeProject?.path ?? activeCwd;
+  const terminalProjectCwd = pendingTerminalSession?.cwd ?? activeCwd;
   const [gitBranch, setGitBranch] = useState<string | null>(null);
   // The picker has two model sources: the session-scoped list (authoritative
   // for sessions created with an explicit model list) and the global catalog
@@ -900,17 +909,6 @@ function App(): React.JSX.Element {
     }
   }, [refreshProjectSessions, setActiveSession]);
 
-  const findSessionByPath = useCallback(
-    (path: string): PiSessionInfo | undefined => {
-      for (const cwd of Object.keys(projectSessions)) {
-        const found = projectSessions[cwd].find((s) => s.path === path);
-        if (found) return found;
-      }
-      return undefined;
-    },
-    [projectSessions],
-  );
-
   const handleCycleProjectSession = useCallback(
     (direction: -1 | 1) => {
       if (pendingSelectedPath) return;
@@ -1228,16 +1226,15 @@ function App(): React.JSX.Element {
 
   // The queue (steer/follow-up bars) floats absolutely above the chat input,
   // so its growth never reserves layout space and would cover list content.
-  // Measure it and reserve the excess as the list's bottom margin: the lone
-  // Working bar still overlaps by design (allowance), each queued bar beyond
-  // it raises the list bottom so content stays visible. The margin animates,
-  // so bars appearing/disappearing never step the list (turn-end jolt).
-  // Attached via a ref callback (not an effect): the wrapper only exists while
-  // a session is active, so the observer must follow the element's mount, not
-  // App's. observe() fires immediately with the current size.
+  // Measure it and publish the excess beyond the allowance as a CSS custom
+  // property on the session column; MessageList consumes it as an animated
+  // bottom margin. Written straight to the DOM (no React state) so queue
+  // growth never re-renders App. Attached via a ref callback (not an effect):
+  // the wrapper only exists while a session is active, so the observer must
+  // follow the element's mount, not App's. observe() fires immediately.
+  const sessionColumnRef = useRef<HTMLDivElement | null>(null);
   const queueWrapperRef = useRef<HTMLDivElement | null>(null);
   const queueObserverCleanupRef = useRef<(() => void) | null>(null);
-  const [queueReservePx, setQueueReservePx] = useState(0);
   const attachQueueObserver = useCallback((element: HTMLDivElement | null) => {
     if (queueWrapperRef.current === element) return;
     queueWrapperRef.current = element;
@@ -1247,7 +1244,8 @@ function App(): React.JSX.Element {
     const observer = new ResizeObserver((entries) => {
       const height =
         entries[0]?.borderBoxSize?.[0]?.blockSize ?? element.getBoundingClientRect().height;
-      setQueueReservePx(Math.max(0, height - STREAMING_QUEUE_RESERVE_ALLOWANCE_PX));
+      const reserve = Math.max(0, height - STREAMING_QUEUE_RESERVE_ALLOWANCE_PX);
+      sessionColumnRef.current?.style.setProperty(STREAMING_QUEUE_RESERVE_CSS_VAR, `${reserve}px`);
     });
     observer.observe(element);
     queueObserverCleanupRef.current = () => observer.disconnect();
@@ -1316,12 +1314,11 @@ function App(): React.JSX.Element {
                 so nothing re-lays-out per frame. The list stays static and fills
                 the clip; the input rides over it. Clipped below the toolbar. */}
             <div className="relative min-h-0 flex-1 overflow-hidden">
-              <div className="absolute inset-0 flex flex-col">
+              <div ref={sessionColumnRef} className="absolute inset-0 flex flex-col">
                 <MessageList
                   key={activeSessionPath ?? 'draft'}
                   nodes={transcript.nodes}
                   sessionPath={activeSessionPath ?? ''}
-                  bottomReservePx={queueReservePx}
                 />
                 <div className={`${terminalPushClassName} shrink-0`} style={terminalPushStyle}>
                   {/* Zero-height flow anchor: the queue is absolutely positioned
@@ -1330,9 +1327,10 @@ function App(): React.JSX.Element {
                       -mb-14 lets the input overlap its bottom padding — the
                       "grow out from behind" effect — and ChatInput (DOM-later,
                       z-10) renders on top. The queue's excess height beyond the
-                      allowance is reserved as the list's bottom margin (see the
-                      ResizeObserver above), so long queues raise the list bottom
-                      instead of covering it. */}
+                      allowance is published as a CSS variable on the column (see
+                      the ResizeObserver above) and consumed by MessageList as its
+                      bottom margin, so long queues raise the list bottom instead
+                      of covering it. */}
                   <div className="relative z-10 h-0 shrink-0">
                     <div ref={attachQueueObserver} className="absolute inset-x-0 bottom-0">
                       <StreamingQueue
