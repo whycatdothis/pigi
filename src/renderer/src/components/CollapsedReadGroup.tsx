@@ -241,7 +241,7 @@ export default function CollapsedReadGroup({
               <button
                 type="button"
                 aria-expanded={showAllEntries}
-                className="flex w-fit items-center gap-1 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
+                className="flex w-fit items-center gap-1 py-0.5 text-xs leading-4 text-muted-foreground transition-colors hover:text-foreground"
                 onClick={(event) => {
                   event.stopPropagation();
                   setShowAllEntries((prev) => !prev);

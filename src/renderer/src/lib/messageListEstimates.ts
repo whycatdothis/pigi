@@ -8,15 +8,16 @@ import type { RenderItem } from './readGrouping';
 import {
   BLOCK_CONTENT_MAX_HEIGHT,
   READ_GROUP_MAX_COLLAPSED_ENTRIES,
-  TOOL_BLOCK_BODY_MIN_HEIGHT,
   TOOL_BLOCK_LINE_HEIGHT,
 } from './layoutConstants';
-import { getToolBlockBodyMaxHeight } from './toolDisplay';
+import { getToolBlockBodyHeightRange } from './toolDisplay';
 import { parseSkillBlock } from './skillBlock';
 
-/** Tool block chrome around the body: border, header padding, reserved
- *  Show more row, status row, and the hover toolbar below the card. */
-const TOOL_BLOCK_CHROME_HEIGHT = 76;
+/** Tool block chrome around the body: border, header padding, status row,
+ *  and the hover toolbar below the card. */
+const TOOL_BLOCK_CHROME_HEIGHT = 56;
+/** The "Show more" row, present only when the body is clamped. */
+const TOOL_BLOCK_SHOW_MORE_HEIGHT = 20;
 const TOOL_BLOCK_COMMAND_LINE_HEIGHT = 20;
 const USER_MESSAGE_TOOLBAR_HEIGHT = 24;
 const USER_MESSAGE_LEADING_PADDING = 24;
@@ -89,18 +90,18 @@ function estimateAssistantHeight(node: AssistantNode): number {
 }
 
 function estimateToolHeight(node: ToolNode): number {
-  const bodyHeight = Math.min(
-    Math.max(estimateToolBodyLineCount(node) * TOOL_BLOCK_LINE_HEIGHT, TOOL_BLOCK_BODY_MIN_HEIGHT),
-    getToolBlockBodyMaxHeight(node),
-  );
+  const { minHeight = 0, maxHeight } = getToolBlockBodyHeightRange(node);
+  const contentHeight = estimateToolBodyLineCount(node) * TOOL_BLOCK_LINE_HEIGHT;
+  const bodyHeight = Math.min(Math.max(contentHeight, minHeight), maxHeight);
+  const showMoreHeight = contentHeight > maxHeight ? TOOL_BLOCK_SHOW_MORE_HEIGHT : 0;
   return (
     estimateToolCommandLineCount(node) * TOOL_BLOCK_COMMAND_LINE_HEIGHT +
     bodyHeight +
+    showMoreHeight +
     TOOL_BLOCK_CHROME_HEIGHT
   );
 }
 
-/** Only edit/write bodies can exceed the min height, so only their content matters. */
 function estimateToolBodyLineCount(node: ToolNode): number {
   if (node.name === 'edit') {
     return countLines(node.details?.diff ?? '');
@@ -109,7 +110,7 @@ function estimateToolBodyLineCount(node: ToolNode): number {
     const content = getToolArgs(node)?.content;
     return countLines(typeof content === 'string' ? content : '');
   }
-  return 0;
+  return countLines(node.output ?? '');
 }
 
 function countLines(text: string): number {

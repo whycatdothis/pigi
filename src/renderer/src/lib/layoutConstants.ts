@@ -1,13 +1,14 @@
 /** Max height (px) for collapsible thinking content before showing expand button */
 export const BLOCK_CONTENT_MAX_HEIGHT = 300;
 
-/** Tool block body height (px) while collapsed. Every body is at least
- *  MIN_HEIGHT (the skeleton fills it, so a card never shrinks once shown).
- *  Most tools are also capped at MIN_HEIGHT, making them fixed-size; edit/write
- *  may grow up to MAX_HEIGHT_LARGE before clamping behind "Show more". */
-export const TOOL_BLOCK_BODY_MIN_HEIGHT = 120;
+/** Tool block body height (px) while collapsed. Output of bash/read/other
+ *  tools sizes to content up to MAX_HEIGHT. edit/write bodies also reserve
+ *  MIN_HEIGHT_LARGE (filled by the skeleton, so the card never shrinks when the
+ *  diff/file arrives) and may grow to MAX_HEIGHT_LARGE. */
+export const TOOL_BLOCK_BODY_MAX_HEIGHT = 100;
+export const TOOL_BLOCK_BODY_MIN_HEIGHT_LARGE = 120;
 export const TOOL_BLOCK_BODY_MAX_HEIGHT_LARGE = 300;
-/** Line height (px) of monospace body rows; the fixed heights are multiples of it. */
+/** Line height (px) of monospace body rows; the heights above are multiples of it. */
 export const TOOL_BLOCK_LINE_HEIGHT = 20;
 
 export const MESSAGE_LIST_MAX_WIDTH = 860;

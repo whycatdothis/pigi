@@ -25,9 +25,8 @@ export default function OverflowClamp({
   contentStyle,
   buttonClassName,
   tailAnchor = false,
-  reserveButtonSpace = false,
 }: {
-  /** Min height in px while collapsed; pass the same value as `maxHeight` for a fixed box */
+  /** Min height in px while collapsed */
   minHeight?: number;
   /** Max visible height in px while collapsed */
   maxHeight: number;
@@ -41,9 +40,6 @@ export default function OverflowClamp({
   /** When true (default), content is bottom-aligned and clipped at the top.
    *  When false, content is top-aligned and clipped at the bottom. */
   tailAnchor?: boolean;
-  /** Always lay out the button row (invisible when nothing overflows) so its
-   *  appearance never shifts surrounding content. */
-  reserveButtonSpace?: boolean;
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -91,18 +87,16 @@ export default function OverflowClamp({
 
   const fadeMask = tailAnchor ? TOP_FADE_MASK : BOTTOM_FADE_MASK;
 
-  const buttonNode = (isOverflowing || reserveButtonSpace) && (
+  const buttonNode = isOverflowing && (
     <>
       <div ref={sentinelRef} aria-hidden className="h-0" />
       <button
         ref={buttonRef}
         type="button"
         data-action="expand-overflow"
-        disabled={!isOverflowing}
         onClick={() => setExpanded((current) => !current)}
         className={cn(
           'z-10 mb-0 flex w-fit items-center gap-1 rounded-full py-0.5 text-xs leading-4 text-muted-foreground transition-colors hover:text-foreground',
-          !isOverflowing && 'invisible',
           tailAnchor && 'sticky bottom-4',
           isStuck && tailAnchor && 'bg-background/70 shadow-sm backdrop-blur-sm',
           buttonClassName,
