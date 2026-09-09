@@ -153,9 +153,10 @@ export default React.memo(function SessionToolbar({
         <DropdownMenuContent
           align="end"
           sideOffset={6}
-          className="menu-content flex w-fit min-w-0 flex-col gap-1 bg-popover/50 backdrop-blur-md"
+          className="menu-content w-fit min-w-0 bg-popover/50 backdrop-blur-md"
         >
           <DropdownMenuRadioGroup
+            className="flex flex-col gap-1"
             value={toolBlockViewMode}
             onValueChange={(value) =>
               setToolBlockViewMode(value as 'default' | 'compact_read' | 'minimal')
