@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- The session toolbar is now a draggable title bar region — drag anywhere on the toolbar to move the window
+- Message list scrollbar stays thin at all times instead of occasionally showing the thick system scrollbar
+
 ### Changed
 
 - Picking a model now keeps the picker open and opens the thinking-level menu so you can confirm a thinking level for the new model; the picker closes once you pick one (or dismiss it)
