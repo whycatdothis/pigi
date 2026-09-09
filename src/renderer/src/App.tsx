@@ -69,8 +69,7 @@ import { Empty, EmptyTitle, EmptyDescription, EmptyHeader } from './components/u
 import { ESCAPE_ABORT_SCOPE_SELECTOR } from './lib/focusScopes';
 import { getProjectSessions } from './lib/projectSessions';
 import {
-  STREAMING_QUEUE_RESERVE_ALLOWANCE_PX,
-  STREAMING_QUEUE_RESERVE_CSS_VAR,
+  STREAMING_QUEUE_BAR_STEP_PX,
   TERMINAL_HEIGHT_PROPERTY,
   TERMINAL_HEIGHT_VALUE,
   SIDEBAR_DEFAULT_WIDTH,
@@ -1217,32 +1216,13 @@ function App(): React.JSX.Element {
     ],
   );
 
-  // The queue (steer/follow-up bars) floats absolutely above the chat input,
-  // so its growth never reserves layout space and would cover list content.
-  // Measure it and publish the excess beyond the allowance as a CSS custom
-  // property on the session column; MessageList consumes it as an animated
-  // bottom margin. Written straight to the DOM (no React state) so queue
-  // growth never re-renders App. Attached via a ref callback (not an effect):
-  // the wrapper only exists while a session is active, so the observer must
-  // follow the element's mount, not App's. observe() fires immediately.
-  const sessionColumnRef = useRef<HTMLDivElement | null>(null);
-  const queueWrapperRef = useRef<HTMLDivElement | null>(null);
-  const queueObserverCleanupRef = useRef<(() => void) | null>(null);
-  const attachQueueObserver = useCallback((element: HTMLDivElement | null) => {
-    if (queueWrapperRef.current === element) return;
-    queueWrapperRef.current = element;
-    queueObserverCleanupRef.current?.();
-    queueObserverCleanupRef.current = null;
-    if (!element) return;
-    const observer = new ResizeObserver((entries) => {
-      const height =
-        entries[0]?.borderBoxSize?.[0]?.blockSize ?? element.getBoundingClientRect().height;
-      const reserve = Math.max(0, height - STREAMING_QUEUE_RESERVE_ALLOWANCE_PX);
-      sessionColumnRef.current?.style.setProperty(STREAMING_QUEUE_RESERVE_CSS_VAR, `${reserve}px`);
-    });
-    observer.observe(element);
-    queueObserverCleanupRef.current = () => observer.disconnect();
-  }, []);
+  // Queued steer/follow-up bars stack above the Working bar; each raises the
+  // queue by one step. The Working bar itself is not counted: it overlaps the
+  // list's bottom inset by design, so turn start/end never changes layout.
+  const queuedBarCount =
+    transcript.status !== 'idle'
+      ? transcript.queuedSteering.length + transcript.queuedFollowUp.length
+      : 0;
 
   // Reserve the terminal's height in the chat layout so the message list's
   // actual scroll viewport ends above the input. Match the drawer timing,
@@ -1307,25 +1287,26 @@ function App(): React.JSX.Element {
             />
             {/* Keep the toolbar fixed while the chat viewport resizes above the terminal. */}
             <div className="relative min-h-0 flex-1 overflow-hidden">
-              <div ref={sessionColumnRef} className={chatLayoutClassName} style={chatLayoutStyle}>
+              <div className={chatLayoutClassName} style={chatLayoutStyle}>
                 <MessageList
                   key={activeSessionPath ?? 'draft'}
                   nodes={transcript.nodes}
                   sessionPath={activeSessionPath ?? ''}
                 />
                 <div className="relative z-10 shrink-0">
-                  {/* Zero-height flow anchor: the queue is absolutely positioned
-                      above the input, so its appear/disappear at turn boundaries
-                      never resizes the message list (the turn-end clamp jolt). Its
-                      -mb-14 lets the input overlap its bottom padding — the
-                      "grow out from behind" effect — and ChatInput (DOM-later,
-                      z-10) renders on top. The queue's excess height beyond the
-                      allowance is published as a CSS variable on the column (see
-                      the ResizeObserver above) and consumed by MessageList as its
-                      bottom margin, so long queues raise the list bottom instead
-                      of covering it. */}
-                  <div className="relative z-10 h-0 shrink-0">
-                    <div ref={attachQueueObserver} className="absolute inset-x-0 bottom-0">
+                  {/* Flow anchor for the absolutely positioned queue. Its height is
+                      the queued bars' rise (computed, not measured), so the list
+                      viewport shrinks smoothly above them instead of being covered;
+                      with nothing queued it is zero-height, so the lone Working bar
+                      appearing/disappearing at turn boundaries never moves the
+                      list. The queue's -mb-14 lets ChatInput (DOM-later, z-10)
+                      overlap its bottom padding — the "grow out from behind"
+                      effect. */}
+                  <div
+                    className="relative z-10 shrink-0 transition-[height] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+                    style={{ height: queuedBarCount * STREAMING_QUEUE_BAR_STEP_PX }}
+                  >
+                    <div className="absolute inset-x-0 bottom-0">
                       <StreamingQueue
                         isStreaming={transcript.status !== 'idle'}
                         queuedSteering={transcript.queuedSteering}
