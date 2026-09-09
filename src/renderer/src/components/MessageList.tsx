@@ -266,7 +266,7 @@ export default React.memo(function MessageList({
     <div className="relative min-h-0 flex-1">
       <div
         ref={containerRef}
-        className="h-full overflow-y-auto bg-background [overflow-anchor:none] focus:outline-none"
+        className="h-full overflow-y-auto bg-background [overflow-anchor:none] [scrollbar-width:thin] focus:outline-none"
         data-testid="message-list"
         tabIndex={0}
         aria-label="Message list"

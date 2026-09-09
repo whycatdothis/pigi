@@ -91,8 +91,8 @@ export default React.memo(function SessionToolbar({
   );
 
   return (
-    <div className="flex shrink-0 items-center gap-2 px-3 h-11 border-b-[0.5px] border-foreground/27">
-      <div className="flex min-w-0 max-w-[33%] items-center gap-1.5">
+    <div className="flex shrink-0 items-center gap-2 px-3 h-11 border-b-[0.5px] border-foreground/27 [-webkit-app-region:drag]">
+      <div className="flex min-w-0 max-w-[33%] items-center gap-1.5 [-webkit-app-region:no-drag]">
         <IconNotebook size={16} stroke={2} className="shrink-0 text-foreground" />
         {isEditing ? (
           <input
@@ -126,7 +126,7 @@ export default React.memo(function SessionToolbar({
               aria-label="Toggle terminal"
               aria-pressed={terminalOpen}
               onClick={onToggleTerminal}
-              className={`flex items-center justify-center rounded p-1 transition-colors size-7 hover:bg-muted ${terminalOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`flex items-center justify-center rounded p-1 transition-colors size-7 hover:bg-muted [-webkit-app-region:no-drag] ${terminalOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               <IconTerminal2 size={16} stroke={1.5} />
             </button>
@@ -145,7 +145,7 @@ export default React.memo(function SessionToolbar({
           <button
             type="button"
             title="View mode"
-            className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors size-7"
+            className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors size-7 [-webkit-app-region:no-drag]"
           >
             <IconFilter2 size={16} stroke={1.5} />
           </button>
