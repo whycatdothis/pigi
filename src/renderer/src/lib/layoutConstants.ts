@@ -45,13 +45,10 @@ export const TERMINAL_MIN_HEIGHT = 120;
 /** Cap the panel at this fraction of the window height. */
 export const TERMINAL_MAX_HEIGHT_RATIO = 0.8;
 
-/** Streaming queue (queued steer/follow-up bars above the chat input): the
- *  lone "Working" bar's sliver above the input is the designed turn-boundary
- *  overlap, so the message list only reserves the queue height beyond this
- *  allowance (each additional queued bar, which would otherwise cover list
- *  content). Published as a CSS custom property on the session column. */
-export const STREAMING_QUEUE_RESERVE_ALLOWANCE_PX = 85;
-export const STREAMING_QUEUE_RESERVE_CSS_VAR = '--streaming-queue-reserve';
+/** Visible rise per streaming-queue bar: bar height (pt-2 + text-xs line +
+ *  pb-15, about 85px) minus the -mt-14 stack overlap (56px). Must track those
+ *  classes in StreamingQueue. */
+export const STREAMING_QUEUE_BAR_STEP_PX = 29;
 
 export const SIDEBAR_DEFAULT_WIDTH = 244;
 export const SIDEBAR_MIN_WIDTH = 220;

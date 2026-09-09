@@ -9,7 +9,6 @@ import {
   MESSAGE_LIST_SCROLL_END_THRESHOLD,
   MESSAGE_LIST_TOP_INSET,
   MESSAGE_ROW_GAP,
-  STREAMING_QUEUE_RESERVE_CSS_VAR,
 } from '../lib/layoutConstants';
 import { buildRenderItems } from '../lib/readGrouping';
 import { estimateRenderItemHeight } from '../lib/messageListEstimates';
@@ -264,13 +263,7 @@ export default React.memo(function MessageList({
   );
 
   return (
-    // Bottom margin yields to overlays floating above the input (streaming
-    // queue bars); App publishes the reserve as a CSS variable on the session
-    // column. Animated so bars appearing/disappearing never step the list.
-    <div
-      className="relative min-h-0 flex-1 transition-[margin-bottom] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
-      style={{ marginBottom: `var(${STREAMING_QUEUE_RESERVE_CSS_VAR}, 0px)` }}
-    >
+    <div className="relative min-h-0 flex-1">
       <div
         ref={containerRef}
         className="h-full overflow-y-auto bg-background [overflow-anchor:none] focus:outline-none"
