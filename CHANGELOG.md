@@ -17,6 +17,7 @@
 
 ### Fixed
 
+- New sessions no longer occasionally start without your gateway/OAuth models (and with a model picker that refuses to switch). This happened when a session was created while another process was refreshing a login token, most visibly right after launching the app; logging in or out in one session is now also picked up by all others without restarting them
 - The sidebar no longer wobbles sideways after expanding many sessions with "Show more"
 - The view-mode menu in the toolbar has proper list sizing and spacing again, with the check mark right beside the selected label
 - Queued steer/follow-up messages no longer cover the transcript: the message list raises its bottom edge as the queue grows taller

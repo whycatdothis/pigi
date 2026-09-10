@@ -225,11 +225,9 @@ async function attemptSpawnSessionProcess(
       }
 
       // A login/logout in this session process changed stored credentials.
-      // Rebuild the warm process (so a session claimed from it sees fresh
-      // auth) and rebuild the catalog (the worker caches an in-memory auth
-      // snapshot that refresh() will not reload from disk).
+      // Every process reads auth.json on demand, so only the published
+      // catalog (provider availability) needs recomputing.
       if (message.type === 'credentials_changed') {
-        processPool.respawnWarmProcess();
         startSessionWorker();
         sessionWorkerProcess?.postMessage({ type: 'reload_catalog' });
         return;

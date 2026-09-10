@@ -40,6 +40,7 @@ import type {
 } from '../../shared/ipcContract';
 import { toModelInfo } from '../../shared/modelInfo';
 import { generateSessionTitle } from './autoRename';
+import { createModelRuntime } from './fileCredentialStore';
 
 // =============================================================================
 // Port interface (compatible with Electron's MessagePortMain)
@@ -209,7 +210,8 @@ function createServicesForCwd(cwd: string): Promise<AgentSessionServices> {
       // Pi SDK cwd option during service construction so extension-local tools bind
       // to the project directory, not Electron's app directory.
       process.chdir(cwd);
-      return await createAgentSessionServices({ cwd, agentDir, settingsManager });
+      const modelRuntime = await createModelRuntime(agentDir);
+      return await createAgentSessionServices({ cwd, agentDir, settingsManager, modelRuntime });
     } finally {
       process.chdir(previousCwd);
     }
@@ -722,9 +724,8 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
         if (dataPort) {
           dataPort.postMessage({ type: 'login_complete', providerId });
         }
-        // Stored credentials changed: ask main to rebuild the warm process so
-        // the draft model picker reflects the new auth. The warm process caches
-        // an in-memory auth snapshot that refresh() will not reload.
+        // Stored credentials changed: the catalog's provider availability
+        // must be recomputed so the draft model picker reflects the new auth.
         sendToMain({ type: 'credentials_changed' });
         return { success: true };
       } catch (err) {

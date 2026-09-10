@@ -14,6 +14,7 @@ import type {
   ThinkingLevel,
 } from '../../shared/ipcContract';
 import { toModelInfo } from '../../shared/modelInfo';
+import { createModelRuntime } from './fileCredentialStore';
 
 function sendToMain(response: SessionWorkerResponse): void {
   process.parentPort?.postMessage(response);
@@ -72,9 +73,11 @@ function createCatalogServices(): Promise<AgentSessionServices> {
       // extensions read process.cwd() while they register; match the SDK cwd
       // during service construction (same pattern as piAgent.ts).
       process.chdir(agentDir);
+      const modelRuntime = await createModelRuntime(agentDir);
       return await createAgentSessionServices({
         cwd: agentDir,
         agentDir,
+        modelRuntime,
         settingsManager: SettingsManager.create(agentDir, agentDir),
         // Only providers/models are needed here; skip every other resource
         // scan (skills, prompt templates, themes, context files).
