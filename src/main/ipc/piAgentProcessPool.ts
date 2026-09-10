@@ -66,20 +66,6 @@ export class PiAgentProcessPool {
     return proc;
   }
 
-  /**
-   * Rebuild the warm process from scratch. Used after a credential change: the
-   * existing warm process caches an in-memory auth snapshot that refresh() will
-   * not reload, so a session claimed from it would see stale credentials. A
-   * fresh process picks up new/removed credentials from disk.
-   */
-  respawnWarmProcess(): void {
-    if (this.warmProcess) {
-      this.warmProcess.process.kill();
-      this.warmProcess = null;
-    }
-    this.spawnWarmProcess();
-  }
-
   // ===========================================================================
   // Session process management
   // ===========================================================================

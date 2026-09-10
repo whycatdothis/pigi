@@ -178,6 +178,23 @@ Everything after handshake flows over two direct MessagePorts per session. Split
 | Separate control/data ports per session | High-volume stream output cannot queue ahead of abort/escape controls |
 | Two-step handshake                      | Real sessionId from SDK, no temporary/generated IDs                   |
 | Main only does lifecycle                | Minimal surface, easy to reason about                                 |
+| Own `CredentialStore` (disk is truth)   | SDK default snapshots auth.json once behind a 200ms lock retry; a process born during another process's 9s token refresh silently gets zero credentials |
+
+## Credentials
+
+Every utility process builds its `ModelRuntime` with `FileCredentialStore`
+(`src/processes/utility/fileCredentialStore.ts`): reads go to `auth.json` on
+every access, writes take the same proper-lockfile lock pi uses. There is no
+in-memory snapshot, so no process can be stuck with stale or empty credentials,
+and a login in one process is visible to all others without respawning them.
+
+TODO: several earlier fixes targeted the symptom of that lost snapshot (a
+session or catalog with a partial model list) and are likely redundant now:
+the bounded `refresh` retry inside `set_model` (piAgent.ts), the catalog
+reload on model picker open (`RefreshModelCatalog`), and the full services
+rebuild on `credentials_changed` (a plain `modelRuntime.refresh()` in the
+worker now sees the new credentials). Once this change has proven itself,
+remove them one at a time.
 
 ## File Map
 
@@ -198,7 +215,9 @@ src/
 │   └── index.d.ts              # Type declarations for window.piApi
 ├── processes/
 │   └── utility/
-│       └── piAgent.ts          # Pi SDK session + port communication
+│       ├── piAgent.ts          # Pi SDK session + port communication
+│       ├── sessionWorker.ts    # Model catalog + session file metadata
+│       └── fileCredentialStore.ts  # auth.json CredentialStore (see Credentials)
 └── renderer/
     └── src/
         ├── services/
