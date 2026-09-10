@@ -31,7 +31,7 @@ function WritePreview({
   const trimmed = content.endsWith('\n') ? content.slice(0, -1) : content;
   return (
     <div className="overflow-hidden rounded font-mono text-[13px] leading-5">
-      <pre className="overflow-x-auto whitespace-pre text-muted-foreground">
+      <pre className="overflow-x-auto overscroll-x-none whitespace-pre text-muted-foreground">
         <SyntaxHighlightedCode code={trimmed} language={language} isStreaming={isStreaming} />
         {isStreaming && <span className="animate-pulse text-muted-foreground/50">▋</span>}
       </pre>
@@ -318,7 +318,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
           {(node.status !== 'running' || STREAMING_OUTPUT_TOOLS.has(node.name)) &&
             hasOutput &&
             ((node.name !== 'edit' && node.name !== 'write') || node.status === 'error') && (
-              <pre className="overflow-x-auto whitespace-pre font-mono text-[14px] leading-5 text-muted-foreground">
+              <pre className="overflow-x-auto overscroll-x-none whitespace-pre font-mono text-[14px] leading-5 text-muted-foreground">
                 <SyntaxHighlightedCode
                   code={cleanedOutput}
                   language={outputLanguage}

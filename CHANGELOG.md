@@ -12,6 +12,8 @@
 - Picking a model now keeps the picker open and opens the thinking-level menu so you can confirm a thinking level for the new model; the picker closes once you pick one (or dismiss it)
 - Tool cards shift less while a tool runs: edit and write cards reserve their body height from the first frame and only grow, command output is capped at a shorter height before "Show more", and the card's header, footer and toggle are tighter
 - Long lines in tool output scroll horizontally instead of wrapping
+- The chat input grows to at most half its previous maximum height before scrolling
+- The login dialog now has OAuth and API key tabs side by side with a fixed height; the API key form is always visible instead of hidden behind "Add provider"
 
 ### Fixed
 
@@ -25,6 +27,9 @@
 - Dragging the terminal resize handle now smoothly resizes the chat input and message list
 - Dragging the sidebar edge no longer re-renders the whole app on every pointer move; the width follows the pointer and is saved on release
 - Resizing the window does less work per frame in long conversations: the message minimap tracks its own width and virtual rows reuse observed heights instead of re-measuring every visible row
+- The git branch shown in the chat input refreshes when you create a session, switch sessions, or switch project in a new session
+- Code blocks, tables, tool output and the login dialog no longer rubber-band when scrolled past their edge on macOS, which previously exposed transparent backgrounds and shifted code away from its header
+- Tab bars now lay out horizontally and highlight the active tab correctly
 
 ## [0.4.8] - 2026-09-07
 
