@@ -315,6 +315,7 @@
   .markdown-body pre {
     max-width: 100%;
     overflow-x: auto;
+    overscroll-behavior-x: none;
     border-radius: calc(var(--radius) * 0.8);
     background: var(--muted);
     padding: 10px 14px;
@@ -429,6 +430,7 @@
   .markdown-table-wrapper {
     margin-bottom: var(--markdown-block-spacing);
     overflow-x: auto;
+    overscroll-behavior-x: none;
   }
 
   /* border-collapse: separate + border-spacing: 0 because border-radius does

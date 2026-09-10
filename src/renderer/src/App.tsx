@@ -435,10 +435,10 @@ function App(): React.JSX.Element {
   }, [activeCwd]);
 
   const isIdle = transcript.status === 'idle';
+  // Refetch whenever the cwd, the active session, or the idle state changes:
+  // new/switched sessions may point at a different checkout, and a finished
+  // run may have changed the branch.
   useEffect(() => {
-    if (!isIdle) {
-      return;
-    }
     let cancelled = false;
     getGitBranch(activeCwd).then((result) => {
       if (!cancelled) {
@@ -448,7 +448,7 @@ function App(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [activeCwd, isIdle]);
+  }, [activeCwd, activeSessionPath, isIdle]);
 
   useEffect(() => {
     return window.piApi.onProcessExit(({ sessionPath }) => {

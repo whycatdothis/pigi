@@ -1,4 +1,4 @@
-const TEXTAREA_MAX_HEIGHT_RATIO = 0.35;
+const TEXTAREA_MAX_HEIGHT_RATIO = 0.175;
 
 export function resizeTextarea(textarea: HTMLTextAreaElement): void {
   textarea.style.height = 'auto';
