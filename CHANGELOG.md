@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Narrowing the window keeps the chat input and the streaming queue aligned with the message list content: the input no longer shrinks by a wider margin than the transcript while the window is resized
+
 ## [0.4.10] - 2026-09-11
 
 ### Changed

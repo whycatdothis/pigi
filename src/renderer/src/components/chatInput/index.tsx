@@ -328,8 +328,8 @@ export default function ChatInput({
   return (
     <div
       className={cn(
-        !isNewSession && 'relative z-10 shrink-0 px-8',
-        isNewSession && 'flex flex-1 flex-col items-center justify-center min-h-0 px-8',
+        !isNewSession && 'relative z-10 shrink-0 px-5',
+        isNewSession && 'flex flex-1 flex-col items-center justify-center min-h-0 px-5',
       )}
       data-testid="chat-input"
       {...escapeAbortScopeProps}
