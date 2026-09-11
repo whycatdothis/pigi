@@ -322,6 +322,16 @@ async function spawnSessionProcess(
   return { success: false, error: retryResult.error ?? firstResult.error };
 }
 
+/** Dev debug handle only (see debugConfig.ts). */
+export function getPiAgentDebugSnapshot(): Record<string, unknown> {
+  return {
+    sessionWorkerPid: sessionWorkerProcess?.pid ?? null,
+    modelCatalogVersion,
+    modelCatalogSize: modelCatalogCache.length,
+    ...processPool.snapshot(),
+  };
+}
+
 export function stopAllProcesses(): void {
   isShuttingDown = true;
   if (sessionWorkerRespawnTimer) {

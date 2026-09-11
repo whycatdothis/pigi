@@ -212,6 +212,27 @@ Everything after handshake flows over two direct MessagePorts per session. Split
 | Main only does lifecycle                | Minimal surface, easy to reason about                                                                                                                   |
 | Own `CredentialStore` (disk is truth)   | SDK default snapshots auth.json once behind a 200ms lock retry; a process born during another process's 9s token refresh silently gets zero credentials |
 
+## Session Switch
+
+Resuming a session hydrates the transcript from the JSONL file via the session
+worker (`ReadSessionMessages`) before the session's utility process is ready, and
+`markSessionHydrated` stops `useTranscript` from fetching `get_messages` again
+(the file is authoritative: append-only, and the old process is dead). Prompts
+sent before the port exists are buffered in `App.tsx` (`pendingPromptsRef`) and
+flushed on `session_ready`; the UI never shows a reconnecting state.
+
+## Collapsible Blocks
+
+`OverflowClamp` clamps tool output, thinking, and user bubbles with pure CSS:
+`flex-col justify-end` + `max-height` + `overflow: hidden` crops from the top,
+so the tail stays visible and streaming follows for free. The Show less button
+is `position: sticky; bottom` inside the card. Sticky is captured by any
+`overflow: hidden/auto` ancestor between the button and the scroll container,
+so cards use `overflow-clip` for rounded corners. Read groups
+(`readGrouping.ts`) absorb thinking-only assistant messages that sit between
+two groups, keeping the group id of the first tool call so expansion state
+survives merging.
+
 ## Credentials
 
 Every utility process builds its `ModelRuntime` with `FileCredentialStore`

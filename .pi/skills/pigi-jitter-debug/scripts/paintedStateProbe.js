@@ -1,6 +1,6 @@
 /**
  * Painted-state probe for the message list. Install with:
- *   node scripts/cdp.mjs eval "$(cat .pi/skills/pigi-jitter-debug/scripts/paintedStateProbe.js)"
+ *   node scripts/cdp.mjs eval-file .pi/skills/pigi-jitter-debug/scripts/paintedStateProbe.js
  *
  * Why this works: ResizeObserver callbacks run in registration order after
  * layout, before paint. The app's own observers were registered at mount, so

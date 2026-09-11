@@ -1,4 +1,4 @@
-import { app, type BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain, type BrowserWindow as BrowserWindowType } from 'electron';
 import { is } from '@electron-toolkit/utils';
 
 declare const __PIGI_DEBUG_PANEL__: boolean;
@@ -18,7 +18,7 @@ export function configureDebugPanel(): void {
   }
 }
 
-export function openDebugPanel(window: BrowserWindow): void {
+export function openDebugPanel(window: BrowserWindowType): void {
   if (!isDebugPanelEnabled()) {
     return;
   }
@@ -26,4 +26,35 @@ export function openDebugPanel(window: BrowserWindow): void {
   window.webContents.once('did-finish-load', () => {
     window.webContents.openDevTools({ mode: DEVTOOLS_MODE });
   });
+}
+
+/**
+ * Dev-only `globalThis.__pigi` for the main-process inspector (`npm run dev`
+ * passes `--inspect 9229`; `node scripts/cdp.mjs --main eval ...` reaches it).
+ * The renderer counterpart lives in src/renderer/src/lib/debugHandle.ts.
+ */
+export function installMainDebugHandle(snapshotProviders: {
+  piAgent: () => Record<string, unknown>;
+}): void {
+  if (!is.dev) {
+    return;
+  }
+
+  const handle = {
+    app,
+    BrowserWindow,
+    ipcMain,
+    snapshot: (): Record<string, unknown> => ({
+      windows: BrowserWindow.getAllWindows().map((window) => ({
+        id: window.id,
+        title: window.getTitle(),
+        bounds: window.getBounds(),
+        focused: window.isFocused(),
+        visible: window.isVisible(),
+        url: window.webContents.getURL(),
+      })),
+      piAgent: snapshotProviders.piAgent(),
+    }),
+  };
+  Object.assign(globalThis, { __pigi: handle });
 }
