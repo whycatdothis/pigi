@@ -5,15 +5,30 @@ import type { MinimalTurn } from '../lib/minimalTurns';
 
 /**
  * Owns every scroll-position writer for the message list outside the
- * virtualizer itself: the minimal-mode turn pin state machine, per-session
- * scroll save/restore, and the view-mode switch re-derivation. In normal
- * (virtualized) mode the virtualizer itself owns bottom auto-follow via
- * anchorTo: 'end' — it glues the viewport to the streaming bottom
- * synchronously in its item ResizeObservers and preserves the reading
- * position otherwise — so this hook must not write scrollTop there except
- * for the one-shot cases below (session restore, new-turn jump,
- * scroll-to-bottom button, container viewport resize). MessageList consumes
- * the returned refs/handlers.
+ * virtualizer itself: bottom auto-follow in normal (virtualized) mode, the
+ * minimal-mode turn pin state machine, per-session scroll save/restore, and
+ * the view-mode switch re-derivation. MessageList consumes the returned
+ * refs/handlers.
+ *
+ * Normal-mode follow has one state (autoScrollRef) and two rules:
+ * - While following, every content growth (rows-wrapper ResizeObserver) and
+ *   viewport resize glues scrollTop to the real DOM end, whatever the
+ *   shortfall. The virtualizer's anchorTo: 'end' correction runs earlier in
+ *   the same ResizeObserver pass but only preserves distance-from-end by its
+ *   model's delta; this hook's write is the last one before paint, so the
+ *   painted frame is always exactly at the end.
+ * - Only user input changes the state: wheel-up accumulating past
+ *   MESSAGE_LIST_SCROLL_END_THRESHOLD disengages, wheel-down that reaches the
+ *   end re-engages, a scrollbar drag disengages and re-engages by where it
+ *   is released. Explicit jumps (new turn, scroll-to-bottom button) engage.
+ * Scroll events are never used to infer intent: they mix this hook's own
+ * writes, the virtualizer's writes and browser clamps, and the browser
+ * dispatches the event for a frame-N write in frame N+1 before that frame's
+ * ResizeObservers, when the streaming commit has already grown the DOM again
+ * — so a handler reads "146px from the end" for a viewport that is glued.
+ * Likewise the follow decision is never read from position at growth time:
+ * a tool card mounting at its real size moves the end hundreds of px in one
+ * frame.
  */
 
 import { MESSAGE_LIST_SCROLL_END_THRESHOLD } from '../lib/layoutConstants';
@@ -27,9 +42,6 @@ type PinPhase =
   | { phase: 'ending'; turnId: string };
 
 const SCROLL_BUTTON_VIEWPORT_MULTIPLIER = 2;
-/** Heals short-of-end landings left by estimate-lagged size corrections
- *  while auto-follow is engaged (see handleResize). */
-const FOLLOW_HEAL_BAND_PX = 160;
 
 function isAtBottom(container: HTMLDivElement): boolean {
   return (
@@ -69,6 +81,21 @@ export function useMessageListScrollController({
   isLastMinimalTurnActive,
 }: MessageListScrollControllerOptions): MessageListScrollController {
   const autoScrollRef = useRef(true);
+  // Wheel-up pixels accumulated while following; past the threshold the
+  // user means it and follow disengages. Reset by any wheel-down.
+  const wheelUpSlackRef = useRef(0);
+  /** Glue the viewport to the real DOM end. */
+  const glueToEnd = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.scrollTop = container.scrollHeight - container.clientHeight;
+  }, [containerRef]);
+  /** Turn normal-mode follow on and land at the end. */
+  const engageFollow = useCallback(() => {
+    autoScrollRef.current = true;
+    wheelUpSlackRef.current = 0;
+    glueToEnd();
+  }, [glueToEnd]);
   // In-flight layout-restore animation (cancelled the moment the user
   // scrolls, so their position is never yanked back).
   const restoreAnimRef = useRef<{ cancel: () => void } | null>(null);
@@ -119,16 +146,10 @@ export function useMessageListScrollController({
         setTopPaddingPx(container.clientHeight);
       }
     } else {
-      // The virtualizer's followOnAppend covers this when the viewport is
-      // already at the end; jump explicitly so sending a message also
-      // follows the reply when the user had scrolled up.
-      autoScrollRef.current = true;
-      const container = containerRef.current;
-      if (container) {
-        container.scrollTop = container.scrollHeight;
-      }
+      // Sending a message follows the reply even if the user had scrolled up.
+      engageFollow();
     }
-  }, [containerRef, isLastMinimalTurnActive, isMinimal, lastMinimalTurn]);
+  }, [containerRef, engageFollow, isLastMinimalTurnActive, isMinimal, lastMinimalTurn]);
 
   // While a just-expanded details area settles (one frame: the details mount,
   // the pin padding is re-fit, the viewport rolls to the details bottom), the
@@ -197,22 +218,12 @@ export function useMessageListScrollController({
     function handleResize(): void {
       if (expandSettlingRef.current) return;
       if (!isMinimal) {
-        // Follow heal, same frame as the growth: when auto-follow is engaged
-        // and the viewport sits just short of the real content end, glue it
-        // back. The virtualizer's end-anchor correction writes scrollTop by
-        // its model's size delta, but while a streaming row is still larger
-        // than its estimate the model delta is smaller than the real growth,
-        // so the correction lands short — right past scrollEndThreshold, where
-        // every follow gate reads "not at end" and follow silently dies. This
-        // observer runs after the virtualizer's per-row observers in the same
-        // frame (registration order), so this write is what gets painted.
-        // The band is deliberately narrow: it heals short landings (the
-        // estimate lag), never drags a viewport that scrolled away to read.
+        // Follow: glue to the real end in the growth frame (see file header).
         const container = containerRef.current;
         if (!container || !autoScrollRef.current) return;
         const shortfall = container.scrollHeight - container.scrollTop - container.clientHeight;
-        if (shortfall > 0.5 && shortfall <= FOLLOW_HEAL_BAND_PX) {
-          container.scrollTop = container.scrollHeight - container.clientHeight;
+        if (shortfall > 0.5) {
+          glueToEnd();
         }
         return;
       }
@@ -237,9 +248,8 @@ export function useMessageListScrollController({
             container!.scrollHeight - topPaddingPxRef.current - container!.clientHeight;
           break;
         }
-        // 'idle' / 'scrolled' / 'ending': don't touch scrollTop (idle is
-        // virtualizer-owned in normal mode; minimal mode has nothing to pin
-        // when no turn is active).
+        // 'idle' / 'scrolled' / 'ending': don't touch scrollTop (nothing to
+        // pin when no turn is active).
       }
     }
 
@@ -250,7 +260,8 @@ export function useMessageListScrollController({
       handleResize();
       // Viewport resize (terminal, input, window): keep completed minimal
       // turns at the bottom too. Active minimal turns retain their pin phase.
-      if (autoScrollRef.current && (!isMinimal || pinRef.current.phase === 'idle')) {
+      // (Normal mode is already glued by handleResize above.)
+      if (isMinimal && autoScrollRef.current && pinRef.current.phase === 'idle') {
         container!.scrollTop = container!.scrollHeight;
       }
     });
@@ -259,6 +270,29 @@ export function useMessageListScrollController({
     function handleWheel(event: WheelEvent): void {
       restoreAnimRef.current?.cancel();
       restoreAnimRef.current = null;
+      if (!isMinimal) {
+        if (event.deltaY < 0) {
+          if (autoScrollRef.current) {
+            wheelUpSlackRef.current -= event.deltaY;
+            if (wheelUpSlackRef.current > MESSAGE_LIST_SCROLL_END_THRESHOLD) {
+              autoScrollRef.current = false;
+            }
+          }
+        } else if (event.deltaY > 0) {
+          wheelUpSlackRef.current = 0;
+          // Runs before the wheel's scroll is applied, so predict where it
+          // lands. Not following means nothing glues, so the current distance
+          // is the truth.
+          const distance = container!.scrollHeight - container!.scrollTop - container!.clientHeight;
+          if (
+            !autoScrollRef.current &&
+            distance - event.deltaY <= MESSAGE_LIST_SCROLL_END_THRESHOLD
+          ) {
+            engageFollow();
+          }
+        }
+        return;
+      }
       const pin = pinRef.current;
       if (pin.phase === 'pinned' && event.deltaY < 0) {
         // Only scrolling UP releases the pin (user wants to see history).
@@ -298,7 +332,23 @@ export function useMessageListScrollController({
       );
     }
 
+    // Scrollbar drag: a pointerdown whose target is the container itself hit
+    // the scrollbar, not a row. Release follow for the drag and re-derive it
+    // from where the thumb is released.
+    function handlePointerDown(event: PointerEvent): void {
+      if (isMinimal || event.target !== container) return;
+      autoScrollRef.current = false;
+      window.addEventListener(
+        'pointerup',
+        () => {
+          if (isAtBottom(container!)) engageFollow();
+        },
+        { once: true },
+      );
+    }
+
     container.addEventListener('wheel', handleWheel, { capture: true, passive: true });
+    container.addEventListener('pointerdown', handlePointerDown);
     container.addEventListener('scroll', handleScroll, { passive: true });
 
     handleResize();
@@ -307,14 +357,17 @@ export function useMessageListScrollController({
       rowsWrapperRo.disconnect();
       containerRo.disconnect();
       container.removeEventListener('wheel', handleWheel, { capture: true });
+      container.removeEventListener('pointerdown', handlePointerDown);
       container.removeEventListener('scroll', handleScroll);
     };
-  }, [containerRef, isMinimal, rowsWrapperRef]);
+  }, [containerRef, engageFollow, glueToEnd, isMinimal, rowsWrapperRef]);
 
-  // Save scroll position to store on every scroll event.
-  // If user is at the bottom, save sentinel -1 so restore knows to auto-scroll.
-  // Mount-time observers can scroll before restoration runs, so saving remains
-  // disabled until the current session's initial position has been applied.
+  // Save scroll position to store on every scroll event: sentinel -1 while
+  // following (the measured distance is unreliable mid-stream, see header)
+  // or at the bottom in minimal mode, so restore knows to land at the end.
+  // Mount-time observers can scroll before restoration runs, so saving
+  // remains disabled until the current session's initial position has been
+  // applied.
   const restoredScrollSessionRef = useRef<string | null>(null);
   useEffect(() => {
     const container = containerRef.current;
@@ -322,7 +375,7 @@ export function useMessageListScrollController({
 
     function savePosition(): void {
       if (restoredScrollSessionRef.current !== sessionPath) return;
-      const atBottom = isAtBottom(container!);
+      const atBottom = isMinimal ? isAtBottom(container!) : autoScrollRef.current;
       const next = atBottom ? -1 : container!.scrollTop;
       // Skip redundant writes (e.g. staying pinned at the bottom during the
       // terminal open/close animation) so we don't allocate a new Map and
@@ -333,7 +386,7 @@ export function useMessageListScrollController({
 
     container.addEventListener('scroll', savePosition, { passive: true });
     return () => container.removeEventListener('scroll', savePosition);
-  }, [containerRef, sessionPath]);
+  }, [containerRef, isMinimal, sessionPath]);
 
   // Restore saved scroll position on session change, or auto-scroll to bottom.
   // -1 sentinel means user was at bottom → enable auto-scroll so ResizeObserver
@@ -532,11 +585,8 @@ export function useMessageListScrollController({
   );
 
   function handleScrollToBottom(): void {
-    const container = containerRef.current;
-    if (!container) return;
     clearTopPin();
-    autoScrollRef.current = true;
-    container.scrollTop = container.scrollHeight;
+    engageFollow();
     setShowScrollButton(false);
   }
 

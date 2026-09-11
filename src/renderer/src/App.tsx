@@ -1216,12 +1216,14 @@ function App(): React.JSX.Element {
     ],
   );
 
-  // Queued steer/follow-up bars stack above the Working bar; each raises the
-  // queue by one step. The Working bar itself is not counted: it overlaps the
-  // list's bottom inset by design, so turn start/end never changes layout.
-  const queuedBarCount =
+  // The Working bar and the queued steer/follow-up bars stacked above it each
+  // raise the queue anchor by one step, so the message list's viewport always
+  // ends above the topmost bar: transcript content can never be covered by
+  // them. While following, the scroll controller keeps the end glued through
+  // the resulting viewport resize.
+  const queueBarCount =
     transcript.status !== 'idle'
-      ? transcript.queuedSteering.length + transcript.queuedFollowUp.length
+      ? 1 + transcript.queuedSteering.length + transcript.queuedFollowUp.length
       : 0;
 
   // Reserve the terminal's height in the chat layout so the message list's
@@ -1295,16 +1297,13 @@ function App(): React.JSX.Element {
                 />
                 <div className="relative z-10 shrink-0">
                   {/* Flow anchor for the absolutely positioned queue. Its height is
-                      the queued bars' rise (computed, not measured), so the list
-                      viewport shrinks smoothly above them instead of being covered;
-                      with nothing queued it is zero-height, so the lone Working bar
-                      appearing/disappearing at turn boundaries never moves the
-                      list. The queue's -mb-14 lets ChatInput (DOM-later, z-10)
-                      overlap its bottom padding — the "grow out from behind"
-                      effect. */}
+                      the bars' visible rise (computed, not measured), so the list
+                      viewport shrinks smoothly above them instead of being covered.
+                      The queue's -mb-14 lets ChatInput (DOM-later, z-10) overlap
+                      its bottom padding — the "grow out from behind" effect. */}
                   <div
                     className="relative z-10 shrink-0 transition-[height] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
-                    style={{ height: queuedBarCount * STREAMING_QUEUE_BAR_STEP_PX }}
+                    style={{ height: queueBarCount * STREAMING_QUEUE_BAR_STEP_PX }}
                   >
                     <div className="absolute inset-x-0 bottom-0">
                       <StreamingQueue

@@ -26,25 +26,20 @@ export const READ_GROUP_MAX_COLLAPSED_ENTRIES = 3;
  *  the at-end check (getVirtualDistanceFromEnd) is exact. */
 export const MESSAGE_LIST_TOP_INSET = 24;
 
-/** Breathing room below the last row's content (replaces the old
- *  last-row extra margin + spacer padding + wrapper pb-8, which summed to
- *  72px). Modeled as the virtualizer's paddingEnd AND applied as the last
- *  row's bottom margin: the margin makes the rows-wrapper's bottom edge
- *  track the last row's DOM growth immediately (a growing row pushes the
- *  wrapper past the spacer, growing scrollHeight in the same layout pass),
- *  which is what keeps the virtualizer's synchronous at-end correction from
- *  being clamped to a stale scrollHeight before the spacer re-renders. */
-export const MESSAGE_LIST_BOTTOM_INSET = 72;
+/** Breathing room below the last row's content. Modeled as the
+ *  virtualizer's paddingEnd AND applied as the last row's bottom margin: the
+ *  margin makes the rows-wrapper's bottom edge track the last row's DOM
+ *  growth immediately (a growing row pushes the wrapper past the spacer,
+ *  growing scrollHeight in the same layout pass), so the same-frame follow
+ *  write in the scroll controller sees the real end, not a stale spacer. */
+export const MESSAGE_LIST_BOTTOM_INSET = 16;
 
 /** Distance (px) from the content end within which the list counts as
- *  "at the bottom". Matches the bottom inset: anywhere within it, the last
- *  message is still fully visible above the input, so it looks and behaves
- *  as at-end. Deliberate scroll-ups beyond the inset disengage follow.
- *  Shared by the scroll controller's real-DOM checks and the virtualizer's
- *  scrollEndThreshold (followOnAppend + growth corrections), so a strict 2px
- *  here made follow brittle: momentum slop or a correction still in flight
- *  would land just past it and silently kill auto-follow. */
-export const MESSAGE_LIST_SCROLL_END_THRESHOLD = 72;
+ *  "at the bottom", i.e. the user's scroll-up slack before follow disengages
+ *  and the zone in which scrolling back re-engages it. Purely a user-intent
+ *  threshold: follow itself always glues to the exact end, and only user
+ *  input changes the follow state (see useMessageListScrollController). */
+export const MESSAGE_LIST_SCROLL_END_THRESHOLD = 16;
 
 /** Bottom terminal panel sizing. */
 export const TERMINAL_DEFAULT_HEIGHT = 280;

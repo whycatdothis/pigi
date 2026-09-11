@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Auto-follow during streaming now keeps the message list glued to the exact bottom: content stays above the input with no drift, and every auto-scroll (new message, scroll-to-bottom button) lands fully at the end
+- Scrolling up more than a few lines while output streams stops the follow; scrolling back down to the bottom resumes it. Small wheel nudges no longer stop the follow
+- The Working bar and queued messages reserve their own space below the message list instead of overlapping it, so they can never cover the transcript
+- Less empty space below the last message
+
+### Fixed
+
+- Tool cards and other content that grow after they appear no longer push the end of the transcript under the bottom edge, leaving the list stuck short of the bottom until you scrolled manually
+
 ## [0.4.9] - 2026-09-11
 
 ### Added
