@@ -116,7 +116,7 @@ export default function StreamingQueue({
   // covers the last bar's bottom — creating the "growing out from behind" effect.
   // Each bar is `relative` so later DOM elements naturally paint on top.
   return (
-    <div className="shrink-0 -mb-14 px-8">
+    <div className="shrink-0 -mb-14 px-5">
       <div className="mx-auto w-full" style={{ maxWidth: `${CHAT_INPUT_MAX_WIDTH}px` }}>
         {bars.map((bar, i) => (
           <div key={bar.key} className={cn('relative', i > 0 && '-mt-14')}>
