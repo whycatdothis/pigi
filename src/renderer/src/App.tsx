@@ -1216,15 +1216,16 @@ function App(): React.JSX.Element {
     ],
   );
 
-  // The Working bar and the queued steer/follow-up bars stacked above it each
-  // raise the queue anchor by one step, so the message list's viewport always
-  // ends above the topmost bar: transcript content can never be covered by
-  // them. While following, the scroll controller keeps the end glued through
-  // the resulting viewport resize.
+  // The queue anchor always reserves one bar step for the Working bar, so it
+  // appears instantly into space that already exists and turn start/end never
+  // resizes the message list. Queued steer/follow-up bars stack above it and
+  // each raise the anchor by one more step. The list viewport therefore always
+  // ends above the topmost bar: transcript content can never be covered.
   const queueBarCount =
-    transcript.status !== 'idle'
-      ? 1 + transcript.queuedSteering.length + transcript.queuedFollowUp.length
-      : 0;
+    1 +
+    (transcript.status !== 'idle'
+      ? transcript.queuedSteering.length + transcript.queuedFollowUp.length
+      : 0);
 
   // Reserve the terminal's height in the chat layout so the message list's
   // actual scroll viewport ends above the input. Match the drawer timing,
