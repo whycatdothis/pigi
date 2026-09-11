@@ -14,6 +14,8 @@
 - Long lines in tool output scroll horizontally instead of wrapping
 - The chat input grows to at most half its previous maximum height before scrolling
 - The login dialog now has OAuth and API key tabs side by side with a fixed height; the API key form is always visible instead of hidden behind "Add provider"
+- Login dialog: signed-in OAuth providers are listed first, the list scrollbar is hidden, and Login buttons match the Logout style instead of solid black
+- Terminal tabs are slightly taller
 
 ### Fixed
 
@@ -31,6 +33,7 @@
 - The git branch shown in the chat input refreshes when you create a session, switch sessions, or switch project in a new session
 - Code blocks, tables, tool output and the login dialog no longer rubber-band when scrolled past their edge on macOS, which previously exposed transparent backgrounds and shifted code away from its header
 - Tab bars now lay out horizontally and highlight the active tab correctly
+- The active terminal tab shows its rounded grey background again
 
 ## [0.4.8] - 2026-09-07
 
