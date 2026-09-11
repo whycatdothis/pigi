@@ -2,8 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- The new-chat input keeps its draft: text typed without sending reappears the next time you start a new chat
+
 ### Fixed
 
+- Draft text is no longer lost when switching between a session and the new-chat screen
 - Narrowing the window keeps the chat input and the streaming queue aligned with the message list content: the input no longer shrinks by a wider margin than the transcript while the window is resized
 
 ## [0.4.10] - 2026-09-11
