@@ -32,6 +32,7 @@ import {
   type SlashCommandMatches,
 } from '../../lib/slashCommands';
 import { escapeAbortScopeProps } from '../../lib/focusScopes';
+import { NEW_CHAT_DRAFT_KEY, readChatDraft, writeChatDraft } from '../../lib/chatDrafts';
 import { useInputHistory } from '../../hooks/useInputHistory';
 import { resizeTextarea } from './textareaMeasure';
 import { formatContextUsage, UNKNOWN_STATUS } from './formatters';
@@ -103,8 +104,10 @@ export default function ChatInput({
 }: ChatInputProps): React.JSX.Element {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useImperativeHandle(ref, () => ({ focus: () => textareaRef.current?.focus() }), []);
-  const draftsRef = useRef<Map<string, string>>(new Map());
-  const prevSessionIdRef = useRef<string | null>(null);
+  // Which input box currently owns the textarea: the active session's path, or
+  // NEW_CHAT_DRAFT_KEY while composing the first message of a new chat.
+  const draftKey = session?.sessionPath || NEW_CHAT_DRAFT_KEY;
+  const activeDraftKeyRef = useRef<string | null>(null);
 
   const history = useInputHistory(textareaRef, userHistory);
   // Stable references for effect deps; `history` itself changes with userHistory.
@@ -127,35 +130,51 @@ export default function ChatInput({
   }, [slashMatches]);
   const hasSlashMatches = slashMatches.builtin.length > 0 || slashMatches.skill.length > 0;
 
-  // Save/restore draft per session
+  // Save/restore the draft of the input box being switched to/from. Drafts are
+  // stored module-level (see lib/chatDrafts.ts) so text typed on the new-chat
+  // screen survives the unmount that happens when the user opens a session.
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    const prevId = prevSessionIdRef.current;
-    const currentId = session?.sessionPath ?? null;
+    const previousKey = activeDraftKeyRef.current;
 
-    // Save previous session's draft (if navigating history, the saved draft is
+    // Save the previous key's draft (if navigating history, the saved draft is
     // what the user actually typed, not the recalled message currently shown)
-    if (prevId && prevId !== currentId) {
-      const draft = getHistoryDraft();
-      if (draft) {
-        draftsRef.current.set(prevId, draft);
-      } else {
-        draftsRef.current.delete(prevId);
-      }
+    if (previousKey !== null && previousKey !== draftKey) {
+      writeChatDraft(previousKey, getHistoryDraft());
     }
 
     // Reset history recall when switching sessions
     resetHistory();
 
-    // Restore current session's draft and auto-focus the input
-    if (currentId !== prevId) {
-      textarea.value = draftsRef.current.get(currentId ?? '') ?? '';
+    // Restore the current key's draft and auto-focus the input
+    if (previousKey !== draftKey) {
+      textarea.value = readChatDraft(draftKey);
+      resizeTextarea(textarea);
       textarea.focus();
     }
 
-    prevSessionIdRef.current = currentId;
-  }, [session?.sessionPath, resetHistory, getHistoryDraft]);
+    activeDraftKeyRef.current = draftKey;
+  }, [draftKey, resetHistory, getHistoryDraft]);
+
+  // The textarea is detached whenever the input leaves the tree (switching
+  // between the new-chat screen and a session). Persist its draft from the ref
+  // callback: React still hands over the node there, while an effect cleanup
+  // would already see the ref cleared.
+  const handleTextareaRef = useCallback(
+    (node: HTMLTextAreaElement | null): void => {
+      if (node) {
+        textareaRef.current = node;
+        return;
+      }
+      const key = activeDraftKeyRef.current;
+      if (key !== null) {
+        writeChatDraft(key, getHistoryDraft());
+      }
+      textareaRef.current = null;
+    },
+    [getHistoryDraft],
+  );
 
   // Restore text from abort/dequeue
   useEffect(() => {
@@ -385,7 +404,7 @@ export default function ChatInput({
               )}
             >
               <InputGroupTextarea
-                ref={textareaRef}
+                ref={handleTextareaRef}
                 onKeyDown={handleKeyDown}
                 onInput={handleInput}
                 placeholder={isNewSession ? NEW_SESSION_PLACEHOLDER : 'Ask for follow-up changes'}
