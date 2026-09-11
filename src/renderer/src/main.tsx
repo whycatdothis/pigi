@@ -6,6 +6,11 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { Toaster } from './components/ui/sonner';
 import { applyThemeAccent, DEFAULT_THEME_ACCENT_ID } from './lib/themeAccents';
+import { installDebugHandle } from './lib/debugHandle';
+
+if (import.meta.env.DEV) {
+  installDebugHandle();
+}
 
 // Publish the app accent before first paint. Synchronous, so no color flash.
 // A future settings page will call applyThemeAccent with the user's choice.

@@ -5,65 +5,30 @@ description: Show the user a visual preview of a UI/design choice (color swatche
 
 # pigi UI Preview
 
-Preview a design choice without reproducing the exact app state that renders it:
-inject a throwaway overlay into the running renderer, screenshot just that
-region, and read the PNG back so you (and the user) can judge and iterate.
-
-Prerequisite: the dev app must be running with CDP on port 9222. See the
-`pigi-debug` skill for starting the dev server and the `scripts/cdp.mjs` helper.
-
-## Why it looks real
-
-The overlay is injected into the actual running app, so it inherits the live
-theme: CSS variables, Tailwind classes (`bg-muted`, `animate-pulse`,
-`bg-green-500/15`, etc.). Replicate the target component's real class names and
-the crop matches production.
-
-It is still a hand-built mock, not the mounted component. For 100% fidelity,
-trigger the real state instead of previewing.
-
-## Workflow
-
-1. Inject a `position:fixed` panel via `eval`, build it with the app's real
-   Tailwind classes, append to `body`, and return its bounding rect.
-2. Capture just that rect with `capture <path> <clipJson>` (scale defaults to 2
-   for crisp high-DPI crops).
-3. `read` the PNG to view it and iterate on the design.
-4. Remove the overlay when done.
+Inject a fixed overlay into the running app, screenshot only its rect, `read` the
+PNG. The overlay inherits the live theme, so using the target component's real
+Tailwind classes gives a production-faithful crop. It is still a mock; for exact
+fidelity trigger the real state.
 
 ```bash
-# 1. inject and get the rect (capture the printed JSON into a var)
 RECT=$(node scripts/cdp.mjs eval '
 (() => {
   document.getElementById("__preview")?.remove();
   const panel = document.createElement("div");
   panel.id = "__preview";
-  panel.style.cssText = "position:fixed;top:60px;left:40px;z-index:99999;" +
-    "display:flex;gap:16px;background:#fff;padding:16px;border:1px solid #ddd;border-radius:8px";
-  // Use the app real classes so it matches production rendering:
+  panel.className = "bg-background border-border text-foreground";
+  panel.style.cssText = "position:fixed;top:60px;left:40px;z-index:99999;display:flex;gap:16px;padding:16px;border:1px solid;border-radius:8px";
   panel.innerHTML = `<div class="animate-pulse rounded-md bg-muted" style="width:200px;height:16px"></div>`;
   document.body.appendChild(panel);
   const r = panel.getBoundingClientRect();
   return JSON.stringify({ x: Math.floor(r.x), y: Math.floor(r.y), width: Math.ceil(r.width), height: Math.ceil(r.height) });
 })()' | tail -1)
-
-# 2. clip screenshot of just the panel
-node scripts/cdp.mjs capture /tmp/preview.png "$RECT"
-
-# 4. clean up the overlay
-node scripts/cdp.mjs eval 'document.getElementById("__preview")?.remove(); "cleaned"'
+node scripts/cdp.mjs capture /tmp/preview.png "$RECT"      # clip scale defaults to 2
+node scripts/cdp.mjs eval 'document.getElementById("__preview")?.remove()'
 ```
 
-Then `read /tmp/preview.png`.
-
-The clip rect accepts an optional `scale`
-(`{"x":..,"y":..,"width":..,"height":..,"scale":2}`); it defaults to 2.
-
-## Tips
-
-- Lay variants out side by side in one panel (flex row) so a single screenshot
-  shows all options for direct comparison.
-- Simulate real adjacency: if two elements clash in the real layout (e.g. a diff
-  above a status footer), stack them the same way in the preview.
-- Keep the panel id stable (e.g. `__preview`) so re-running the inject step
-  replaces the previous overlay instead of stacking duplicates.
+- Theme classes for the panel chrome (`bg-background`, `border-border`), never
+  hardcoded colors: the app may be in dark mode.
+- Put variants side by side in one panel; mirror real adjacency when elements
+  interact (e.g. diff above a status footer).
+- Keep the id `__preview` so re-running replaces instead of stacking.

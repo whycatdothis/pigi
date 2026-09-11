@@ -1,5 +1,5 @@
 // In-page probe for window-resize jank. Install with
-//   node scripts/cdp.mjs eval "$(cat .pi/skills/pigi-jitter-debug/scripts/resizeProbe.js)"
+//   node scripts/cdp.mjs eval-file .pi/skills/pigi-jitter-debug/scripts/resizeProbe.js
 // then have the user drag the window and read window.__resizeLog.
 //
 // Records only painted-state signals:

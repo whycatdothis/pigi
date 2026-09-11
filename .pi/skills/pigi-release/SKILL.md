@@ -7,19 +7,25 @@ description: Commit changes and release new versions. Use when asked to commit, 
 
 ## Commit
 
-- Do NOT commit automatically; wait for explicit commit instruction
-- When asked to commit:
-  1. Review all uncommitted changes and summarize them
-  2. Write a changelog entry under `## [Unreleased]` in `CHANGELOG.md` using sections `### Added`, `### Changed`, or `### Fixed`. Keep entries user-facing — describe what the user sees and experiences, not internal implementation details. Omit technical jargon like file names, package names, refactors, or tooling changes. Skip entirely for internal-only changes with no user impact.
-  3. Write a conventional commit message (e.g. `fix:`, `feat:`, `refactor:`, `chore:`) with bullet points in the body for non-trivial changes
-  4. Stage and commit the changelog together with the changes in a single commit
+Only on explicit instruction. Run `npm run check` if code changed since the last run.
+
+1. Add a user-facing entry under `## [Unreleased]` in `CHANGELOG.md` (`### Added` /
+   `### Changed` / `### Fixed`). Describe what the user experiences; no file names,
+   refactors, or tooling. Skip for internal-only changes.
+2. Conventional commit message (`fix:`, `feat:`, `refactor:`, `chore:`, `docs:`), bullets
+   in the body for non-trivial changes. Changelog and code in one commit.
+3. Never amend or force-push without asking.
 
 ## Release
 
-When asked to release a new version:
+Pushing a `v*` tag runs `.github/workflows/release.yml`: build, sign, notarize, publish,
+and fill the release notes from the `## [<version>]` section of `CHANGELOG.md`. Header
+and tag must match exactly.
 
-1. Bump `version` in `package.json` (patch by default unless the user specifies otherwise).
-2. Rename `## [Unreleased]` to `## [<version>]` in `CHANGELOG.md`, add date.
-3. Commit with message `release: v<version>`.
-4. Create annotated tag and push: `git tag -a v<version> -m "v<version>" && git push --follow-tags`.
-   - Always use `-a` (annotated tag). `git push --follow-tags` only pushes annotated tags, lightweight tags are skipped.
+1. On `main`, clean tree, `## [Unreleased]` non-empty (else ask).
+2. `npm version <version> --no-git-tag-version` (patch by default; updates lock file too).
+3. Rename `## [Unreleased]` to `## [<version>] - YYYY-MM-DD`.
+4. Commit `release: v<version>`.
+5. `git tag -a v<version> -m "v<version>" && git push --follow-tags` (annotated tag
+   required; `--follow-tags` skips lightweight tags).
+6. Report the run: `gh run list --workflow release.yml --limit 1`.

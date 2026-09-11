@@ -17,15 +17,20 @@ import {
 } from 'electron';
 import { electronApp, is } from '@electron-toolkit/utils';
 import { createMainWindow } from './windows/createMainWindow';
-import { stopAllProcesses, registerIpcHandlers } from './ipc/piAgentBridge';
+import {
+  stopAllProcesses,
+  registerIpcHandlers,
+  getPiAgentDebugSnapshot,
+} from './ipc/piAgentBridge';
 import { registerProjectHandlers } from './ipc/projectHandlers';
 import { registerShortcutHandlers } from './ipc/shortcutHandlers';
 import { registerTerminalHandlers, stopTerminalProcess } from './terminal/terminalManager';
 import { PiChannel } from '../shared/ipcContract';
-import { configureDebugPanel } from './debugConfig';
+import { configureDebugPanel, installMainDebugHandle } from './debugConfig';
 import { initializeShellEnv } from './processes/shellEnvResolver';
 
 configureDebugPanel();
+installMainDebugHandle({ piAgent: getPiAgentDebugSnapshot });
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'local-file', privileges: { bypassCSP: true, supportFetchAPI: true } },

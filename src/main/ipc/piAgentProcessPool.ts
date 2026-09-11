@@ -141,6 +141,22 @@ export class PiAgentProcessPool {
     return true;
   }
 
+  /** Read-only view for the dev debug handle (see debugConfig.ts). */
+  snapshot(): Record<string, unknown> {
+    return {
+      activeSessionPath: this.activeSessionPath,
+      warmProcess: this.warmProcess
+        ? { pid: this.warmProcess.process.pid, ready: this.warmProcess.ready }
+        : null,
+      sessionProcesses: Array.from(this.sessionProcesses.values()).map((entry) => ({
+        sessionPath: entry.sessionPath,
+        pid: entry.process.pid,
+        isBusy: entry.isBusy,
+        idleMs: Date.now() - entry.lastUsedAt,
+      })),
+    };
+  }
+
   stopAllProcesses(): void {
     for (const entry of this.sessionProcesses.values()) {
       entry.process.kill();
