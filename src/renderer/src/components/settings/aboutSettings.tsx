@@ -68,7 +68,7 @@ export function AboutSettings({
         </SettingsRow>
       </SettingsGroup>
 
-      <SettingsGroup title="Pi">
+      <SettingsGroup title="pi">
         <SettingsRow label="Version">
           <span className="font-mono text-xs text-muted-foreground">
             {snapshot?.piVersion ?? '…'}

@@ -17,8 +17,8 @@ import {
  * section of each group heads its list.
  */
 export const SETTINGS_GROUPS = [
-  { id: 'pi', label: 'Pi' },
   { id: 'pigi', label: 'pigi' },
+  { id: 'pi', label: 'pi' },
 ] as const;
 
 export type SettingsGroupId = (typeof SETTINGS_GROUPS)[number]['id'];
@@ -33,16 +33,16 @@ export interface SettingsSection {
 }
 
 export const SETTINGS_SECTIONS = [
+  { id: 'appearance', group: 'pigi', label: 'Appearance', icon: IconPalette },
+  { id: 'chat', group: 'pigi', label: 'Chat', icon: IconMessageCircle },
+  { id: 'shortcuts', group: 'pigi', label: 'Shortcuts', icon: IconKeyboard },
+  { id: 'about', group: 'pigi', label: 'About', icon: IconInfoCircle },
   { id: 'models', group: 'pi', label: 'Models & Thinking', icon: IconCpu, piScope: 'global' },
   { id: 'delivery', group: 'pi', label: 'Message Delivery', icon: IconSend },
   { id: 'compaction', group: 'pi', label: 'Compaction', icon: IconArrowsMinimize },
   { id: 'retry', group: 'pi', label: 'Retry', icon: IconRefresh },
   { id: 'resources', group: 'pi', label: 'Resources', icon: IconBox },
   { id: 'advanced', group: 'pi', label: 'Advanced', icon: IconAdjustmentsHorizontal },
-  { id: 'appearance', group: 'pigi', label: 'Appearance', icon: IconPalette },
-  { id: 'chat', group: 'pigi', label: 'Chat', icon: IconMessageCircle },
-  { id: 'shortcuts', group: 'pigi', label: 'Shortcuts', icon: IconKeyboard },
-  { id: 'about', group: 'pigi', label: 'About', icon: IconInfoCircle },
 ] as const satisfies readonly SettingsSection[];
 
 export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id'];

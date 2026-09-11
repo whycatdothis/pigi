@@ -7,11 +7,19 @@ import { useState, type ReactNode } from 'react';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
+import { MESSAGE_LIST_MAX_WIDTH } from '../../lib/layoutConstants';
 import { cn } from '@/lib/utils';
 
 /** Page-level content column shared by every section. */
 export function SettingsContent({ children }: { children: ReactNode }): React.JSX.Element {
-  return <div className="mx-auto flex w-full max-w-2xl flex-col gap-7 px-6 py-6">{children}</div>;
+  return (
+    <div
+      className="mx-auto flex w-full flex-col gap-7 px-5 py-7"
+      style={{ maxWidth: `${MESSAGE_LIST_MAX_WIDTH}px` }}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function SettingsGroup({
@@ -27,11 +35,11 @@ export function SettingsGroup({
     <section className="flex flex-col gap-2">
       {(title || description) && (
         <div className="flex flex-col gap-0.5 px-1">
-          {title && <h2 className="text-sm font-medium text-foreground">{title}</h2>}
+          {title && <h2 className="text-sm text-muted-foreground">{title}</h2>}
           {description && <p className="text-xs text-muted-foreground">{description}</p>}
         </div>
       )}
-      <div className="divide-y divide-border/60 overflow-hidden rounded-xl border-[0.5px] border-foreground/15 bg-card/50">
+      <div className="divide-y divide-border/60 overflow-hidden rounded-lg border-[0.5px] border-foreground/15 bg-card/50">
         {children}
       </div>
     </section>
@@ -75,7 +83,7 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-6 px-3.5 py-3',
+        'flex items-center justify-between gap-6 px-3 py-2',
         disabled && 'pointer-events-none opacity-50',
       )}
     >
@@ -101,10 +109,7 @@ export function SettingsStackRow({
 }): React.JSX.Element {
   return (
     <div
-      className={cn(
-        'flex flex-col gap-2 px-3.5 py-3',
-        disabled && 'pointer-events-none opacity-50',
-      )}
+      className={cn('flex flex-col gap-2 px-3 py-3', disabled && 'pointer-events-none opacity-50')}
     >
       <RowLabel label={label} description={description} hint={hint} />
       {children}
@@ -159,7 +164,7 @@ export function SegmentedControl<T extends string>({
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-0.5 rounded-lg border-[0.5px] border-foreground/15 bg-muted/50 p-0.5',
+        'inline-flex h-6 items-center gap-0.5 rounded-md border-[0.5px] border-foreground/15 bg-muted/50 p-0.5',
         disabled && 'pointer-events-none opacity-50',
         className,
       )}
@@ -171,7 +176,7 @@ export function SegmentedControl<T extends string>({
           aria-pressed={option.value === value}
           onClick={() => onChange(option.value)}
           className={cn(
-            'rounded-md px-2.5 py-1 text-xs transition-colors',
+            'rounded-sm px-2.5 py-0.5 text-sm leading-none transition-colors',
             option.value === value
               ? 'bg-background text-foreground shadow-xs'
               : 'text-muted-foreground hover:text-foreground',
