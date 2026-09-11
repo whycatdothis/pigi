@@ -171,13 +171,13 @@ Everything after handshake flows over two direct MessagePorts per session. Split
 
 ## Why This Design
 
-| Decision                                | Rationale                                                             |
-| --------------------------------------- | --------------------------------------------------------------------- |
-| One process per session                 | Crash isolation, no shared event loop blocking                        |
-| Direct MessagePorts for runtime data    | Main not in hot path, lowest latency                                  |
-| Separate control/data ports per session | High-volume stream output cannot queue ahead of abort/escape controls |
-| Two-step handshake                      | Real sessionId from SDK, no temporary/generated IDs                   |
-| Main only does lifecycle                | Minimal surface, easy to reason about                                 |
+| Decision                                | Rationale                                                                                                                                               |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One process per session                 | Crash isolation, no shared event loop blocking                                                                                                          |
+| Direct MessagePorts for runtime data    | Main not in hot path, lowest latency                                                                                                                    |
+| Separate control/data ports per session | High-volume stream output cannot queue ahead of abort/escape controls                                                                                   |
+| Two-step handshake                      | Real sessionId from SDK, no temporary/generated IDs                                                                                                     |
+| Main only does lifecycle                | Minimal surface, easy to reason about                                                                                                                   |
 | Own `CredentialStore` (disk is truth)   | SDK default snapshots auth.json once behind a 200ms lock retry; a process born during another process's 9s token refresh silently gets zero credentials |
 
 ## Credentials
