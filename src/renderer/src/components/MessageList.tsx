@@ -6,7 +6,6 @@ import type { TranscriptNode } from '../state/transcriptController';
 import {
   MESSAGE_LIST_BOTTOM_INSET,
   MESSAGE_LIST_MAX_WIDTH,
-  MESSAGE_LIST_SCROLL_END_THRESHOLD,
   MESSAGE_LIST_TOP_INSET,
   MESSAGE_ROW_GAP,
 } from '../lib/layoutConstants';
@@ -128,39 +127,35 @@ export default React.memo(function MessageList({
     // rows are laid out in-flow with marginBottom = MESSAGE_ROW_GAP, so without
     // gap the model is gapless while the DOM is not. paddingStart/paddingEnd
     // fold the top inset and the below-last-row breathing room into the model,
-    // which makes totalSize equal the real scrollHeight — the precondition for
-    // anchorTo: 'end' to judge "at end" exactly (see below) and for
-    // scrollToIndex alignments to be pixel-accurate.
+    // which makes totalSize equal the real scrollHeight so scrollToIndex
+    // alignments are pixel-accurate.
     gap: MESSAGE_ROW_GAP,
     paddingStart: MESSAGE_LIST_TOP_INSET,
     paddingEnd: MESSAGE_LIST_BOTTOM_INSET,
     // Seed the tracked scroll offset with the session's saved position so
     // restoration happens natively: the virtualizer writes initialOffset on
-    // scroll-element attach, and when the transcript loads (item count
-    // 0 -> N) its anchor logic re-applies the tracked offset to the element
-    // — no post-render scrollTop writes that its reconcile would fight.
-    // A bottom sentinel (clamped to the content end) covers both "was at
-    // bottom" (-1) and "no saved position": both should land at the end.
-    // Lazy function form: read once, at first getScrollOffset() call.
+    // scroll-element attach. A bottom sentinel (clamped to the content end)
+    // covers both "was at bottom" (-1) and "no saved position"; the scroll
+    // controller's follow then keeps the end glued while the transcript
+    // renders in. Lazy function form: read once, at first getScrollOffset()
+    // call.
     initialOffset: () => {
       const saved = sessionPath
         ? useAppStore.getState().scrollPositions.get(sessionPath)
         : undefined;
       return saved === undefined || saved === -1 ? Number.MAX_SAFE_INTEGER : saved;
     },
-    // anchorTo: 'end' lets the virtualizer own bottom auto-follow: on every
-    // item re-measure, if the viewport sits within scrollEndThreshold of the
-    // content end it applies the size delta synchronously (inside its own
-    // ResizeObserver callback, before paint) so the viewport stays glued to
-    // the streaming bottom — replacing the hand-rolled wrapper-observer pin.
-    // When NOT at the end, the built-in default correction preserves the
-    // reading position (only items entirely above the viewport shift scroll,
-    // fold-spanning rows and backward scrolling are exempt).
-    anchorTo: 'end',
-    // When rows are appended while at the end (new message), scroll to the
-    // new end during the same commit, before paint.
-    followOnAppend: true,
-    scrollEndThreshold: MESSAGE_LIST_SCROLL_END_THRESHOLD,
+    // Deliberately NOT anchorTo: 'end' / followOnAppend. Bottom follow is
+    // owned by useMessageListScrollController alone (see its header): the
+    // virtualizer's end-anchor correction writes scrollTop by its model's
+    // delta inside its own ResizeObserver callback, lands short whenever the
+    // model lags the DOM, and since ResizeObserver callbacks run in creation
+    // order it can overwrite the controller's exact glue in the same frame.
+    // Two writers at the bottom is exactly what produced the recurring
+    // "content drifts under the bottom edge" bugs. The default correction
+    // still preserves the reading position when not at the end (only items
+    // entirely above the viewport shift scroll; fold-spanning rows and
+    // backward scrolling are exempt).
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();

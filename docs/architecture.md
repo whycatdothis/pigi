@@ -32,6 +32,38 @@ measurement ref and cache heights from the virtualizer's measurements, avoiding
 an extra synchronous height read per row on every resize render. Bottom-follow
 and user-controlled history reading remain owned by the scroll controller.
 
+## Message List Bottom Follow
+
+One writer, one state, input-only transitions (`useMessageListScrollController`):
+
+- While following, every rows-wrapper or container resize writes
+  `scrollTop = scrollHeight - clientHeight` inside the ResizeObserver callback
+  (after layout, before paint). No band, no model: the real DOM end.
+- Only user input changes the state: wheel-up accumulating past
+  `MESSAGE_LIST_SCROLL_END_THRESHOLD` disengages; wheel-down that reaches the
+  end re-engages; a scrollbar drag (pointerdown on the container itself)
+  disengages and is re-derived on release; new turn and the scroll-to-bottom
+  button engage. Scroll events never change the state.
+- The virtualizer runs with the default `anchorTo: 'start'`. Its end-anchor
+  mode writes scrollTop by its own model's delta inside its own
+  ResizeObserver, lands short whenever the model lags the DOM, and can run
+  after the controller's write in the same frame (callbacks run in observer
+  creation order). Two writers at the bottom were the root of the recurring
+  "content drifts under the bottom edge" bugs.
+
+Why not read position to decide: the scroll event for a frame-N write is
+dispatched in frame N+1 before that frame's ResizeObservers, when the streaming
+commit has already grown the DOM again, so a handler reads a large distance for
+a viewport that is glued. Likewise a tool card mounting at its real size moves
+the end hundreds of px in one frame.
+
+The Working/queued bars reserve their visible height in the flow
+(`queueBarCount * STREAMING_QUEUE_BAR_STEP_PX`), so the list viewport always
+ends above the topmost bar; content cannot be covered by them.
+
+Measure with the painted-state probe from `pigi-jitter-debug`, never with rAF
+sampling or screenshots.
+
 ## Process Model
 
 ```
