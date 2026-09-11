@@ -24,7 +24,7 @@ import {
   setUpdateStatusObserver,
 } from './ipc/updateManager';
 import { stopProjectFileSearch } from './projects/projectFileSearch';
-import { PiChannel } from '../shared/ipcContract';
+import { PiChannel, type AppInfo } from '../shared/ipcContract';
 import { configureDebugPanel, installMainDebugHandle } from './debugConfig';
 import { initializeShellEnv } from './processes/shellEnvResolver';
 
@@ -64,6 +64,15 @@ app.whenReady().then(() => {
     // macOS 10.14+: returns system accent color as RGBA hex (#RRGGBBAA).
     const accent = systemPreferences.getAccentColor();
     return accent || null;
+  });
+
+  ipcMain.handle(PiChannel.GetAppInfo, (): AppInfo => {
+    return {
+      appVersion: app.getVersion(),
+      electronVersion: process.versions.electron ?? '',
+      chromeVersion: process.versions.chrome ?? '',
+      nodeVersion: process.versions.node ?? '',
+    };
   });
 
   openMainWindow();

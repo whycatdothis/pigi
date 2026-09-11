@@ -21,4 +21,5 @@ export interface SidebarProps {
   pendingUpdateVersion: string | null;
   onCheckForUpdates: () => void;
   onInstallUpdate: () => void;
+  onOpenSettings: () => void;
 }

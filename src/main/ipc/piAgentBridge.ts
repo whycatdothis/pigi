@@ -17,12 +17,20 @@ import {
   type ListProjectSessionsCommand,
   type ModelInfo,
   type ReadSessionMessagesCommand,
+  type ReadSettingsCommand,
   type RenameSessionCommand,
   type SessionWorkerResponse,
   type SessionListResult,
   type UtilityCommand,
   type UtilityResponse,
+  type WriteSettingsCommand,
 } from '../../shared/ipcContract';
+import {
+  isPiSettingValue,
+  type PiSettingsResult,
+  type PiSettingsScope,
+  type PiSettingUpdate,
+} from '../../shared/piSettings';
 
 let sessionWorkerProcess: Electron.UtilityProcess | null = null;
 let sessionWorkerRequestId = 0;
@@ -41,6 +49,7 @@ const pendingReadMessagesCallbacks = new Map<
     error?: string;
   }) => void
 >();
+const pendingSettingsCallbacks = new Map<string, (result: PiSettingsResult) => void>();
 
 function sendToRenderer(channel: PiChannel, data: unknown): void {
   const win = getMainWindow();
@@ -158,6 +167,18 @@ function startSessionWorker(): void {
         }
         break;
       }
+      case 'settings_result': {
+        const callback = pendingSettingsCallbacks.get(message.requestId);
+        if (callback) {
+          pendingSettingsCallbacks.delete(message.requestId);
+          callback({
+            success: message.success,
+            error: message.error,
+            snapshot: message.snapshot,
+          });
+        }
+        break;
+      }
     }
   });
 
@@ -174,6 +195,10 @@ function startSessionWorker(): void {
       for (const [id, callback] of pendingReadMessagesCallbacks) {
         callback({ success: false, error: 'session worker process exited' });
         pendingReadMessagesCallbacks.delete(id);
+      }
+      for (const [id, callback] of pendingSettingsCallbacks) {
+        callback({ success: false, error: 'session worker process exited' });
+        pendingSettingsCallbacks.delete(id);
       }
       scheduleSessionWorkerRespawn();
     }
@@ -196,6 +221,28 @@ function listProjectSessions(cwds: string[]): SessionListResult {
   // Prewarm services in the warm process for these cwds
   processPool.ensureWarmProcess(cwds);
   return { success: true, requestId };
+}
+
+/** Forward a settings read/write to the session worker and await its reply. */
+function sendSettingsCommand(
+  command: ReadSettingsCommand | WriteSettingsCommand,
+): Promise<PiSettingsResult> {
+  startSessionWorker();
+  if (!sessionWorkerProcess) {
+    return Promise.resolve({ success: false, error: 'session worker process not available' });
+  }
+  const proc = sessionWorkerProcess;
+  return new Promise<PiSettingsResult>((resolve) => {
+    const timeout = setTimeout(() => {
+      pendingSettingsCallbacks.delete(command.requestId);
+      resolve({ success: false, error: 'settings request timed out' });
+    }, 10000);
+    pendingSettingsCallbacks.set(command.requestId, (result) => {
+      clearTimeout(timeout);
+      resolve(result);
+    });
+    proc.postMessage(command);
+  });
 }
 
 /**
@@ -499,4 +546,52 @@ export function registerIpcHandlers(): void {
       proc.postMessage(readCmd);
     });
   });
+
+  ipcMain.handle(PiChannel.GetPiSettings, async (_e, cwd: string) => {
+    if (!cwd || typeof cwd !== 'string' || cwd.trim().length === 0) {
+      return { success: false, error: 'cwd must be a non-empty string' };
+    }
+    const command: ReadSettingsCommand = {
+      type: 'read_settings',
+      requestId: `settings-read-${++sessionWorkerRequestId}`,
+      cwd,
+    };
+    return sendSettingsCommand(command);
+  });
+
+  ipcMain.handle(
+    PiChannel.SetPiSettings,
+    async (_e, cwd: string, scope: PiSettingsScope, updates: unknown) => {
+      if (!cwd || typeof cwd !== 'string' || cwd.trim().length === 0) {
+        return { success: false, error: 'cwd must be a non-empty string' };
+      }
+      if (scope !== 'global' && scope !== 'project') {
+        return { success: false, error: 'scope must be "global" or "project"' };
+      }
+      if (!Array.isArray(updates) || updates.length === 0 || updates.length > 32) {
+        return { success: false, error: 'updates must be a non-empty array of at most 32 entries' };
+      }
+      for (const update of updates) {
+        if (typeof update !== 'object' || update === null) {
+          return { success: false, error: 'each update must be an object' };
+        }
+        const candidate = update as { field?: unknown; value?: unknown };
+        if (typeof candidate.field !== 'string' || candidate.field.length === 0) {
+          return { success: false, error: 'each update needs a non-empty field' };
+        }
+        if (candidate.value !== null && !isPiSettingValue(candidate.value)) {
+          return { success: false, error: 'each update value must be a setting value or null' };
+        }
+      }
+      const command: WriteSettingsCommand = {
+        type: 'write_settings',
+        requestId: `settings-write-${++sessionWorkerRequestId}`,
+        cwd,
+        scope,
+        // Safe narrowing: the worker validates every field against the registry.
+        updates: updates as PiSettingUpdate[],
+      };
+      return sendSettingsCommand(command);
+    },
+  );
 }

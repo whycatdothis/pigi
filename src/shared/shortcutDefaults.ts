@@ -66,4 +66,9 @@ export const SHORTCUT_DEFAULTS: ShortcutEntry[] = [
     label: 'Toggle terminal',
     defaultBinding: { key: 'j', meta: true },
   },
+  {
+    id: 'settings.open',
+    label: 'Open settings',
+    defaultBinding: { key: ',', meta: true },
+  },
 ];

@@ -1,5 +1,6 @@
 import React, { useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../../state/appStore';
+import { useSettingsStore } from '../../state/settingsStore';
 import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
 import { IconArrowDown } from '@tabler/icons-react';
 import type { TranscriptNode } from '../../state/transcriptController';
@@ -60,7 +61,7 @@ export default React.memo(function MessageList({
 
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(() => new Set());
 
-  const toolBlockViewMode = useAppStore((state) => state.toolBlockViewMode);
+  const toolBlockViewMode = useSettingsStore((state) => state.toolBlockViewMode);
   // Minimal mode renders plain (non-virtualized) turn content inside the same
   // scroll container, sharing auto-scroll / restore / minimap with other modes.
   const isMinimal = toolBlockViewMode === 'minimal';

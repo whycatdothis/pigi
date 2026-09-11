@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import type { ShortcutBinding, ShortcutDefinition } from '../../../shared/ipcContract';
-import { resolveShortcutBindings } from '../shortcuts/shortcutRegistry';
+import { useEffect, useMemo } from 'react';
+import type { ShortcutBinding } from '../../../shared/ipcContract';
+import { useShallow } from 'zustand/react/shallow';
+import { selectShortcutBindings, useShortcutsStore } from '../state/shortcutsStore';
 
 const SHIFTED_BRACKET_KEYS: Record<string, string> = { '{': '[', '}': ']' };
 
@@ -32,41 +33,37 @@ export function bindingMatches(binding: ShortcutBinding, event: KeyboardEvent): 
  * Register global keyboard shortcuts.
  *
  * Takes a mapping from shortcut IDs (matching those in the shortcut registry)
- * to action callbacks. On mount, loads shortcut bindings from the persistent
- * store, resolves effective bindings, and registers a global keydown listener.
+ * to action callbacks. Definitions come from the shared shortcuts store, so
+ * edits made on the settings page take effect immediately.
  *
  * Shortcut IDs without a corresponding action are ignored.
  */
 export function useKeyboardShortcuts(
   shortcutActions: Record<string, () => void>,
 ): Map<string, ShortcutBinding> | null {
-  const [bindings, setBindings] = useState<Map<string, ShortcutBinding> | null>(null);
+  const { definitions, isRecording, load } = useShortcutsStore(
+    useShallow((state) => ({
+      definitions: state.definitions,
+      isRecording: state.isRecording,
+      load: state.load,
+    })),
+  );
 
   useEffect(() => {
-    let cancelled = false;
-    window.piApi
-      .getShortcuts()
-      .then((persisted: ShortcutDefinition[]) => {
-        if (cancelled) return;
-        setBindings(resolveShortcutBindings(persisted));
-      })
-      .catch((error: unknown) => {
-        console.error('Failed to load keyboard shortcuts:', error);
-        // Fall back to defaults
-        if (!cancelled) {
-          setBindings(resolveShortcutBindings([]));
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void load();
+  }, [load]);
+
+  const bindings = useMemo(() => selectShortcutBindings(definitions), [definitions]);
 
   useEffect(() => {
     if (!bindings) return;
     const resolvedBindings = bindings;
 
     function handleKeyDown(event: KeyboardEvent): void {
+      // The settings shortcut recorder owns the keyboard while capturing.
+      if (useShortcutsStore.getState().isRecording) {
+        return;
+      }
       for (const [id, binding] of resolvedBindings) {
         if (bindingMatches(binding, event)) {
           const action = shortcutActions[id];
@@ -81,7 +78,7 @@ export function useKeyboardShortcuts(
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [bindings, shortcutActions]);
+  }, [bindings, shortcutActions, isRecording]);
 
   return bindings;
 }

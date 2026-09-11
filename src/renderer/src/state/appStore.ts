@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { TERMINAL_DEFAULT_HEIGHT } from '../lib/layoutConstants';
+import type { SettingsSectionId } from '../components/settings/settingsSections';
+import { DEFAULT_SETTINGS_SECTION } from '../components/settings/settingsSections';
 import type {
   ContextUsage,
   ModelInfo,
@@ -68,6 +70,13 @@ interface AppState {
   setSidebarExpanded: (expanded: boolean) => void;
   toggleSidebar: () => void;
 
+  // Settings page (replaces the sidebar and the main area while open)
+  settingsOpen: boolean;
+  settingsSection: SettingsSectionId;
+  openSettings: () => void;
+  closeSettings: () => void;
+  setSettingsSection: (section: SettingsSectionId) => void;
+
   // Bottom terminal panel. `terminalMounted` stays true after first open so the
   // xterm instance (and its PTY) persist while the panel is toggled hidden.
   terminalOpen: boolean;
@@ -105,9 +114,7 @@ interface AppState {
   toggleRightSidebar: (sessionPath: string) => void;
   setRightSidebarTab: (tab: RightSidebarTab) => void;
 
-  // Tool block view mode: 'default' shows all cards, 'compact_read' collapses consecutive read-only tools, 'minimal' renders a minimal/codex-style activity view
-  toolBlockViewMode: 'default' | 'compact_read' | 'minimal';
-  setToolBlockViewMode: (mode: 'default' | 'compact_read' | 'minimal') => void;
+  // Tool block view mode lives in the settings store (persisted preference).
 
   // Platform
   platform: Platform;
@@ -309,6 +316,13 @@ export const useAppStore = create<AppState>((set) => ({
   setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
   toggleSidebar: () => set((s) => ({ sidebarExpanded: !s.sidebarExpanded })),
 
+  // Settings page
+  settingsOpen: false,
+  settingsSection: DEFAULT_SETTINGS_SECTION,
+  openSettings: () => set({ settingsOpen: true }),
+  closeSettings: () => set({ settingsOpen: false }),
+  setSettingsSection: (settingsSection) => set({ settingsSection }),
+
   // Bottom terminal panel
   terminalOpen: false,
   terminalMounted: false,
@@ -394,11 +408,6 @@ export const useAppStore = create<AppState>((set) => ({
       ),
     })),
   setRightSidebarTab: (tab) => set({ rightSidebarTab: tab }),
-
-  // Tool block view mode
-  toolBlockViewMode: 'compact_read',
-
-  setToolBlockViewMode: (mode) => set({ toolBlockViewMode: mode }),
 
   // Platform
   platform: 'unknown',

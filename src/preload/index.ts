@@ -11,6 +11,7 @@ import {
   isPiPush,
   isPiResult,
   isStreamBatch,
+  type AppInfo,
   type ControlPortMessage,
   type DataPortMessage,
   type GitBranchResult,
@@ -32,6 +33,7 @@ import {
   type TerminalOutboundMessage,
   type UpdateStatus,
 } from '../shared/ipcContract';
+import type { PiSettingsResult, PiSettingsScope, PiSettingUpdate } from '../shared/piSettings';
 
 // =============================================================================
 // Per-session port management (keyed by sessionPath)
@@ -456,6 +458,20 @@ const piApi = {
 
   /** Get the app's working directory (for session creation). */
   getCwd: (): string => process.cwd(),
+
+  /** Get app/electron/runtime version info for the About section. */
+  getAppInfo: (): Promise<AppInfo> => ipcRenderer.invoke(PiChannel.GetAppInfo),
+
+  /** Read pi settings (global + project) for a project cwd. */
+  getPiSettings: (cwd: string): Promise<PiSettingsResult> =>
+    ipcRenderer.invoke(PiChannel.GetPiSettings, cwd),
+
+  /** Write pi setting fields in one scope (atomic batch). `null` clears a field. */
+  setPiSettings: (
+    cwd: string,
+    scope: PiSettingsScope,
+    updates: PiSettingUpdate[],
+  ): Promise<PiSettingsResult> => ipcRenderer.invoke(PiChannel.SetPiSettings, cwd, scope, updates),
 
   /** Open a URL in the system browser. */
   openExternal: (url: string): void => {

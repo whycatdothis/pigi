@@ -3,6 +3,7 @@ import type {
   WriteToolInput,
   AgentSessionEvent,
 } from '@earendil-works/pi-coding-agent';
+import type { PiSettingsResult, PiSettingsScope, PiSettingUpdate } from './piSettings.ts';
 
 /**
  * IPC Contract - single source of truth for all inter-process communication.
@@ -472,6 +473,12 @@ export enum PiChannel {
   GetShortcuts = 'pi:get_shortcuts',
   /** renderer → main: update a keyboard shortcut binding */
   SetShortcut = 'pi:set_shortcut',
+  /** renderer → main: read pi settings (global + project) for a project cwd */
+  GetPiSettings = 'pi:get_pi_settings',
+  /** renderer → main: write pi settings fields in one scope (atomic batch) */
+  SetPiSettings = 'pi:set_pi_settings',
+  /** renderer → main: app/electron/runtime version info */
+  GetAppInfo = 'pi:get_app_info',
   /** renderer → main: get the cached model catalog snapshot */
   GetModelCatalog = 'pi:get_model_catalog',
   /** renderer → main: kick a background catalog reload and get the current snapshot back immediately */
@@ -574,11 +581,28 @@ export interface ReloadCatalogCommand {
   type: 'reload_catalog';
 }
 
+export interface ReadSettingsCommand {
+  type: 'read_settings';
+  requestId: string;
+  cwd: string;
+}
+
+export interface WriteSettingsCommand {
+  type: 'write_settings';
+  requestId: string;
+  cwd: string;
+  scope: PiSettingsScope;
+  /** Fields applied in one locked read-modify-write. */
+  updates: PiSettingUpdate[];
+}
+
 export type SessionWorkerCommand =
   | ListProjectSessionsCommand
   | RenameSessionCommand
   | ReadSessionMessagesCommand
-  | ReloadCatalogCommand;
+  | ReloadCatalogCommand
+  | ReadSettingsCommand
+  | WriteSettingsCommand;
 
 export type SessionWorkerResponse =
   | ({ type: 'project_sessions_chunk' } & ProjectSessionsChunk)
@@ -593,7 +617,16 @@ export type SessionWorkerResponse =
       model?: { provider: string; modelId: string } | null;
       error?: string;
     }
-  | { type: 'catalog_updated'; models: ModelInfo[] };
+  | { type: 'catalog_updated'; models: ModelInfo[] }
+  | ({ type: 'settings_result'; requestId: string } & PiSettingsResult);
+
+/** App/runtime versions shown in the About section. */
+export interface AppInfo {
+  appVersion: string;
+  electronVersion: string;
+  chromeVersion: string;
+  nodeVersion: string;
+}
 
 // =============================================================================
 // Internal: Main → Utility (parentPort, lifecycle only)

@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Settings page: the sidebar footer's Settings button (or ⌘ ,) swaps the sidebar and the main area for a full-page settings view that closes with the top bar or Esc
+- Pi settings in the app: models and thinking, message delivery, compaction, retries, resource paths, and shell/network/security, with a Global / This project switch that writes to pi's `settings.json`
+- pigi settings: appearance (theme and accent color), the default tool view, an about section with versions and paths
+
+### Changed
+
+- Keyboard shortcuts are editable from the settings page, with duplicate-binding detection and per-shortcut reset
+
 ## [0.4.22] - 2026-10-24
 
 ### Fixed
@@ -149,8 +161,6 @@
 
 - Tooltips use the app's surface colour instead of black, without the arrow
 - Icons are drawn slightly bolder across the app
-
-### Fixed
 
 - Draft text is no longer lost when switching between a session and the new-chat screen
 - Narrowing the window keeps the chat input and the streaming queue aligned with the messages

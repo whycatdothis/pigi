@@ -480,6 +480,33 @@ rebuild on `credentials_changed` (a plain `modelRuntime.refresh()` in the
 worker now sees the new credentials). Once this change has proven itself,
 remove them one at a time.
 
+## Settings Page
+
+Settings is a mode, not a modal: `appStore.settingsOpen` swaps the sidebar for
+`SettingsSidebar` and the main area for `SettingsPage`, inside the same
+resizable sidebar wrapper. The sidebar's top bar and `Esc` close it;
+`settings.open` (⌘ ,) opens it from anywhere. Shortcut actions that navigate
+close settings first, so nothing acts invisibly underneath the page.
+
+Two data paths:
+
+- **pigi settings** (theme, accent, default tool view) live in a renderer
+  zustand store persisted to localStorage and applied to the document before
+  the first paint (`initializePigiSettings` in `main.tsx`) — no IPC round trip,
+  no theme flash. Keyboard shortcut definitions live in a second renderer store
+  so edits on the settings page update the live bindings immediately.
+- **Pi settings** are JSON files (`~/.pi/agent/settings.json`, project
+  `<cwd>/.pi/settings.json`) owned by the session worker, which already runs
+  the SDK. `src/shared/piSettings.ts` is the field registry that is the
+  exposure boundary: the worker flattens exactly those dotted paths out of
+  both files and validates every write against it, so unknown fields are
+  preserved untouched. Writes are read-modify-write of the requested paths
+  under the same `proper-lockfile` scheme the SDK uses, so the pi TUI can edit
+  concurrently without lost updates. The renderer reads a snapshot (`global`,
+  `project`, paths, trust state, pi version) and sends atomic update batches;
+  project scope values resolve through global to built-in defaults, and
+  `globalOnly` fields are disabled in project scope.
+
 ## File Map
 
 Renderer components are grouped by the surface they belong to: one directory
@@ -529,6 +556,8 @@ src/
         ├── services/
         │   └── piAgentClient.ts  # Typed wrappers over piApi
         ├── state/
-        │   └── appStore.ts       # Zustand store
+        │   ├── appStore.ts       # Zustand store
+        │   ├── settingsStore.ts  # Persisted pigi preferences
+        │   └── shortcutsStore.ts # Shortcut definitions (main-owned)
         └── ...
 ```

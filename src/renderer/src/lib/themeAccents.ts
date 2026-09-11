@@ -7,8 +7,8 @@
  * values stay dark enough to read as link text on a white background, while
  * dark-mode values are lifted so they stay legible on a dark background.
  *
- * This array is the single source of truth for the (upcoming) settings-page
- * accent picker; `applyThemeAccent` wires a choice into the DOM.
+ * This array is the single source of truth for the settings-page accent
+ * picker; `applyThemeAccent` wires a choice into the DOM.
  */
 export interface ThemeAccent {
   /** Stable identifier persisted with the user's choice. */
@@ -82,8 +82,11 @@ export const THEME_ACCENTS: readonly ThemeAccent[] = [
   },
 ];
 
+import { DEFAULT_THEME_ACCENT_ID } from '../../../shared/pigiSettings';
+
+export { DEFAULT_THEME_ACCENT_ID };
+
 /** Accent applied when the user has not chosen one. */
-export const DEFAULT_THEME_ACCENT_ID = 'indigo';
 
 /** Look up an accent by id, falling back to the default. */
 export function findThemeAccent(id: string): ThemeAccent {

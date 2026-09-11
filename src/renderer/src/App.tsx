@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore, type SessionEntry } from './state/appStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useShortcutsStore } from './state/shortcutsStore';
 import { useSessionTreeNavigation } from './hooks/useSessionTreeNavigation';
 import { formatShortcutLabel } from './shortcuts/formatShortcutLabel';
 import { detectPlatform } from './lib/platform';
@@ -77,6 +78,8 @@ import {
   type ChatAttachment,
 } from './lib/chatAttachments';
 import Sidebar from './components/session/Sidebar';
+import SettingsSidebar from './components/settings/SettingsSidebar';
+import SettingsPage from './components/settings/SettingsPage';
 import SessionToolbar from './components/session/SessionToolbar';
 import MessageList, { type MessageListHandle } from './components/transcript/MessageList';
 import SessionTreeDialog from './components/sessionTree/SessionTreeDialog';
@@ -154,6 +157,11 @@ function App(): React.JSX.Element {
     sidebarExpanded,
     rightSidebarOpen,
     platform,
+    settingsOpen,
+    settingsSection,
+    openSettings,
+    closeSettings,
+    setSettingsSection,
   } = useAppStore(
     useShallow((state) => ({
       activeSessionPath: state.activeSessionPath,
@@ -179,6 +187,11 @@ function App(): React.JSX.Element {
         state.activeSessionPath !== null &&
         state.openRightSidebarSessions.has(state.activeSessionPath),
       platform: state.platform,
+      settingsOpen: state.settingsOpen,
+      settingsSection: state.settingsSection,
+      openSettings: state.openSettings,
+      closeSettings: state.closeSettings,
+      setSettingsSection: state.setSettingsSection,
     })),
   );
 
@@ -946,6 +959,27 @@ function App(): React.JSX.Element {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleAbort, transcript.status]);
 
+  // Escape closes the settings page. The shortcut recorder stops the event in
+  // the capture phase while capturing, so its Escape never reaches this.
+  useEffect(() => {
+    if (!settingsOpen) {
+      return;
+    }
+    function handleKeyDown(event: KeyboardEvent): void {
+      // The shortcut recorder owns Escape while capturing a binding.
+      if (
+        event.defaultPrevented ||
+        event.key !== 'Escape' ||
+        useShortcutsStore.getState().isRecording
+      ) {
+        return;
+      }
+      closeSettings();
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [settingsOpen, closeSettings]);
+
   /** Enter draft chat mode — instant, no process spawned. */
   const handleNewSession = useCallback((): void => {
     // If already in a clean draft mode (no error), do nothing.
@@ -1226,24 +1260,29 @@ function App(): React.JSX.Element {
   const shortcutActions = useMemo(
     () => ({
       'sidebar.newChat': () => {
+        closeSettings();
         handleNewSession();
       },
       'sidebar.openProject': () => {
+        closeSettings();
         handleOpenProject();
       },
       'sidebar.toggle': () => {
         useAppStore.getState().toggleSidebar();
       },
       'navigation.openSwitcher': () => {
+        closeSettings();
         setSwitcherAutoPreselect(false);
         setSwitcherOpen(true);
       },
       'navigation.closeOrSelectSwitcher': () => {
         // Ctrl+Tab: preselect previous session so immediate release switches
+        closeSettings();
         setSwitcherAutoPreselect(true);
         setSwitcherOpen(true);
       },
       'navigation.prev': () => {
+        closeSettings();
         const targetPath = useAppStore.getState().navigateBack();
         if (targetPath) {
           const session = findSessionByPath(targetPath);
@@ -1253,6 +1292,7 @@ function App(): React.JSX.Element {
         }
       },
       'navigation.next': () => {
+        closeSettings();
         const targetPath = useAppStore.getState().navigateForward();
         if (targetPath) {
           const session = findSessionByPath(targetPath);
@@ -1262,13 +1302,18 @@ function App(): React.JSX.Element {
         }
       },
       'navigation.previousProjectThread': () => {
+        closeSettings();
         handleCycleProjectSession(-1);
       },
       'navigation.nextProjectThread': () => {
+        closeSettings();
         handleCycleProjectSession(1);
       },
       'terminal.toggle': () => {
         toggleTerminal();
+      },
+      'settings.open': () => {
+        openSettings();
       },
     }),
     [
@@ -1278,6 +1323,8 @@ function App(): React.JSX.Element {
       handleCycleProjectSession,
       findSessionByPath,
       toggleTerminal,
+      openSettings,
+      closeSettings,
     ],
   );
   const shortcutBindings = useKeyboardShortcuts(shortcutActions);
@@ -1557,27 +1604,36 @@ function App(): React.JSX.Element {
             style={sidebarLayoutStyle}
           >
             <div className="flex h-full w-(--sidebar-width) min-w-full shrink-0">
-              {/* Sidebar is memoized and App re-renders on every streaming update:
-                  pass only stable props (store values, useCallback), no inline functions or objects. */}
-              <Sidebar
-                sessions={sessions}
-                selectedSessionPath={selectedSessionPath}
-                recentProjects={recentProjects}
-                projectSessions={projectSessions}
-                shortcutBindings={shortcutBindings}
-                onNewSession={handleNewSession}
-                onNewSessionForProject={handleNewSessionForProject}
-                onResumeSession={handleResumeSession}
-                onOpenProject={handleOpenProject}
-                onSelectProject={handleSelectProject}
-                onRemoveProject={handleRemoveProject}
-                onReorderProjects={handleReorderProjects}
-                onRenameSession={handleRenameSession}
-                onLogin={handleLogin}
-                pendingUpdateVersion={pendingUpdateVersion}
-                onCheckForUpdates={handleCheckForUpdates}
-                onInstallUpdate={handleInstallUpdate}
-              />
+              {settingsOpen ? (
+                <SettingsSidebar
+                  activeSection={settingsSection}
+                  onSelectSection={setSettingsSection}
+                  onClose={closeSettings}
+                />
+              ) : (
+                // Sidebar is memoized and App re-renders on every streaming update:
+                // pass only stable props (store values, useCallback), no inline functions or objects.
+                <Sidebar
+                  sessions={sessions}
+                  selectedSessionPath={selectedSessionPath}
+                  recentProjects={recentProjects}
+                  projectSessions={projectSessions}
+                  shortcutBindings={shortcutBindings}
+                  onNewSession={handleNewSession}
+                  onNewSessionForProject={handleNewSessionForProject}
+                  onResumeSession={handleResumeSession}
+                  onOpenProject={handleOpenProject}
+                  onSelectProject={handleSelectProject}
+                  onRemoveProject={handleRemoveProject}
+                  onReorderProjects={handleReorderProjects}
+                  onRenameSession={handleRenameSession}
+                  onLogin={handleLogin}
+                  pendingUpdateVersion={pendingUpdateVersion}
+                  onCheckForUpdates={handleCheckForUpdates}
+                  onInstallUpdate={handleInstallUpdate}
+                  onOpenSettings={openSettings}
+                />
+              )}
             </div>
           </div>
 
@@ -1595,7 +1651,9 @@ function App(): React.JSX.Element {
                 onPointerDown={handleSidebarResizeStart}
               />
             )}
-            {activeSession ? (
+            {settingsOpen ? (
+              <SettingsPage section={settingsSection} cwd={activeCwd} models={catalogModels} />
+            ) : activeSession ? (
               <>
                 <SessionToolbar
                   key={activeSessionPath}
@@ -1750,7 +1808,7 @@ function App(): React.JSX.Element {
               <TerminalPanel
                 resizeContainerRef={mainRef}
                 projectCwd={terminalProjectCwd}
-                visible={terminalOpen}
+                visible={terminalOpen && !settingsOpen}
                 onClose={toggleTerminal}
               />
             )}

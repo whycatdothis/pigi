@@ -1,5 +1,6 @@
 import { ElectronAPI } from '@electron-toolkit/preload';
 import type {
+  AppInfo,
   PiCommand,
   PiPush,
   GitBranchResult,
@@ -16,6 +17,7 @@ import type {
   StreamBatch,
   UpdateStatus,
 } from '../shared/ipcContract';
+import type { PiSettingsResult, PiSettingsScope, PiSettingUpdate } from '../shared/piSettings';
 
 interface PiApi {
   // Session lifecycle (via main process IPC)
@@ -67,11 +69,20 @@ interface PiApi {
 
   // Utilities
   getCwd: () => string;
+  getAppInfo: () => Promise<AppInfo>;
   openExternal: (url: string) => void;
   previewFile: (path: string) => void;
   getModelCatalog: () => Promise<ModelCatalogSnapshot>;
   refreshModelCatalog: () => Promise<ModelCatalogSnapshot>;
   onModelCatalogUpdated: (callback: (snapshot: ModelCatalogSnapshot) => void) => () => void;
+
+  // Pi settings (settings.json)
+  getPiSettings: (cwd: string) => Promise<PiSettingsResult>;
+  setPiSettings: (
+    cwd: string,
+    scope: PiSettingsScope,
+    updates: PiSettingUpdate[],
+  ) => Promise<PiSettingsResult>;
 
   // Keyboard shortcuts
   getShortcuts: () => Promise<ShortcutDefinition[]>;
