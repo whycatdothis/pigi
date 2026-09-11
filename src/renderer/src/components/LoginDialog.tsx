@@ -10,7 +10,7 @@ import type { AuthProviderInfo } from '../../../shared/ipcContract';
 
 // Fixed panel height so switching tabs does not resize the dialog. Sized to
 // show 5.5 provider rows so a partially visible row hints that the list scrolls.
-const TAB_PANEL_CLASS = 'flex h-88 flex-none flex-col overflow-y-auto overscroll-none';
+const TAB_PANEL_CLASS = 'no-scrollbar flex h-88 flex-none flex-col overflow-y-auto overscroll-none';
 
 interface LoginDialogProps {
   open: boolean;
@@ -34,7 +34,9 @@ export default function LoginDialog({
   const [apiKeyValue, setApiKeyValue] = useState('');
 
   const apiKeyProviders = providers.filter((p) => p.authType === 'api_key');
-  const oauthProviders = providers.filter((p) => p.authType === 'oauth');
+  const oauthProviders = providers
+    .filter((p) => p.authType === 'oauth')
+    .sort((a, b) => Number(b.hasAuth) - Number(a.hasAuth));
   const configuredApiKeyProviders = apiKeyProviders.filter((p) => p.hasAuth);
 
   const reset = useCallback(() => {
@@ -184,7 +186,7 @@ export default function LoginDialog({
                         </Button>
                       ) : (
                         <Button
-                          variant={provider.hasAuth ? 'outline' : 'default'}
+                          variant={provider.hasAuth ? 'outline' : 'ghost'}
                           size="sm"
                           disabled={loadingProvider !== null}
                           onClick={() => handleOAuthLogin(provider.id)}

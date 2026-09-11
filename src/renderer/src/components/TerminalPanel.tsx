@@ -181,13 +181,13 @@ export default function TerminalPanel({
             onValueChange={(id) => terminalController.activateTab(id)}
             className="flex-none gap-0"
           >
-            <TabsList variant="line" className="h-full gap-1 bg-transparent p-0">
+            <TabsList variant="chip">
               {tabs.map((tab) => (
                 <TabsTrigger
                   key={tab.id}
                   value={tab.id}
                   title={tab.title}
-                  className="group/tab relative h-7 max-w-40 flex-none gap-1.5 rounded-lg px-2.5 text-xs font-normal text-muted-foreground after:hidden data-[state=active]:bg-muted data-[state=active]:text-foreground"
+                  className="group/tab h-8 max-w-40 flex-none px-2.5 text-xs font-normal text-muted-foreground"
                 >
                   <IconTerminal2 size={13} stroke={1.5} className="shrink-0 opacity-70" />
                   <span className="truncate">{tab.title}</span>
