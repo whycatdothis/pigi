@@ -1,3 +1,5 @@
+import type { SessionTreeDisplayNode } from '../../lib/sessionTreeData';
+
 /**
  * Geometry of the session tree's rows.
  *
@@ -78,4 +80,53 @@ export function rowContentX(depth: number): number {
  */
 export function chevronCentreX(depth: number): number {
   return rowContentX(depth) + CHEVRON_PX / 2;
+}
+
+/**
+ * Where the lit row sits inside a branch child's subtree, in pixels from that
+ * child's own row top; null when the row is not in the subtree at all.
+ *
+ * The tint of a line the path turns into covers the run from the fork down to
+ * this row, so a row deep inside a branch lights the line it hangs from and not
+ * only the elbow at the branch's start. A row that *is* the branch child sits at
+ * zero, which is what the elbow-only highlight used to be.
+ */
+export function findLitRowOffsetPx(node: SessionTreeDisplayNode, litRowId: string): number | null {
+  return findRowOffsetPx(node, litRowId, 0);
+}
+
+/**
+ * Offset of one row from the top of `node`'s subtree, walking the display in
+ * the order it renders: a row, then its continuation, then its branches, with
+ * the branching spacing the wrappers add above their children counted in.
+ */
+function findRowOffsetPx(
+  node: SessionTreeDisplayNode,
+  targetId: string,
+  offset: number,
+): number | null {
+  if (node.itemId === targetId) return offset;
+  let cursor = offset + ROW_HEIGHT_PX;
+  if (node.continuation) {
+    const found = findRowOffsetPx(node.continuation, targetId, cursor);
+    if (found !== null) return found;
+    cursor += subtreeHeightPx(node.continuation);
+  }
+  for (const child of node.branch ?? []) {
+    cursor += BRANCH_SPACING_PX;
+    const found = findRowOffsetPx(child, targetId, cursor);
+    if (found !== null) return found;
+    cursor += subtreeHeightPx(child);
+  }
+  return null;
+}
+
+/** How tall a row and everything hanging under it renders. */
+function subtreeHeightPx(node: SessionTreeDisplayNode): number {
+  let height = ROW_HEIGHT_PX;
+  if (node.continuation) height += subtreeHeightPx(node.continuation);
+  for (const child of node.branch ?? []) {
+    height += BRANCH_SPACING_PX + subtreeHeightPx(child);
+  }
+  return height;
 }

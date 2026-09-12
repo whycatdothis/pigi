@@ -195,15 +195,15 @@ describe('buildSessionTreeDisplay', () => {
     // line of the sibling after it stays neutral.
     const down = display('d1');
     const [first, second] = down.nodes[0].continuation?.continuation?.branch ?? [];
-    expect([first.railTint, first.elbowTint]).toEqual(['upper', true]);
-    expect([second.railTint, second.elbowTint]).toEqual(['none', false]);
+    expect(first.railTint).toBe('enter');
+    expect(second.railTint).toBe('none');
 
     // The other branch: the path passes `c1` on the way to `e1`, so that line is
     // lit all the way through, and `e1` carries the turn.
     const sideways = display('e1');
     const [passed, turn] = sideways.nodes[0].continuation?.continuation?.branch ?? [];
-    expect([passed.railTint, passed.elbowTint]).toEqual(['full', false]);
-    expect([turn.railTint, turn.elbowTint]).toEqual(['upper', true]);
+    expect(passed.railTint).toBe('pass');
+    expect(turn.railTint).toBe('enter');
   });
 });
 

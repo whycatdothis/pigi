@@ -23,6 +23,8 @@ export interface SessionTreeRowContext {
   data: SessionTreeData;
   tree: TreeInstance<SessionTreeItem>;
   currentId: string | null;
+  /** The row the branch tinting is for; null only before the first render. */
+  litRowId: string | null;
   onSelect: (entryId: string) => void;
   onToggleFold: (item: ItemInstance<SessionTreeItem>) => void;
   onRowEnter: (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntryDto) => void;

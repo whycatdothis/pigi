@@ -272,6 +272,9 @@ Implementation:
   child's line is), and the run below it, which carries the fork down to the next
   sibling. That second piece belongs to the sibling below, not to this child —
   what the highlight does with it depends on where the path goes (next bullet).
+  The first piece is the one the highlight can **grow**: down to the lit row, when
+  the path turns in at a row below this child (`findLitRowOffsetPx` measures that
+  row inside the child's subtree, spacing included).
 - Indentation is the **row's own padding** (`rowContentX(depth)`), not a gutter
   element. A level is 20px (`INDENT_PX`) and the wrapper adds the remaining 4px
   between its line and the row — geometry that only exists once, in
@@ -291,7 +294,10 @@ Implementation:
   the branch child the path _enters_ that level through. For every child of a
   fork, that decides what lights up:
   - the child the path turns into — the elbow into it, and the run of line down
-    to that elbow (so the line reaches the row it leads to, not just the fork);
+    to the lit row (so the line reaches the row it leads to, not just the fork).
+    A row deep inside a branch is reached through the first row of that branch, so
+    its line lights down to the row itself: the run covers the rows in between,
+    and the line is next to what the pointer is on, not only above it;
   - a sibling _before_ it — the elbow is not the path's, but the line is: the path
     runs past it on the way down, so both pieces light and the run stays unbroken;
   - a sibling after it — nothing: that line belongs to another branch.
@@ -304,10 +310,9 @@ Implementation:
   (`collectRowAncestors`) — not one per level: a chain of lone children shares a
   level, so the row that draws the line at that level is the _first_ row of the
   chain, which a one-per-level walk would skip. Rows without a wrapper draw
-  nothing, so carrying them in the set costs a Set lookup and nothing else. Hover
-  and leaf highlighting are a union (a hover can never darken the leaf's own
-  path), and the hover state is keyed by the ids it is made of, so moving along
-  one chain does not re-render the list.
+  nothing, so carrying them in the set costs a Set lookup and nothing else. The
+  hover state is keyed by the ids it is made of, so moving along one chain does
+  not re-render the list.
 - The ancestors of the top row are pinned above the list: scrolling past a fork
   used to hide who the visible rows hang from. `PinnedAncestors` renders the rows
   that **own a visible line** above it (`collectBranchOwners`: a row qualifies
