@@ -19,7 +19,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '../ui/sidebar';
-import { MenuItem } from '../MenuItem';
+import { MenuItem } from '../app/MenuItem';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import type { SidebarProps } from './types';
 import { ProjectList } from './projectList';

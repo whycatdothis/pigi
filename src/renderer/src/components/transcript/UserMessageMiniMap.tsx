@@ -1,0 +1,221 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { TranscriptNode, UserNode } from '../../state/transcriptController';
+import { OVERLAY_BG } from '../../lib/layoutConstants';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { MESSAGE_LIST_HORIZONTAL_PADDING, MESSAGE_LIST_MAX_WIDTH } from '../../lib/layoutConstants';
+
+interface UserMessageMiniMapProps {
+  nodes: TranscriptNode[];
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  /** Index in the displayNodes array of the user message closest to viewport center */
+  activeUserMessageIndex: number;
+  onScrollToIndex: (index: number) => void;
+}
+
+function formatTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+const HOVER_OPEN_DELAY = 200;
+const HOVER_CLOSE_DELAY = 300;
+const LINE_WIDTH_MAX_CAP = 48;
+const LINE_WIDTH_RIGHT_MARGIN = 8;
+const LINE_WIDTH_MIN_CAP = 8;
+
+/** Returns a width based on message count and position. */
+function getLineWidth(index: number, total: number, maxWidth: number): number {
+  if (total <= 1) return maxWidth * 0.4;
+  if (total === 2) return Math.round(maxWidth * 0.5);
+
+  if (total <= 5) {
+    // Few messages: linear from min to ~60% of max at center
+    const normalized = index / (total - 1);
+    const distFromCenter = 1 - Math.abs(normalized * 2 - 1);
+    const target = maxWidth * 0.6;
+    return Math.round(LINE_WIDTH_MIN_CAP + distFromCenter * (target - LINE_WIDTH_MIN_CAP));
+  }
+
+  if (total <= 10) {
+    // Medium count: quadratic curve, center reaches ~80% of max
+    const normalized = index / (total - 1);
+    const distFromCenter = 1 - Math.abs(normalized * 2 - 1);
+    const factor = distFromCenter * distFromCenter;
+    return Math.round(LINE_WIDTH_MIN_CAP + factor * (maxWidth * 0.8 - LINE_WIDTH_MIN_CAP));
+  }
+
+  // Many messages: quadratic curve, center reaches max
+  const normalized = index / (total - 1);
+  const distFromCenter = 1 - Math.abs(normalized * 2 - 1);
+  const factor = distFromCenter * distFromCenter;
+  return Math.round(LINE_WIDTH_MIN_CAP + factor * (maxWidth - LINE_WIDTH_MIN_CAP));
+}
+
+export default React.memo(function UserMessageMiniMap({
+  nodes,
+  containerRef,
+  activeUserMessageIndex,
+  onScrollToIndex,
+}: UserMessageMiniMapProps): React.JSX.Element | null {
+  const [open, setOpen] = useState(false);
+  const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const activeItemRef = useRef<HTMLButtonElement>(null);
+
+  const [maxLineWidth, setMaxLineWidth] = useState(
+    MESSAGE_LIST_HORIZONTAL_PADDING - LINE_WIDTH_RIGHT_MARGIN,
+  );
+  // Width affects only this small overlay, not the transcript. Publish the
+  // clamped result so widths beyond the cap do not cause React updates.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      const centerGap = Math.max(0, (entry.contentRect.width - MESSAGE_LIST_MAX_WIDTH) / 2);
+      const availableSpace = centerGap + MESSAGE_LIST_HORIZONTAL_PADDING;
+      setMaxLineWidth(
+        Math.max(
+          LINE_WIDTH_MIN_CAP,
+          Math.min(LINE_WIDTH_MAX_CAP, availableSpace - LINE_WIDTH_RIGHT_MARGIN),
+        ),
+      );
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [containerRef]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (openTimerRef.current) clearTimeout(openTimerRef.current);
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  const userMessages = useMemo(() => {
+    const result: { node: UserNode; index: number }[] = [];
+    for (let index = 0; index < nodes.length; index++) {
+      const node = nodes[index];
+      if (node.role === 'user') {
+        result.push({ node, index });
+      }
+    }
+    return result;
+  }, [nodes]);
+
+  /** Which position in the userMessages array is currently active */
+  const activePosition = useMemo(() => {
+    for (let position = 0; position < userMessages.length; position++) {
+      if (userMessages[position].index === activeUserMessageIndex) return position;
+    }
+    return -1;
+  }, [userMessages, activeUserMessageIndex]);
+
+  const handleMouseEnter = useCallback((): void => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    openTimerRef.current = setTimeout(() => setOpen(true), HOVER_OPEN_DELAY);
+  }, []);
+
+  const handleMouseLeave = useCallback((): void => {
+    if (openTimerRef.current) {
+      clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
+    closeTimerRef.current = setTimeout(() => {
+      setOpen(false);
+      setHoveredIndex(null);
+    }, HOVER_CLOSE_DELAY);
+  }, []);
+
+  const handleItemHover = useCallback((index: number) => {
+    setHoveredIndex(index);
+  }, []);
+
+  if (userMessages.length === 0) return null;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div
+          role="navigation"
+          aria-label="Message navigation minimap"
+          className="absolute right-0 top-1/2 z-10 flex -translate-y-1/2 cursor-default flex-col items-end gap-1.5 rounded-l py-2 pl-1 transition-opacity [&:not(:hover)]:opacity-60 hover:opacity-90"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          {userMessages.map(({ node }, position) => (
+            <div
+              key={node.id}
+              className="rounded-full transition-colors"
+              style={{
+                width: `${getLineWidth(position, userMessages.length, maxLineWidth)}px`,
+                height: '1.5px',
+                backgroundColor:
+                  position === activePosition
+                    ? 'var(--system-accent)'
+                    : 'color-mix(in srgb, var(--muted-foreground) 50%, transparent)',
+              }}
+            />
+          ))}
+        </div>
+      </PopoverTrigger>
+      <PopoverContent
+        side="left"
+        align="center"
+        className={`max-h-[50vh] w-64 overflow-hidden ${OVERLAY_BG} p-0 backdrop-blur-md`}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          // Scroll active item into view when popover opens
+          requestAnimationFrame(() => {
+            activeItemRef.current?.scrollIntoView({ block: 'center' });
+          });
+        }}
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
+        <div className="flex flex-col gap-0.5 overflow-y-auto p-1 scrollbar-none">
+          {userMessages.map(({ node, index }, position) => {
+            const isActive = position === activePosition;
+            const isHovered = hoveredIndex === index;
+            return (
+              <button
+                key={node.id}
+                ref={isActive ? activeItemRef : undefined}
+                type="button"
+                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+                  isActive || isHovered ? 'bg-[var(--system-accent)]/10' : 'hover:bg-foreground/7'
+                }`}
+                onClick={() => {
+                  onScrollToIndex(index);
+                  setOpen(false);
+                }}
+                onMouseEnter={() => handleItemHover(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
+              >
+                <span
+                  className={`min-w-0 flex-1 truncate text-[13px] ${
+                    isActive || isHovered ? 'text-[var(--system-accent)]' : 'text-foreground'
+                  }`}
+                  title={node.text.split('\n')[0] || 'Empty message'}
+                >
+                  {node.text.split('\n')[0] || 'Empty message'}
+                </span>
+                <span className="shrink-0 text-[11px] text-muted-foreground">
+                  {formatTime(node.sentAt)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+});

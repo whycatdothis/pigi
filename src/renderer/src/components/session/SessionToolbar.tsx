@@ -1,0 +1,250 @@
+import React, { useState, useCallback } from 'react';
+import {
+  IconBinaryTree,
+  IconCheck,
+  IconFilter2,
+  IconNotebook,
+  IconTerminal2,
+} from '@tabler/icons-react';
+import { useAppStore } from '../../state/appStore';
+import { useTypewriter } from '../../hooks/useTypewriter';
+import { useRenameSuppress } from '../../hooks/useRenameSuppress';
+import { getSessionTitle } from '../sidebar/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
+import { SessionTreeHelpButton } from '../sessionTree/SessionTreeHelpDialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+
+// 13px menu text (app's text-xs scale, keeps the theme line-height — an
+// arbitrary text-[13px] would drop it and inherit body's 1.6 line-height).
+// The check icon renders inline right after the label (showCheckIcon={false}
+// disables the component's far-right absolute indicator), so the menu hugs
+// its content instead of reserving pr-8 + min-w-32 for a distant checkmark.
+const viewModeItemClassName =
+  'gap-1 pl-2 pr-2 py-1 text-xs transition-colors data-[state=checked]:bg-[var(--system-accent)]/10 data-[state=checked]:text-[var(--system-accent)] data-[state=checked]:focus:bg-[var(--system-accent)]/10 data-[state=checked]:focus:text-[var(--system-accent)] data-[state=checked]:focus:**:text-[var(--system-accent)]';
+
+interface SessionToolbarProps {
+  sessionPath: string;
+  onRename?: (sessionPath: string, name: string) => void;
+  onOpenTree: () => void;
+  /** Non-null while the tree cannot be used (compacting, summarizing). */
+  treeDisabledReason?: string | null;
+  terminalOpen: boolean;
+  onToggleTerminal: () => void;
+  /** Formatted shortcut (e.g. "⌘ J") shown in the terminal button tooltip. */
+  terminalShortcutLabel: string;
+}
+
+export default React.memo(function SessionToolbar({
+  sessionPath,
+  onRename,
+  onOpenTree,
+  treeDisabledReason,
+  terminalOpen,
+  onToggleTerminal,
+  terminalShortcutLabel,
+}: SessionToolbarProps): React.JSX.Element {
+  const title = useAppStore(
+    useCallback(
+      (state) => {
+        const cwd = state.sessions.get(sessionPath)?.cwd ?? '';
+        const sessionList = cwd ? state.projectSessions[cwd] : undefined;
+        if (sessionList) {
+          const match = sessionList.find((s) => s.path === sessionPath);
+          if (match) return getSessionTitle(match);
+        }
+        return state.sessions.get(sessionPath)?.title ?? 'New chat';
+      },
+      [sessionPath],
+    ),
+  );
+  const toolBlockViewMode = useAppStore((state) => state.toolBlockViewMode);
+  const setToolBlockViewMode = useAppStore((state) => state.setToolBlockViewMode);
+
+  const [displayTitle, skipNextAnimation] = useTypewriter(title);
+  useRenameSuppress(sessionPath, skipNextAnimation);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const [treeTooltipOpen, setTreeTooltipOpen] = useState(false);
+
+  const handleStartRename = useCallback(() => {
+    setEditValue(title);
+    setIsEditing(true);
+  }, [title]);
+
+  const handleFinishRename = useCallback(() => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== title && onRename) {
+      skipNextAnimation();
+      onRename(sessionPath, trimmed);
+    }
+    setIsEditing(false);
+  }, [editValue, title, onRename, sessionPath, skipNextAnimation]);
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.nativeEvent.isComposing || event.key === 'Process') {
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        handleFinishRename();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        setIsEditing(false);
+      }
+    },
+    [handleFinishRename],
+  );
+
+  return (
+    <div className="flex shrink-0 items-center gap-2 px-3 h-11 border-b-[0.5px] border-foreground/27 [-webkit-app-region:drag]">
+      <div className="flex min-w-0 max-w-[33%] items-center gap-1.5 [-webkit-app-region:no-drag]">
+        <IconNotebook size={16} stroke={2} className="shrink-0 text-foreground" />
+        {isEditing ? (
+          <input
+            type="text"
+            value={editValue}
+            onChange={(event) => setEditValue(event.target.value)}
+            onBlur={handleFinishRename}
+            onKeyDown={handleKeyDown}
+            autoFocus
+            size={editValue.length || 1}
+            className="min-w-0 max-w-full bg-transparent text-sm font-medium text-foreground outline-none caret-foreground"
+          />
+        ) : (
+          <span
+            className="truncate text-sm font-medium text-foreground cursor-default"
+            title={title}
+            onDoubleClick={handleStartRename}
+          >
+            {displayTitle}
+          </span>
+        )}
+      </div>
+
+      <div className="flex-1" />
+
+      <TooltipProvider delayDuration={400}>
+        <Tooltip open={treeTooltipOpen} onOpenChange={setTreeTooltipOpen}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="Session tree"
+              onClick={onOpenTree}
+              disabled={Boolean(treeDisabledReason)}
+              className="flex items-center justify-center rounded p-1 text-muted-foreground transition-colors size-7 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50 [-webkit-app-region:no-drag]"
+            >
+              <IconBinaryTree size={16} stroke={1.5} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="gap-3">
+            <span>{treeDisabledReason ?? 'Session tree'}</span>
+            <SessionTreeHelpButton onBeforeOpen={() => setTreeTooltipOpen(false)} />
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <TooltipProvider delayDuration={400}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="Toggle terminal"
+              aria-pressed={terminalOpen}
+              onClick={onToggleTerminal}
+              className={`flex items-center justify-center rounded p-1 transition-colors size-7 hover:bg-muted [-webkit-app-region:no-drag] ${terminalOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <IconTerminal2 size={16} stroke={1.5} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="flex items-center gap-2">
+            <span>Toggle terminal</span>
+            {terminalShortcutLabel && (
+              <kbd className="font-mono text-xs text-muted-foreground">{terminalShortcutLabel}</kbd>
+            )}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            title="View mode"
+            className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors size-7 [-webkit-app-region:no-drag]"
+          >
+            <IconFilter2 size={16} stroke={1.5} />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          sideOffset={6}
+          className="menu-content w-fit min-w-0 bg-popover/50 backdrop-blur-md"
+        >
+          <DropdownMenuRadioGroup
+            className="flex flex-col gap-1"
+            value={toolBlockViewMode}
+            onValueChange={(value) =>
+              setToolBlockViewMode(value as 'default' | 'compact_read' | 'minimal')
+            }
+          >
+            <TooltipProvider delayDuration={400}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuRadioItem
+                    value="minimal"
+                    className={viewModeItemClassName}
+                    showCheckIcon={false}
+                  >
+                    Minimal
+                    {toolBlockViewMode === 'minimal' && <IconCheck />}
+                  </DropdownMenuRadioItem>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  Minimal activity view: working timer, tool cards, final summary
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuRadioItem
+                    value="compact_read"
+                    className={viewModeItemClassName}
+                    showCheckIcon={false}
+                  >
+                    Compact
+                    {toolBlockViewMode === 'compact_read' && <IconCheck />}
+                  </DropdownMenuRadioItem>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  Collapse consecutive read-only tool calls into a single group
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuRadioItem
+                    value="default"
+                    className={viewModeItemClassName}
+                    showCheckIcon={false}
+                  >
+                    Show All
+                    {toolBlockViewMode === 'default' && <IconCheck />}
+                  </DropdownMenuRadioItem>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  Display every tool call as an individual expanded block
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+});
