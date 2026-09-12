@@ -1,11 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import {
-  IconBinaryTree2,
-  IconCheck,
-  IconFilter2,
-  IconNotebook,
-  IconTerminal2,
-} from '@tabler/icons-react';
+import { IconCheck, IconFilter2, IconNotebook, IconTerminal2 } from '@tabler/icons-react';
 import { useAppStore } from '../../state/appStore';
 import { useTypewriter } from '../../hooks/useTypewriter';
 import { useRenameSuppress } from '../../hooks/useRenameSuppress';
@@ -18,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { SessionTreeHelpButton } from '../sessionTree/SessionTreeHelpDialog';
+import { SessionTreeIcon } from '../sessionTree/sessionTreeIcons';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 // 13px menu text (app's text-xs scale, keeps the theme line-height — an
@@ -141,7 +136,7 @@ export default React.memo(function SessionToolbar({
               disabled={Boolean(treeDisabledReason)}
               className="flex items-center justify-center rounded p-1 text-muted-foreground transition-colors size-7 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50 [-webkit-app-region:no-drag]"
             >
-              <IconBinaryTree2 size={16} stroke={1.5} />
+              <SessionTreeIcon size={16} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="gap-3">

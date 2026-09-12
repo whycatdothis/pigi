@@ -1,7 +1,8 @@
 import React from 'react';
-import { IconBinaryTree2, IconChevronRight } from '@tabler/icons-react';
+import { IconChevronRight } from '@tabler/icons-react';
 import { formatSessionTreeTime, type SessionTreeRootStats } from '../../lib/sessionTreeData';
 import { cn } from '../../lib/utils';
+import { SessionTreeIcon } from './sessionTreeIcons';
 
 interface TreeHeaderProps {
   /** Number shown to the user, counted from the oldest tree. */
@@ -55,7 +56,7 @@ export function TreeHeader({
           isCurrent ? 'text-[var(--system-accent)]' : 'text-muted-foreground',
         )}
       >
-        <IconBinaryTree2 size={14} className="mr-1 inline-block align-[-3px] [stroke-width:2.5]" />
+        <SessionTreeIcon size={14} className="mr-1 inline-block align-[-3px] [stroke-width:2.5]" />
         Tree {position}
       </span>
       {stats && (
