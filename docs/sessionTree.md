@@ -858,7 +858,8 @@ ARIA; nothing else in the app uses them.
 ### Automated tests
 
 `npm test` (vitest, no DOM) covers the parts that are pure functions and were
-iterated on by hand the most:
+iterated on by hand the most. CI (`.github/workflows/ci.yml`) runs it on every
+push together with the typecheck, lint and format checks:
 
 - `processes/utility/sessionTree.test.ts` — which entries become rows at all
   (an assistant message waiting on a tool call does not), where their children
