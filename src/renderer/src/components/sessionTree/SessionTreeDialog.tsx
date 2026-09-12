@@ -226,8 +226,10 @@ export default function SessionTreeDialog({
             <SessionTreeList
               // A filtered tree, or another session, is a different dataset:
               // remounting keeps the tree state (expansion, focus) in step with
-              // what is on screen.
-              key={`${sessionPath}\u0000${trimmedQuery}\u0000${[...kinds].sort().join(',')}\u0000${loaded?.generation ?? 0}`}
+              // what is on screen. A live refresh is the same dataset with more
+              // rows, so it updates in place — remounting there would fold back
+              // every row the reader opened.
+              key={`${sessionPath}\u0000${trimmedQuery}\u0000${[...kinds].sort().join(',')}`}
               data={data}
               currentId={currentTree?.leafId ?? null}
               autoScroll={scrollGeneration === (loaded?.generation ?? -1)}

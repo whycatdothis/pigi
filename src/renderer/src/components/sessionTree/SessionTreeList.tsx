@@ -77,6 +77,18 @@ export function SessionTreeList({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // `getContainerProps` hands the library its own `ref` (registerElement), which
+  // is what routes the container's keydown into the tree's hotkeys. Spreading it
+  // and then writing `ref` would drop that registration, so the element goes to
+  // both owners.
+  const setContainer = useCallback(
+    (element: HTMLDivElement | null): void => {
+      containerRef.current = element;
+      tree.registerElement(element);
+    },
+    [tree],
+  );
+
   // The rows the tree currently shows (folds and filters applied), and how they
   // nest: the recursion below renders exactly this, so both stay in step.
   const visibleItemIds = tree
@@ -152,7 +164,7 @@ export function SessionTreeList({
   return (
     <div
       {...tree.getContainerProps('Session tree')}
-      ref={containerRef}
+      ref={setContainer}
       className="h-full overflow-y-auto px-2 outline-none"
       // Scrolling moves the rows out from under the pointer.
       onScroll={handleRowLeave}

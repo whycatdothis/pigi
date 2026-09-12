@@ -190,6 +190,18 @@ describe('buildSessionTreeDisplay', () => {
     expect(depthById.has('d1')).toBe(false);
   });
 
+  it('marks the deepest row of the path when the pointer is not on one', () => {
+    // No hover: the lit row is derived from the position. The leaf is a row
+    // here, and depth counts indentation — a lone child does not add a level —
+    // so the chain above the fork sits at the same depth and the mark belongs
+    // on the last of them rather than the first.
+    expect(display().litRowId).toBe('d1');
+
+    // Folding the branch that holds the leaf leaves the deepest row still on
+    // screen standing in for the position.
+    expect(display(null, ['c1', 'd1']).litRowId).toBe('b1');
+  });
+
   it('lights the sibling a path passes on its way down, and turns in at the path itself', () => {
     // The leaf sits under `c1`: the fork's first child is the way down, so the
     // line of the sibling after it stays neutral.

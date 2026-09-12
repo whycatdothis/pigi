@@ -75,6 +75,12 @@ export function useSessionTreePreview({
     [],
   );
 
+  // Entry ids are unique per session, and the hook outlives the dialog, so the
+  // cache is dropped when a different session takes over.
+  useEffect(() => {
+    textCacheRef.current.clear();
+  }, [sessionPath]);
+
   const clearSwitchTimer = useCallback(() => {
     if (switchTimerRef.current) {
       clearTimeout(switchTimerRef.current);

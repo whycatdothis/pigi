@@ -241,6 +241,7 @@ session with that parent instead. Behind it all, `docs/sessionTree.md` is the
 design reference, and `src/renderer/src/components/sessionTree/` holds the dialog
 and its geometry.
 
+
 ## Collapsible Blocks
 
 `OverflowClamp` clamps tool output, thinking, and user bubbles with pure CSS:

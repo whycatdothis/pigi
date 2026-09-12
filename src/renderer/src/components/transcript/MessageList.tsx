@@ -31,6 +31,8 @@ interface MessageListProps {
 export interface MessageListHandle {
   /** Stop bottom-following (search jump, minimap jump, group toggle...). */
   suspendAutoScroll: () => void;
+  /** Give back a follow stopped by `suspendAutoScroll`, for a move that failed. */
+  restoreFollow: () => void;
   /**
    * Land at the bottom of a transcript that is being replaced in this tick.
    * Tree navigation swaps every node, so the reader ends up at the end of the
@@ -187,6 +189,7 @@ export default React.memo(function MessageList({
     topPaddingPx,
     showScrollButton,
     suspendAutoScroll,
+    restoreFollow,
     followAfterContentSwap,
     handleScrollToBottom,
     handleMinimalTurnEnd,
@@ -196,10 +199,11 @@ export default React.memo(function MessageList({
     handleCollapseDetails,
   } = scrollController;
 
-  useImperativeHandle(ref, () => ({ suspendAutoScroll, scrollToBottom: followAfterContentSwap }), [
-    followAfterContentSwap,
-    suspendAutoScroll,
-  ]);
+  useImperativeHandle(
+    ref,
+    () => ({ suspendAutoScroll, restoreFollow, scrollToBottom: followAfterContentSwap }),
+    [followAfterContentSwap, restoreFollow, suspendAutoScroll],
+  );
 
   const activeUserMessageIndex = useActiveUserMessageIndex({
     isMinimal,

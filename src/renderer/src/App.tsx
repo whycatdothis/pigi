@@ -809,8 +809,13 @@ function App(): React.JSX.Element {
         // they moved to, which is where the session now continues from.
         messageListRef.current?.suspendAutoScroll();
         const result = await navigateSessionTree(sessionPath, entryId, options);
-        if (result.cancelled) return;
+        if (result.cancelled) {
+          // The move did not happen, so give back the follow it suspended.
+          messageListRef.current?.restoreFollow();
+          return;
+        }
         if (!result.success) {
+          messageListRef.current?.restoreFollow();
           toast.error(result.error || 'Failed to move the session');
           return;
         }
@@ -824,6 +829,7 @@ function App(): React.JSX.Element {
         }
         void refreshSessionState(sessionPath);
       } catch (error) {
+        messageListRef.current?.restoreFollow();
         toast.error(error instanceof Error ? error.message : 'Failed to move the session');
       } finally {
         treeNavInFlightRef.current = false;
@@ -1042,7 +1048,12 @@ function App(): React.JSX.Element {
       });
       // Mark as hydrated so useTranscript doesn't try getMessages via port
       markSessionHydrated(sessionPath);
-      pendingResumesRef.current.add(sessionPath);
+      // A fresh session is one this app just created (`createSession` spawned its
+      // process), so there is no resume coming to clear a pending mark: buffering
+      // would never flush and every later action would see a starting session.
+      if (!options?.freshSession) {
+        pendingResumesRef.current.add(sessionPath);
+      }
 
       // Hydrate transcript from session file (fast path, no utility process needed)
       if (!options?.freshSession) {
