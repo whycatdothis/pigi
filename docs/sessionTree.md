@@ -275,7 +275,7 @@ Implementation:
 - Indentation is the **row's own padding** (`rowContentX(depth)`), not a gutter
   element. A level is 20px (`INDENT_PX`) and the wrapper adds the remaining 4px
   between its line and the row — geometry that only exists once, in
-  `SessionTreeDialog.tsx`, next to the constants it is derived from: the chevron
+  `components/sessionTree/sessionTreeGeometry.ts`, next to the constants it is derived from: the chevron
   box, the row height and the branch spacing are all set from those constants
   instead of from classes, so a layout change cannot silently leave the lines
   behind. (The row box still spans the whole list so the gutter stays clickable;
@@ -745,33 +745,40 @@ comparison for `parentSessionPath` is case-insensitive on Windows.
 
 ## 7. File changes
 
-| File                                                                  | Change                                                                         |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `src/shared/ipcContract.ts`                                           | 4 tree commands, `create_session.parentSessionPath`, tree DTOs                 |
-| `src/shared/messageText.ts` (new)                                     | `extractMessageText`, `clipText`, `toSingleLine`, shared by utility + renderer |
-| `src/main/ipc/piAgentBridge.ts`                                       | forward `parentSessionPath` (phase 2)                                          |
-| `src/processes/utility/piAgent.ts`                                    | 4 tree command handlers, `create_session` parent                               |
-| `src/processes/utility/sessionTree.ts` (new)                          | pure `buildSessionTree(entries, leafId)`, `readEntryText`                      |
-| `src/renderer/src/services/piAgentClient.ts`                          | 4 wrappers                                                                     |
-| `src/renderer/src/lib/sessionTreeLayout.ts` (new)                     | pure: abandoned count, node → entry id, navigability                           |
-| `src/renderer/src/lib/sessionTreeData.ts` (new)                       | pure: headless-tree data loader, display tree, active path, filter, row text   |
-| `src/renderer/src/lib/sessionLineage.ts` (new)                        | pure: lineage build + flatten (phase 2)                                        |
-| `src/renderer/src/components/SessionTreeDialog.tsx` (new)             | the dialog, rows, branch lines, hover preview card, search                     |
-| `src/renderer/src/components/BranchSummaryPrompt.tsx` (new)           | the leave-branch prompt                                                        |
-| `src/renderer/src/components/branchSummaryCard.tsx` (new)             | `Branch summary` card                                                          |
-| `src/renderer/src/components/messageActions.tsx` (new)                | message-row actions context                                                    |
-| `src/renderer/src/state/transcriptController.ts`                      | `sdkTimestamp`, `hasToolCalls`, `branchSummary` → system node                  |
-| `src/renderer/src/components/messageBubbles.tsx`                      | `MessageToolbar({ node })` with tree/fork, `SystemBubble({ node })`            |
-| `src/renderer/src/components/messageListRows.tsx` / `minimalView.tsx` | pass nodes to the toolbar                                                      |
-| `src/renderer/src/components/SessionToolbar.tsx`                      | tree button (`IconBinaryTree`) + disabled reason                               |
-| `src/renderer/src/components/StreamingQueue.tsx`                      | `busyLabel` prop                                                               |
-| `src/renderer/src/components/MessageList.tsx`                         | `MessageListHandle.suspendAutoScroll()`                                        |
-| `src/renderer/src/components/messageSearchTargets.ts`                 | search the branch summary body                                                 |
-| `src/renderer/src/components/sidebar/sessionList.tsx`                 | lineage prefix (phase 2)                                                       |
-| `src/renderer/src/lib/toolDisplay.ts`                                 | `getToolCommandPartsForTool(name, args)` for tree rows                         |
-| `src/renderer/src/lib/slashCommands.ts`                               | `/tree`                                                                        |
-| `src/renderer/src/App.tsx`                                            | tree navigation, summary prompt state, busy state, actions provider            |
-| `docs/architecture.md`                                                | new "Session tree and fork" section (phase 3)                                  |
+| File                                                                             | Change                                                                         |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `src/shared/ipcContract.ts`                                                      | 4 tree commands, `create_session.parentSessionPath`, tree DTOs                 |
+| `src/shared/messageText.ts` (new)                                                | `extractMessageText`, `clipText`, `toSingleLine`, shared by utility + renderer |
+| `src/main/ipc/piAgentBridge.ts`                                                  | forward `parentSessionPath` (phase 2)                                          |
+| `src/processes/utility/piAgent.ts`                                               | 4 tree command handlers, `create_session` parent                               |
+| `src/processes/utility/sessionTree.ts` (new)                                     | pure `buildSessionTree(entries, leafId)`, `readEntryText`                      |
+| `src/renderer/src/services/piAgentClient.ts`                                     | 4 wrappers                                                                     |
+| `src/renderer/src/lib/sessionTreeLayout.ts` (new)                                | pure: abandoned count, node → entry id, navigability                           |
+| `src/renderer/src/lib/sessionTreeData.ts` (new)                                  | pure: headless-tree data loader, display tree, active path, filter, row text   |
+| `src/renderer/src/lib/sessionLineage.ts` (new)                                   | pure: lineage build + flatten (phase 2)                                        |
+| `src/renderer/src/components/sessionTree/SessionTreeDialog.tsx` (new)            | the dialog shell: the read behind it, a visit's state, the preview card        |
+| `src/renderer/src/components/sessionTree/SessionTreeList.tsx`                    | the scrolling list: the tree, its version headers, branch lines, row recursion |
+| `src/renderer/src/components/sessionTree/SessionTreeRow.tsx`                     | one row and its insides, shared with the pinned copies                         |
+| `src/renderer/src/components/sessionTree/SessionTreeHeader.tsx`                  | the `Tree n` section header                                                    |
+| `src/renderer/src/components/sessionTree/SessionTreePinnedBand.tsx`              | the ancestors pinned to the top of the list                                    |
+| `src/renderer/src/components/sessionTree/SessionTreeToolbar.tsx`                 | search, row count, kind filter chips                                           |
+| `src/renderer/src/components/sessionTree/sessionTreeGeometry.ts` (new)           | row/line/preview-card geometry, shared by the components above                 |
+| `src/renderer/src/hooks/useSessionTreePreview.ts` (new)                          | the hover preview: which row has a card, where it sits, what it says           |
+| `src/renderer/src/components/sessionTree/BranchSummaryPrompt.tsx` (new)          | the leave-branch prompt                                                        |
+| `src/renderer/src/components/message/branchSummaryCard.tsx` (new)                | `Branch summary` card                                                          |
+| `src/renderer/src/components/message/messageActions.tsx` (new)                   | message-row actions context                                                    |
+| `src/renderer/src/state/transcriptController.ts`                                 | `sdkTimestamp`, `hasToolCalls`, `branchSummary` → system node                  |
+| `src/renderer/src/components/message/messageBubbles.tsx`                         | `MessageToolbar({ node })` with tree/fork, `SystemBubble({ node })`            |
+| `src/renderer/src/components/transcript/messageListRows.tsx` / `minimalView.tsx` | pass nodes to the toolbar                                                      |
+| `src/renderer/src/components/session/SessionToolbar.tsx`                         | tree button (`IconBinaryTree`) + disabled reason                               |
+| `src/renderer/src/components/transcript/StreamingQueue.tsx`                      | `busyLabel` prop                                                               |
+| `src/renderer/src/components/transcript/MessageList.tsx`                         | `MessageListHandle.suspendAutoScroll()`                                        |
+| `src/renderer/src/components/transcript/messageSearchTargets.ts`                 | search the branch summary body                                                 |
+| `src/renderer/src/components/sidebar/sessionList.tsx`                            | lineage prefix (phase 2)                                                       |
+| `src/renderer/src/lib/toolDisplay.ts`                                            | `getToolCommandPartsForTool(name, args)` for tree rows                         |
+| `src/renderer/src/lib/slashCommands.ts`                                          | `/tree`                                                                        |
+| `src/renderer/src/App.tsx`                                                       | tree navigation, summary prompt state, busy state, actions provider            |
+| `docs/architecture.md`                                                           | new "Session tree and fork" section (phase 3)                                  |
 
 Dependencies added for the dialog: `@headless-tree/core` and
 `@headless-tree/react` (MIT, ~19KB gzipped together). They own tree state and
@@ -786,6 +793,27 @@ ARIA; nothing else in the app uses them.
 2. **fork** — `fork_session`, `create_session.parentSessionPath`, hover `fork`,
    `prefillText`, sidebar lineage.
 3. **polish** — docs update, disabled-reason coverage.
+
+### Automated tests
+
+`npm test` (vitest, no DOM) covers the parts that are pure functions and were
+iterated on by hand the most:
+
+- `processes/utility/sessionTree.test.ts` — which entries become rows at all
+  (an assistant message waiting on a tool call does not), where their children
+  re-attach once hidden rows are dropped, which row carries the current position
+  when the leaf is not a row, tool arguments carried onto result rows, and
+  `readEntryText` including truncation.
+- `lib/sessionTreeData.test.ts` — filtering (kind filters re-attaching kept rows,
+  ancestors kept for a query, highlight indexes skipping the unprinted label,
+  tree numbering fixed by the session rather than by the filter), the indentation
+  the rows are nested into (continuation vs. fork, folded subtrees gone), the
+  branch-line tints for a lit path, `countAbandonedEntries`, `collectBranchOwners`
+  and the row descriptions.
+
+Everything that needs a mounted dialog — hover, the pinned band, scrolling,
+focus and the preview card's timers — is still verified by hand in the running
+app; those checks are the ones in the list below.
 
 ### Verified so far (phase 1, CDP against scratch sessions)
 

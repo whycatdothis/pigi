@@ -10,6 +10,7 @@
  * Everything here is pure: shaping, row descriptions and time formatting.
  */
 import fuzzysort from 'fuzzysort';
+import type { ItemInstance } from '@headless-tree/core';
 import type { SessionTreeDto, SessionTreeEntryDto } from '../../../shared/ipcContract';
 import { getToolCommandPartsForTool } from './toolDisplay';
 
@@ -256,6 +257,42 @@ export function createSessionTreeData(
     // reload, a filter swap): answer with an empty row instead of throwing.
     getItem: (itemId) => itemById.get(itemId) ?? EMPTY_ITEM,
     getChildren: (itemId) => itemById.get(itemId)?.childIds ?? [],
+  };
+}
+
+/**
+ * Everything a row shows, plus what its kind means for the styling.
+ *
+ * `isBranchChild` is the one piece of view state: a lone child has no fold
+ * affordance, while a child of a fork folds the branch it hangs from.
+ */
+export function describeSessionTreeRow(
+  item: ItemInstance<SessionTreeItem>,
+  isBranchChild: boolean,
+): {
+  canFold: boolean;
+  description: SessionTreeDescription;
+  isMetaKind: boolean;
+  isError: boolean;
+} {
+  const entry = item.getItemData().entry;
+  const childCount = item.getItemData().childIds.length;
+  if (!entry) {
+    return {
+      canFold: false,
+      description: { text: '' },
+      isMetaKind: false,
+      isError: false,
+    };
+  }
+  const description = describeSessionTreeEntry(entry);
+  return {
+    // Chains have no fold affordance: the rows a fold would hide do not read as
+    // children on screen.
+    canFold: childCount > 1 || (isBranchChild && childCount > 0),
+    description,
+    isMetaKind: entry.kind === 'compaction' || entry.kind === 'branchSummary',
+    isError: description.destructive === true,
   };
 }
 

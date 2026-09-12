@@ -40,7 +40,7 @@ export default defineConfig(
   {
     files: [
       'src/renderer/src/components/ui/**/*.{ts,tsx}',
-      'src/renderer/src/components/themeProvider.tsx',
+      'src/renderer/src/components/app/themeProvider.tsx',
     ],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',

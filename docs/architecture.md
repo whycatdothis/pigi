@@ -251,6 +251,12 @@ remove them one at a time.
 
 ## File Map
 
+Renderer components are grouped by the surface they belong to: one directory
+per surface (`transcript/`, `sessionTree/`, `message/`, …) instead of a flat
+`components/` directory, so a feature's parts are found together. A component
+that is used from more than one surface goes to the surface it is closest to,
+not to a shared bucket.
+
 ```
 src/
 ├── shared/
@@ -273,6 +279,16 @@ src/
 │       └── fileCredentialStore.ts  # auth.json CredentialStore (see Credentials)
 └── renderer/
     └── src/
+        ├── components/           # One directory per surface, no loose files
+        │   ├── app/              # theme provider, sign-in, menus
+        │   ├── chatInput/        # composer: textarea, pickers, slash commands
+        │   ├── message/          # one message: bubbles, markdown, tools, diff
+        │   ├── session/          # sidebar entry, session toolbar, switcher
+        │   ├── sessionTree/      # tree dialog, rows, branch lines, help
+        │   ├── sidebar/          # project and session lists
+        │   ├── terminal/         # terminal panel, controller, theme
+        │   ├── transcript/       # message list, its rows, search, mini-map
+        │   └── ui/               # shadcn primitives
         ├── services/
         │   └── piAgentClient.ts  # Typed wrappers over piApi
         ├── state/

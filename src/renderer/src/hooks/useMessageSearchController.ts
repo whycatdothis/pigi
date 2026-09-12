@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { Virtualizer } from '@tanstack/react-virtual';
 import type { RenderItem } from '../lib/readGrouping';
-import type { OccurrenceResult } from '../components/MessageSearch';
-import { buildSearchTargets } from '../components/messageSearchTargets';
+import type { OccurrenceResult } from '../components/transcript/MessageSearch';
+import { buildSearchTargets } from '../components/transcript/messageSearchTargets';
 import { findOccurrenceRanges } from '../lib/highlightMatches';
 
 /**
