@@ -17,6 +17,7 @@ import {
   BRANCH_SPACING_PX,
   RAIL_WIDTH_PX,
   chevronCentreX,
+  findLitRowOffsetPx,
   railColor,
 } from './sessionTreeGeometry';
 import { TreeHeader } from './SessionTreeHeader';
@@ -141,6 +142,7 @@ export function SessionTreeList({
     data,
     tree,
     currentId,
+    litRowId: display.litRowId,
     onSelect,
     onToggleFold: toggleFolded,
     onRowEnter: handleRowEnter,
@@ -246,7 +248,7 @@ function SessionTreeDisplayRow({
           forkDepth={depth}
           isLast={index === branch.length - 1}
           railTint={childNode.railTint}
-          elbowTinted={childNode.elbowTint}
+          litOffsetPx={branchLitOffsetPx(childNode, rowContext.litRowId)}
         >
           <SessionTreeDisplayRow
             node={childNode}
@@ -268,11 +270,25 @@ interface TreeBranchProps {
    * ends where the branch visibly ends instead of running on into the subtree.
    */
   isLast: boolean;
-  /** How much of this child's line is the lit path (see the display builder). */
+  /** How the lit path meets this child's line (see the display builder). */
   railTint: SessionTreeRailTint;
-  /** The path turns into this child here. */
-  elbowTinted: boolean;
+  /**
+   * When the path turns in here: pixels from this row's top down to the lit row,
+   * which is what the lit run covers. Zero when the row itself is the lit one.
+   */
+  litOffsetPx: number;
   children: React.ReactNode;
+}
+
+/**
+ * How far down the branch child's line the tint reaches.
+ *
+ * Zero for every child the path does not turn into: the run then ends at the
+ * elbow, which is all those lines ever cover.
+ */
+function branchLitOffsetPx(node: SessionTreeDisplayNode, litRowId: string | null): number {
+  if (litRowId === null || node.railTint !== 'enter') return 0;
+  return findLitRowOffsetPx(node, litRowId) ?? 0;
 }
 
 /**
@@ -286,11 +302,15 @@ function TreeBranch({
   forkDepth,
   isLast,
   railTint,
-  elbowTinted,
+  litOffsetPx,
   children,
 }: TreeBranchProps): React.JSX.Element {
   // The pixel just left of the chevron's centre, so the hairline stays whole.
   const lineLeft = chevronCentreX(forkDepth) - RAIL_WIDTH_PX;
+  // The path turns into this child: its line is lit down to the lit row, so a
+  // hovered row deep inside a branch shows the run it hangs from.
+  const entered = railTint === 'enter';
+  const runHeight = BRANCH_LAST_RAIL_HEIGHT_PX + (entered ? litOffsetPx : 0);
 
   return (
     // The spacing sits on the wrapper rather than on the row, so the line above
@@ -298,10 +318,11 @@ function TreeBranch({
     <div className="relative" style={{ paddingTop: BRANCH_SPACING_PX }} data-tree-branch="true">
       {/*
         The line is two pieces: the run from the fork's edge down to the turn
-        into this child, and the run below it, which carries the fork on to the
-        next sibling. A path that turns in here lights the first; a path that
-        passes by on its way to a later sibling lights both. The last child has
-        no second piece: its line stops at its own centre.
+        into this child — as far as the lit row when the path turns in here — and
+        the run below it, which carries the fork on to the next sibling. A path
+        that turns in here lights the first; a path that passes by on its way to
+        a later sibling lights both. The last child has no second piece: its line
+        stops at its own centre.
       */}
       <span
         className="absolute"
@@ -310,7 +331,7 @@ function TreeBranch({
           left: lineLeft,
           top: 0,
           width: RAIL_WIDTH_PX,
-          height: BRANCH_LAST_RAIL_HEIGHT_PX,
+          height: runHeight,
           background: railColor(railTint !== 'none'),
         }}
       />
@@ -320,10 +341,10 @@ function TreeBranch({
           aria-hidden="true"
           style={{
             left: lineLeft,
-            top: BRANCH_LAST_RAIL_HEIGHT_PX,
+            top: runHeight,
             width: RAIL_WIDTH_PX,
             bottom: 0,
-            background: railColor(railTint === 'full'),
+            background: railColor(railTint === 'pass'),
           }}
         />
       )}
@@ -338,7 +359,7 @@ function TreeBranch({
           top: BRANCH_ELBOW_TOP_PX,
           width: BRANCH_ELBOW_WIDTH_PX - RAIL_WIDTH_PX,
           height: RAIL_WIDTH_PX,
-          background: railColor(elbowTinted),
+          background: railColor(entered),
         }}
       />
       {children}

@@ -4,7 +4,7 @@
 
 ### Added
 
-- Session tree: hovering a row lights the line it sits on, from the row up through every fork above it. The run that leads to the row lights even when it passes siblings on the way; the pieces that carry on to the branches below stay neutral
+- Session tree: hovering a row lights the line it sits on, from the row up through every fork above it — a message in the middle of a branch lights the line all the way down to it, not only the fork it hangs from. The run that leads to the row lights even when it passes siblings on the way; the pieces that carry on to the branches below stay neutral
 - Session tree: the ancestors of the topmost visible row stay pinned under the tree header while scrolling, one row per indent level, so the rows on screen never lose sight of where they hang from. Pinned rows can be clicked to move the session there
 - Session tree: the tree button in the session toolbar (or `/tree`) opens the whole session — every branch, not just the one you are on — with fuzzy search, `User` / `Assistant` / `Tools` / `Summaries` filters, and a preview of any message on hover. Pick a message to move the session there
 - Every message row shows a `tree` action on hover, and the tooltips and the tree dialog carry a `?` that explains what the session tree does
