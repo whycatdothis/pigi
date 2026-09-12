@@ -75,6 +75,15 @@
   --card-foreground: #1a1c1f;
   --popover: oklch(1 0 0);
   --popover-foreground: #1a1c1f;
+  /* Opaque stand-in for the dialog surface (`VIBRANCY_OVERLAY_CONTENT` in
+     layoutConstants.ts: popover at 88% over the `bg-black/20` overlay). A
+     pinned header inside a dialog cannot use the translucent material — it
+     would tint a second time and show the rows scrolling underneath. */
+  --dialog-solid: color-mix(
+    in srgb,
+    var(--popover) 88%,
+    color-mix(in srgb, var(--background) 80%, black)
+  );
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
@@ -115,6 +124,15 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
+  /* Opaque stand-in for the dialog surface (`VIBRANCY_OVERLAY_CONTENT` in
+     layoutConstants.ts: popover at 88% over the `bg-black/20` overlay). A
+     pinned header inside a dialog cannot use the translucent material — it
+     would tint a second time and show the rows scrolling underneath. */
+  --dialog-solid: color-mix(
+    in srgb,
+    var(--popover) 88%,
+    color-mix(in srgb, var(--background) 80%, black)
+  );
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);

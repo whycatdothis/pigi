@@ -897,6 +897,11 @@ function App(): React.JSX.Element {
       if (!sessionPath) return;
       try {
         const tree = await getSessionTree(sessionPath);
+        // The dialog only closes once the move is decided. A pick that needs the
+        // summary question keeps it open: the question opens on top of it, and
+        // cancelling the question returns the user to the list they were reading.
+        const asksToSummarize = entryId !== tree.leafId && countAbandonedEntries(tree, entryId) > 0;
+        if (!asksToSummarize) setTreeDialogOpen(false);
         await continueTreeNavigation(sessionPath, tree, entryId);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to read the session tree');
@@ -906,15 +911,23 @@ function App(): React.JSX.Element {
   );
 
   const handleSummaryPromptConfirm = useCallback(
-    (options: { summarize: boolean; customInstructions?: string }): void => {
+    (options: { summarize: boolean }): void => {
       const prompt = summaryPrompt;
       const sessionPath = activeSessionPath;
       setSummaryPrompt(null);
+      // The question is answered: the move goes ahead, so the tree the user was
+      // browsing has done its job.
+      setTreeDialogOpen(false);
       if (!prompt || !sessionPath) return;
       void runTreeNavigation(sessionPath, prompt.entryId, options);
     },
     [activeSessionPath, runTreeNavigation, summaryPrompt],
   );
+
+  /** Closing the prompt without answering drops the move, not the tree. */
+  const handleSummaryPromptCancel = useCallback((): void => {
+    setSummaryPrompt(null);
+  }, []);
 
   const treeDisabledReason = branchSummaryBusy
     ? 'Busy summarizing the abandoned branch'
@@ -1681,7 +1694,6 @@ function App(): React.JSX.Element {
             sessionPath={activeSessionPath ?? ''}
             revision={sessionTreeRevision}
             onSelect={(entryId) => {
-              setTreeDialogOpen(false);
               void handleTreeSelect(entryId);
             }}
           />
@@ -1689,7 +1701,7 @@ function App(): React.JSX.Element {
           <BranchSummaryPrompt
             open={summaryPrompt !== null}
             abandonedCount={summaryPrompt?.abandonedCount ?? 0}
-            onCancel={() => setSummaryPrompt(null)}
+            onCancel={handleSummaryPromptCancel}
             onConfirm={handleSummaryPromptConfirm}
           />
 

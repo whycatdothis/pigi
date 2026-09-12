@@ -143,29 +143,39 @@ Rows:
 | ----------------- | -------------------------------------------------------------------------- |
 | user message      | accent user chip + medium-weight text (the only kind with a leading icon)  |
 | assistant message | plain regular text; errors turn it destructive and add an `error` trailing |
-| tool result       | mono `name` chip + mono command, output muted, `error` trailing on failure |
+| tool result       | mono command, output muted, `error` trailing on failure                    |
 | compaction        | `Compacted context` chip + summary + `12k tokens`                          |
 | branch summary    | `Branch summary` chip + summary                                            |
 
-Leading icons were removed from everything but user rows: kinds are already told
-apart by the chips and by the text weight, and one landmark per turn keeps the
-tree quiet.
+Leading icons were removed from everything but user rows, and tool rows no longer
+repeat their tool's name as a chip: the command already starts with it (`$ pwd`,
+`read src/foo.ts`), so the chip was a second, competing label. The name is still
+what a query is matched against, which keeps `bash` able to find those rows.
 
-- `Current` chip marks the effective leaf. When the real leaf is not a row (a
-  model change, a label, an assistant message mid-tool-call), the deepest
-  visible entry on the active path is marked instead, so the marker always has
-  a row. The dialog scrolls it into view on open.
+- A `Current` chip marks the effective leaf — a chip, not a tinted row: the
+  position has to be readable while the pointer is on it, and a background would
+  be painted over by the hover. When the real leaf is not a row (a model change,
+  a label, an assistant message mid-tool-call), the deepest visible entry on the
+  active path is marked instead, so the marker always has a row. The dialog
+  scrolls it into view on open.
 - Click a row (or `Enter` on a focused row) → navigate (§6.2). If the navigation
-  would abandon content, the summary prompt (§3.4) appears after the dialog
-  closes. Clicking the row that is already the current leaf just closes.
+  would abandon content, the summary prompt (§3.4) opens on top of this dialog;
+  otherwise the dialog closes and the move goes ahead. Clicking the row that is
+  already the current leaf just closes the dialog.
+- No row draws a focus ring: a click puts the tree's keyboard cursor on that row
+  (arrows continue from there, `Enter` activates it) but leaves no mark behind,
+  not even after a prompt is cancelled. The cursor is invisible by design; the
+  hover, the match background and the `Current` chip are the only row states on
+  screen.
 - Indentation is display-driven, not structural: a lone child continues at its
-  parent's level, and each child of a fork that is not the one the active path
-  follows starts a branch one level deeper. The session the user is looking at
-  therefore stays flush left, and only real branches indent. One 1px guide line
-  per open level, drawn in the middle of a 16px column.
-- Fold chevrons appear on rows with more than one child and on the first row of
-  a branch (a chain has none: the rows a fold would hide do not read as its
-  children). `←`/`→` fold and unfold the focused row.
+  parent's level, every child of a fork moves one level deeper. Depth is a
+  property of the tree alone — moving the leaf never re-lays the rows out.
+- A fork is drawn as a rail plus elbows, not as bare indentation (see
+  the layout notes below).
+- Fold chevrons appear on rows with more than one child and on every child of a
+  fork (a chain has none: the rows a fold would hide do not read as its
+  children). `←`/`→` fold and unfold the focused row. A chevron is 16px at the
+  default stroke weight: thicker than the icons around it would read as bold.
 - Separate roots (returning to before the first message starts a new tree) each
   get a sticky header (`IconBinaryTree`, the same glyph as the toolbar button):
   `Tree 1`, `Tree 2`, … numbered from the oldest, with the
@@ -175,10 +185,20 @@ tree quiet.
   the whole tree, and because it pins to the top, a long tree never hides which
   version is being read. Sessions with a single tree get no header at all, and
   the header count shows up next to the search field as `3 trees · 70 messages`.
+  The trees are drawn from the whole session, not from the filtered rows, so a
+  search keeps them: a match stays placed in its version, the numbering does not
+  shift, and a tree whose rows are all filtered out — or folded — still shows its
+  header. Rows group by _tree_, not by where they ended up in the list: with the
+  kind filters a tree can lose its root row and re-attach higher up, and its rows
+  must still land under one header.
 - Trees that do not hold the current leaf start folded, so one long tree cannot
-  push the other versions out of sight. Unfolding is one click on the header
-  (which reveals the tree fully expanded), and a live refresh while the dialog is
-  open only unfolds newly added rows — a fold the user made is never undone.
+  push the other versions out of sight; a filter or a search unfolds every tree,
+  because that is about rows, not versions. Folding is done by the dialog on the
+  whole group (the tree's rows are left out of the list) rather than through a
+  row item: folding one root row of a filtered tree would hide part of it, and
+  the rows of a folded tree should cost nothing to render. Unfolding is one click
+  on the header, and a live refresh while the dialog is open only unfolds newly
+  added rows — a fold the user made is never undone.
 - Keyboard: `↑`/`↓` move, `Home`/`End` jump, `←`/`→` fold, `Enter` navigates,
   typeahead is off (the search field owns typing). `↓` from the search field
   drops into the tree.
@@ -188,6 +208,12 @@ tree quiet.
 - Kind filter chips (`User`, `Assistant`, `Tools`, `Summaries`) toggle groups of
   entry kinds; several chips combine as OR between kinds. Only rows of the
   selected kinds are kept, and the header count turns into `n of N messages`.
+  A row's hover is `bg-foreground/10` — a visible grey, where the old
+  `bg-muted/70` was `oklch(0.97 0 0)` at 70% and read as nothing on the dialog's
+  surface. It is one class for every row: the current row is marked by its chip,
+  so no second `background-color` can compete for the same state, and which of
+  two utilities would win would otherwise be decided by the order Tailwind emits
+  them in, not by the order they are written.
 - Search is fuzzy (`fuzzysort`, the same library the session switcher and the
   slash commands use): `astnt` finds `assistant`. Matched characters are marked
   in the row text. Rows keep session order — this is a tree, not a ranked list —
@@ -198,27 +224,123 @@ tree quiet.
 - `Enter` in the search field navigates to the first listed row. `Esc` clears the
   search and the filters first (Radix `onEscapeKeyDown` + `preventDefault`); only
   a second `Esc`, with nothing to clear, closes the dialog.
-- Hover a row → a single preview card (§3.3) with the full entry text, anchored
-  below the row, or above it when the row is near the bottom. The card only
-  appears when the row had to clip its text (`scrollWidth > clientWidth` on the
-  text span): a row that already shows everything has nothing to preview. The
-  in-flight row has no entry to read, so it never opens a card.
+- Hover a row → a single preview card (§3.3) with the full entry text. The card
+  only appears when the row had to clip its text (`scrollWidth > clientWidth` on
+  the text span): a row that already shows everything has nothing to preview.
 
 Implementation:
 
 - Tree state comes from `@headless-tree/core` + `@headless-tree/react`
   (flattening, expansion, focus, hotkeys, ARIA `tree`/`treeitem` roles); the
-  rows, guide lines, chips, search, filters and preview card are ours. Wire data
+  rows, branch lines, chips, search, filters and preview card are ours. Wire data
   is shaped into a data loader in `lib/sessionTreeData.ts` (synthetic root, kind
-  - fuzzy filter with ancestor re-attachment, display depths, match indexes,
+  - fuzzy filter with ancestor re-attachment, match indexes,
     per-tree row counts and time spans).
-- The tree header folds through the same `ItemInstance` its rows use, and sits at
-  `top: 0` with an opaque background so rows scroll underneath it. The list
-  container has no top padding: a sticky header cannot cover it, and rows would
-  show through the gap.
+- The rows are rendered as a **nested tree**, not as the library's flat list:
+  `buildSessionTreeDisplay` turns the visible items into nodes whose children are
+  the rows of a fork and whose lone children are continuations. Nesting is what
+  puts the structure lines in the DOM: a branch is one element that spans a whole
+  subtree, instead of every row drawing the pieces passing over it. A fork's
+  wrapper needs no measurement to know where its line ends, and a continuation
+  adds no element at all, so a long conversation stays a flat list.
+- The tree header sits at
+  `top: 0` so rows scroll underneath it. Its background is `--dialog-solid`, an
+  opaque colour-mix that equals the dialog's surface (popover at 88% over the
+  `bg-black/20` overlay): the translucent material itself would tint a second
+  time and read as a white band in light mode, and would let rows show through.
+  The list container has no top padding: a sticky header cannot cover it, and
+  rows would show through the gap.
+- A fork is drawn from its row's fold chevron: the branch line leaves the **fork
+  row's bottom edge**, exactly under that chevron's centre, and each direct child
+  gets a horizontal elbow at its own row's centre, from that line to the left
+  edge of the child's chevron box. The line crosses to the chevron instead of
+  running on to the icon: they share the same column, and stopping at its edge
+  keeps the chevron readable as a control.
+- Every child of a fork is one `TreeBranch` wrapper holding the line and the
+  elbow, and the wrapper spans that child's **whole subtree**. Siblings are
+  adjacent, so their lines join without a seam, and no row has to know where the
+  fork above it started. The last child's line stops at its own row's centre (its
+  wrapper clips it to `padding + ROW_HEIGHT_PX / 2`) while the others run the
+  wrapper's full height, which is what makes a fork visibly end at its last
+  child. The two meet in a plain 90° corner — no rounded elbow: a radius made the
+  curve leave the line mid-way and read as a second, unrelated line. The corner
+  pixel belongs to the line: the elbow element starts one pixel to its right, so
+  no pixel is painted twice. Overlapping them would darken the corner (the lines
+  are translucent) and, at an accented fork, blend the accent with neutral grey.
+  A child's line is **two elements**: the run from the fork's edge down to the
+  turn into that child (`BRANCH_LAST_RAIL_HEIGHT_PX` tall, the same run the last
+  child's line is), and the run below it, which carries the fork down to the next
+  sibling. That second piece belongs to the sibling below, not to this child —
+  what the highlight does with it depends on where the path goes (next bullet).
+- Indentation is the **row's own padding** (`rowContentX(depth)`), not a gutter
+  element. A level is 20px (`INDENT_PX`) and the wrapper adds the remaining 4px
+  between its line and the row — geometry that only exists once, in
+  `SessionTreeDialog.tsx`, next to the constants it is derived from: the chevron
+  box, the row height and the branch spacing are all set from those constants
+  instead of from classes, so a layout change cannot silently leave the lines
+  behind. (The row box still spans the whole list so the gutter stays clickable;
+  only its _highlight_ is the content box.)
+- The spacing above a branch's children sits on the **wrapper**
+  (`BRANCH_SPACING_PX`), not on the row: a row margin would leave a 2px gap in
+  the line between siblings, and a line that runs from the fork's edge has to
+  cover it.
+- Lines are hairlines: 1px, on whole pixels — a half-pixel position antialiases
+  into a fat grey bar, which is exactly what the old guide lines looked like.
+- Colour says where the leaf is, and where the pointer is. The path is described
+  by one row per indent level (`collectPathOwners`): walking up from the lit row,
+  the branch child the path _enters_ that level through. For every child of a
+  fork, that decides what lights up:
+  - the child the path turns into — the elbow into it, and the run of line down
+    to that elbow (so the line reaches the row it leads to, not just the fork);
+  - a sibling _before_ it — the elbow is not the path's, but the line is: the path
+    runs past it on the way down, so both pieces light and the run stays unbroken;
+  - a sibling after it — nothing: that line belongs to another branch.
+    The last child has no second piece to light. Hovering replaces the leaf's own
+    path while the pointer is on a row, so the highlight always answers "which line
+    is this" for what is under the cursor.
+- Hovering a row highlights the branch line it sits on, all the way up: every
+  rail and elbow between the row and the outermost fork it descends from turns
+  accent. The set is the row plus **every** row above it on the display path
+  (`collectRowAncestors`) — not one per level: a chain of lone children shares a
+  level, so the row that draws the line at that level is the _first_ row of the
+  chain, which a one-per-level walk would skip. Rows without a wrapper draw
+  nothing, so carrying them in the set costs a Set lookup and nothing else. Hover
+  and leaf highlighting are a union (a hover can never darken the leaf's own
+  path), and the hover state is keyed by the ids it is made of, so moving along
+  one chain does not re-render the list.
+- The ancestors of the top row are pinned above the list: scrolling past a fork
+  used to hide who the visible rows hang from. `PinnedAncestors` renders the rows
+  that **own a visible line** above it (`collectBranchOwners`: a row qualifies
+  when the row below it on the path hangs from it one indent deeper) — one per
+  level, indent included, so the stack is as tall as the nesting and not as long
+  as the conversation — inside a
+  `sticky top-0 z-20 h-0` layer, offset by the tree header's height. It takes no
+  space in the flow (nothing shifts when it appears), it is opaque
+  (`--dialog-solid`, like the headers) so rows scroll underneath it, and its rows
+  are clickable copies that move the session; they are `aria-hidden` because the
+  rows they copy are right there in the tree.
+- The band's offsets are measured, not modelled: a `useLayoutEffect` reads every
+  row's `offsetTop` and the header height once per row set (folding and filtering
+  change `visibleRowCount`, which is what the effect keys on) into a ref, and a
+  scroll listener picks the row at the top of the readable area on an animation
+  frame. Re-measuring per scroll frame would force a layout every frame, which is
+  the expensive half of a feature like this.
+- The structure data is just the display tree plus the set of entries on the
+  active path (`activePathIds`); the renderer derives the line geometry from the
+  nesting level it is rendering, so `sessionTreeData.ts` no longer computes
+  per-row rails.
 - The preview card is gated by a DOM measurement on entry
   (`[data-tree-row-text]`), not by a character budget: indentation, the window
   width and the chips that share the row are all part of the answer.
+- The card is reachable. It overlaps the hovered row (its top starts at the
+  row's top, or its bottom at the row's bottom near the end of the list) instead
+  of hanging below it, so the pointer can travel sideways out of the row and into
+  the card without ever touching the rows in between. A transparent wrapper
+  around the card owns the hover, covers the visual margin and reaches the
+  dialog's right edge, so no gap can dismiss it; and leaving a row only
+  schedules the change — 200ms (`CARD_SWITCH_DELAY_MS`) that entering the card
+  cancels — so crossing rows on the way there does not steal the card or close
+  it. Scrolling inside the card works as expected.
 - The explanation lives in `SessionTreeHelpDialog.tsx` (dialog + round button)
   and is opened through `sessionTreeHelp.ts` (context + `useSessionTreeHelp`).
   The dialog is mounted once at `App` level, because the buttons live in
@@ -249,16 +371,28 @@ would otherwise fight the tooltip for the pointer.
 
 ### 3.4 Summary prompt
 
-Only shown when the navigation actually abandons entries (see §6.2). One modal,
-one layer, three actions:
+Only shown when the navigation actually abandons entries (see §6.2). It opens
+**on top of the tree dialog**, not after it: the message the user picked stays on
+screen behind the question, so the answer has context. Two answers, nothing else:
 
 ```
-This branch has 8 messages. Carry its conclusions into the new position?
-  [Don't summarize]  [Summarize]  [Custom focus…]
+Leave this branch?
+59 messages leave the conversation. They stay in the session tree and can be
+returned to at any time.
+                                  [Summarize]  [Don't summarize]
 ```
 
-`Custom focus…` expands an input inside the same dialog. Cancel (Esc) aborts the
-navigation without changing the session.
+- There is no `Cancel` button and no custom-instructions input: cancelling is
+  closing the dialog (Esc, the `x`, or a click outside it), and it drops only the
+  move — the tree dialog stays open, so the user is back at the list they were
+  reading.
+- Answering either way closes the tree dialog and runs the navigation; only the
+  `Summarize` answer then shows the progress toast (§3.5). The buttons are
+  `[Summarize] [Don't summarize]`, with the accent (`--system-accent`) on
+  `Don't summarize`: leaving is the plain move and the accent marks it, while
+  summarizing is the extra step.
+- A pick that abandons nothing needs no question: the tree dialog closes and the
+  navigation runs immediately.
 
 ### 3.5 Summary progress
 
@@ -520,8 +654,9 @@ Notes:
 
 ### 6.3 Summary prompt, progress, cancel
 
-- The prompt is renderer state (`{ targetId, abandonedCount }`), not utility
-  state.
+- The prompt is renderer state (`{ entryId, abandonedCount }`), not utility
+  state. It renders above the tree dialog; the tree dialog is only closed when
+  the move is decided (answered, or cancelled).
 - While `navigate_session_tree` with `summarize: true` is in flight, the
   renderer sets a local `branchSummary` state: `isBusy` becomes true,
   `StreamingQueue` shows `Summarizing branch…`, the input refuses to send, and
@@ -619,9 +754,9 @@ comparison for `parentSessionPath` is case-insensitive on Windows.
 | `src/processes/utility/sessionTree.ts` (new)                          | pure `buildSessionTree(entries, leafId)`, `readEntryText`                      |
 | `src/renderer/src/services/piAgentClient.ts`                          | 4 wrappers                                                                     |
 | `src/renderer/src/lib/sessionTreeLayout.ts` (new)                     | pure: abandoned count, node → entry id, navigability                           |
-| `src/renderer/src/lib/sessionTreeData.ts` (new)                       | pure: headless-tree data loader, display depths, filter, row descriptions      |
+| `src/renderer/src/lib/sessionTreeData.ts` (new)                       | pure: headless-tree data loader, display tree, active path, filter, row text   |
 | `src/renderer/src/lib/sessionLineage.ts` (new)                        | pure: lineage build + flatten (phase 2)                                        |
-| `src/renderer/src/components/SessionTreeDialog.tsx` (new)             | the dialog, rows, guide lines, hover preview card, search                      |
+| `src/renderer/src/components/SessionTreeDialog.tsx` (new)             | the dialog, rows, branch lines, hover preview card, search                     |
 | `src/renderer/src/components/BranchSummaryPrompt.tsx` (new)           | the leave-branch prompt                                                        |
 | `src/renderer/src/components/branchSummaryCard.tsx` (new)             | `Branch summary` card                                                          |
 | `src/renderer/src/components/messageActions.tsx` (new)                | message-row actions context                                                    |
@@ -660,7 +795,8 @@ ARIA; nothing else in the app uses them.
   box and re-points the transcript at the new branch.
 - Leave-branch prompt counts (1, 2, 4, 5, 29 rows) and both answers:
   `Don't summarize`, and `Summarize` (summary entry created at the target, card
-  rendered, input restored).
+  rendered, input restored). It opens above the tree dialog, which stays mounted
+  behind it; answering closes both, closing it cancels the move.
 - Summary progress: `Summarizing branch...` in the working bar plus a toast with
   `Cancel`; cancelling before completion leaves the session untouched.
 - Dialog, after the headless-tree rewrite (verified on the scratch session and
@@ -668,9 +804,17 @@ ARIA; nothing else in the app uses them.
   current row marked and scrolled into view, flat chains with one indent level
   per real branch, fold/expand via chevron, search (6 marks for `echo`, counts,
   ancestors kept, matched rows tinted), `↓` from the search field into the tree,
-  arrow-key focus, `Esc` clears the query then closes, hover preview card above
-  and below the hovered row, clicking a row raises the leave-branch prompt with
+  arrow-key focus (no ring: the cursor is invisible), `Esc` clears the query then
+  closes, hovering a row lights its branch line up the tree, the top row keeps
+  its ancestors pinned under the header while scrolling, hover preview card above and below the hovered row, clicking a row raises the leave-branch prompt with
   the right count, separate roots separated by a rule.
+- Branch line hover (verified on the three-tree scratch session, hovering
+  `输出一下当前时间` in Tree 1): its own rail and elbow turn accent _and_ the rail
+  and elbow of the fork above it, while the sibling branch below stays neutral and
+  everything reverts on leave. Pinned
+  ancestors: no band at the top of the list, and one row per indent level
+  (16px / 36px indents, stacked at 28px steps under the header) once a deep row
+  is scrolled to.
 - Navigating with a scrolled-up long transcript keeps the scroll position
   instead of jumping to the bottom.
 

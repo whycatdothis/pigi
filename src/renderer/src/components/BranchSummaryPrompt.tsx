@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -13,15 +13,17 @@ interface BranchSummaryPromptProps {
   open: boolean;
   /** Entries that would leave the active path. */
   abandonedCount: number;
+  /** Closing the prompt — Esc, or a click outside it — drops the whole move. */
   onCancel: () => void;
-  onConfirm: (options: { summarize: boolean; customInstructions?: string }) => void;
+  onConfirm: (options: { summarize: boolean }) => void;
 }
 
 /**
  * Asked before a tree navigation drops part of the conversation.
  *
  * Only shown when entries are actually abandoned; moving within the active
- * branch never asks.
+ * branch never asks. It opens on top of the tree dialog rather than after it,
+ * so the message the user picked is still on screen behind the question.
  */
 export default function BranchSummaryPrompt({
   open,
@@ -32,7 +34,7 @@ export default function BranchSummaryPrompt({
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
       <DialogContent className="w-[460px]" data-testid="branch-summary-prompt">
-        <PromptBody abandonedCount={abandonedCount} onCancel={onCancel} onConfirm={onConfirm} />
+        <PromptBody abandonedCount={abandonedCount} onConfirm={onConfirm} />
       </DialogContent>
     </Dialog>
   );
@@ -41,21 +43,11 @@ export default function BranchSummaryPrompt({
 /** Mounted only while the dialog is open, so its local state resets each time. */
 function PromptBody({
   abandonedCount,
-  onCancel,
   onConfirm,
 }: {
   abandonedCount: number;
-  onCancel: () => void;
-  onConfirm: (options: { summarize: boolean; customInstructions?: string }) => void;
+  onConfirm: (options: { summarize: boolean }) => void;
 }): React.JSX.Element {
-  const [customOpen, setCustomOpen] = useState(false);
-  const [instructions, setInstructions] = useState('');
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (customOpen) inputRef.current?.focus();
-  }, [customOpen]);
-
   return (
     <>
       <DialogHeader>
@@ -68,42 +60,30 @@ function PromptBody({
         </DialogDescription>
       </DialogHeader>
 
-      {customOpen && (
-        <textarea
-          ref={inputRef}
-          value={instructions}
-          onChange={(event) => setInstructions(event.target.value)}
-          rows={3}
-          placeholder="What should the summary focus on?"
-          className="w-full resize-none rounded-md border border-border bg-transparent px-2 py-1.5 text-[13px] outline-none placeholder:text-muted-foreground focus-visible:border-ring"
-        />
-      )}
-
+      {/*
+        Two answers, nothing else: summarizing is a yes/no about this move, and a
+        cancel is the dialog's own close (Esc, or a click outside it). The accent
+        marks the plain move — leaving is the default, summarizing the extra step.
+      */}
       <DialogFooter className="gap-2">
-        <Button variant="ghost" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        {!customOpen && (
-          <Button variant="ghost" size="sm" onClick={() => setCustomOpen(true)}>
-            Custom focus…
-          </Button>
-        )}
         <Button
           variant="outline"
           size="sm"
+          onClick={() => onConfirm({ summarize: true })}
+          data-testid="branch-summary-confirm"
+        >
+          Summarize
+        </Button>
+        <Button
+          size="sm"
+          // The theme's accent, not the app's neutral primary. The accent is dark
+          // in light mode and light in dark mode, so the app's background colour
+          // is what stays readable on it.
+          className="bg-[var(--system-accent)] text-[var(--background)] hover:bg-[var(--system-accent)]/90"
           onClick={() => onConfirm({ summarize: false })}
           data-testid="branch-summary-skip"
         >
           Don&apos;t summarize
-        </Button>
-        <Button
-          size="sm"
-          onClick={() =>
-            onConfirm({ summarize: true, customInstructions: instructions.trim() || undefined })
-          }
-          data-testid="branch-summary-confirm"
-        >
-          Summarize
         </Button>
       </DialogFooter>
     </>

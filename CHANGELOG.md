@@ -4,6 +4,8 @@
 
 ### Added
 
+- Session tree: hovering a row lights the line it sits on, from the row up through every fork above it. The run that leads to the row lights even when it passes siblings on the way; the pieces that carry on to the branches below stay neutral
+- Session tree: the ancestors of the topmost visible row stay pinned under the tree header while scrolling, one row per indent level, so the rows on screen never lose sight of where they hang from. Pinned rows can be clicked to move the session there
 - Session tree: the tree button in the session toolbar (or `/tree`) opens the whole session — every branch, not just the one you are on — with fuzzy search, `User` / `Assistant` / `Tools` / `Summaries` filters, and a preview of any message on hover. Pick a message to move the session there
 - Every message row shows a `tree` action on hover, and the tooltips and the tree dialog carry a `?` that explains what the session tree does
 - Moving the session can summarize what you are leaving behind: you are asked first, the summary is written into the conversation as part of your context, and a summary that is still running can be cancelled
@@ -11,7 +13,20 @@
 
 ### Changed
 
+- The session tree keeps its `Tree 1` / `Tree 2` / `Tree 3` headers while you search or filter, and the numbering stays the version's own: a match is still placed in the tree it came from, and a folded tree keeps its header on screen
+- Hovering a row in the session tree reads clearly now: the highlight went from a barely-there tint to a visible one, the same on every row — the position you are on is marked by a `Current` chip instead of a tinted row, so hovering it no longer looks different from hovering any other row
+
+- The session tree's fold chevrons are bigger (at the normal stroke weight, not bold), and the one on a row folds from a hit area as tall as the row, so a near miss no longer moves the session by accident. Hovering a row replaces the leaf's own highlight while the pointer is on it
 - Tooltips use the app's surface colour instead of black
+- Session tree rows draw their forks as one line per branch: a hairline hangs from the fold chevron of the message a fork starts at, elbows into each of its children and stops at the last one, so a branch reads as a single continuous line instead of a line redrawn by every row it passes
+- Session tree tool rows no longer repeat their tool's name next to the command (`bash`, `read`): the command already starts with it
+- Session tree filter chips are rounded rectangles instead of pills
+- Branch lines and the indent are derived from one set of geometry constants shared with the rows, so changing the indent can no longer leave the lines behind
+- Picking a message that would leave messages behind keeps the session tree open: the `Leave this branch?` question now opens on top of it instead of only after it has closed
+- `Leave this branch?` has two answers, `[Summarize] [Don't summarize]` — the two `Cancel` and `Custom focus…` buttons are gone, so closing the dialog (Esc, the `x`, a click outside) is the cancel; it drops the move and keeps the session tree open. `Don't summarize` sits on the right and carries the theme's accent colour
+- Session tree rows highlight only their content: an indented row's hover box starts where its text does instead of spanning the full width
+- Session tree rows no longer draw a focus ring: picking a row (and cancelling the question it raises) leaves no border behind. Arrow keys still move the tree's cursor, it is just invisible
+- Session tree branch lines no longer paint their corner twice: the elbow starts where the vertical line ends, so the corner is not darker than the lines it joins (and not a blend of the accent and the neutral colour)
 
 ### Fixed
 

@@ -53,6 +53,22 @@ export interface SessionTreeData {
    * not identify anything.
    */
   rootIds: string[];
+  /**
+   * Every tree in the session, oldest first, filter or not.
+   *
+   * The numbering the headers show comes from this, so "Tree 2" means the same
+   * thing before, during and after a search — an empty tree keeps its number
+   * instead of renumbering the ones below it.
+   */
+  treeIds: string[];
+  /**
+   * The tree each entry belongs to, even when a filter dropped the rows in
+   * between: with only assistant rows left, a tree no longer hangs off one root
+   * row, and the header still has to know where it ends.
+   */
+  treeRootIdByItemId: Map<string, string>;
+  /** Whether a query or a kind filter is narrowing the rows. */
+  isFiltered: boolean;
   /** The tree the current leaf belongs to; null only for an empty session. */
   currentRootId: string | null;
   rootStatsById: Map<string, SessionTreeRootStats>;
@@ -66,19 +82,44 @@ export interface SessionTreeData {
    */
   matchIndexesById: Map<string, number[]>;
   /**
-   * Indent level per entry.
+   * Entries on the active path from the current leaf up to its tree's root.
    *
-   * The session tree nests one entry per message, but a conversation is mostly
-   * a straight line. Indenting every message would staircase off the right
-   * edge, so only real branches indent: a lone child continues at its parent's
-   * level, and each child of a fork that is not the one the active path
-   * follows starts a branch one level deeper.
+   * The branch a row belongs to is drawn in the accent when the row sits on the
+   * way back to the leaf, so the renderer needs to ask the tree about it.
    */
-  depthById: Map<string, number>;
-  /** First row of a branch; folding it folds the rest of that branch. */
-  branchStartIds: Set<string>;
+  activePathIds: ReadonlySet<string>;
   getItem: (itemId: string) => SessionTreeItem;
   getChildren: (itemId: string) => string[];
+}
+
+/** How much of a row's branch line is the lit path. */
+export type SessionTreeRailTint = 'none' | 'upper' | 'full';
+
+/** One row of the dialog's display tree, nested the way the rows indent. */
+export interface SessionTreeDisplayNode {
+  itemId: string;
+  /**
+   * A row's only child: it continues the same line, so it renders at the same
+   * nesting level, right after it.
+   */
+  continuation: SessionTreeDisplayNode | null;
+  /**
+   * The children of a fork, one per branch.
+   *
+   * Each of them renders inside a branch wrapper — the element that owns the
+   * fork's guide line, so a line spans a whole subtree instead of being pieced
+   * together row by row.
+   */
+  branch: SessionTreeDisplayNode[] | null;
+  /**
+   * Of this row's line, how much the path covers: `upper` is the run from the
+   * fork down to this row's elbow, `full` also covers the run below it (the path
+   * passes this sibling on its way to a later one), `none` is another branch.
+   * A row that is not a child of a fork has no line, so it is always `none`.
+   */
+  railTint: SessionTreeRailTint;
+  /** The path turns into this row here: its elbow is lit. */
+  elbowTint: boolean;
 }
 
 /** One row's text: an optional leading chip, the text, an optional trailing chip. */
@@ -133,7 +174,8 @@ export function createSessionTreeData(
       const match = fuzzysort.single(normalizedQuery, fuzzyTarget(entry));
       if (!match) continue;
       matchingIds.add(entry.id);
-      // The label chip is rendered separately, so only highlight the text part.
+      // The description carries a label (a tool's name) that the row no longer
+      // prints; the row's text follows it, so drop the leading indexes.
       const label = describeSessionTreeEntry(entry).label;
       const offset = label ? label.length + 1 : 0;
       matchIndexesById.set(
@@ -179,23 +221,37 @@ export function createSessionTreeData(
 
   const allItemIds = [...itemById.keys()].filter((itemId) => itemId !== SESSION_TREE_ROOT_ID);
   const activePathIds = collectActivePathIds(effectiveLeafId, entryById);
-  const { depthById, branchStartIds } = assignDisplayDepths({
-    rootChildIds: itemById.get(SESSION_TREE_ROOT_ID)?.childIds ?? [],
-    childIds: (itemId) => itemById.get(itemId)?.childIds ?? [],
-    activePathIds,
-  });
+  // Every entry in the session, filtered out or not, so the tree numbering is a
+  // property of the session and not of the current search.
+  const treeIds: string[] = [];
+  const treeRootIdByItemId = new Map<string, string>();
+  for (const entry of entries) {
+    if (entry.parentId === null) {
+      treeIds.push(entry.id);
+      treeRootIdByItemId.set(entry.id, entry.id);
+      continue;
+    }
+    // Entries arrive in append order, so a parent is always resolved first. A
+    // parent the payload does not know starts a tree of its own rather than
+    // losing the row: a group with no header is worse than an extra one.
+    const parentRootId = treeRootIdByItemId.get(entry.parentId);
+    if (parentRootId === undefined) treeIds.push(entry.id);
+    treeRootIdByItemId.set(entry.id, parentRootId ?? entry.id);
+  }
 
   return {
     rootItemId: SESSION_TREE_ROOT_ID,
     allItemIds,
     rootIds: rootChildIds,
+    treeIds,
+    treeRootIdByItemId,
+    isFiltered: normalizedQuery !== '' || kinds !== null,
     currentRootId: findRootId(effectiveLeafId, entryById),
     rootStatsById: collectRootStats(rootChildIds, itemById),
     itemCount: allItemIds.length,
     matchCount: matchingIds?.size ?? allItemIds.length,
     matchIndexesById,
-    depthById,
-    branchStartIds,
+    activePathIds,
     // headless-tree can briefly ask for an id from a previous dataset (a hot
     // reload, a filter swap): answer with an empty row instead of throwing.
     getItem: (itemId) => itemById.get(itemId) ?? EMPTY_ITEM,
@@ -239,37 +295,191 @@ export function describeSessionTreeEntry(entry: SessionTreeEntryDto): SessionTre
 }
 
 /**
- * Walk the tree the way it is displayed: follow the active path straight down,
- * indent everything else.
+ * The rows to render, nested the way they indent, plus what the tree shape
+ * means for the rows that hang from it.
  */
-function assignDisplayDepths(options: {
-  rootChildIds: string[];
-  childIds: (itemId: string) => string[];
-  activePathIds: ReadonlySet<string>;
-}): { depthById: Map<string, number>; branchStartIds: Set<string> } {
-  const depthById = new Map<string, number>();
-  const branchStartIds = new Set<string>();
+export interface SessionTreeDisplay {
+  nodes: SessionTreeDisplayNode[];
+  /** Display parent per row: the fork it hangs from, or the row it continues. */
+  parentById: Map<string, string>;
+  /** Indent level per row; a lone child shares its parent's level. */
+  depthById: Map<string, number>;
+}
 
-  const walk = (itemId: string, depth: number, startsBranch: boolean): void => {
+/**
+ * Nest the rows the way they indent, for the renderer.
+ *
+ * A conversation is mostly a straight line: indenting every message would
+ * staircase off the right edge, so only real forks indent. A lone child
+ * continues at its parent's level, and every child of a fork moves one level
+ * deeper — which is exactly the nesting here, and the reason a fork's guide
+ * line can belong to the subtree instead of to each row it passes.
+ *
+ * `visibleItemIds` is what the tree currently shows (folds and filters
+ * applied); anything else is left out. `litRowId` is the row whose branch line
+ * the dialog marks — the one under the pointer, or the current leaf — and every
+ * line on the way up to it comes back tinted, so the renderer only forwards it.
+ */
+export function buildSessionTreeDisplay(
+  data: SessionTreeData,
+  visibleItemIds: ReadonlySet<string>,
+  litRowId: string | null = null,
+): SessionTreeDisplay {
+  const parentById = new Map<string, string>();
+  const depthById = new Map<string, number>();
+  /** Every fork in the tree, with the indent level of its children. */
+  const forks: { fork: SessionTreeDisplayNode; childDepth: number }[] = [];
+
+  const buildNode = (
+    itemId: string,
+    parentId: string | null,
+    depth: number,
+  ): SessionTreeDisplayNode => {
+    if (parentId !== null) parentById.set(itemId, parentId);
     depthById.set(itemId, depth);
-    if (startsBranch) branchStartIds.add(itemId);
-    const childIds = options.childIds(itemId);
-    if (childIds.length === 0) return;
-    // A lone child is a continuation, not a branch.
-    const continuationId =
-      childIds.length === 1
-        ? childIds[0]
-        : childIds.find((childId) => options.activePathIds.has(childId));
-    for (const childId of childIds) {
-      const continues = childId === continuationId;
-      walk(childId, continues ? depth : depth + 1, !continues);
+    const childIds = data.getChildren(itemId).filter((childId) => visibleItemIds.has(childId));
+    if (childIds.length === 1) {
+      // A continuation shares the level: it is the same line, one row further.
+      return {
+        itemId,
+        continuation: buildNode(childIds[0], itemId, depth),
+        branch: null,
+        railTint: 'none',
+        elbowTint: false,
+      };
     }
+    const children = childIds.map((childId) => buildNode(childId, itemId, depth + 1));
+    const node: SessionTreeDisplayNode = {
+      itemId,
+      continuation: null,
+      branch: children.length > 1 ? children : null,
+      railTint: 'none',
+      elbowTint: false,
+    };
+    if (node.branch) forks.push({ fork: node, childDepth: depth + 1 });
+    return node;
   };
 
-  for (const rootId of options.rootChildIds) {
-    walk(rootId, 0, false);
+  const nodes = data
+    .getChildren(data.rootItemId)
+    .filter((rootId) => visibleItemIds.has(rootId))
+    .map((rootId) => buildNode(rootId, null, 0));
+
+  const litId = litRowId ?? findDeepestActiveRowId(data, depthById);
+  if (litId !== null) {
+    // One owner per level: the row the path enters that level through. For each
+    // fork, its children before that row are passed by on the way down, at it the
+    // path turns in, after it they belong to other branches.
+    const owners = collectPathOwners(litId, parentById, depthById);
+    for (const { fork, childDepth } of forks) {
+      const children = fork.branch ?? [];
+      const ownerIndex = children.findIndex((child) => child.itemId === owners.get(childDepth));
+      // A fork the path does not go through lights nothing at all.
+      if (ownerIndex === -1) continue;
+      for (let index = 0; index < children.length; index += 1) {
+        if (index === ownerIndex) {
+          children[index].railTint = 'upper';
+          children[index].elbowTint = true;
+          break;
+        }
+        children[index].railTint = 'full';
+      }
+    }
   }
-  return { depthById, branchStartIds };
+
+  return { nodes, parentById, depthById };
+}
+
+/**
+ * The row that stands for the leaf in this display.
+ *
+ * The leaf itself is usually a row, but folding or filtering can hide it; its
+ * path is still on screen, so the deepest visible row of it carries the mark.
+ */
+function findDeepestActiveRowId(
+  data: SessionTreeData,
+  depthById: ReadonlyMap<string, number>,
+): string | null {
+  let deepestId: string | null = null;
+  let deepestDepth = -1;
+  for (const itemId of depthById.keys()) {
+    if (!data.activePathIds.has(itemId)) continue;
+    const depth = depthById.get(itemId) ?? 0;
+    if (depth > deepestDepth) {
+      deepestDepth = depth;
+      deepestId = itemId;
+    }
+  }
+  return deepestId;
+}
+
+/**
+ * Every row between `itemId` and the root of its tree, closest first.
+ */
+function collectRowAncestors(itemId: string, parentById: ReadonlyMap<string, string>): string[] {
+  const ancestors: string[] = [];
+  const seen = new Set<string>([itemId]);
+  let currentId = parentById.get(itemId);
+  while (currentId !== undefined && !seen.has(currentId)) {
+    seen.add(currentId);
+    ancestors.push(currentId);
+    currentId = parentById.get(currentId);
+  }
+  return ancestors;
+}
+
+/**
+ * For each indent level, the row the path *enters* that level through.
+ *
+ * Walking up from `rowId` to its tree's root passes exactly one branch child per
+ * level — the row whose elbow the line turns in at. Everything the renderer does
+ * with a lit path follows from this: the line down to such a row lights, the
+ * siblings it passes on the way light with it, and the lines after it do not.
+ */
+function collectPathOwners(
+  rowId: string,
+  parentById: ReadonlyMap<string, string>,
+  depthById: ReadonlyMap<string, number>,
+): Map<number, string> {
+  const owners = new Map<number, string>();
+  const consider = (candidateId: string): void => {
+    const parentId = parentById.get(candidateId);
+    const depth = depthById.get(candidateId);
+    if (parentId === undefined || depth === undefined) return;
+    const parentDepth = depthById.get(parentId);
+    // A branch child: its parent sits one indent level up. Chain rows share
+    // their parent's level and own no line of their own.
+    if (parentDepth === undefined || parentDepth >= depth) return;
+    if (!owners.has(depth)) owners.set(depth, candidateId);
+  };
+  consider(rowId);
+  for (const ancestorId of collectRowAncestors(rowId, parentById)) consider(ancestorId);
+  return owners;
+}
+
+/**
+ * The rows whose branch line runs above `itemId`, outermost first.
+ *
+ * These are the forks the reader can see as lines, and they are exactly the forks
+ * of the lit path: one row per indent level, so the band is as tall as the
+ * nesting and not as long as the conversation.
+ */
+export function collectBranchOwners(
+  itemId: string,
+  parentById: ReadonlyMap<string, string>,
+  depthById: ReadonlyMap<string, number>,
+): { id: string; depth: number }[] {
+  const owners = [...collectPathOwners(itemId, parentById, depthById)].sort(
+    (first, second) => first[0] - second[0],
+  );
+  const forks: { id: string; depth: number }[] = [];
+  for (const [, ownerId] of owners) {
+    const forkId = parentById.get(ownerId);
+    const forkDepth = forkId === undefined ? undefined : depthById.get(forkId);
+    if (forkId === undefined || forkDepth === undefined) continue;
+    forks.push({ id: forkId, depth: forkDepth });
+  }
+  return forks;
 }
 
 /** Entry ids on the active path, deepest first. */
