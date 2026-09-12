@@ -24,6 +24,10 @@ export interface UserNode {
   role: 'user';
   text: string;
   sentAt: number;
+  /** `message.timestamp` from the SDK. The session tree dialog resolves a
+   *  transcript row back to its entry id by matching this timestamp, because
+   *  entry ids never reach the transcript. */
+  sdkTimestamp?: number;
 }
 
 export interface AssistantNode {
@@ -50,6 +54,11 @@ export interface AssistantNode {
   /** Timestamp of the assistant message_end event (streaming sessions) or the
    *  message timestamp for hydrated messages */
   messageEndedAt?: number;
+  /** `message.timestamp` from the SDK (see UserNode.sdkTimestamp). */
+  sdkTimestamp?: number;
+  /** The message requested tool calls, so it is not a safe stop for tree
+   *  navigation and gets no tree/fork buttons. */
+  hasToolCalls?: boolean;
 }
 
 export interface ToolNode {
@@ -64,6 +73,8 @@ export interface ToolNode {
   startedAt?: number;
   durationMs?: number;
   details?: EditToolDetails;
+  /** `message.timestamp` of the tool result (see UserNode.sdkTimestamp). */
+  sdkTimestamp?: number;
 }
 
 export interface SystemNode {
@@ -74,6 +85,10 @@ export interface SystemNode {
   /** This visual marker occurred inside an active user turn and must not
    *  become a logical turn boundary (for example, automatic compaction). */
   continuesUserTurn?: boolean;
+  /** Which marker this is; `branch` renders as a collapsible card. */
+  kind?: 'compaction' | 'branch';
+  /** Long-form body (the branch summary text). */
+  detail?: string;
 }
 
 export type TranscriptNode = UserNode | AssistantNode | ToolNode | SystemNode;
@@ -127,7 +142,13 @@ export interface TranscriptState {
 // SDK event shapes (only types actually used in casts are kept)
 interface SdkMessageStart {
   type: 'message_start';
-  message: { id?: string; role?: string; content?: unknown[]; timestamp?: number | string };
+  message: {
+    id?: string;
+    role?: string;
+    content?: unknown[];
+    timestamp?: number | string;
+    toolCallId?: string;
+  };
 }
 interface SdkMessageUpdate {
   type: 'message_update';
@@ -157,6 +178,7 @@ interface SdkMessageEnd {
     content?: unknown[];
     stopReason?: string;
     errorMessage?: string;
+    timestamp?: number | string;
     model?: { name?: string; provider?: string };
   };
 }
@@ -358,6 +380,7 @@ export class TranscriptController {
         id?: string;
         role?: string;
         content?: unknown[];
+        summary?: string;
         model?: { name?: string; provider?: string };
         timestamp?: number | string;
         /** Outer persistence timestamp (ISO string), attached by utility
@@ -396,6 +419,7 @@ export class TranscriptController {
             role: 'user',
             text,
             sentAt: normalizeTimestamp(parsed.timestamp),
+            sdkTimestamp: tryNormalizeTimestamp(parsed.timestamp),
           });
           break;
         }
@@ -431,6 +455,8 @@ export class TranscriptController {
               thinkingEndedAt: thinking ? persistedAt : undefined,
               messageStartedAt: assistantTimestamp,
               messageEndedAt: persistedAt ?? assistantTimestamp,
+              sdkTimestamp: assistantTimestamp,
+              hasToolCalls: assistantToolCalls.length > 0,
             };
             nodes.push(node);
           }
@@ -462,7 +488,22 @@ export class TranscriptController {
             startedAt: call?.startedAt,
             durationMs: getElapsedMs(call?.startedAt, completedAt),
             details: toolMessage.details,
+            sdkTimestamp: completedAt,
           });
+          break;
+        }
+        case 'branchSummary': {
+          const summary = parsed.summary ?? '';
+          if (summary) {
+            nodes.push({
+              id: nextNodeId(),
+              role: 'system',
+              kind: 'branch',
+              text: 'Branch summary',
+              detail: summary,
+              isLoading: false,
+            });
+          }
           break;
         }
         case 'compactionSummary':
@@ -637,6 +678,41 @@ export class TranscriptController {
     return false;
   }
 
+  /**
+   * Record the SDK message timestamp on the newest user node. Optimistic user
+   * nodes are created before the SDK echoes the message, so the timestamp is
+   * only known from `message_start`.
+   */
+  private stampLastUserMessage(timestamp: number | string | undefined): void {
+    const sdkTimestamp = tryNormalizeTimestamp(timestamp);
+    if (sdkTimestamp === undefined) return;
+    for (let index = this._state.nodes.length - 1; index >= 0; index--) {
+      const node = this._state.nodes[index];
+      if (node.role !== 'user') continue;
+      if (node.sdkTimestamp === undefined) {
+        const nodes = [...this._state.nodes];
+        nodes[index] = { ...node, sdkTimestamp };
+        this.setState({ nodes });
+      }
+      return;
+    }
+  }
+
+  /**
+   * Record the SDK timestamp of a tool result message on its row. The message
+   * is emitted separately from `tool_execution_end`, whose payload carries the
+   * raw tool result (no timestamp).
+   */
+  private stampToolNode(toolCallId: string, timestamp: number | string | undefined): void {
+    const sdkTimestamp = tryNormalizeTimestamp(timestamp);
+    if (sdkTimestamp === undefined) return;
+    const found = findToolNodeByCallId(this._state.nodes, toolCallId);
+    if (!found || found.node.sdkTimestamp !== undefined) return;
+    const nodes = [...this._state.nodes];
+    nodes[found.index] = { ...found.node, sdkTimestamp };
+    this.setState({ nodes });
+  }
+
   // ===========================================================================
   // SDK event processing
   // ===========================================================================
@@ -692,8 +768,11 @@ export class TranscriptController {
           if (text && !this._hasOptimisticUserMessage(text)) {
             this.addUserMessage(text);
           }
+          this.stampLastUserMessage(startMessage.timestamp);
+        } else if (startMessage?.role === 'toolResult' && startMessage.toolCallId) {
+          this.stampToolNode(startMessage.toolCallId, startMessage.timestamp);
         } else if (startMessage?.role === 'assistant' && !this._state.activeAssistantId) {
-          this.createAssistantNode(startMessage.id);
+          this.createAssistantNode(startMessage.id, startMessage.timestamp);
         }
         break;
       }
@@ -872,7 +951,7 @@ export class TranscriptController {
   // Internal event handlers
   // ===========================================================================
 
-  private createAssistantNode(id?: string): void {
+  private createAssistantNode(id?: string, timestamp?: number | string): void {
     const nodeId = id || nextNodeId();
     const node: AssistantNode = {
       id: nodeId,
@@ -881,6 +960,7 @@ export class TranscriptController {
       thinking: '',
       isStreaming: true,
       messageStartedAt: Date.now(),
+      sdkTimestamp: tryNormalizeTimestamp(timestamp),
     };
     this.setState({
       nodes: [...this._state.nodes, node],
@@ -960,6 +1040,10 @@ export class TranscriptController {
       const activeAssistant = this.getActiveAssistant();
       if (activeAssistant) {
         this.markThinkingEnded(activeAssistant);
+        if (!activeAssistant.hasToolCalls) {
+          activeAssistant.hasToolCalls = true;
+          this.bumpRevision(activeAssistant);
+        }
       }
       const contentIndex = ame.contentIndex;
       if (contentIndex == null) return;
@@ -1063,13 +1147,15 @@ export class TranscriptController {
     assistant.stopReason = endMessage.stopReason;
     assistant.model = endMessage.model?.name;
     assistant.provider = endMessage.model?.provider;
+    assistant.sdkTimestamp = tryNormalizeTimestamp(endMessage.timestamp) ?? assistant.sdkTimestamp;
     this.bumpRevision(assistant);
 
     // Extract final text from message content if available (more accurate than accumulated deltas)
     if (endMessage.content) {
-      const { text, thinking } = extractAssistantContent(endMessage.content);
+      const { text, thinking, toolCalls } = extractAssistantContent(endMessage.content);
       if (text) assistant.text = text;
       if (thinking) assistant.thinking = thinking;
+      assistant.hasToolCalls = toolCalls.length > 0;
       this.bumpRevision(assistant);
     }
 

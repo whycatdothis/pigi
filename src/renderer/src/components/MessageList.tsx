@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../state/appStore';
 import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
 import { IconArrowDown } from '@tabler/icons-react';
@@ -27,6 +27,15 @@ interface MessageListProps {
   sessionPath: string;
 }
 
+/** Imperative surface for actions that must run before the transcript changes. */
+export interface MessageListHandle {
+  /**
+   * Stop bottom-following. Tree navigation replaces every node, which would
+   * otherwise scroll the reader to the end of the branch they just moved to.
+   */
+  suspendAutoScroll: () => void;
+}
+
 function isRenderableNode(node: TranscriptNode): boolean {
   if (node.role !== 'assistant') return true;
   return Boolean(node.text || node.thinking || node.errorMessage);
@@ -35,7 +44,8 @@ function isRenderableNode(node: TranscriptNode): boolean {
 export default React.memo(function MessageList({
   nodes,
   sessionPath,
-}: MessageListProps): React.JSX.Element {
+  ref,
+}: MessageListProps & { ref?: React.Ref<MessageListHandle> }): React.JSX.Element {
   // Created here (not inside the scroll controller) because the virtualizer
   // needs containerRef for getScrollElement while the controller needs the
   // virtualizer's totalSize — the refs break that cycle.
@@ -181,6 +191,8 @@ export default React.memo(function MessageList({
     handleCollapseChange,
     handleCollapseDetails,
   } = scrollController;
+
+  useImperativeHandle(ref, () => ({ suspendAutoScroll }), [suspendAutoScroll]);
 
   const activeUserMessageIndex = useActiveUserMessageIndex({
     isMinimal,

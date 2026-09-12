@@ -41,6 +41,7 @@ import type {
 import { toModelInfo } from '../../shared/modelInfo';
 import { generateSessionTitle } from './autoRename';
 import { createModelRuntime } from './fileCredentialStore';
+import { buildSessionTree, readEntryText } from './sessionTree';
 
 // =============================================================================
 // Port interface (compatible with Electron's MessagePortMain)
@@ -566,6 +567,36 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
       return { messages: msgs, compactionCount: count };
     }
 
+    case 'get_session_tree': {
+      const sessionManager = runtime.session.sessionManager;
+      return buildSessionTree(sessionManager.getEntries(), sessionManager.getLeafId());
+    }
+
+    case 'get_entry_text': {
+      const entries = runtime.session.sessionManager.getEntries();
+      return { success: true, ...readEntryText(entries, command.entryId) };
+    }
+
+    case 'navigate_session_tree': {
+      // Serializing navigation is the SDK's job: navigateTree returns
+      // { cancelled } instead of moving when a response or compaction is in
+      // flight, leaving the branch untouched.
+      const result = await runtime.session.navigateTree(command.targetId, {
+        summarize: command.summarize,
+        customInstructions: command.customInstructions,
+      });
+      return {
+        success: true,
+        cancelled: result.cancelled,
+        aborted: result.aborted,
+        editorText: result.editorText,
+      };
+    }
+
+    case 'abort_branch_summary':
+      runtime.session.abortBranchSummary();
+      return { success: true };
+
     case 'get_session_options': {
       const session = runtime.session;
       const modelRegistry = new ModelRegistry(runtime.services.modelRuntime);
@@ -829,7 +860,7 @@ async function warmUp(cwds: string[]): Promise<void> {
   sendToMain({ type: 'warm_ready' });
 }
 
-async function createSession(cwd: string): Promise<void> {
+async function createSession(cwd: string, parentSessionPath?: string): Promise<void> {
   try {
     hasAutoRenamed = false;
     snippets = [];
@@ -837,7 +868,7 @@ async function createSession(cwd: string): Promise<void> {
     runtime = await createAgentSessionRuntime(createRuntimeFactory, {
       cwd,
       agentDir: getAgentDir(),
-      sessionManager: SessionManager.create(cwd),
+      sessionManager: SessionManager.create(cwd, undefined, { parentSession: parentSessionPath }),
     });
     // TODO: pass commandContextActions (waitForIdle, newSession, fork, navigateTree,
     // switchSession, reload) to support extensions that manage sessions.
@@ -951,7 +982,7 @@ process.parentPort?.on('message', async (messageEvent) => {
 
   switch (utilityCommand.type) {
     case 'create_session':
-      await createSession(utilityCommand.cwd);
+      await createSession(utilityCommand.cwd, utilityCommand.parentSessionPath);
       break;
     case 'resume_session':
       await resumeSession(utilityCommand.sessionPath);

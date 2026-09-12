@@ -467,14 +467,7 @@ function AssistantText({
 }
 
 function TurnItemRenderer({ item }: { item: MinimalSystemItem }): React.JSX.Element {
-  return (
-    <SystemBubble
-      text={item.node.text}
-      isLoading={item.node.isLoading}
-      searchQuery=""
-      activeOccurrenceIndex={null}
-    />
-  );
+  return <SystemBubble node={item.node} searchQuery="" activeOccurrenceIndex={null} />;
 }
 
 function CollapsedContent({
@@ -504,18 +497,14 @@ function CollapsedContent({
           {showIntro && (
             <div className="group" data-testid="minimal-intro">
               <AssistantText node={intro!} />
-              {intro === summary && (
-                <MessageToolbar text={intro!.text || intro!.errorMessage || ''} />
-              )}
+              {intro === summary && <MessageToolbar node={intro!} />}
             </div>
           )}
           {pinnedRowsBeforeCurrent}
           {currentMsg && (
             <div className={cn('group', showIntro && 'mt-2')} data-testid="minimal-current-msg">
               <AssistantText node={currentMsg} />
-              {currentMsg === summary && (
-                <MessageToolbar text={currentMsg.text || currentMsg.errorMessage || ''} />
-              )}
+              {currentMsg === summary && <MessageToolbar node={currentMsg} />}
             </div>
           )}
           {pinnedRowsAfterCurrent}
@@ -535,7 +524,7 @@ function DetailItem({ node }: { node: TranscriptNode }): React.JSX.Element | nul
     return (
       <div className="group">
         <ToolBlock node={node} />
-        <MessageToolbar text={node.output} />
+        <MessageToolbar node={node} />
       </div>
     );
   }
@@ -551,19 +540,12 @@ function DetailItem({ node }: { node: TranscriptNode }): React.JSX.Element | nul
           />
         )}
         {(node.text.length > 0 || node.errorMessage) && <AssistantText node={node} />}
-        <MessageToolbar text={node.text || node.thinking} />
+        <MessageToolbar node={node} />
       </div>
     );
   }
   if (node.role === 'system') {
-    return (
-      <SystemBubble
-        text={node.text}
-        isLoading={node.isLoading}
-        searchQuery=""
-        activeOccurrenceIndex={null}
-      />
-    );
+    return <SystemBubble node={node} searchQuery="" activeOccurrenceIndex={null} />;
   }
   return null;
 }

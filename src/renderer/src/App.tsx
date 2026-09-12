@@ -45,20 +45,31 @@ import {
   getModelCatalog,
   refreshModelCatalog,
   onModelCatalogUpdated,
+  getSessionTree,
+  navigateSessionTree,
+  abortBranchSummary,
+  getMessages,
 } from './services/piAgentClient';
+import { countAbandonedEntries, resolveEntryId } from './lib/sessionTreeLayout';
 import type {
   AuthProviderInfo,
   ModelCatalogSnapshot,
   ModelInfo,
   PiSessionInfo,
   ProjectDirectory,
+  SessionTreeDto,
   SkillSlashCommand,
   ThinkingLevel,
 } from '../../shared/ipcContract';
 import { clampThinkingLevelTo } from '../../shared/thinkingLevels';
 import Sidebar from './components/Sidebar';
 import SessionToolbar from './components/SessionToolbar';
-import MessageList from './components/MessageList';
+import MessageList, { type MessageListHandle } from './components/MessageList';
+import SessionTreeDialog from './components/SessionTreeDialog';
+import BranchSummaryPrompt from './components/BranchSummaryPrompt';
+import { MessageActionsContext, type MessageActions } from './components/messageActions';
+import { SessionTreeHelpContext } from './components/sessionTreeHelp';
+import SessionTreeHelpDialog from './components/SessionTreeHelpDialog';
 import TerminalPanel from './components/TerminalPanel';
 import ChatInput, { type ChatInputHandle } from './components/chatInput';
 import StreamingQueue from './components/StreamingQueue';
@@ -79,6 +90,21 @@ import {
 } from './lib/layoutConstants';
 import { usePanelResize } from './hooks/usePanelResize';
 const WELCOME_TITLE = 'Welcome to pigi';
+
+/**
+ * Wait (bounded) for the transcript to settle after an abort.
+ *
+ * Tree navigation reads the session file to count abandoned entries; running
+ * it before the aborted assistant message is appended would count against a
+ * stale leaf.
+ */
+async function waitForTranscriptIdle(sessionPath: string, timeoutMs = 2000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (ensureTranscriptSession(sessionPath).state.status === 'idle') return;
+    await new Promise((resolve) => setTimeout(resolve, 40));
+  }
+}
 
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
 function extractUserHistory(nodes: TranscriptNode[]): string[] {
@@ -176,6 +202,17 @@ function App(): React.JSX.Element {
   const [authProviders, setAuthProviders] = useState<AuthProviderInfo[]>([]);
   const [restoreText, setRestoreText] = useState<string | null>(null);
   const chatInputRef = useRef<ChatInputHandle>(null);
+  const messageListRef = useRef<MessageListHandle>(null);
+  const [treeDialogOpen, setTreeDialogOpen] = useState(false);
+  // Bumped whenever the session grows, so an open tree dialog refreshes itself.
+  const sessionTreeRevision = `${transcript.nodes.length}:${transcript.status}`;
+  const [treeHelpOpen, setTreeHelpOpen] = useState(false);
+  const [summaryPrompt, setSummaryPrompt] = useState<{
+    entryId: string;
+    abandonedCount: number;
+  } | null>(null);
+  const [branchSummaryBusy, setBranchSummaryBusy] = useState(false);
+  const treeNavInFlightRef = useRef(false);
   const prevTerminalOpenRef = useRef(terminalOpen);
   // When the terminal closes, move focus back to the chat input.
   useEffect(() => {
@@ -663,6 +700,12 @@ function App(): React.JSX.Element {
     if (!activeSessionPath) {
       return;
     }
+    // A branch summary runs its own turn inside the SDK; aborting it resumes
+    // the pending navigation (which then reports cancelled).
+    if (branchSummaryBusy) {
+      await abortBranchSummary(activeSessionPath);
+      return;
+    }
     // If session is still pending (process not ready), just clear the buffered prompts
     if (pendingResumesRef.current.has(activeSessionPath)) {
       const bufferedMessages = pendingPromptsRef.current.get(activeSessionPath);
@@ -690,7 +733,7 @@ function App(): React.JSX.Element {
     if (queued.length > 0) {
       setRestoreText(queued.join('\n\n'));
     }
-  }, [activeSessionPath, transcriptControllerRef]);
+  }, [activeSessionPath, branchSummaryBusy, transcriptControllerRef]);
 
   const handleEditQueuedMessage = useCallback(
     async (type: 'steer' | 'followUp', index: number) => {
@@ -727,6 +770,174 @@ function App(): React.JSX.Element {
   );
 
   const handleRestoredText = useCallback(() => setRestoreText(null), []);
+
+  // ===========================================================================
+  // Session tree
+  // ===========================================================================
+
+  /**
+   * Move the session position inside the same session file.
+   *
+   * `controller.reset()` before re-hydrating is mandatory: `hydrate()` replaces
+   * the nodes while `mergeHydratedMessages()` prepends history, which would mix
+   * the abandoned branch back in.
+   */
+  const runTreeNavigation = useCallback(
+    async (
+      sessionPath: string,
+      entryId: string,
+      options: { summarize: boolean; customInstructions?: string },
+    ): Promise<void> => {
+      if (treeNavInFlightRef.current) return;
+      treeNavInFlightRef.current = true;
+      if (options.summarize) setBranchSummaryBusy(true);
+      const summarizingToast = options.summarize
+        ? toast.loading('Summarizing the abandoned branch…', {
+            action: {
+              label: 'Cancel',
+              onClick: () => {
+                void abortBranchSummary(sessionPath);
+              },
+            },
+          })
+        : null;
+
+      try {
+        // Replacing every node would otherwise jump to the end of the branch
+        // the user just moved into.
+        messageListRef.current?.suspendAutoScroll();
+        const result = await navigateSessionTree(sessionPath, entryId, options);
+        if (result.cancelled) return;
+        if (!result.success) {
+          toast.error(result.error || 'Failed to move the session');
+          return;
+        }
+        const controller = ensureTranscriptSession(sessionPath);
+        controller.reset();
+        const { messages, compactionCount } = await getMessages(sessionPath);
+        controller.hydrate(messages, compactionCount);
+        if (result.editorText) {
+          setRestoreText(result.editorText);
+        }
+        void refreshSessionState(sessionPath);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to move the session');
+      } finally {
+        treeNavInFlightRef.current = false;
+        if (options.summarize) setBranchSummaryBusy(false);
+        if (summarizingToast !== null) toast.dismiss(summarizingToast);
+      }
+    },
+    [refreshSessionState],
+  );
+
+  /**
+   * Shared preconditions for any tree navigation: the caller must be able to
+   * write to the session (no pending process, no compaction) and the current
+   * response has to stop first, because navigation during a turn is rejected by
+   * the SDK. Aborting also returns queued messages to the input box.
+   */
+  const prepareTreeNavigation = useCallback(async (): Promise<string | null> => {
+    const sessionPath = activeSessionPath;
+    if (!sessionPath) return null;
+    if (pendingResumesRef.current.has(sessionPath)) {
+      toast.error('The session is still starting');
+      return null;
+    }
+    if (transcript.isCompacting) {
+      toast.error('Wait for compaction to finish');
+      return null;
+    }
+    if (transcript.status !== 'idle') {
+      await handleAbort();
+      await waitForTranscriptIdle(sessionPath);
+    }
+    return sessionPath;
+  }, [activeSessionPath, handleAbort, transcript.isCompacting, transcript.status]);
+
+  /** Ask about summarizing, then navigate. */
+  const continueTreeNavigation = useCallback(
+    async (sessionPath: string, tree: SessionTreeDto, entryId: string): Promise<void> => {
+      if (entryId === tree.leafId) return;
+      const abandonedCount = countAbandonedEntries(tree, entryId);
+      if (abandonedCount > 0) {
+        setSummaryPrompt({ entryId, abandonedCount });
+        return;
+      }
+      await runTreeNavigation(sessionPath, entryId, { summarize: false });
+    },
+    [runTreeNavigation],
+  );
+
+  /** `tree` on a transcript row. */
+  const handleTreeMessage = useCallback(
+    async (node: TranscriptNode): Promise<void> => {
+      const sessionPath = await prepareTreeNavigation();
+      if (!sessionPath) return;
+      try {
+        const tree = await getSessionTree(sessionPath);
+        const entryId = resolveEntryId(tree, node);
+        if (!entryId) {
+          toast.error('Could not find this message in the session tree');
+          return;
+        }
+        await continueTreeNavigation(sessionPath, tree, entryId);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to read the session tree');
+      }
+    },
+    [continueTreeNavigation, prepareTreeNavigation],
+  );
+
+  /** A pick in the tree dialog. The tree is re-read because the dialog's copy
+   *  was fetched when it opened. */
+  const handleTreeSelect = useCallback(
+    async (entryId: string): Promise<void> => {
+      const sessionPath = await prepareTreeNavigation();
+      if (!sessionPath) return;
+      try {
+        const tree = await getSessionTree(sessionPath);
+        await continueTreeNavigation(sessionPath, tree, entryId);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to read the session tree');
+      }
+    },
+    [continueTreeNavigation, prepareTreeNavigation],
+  );
+
+  const handleSummaryPromptConfirm = useCallback(
+    (options: { summarize: boolean; customInstructions?: string }): void => {
+      const prompt = summaryPrompt;
+      const sessionPath = activeSessionPath;
+      setSummaryPrompt(null);
+      if (!prompt || !sessionPath) return;
+      void runTreeNavigation(sessionPath, prompt.entryId, options);
+    },
+    [activeSessionPath, runTreeNavigation, summaryPrompt],
+  );
+
+  const treeDisabledReason = branchSummaryBusy
+    ? 'Busy summarizing the abandoned branch'
+    : transcript.isCompacting
+      ? 'Wait for compaction to finish'
+      : null;
+
+  /** Anything that blocks sending a new prompt into this session. */
+  const isSessionBusy = transcript.status !== 'idle' || branchSummaryBusy;
+
+  const treeHelp = useMemo(() => ({ openHelp: () => setTreeHelpOpen(true) }), []);
+
+  const messageActions = useMemo<MessageActions>(() => {
+    if (!activeSessionPath) {
+      return { onTree: null, onFork: null, disabledReason: null };
+    }
+    return {
+      onTree: handleTreeMessage,
+      // Fork ships in a second phase.
+      onFork: null,
+      disabledReason: treeDisabledReason,
+    };
+  }, [activeSessionPath, handleTreeMessage, treeDisabledReason]);
 
   // Escape aborts only when focus is in an explicit abort scope.
   useEffect(() => {
@@ -1161,6 +1372,11 @@ function App(): React.JSX.Element {
             handleNewSession();
             break;
           }
+          case 'tree': {
+            if (!activeSessionPath) return;
+            setTreeDialogOpen(true);
+            break;
+          }
           case 'login': {
             let sessionId = activeSessionPath;
             if (!sessionId) {
@@ -1222,10 +1438,7 @@ function App(): React.JSX.Element {
   // each raise the anchor by one more step. The list viewport therefore always
   // ends above the topmost bar: transcript content can never be covered.
   const queueBarCount =
-    1 +
-    (transcript.status !== 'idle'
-      ? transcript.queuedSteering.length + transcript.queuedFollowUp.length
-      : 0);
+    1 + (isSessionBusy ? transcript.queuedSteering.length + transcript.queuedFollowUp.length : 0);
 
   // Reserve the terminal's height in the chat layout so the message list's
   // actual scroll viewport ends above the input. Match the drawer timing,
@@ -1246,239 +1459,272 @@ function App(): React.JSX.Element {
   };
 
   return (
-    <SidebarProvider className="h-screen min-h-0" data-testid="app-shell">
-      <div ref={sidebarRef} className="relative flex h-full shrink-0" style={sidebarLayoutStyle}>
-        <Sidebar
-          sessions={sessions}
-          selectedSessionPath={selectedSessionPath}
-          recentProjects={recentProjects}
-          projectSessions={projectSessions}
-          shortcutBindings={shortcutBindings}
-          onNewSession={handleNewSession}
-          onNewSessionForProject={handleNewSessionForProject}
-          onResumeSession={handleResumeSession}
-          onOpenProject={handleOpenProject}
-          onSelectProject={handleSelectProject}
-          onRemoveProject={handleRemoveProject}
-          onReorderProjects={handleReorderProjects}
-          onRenameSession={handleRenameSession}
-          onLogin={handleLogin}
-        />
-      </div>
-
-      <main
-        ref={mainRef}
-        className="group/terminal-layout relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-l-xl border-l-[0.5px] border-foreground/27 bg-background"
-        style={terminalLayoutStyle}
-      >
-        <div
-          aria-label="Resize sidebar"
-          role="separator"
-          aria-orientation="vertical"
-          className="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize"
-          onPointerDown={handleSidebarResizeStart}
-        />
-        {activeSession ? (
-          <>
-            <SessionToolbar
-              key={activeSessionPath}
-              sessionPath={activeSessionPath ?? ''}
-              onRename={handleRenameSession}
-              terminalOpen={terminalOpen}
-              onToggleTerminal={toggleTerminal}
-              terminalShortcutLabel={terminalShortcutLabel}
+    <SessionTreeHelpContext.Provider value={treeHelp}>
+      <MessageActionsContext.Provider value={messageActions}>
+        <SidebarProvider className="h-screen min-h-0" data-testid="app-shell">
+          <div
+            ref={sidebarRef}
+            className="relative flex h-full shrink-0"
+            style={sidebarLayoutStyle}
+          >
+            <Sidebar
+              sessions={sessions}
+              selectedSessionPath={selectedSessionPath}
+              recentProjects={recentProjects}
+              projectSessions={projectSessions}
+              shortcutBindings={shortcutBindings}
+              onNewSession={handleNewSession}
+              onNewSessionForProject={handleNewSessionForProject}
+              onResumeSession={handleResumeSession}
+              onOpenProject={handleOpenProject}
+              onSelectProject={handleSelectProject}
+              onRemoveProject={handleRemoveProject}
+              onReorderProjects={handleReorderProjects}
+              onRenameSession={handleRenameSession}
+              onLogin={handleLogin}
             />
-            {/* Keep the toolbar fixed while the chat viewport resizes above the terminal. */}
-            <div className="relative min-h-0 flex-1 overflow-hidden">
-              <div className={chatLayoutClassName} style={chatLayoutStyle}>
-                <MessageList
-                  key={activeSessionPath ?? 'draft'}
-                  nodes={transcript.nodes}
+          </div>
+
+          <main
+            ref={mainRef}
+            className="group/terminal-layout relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-l-xl border-l-[0.5px] border-foreground/27 bg-background"
+            style={terminalLayoutStyle}
+          >
+            <div
+              aria-label="Resize sidebar"
+              role="separator"
+              aria-orientation="vertical"
+              className="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize"
+              onPointerDown={handleSidebarResizeStart}
+            />
+            {activeSession ? (
+              <>
+                <SessionToolbar
+                  key={activeSessionPath}
                   sessionPath={activeSessionPath ?? ''}
+                  onRename={handleRenameSession}
+                  onOpenTree={() => setTreeDialogOpen(true)}
+                  treeDisabledReason={treeDisabledReason}
+                  terminalOpen={terminalOpen}
+                  onToggleTerminal={toggleTerminal}
+                  terminalShortcutLabel={terminalShortcutLabel}
                 />
-                <div className="relative z-10 shrink-0">
-                  {/* Flow anchor for the absolutely positioned queue. Its height is
+                {/* Keep the toolbar fixed while the chat viewport resizes above the terminal. */}
+                <div className="relative min-h-0 flex-1 overflow-hidden">
+                  <div className={chatLayoutClassName} style={chatLayoutStyle}>
+                    <MessageList
+                      key={activeSessionPath ?? 'draft'}
+                      ref={messageListRef}
+                      nodes={transcript.nodes}
+                      sessionPath={activeSessionPath ?? ''}
+                    />
+                    <div className="relative z-10 shrink-0">
+                      {/* Flow anchor for the absolutely positioned queue. Its height is
                       the bars' visible rise (computed, not measured), so the list
                       viewport shrinks smoothly above them instead of being covered.
                       The queue's -mb-14 lets ChatInput (DOM-later, z-10) overlap
                       its bottom padding — the "grow out from behind" effect. */}
-                  <div
-                    className="relative z-10 shrink-0 transition-[height] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
-                    style={{ height: queueBarCount * STREAMING_QUEUE_BAR_STEP_PX }}
-                  >
-                    <div className="absolute inset-x-0 bottom-0">
-                      <StreamingQueue
-                        isStreaming={transcript.status !== 'idle'}
-                        queuedSteering={transcript.queuedSteering}
-                        queuedFollowUp={transcript.queuedFollowUp}
-                        onEditQueuedMessage={handleEditQueuedMessage}
+                      <div
+                        className="relative z-10 shrink-0 transition-[height] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+                        style={{ height: queueBarCount * STREAMING_QUEUE_BAR_STEP_PX }}
+                      >
+                        <div className="absolute inset-x-0 bottom-0">
+                          <StreamingQueue
+                            isStreaming={isSessionBusy}
+                            queuedSteering={transcript.queuedSteering}
+                            queuedFollowUp={transcript.queuedFollowUp}
+                            onEditQueuedMessage={handleEditQueuedMessage}
+                            busyLabel={branchSummaryBusy ? 'Summarizing branch...' : undefined}
+                          />
+                        </div>
+                      </div>
+                      <ChatInput
+                        ref={chatInputRef}
+                        onSend={handleSend}
+                        onFollowUp={handleFollowUp}
+                        onAbort={handleAbort}
+                        onSlashCommand={handleSlashCommand}
+                        isStreaming={isSessionBusy}
+                        gitBranch={gitBranch}
+                        restoreText={restoreText}
+                        onRestoredText={handleRestoredText}
+                        onRefreshGitBranch={refreshGitBranch}
+                        session={activeSession}
+                        modelOptions={activeSessionPath ? modelOptions : []}
+                        thinkingLevelOptions={activeSessionPath ? thinkingLevelOptions : []}
+                        skillOptions={activeSessionPath ? skillOptions : []}
+                        onSelectModel={handleSelectModel}
+                        onSelectThinkingLevel={handleSelectThinkingLevel}
+                        onRequestModelRefresh={handleRequestModelRefresh}
+                        userHistory={userHistory}
                       />
                     </div>
                   </div>
-                  <ChatInput
-                    ref={chatInputRef}
-                    onSend={handleSend}
-                    onFollowUp={handleFollowUp}
-                    onAbort={handleAbort}
-                    onSlashCommand={handleSlashCommand}
-                    isStreaming={transcript.status !== 'idle'}
-                    gitBranch={gitBranch}
-                    restoreText={restoreText}
-                    onRestoredText={handleRestoredText}
-                    onRefreshGitBranch={refreshGitBranch}
-                    session={activeSession}
-                    modelOptions={activeSessionPath ? modelOptions : []}
-                    thinkingLevelOptions={activeSessionPath ? thinkingLevelOptions : []}
-                    skillOptions={activeSessionPath ? skillOptions : []}
-                    onSelectModel={handleSelectModel}
-                    onSelectThinkingLevel={handleSelectThinkingLevel}
-                    onRequestModelRefresh={handleRequestModelRefresh}
-                    userHistory={userHistory}
-                  />
+                </div>
+              </>
+            ) : isDraftChat ? (
+              <div className="relative min-h-0 flex-1 overflow-hidden">
+                <div className={chatLayoutClassName} style={chatLayoutStyle}>
+                  {isDraftEmpty ? (
+                    <div className="relative z-10 flex flex-1 flex-col">
+                      <ChatInput
+                        ref={chatInputRef}
+                        onSend={handleSend}
+                        onFollowUp={handleFollowUp}
+                        onAbort={handleAbort}
+                        onSlashCommand={handleSlashCommand}
+                        isStreaming={isDraftSpawning}
+                        gitBranch={gitBranch}
+                        restoreText={restoreText}
+                        onRestoredText={handleRestoredText}
+                        onRefreshGitBranch={refreshGitBranch}
+                        session={draftSession}
+                        modelOptions={modelOptions}
+                        thinkingLevelOptions={thinkingLevelOptions}
+                        skillOptions={skillOptions}
+                        onSelectModel={handleSelectModel}
+                        onSelectThinkingLevel={handleSelectThinkingLevel}
+                        onRequestModelRefresh={handleRequestModelRefresh}
+                        userHistory={draftUserHistory}
+                        isNewSession
+                        recentProjects={recentProjects}
+                        activeProject={activeProject}
+                        onSelectProject={handleSelectProject}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <MessageList nodes={draftState.nodes} sessionPath="" />
+                      <div className="relative z-10 shrink-0">
+                        <ChatInput
+                          ref={chatInputRef}
+                          onSend={handleSend}
+                          onFollowUp={handleFollowUp}
+                          onAbort={handleAbort}
+                          onSlashCommand={handleSlashCommand}
+                          isStreaming={isDraftSpawning}
+                          gitBranch={gitBranch}
+                          restoreText={restoreText}
+                          onRestoredText={handleRestoredText}
+                          onRefreshGitBranch={refreshGitBranch}
+                          session={draftSession}
+                          modelOptions={modelOptions}
+                          thinkingLevelOptions={thinkingLevelOptions}
+                          skillOptions={skillOptions}
+                          onSelectModel={handleSelectModel}
+                          onSelectThinkingLevel={handleSelectThinkingLevel}
+                          onRequestModelRefresh={handleRequestModelRefresh}
+                          userHistory={draftUserHistory}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
-            </div>
-          </>
-        ) : isDraftChat ? (
-          <div className="relative min-h-0 flex-1 overflow-hidden">
-            <div className={chatLayoutClassName} style={chatLayoutStyle}>
-              {isDraftEmpty ? (
-                <div className="relative z-10 flex flex-1 flex-col">
-                  <ChatInput
-                    ref={chatInputRef}
-                    onSend={handleSend}
-                    onFollowUp={handleFollowUp}
-                    onAbort={handleAbort}
-                    onSlashCommand={handleSlashCommand}
-                    isStreaming={isDraftSpawning}
-                    gitBranch={gitBranch}
-                    restoreText={restoreText}
-                    onRestoredText={handleRestoredText}
-                    onRefreshGitBranch={refreshGitBranch}
-                    session={draftSession}
-                    modelOptions={modelOptions}
-                    thinkingLevelOptions={thinkingLevelOptions}
-                    skillOptions={skillOptions}
-                    onSelectModel={handleSelectModel}
-                    onSelectThinkingLevel={handleSelectThinkingLevel}
-                    onRequestModelRefresh={handleRequestModelRefresh}
-                    userHistory={draftUserHistory}
-                    isNewSession
-                    recentProjects={recentProjects}
-                    activeProject={activeProject}
-                    onSelectProject={handleSelectProject}
-                  />
-                </div>
-              ) : (
-                <>
-                  <MessageList nodes={draftState.nodes} sessionPath="" />
-                  <div className="relative z-10 shrink-0">
-                    <ChatInput
-                      ref={chatInputRef}
-                      onSend={handleSend}
-                      onFollowUp={handleFollowUp}
-                      onAbort={handleAbort}
-                      onSlashCommand={handleSlashCommand}
-                      isStreaming={isDraftSpawning}
-                      gitBranch={gitBranch}
-                      restoreText={restoreText}
-                      onRestoredText={handleRestoredText}
-                      onRefreshGitBranch={refreshGitBranch}
-                      session={draftSession}
-                      modelOptions={modelOptions}
-                      thinkingLevelOptions={thinkingLevelOptions}
-                      skillOptions={skillOptions}
-                      onSelectModel={handleSelectModel}
-                      onSelectThinkingLevel={handleSelectThinkingLevel}
-                      onRequestModelRefresh={handleRequestModelRefresh}
-                      userHistory={draftUserHistory}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        ) : recentProjects.length === 0 ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyTitle className="text-xl">{WELCOME_TITLE}</EmptyTitle>
-              <EmptyDescription>
-                Open a project to get started
-                <br />
-                {/* TODO: Use Ctrl instead of ⌘ on Windows/Linux */}
-                <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-xs ml-1 min-w-6">
-                  {'\u2318'}
-                </kbd>
-                <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-xs ml-1 min-w-6">
-                  o
-                </kbd>
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <Empty>
-            <EmptyHeader>
-              <EmptyTitle className="text-xl">{WELCOME_TITLE}</EmptyTitle>
-              <EmptyDescription>Select a session from the sidebar to get started.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
-        {terminalMounted && (
-          <TerminalPanel
-            resizeContainerRef={mainRef}
-            projectCwd={terminalProjectCwd}
-            visible={terminalOpen}
-            onClose={toggleTerminal}
+            ) : recentProjects.length === 0 ? (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle className="text-xl">{WELCOME_TITLE}</EmptyTitle>
+                  <EmptyDescription>
+                    Open a project to get started
+                    <br />
+                    {/* TODO: Use Ctrl instead of ⌘ on Windows/Linux */}
+                    <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-xs ml-1 min-w-6">
+                      {'\u2318'}
+                    </kbd>
+                    <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-xs ml-1 min-w-6">
+                      o
+                    </kbd>
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle className="text-xl">{WELCOME_TITLE}</EmptyTitle>
+                  <EmptyDescription>
+                    Select a session from the sidebar to get started.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
+            {terminalMounted && (
+              <TerminalPanel
+                resizeContainerRef={mainRef}
+                projectCwd={terminalProjectCwd}
+                visible={terminalOpen}
+                onClose={toggleTerminal}
+              />
+            )}
+          </main>
+
+          <SessionSwitcher
+            projectSessions={projectSessions}
+            navigationBackStack={navigationBackStack}
+            navigationForwardStack={navigationForwardStack}
+            activeSessionPath={activeSessionPath}
+            onSwitch={(sessionPath) => {
+              const session = findSessionByPath(sessionPath);
+              if (session) {
+                void handleResumeSession(session);
+              }
+            }}
+            open={switcherOpen}
+            onOpenChange={setSwitcherOpen}
+            autoSelectPrevious={switcherAutoPreselect}
           />
-        )}
-      </main>
 
-      <SessionSwitcher
-        projectSessions={projectSessions}
-        navigationBackStack={navigationBackStack}
-        navigationForwardStack={navigationForwardStack}
-        activeSessionPath={activeSessionPath}
-        onSwitch={(sessionPath) => {
-          const session = findSessionByPath(sessionPath);
-          if (session) {
-            void handleResumeSession(session);
-          }
-        }}
-        open={switcherOpen}
-        onOpenChange={setSwitcherOpen}
-        autoSelectPrevious={switcherAutoPreselect}
-      />
+          <SessionTreeHelpDialog open={treeHelpOpen} onOpenChange={setTreeHelpOpen} />
+          <SessionTreeDialog
+            open={treeDialogOpen}
+            onOpenChange={setTreeDialogOpen}
+            sessionPath={activeSessionPath ?? ''}
+            revision={sessionTreeRevision}
+            onSelect={(entryId) => {
+              setTreeDialogOpen(false);
+              void handleTreeSelect(entryId);
+            }}
+          />
 
-      <LoginDialog
-        open={loginDialogOpen}
-        onOpenChange={setLoginDialogOpen}
-        providers={authProviders}
-        onLoginOAuth={async (providerId) => {
-          if (!activeSessionPath) return;
-          const result = await loginOAuth(activeSessionPath, providerId);
-          if (!result.success) throw new Error(result.error || 'Login failed');
-          await refreshSessionOptions(activeSessionPath);
-          const updated = await getAuthProviders(activeSessionPath);
-          if (updated.success) setAuthProviders(updated.providers);
-        }}
-        onLoginApiKey={async (providerId, apiKey) => {
-          if (!activeSessionPath) return;
-          const result = await loginApiKey(activeSessionPath, providerId, apiKey);
-          if (!result.success) throw new Error(result.error || 'Failed to save API key');
-          await refreshSessionOptions(activeSessionPath);
-          const updated = await getAuthProviders(activeSessionPath);
-          if (updated.success) setAuthProviders(updated.providers);
-        }}
-        onLogout={async (providerId) => {
-          if (!activeSessionPath) return;
-          await logout(activeSessionPath, providerId);
-          await refreshSessionOptions(activeSessionPath);
-          // Refresh provider list
-          const result = await getAuthProviders(activeSessionPath);
-          if (result.success) setAuthProviders(result.providers);
-        }}
-      />
-    </SidebarProvider>
+          <BranchSummaryPrompt
+            open={summaryPrompt !== null}
+            abandonedCount={summaryPrompt?.abandonedCount ?? 0}
+            onCancel={() => setSummaryPrompt(null)}
+            onConfirm={handleSummaryPromptConfirm}
+          />
+
+          <LoginDialog
+            open={loginDialogOpen}
+            onOpenChange={setLoginDialogOpen}
+            providers={authProviders}
+            onLoginOAuth={async (providerId) => {
+              if (!activeSessionPath) return;
+              const result = await loginOAuth(activeSessionPath, providerId);
+              if (!result.success) throw new Error(result.error || 'Login failed');
+              await refreshSessionOptions(activeSessionPath);
+              const updated = await getAuthProviders(activeSessionPath);
+              if (updated.success) setAuthProviders(updated.providers);
+            }}
+            onLoginApiKey={async (providerId, apiKey) => {
+              if (!activeSessionPath) return;
+              const result = await loginApiKey(activeSessionPath, providerId, apiKey);
+              if (!result.success) throw new Error(result.error || 'Failed to save API key');
+              await refreshSessionOptions(activeSessionPath);
+              const updated = await getAuthProviders(activeSessionPath);
+              if (updated.success) setAuthProviders(updated.providers);
+            }}
+            onLogout={async (providerId) => {
+              if (!activeSessionPath) return;
+              await logout(activeSessionPath, providerId);
+              await refreshSessionOptions(activeSessionPath);
+              // Refresh provider list
+              const result = await getAuthProviders(activeSessionPath);
+              if (result.success) setAuthProviders(result.providers);
+            }}
+          />
+        </SidebarProvider>
+      </MessageActionsContext.Provider>
+    </SessionTreeHelpContext.Provider>
   );
 }
 

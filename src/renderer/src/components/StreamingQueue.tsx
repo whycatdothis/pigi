@@ -7,6 +7,8 @@ interface StreamingQueueProps {
   queuedSteering: string[];
   queuedFollowUp: string[];
   onEditQueuedMessage: (type: 'steer' | 'followUp', index: number) => void;
+  /** Overrides the working bar label (for example while summarizing a branch). */
+  busyLabel?: string;
 }
 
 /**
@@ -64,6 +66,7 @@ export default function StreamingQueue({
   queuedSteering,
   queuedFollowUp,
   onEditQueuedMessage,
+  busyLabel,
 }: StreamingQueueProps): React.JSX.Element | null {
   if (!isStreaming) return null;
 
@@ -106,7 +109,7 @@ export default function StreamingQueue({
           <IconStarFilled className="size-4 animate-[spin_2.2s_linear_infinite] text-[var(--system-accent)] will-change-transform" />
         }
       >
-        <span>Working...</span>
+        <span>{busyLabel ?? 'Working...'}</span>
       </QueueBar>
     ),
   });

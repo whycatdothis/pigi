@@ -26,9 +26,18 @@ export const READ_MORE_LINES_RE = /^\[\d+ more lines in file\. Use offset=\d+ to
 export const READ_IMAGE_RE = /^Read image file \[(.+)\]$/;
 
 export function getToolCommandParts(node: ToolNode): ToolCommandParts {
-  const args = getToolArgs(node);
+  return getToolCommandPartsForTool(node.name, getToolArgs(node));
+}
 
-  switch (node.name) {
+/**
+ * Same formatting as `getToolCommandParts`, for callers that only have a tool
+ * name and arguments (the session tree dialog's rows).
+ */
+export function getToolCommandPartsForTool(
+  name: string,
+  args: Record<string, unknown> | undefined,
+): ToolCommandParts {
+  switch (name) {
     case 'bash':
       return { prefix: '$', body: collapseCommandNewlines(String(args?.command ?? '')) };
     case 'read': {
@@ -41,20 +50,19 @@ export function getToolCommandParts(node: ToolNode): ToolCommandParts {
         const to = limit != null ? from + limit - 1 : undefined;
         body += to != null ? `:${from}-${to}` : `:${from}`;
       }
-      return { prefix: node.name, body };
+      return { prefix: name, body };
     }
     case 'write':
-      return { prefix: node.name, body: String(args?.path ?? '') };
     case 'edit':
-      return { prefix: node.name, body: String(args?.path ?? '') };
+      return { prefix: name, body: String(args?.path ?? '') };
     default: {
-      if (!args) return { prefix: node.name, body: '' };
+      if (!args) return { prefix: name, body: '' };
       // Show the first string argument value as context, on a single line
       // like every other command body (a multi-line first argument would
       // break the same one-line surfaces).
       const firstValue = Object.values(args).find((v) => typeof v === 'string');
       return {
-        prefix: node.name,
+        prefix: name,
         body: typeof firstValue === 'string' ? collapseCommandNewlines(firstValue) : '',
       };
     }

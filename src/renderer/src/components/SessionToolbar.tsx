@@ -1,5 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { IconCheck, IconFilter2, IconNotebook, IconTerminal2 } from '@tabler/icons-react';
+import {
+  IconBinaryTree,
+  IconCheck,
+  IconFilter2,
+  IconNotebook,
+  IconTerminal2,
+} from '@tabler/icons-react';
 import { useAppStore } from '../state/appStore';
 import { useTypewriter } from '../hooks/useTypewriter';
 import { useRenameSuppress } from '../hooks/useRenameSuppress';
@@ -11,6 +17,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import { SessionTreeHelpButton } from './SessionTreeHelpDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 // 13px menu text (app's text-xs scale, keeps the theme line-height — an
@@ -24,6 +31,9 @@ const viewModeItemClassName =
 interface SessionToolbarProps {
   sessionPath: string;
   onRename?: (sessionPath: string, name: string) => void;
+  onOpenTree: () => void;
+  /** Non-null while the tree cannot be used (compacting, summarizing). */
+  treeDisabledReason?: string | null;
   terminalOpen: boolean;
   onToggleTerminal: () => void;
   /** Formatted shortcut (e.g. "⌘ J") shown in the terminal button tooltip. */
@@ -33,6 +43,8 @@ interface SessionToolbarProps {
 export default React.memo(function SessionToolbar({
   sessionPath,
   onRename,
+  onOpenTree,
+  treeDisabledReason,
   terminalOpen,
   onToggleTerminal,
   terminalShortcutLabel,
@@ -59,6 +71,7 @@ export default React.memo(function SessionToolbar({
 
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
+  const [treeTooltipOpen, setTreeTooltipOpen] = useState(false);
 
   const handleStartRename = useCallback(() => {
     setEditValue(title);
@@ -117,6 +130,26 @@ export default React.memo(function SessionToolbar({
       </div>
 
       <div className="flex-1" />
+
+      <TooltipProvider delayDuration={400}>
+        <Tooltip open={treeTooltipOpen} onOpenChange={setTreeTooltipOpen}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="Session tree"
+              onClick={onOpenTree}
+              disabled={Boolean(treeDisabledReason)}
+              className="flex items-center justify-center rounded p-1 text-muted-foreground transition-colors size-7 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50 [-webkit-app-region:no-drag]"
+            >
+              <IconBinaryTree size={16} stroke={1.5} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="gap-3">
+            <span>{treeDisabledReason ?? 'Session tree'}</span>
+            <SessionTreeHelpButton onBeforeOpen={() => setTreeTooltipOpen(false)} />
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <TooltipProvider delayDuration={400}>
         <Tooltip>

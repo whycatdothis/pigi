@@ -96,8 +96,7 @@ function NodeRenderer({
     case 'system':
       return (
         <SystemBubble
-          text={node.text}
-          isLoading={node.isLoading}
+          node={node}
           searchQuery={searchQuery}
           activeOccurrenceIndex={activeOccurrenceIndex}
         />
@@ -120,7 +119,7 @@ function ToolBubble({
   return (
     <div ref={containerRef} className="group">
       <ToolBlock node={node} />
-      <MessageToolbar text={node.output} />
+      <MessageToolbar node={node} />
     </div>
   );
 }
@@ -168,7 +167,7 @@ function AssistantBubble({
           </div>
         )}
 
-        <MessageToolbar text={node.text || node.thinking} />
+        <MessageToolbar node={node} />
       </div>
     </div>
   );

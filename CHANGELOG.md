@@ -4,7 +4,14 @@
 
 ### Added
 
+- Session tree: the tree button in the session toolbar (or `/tree`) opens the whole session — every branch, not just the one you are on — with fuzzy search, `User` / `Assistant` / `Tools` / `Summaries` filters, and a preview of any message on hover. Pick a message to move the session there
+- Every message row shows a `tree` action on hover, and the tooltips and the tree dialog carry a `?` that explains what the session tree does
+- Moving the session can summarize what you are leaving behind: you are asked first, the summary is written into the conversation as part of your context, and a summary that is still running can be cancelled
 - The new-chat input keeps its draft: text typed without sending reappears the next time you start a new chat
+
+### Changed
+
+- Tooltips use the app's surface colour instead of black
 
 ### Fixed
 
