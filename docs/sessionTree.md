@@ -516,7 +516,12 @@ actually at, which is the same spot the move started from.
 | renderer                          | every UI decision, session switching, scroll, editor text                     | never touches session files                                                       |
 
 Rule: the utility process answers "what is / do this"; the renderer decides
-"should we / how to show it".
+"should we / how to show it". Inside the renderer, the same split applies to
+`hooks/useSessionTreeNavigation.ts`: it decides (which session, which dialog,
+one move at a time) and owns those decisions' state, while `App.tsx` renders
+what it returns and passes in the pieces only the shell has — the transcript's
+status, the scroll controller, the input setter, the resume flow, and the set
+of sessions still waiting for their process.
 
 ### 4.2 Why fork runs in the utility process
 
@@ -847,7 +852,8 @@ comparison for `parentSessionPath` is case-insensitive on Windows.
 | `src/renderer/src/state/appStore.ts`                                             | `SessionEntry.parentSessionPath`                                                                                                       |
 | `src/renderer/src/lib/toolDisplay.ts`                                            | `getToolCommandPartsForTool(name, args)` for tree rows                                                                                 |
 | `src/renderer/src/lib/slashCommands.ts`                                          | `/tree`                                                                                                                                |
-| `src/renderer/src/App.tsx`                                                       | tree navigation + fork, summary prompt state, busy state, actions provider     |
+| `src/renderer/src/App.tsx`                                                       | renders the flows the hook exposes, and supplies what only it owns (transcript state, scroll handle, input, resume, pending processes) |
+| `src/renderer/src/hooks/useSessionTreeNavigation.ts` (new)                       | tree navigation + fork, summary prompt state, busy state                                                                               |
 | `docs/architecture.md`                                                           | new "Session tree and fork" section (phase 3)                                                                                          |
 
 Dependencies added for the dialog: `@headless-tree/core` and

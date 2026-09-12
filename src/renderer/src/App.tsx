@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore, type SessionEntry } from './state/appStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useSessionTreeNavigation } from './hooks/useSessionTreeNavigation';
 import { formatShortcutLabel } from './shortcuts/formatShortcutLabel';
 import { detectPlatform } from './lib/platform';
 import {
@@ -45,20 +46,14 @@ import {
   getModelCatalog,
   refreshModelCatalog,
   onModelCatalogUpdated,
-  getSessionTree,
-  navigateSessionTree,
   abortBranchSummary,
-  forkSession,
-  getMessages,
 } from './services/piAgentClient';
-import { countAbandonedEntries, resolveEntryId } from './lib/sessionTreeLayout';
 import type {
   AuthProviderInfo,
   ModelCatalogSnapshot,
   ModelInfo,
   PiSessionInfo,
   ProjectDirectory,
-  SessionTreeDto,
   SkillSlashCommand,
   ThinkingLevel,
 } from '../../shared/ipcContract';
@@ -91,21 +86,6 @@ import {
 } from './lib/layoutConstants';
 import { usePanelResize } from './hooks/usePanelResize';
 const WELCOME_TITLE = 'Welcome to pigi';
-
-/**
- * Wait (bounded) for the transcript to settle after an abort.
- *
- * Tree navigation reads the session file to count abandoned entries; running
- * it before the aborted assistant message is appended would count against a
- * stale leaf.
- */
-async function waitForTranscriptIdle(sessionPath: string, timeoutMs = 2000): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (ensureTranscriptSession(sessionPath).state.status === 'idle') return;
-    await new Promise((resolve) => setTimeout(resolve, 40));
-  }
-}
 
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
 function extractUserHistory(nodes: TranscriptNode[]): string[] {
@@ -204,16 +184,11 @@ function App(): React.JSX.Element {
   const [restoreText, setRestoreText] = useState<string | null>(null);
   const chatInputRef = useRef<ChatInputHandle>(null);
   const messageListRef = useRef<MessageListHandle>(null);
-  const [treeDialogOpen, setTreeDialogOpen] = useState(false);
   // Bumped whenever the session grows, so an open tree dialog refreshes itself.
   const sessionTreeRevision = `${transcript.nodes.length}:${transcript.status}`;
-  const [treeHelpOpen, setTreeHelpOpen] = useState(false);
-  const [summaryPrompt, setSummaryPrompt] = useState<{
-    entryId: string;
-    abandonedCount: number;
-  } | null>(null);
+  // A branch summary owns the session's turn; the abort path below needs to
+  // know, and the tree navigation sets it while it runs one.
   const [branchSummaryBusy, setBranchSummaryBusy] = useState(false);
-  const treeNavInFlightRef = useRef(false);
   const prevTerminalOpenRef = useRef(terminalOpen);
   // When the terminal closes, move focus back to the chat input.
   useEffect(() => {
@@ -776,168 +751,6 @@ function App(): React.JSX.Element {
   // Session tree
   // ===========================================================================
 
-  /**
-   * Move the session position inside the same session file.
-   *
-   * `controller.reset()` before re-hydrating is mandatory: `hydrate()` replaces
-   * the nodes while `mergeHydratedMessages()` prepends history, which would mix
-   * the abandoned branch back in.
-   */
-  const runTreeNavigation = useCallback(
-    async (
-      sessionPath: string,
-      entryId: string,
-      options: { summarize: boolean; customInstructions?: string },
-    ): Promise<void> => {
-      if (treeNavInFlightRef.current) return;
-      treeNavInFlightRef.current = true;
-      if (options.summarize) setBranchSummaryBusy(true);
-      const summarizingToast = options.summarize
-        ? toast.loading('Summarizing the abandoned branch…', {
-            action: {
-              label: 'Cancel',
-              onClick: () => {
-                void abortBranchSummary(sessionPath);
-              },
-            },
-          })
-        : null;
-
-      try {
-        // Hold the scroll while the old transcript is still on screen, then
-        // follow the replacement: the reader lands at the end of the branch
-        // they moved to, which is where the session now continues from.
-        messageListRef.current?.suspendAutoScroll();
-        const result = await navigateSessionTree(sessionPath, entryId, options);
-        if (result.cancelled) {
-          // The move did not happen, so give back the follow it suspended.
-          messageListRef.current?.restoreFollow();
-          return;
-        }
-        if (!result.success) {
-          messageListRef.current?.restoreFollow();
-          toast.error(result.error || 'Failed to move the session');
-          return;
-        }
-        const controller = ensureTranscriptSession(sessionPath);
-        controller.reset();
-        const { messages, compactionCount } = await getMessages(sessionPath);
-        controller.hydrate(messages, compactionCount);
-        messageListRef.current?.scrollToBottom();
-        if (result.editorText) {
-          setRestoreText(result.editorText);
-        }
-        void refreshSessionState(sessionPath);
-      } catch (error) {
-        messageListRef.current?.restoreFollow();
-        toast.error(error instanceof Error ? error.message : 'Failed to move the session');
-      } finally {
-        treeNavInFlightRef.current = false;
-        if (options.summarize) setBranchSummaryBusy(false);
-        if (summarizingToast !== null) toast.dismiss(summarizingToast);
-      }
-    },
-    [refreshSessionState],
-  );
-
-  /**
-   * Shared preconditions for any tree navigation: the caller must be able to
-   * write to the session (no pending process, no compaction) and the current
-   * response has to stop first, because navigation during a turn is rejected by
-   * the SDK. Aborting also returns queued messages to the input box.
-   */
-  const prepareTreeNavigation = useCallback(async (): Promise<string | null> => {
-    const sessionPath = activeSessionPath;
-    if (!sessionPath) return null;
-    if (pendingResumesRef.current.has(sessionPath)) {
-      toast.error('The session is still starting');
-      return null;
-    }
-    if (transcript.isCompacting) {
-      toast.error('Wait for compaction to finish');
-      return null;
-    }
-    if (transcript.status !== 'idle') {
-      await handleAbort();
-      await waitForTranscriptIdle(sessionPath);
-    }
-    return sessionPath;
-  }, [activeSessionPath, handleAbort, transcript.isCompacting, transcript.status]);
-
-  /** Ask about summarizing, then navigate. */
-  const continueTreeNavigation = useCallback(
-    async (sessionPath: string, tree: SessionTreeDto, entryId: string): Promise<void> => {
-      if (entryId === tree.leafId) return;
-      const abandonedCount = countAbandonedEntries(tree, entryId);
-      if (abandonedCount > 0) {
-        setSummaryPrompt({ entryId, abandonedCount });
-        return;
-      }
-      await runTreeNavigation(sessionPath, entryId, { summarize: false });
-    },
-    [runTreeNavigation],
-  );
-
-  /** `tree` on a transcript row. */
-  const handleTreeMessage = useCallback(
-    async (node: TranscriptNode): Promise<void> => {
-      const sessionPath = await prepareTreeNavigation();
-      if (!sessionPath) return;
-      try {
-        const tree = await getSessionTree(sessionPath);
-        const entryId = resolveEntryId(tree, node);
-        if (!entryId) {
-          toast.error('Could not find this message in the session tree');
-          return;
-        }
-        await continueTreeNavigation(sessionPath, tree, entryId);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to read the session tree');
-      }
-    },
-    [continueTreeNavigation, prepareTreeNavigation],
-  );
-
-  /** A pick in the tree dialog. The tree is re-read because the dialog's copy
-   *  was fetched when it opened. */
-  const handleTreeSelect = useCallback(
-    async (entryId: string): Promise<void> => {
-      const sessionPath = await prepareTreeNavigation();
-      if (!sessionPath) return;
-      try {
-        const tree = await getSessionTree(sessionPath);
-        // The dialog only closes once the move is decided. A pick that needs the
-        // summary question keeps it open: the question opens on top of it, and
-        // cancelling the question returns the user to the list they were reading.
-        const asksToSummarize = entryId !== tree.leafId && countAbandonedEntries(tree, entryId) > 0;
-        if (!asksToSummarize) setTreeDialogOpen(false);
-        await continueTreeNavigation(sessionPath, tree, entryId);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to read the session tree');
-      }
-    },
-    [continueTreeNavigation, prepareTreeNavigation],
-  );
-
-  const handleSummaryPromptConfirm = useCallback(
-    (options: { summarize: boolean }): void => {
-      const prompt = summaryPrompt;
-      const sessionPath = activeSessionPath;
-      setSummaryPrompt(null);
-      // The question is answered: the move goes ahead, so the tree the user was
-      // browsing has done its job.
-      setTreeDialogOpen(false);
-      if (!prompt || !sessionPath) return;
-      void runTreeNavigation(sessionPath, prompt.entryId, options);
-    },
-    [activeSessionPath, runTreeNavigation, summaryPrompt],
-  );
-
-  /** Closing the prompt without answering drops the move, not the tree. */
-  const handleSummaryPromptCancel = useCallback((): void => {
-    setSummaryPrompt(null);
-  }, []);
-
   // Escape aborts only when focus is in an explicit abort scope.
   useEffect(() => {
     function isAbortScopeFocused(): boolean {
@@ -1156,103 +969,38 @@ function App(): React.JSX.Element {
     ],
   );
 
-  // ===========================================================================
-  // Fork
-  // ===========================================================================
-
-  /**
-   * `fork` on a transcript row: continue this conversation in a new session.
-   *
-   * The fork runs on a throwaway manager in the utility process, so the
-   * original keeps its file, its process and its place in the sidebar; the new
-   * session is a plain resume (or a create, when there was nothing to fork
-   * yet) of the file that came out of it.
-   */
-  const handleForkMessage = useCallback(
-    async (node: TranscriptNode): Promise<void> => {
-      if (treeNavInFlightRef.current) return;
-      const sessionPath = await prepareTreeNavigation();
-      if (!sessionPath) return;
-      treeNavInFlightRef.current = true;
-      try {
-        const store = useAppStore.getState();
-        const parent = store.sessions.get(sessionPath);
-        const cwd = parent?.cwd ?? activeCwd;
-        const tree = await getSessionTree(sessionPath);
-        const entryId = resolveEntryId(tree, node);
-        if (!entryId) {
-          toast.error('Could not find this message in the session tree');
-          return;
-        }
-        // A user message is left behind for the new chat to send again; an
-        // answer or a tool result stays in the forked history.
-        const position = node.role === 'user' ? 'before' : 'at';
-        const result = await forkSession(sessionPath, entryId, position);
-        if (!result.success) {
-          toast.error(result.error || 'Failed to continue in a new chat');
-          return;
-        }
-
-        const newPath = result.sessionPath ?? (await createSession(cwd, sessionPath));
-        if (!result.sessionPath) {
-          // A fork of the first message has no history to copy: the new chat
-          // starts empty, so it needs the model this one is using.
-          const model = parent?.model;
-          if (model) {
-            void setModel(newPath, model.provider, model.id).catch(() => {});
-          }
-          if (parent?.thinkingLevel) {
-            void setThinkingLevel(newPath, parent.thinkingLevel).catch(() => {});
-          }
-        }
-
-        await handleResumeSession(
-          {
-            path: newPath,
-            id: '',
-            cwd,
-            parentSessionPath: sessionPath,
-            created: new Date().toISOString(),
-            modified: new Date().toISOString(),
-            messageCount: 0,
-            firstMessage: parent?.title ?? 'New chat',
-            allMessagesText: parent?.title ?? 'New chat',
-          },
-          { prefillText: result.selectedText, freshSession: !result.sessionPath },
-        );
-        // The fork is a file the sidebar has not listed yet: refresh so it
-        // appears under this session instead of as a loose "New chat".
-        void listProjectSessions([cwd]);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to continue in a new chat');
-      } finally {
-        treeNavInFlightRef.current = false;
-      }
+  const tree = useSessionTreeNavigation({
+    activeSessionPath,
+    activeCwd,
+    busy: transcript.status !== 'idle',
+    compacting: transcript.isCompacting,
+    branchSummaryBusy,
+    setBranchSummaryBusy,
+    // A session that is still spawning its process cannot be read or moved; the
+    // prompt buffer would swallow one and the tree actions would look broken.
+    isSessionStarting: (sessionPath) => pendingResumesRef.current.has(sessionPath),
+    abortTurn: handleAbort,
+    resumeSession: handleResumeSession,
+    setRestoreText,
+    refreshSessionState: (sessionPath) => {
+      void refreshSessionState(sessionPath);
     },
-    [activeCwd, handleResumeSession, prepareTreeNavigation],
-  );
-
-  const treeDisabledReason = branchSummaryBusy
-    ? 'Busy summarizing the abandoned branch'
-    : transcript.isCompacting
-      ? 'Wait for compaction to finish'
-      : null;
+    messageListRef,
+  });
 
   /** Anything that blocks sending a new prompt into this session. */
-  const isSessionBusy = transcript.status !== 'idle' || branchSummaryBusy;
-
-  const treeHelp = useMemo(() => ({ openHelp: () => setTreeHelpOpen(true) }), []);
+  const isSessionBusy = transcript.status !== 'idle' || tree.branchSummaryBusy;
 
   const messageActions = useMemo<MessageActions>(() => {
     if (!activeSessionPath) {
       return { onTree: null, onFork: null, disabledReason: null };
     }
     return {
-      onTree: handleTreeMessage,
-      onFork: handleForkMessage,
-      disabledReason: treeDisabledReason,
+      onTree: tree.onTreeMessage,
+      onFork: tree.onForkMessage,
+      disabledReason: tree.disabledReason,
     };
-  }, [activeSessionPath, handleForkMessage, handleTreeMessage, treeDisabledReason]);
+  }, [activeSessionPath, tree.disabledReason, tree.onForkMessage, tree.onTreeMessage]);
 
   const handleOpenProject = useCallback(async () => {
     const result = await openProjectDirectory();
@@ -1459,6 +1207,10 @@ function App(): React.JSX.Element {
     [activeSessionPath, refreshSessionOptions, refreshSessionState],
   );
 
+  // Pulled out of the hook result so the shortcut handler below can depend on a
+  // stable function rather than on the whole object.
+  const openTreeDialog = tree.onDialogOpenChange;
+
   const handleSlashCommand = useCallback(
     async (command: string, arg: string) => {
       try {
@@ -1502,7 +1254,7 @@ function App(): React.JSX.Element {
           }
           case 'tree': {
             if (!activeSessionPath) return;
-            setTreeDialogOpen(true);
+            openTreeDialog(true);
             break;
           }
           case 'login': {
@@ -1557,6 +1309,7 @@ function App(): React.JSX.Element {
       refreshSessionOptions,
       refreshSessionState,
       setActiveSession,
+      openTreeDialog,
     ],
   );
 
@@ -1587,7 +1340,7 @@ function App(): React.JSX.Element {
   };
 
   return (
-    <SessionTreeHelpContext.Provider value={treeHelp}>
+    <SessionTreeHelpContext.Provider value={tree.help}>
       <MessageActionsContext.Provider value={messageActions}>
         <SidebarProvider className="h-screen min-h-0" data-testid="app-shell">
           <div
@@ -1631,8 +1384,8 @@ function App(): React.JSX.Element {
                   key={activeSessionPath}
                   sessionPath={activeSessionPath ?? ''}
                   onRename={handleRenameSession}
-                  onOpenTree={() => setTreeDialogOpen(true)}
-                  treeDisabledReason={treeDisabledReason}
+                  onOpenTree={() => openTreeDialog(true)}
+                  treeDisabledReason={tree.disabledReason}
                   terminalOpen={terminalOpen}
                   onToggleTerminal={toggleTerminal}
                   terminalShortcutLabel={terminalShortcutLabel}
@@ -1802,22 +1555,22 @@ function App(): React.JSX.Element {
             autoSelectPrevious={switcherAutoPreselect}
           />
 
-          <SessionTreeHelpDialog open={treeHelpOpen} onOpenChange={setTreeHelpOpen} />
+          <SessionTreeHelpDialog open={tree.helpOpen} onOpenChange={tree.onHelpOpenChange} />
           <SessionTreeDialog
-            open={treeDialogOpen}
-            onOpenChange={setTreeDialogOpen}
+            open={tree.dialogOpen}
+            onOpenChange={tree.onDialogOpenChange}
             sessionPath={activeSessionPath ?? ''}
             revision={sessionTreeRevision}
             onSelect={(entryId) => {
-              void handleTreeSelect(entryId);
+              void tree.onSelect(entryId);
             }}
           />
 
           <BranchSummaryPrompt
-            open={summaryPrompt !== null}
-            abandonedCount={summaryPrompt?.abandonedCount ?? 0}
-            onCancel={handleSummaryPromptCancel}
-            onConfirm={handleSummaryPromptConfirm}
+            open={tree.summaryPrompt !== null}
+            abandonedCount={tree.summaryPrompt?.abandonedCount ?? 0}
+            onCancel={tree.onSummaryCancel}
+            onConfirm={tree.onSummaryConfirm}
           />
 
           <LoginDialog

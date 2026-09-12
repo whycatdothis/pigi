@@ -241,6 +241,14 @@ session with that parent instead. Behind it all, `docs/sessionTree.md` is the
 design reference, and `src/renderer/src/components/sessionTree/` holds the dialog
 and its geometry.
 
+The renderer side of all of it lives in `hooks/useSessionTreeNavigation.ts`: the
+`tree` and `fork` actions, the leave-branch question and the move. It owns the
+dialogs' state and the one-move-at-a-time guard; App.tsx renders what it returns
+and hands it the few things only the shell knows — the transcript's own state,
+the scroll controller, the input setter, the resume flow, and the sessions still
+waiting for their process. The rule that keeps the two apart: App.tsx renders,
+the hook decides, and anything the hook needs from the shell arrives as a
+parameter instead of being reached for.
 
 ## Collapsible Blocks
 
