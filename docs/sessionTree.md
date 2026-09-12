@@ -28,7 +28,9 @@ through the session tree dialog.
 - No inline branch markers in the transcript, no minimap changes, no right-side
   tree panel.
 - No `1/2` sibling switcher.
-- No virtualization in the tree dialog (see §3.3).
+- No virtualization in the tree dialog yet: rows are plain buttons in a
+  scrolling list (§3.3). Row height is a constant, which is what makes the step
+  cheap when a long session makes it worth taking — the plan is in §11.
 - No new keyboard shortcut, no toolbar badge.
 - No `fork of「…」` chip in the session toolbar.
 - No extension hooks (`session_before_tree`, `session_before_fork`,
@@ -390,7 +392,8 @@ Implementation:
   answer with an empty item (a hot reload must not crash a row), and the loaded
   tree carries the path it came from, so switching sessions cannot show the
   previous session's tree.
-- Fixed row height (32px), plain buttons, no virtualizer, no per-row popovers.
+- Fixed row height (32px), plain buttons, no virtualizer yet (§11 has the plan),
+  no per-row popovers.
 
 ### 3.10 The "?" explanation
 
@@ -969,7 +972,8 @@ clientHeight` (8535/8535), scroll button hidden (follow on). The same jump
 - Disabled states while compacting (needs a compaction mid-navigation).
 - Row rendering of a session with more than a handful of branches, and the
   dialog on the 600-message session (row count is bounded by visible entries;
-  no virtualizer, per §2).
+  no virtualizer yet, per §2 — and no measurement of what a long session costs
+  today).
 - Multi-level lineage (a fork of a fork) beyond the unit tests: the rendering
   path is the same at every depth, but no session with a grandchild fork has
   been opened by hand.
@@ -1013,3 +1017,66 @@ clientHeight` (8535/8535), scroll button hidden (follow on). The same jump
   `reason: 'fork'` so extensions can tell a fork from a normal resume.
 - Whether the tree payload needs a `previews: false` variant if entry counts
   grow large enough for the payload to matter.
+
+### Wiring in a virtual list (planned, not started)
+
+A long session — the case this dialog exists for — puts every row of the visible
+entries in the DOM, and every pointer move over a row rebuilds the whole display
+(`buildSessionTreeDisplay` bakes the lit rail tints into the nodes, so `litRowId`
+is an input to it). Neither is measurable at a few hundred rows and both are
+wasteful at a few thousand. Four steps, in this order; each one is verifiable on
+its own.
+
+**1. Flatten the rows.** `flattenSessionTreeDisplay(display)` in
+`lib/sessionTreeData.ts` returns the rows in document order, each with what it
+needs to draw itself: `{ itemId, depth, isBranchChild, isLastBranchChild,
+continuationOf }`. The nesting the list renders today (a continuation chain
+nested inside its parent's node, a fork's children nested inside the fork's) is
+only how the recursion iterates — the row component already receives its own
+`depth` (for `paddingLeft`) and its own rail tint, so a flat array renders the
+same pixels. What it buys: an index. Virtualizers, `scrollToIndex` and
+`top = index * ROW_HEIGHT_PX` all need one, and a tree of React elements has
+none.
+
+**2. Virtualize with the existing dependency.** `@tanstack/react-virtual` is
+already used by `MessageList`. `estimateSize: () => ROW_HEIGHT_PX` is exact
+because the row height is a constant, so no row needs measuring; the `Tree N`
+headers are virtual items of their own and are measured with `measureElement`
+(variable height, same as tool cards in the transcript). Rows render absolutely
+positioned inside the sized spacer, `overscan` a screenful. `data-tree-row-id`
+stays on the row: the pinned band's DOM pass is replaced in step 3, but the
+attribute is also what the band's own tests and probes read.
+
+**3. Compute the band instead of measuring it.** `PinnedAncestors` currently
+reads every row's `offsetTop` (with a `MutationObserver` to notice a new row set)
+because that was the cheap way when all rows existed. With an index and a
+constant height the top of row `n` is arithmetic: `Σ header heights + n *
+ROW_HEIGHT_PX`. That removes the observer, the per-row layout reads and the
+cached `layoutRef` altogether, and it stays correct for rows that are not in the
+DOM. Header heights are the only thing still measured, and they are already read
+for the band's own offset.
+
+**4. Compute the lit rails per row.** Today the tint pass walks every fork in the
+display and writes `railTint` onto its children, so a hover is a full rebuild.
+Instead: keep the structure (parents, depths, branch children) static per
+dataset, hold `litRowId` in a small store, and let each row derive its own tint
+from it — a row knows whether the lit row is itself, a descendant of it, or a
+sibling above it on the way down, all from the parent map it already has. Rows
+subscribe individually (zustand selector, the pattern the rest of the app uses),
+so a pointer moving along a branch re-renders that branch's rows and nothing
+else. `buildSessionTreeDisplay` then drops its `litRowId` parameter and the tint
+pass with it.
+
+Two things that follow from step 2 and are easy to miss:
+
+- Scrolling to a row has to stop using `getElement()?.scrollIntoView()` — the
+  element of an off-screen row does not exist. Both call sites (the current row on
+  open, a search result) become `virtualizer.scrollToIndex(index)`.
+- The hover preview card measures the hovered row's element, which is fine
+  precisely because a hovered row is by definition rendered; it must keep reading
+  the row's own box rather than a cached offset.
+
+Tests to add with it: the flatten (order, depth, branch flags, and that a lone
+child keeps its parent's depth), the per-row tint for a lit row (its own row, its
+ancestors, the siblings it passes, and unaffected branches), and the band's
+index arithmetic including headers.
