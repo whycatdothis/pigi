@@ -21,6 +21,10 @@ export interface TerminalTabView {
 export interface SessionEntry {
   sessionPath: string;
   persistedSessionId: string;
+  /** The session this one was forked from, when known. The sidebar keeps the
+   *  lineage from the listed sessions; this covers a fork that has no file yet
+   *  (a fork of the first message, before its first response). */
+  parentSessionPath?: string;
   status: AgentStatus;
   title: string;
   cwd: string;

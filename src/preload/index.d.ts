@@ -16,6 +16,7 @@ interface PiApi {
   // Session lifecycle (via main process IPC)
   createSession: (
     cwd: string,
+    parentSessionPath?: string,
   ) => Promise<{ success: boolean; sessionPath?: string; error?: string }>;
   resumeSession: (
     sessionPath: string,

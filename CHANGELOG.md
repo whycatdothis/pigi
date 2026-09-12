@@ -7,7 +7,9 @@
 - Session tree: hovering a row lights the line it sits on, from the row up through every fork above it — a message in the middle of a branch lights the line all the way down to it, not only the fork it hangs from. The run that leads to the row lights even when it passes siblings on the way; the pieces that carry on to the branches below stay neutral
 - Session tree: the ancestors of the topmost visible row stay pinned under the tree header while scrolling, one row per indent level, so the rows on screen never lose sight of where they hang from. Pinned rows can be clicked to move the session there
 - Session tree: the tree button in the session toolbar (or `/tree`) opens the whole session — every branch, not just the one you are on — with fuzzy search, `User` / `Assistant` / `Tools` / `Summaries` filters, and a preview of any message on hover. Pick a message to move the session there
-- Every message row shows a `tree` action on hover, and the tooltips and the tree dialog carry a `?` that explains what the session tree does
+- Every message row shows a `tree` action on hover, and the tooltips and the tree dialog carry a `?` that explains what the session tree does (the `?` sits in the tree's label, so it is not in the way when the pointer is on `fork`)
+- Any message can be forked into a new chat (`Fork this msg in new session` next to `tree`): the conversation up to that point is copied into a new session, the original stays open where it was, and a message you fork _before_ goes back to the new chat's input box so you can reword it and send. The new chat starts from the same model and thinking level
+- Forked chats are listed under the chat they came from, connected by lines (`├─` / `└─`), so a block of chats reads as one conversation growing in several directions; the block moves up as a whole when any of them is used
 - Moving the session can summarize what you are leaving behind: you are asked first, the summary is written into the conversation as part of your context, and a summary that is still running can be cancelled
 - The new-chat input keeps its draft: text typed without sending reappears the next time you start a new chat
 
@@ -18,12 +20,15 @@
 
 - The session tree's fold chevrons are bigger (at the normal stroke weight, not bold), and the one on a row folds from a hit area as tall as the row, so a near miss no longer moves the session by accident. Hovering a row replaces the leaf's own highlight while the pointer is on it
 - Tooltips use the app's surface colour instead of black
+- The `tree` / `fork` labels on a message follow the pointer between the two icons: they share one tooltip, so moving from one to the other now swaps the label instead of leaving the first one up and never updating
+- The tree and fork glyphs read better at a glance: `binary-tree-2` for the tree and an arrow fork turned on its side (`rotate-90`), so the arms of the fork point the way the message goes. Used everywhere they appear: the message actions, the toolbar's tree button, the `Tree 1` headers and the help dialog
 - Session tree rows draw their forks as one line per branch: a hairline hangs from the fold chevron of the message a fork starts at, elbows into each of its children and stops at the last one, so a branch reads as a single continuous line instead of a line redrawn by every row it passes
 - Session tree tool rows no longer repeat their tool's name next to the command (`bash`, `read`): the command already starts with it
 - Session tree filter chips are rounded rectangles instead of pills
 - Branch lines and the indent are derived from one set of geometry constants shared with the rows, so changing the indent can no longer leave the lines behind
 - Picking a message that would leave messages behind keeps the session tree open: the `Leave this branch?` question now opens on top of it instead of only after it has closed
 - `Leave this branch?` has two answers, `[Summarize] [Don't summarize]` — the two `Cancel` and `Custom focus…` buttons are gone, so closing the dialog (Esc, the `x`, a click outside) is the cancel; it drops the move and keeps the session tree open. `Don't summarize` sits on the right and carries the theme's accent colour
+- Moving to another point of the tree now lands at the bottom of the branch you moved to, so the message the session continues from is on screen — before, the list stayed wherever you had been reading, with bottom follow switched off
 - Session tree rows highlight only their content: an indented row's hover box starts where its text does instead of spanning the full width
 - Session tree rows no longer draw a focus ring: picking a row (and cancelling the question it raises) leaves no border behind. Arrow keys still move the tree's cursor, it is just invisible
 - Session tree branch lines no longer paint their corner twice: the elbow starts where the vertical line ends, so the corner is not darker than the lines it joins (and not a blend of the accent and the neutral colour)

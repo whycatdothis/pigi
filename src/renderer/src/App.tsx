@@ -48,6 +48,7 @@ import {
   getSessionTree,
   navigateSessionTree,
   abortBranchSummary,
+  forkSession,
   getMessages,
 } from './services/piAgentClient';
 import { countAbandonedEntries, resolveEntryId } from './lib/sessionTreeLayout';
@@ -803,8 +804,9 @@ function App(): React.JSX.Element {
         : null;
 
       try {
-        // Replacing every node would otherwise jump to the end of the branch
-        // the user just moved into.
+        // Hold the scroll while the old transcript is still on screen, then
+        // follow the replacement: the reader lands at the end of the branch
+        // they moved to, which is where the session now continues from.
         messageListRef.current?.suspendAutoScroll();
         const result = await navigateSessionTree(sessionPath, entryId, options);
         if (result.cancelled) return;
@@ -816,6 +818,7 @@ function App(): React.JSX.Element {
         controller.reset();
         const { messages, compactionCount } = await getMessages(sessionPath);
         controller.hydrate(messages, compactionCount);
+        messageListRef.current?.scrollToBottom();
         if (result.editorText) {
           setRestoreText(result.editorText);
         }
@@ -929,29 +932,6 @@ function App(): React.JSX.Element {
     setSummaryPrompt(null);
   }, []);
 
-  const treeDisabledReason = branchSummaryBusy
-    ? 'Busy summarizing the abandoned branch'
-    : transcript.isCompacting
-      ? 'Wait for compaction to finish'
-      : null;
-
-  /** Anything that blocks sending a new prompt into this session. */
-  const isSessionBusy = transcript.status !== 'idle' || branchSummaryBusy;
-
-  const treeHelp = useMemo(() => ({ openHelp: () => setTreeHelpOpen(true) }), []);
-
-  const messageActions = useMemo<MessageActions>(() => {
-    if (!activeSessionPath) {
-      return { onTree: null, onFork: null, disabledReason: null };
-    }
-    return {
-      onTree: handleTreeMessage,
-      // Fork ships in a second phase.
-      onFork: null,
-      disabledReason: treeDisabledReason,
-    };
-  }, [activeSessionPath, handleTreeMessage, treeDisabledReason]);
-
   // Escape aborts only when focus is in an explicit abort scope.
   useEffect(() => {
     function isAbortScopeFocused(): boolean {
@@ -1007,7 +987,20 @@ function App(): React.JSX.Element {
   }
 
   const handleResumeSession = useCallback(
-    async (session: PiSessionInfo, options?: { skipHistory?: boolean }): Promise<void> => {
+    async (
+      session: PiSessionInfo,
+      options?: {
+        skipHistory?: boolean;
+        /** Text to put in the input box once this session is showing (a fork). */
+        prefillText?: string;
+        /**
+         * The session was created for this call: its process is already
+         * attached and its file appears with the first response, so there is
+         * nothing to hydrate or resume yet.
+         */
+        freshSession?: boolean;
+      },
+    ): Promise<void> => {
       setIsDraftChat(false);
       setPendingSelectedPath(session.path);
 
@@ -1035,6 +1028,7 @@ function App(): React.JSX.Element {
       addSessionEntry({
         sessionPath,
         persistedSessionId: session.id,
+        parentSessionPath: session.parentSessionPath,
         status: 'idle',
         title: session.name ?? session.firstMessage,
         cwd: session.cwd,
@@ -1051,26 +1045,28 @@ function App(): React.JSX.Element {
       pendingResumesRef.current.add(sessionPath);
 
       // Hydrate transcript from session file (fast path, no utility process needed)
-      try {
-        const { messages, compactionCount, thinkingLevel, model } =
-          await readSessionMessages(sessionPath);
-        const controller = getTranscriptController(sessionPath);
-        controller.hydrate(messages, compactionCount);
-        if (model) {
-          const matchedModel = modelOptions.find(
-            (m) => m.id === model.modelId && m.provider === model.provider,
-          );
-          useAppStore.getState().updateSession(sessionPath, {
-            thinkingLevel: thinkingLevel as ThinkingLevel,
-            ...(matchedModel ? { model: matchedModel } : {}),
-          });
-        } else {
-          useAppStore
-            .getState()
-            .updateSession(sessionPath, { thinkingLevel: thinkingLevel as ThinkingLevel });
+      if (!options?.freshSession) {
+        try {
+          const { messages, compactionCount, thinkingLevel, model } =
+            await readSessionMessages(sessionPath);
+          const controller = getTranscriptController(sessionPath);
+          controller.hydrate(messages, compactionCount);
+          if (model) {
+            const matchedModel = modelOptions.find(
+              (m) => m.id === model.modelId && m.provider === model.provider,
+            );
+            useAppStore.getState().updateSession(sessionPath, {
+              thinkingLevel: thinkingLevel as ThinkingLevel,
+              ...(matchedModel ? { model: matchedModel } : {}),
+            });
+          } else {
+            useAppStore
+              .getState()
+              .updateSession(sessionPath, { thinkingLevel: thinkingLevel as ThinkingLevel });
+          }
+        } catch (err) {
+          console.error('Failed to hydrate session from file:', err);
         }
-      } catch (err) {
-        console.error('Failed to hydrate session from file:', err);
       }
 
       // Show the session — messages and metadata are ready
@@ -1079,6 +1075,16 @@ function App(): React.JSX.Element {
       }
       setActiveSession(sessionPath);
       setPendingSelectedPath(null);
+      if (options?.prefillText) {
+        setRestoreText(options.prefillText);
+      }
+
+      if (options?.freshSession) {
+        void refreshSessionState(sessionPath);
+        void refreshSessionOptions(sessionPath);
+        void touchSession(sessionPath);
+        return;
+      }
 
       // Spawn utility process in background
       try {
@@ -1138,6 +1144,104 @@ function App(): React.JSX.Element {
       setActiveSession,
     ],
   );
+
+  // ===========================================================================
+  // Fork
+  // ===========================================================================
+
+  /**
+   * `fork` on a transcript row: continue this conversation in a new session.
+   *
+   * The fork runs on a throwaway manager in the utility process, so the
+   * original keeps its file, its process and its place in the sidebar; the new
+   * session is a plain resume (or a create, when there was nothing to fork
+   * yet) of the file that came out of it.
+   */
+  const handleForkMessage = useCallback(
+    async (node: TranscriptNode): Promise<void> => {
+      if (treeNavInFlightRef.current) return;
+      const sessionPath = await prepareTreeNavigation();
+      if (!sessionPath) return;
+      treeNavInFlightRef.current = true;
+      try {
+        const store = useAppStore.getState();
+        const parent = store.sessions.get(sessionPath);
+        const cwd = parent?.cwd ?? activeCwd;
+        const tree = await getSessionTree(sessionPath);
+        const entryId = resolveEntryId(tree, node);
+        if (!entryId) {
+          toast.error('Could not find this message in the session tree');
+          return;
+        }
+        // A user message is left behind for the new chat to send again; an
+        // answer or a tool result stays in the forked history.
+        const position = node.role === 'user' ? 'before' : 'at';
+        const result = await forkSession(sessionPath, entryId, position);
+        if (!result.success) {
+          toast.error(result.error || 'Failed to continue in a new chat');
+          return;
+        }
+
+        const newPath = result.sessionPath ?? (await createSession(cwd, sessionPath));
+        if (!result.sessionPath) {
+          // A fork of the first message has no history to copy: the new chat
+          // starts empty, so it needs the model this one is using.
+          const model = parent?.model;
+          if (model) {
+            void setModel(newPath, model.provider, model.id).catch(() => {});
+          }
+          if (parent?.thinkingLevel) {
+            void setThinkingLevel(newPath, parent.thinkingLevel).catch(() => {});
+          }
+        }
+
+        await handleResumeSession(
+          {
+            path: newPath,
+            id: '',
+            cwd,
+            parentSessionPath: sessionPath,
+            created: new Date().toISOString(),
+            modified: new Date().toISOString(),
+            messageCount: 0,
+            firstMessage: parent?.title ?? 'New chat',
+            allMessagesText: parent?.title ?? 'New chat',
+          },
+          { prefillText: result.selectedText, freshSession: !result.sessionPath },
+        );
+        // The fork is a file the sidebar has not listed yet: refresh so it
+        // appears under this session instead of as a loose "New chat".
+        void listProjectSessions([cwd]);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to continue in a new chat');
+      } finally {
+        treeNavInFlightRef.current = false;
+      }
+    },
+    [activeCwd, handleResumeSession, prepareTreeNavigation],
+  );
+
+  const treeDisabledReason = branchSummaryBusy
+    ? 'Busy summarizing the abandoned branch'
+    : transcript.isCompacting
+      ? 'Wait for compaction to finish'
+      : null;
+
+  /** Anything that blocks sending a new prompt into this session. */
+  const isSessionBusy = transcript.status !== 'idle' || branchSummaryBusy;
+
+  const treeHelp = useMemo(() => ({ openHelp: () => setTreeHelpOpen(true) }), []);
+
+  const messageActions = useMemo<MessageActions>(() => {
+    if (!activeSessionPath) {
+      return { onTree: null, onFork: null, disabledReason: null };
+    }
+    return {
+      onTree: handleTreeMessage,
+      onFork: handleForkMessage,
+      disabledReason: treeDisabledReason,
+    };
+  }, [activeSessionPath, handleForkMessage, handleTreeMessage, treeDisabledReason]);
 
   const handleOpenProject = useCallback(async () => {
     const result = await openProjectDirectory();

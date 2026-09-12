@@ -9,6 +9,7 @@
  *
  * One process per session. Process exits when session is destroyed.
  */
+import { existsSync } from 'node:fs';
 import {
   type AgentSessionEvent,
   type AgentSessionRuntime,
@@ -28,6 +29,7 @@ import {
 } from '@earendil-works/pi-coding-agent';
 import type {
   AuthProviderInfo,
+  ForkSessionResult,
   PiCommand,
   PiPush,
   PiRequest,
@@ -41,7 +43,7 @@ import type {
 import { toModelInfo } from '../../shared/modelInfo';
 import { generateSessionTitle } from './autoRename';
 import { createModelRuntime } from './fileCredentialStore';
-import { buildSessionTree, readEntryText } from './sessionTree';
+import { buildSessionTree, readEntryText, resolveForkTarget } from './sessionTree';
 
 // =============================================================================
 // Port interface (compatible with Electron's MessagePortMain)
@@ -597,6 +599,9 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
       runtime.session.abortBranchSummary();
       return { success: true };
 
+    case 'fork_session':
+      return forkSession(command.entryId, command.position);
+
     case 'get_session_options': {
       const session = runtime.session;
       const modelRegistry = new ModelRegistry(runtime.services.modelRuntime);
@@ -858,6 +863,46 @@ async function warmUp(cwds: string[]): Promise<void> {
     console.error('Failed to warm up:', err);
   }
   sendToMain({ type: 'warm_ready' });
+}
+
+/**
+ * Export one path of this session into a new file, leaving the session alone.
+ *
+ * `createBranchedSession` mutates the manager it runs on, and the live manager
+ * is what persists the running session, so the fork runs on a throwaway
+ * manager opened over the same file. The original keeps its process, its leaf
+ * and its entries; the new file's header points back at it (`parentSession`).
+ */
+function forkSession(entryId: string, position: 'before' | 'at'): ForkSessionResult {
+  if (!runtime) return { success: false, error: 'session not initialized' };
+  const session = runtime.session;
+  if (session.isStreaming || session.isCompacting) return { success: false, error: 'busy' };
+
+  const sessionManager = session.sessionManager;
+  const file = sessionManager.getSessionFile();
+  if (!file || !existsSync(file)) return { success: false, error: 'session not saved yet' };
+
+  const target = resolveForkTarget(sessionManager.getEntries(), entryId, position);
+  if (!target) return { success: false, error: 'entry not found' };
+
+  // Forking the first message: there is nothing before it, so the caller starts
+  // an empty session with this one as its parent instead.
+  if (!target.leafId) {
+    return { success: true, needsNewSession: true, selectedText: target.selectedText };
+  }
+
+  try {
+    const throwaway = SessionManager.open(file, sessionManager.getSessionDir());
+    const newPath = throwaway.createBranchedSession(target.leafId);
+    // A path without an assistant message is not written until the first
+    // response, so there is no file to open: the new-session path takes over.
+    if (!newPath || !existsSync(newPath)) {
+      return { success: true, needsNewSession: true, selectedText: target.selectedText };
+    }
+    return { success: true, sessionPath: newPath, selectedText: target.selectedText };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 async function createSession(cwd: string, parentSessionPath?: string): Promise<void> {

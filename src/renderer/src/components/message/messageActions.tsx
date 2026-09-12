@@ -12,7 +12,7 @@ import type { TranscriptNode } from '../../state/transcriptController';
 export interface MessageActions {
   /** Move the session position to this message. Null when unavailable. */
   onTree: ((node: TranscriptNode) => void) | null;
-  /** Continue in a new chat from this message. Null when unavailable. */
+  /** Continue in a new session from this message. Null when unavailable. */
   onFork: ((node: TranscriptNode) => void) | null;
   /** Non-null while the actions exist but cannot run (compacting, summarizing). */
   disabledReason: string | null;

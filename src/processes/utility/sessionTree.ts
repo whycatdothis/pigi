@@ -81,6 +81,40 @@ export function buildSessionTree(entries: SessionEntry[], leafId: string | null)
 }
 
 /**
+ * Where a fork of one entry ends, and what the new chat starts with.
+ *
+ * `before` truncates the conversation before the entry (the entry goes back to
+ * the new chat's input box, like re-typing it there); `at` keeps it.
+ */
+export interface ForkTarget {
+  /** Entry the forked path ends at; `null` means "before everything". */
+  leafId: string | null;
+  /** Text to pre-fill in the new session (a user message forked `before`). */
+  selectedText?: string;
+}
+
+/**
+ * Resolve a fork request against the session's real entries. Returns `null`
+ * when the entry is unknown — the tree the renderer picked from is a moment
+ * old, and another window may have moved the session since.
+ */
+export function resolveForkTarget(
+  entries: SessionEntry[],
+  entryId: string,
+  position: 'before' | 'at',
+): ForkTarget | null {
+  const entry = entries.find((candidate) => candidate.id === entryId);
+  if (!entry) return null;
+  if (position === 'at') return { leafId: entry.id };
+
+  const selectedText =
+    entry.type === 'message' && entry.message.role === 'user'
+      ? extractMessageText(entry.message.content)
+      : '';
+  return { leafId: entry.parentId, selectedText: selectedText || undefined };
+}
+
+/**
  * Full text of one entry, for the tree dialog's hover card. Returns an empty
  * string for entries that have no text (for example a user turn that was only
  * an image).

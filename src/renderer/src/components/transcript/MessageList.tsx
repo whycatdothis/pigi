@@ -27,13 +27,16 @@ interface MessageListProps {
   sessionPath: string;
 }
 
-/** Imperative surface for actions that must run before the transcript changes. */
+/** Imperative surface for actions that run around a transcript change. */
 export interface MessageListHandle {
-  /**
-   * Stop bottom-following. Tree navigation replaces every node, which would
-   * otherwise scroll the reader to the end of the branch they just moved to.
-   */
+  /** Stop bottom-following (search jump, minimap jump, group toggle...). */
   suspendAutoScroll: () => void;
+  /**
+   * Land at the bottom of a transcript that is being replaced in this tick.
+   * Tree navigation swaps every node, so the reader ends up at the end of the
+   * branch they moved to instead of wherever the old content left them.
+   */
+  scrollToBottom: () => void;
 }
 
 function isRenderableNode(node: TranscriptNode): boolean {
@@ -184,6 +187,7 @@ export default React.memo(function MessageList({
     topPaddingPx,
     showScrollButton,
     suspendAutoScroll,
+    followAfterContentSwap,
     handleScrollToBottom,
     handleMinimalTurnEnd,
     releaseAutoScrollPin,
@@ -192,7 +196,10 @@ export default React.memo(function MessageList({
     handleCollapseDetails,
   } = scrollController;
 
-  useImperativeHandle(ref, () => ({ suspendAutoScroll }), [suspendAutoScroll]);
+  useImperativeHandle(ref, () => ({ suspendAutoScroll, scrollToBottom: followAfterContentSwap }), [
+    followAfterContentSwap,
+    suspendAutoScroll,
+  ]);
 
   const activeUserMessageIndex = useActiveUserMessageIndex({
     isMinimal,
