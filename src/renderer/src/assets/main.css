@@ -167,8 +167,10 @@
     @apply border-border outline-ring/50;
   }
 
+  /* The app's icon weight. A stylesheet rule beats the `stroke` attribute
+     Tabler's icons write, so this is the number that decides how they look. */
   .tabler-icon {
-    stroke-width: 1.25;
+    stroke-width: 1.5;
   }
 
   html {

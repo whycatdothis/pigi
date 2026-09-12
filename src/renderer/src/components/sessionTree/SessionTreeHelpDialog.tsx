@@ -1,19 +1,12 @@
 import React from 'react';
-import {
-  IconArrowsMinimize,
-  IconArrowFork,
-  IconBinaryTree2,
-  IconHistory,
-  IconQuestionMark,
-} from '@tabler/icons-react';
+import { IconArrowsMinimize, IconHistory, IconQuestionMark } from '@tabler/icons-react';
 import { cn } from '../../lib/utils';
 import { useSessionTreeHelp } from './sessionTreeHelp';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
+import { SessionForkIcon, SessionTreeIcon } from './sessionTreeIcons';
 
 interface HelpPoint {
   Icon: React.ComponentType<{ size?: number; className?: string }>;
-  /** Extra classes for the glyph itself, e.g. the fork's quarter turn. */
-  iconClassName?: string;
   title: string;
   body: string;
 }
@@ -30,8 +23,7 @@ const HELP_POINTS: HelpPoint[] = [
     body: 'When a jump would leave messages behind, pigi offers to summarize them into the context. Skipping is fine too: a summary only changes what the model sees, never the tree.',
   },
   {
-    Icon: IconArrowFork,
-    iconClassName: 'rotate-90',
+    Icon: SessionForkIcon,
     title: 'Keep going from anywhere',
     body: 'The next message you send after a jump starts a new branch. From that branch you can jump to any node of any other branch at any time.',
   },
@@ -82,7 +74,7 @@ export default function SessionTreeHelpDialog({
       <DialogContent className="max-w-[520px]" data-testid="session-tree-help">
         <DialogHeader className="gap-1">
           <DialogTitle className="flex items-center gap-2 text-sm">
-            <IconBinaryTree2 size={16} stroke={1.5} className="shrink-0 text-muted-foreground" />
+            <SessionTreeIcon size={16} className="shrink-0 text-muted-foreground" />
             <span>Tree: a time machine for this session</span>
           </DialogTitle>
           <DialogDescription className="sr-only">
@@ -91,10 +83,10 @@ export default function SessionTreeHelpDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-3">
-          {HELP_POINTS.map(({ Icon, iconClassName, title, body }) => (
+          {HELP_POINTS.map(({ Icon, title, body }) => (
             <div key={title} className="flex gap-3">
               <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                <Icon size={14} className={iconClassName} />
+                <Icon size={14} />
               </span>
               <span className="flex min-w-0 flex-col gap-0.5">
                 <span className="text-[13px] font-medium text-foreground">{title}</span>

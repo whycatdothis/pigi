@@ -1,12 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  IconArrowFork,
-  IconBinaryTree2,
-  IconCheck,
-  IconCopy,
-  IconSparkles,
-  IconTerminal2,
-} from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconSparkles, IconTerminal2 } from '@tabler/icons-react';
 import {
   type SystemNode,
   type TranscriptNode,
@@ -15,6 +8,7 @@ import {
 import { isNavigableNode } from '../../lib/sessionTreeLayout';
 import { useMessageActions } from './messageActions';
 import { SessionTreeHelpButton } from '../sessionTree/SessionTreeHelpDialog';
+import { SessionForkIcon, SessionTreeIcon } from '../sessionTree/sessionTreeIcons';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import BranchSummaryCard from './branchSummaryCard';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
@@ -178,7 +172,7 @@ export function MessageToolbar({ node }: { node: TranscriptNode }): React.JSX.El
                       id: 'tree' as const,
                       label: disabledReason ?? 'Move the session here',
                       hint: treeHint,
-                      icon: <IconBinaryTree2 size={ACTION_ICON_SIZE} />,
+                      icon: <SessionTreeIcon size={ACTION_ICON_SIZE} />,
                       showHelp: true,
                       run: () => onTree(node),
                     },
@@ -189,7 +183,7 @@ export function MessageToolbar({ node }: { node: TranscriptNode }): React.JSX.El
                     {
                       id: 'fork' as const,
                       label: disabledReason ?? 'Fork this msg in new session',
-                      icon: <IconArrowFork size={ACTION_ICON_SIZE} className="rotate-90" />,
+                      icon: <SessionForkIcon size={ACTION_ICON_SIZE} />,
                       run: () => onFork(node),
                     },
                   ]

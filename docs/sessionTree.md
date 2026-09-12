@@ -40,8 +40,8 @@ through the session tree dialog.
 ### 3.1 Message hover toolbar
 
 Every message row already shows a copy button on hover. Extend it with `tree`
-and `fork` (`IconBinaryTree2` / `IconArrowFork` rotated a quarter turn, 15px
-icons in 23px buttons, no
+and `fork` (`SessionTreeIcon` / `SessionForkIcon` from
+`sessionTree/sessionTreeIcons.tsx`, 15px icons in 23px buttons, no
 visible text label). All three share one look: a 6px-radius hover background
 (`hover:bg-muted`), 4px between buttons, and a 2px gap above the toolbar row
 (plus the buttons' 4px padding) so the icons sit the same distance below a user
@@ -117,17 +117,25 @@ abandoned branch` or `Wait for compaction to finish`.
 ### 3.2 Session toolbar
 
 `SessionToolbar` gains one icon button between the title area and the terminal
-button, opening the session tree dialog: `IconBinaryTree2`, 16px, `stroke={1.5}`,
+button, opening the session tree dialog: `SessionTreeIcon`, 16px,
 styled like the terminal button. No badge, no shortcut. `/tree` is also
 registered as a built-in slash command.
 
 Icon assignment (see §3.1 for the hover toolbar):
 
-| Action | Icon                                | Why                                                                                                                                                                                                                                                   |
-| ------ | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| tree   | `IconBinaryTree2`                   | a root node with two children — unmistakably a tree, and a different silhouette from the git glyphs in the same UI (`IconSitemap` was the runner-up: clearer boxes, but reads as a layout icon)                                                       |
-| fork   | `IconArrowFork` rotated `rotate-90` | one stem splitting into two arrows, turned so the arms point the way the message goes (right, out of the branch you are on). `IconGitFork` was the first pick: correct, but the git glyphs are also the branch-status vocabulary elsewhere in the app |
-| —      | `IconGitBranch`                     | **not** used for either: the chat input already uses it for the git branch status chip                                                                                                                                                                |
+Both glyphs live in `components/sessionTree/sessionTreeIcons.tsx` and every surface takes them from there: the message actions, the toolbar button, the `Tree 1` headers and the help dialog. Nothing imports the Tabler icons for these two directly any more, so the pair cannot drift apart.
+
+| Action | Icon (Tabler)                     | Why                                                                                                                                                                                                                                                   |
+| ------ | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| tree   | `IconBinaryTree2`, `scale-[1.15]` | a root node with two children — unmistakably a tree, and a different silhouette from the git glyphs in the same UI (`IconSitemap` was the runner-up: clearer boxes, but reads as a layout icon)                                                       |
+| fork   | `IconArrowFork`, `rotate-90`      | one stem splitting into two arrows, turned so the arms point the way the message goes (right, out of the branch you are on). `IconGitFork` was the first pick: correct, but the git glyphs are also the branch-status vocabulary elsewhere in the app |
+| —      | `IconGitBranch`                   | **not** used for either: the chat input already uses it for the git branch status chip                                                                                                                                                                |
+
+The tree's `scale-[1.15]` is not a size change: the box stays whatever `size` asks
+for, and `transform` never affects layout. It corrects the drawing, which is
+smaller than the icons it sits next to — 16 of the 24 units in its viewBox, where
+`copy` and the fork use 18 — so its height ends up level with them instead of
+reading as the small one in the row.
 
 ### 3.3 Session tree dialog
 
@@ -190,7 +198,7 @@ what a query is matched against, which keeps `bash` able to find those rows.
   children). `←`/`→` fold and unfold the focused row. A chevron is 16px at the
   default stroke weight: thicker than the icons around it would read as bold.
 - Separate roots (returning to before the first message starts a new tree) each
-  get a sticky header (`IconBinaryTree2`, the same glyph as the toolbar button):
+  get a sticky header (`SessionTreeIcon`, the same glyph as the toolbar button):
   `Tree 1`, `Tree 2`, … numbered from the oldest, with the
   row count and the tree's time span, in the accent colour when the current leaf
   lives there. Numbers follow session order, never the position of the leaf, so a
@@ -820,7 +828,8 @@ comparison for `parentSessionPath` is case-insensitive on Windows.
 | `src/renderer/src/state/transcriptController.ts`                                 | `sdkTimestamp`, `hasToolCalls`, `branchSummary` → system node                  |
 | `src/renderer/src/components/message/messageBubbles.tsx`                         | `MessageToolbar({ node })` with tree/fork, `SystemBubble({ node })`            |
 | `src/renderer/src/components/transcript/messageListRows.tsx` / `minimalView.tsx` | pass nodes to the toolbar                                                      |
-| `src/renderer/src/components/session/SessionToolbar.tsx`                         | tree button (`IconBinaryTree2`) + disabled reason                              |
+| `src/renderer/src/components/session/SessionToolbar.tsx`                         | tree button (`SessionTreeIcon`) + disabled reason                              |
+| `src/renderer/src/components/sessionTree/sessionTreeIcons.tsx`                   | the tree / fork glyphs, defined once for every surface                         |
 | `src/renderer/src/components/transcript/StreamingQueue.tsx`                      | `busyLabel` prop                                                               |
 | `src/renderer/src/components/transcript/MessageList.tsx`                         | `MessageListHandle.suspendAutoScroll()`                                        |
 | `src/renderer/src/components/transcript/messageSearchTargets.ts`                 | search the branch summary body                                                 |

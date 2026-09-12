@@ -20,8 +20,9 @@
 
 - The session tree's fold chevrons are bigger (at the normal stroke weight, not bold), and the one on a row folds from a hit area as tall as the row, so a near miss no longer moves the session by accident. Hovering a row replaces the leaf's own highlight while the pointer is on it
 - Tooltips use the app's surface colour instead of black
+- Icons are drawn a little bolder across the app (1.5, from 1.25)
 - The `tree` / `fork` labels on a message follow the pointer between the two icons: they share one tooltip, so moving from one to the other now swaps the label instead of leaving the first one up and never updating
-- The tree and fork glyphs read better at a glance: `binary-tree-2` for the tree and an arrow fork turned on its side (`rotate-90`), so the arms of the fork point the way the message goes. Used everywhere they appear: the message actions, the toolbar's tree button, the `Tree 1` headers and the help dialog
+- The tree and fork glyphs read better at a glance: `binary-tree-2` for the tree — drawn a touch larger, so it sits level with the icons next to it — and an arrow fork turned on its side, so the arms point the way the message goes. Used everywhere they appear: the message actions, the toolbar's tree button, the `Tree 1` headers and the help dialog
 - Session tree rows draw their forks as one line per branch: a hairline hangs from the fold chevron of the message a fork starts at, elbows into each of its children and stops at the last one, so a branch reads as a single continuous line instead of a line redrawn by every row it passes
 - Session tree tool rows no longer repeat their tool's name next to the command (`bash`, `read`): the command already starts with it
 - Session tree filter chips are rounded rectangles instead of pills
