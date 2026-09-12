@@ -19,7 +19,7 @@
 - Hovering a row in the session tree reads clearly now: the highlight went from a barely-there tint to a visible one, the same on every row — the position you are on is marked by a `Current` chip instead of a tinted row, so hovering it no longer looks different from hovering any other row
 
 - The session tree's fold chevrons are bigger (at the normal stroke weight, not bold), and the one on a row folds from a hit area as tall as the row, so a near miss no longer moves the session by accident. Hovering a row replaces the leaf's own highlight while the pointer is on it
-- Tooltips use the app's surface colour instead of black
+- Tooltips use the app's surface colour instead of black, without the little arrow, and sit a few pixels further from what they point at
 - Icons are drawn a little bolder across the app (1.5, from 1.25)
 - The `tree` / `fork` labels on a message follow the pointer between the two icons: they share one tooltip, so moving from one to the other now swaps the label instead of leaving the first one up and never updating
 - The tree and fork glyphs read better at a glance: `binary-tree-2` for the tree — drawn a touch larger, so it sits level with the icons next to it — and an arrow fork turned on its side, so the arms point the way the message goes. Used everywhere they appear: the message actions, the toolbar's tree button, the `Tree 1` headers and the help dialog
@@ -36,6 +36,12 @@
 
 ### Fixed
 
+- A chat forked from a first message could not send anything: after the new chat opened (its message waiting in the input box), every prompt was held back for a session that never finished starting, and the tree and fork actions answered `The session is still starting`
+- The session tree ignored the arrow keys: `↑` / `↓` / `Home` / `End` did nothing until you searched, and now move the cursor in the tree as expected
+- The branch line highlighted the wrong row when nothing was hovered: a plain chain of messages sits at one indent level, and the mark stayed on the oldest row of it instead of the newest
+- The pinned ancestors of the topmost row went stale after a search, a filter or folding a version: they were computed from row offsets measured before the rows changed, and could name a row that is no longer on screen
+- The session tree no longer folds your expanded rows back up when the session grows while the dialog is open — a refresh adds its rows in place, only a filter or another session starts the list fresh
+- A move you cancel, or one that fails, leaves the transcript where it was and keeps following the end: the suspended follow is given back instead of staying off until you scroll
 - Draft text is no longer lost when switching between a session and the new-chat screen
 - Narrowing the window keeps the chat input and the streaming queue aligned with the message list content: the input no longer shrinks by a wider margin than the transcript while the window is resized
 

@@ -67,7 +67,11 @@ interface PinnedAncestorsProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   parentById: ReadonlyMap<string, string>;
   depthById: ReadonlyMap<string, number>;
-  /** Folding and filtering change this, and the row offsets with it. */
+  /**
+   * The number of rows the tree instance reports; a first measurement after a
+   * fold the tree owns. What is actually in the list is read from the DOM (see
+   * `measure`), so this is a starting point, not the source of truth.
+   */
   visibleRowCount: number;
   rowContext: SessionTreeRowContext;
 }
@@ -126,23 +130,28 @@ export function PinnedAncestors({
    * Read every row's offset once per row set.
    *
    * Re-measuring on scroll would be the expensive part of this feature (a
-   * forced layout per frame), so the offsets are cached until the list's rows
-   * change — which folding and filtering do, and which `visibleRowCount` tells
-   * us about without any DOM work.
+   * forced layout per frame), so the offsets are cached until the rows change
+   * — which folding, filtering, a live refresh and the search box all do, and
+   * which the id list read below detects without touching layout.
    */
   const measure = useCallback((): void => {
     const container = containerRef.current;
     if (!container) return;
-    const elements = container.querySelectorAll<HTMLElement>('[data-tree-row-id]');
-    if (elements.length === layoutRef.current.ids.length && layoutRef.current.tops.length > 0) {
+    const elements = [...container.querySelectorAll<HTMLElement>('[data-tree-row-id]')];
+    const ids = elements.map((element) => element.dataset.treeRowId ?? '');
+    const previous = layoutRef.current.ids;
+    // Reading every row's offset forces a layout, so it only happens when the
+    // rows themselves changed. Counting them is not enough: a filter can swap
+    // one row for another, and folding a whole tree leaves the count alone.
+    if (ids.length === previous.length && ids.every((id, index) => id === previous[index])) {
       return;
     }
     const containerTop = container.getBoundingClientRect().top;
     const header = container.querySelector<HTMLElement>('[data-testid=session-tree-root-header]');
     const measuredHeaderHeight = header?.getBoundingClientRect().height ?? 0;
     layoutRef.current = {
-      ids: [...elements].map((element) => element.dataset.treeRowId ?? ''),
-      tops: [...elements].map((element) => element.getBoundingClientRect().top - containerTop),
+      ids,
+      tops: elements.map((element) => element.getBoundingClientRect().top - containerTop),
       headerHeight: measuredHeaderHeight,
     };
     setHeaderHeight(measuredHeaderHeight);
@@ -152,6 +161,21 @@ export function PinnedAncestors({
   useLayoutEffect(() => {
     measure();
   }, [measure, visibleRowCount]);
+
+  // Which rows are in the list — a live refresh, a filter, a fold — is only
+  // visible in the DOM, so the layout follows the DOM instead of guessing from
+  // state. Moving the pointer over the rows mutates nothing, so this stays quiet.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new MutationObserver(() => {
+      measure();
+    });
+    observer.observe(container, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+    };
+  }, [containerRef, measure]);
 
   useEffect(() => {
     const container = containerRef.current;

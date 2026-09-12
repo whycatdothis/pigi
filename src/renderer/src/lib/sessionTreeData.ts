@@ -449,7 +449,10 @@ function findDeepestActiveRowId(
   for (const itemId of depthById.keys()) {
     if (!data.activePathIds.has(itemId)) continue;
     const depth = depthById.get(itemId) ?? 0;
-    if (depth > deepestDepth) {
+    // `>=`: depth is the display indentation, which a lone child does not
+    // increase, so a plain chain has every row at the same depth and the mark
+    // belongs on the last of them — the closest to the leaf.
+    if (depth >= deepestDepth) {
       deepestDepth = depth;
       deepestId = itemId;
     }
@@ -541,6 +544,23 @@ function collectActivePathIds(
   return ids;
 }
 
+// Built once: a row calls this on every render, and constructing a formatter is
+// the expensive part of it.
+const TIME_FORMAT = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  hourCycle: 'h23',
+  minute: '2-digit',
+});
+const DATE_TIME_FORMAT = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+});
+const DATE_TIME_FORMAT_THIS_YEAR = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+});
+
 export function formatSessionTreeTime(timestamp: number): string {
   const date = new Date(timestamp);
   const now = new Date();
@@ -549,17 +569,11 @@ export function formatSessionTreeTime(timestamp: number): string {
     date.getMonth() === now.getMonth() &&
     date.getDate() === now.getDate();
   if (sameDay) {
-    return new Intl.DateTimeFormat(undefined, {
-      hour: '2-digit',
-      hourCycle: 'h23',
-      minute: '2-digit',
-    }).format(date);
+    return TIME_FORMAT.format(date);
   }
-  return new Intl.DateTimeFormat(undefined, {
-    year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(date);
+  return (
+    date.getFullYear() === now.getFullYear() ? DATE_TIME_FORMAT_THIS_YEAR : DATE_TIME_FORMAT
+  ).format(date);
 }
 
 /** The matched entries plus every ancestor needed to reach them. */
@@ -579,13 +593,9 @@ function collectAncestorIds(
 }
 
 /** The string a query is matched against: the row's label and text. */
-export function fuzzyTarget(entry: SessionTreeEntryDto): string {
+function fuzzyTarget(entry: SessionTreeEntryDto): string {
   const description = describeSessionTreeEntry(entry);
   return description.label ? `${description.label} ${description.text}` : description.text;
-}
-
-export function matchesSessionTreeQuery(entry: SessionTreeEntryDto, query: string): boolean {
-  return fuzzyTarget(entry).toLowerCase().includes(query);
 }
 
 function findSurvivingParentId(

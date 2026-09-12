@@ -219,7 +219,10 @@ what a query is matched against, which keeps `bash` able to find those rows.
   row item: folding one root row of a filtered tree would hide part of it, and
   the rows of a folded tree should cost nothing to render. Unfolding is one click
   on the header, and a live refresh while the dialog is open only unfolds newly
-  added rows — a fold the user made is never undone.
+  added rows — a fold the user made is never undone. Only a filter or another
+  session remounts the list (a different dataset); a refresh is the same dataset
+  with more rows, so it updates in place and the rows the reader opened stay
+  open.
 - Keyboard: `↑`/`↓` move, `Home`/`End` jump, `←`/`→` fold, `Enter` navigates,
   typeahead is off (the search field owns typing). `↓` from the search field
   drops into the tree.
@@ -345,12 +348,14 @@ Implementation:
   (`--dialog-solid`, like the headers) so rows scroll underneath it, and its rows
   are clickable copies that move the session; they are `aria-hidden` because the
   rows they copy are right there in the tree.
-- The band's offsets are measured, not modelled: a `useLayoutEffect` reads every
-  row's `offsetTop` and the header height once per row set (folding and filtering
-  change `visibleRowCount`, which is what the effect keys on) into a ref, and a
-  scroll listener picks the row at the top of the readable area on an animation
-  frame. Re-measuring per scroll frame would force a layout every frame, which is
-  the expensive half of a feature like this.
+- The band's offsets are measured, not modelled: every row's offset (and the
+  header height) is read once per row set into a ref, and a scroll listener picks
+  the row at the top of the readable area on an animation frame. Re-measuring per
+  scroll frame would force a layout every frame, which is the expensive half of a
+  feature like this. The row set is read from the DOM (`MutationObserver` on the
+  list) and compared by row id, not by count: folding a whole tree, a filter that
+  swaps one row for another and a live refresh all change the rows, and any of
+  them measured stale would pin the ancestors of a row that is no longer there.
 - The structure data is just the display tree plus the set of entries on the
   active path (`activePathIds`); the renderer derives the line geometry from the
   nesting level it is rendering, so `sessionTreeData.ts` no longer computes
@@ -376,13 +381,15 @@ Implementation:
   dialog is up fills in by itself.
 - Every read is a **fresh list**: the data loader reads the dataset directly
   (no cache and no `rebuildTree()`), and the list is keyed by
-  `session path + query + kinds + read counter`, so a new dataset mounts new tree
-  state. The tree library caches children ids per item, and a refresh that only
-  re-expands ids leaves the newly appended rows out; remounting cannot. Only the
-  first read of a visit scrolls to the current row, so a refresh never yanks the
-  list out from under the user. Unknown ids answer with an empty item (a hot
-  reload must not crash a row), and the loaded tree carries the path it came
-  from, so switching sessions cannot show the previous session's tree.
+  `session path + query + kinds`, so a filter or another session mounts new tree
+  state while a live refresh keeps the expansion the reader set. The tree library
+  caches children ids per item, and a refresh that only re-expands ids leaves the
+  newly appended rows out; reading through the loader is what makes the refresh
+  land in the rendered list. Only the first read of a visit scrolls to the current
+  row, so a refresh never yanks the list out from under the user. Unknown ids
+  answer with an empty item (a hot reload must not crash a row), and the loaded
+  tree carries the path it came from, so switching sessions cannot show the
+  previous session's tree.
 - Fixed row height (32px), plain buttons, no virtualizer, no per-row popovers.
 
 ### 3.10 The "?" explanation
@@ -494,7 +501,9 @@ match the old one (a ResizeObserver only fires on a size change).
 
 The reader's own scroll is not overridden: this happens only on a deliberate
 move, and follow stays on afterwards, exactly as it would after sending a
-message.
+message. A move that is cancelled or fails leaves the screen exactly as it was,
+so it gives back the follow it suspended — from the position the reader is
+actually at, which is the same spot the move started from.
 
 ## 4. Architecture
 
@@ -803,43 +812,43 @@ comparison for `parentSessionPath` is case-insensitive on Windows.
 
 ## 7. File changes
 
-| File                                                                             | Change                                                                         |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `src/shared/ipcContract.ts`                                                      | 4 tree commands, `create_session.parentSessionPath`, tree DTOs                 |
-| `src/shared/messageText.ts` (new)                                                | `extractMessageText`, `clipText`, `toSingleLine`, shared by utility + renderer |
-| `src/main/ipc/piAgentBridge.ts`                                                  | forward `parentSessionPath`                                                    |
-| `src/processes/utility/piAgent.ts`                                               | 4 tree command handlers, `fork_session`, `create_session` parent               |
-| `src/processes/utility/sessionTree.ts` (new)                                     | pure `buildSessionTree(entries, leafId)`, `readEntryText`, `resolveForkTarget` |
-| `src/renderer/src/services/piAgentClient.ts`                                     | 4 tree wrappers + `forkSession`, `createSession` parent                        |
-| `src/renderer/src/lib/sessionTreeLayout.ts` (new)                                | pure: abandoned count, node → entry id, navigability                           |
-| `src/renderer/src/lib/sessionTreeData.ts` (new)                                  | pure: headless-tree data loader, display tree, active path, filter, row text   |
-| `src/renderer/src/lib/sessionLineage.ts` (new)                                   | pure: lineage build + flatten                                                  |
-| `src/renderer/src/components/sessionTree/SessionTreeDialog.tsx` (new)            | the dialog shell: the read behind it, a visit's state, the preview card        |
-| `src/renderer/src/components/sessionTree/SessionTreeList.tsx`                    | the scrolling list: the tree, its version headers, branch lines, row recursion |
-| `src/renderer/src/components/sessionTree/SessionTreeRow.tsx`                     | one row and its insides, shared with the pinned copies                         |
-| `src/renderer/src/components/sessionTree/SessionTreeHeader.tsx`                  | the `Tree n` section header                                                    |
-| `src/renderer/src/components/sessionTree/SessionTreePinnedBand.tsx`              | the ancestors pinned to the top of the list                                    |
-| `src/renderer/src/components/sessionTree/SessionTreeToolbar.tsx`                 | search, row count, kind filter chips                                           |
-| `src/renderer/src/components/sessionTree/sessionTreeGeometry.ts` (new)           | row/line/preview-card geometry, shared by the components above                 |
-| `src/renderer/src/hooks/useSessionTreePreview.ts` (new)                          | the hover preview: which row has a card, where it sits, what it says           |
-| `src/renderer/src/components/sessionTree/BranchSummaryPrompt.tsx` (new)          | the leave-branch prompt                                                        |
-| `src/renderer/src/components/message/branchSummaryCard.tsx` (new)                | `Branch summary` card                                                          |
-| `src/renderer/src/components/message/messageActions.tsx` (new)                   | message-row actions context                                                    |
-| `src/renderer/src/state/transcriptController.ts`                                 | `sdkTimestamp`, `hasToolCalls`, `branchSummary` → system node                  |
-| `src/renderer/src/components/message/messageBubbles.tsx`                         | `MessageToolbar({ node })` with tree/fork, `SystemBubble({ node })`            |
-| `src/renderer/src/components/transcript/messageListRows.tsx` / `minimalView.tsx` | pass nodes to the toolbar                                                      |
-| `src/renderer/src/components/session/SessionToolbar.tsx`                         | tree button (`SessionTreeIcon`) + disabled reason                              |
-| `src/renderer/src/components/sessionTree/sessionTreeIcons.tsx`                   | the tree / fork glyphs, defined once for every surface                         |
-| `src/renderer/src/components/transcript/StreamingQueue.tsx`                      | `busyLabel` prop                                                               |
-| `src/renderer/src/components/transcript/MessageList.tsx`                         | `MessageListHandle.suspendAutoScroll()`                                        |
-| `src/renderer/src/components/transcript/messageSearchTargets.ts`                 | search the branch summary body                                                 |
-| `src/renderer/src/components/sidebar/sessionList.tsx`                            | lineage prefix, one row per fork                                               |
-| `src/renderer/src/lib/projectSessions.ts`                                        | carry `parentSessionPath` for a running session                                |
-| `src/renderer/src/state/appStore.ts`                                             | `SessionEntry.parentSessionPath`                                               |
-| `src/renderer/src/lib/toolDisplay.ts`                                            | `getToolCommandPartsForTool(name, args)` for tree rows                         |
-| `src/renderer/src/lib/slashCommands.ts`                                          | `/tree`                                                                        |
+| File                                                                             | Change                                                                                                                                 |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/ipcContract.ts`                                                      | 4 tree commands, `create_session.parentSessionPath`, tree DTOs                                                                         |
+| `src/shared/messageText.ts` (new)                                                | `extractMessageText`, `clipText`, `toSingleLine`, shared by utility + renderer                                                         |
+| `src/main/ipc/piAgentBridge.ts`                                                  | forward `parentSessionPath`                                                                                                            |
+| `src/processes/utility/piAgent.ts`                                               | 4 tree command handlers, `fork_session`, `create_session` parent                                                                       |
+| `src/processes/utility/sessionTree.ts` (new)                                     | pure `buildSessionTree(entries, leafId)`, `readEntryText`, `resolveForkTarget`                                                         |
+| `src/renderer/src/services/piAgentClient.ts`                                     | 4 tree wrappers + `forkSession`, `createSession` parent                                                                                |
+| `src/renderer/src/lib/sessionTreeLayout.ts` (new)                                | pure: abandoned count, node → entry id, navigability                                                                                   |
+| `src/renderer/src/lib/sessionTreeData.ts` (new)                                  | pure: headless-tree data loader, display tree, active path, filter, row text                                                           |
+| `src/renderer/src/lib/sessionLineage.ts` (new)                                   | pure: lineage build + flatten                                                                                                          |
+| `src/renderer/src/components/sessionTree/SessionTreeDialog.tsx` (new)            | the dialog shell: the read behind it, a visit's state, the preview card                                                                |
+| `src/renderer/src/components/sessionTree/SessionTreeList.tsx`                    | the scrolling list: the tree, its version headers, branch lines, row recursion                                                         |
+| `src/renderer/src/components/sessionTree/SessionTreeRow.tsx`                     | one row and its insides, shared with the pinned copies                                                                                 |
+| `src/renderer/src/components/sessionTree/SessionTreeHeader.tsx`                  | the `Tree n` section header                                                                                                            |
+| `src/renderer/src/components/sessionTree/SessionTreePinnedBand.tsx`              | the ancestors pinned to the top of the list                                                                                            |
+| `src/renderer/src/components/sessionTree/SessionTreeToolbar.tsx`                 | search, row count, kind filter chips                                                                                                   |
+| `src/renderer/src/components/sessionTree/sessionTreeGeometry.ts` (new)           | row/line/preview-card geometry, shared by the components above                                                                         |
+| `src/renderer/src/hooks/useSessionTreePreview.ts` (new)                          | the hover preview: which row has a card, where it sits, what it says                                                                   |
+| `src/renderer/src/components/sessionTree/BranchSummaryPrompt.tsx` (new)          | the leave-branch prompt                                                                                                                |
+| `src/renderer/src/components/message/branchSummaryCard.tsx` (new)                | `Branch summary` card                                                                                                                  |
+| `src/renderer/src/components/message/messageActions.tsx` (new)                   | message-row actions context                                                                                                            |
+| `src/renderer/src/state/transcriptController.ts`                                 | `sdkTimestamp`, `hasToolCalls`, `branchSummary` → system node                                                                          |
+| `src/renderer/src/components/message/messageBubbles.tsx`                         | `MessageToolbar({ node })` with tree/fork, `SystemBubble({ node })`                                                                    |
+| `src/renderer/src/components/transcript/messageListRows.tsx` / `minimalView.tsx` | pass nodes to the toolbar                                                                                                              |
+| `src/renderer/src/components/session/SessionToolbar.tsx`                         | tree button (`SessionTreeIcon`) + disabled reason                                                                                      |
+| `src/renderer/src/components/sessionTree/sessionTreeIcons.tsx`                   | the tree / fork glyphs, defined once for every surface                                                                                 |
+| `src/renderer/src/components/transcript/StreamingQueue.tsx`                      | `busyLabel` prop                                                                                                                       |
+| `src/renderer/src/components/transcript/MessageList.tsx`                         | `MessageListHandle.suspendAutoScroll()`                                                                                                |
+| `src/renderer/src/components/transcript/messageSearchTargets.ts`                 | search the branch summary body                                                                                                         |
+| `src/renderer/src/components/sidebar/sessionList.tsx`                            | lineage prefix, one row per fork                                                                                                       |
+| `src/renderer/src/lib/projectSessions.ts`                                        | carry `parentSessionPath` for a running session                                                                                        |
+| `src/renderer/src/state/appStore.ts`                                             | `SessionEntry.parentSessionPath`                                                                                                       |
+| `src/renderer/src/lib/toolDisplay.ts`                                            | `getToolCommandPartsForTool(name, args)` for tree rows                                                                                 |
+| `src/renderer/src/lib/slashCommands.ts`                                          | `/tree`                                                                                                                                |
 | `src/renderer/src/App.tsx`                                                       | tree navigation + fork, summary prompt state, busy state, actions provider     |
-| `docs/architecture.md`                                                           | new "Session tree and fork" section (phase 3)                                  |
+| `docs/architecture.md`                                                           | new "Session tree and fork" section (phase 3)                                                                                          |
 
 Dependencies added for the dialog: `@headless-tree/core` and
 `@headless-tree/react` (MIT, ~19KB gzipped together). They own tree state and
@@ -867,6 +876,10 @@ push together with the typecheck, lint and format checks:
   when the leaf is not a row, tool arguments carried onto result rows,
   `readEntryText` including truncation, and `resolveForkTarget` (forking at an
   entry vs. before it, and which fork point hands a user message back).
+- `lib/sessionTreeLayout.test.ts` — the matching every navigation depends on: a
+  user or assistant row resolves to its entry by SDK timestamp, a tool row by its
+  tool call, a row carrying neither resolves to nothing, and which rows are
+  navigable at all.
 - `lib/sessionLineage.test.ts` — nesting a fork under its parent, the order of a
   block (subtree activity, not the parent's own timestamp), a missing parent and
   a parent cycle both rendering as roots, Windows path case, and the connector
@@ -917,6 +930,15 @@ app; those checks are the ones in the list below.
   end, follow off), pick a deep row → `scrollTop === scrollHeight −
 clientHeight` (8535/8535), scroll button hidden (follow on). The same jump
   from a transcript shorter than the viewport (0/0) also ends at the bottom.
+- The tree's keyboard cursor moves on the container's own hotkeys (`↑`/`↓`,
+  `Home`/`End`), checked by dispatching a keydown on `[role=tree]` in a scratch
+  session: the library only listens on the element it was handed by
+  `registerElement`, so the list's `ref` has to give the element to both owners.
+- Fork of a first message (the empty new chat that `needsNewSession` creates):
+  once it is on screen with its text in the input box, the toolbar's tree button
+  opens the dialog — no `The session is still starting`. This app created that
+  session, so it must not be marked as waiting for a resume; marking it stranded
+  every prompt in the buffer behind a flush that never came.
 - Fork, on a 66-message scratch session:
   - `fork` on a user message writes a new file whose header carries
     `parentSession` (the source), whose entries end at the message _before_ the

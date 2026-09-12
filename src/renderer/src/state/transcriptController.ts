@@ -86,7 +86,7 @@ export interface SystemNode {
    *  become a logical turn boundary (for example, automatic compaction). */
   continuesUserTurn?: boolean;
   /** Which marker this is; `branch` renders as a collapsible card. */
-  kind?: 'compaction' | 'branch';
+  kind?: 'branch';
   /** Long-form body (the branch summary text). */
   detail?: string;
 }

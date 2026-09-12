@@ -64,6 +64,12 @@ export interface MessageListScrollController {
   showScrollButton: boolean;
   /** Disables bottom auto-follow (search jump, minimap jump, group toggle...). */
   suspendAutoScroll: () => void;
+  /**
+   * Re-arm a follow that `suspendAutoScroll` stopped, for a move that then did
+   * not happen. Nothing on screen changed, so being at the end still means the
+   * reader was following.
+   */
+  restoreFollow: () => void;
   /** Follows the bottom across a transcript replacement (tree navigation). */
   followAfterContentSwap: () => void;
   handleScrollToBottom: () => void;
@@ -703,10 +709,16 @@ export function useMessageListScrollController({
     autoScrollRef.current = false;
   }, []);
 
+  const restoreFollow = useCallback(() => {
+    const container = containerRef.current;
+    if (container && isAtBottom(container)) engageFollow();
+  }, [containerRef, engageFollow]);
+
   return {
     topPaddingPx,
     showScrollButton,
     suspendAutoScroll,
+    restoreFollow,
     followAfterContentSwap: handleFollowAfterContentSwap,
     handleScrollToBottom,
     handleMinimalTurnEnd,
