@@ -1,6 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { IconCheck, IconCopy, IconSparkles, IconTerminal2 } from '@tabler/icons-react';
-import { type UserNode } from '../state/transcriptController';
+import {
+  IconBinaryTree,
+  IconCheck,
+  IconCopy,
+  IconGitFork,
+  IconSparkles,
+  IconTerminal2,
+} from '@tabler/icons-react';
+import { type SystemNode, type TranscriptNode, type UserNode } from '../state/transcriptController';
+import { isNavigableNode } from '../lib/sessionTreeLayout';
+import { useMessageActions } from './messageActions';
+import { SessionTreeHelpButton } from './SessionTreeHelpDialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import BranchSummaryCard from './branchSummaryCard';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import MarkdownMessage from './markdownMessage';
 import OverflowClamp from './overflowClamp';
@@ -26,20 +38,135 @@ function parseSlashCommand(text: string): { name: string; args: string } | null 
 
 const USER_MESSAGE_MAX_HEIGHT_VH = 0.2;
 
-export function MessageToolbar({ text }: { text: string }): React.JSX.Element {
+/** The message has no session entry yet, so there is nothing to navigate to. */
+function isInFlight(node: TranscriptNode): boolean {
+  if (node.role === 'assistant') return node.isStreaming;
+  if (node.role === 'tool') return node.status === 'running';
+  return false;
+}
+
+/**
+ * Uniform spacing between a message's content and its action icons. Applied
+ * inside the toolbar so every placement (user bubble, assistant text, tool
+ * block) has the same clear gap.
+ */
+const ACTION_TOOLBAR_OFFSET_CLASS_NAME = 'mt-0.5';
+
+const ACTION_ICON_SIZE = 15;
+
+const ACTION_BUTTON_CLASS_NAME =
+  'flex items-center justify-center rounded-sm p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40';
+
+/**
+ * Long delay: these are destructive-ish actions next to every message, so the
+ * label should only show up when the pointer is really parked on the icon.
+ */
+const ACTION_TOOLTIP_DELAY_MS = 1000;
+
+/**
+ * Hover label for an icon-only message action. Disabled buttons do not receive
+ * pointer events, so the trigger wraps the button instead of being the button.
+ */
+function MessageActionTooltip({
+  label,
+  hint,
+  disabled,
+  showHelp = false,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  disabled: boolean;
+  /** Adds the "?" that explains the session tree. */
+  showHelp?: boolean;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger asChild>
+        <span className={disabled ? 'inline-flex cursor-not-allowed' : 'inline-flex'}>
+          {children}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" collisionPadding={8} className="items-center gap-3">
+        <span className="flex flex-col items-start gap-0.5">
+          {/* display:block so the tooltip's two lines do not glue together */}
+          <span className="block">{label}</span>
+          {hint && <span className="block opacity-70">{hint}</span>}
+        </span>
+        {showHelp && <SessionTreeHelpButton onBeforeOpen={() => setOpen(false)} />}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+export function MessageToolbar({ node }: { node: TranscriptNode }): React.JSX.Element {
+  const text =
+    node.role === 'tool'
+      ? node.output
+      : node.role === 'assistant'
+        ? node.text || node.thinking
+        : node.text;
   const { copied, copy } = useCopyFeedback(text);
+  const { onTree, onFork, disabledReason } = useMessageActions();
+  const showTreeActions = isNavigableNode(node) && !isInFlight(node);
+  const disabled = disabledReason !== null;
+
+  // Rewinding before a user message is the only case that moves text around,
+  // so it is the only case that needs the extra line.
+  const treeHint =
+    !disabled && node.role === 'user' ? 'This message goes back to the input box' : undefined;
 
   return (
-    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-      <button
-        type="button"
-        className="flex items-center justify-center rounded p-0.5 text-muted-foreground hover:text-foreground"
-        onClick={copy}
-        title="Copy message"
+    <TooltipProvider delayDuration={ACTION_TOOLTIP_DELAY_MS}>
+      <div
+        className={`flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 ${ACTION_TOOLBAR_OFFSET_CLASS_NAME}`}
       >
-        {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-      </button>
-    </div>
+        <button
+          type="button"
+          className={ACTION_BUTTON_CLASS_NAME}
+          onClick={copy}
+          aria-label="Copy message"
+        >
+          {copied ? <IconCheck size={ACTION_ICON_SIZE} /> : <IconCopy size={ACTION_ICON_SIZE} />}
+        </button>
+        {showTreeActions && onTree && (
+          <MessageActionTooltip
+            label={disabledReason ?? 'Move the session here'}
+            hint={treeHint}
+            disabled={disabled}
+            showHelp
+          >
+            <button
+              type="button"
+              className={ACTION_BUTTON_CLASS_NAME}
+              onClick={() => onTree(node)}
+              disabled={disabled}
+              aria-label="Move the session here"
+            >
+              <IconBinaryTree size={ACTION_ICON_SIZE} />
+            </button>
+          </MessageActionTooltip>
+        )}
+        {showTreeActions && onFork && (
+          <MessageActionTooltip
+            label={disabledReason ?? 'Continue in a new chat'}
+            disabled={disabled}
+          >
+            <button
+              type="button"
+              className={ACTION_BUTTON_CLASS_NAME}
+              onClick={() => onFork(node)}
+              disabled={disabled}
+              aria-label="Continue in a new chat"
+            >
+              <IconGitFork size={ACTION_ICON_SIZE} />
+            </button>
+          </MessageActionTooltip>
+        )}
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -208,7 +335,7 @@ export function UserBubble({
           </OverflowClamp>
         </div>
         <div className="flex w-full items-center justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-          <MessageToolbar text={node.text} />
+          <MessageToolbar node={node} />
           <span className="text-xs text-muted-foreground" data-search-ignore>
             {formatUserMessageTime(node.sentAt)}
           </span>
@@ -219,22 +346,24 @@ export function UserBubble({
 }
 
 export function SystemBubble({
-  text,
-  isLoading,
+  node,
   searchQuery,
   activeOccurrenceIndex,
 }: {
-  text: string;
-  isLoading?: boolean;
+  node: SystemNode;
   searchQuery: string;
   activeOccurrenceIndex: number | null;
 }): React.JSX.Element {
+  if (node.kind === 'branch' && node.detail) {
+    return <BranchSummaryCard text={node.detail} />;
+  }
+
   return (
     <div className="flex items-center gap-3 py-2" data-testid="system-message">
       <div className="h-px flex-1 bg-border" />
       <span className="relative shrink-0 text-sm text-muted-foreground overflow-hidden">
-        {highlightMatches(text, searchQuery, activeOccurrenceIndex)}
-        {isLoading && <ShimmerOverlay />}
+        {highlightMatches(node.text, searchQuery, activeOccurrenceIndex)}
+        {node.isLoading && <ShimmerOverlay />}
       </span>
       <div className="h-px flex-1 bg-border" />
     </div>

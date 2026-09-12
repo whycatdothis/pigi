@@ -39,6 +39,7 @@ const BUILTIN_COMMANDS: SlashCommand[] = [
     description: 'Reload extensions, skills, prompts, settings and context files',
     source: 'builtin',
   },
+  { name: 'tree', description: 'Browse session branches', source: 'builtin' },
 ];
 
 function toSkillCommand(skill: SkillSlashCommand): SlashCommand {

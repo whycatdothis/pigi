@@ -77,9 +77,9 @@ export function buildSearchTargets(items: RenderItem[]): MessageSearchTarget[] {
             renderIndex,
             itemId: item.id,
             role: 'system',
-            text: node.text,
+            text: node.detail ? `${node.text}\n${node.detail}` : node.text,
             meta: '',
-            preview: node.text,
+            preview: node.detail ?? node.text,
           });
           break;
       }

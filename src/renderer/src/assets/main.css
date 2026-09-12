@@ -550,3 +550,55 @@
     opacity: 0.7;
   }
 }
+
+/* Tooltip motion: the bubble rises out of the element it describes, with a
+   whisper of scale — no zoom-in "pop". Only the axis the anchor sits on moves,
+   so a tooltip below its trigger comes down from above it. 150ms/100ms and a
+   decelerating curve read as one gesture; tooltips are frequent, so the whole
+   thing stays under the threshold where the eye starts watching the animation
+   instead of reading the label.
+   Applied through the `tooltip-surface` class that `ui/tooltip.tsx` puts on the
+   content element — the component owns the styling contract, this file only
+   holds the keyframes. */
+@keyframes tooltip-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(var(--tooltip-enter-x, 0px), var(--tooltip-enter-y, 0px), 0) scale(0.97);
+  }
+}
+
+@keyframes tooltip-exit {
+  to {
+    opacity: 0;
+    transform: translate3d(var(--tooltip-exit-x, 0px), var(--tooltip-exit-y, 0px), 0) scale(0.985);
+  }
+}
+
+.tooltip-surface[data-side='bottom'] {
+  --tooltip-enter-y: -4px;
+  --tooltip-exit-y: -2px;
+}
+
+.tooltip-surface[data-side='top'] {
+  --tooltip-enter-y: 4px;
+  --tooltip-exit-y: 2px;
+}
+
+.tooltip-surface[data-side='left'] {
+  --tooltip-enter-x: 4px;
+  --tooltip-exit-x: 2px;
+}
+
+.tooltip-surface[data-side='right'] {
+  --tooltip-enter-x: -4px;
+  --tooltip-exit-x: -2px;
+}
+
+.tooltip-surface[data-state='delayed-open'],
+.tooltip-surface[data-state='instant-open'] {
+  animation: tooltip-enter 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tooltip-surface[data-state='closed'] {
+  animation: tooltip-exit 110ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}

@@ -116,6 +116,54 @@ export interface SkillSlashCommand {
   description: string;
 }
 
+// =============================================================================
+// Session tree
+// =============================================================================
+
+/** One row in the session tree dialog. */
+export interface SessionTreeEntryDto {
+  id: string;
+  /** Nearest *visible* ancestor, not necessarily the raw entry parent. */
+  parentId: string | null;
+  /** Entry timestamp (epoch ms), used for ordering. */
+  timestamp: number;
+  kind: 'user' | 'assistant' | 'toolResult' | 'compaction' | 'branchSummary';
+  /** Single-line, already truncated summary for the row. */
+  preview: string;
+  /** `message.timestamp` of the message entry. Transcript nodes match on
+   *  (kind, messageTimestamp) to resolve a row back to its entry id. */
+  messageTimestamp?: number;
+  toolCallId?: string;
+  toolName?: string;
+  toolArgs?: Record<string, unknown>;
+  isError?: boolean;
+  tokensBefore?: number;
+  stopReason?: string;
+}
+
+export interface SessionTreeDto {
+  leafId: string | null;
+  entries: SessionTreeEntryDto[];
+}
+
+export interface EntryTextResult {
+  success: boolean;
+  text: string;
+  /** True when the entry text was clipped for transport. */
+  truncated: boolean;
+  error?: string;
+}
+
+export interface NavigateSessionTreeResult {
+  success: boolean;
+  /** The user aborted the branch summary (or the SDK refused the move). */
+  cancelled: boolean;
+  aborted?: boolean;
+  /** Text to put back in the input box (navigating to a user message). */
+  editorText?: string;
+  error?: string;
+}
+
 export interface SessionOptions {
   /**
    * Session-scoped models (empty when the session uses the global catalog).
@@ -151,6 +199,15 @@ export type PiCommand =
   | { type: 'get_state' }
   | { type: 'get_session_options' }
   | { type: 'get_messages' }
+  | { type: 'get_session_tree' }
+  | { type: 'get_entry_text'; entryId: string }
+  | {
+      type: 'navigate_session_tree';
+      targetId: string;
+      summarize: boolean;
+      customInstructions?: string;
+    }
+  | { type: 'abort_branch_summary' }
   | { type: 'list_sessions'; cwd?: string }
   | { type: 'cycle_model' }
   | { type: 'cycle_thinking_level' }
@@ -402,7 +459,7 @@ export type SessionWorkerResponse =
 // =============================================================================
 
 export type UtilityCommand =
-  | { type: 'create_session'; cwd: string }
+  | { type: 'create_session'; cwd: string; parentSessionPath?: string }
   | { type: 'resume_session'; sessionPath: string }
   | { type: 'warm_up'; cwds: string[] }
   | { type: 'prewarm_session_services'; cwds: string[] }

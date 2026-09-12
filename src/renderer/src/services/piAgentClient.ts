@@ -6,7 +6,9 @@
  */
 import type {
   AuthProviderInfo,
+  EntryTextResult,
   ModelCatalogSnapshot,
+  NavigateSessionTreeResult,
   PiCommand,
   PiPush,
   GitBranchResult,
@@ -15,6 +17,7 @@ import type {
   SessionOptions,
   SessionState,
   SessionListResult,
+  SessionTreeDto,
   StreamBatch,
   ThinkingLevel,
 } from '../../../shared/ipcContract';
@@ -201,6 +204,39 @@ export async function getMessages(
 
 export async function listSessions(sessionPath: string, cwd?: string): Promise<unknown[]> {
   return send<unknown[]>(sessionPath, { type: 'list_sessions', cwd });
+}
+
+// =============================================================================
+// Session tree
+// =============================================================================
+
+/** Read the whole session tree (all branches) for the tree dialog. */
+export async function getSessionTree(sessionPath: string): Promise<SessionTreeDto> {
+  return send<SessionTreeDto>(sessionPath, { type: 'get_session_tree' });
+}
+
+/** Full text of one entry, for the tree dialog's hover preview. */
+export async function getEntryText(sessionPath: string, entryId: string): Promise<EntryTextResult> {
+  return send<EntryTextResult>(sessionPath, { type: 'get_entry_text', entryId });
+}
+
+/** Move the session position. `summarize` carries the abandoned branch forward. */
+export async function navigateSessionTree(
+  sessionPath: string,
+  targetId: string,
+  options: { summarize: boolean; customInstructions?: string },
+): Promise<NavigateSessionTreeResult> {
+  return send<NavigateSessionTreeResult>(sessionPath, {
+    type: 'navigate_session_tree',
+    targetId,
+    summarize: options.summarize,
+    customInstructions: options.customInstructions,
+  });
+}
+
+/** Cancel an in-flight branch summary (the navigation then resolves cancelled). */
+export async function abortBranchSummary(sessionPath: string): Promise<void> {
+  await send(sessionPath, { type: 'abort_branch_summary' });
 }
 
 export async function cycleModel(sessionPath: string): Promise<unknown> {
