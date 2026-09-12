@@ -7,6 +7,7 @@
 import type {
   AuthProviderInfo,
   EntryTextResult,
+  ForkSessionResult,
   ModelCatalogSnapshot,
   NavigateSessionTreeResult,
   PiCommand,
@@ -33,8 +34,8 @@ async function send<T = unknown>(sessionPath: string, command: PiCommand): Promi
 // =============================================================================
 
 /** Create a new session. Resolves with sessionPath when port is received. */
-export async function createSession(cwd: string): Promise<string> {
-  const result = await window.piApi.createSession(cwd);
+export async function createSession(cwd: string, parentSessionPath?: string): Promise<string> {
+  const result = await window.piApi.createSession(cwd, parentSessionPath);
   if (!result.success || !result.sessionPath) {
     throw new Error(result.error || 'failed to create session');
   }
@@ -237,6 +238,18 @@ export async function navigateSessionTree(
 /** Cancel an in-flight branch summary (the navigation then resolves cancelled). */
 export async function abortBranchSummary(sessionPath: string): Promise<void> {
   await send(sessionPath, { type: 'abort_branch_summary' });
+}
+
+/**
+ * Export one path of this session into a new session file. The original is not
+ * touched; `needsNewSession` answers when there is nothing to fork yet.
+ */
+export async function forkSession(
+  sessionPath: string,
+  entryId: string,
+  position: 'before' | 'at',
+): Promise<ForkSessionResult> {
+  return send<ForkSessionResult>(sessionPath, { type: 'fork_session', entryId, position });
 }
 
 export async function cycleModel(sessionPath: string): Promise<unknown> {

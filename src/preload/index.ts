@@ -257,9 +257,10 @@ const piApi = {
   /** Create a new session. Resolves after the renderer-side ports are registered. */
   createSession: async (
     cwd: string,
+    parentSessionPath?: string,
   ): Promise<{ success: boolean; sessionPath?: string; error?: string }> => {
     const result: { success: boolean; sessionPath?: string; error?: string } =
-      await ipcRenderer.invoke(PiChannel.CreateSession, cwd);
+      await ipcRenderer.invoke(PiChannel.CreateSession, cwd, parentSessionPath);
     if (result.success && result.sessionPath) {
       await waitForPort(result.sessionPath);
     }

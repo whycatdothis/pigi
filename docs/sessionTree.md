@@ -1,9 +1,10 @@
 # Session Tree and Fork
 
-Status: phase 1 (tree) implemented and verified end to end. Phase 2 (fork) is
-planned, not implemented. This document is the implementation plan and the
-design reference for the feature. See `docs/architecture.md` for the process
-model it builds on.
+Status: phase 1 (tree) and phase 2 (fork) implemented and verified end to end.
+Phase 3 (polish) is docs coverage and the disabled-state checks listed under
+"Not verified". This document is the implementation plan and the design
+reference for the feature. See `docs/architecture.md` for the process model it
+builds on.
 
 ## 1. Goal
 
@@ -39,7 +40,8 @@ through the session tree dialog.
 ### 3.1 Message hover toolbar
 
 Every message row already shows a copy button on hover. Extend it with `tree`
-and `fork` (`IconBinaryTree` / `IconGitFork`, 15px icons in 23px buttons, no
+and `fork` (`IconBinaryTree2` / `IconArrowFork` rotated a quarter turn, 15px
+icons in 23px buttons, no
 visible text label). All three share one look: a 6px-radius hover background
 (`hover:bg-muted`), 4px between buttons, and a 2px gap above the toolbar row
 (plus the buttons' 4px padding) so the icons sit the same distance below a user
@@ -73,19 +75,30 @@ Availability rules:
 
 UI copy: icon-only buttons.
 
-- `tree` / `fork` carry a hover tooltip after a **1s** dwell (`ACTION_TOOLTIP_DELAY_MS`),
-  so the labels only show up when the pointer is really parked on the icon. Copy
-  has no tooltip at all — its meaning is obvious from the icon and the action is
-  harmless.
+- `tree` / `fork` carry a hover tooltip after a **0.5s** dwell (`ACTION_TOOLTIP_DELAY_MS`),
+  so the labels only show up when the pointer settles on the icon, without the
+  second of waiting that read as "the tooltip is broken". Copy has no tooltip at
+  all — its meaning is obvious from the icon and the action is harmless.
 - `tree` → `Move the session here`, plus a second (muted) line on user messages
   only (`This message goes back to the input box`) because that is the one case
-  that moves text around. `fork` → `Continue in a new chat`.
+  that moves text around. `fork` → `Fork this msg in new session`.
 - While disabled the tooltip shows the reason instead: `Busy summarizing the
 abandoned branch` or `Wait for compaction to finish`.
 - The tooltips are the app's Radix ones (`side="bottom"`, 8px viewport padding),
   not native `title` attributes: native tooltips are slow, unstyled, and do not
   appear on disabled buttons. The trigger wraps the button in a span, since a
   disabled button receives no pointer events.
+- `tree` and `fork` share **one** tooltip per row, anchored to the pair of icons,
+  and its label follows the icon the pointer is on. Two tooltips side by side do
+  not hand over: Radix builds a "grace area" on trigger leave — the corridor the
+  pointer may use to travel into the tooltip — and with the icons 4px apart that
+  area covers the icon next door, so the next trigger stays shut while the first
+  label never goes away. On the group, the corridor is the toolbar itself: the
+  label changes as the pointer crosses the gap, and the `?` inside the tooltip
+  stays reachable (clicking it closes the tooltip and opens the help dialog).
+  That `?` belongs to the tree's label and goes away with it: on `fork` the
+  tooltip is only the label, since the session tree is not what that icon is
+  about.
 - Colour comes from `TooltipContent`'s `variant`, which now defaults to
   `surface` — the same family as popover / dialog / context menu (`bg-popover`,
   `ring-[0.5px] ring-foreground/25`, `shadow-md`), so it follows the theme in
@@ -104,17 +117,17 @@ abandoned branch` or `Wait for compaction to finish`.
 ### 3.2 Session toolbar
 
 `SessionToolbar` gains one icon button between the title area and the terminal
-button, opening the session tree dialog: `IconBinaryTree`, 16px, `stroke={1.5}`,
+button, opening the session tree dialog: `IconBinaryTree2`, 16px, `stroke={1.5}`,
 styled like the terminal button. No badge, no shortcut. `/tree` is also
 registered as a built-in slash command.
 
 Icon assignment (see §3.1 for the hover toolbar):
 
-| Action | Icon             | Why                                                                                                                                                                                     |
-| ------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| tree   | `IconBinaryTree` | nodes joined by edges — unmistakably a tree, and a different silhouette from the git glyphs in the same UI (`IconSitemap` was the runner-up: clearer boxes, but reads as a layout icon) |
-| fork   | `IconGitFork`    | the git fork glyph                                                                                                                                                                      |
-| —      | `IconGitBranch`  | **not** used for either: the chat input already uses it for the git branch status chip                                                                                                  |
+| Action | Icon                                | Why                                                                                                                                                                                                                                                   |
+| ------ | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| tree   | `IconBinaryTree2`                   | a root node with two children — unmistakably a tree, and a different silhouette from the git glyphs in the same UI (`IconSitemap` was the runner-up: clearer boxes, but reads as a layout icon)                                                       |
+| fork   | `IconArrowFork` rotated `rotate-90` | one stem splitting into two arrows, turned so the arms point the way the message goes (right, out of the branch you are on). `IconGitFork` was the first pick: correct, but the git glyphs are also the branch-status vocabulary elsewhere in the app |
+| —      | `IconGitBranch`                     | **not** used for either: the chat input already uses it for the git branch status chip                                                                                                                                                                |
 
 ### 3.3 Session tree dialog
 
@@ -177,7 +190,7 @@ what a query is matched against, which keeps `bash` able to find those rows.
   children). `←`/`→` fold and unfold the focused row. A chevron is 16px at the
   default stroke weight: thicker than the icons around it would read as bold.
 - Separate roots (returning to before the first message starts a new tree) each
-  get a sticky header (`IconBinaryTree`, the same glyph as the toolbar button):
+  get a sticky header (`IconBinaryTree2`, the same glyph as the toolbar button):
   `Tree 1`, `Tree 2`, … numbered from the oldest, with the
   row count and the tree's time span, in the accent colour when the current leaf
   lives there. Numbers follow session order, never the position of the leaf, so a
@@ -370,7 +383,7 @@ Implementation:
 the history (nothing is deleted), summarize the branch you leave or skip it, and
 keep going from anywhere (a new branch, always returnable). It is reachable from
 a round `?` button in three places: the tree dialog's search row, the session
-toolbar's tree tooltip, and the tree tooltip of every message row. In the
+toolbar's tree tooltip, and the tree label of every message row (not the fork's). In the
 tooltips the button closes the tooltip first (`onBeforeOpen`), since the dialog
 would otherwise fight the tooltip for the pointer.
 
@@ -423,12 +436,14 @@ After `fork`:
 2. The app switches to it immediately, with the input pre-focused and (for user
    messages) pre-filled with the message text.
 3. The original session stays open in the background and remains in the sidebar.
-4. Toast: `Continued in a new chat` with a `Back to the original` action.
+4. No toast. The active session switching to a forked chat, with the fork
+   nested under the original in the sidebar, is the whole report; another
+   notification on top of that was noise, and `Back to the original` duplicated
+   the sidebar row that is right there.
 
 ### 3.8 Sidebar lineage
 
-Forked sessions render under their parent with connector lines and a branch
-icon:
+Forked sessions render under their parent with connector lines:
 
 ```
 refactor the auth module
@@ -439,17 +454,39 @@ another session
 ```
 
 - A parent plus all its forks form one block; blocks are ordered by the latest
-  activity in the subtree (descending), children the same way.
-- Indent step 12px, capped at 3 levels.
-- Connector lines are drawn with 1px divs, not glyphs.
-- A session whose parent is not in the list renders as a root.
+  activity in the subtree (descending), children the same way. A block that is
+  used while its parent is untouched therefore rises with it, instead of the
+  parent sinking on its own old timestamp.
+- One 12px column per ancestor level, capped at 3 levels (deeper forks keep the
+  innermost columns; the extra levels would be a staircase off the sidebar's
+  edge). The list's items are 4px apart, so a column that runs on covers that
+  gap as well: a dash every 24px would read as a broken line.
+- Each column is a 1px div (`bg-foreground/15`), not a glyph: the corner is one
+  vertical piece plus one horizontal piece, so nothing is painted twice.
+- A session whose parent is not in the list renders as a root — including a fork
+  of the first message, which has no file yet. That session is in the store
+  while its process runs, and the store entry carries `parentSessionPath` for
+  exactly this window, so the connector is right from the first frame instead of
+  only after the sidebar's next listing.
 - `SessionSwitcher` (⌘R) stays flat.
 
 ### 3.9 Scroll behavior
 
-Navigating must not jump to the bottom of the transcript. The list keeps its
-current scroll position (clamped) and automatic bottom follow stays disengaged
-until the next turn.
+Navigating lands at the bottom of the branch you moved to: the picked message is
+where the session continues from, so that is what should be in view.
+
+The list is told to hold its position while the old transcript is still on
+screen, then to follow (`MessageListHandle.scrollToBottom()` →
+`followAfterContentSwap`). Following is what does the work: the swap changes the
+rows wrapper, and its observer glues scrollTop to the new end as soon as the new
+rows are laid out. No write happens at the moment of the swap — that would
+measure the content on its way out, and a frame of it could reach the screen —
+so the hook also writes once in a rAF, for a replacement whose height happens to
+match the old one (a ResizeObserver only fires on a size change).
+
+The reader's own scroll is not overridden: this happens only on a deliberate
+move, and follow stays on afterwards, exactly as it would after sending a
+message.
 
 ## 4. Architecture
 
@@ -702,17 +739,25 @@ Renderer:
 
 ```ts
 const result = await forkSession(activeSessionPath, entryId, position);
-const newPath =
-  result.sessionPath ?? (await createSession(cwd, { parentSessionPath: activeSessionPath }));
-await handleResumeSession({ path: newPath, cwd, ... }, { prefillText: result.selectedText });
-void listProjectSessions([cwd]);           // lineage appears in the sidebar
-toast('Continued in a new chat', { action: { label: 'Back to the original', onClick: switchBack } });
+// `needsNewSession` means there was nothing to copy: an empty file would never
+// be written, so the new chat is created with this session as its parent.
+const newPath = result.sessionPath ?? (await createSession(cwd, activeSessionPath));
+await handleResumeSession(
+  { path: newPath, parentSessionPath: activeSessionPath, ... },
+  { prefillText: result.selectedText, freshSession: !result.sessionPath },
+);
+void listProjectSessions([cwd]); // the fork appears under this session
+await resumeSession(newPath);    // only when the fork wrote a file
 ```
 
-- `handleResumeSession` gains an optional `prefillText` that calls
-  `setRestoreText` after hydration.
-- `createSession` (renderer client + main bridge + utility `create_session`)
-  gains an optional `parentSessionPath`.
+- `handleResumeSession` gains `prefillText` (put this text in the input box once
+  the session is showing) and `freshSession` (the session was just created:
+  there is no file to hydrate and its ports are already attached, so the resume
+  steps are skipped — re-attaching would replace the port the live transcript
+  subscriptions are on).
+- What a fork is called in the sidebar comes from its own first message, which
+  is the parent's: giving the store entry the parent's title keeps the two in
+  step until the listing lands.
 - The original session's utility process keeps running; the pool's idle LRU may
   evict it later, which is harmless (the file is on disk).
 
@@ -754,13 +799,13 @@ comparison for `parentSessionPath` is case-insensitive on Windows.
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `src/shared/ipcContract.ts`                                                      | 4 tree commands, `create_session.parentSessionPath`, tree DTOs                 |
 | `src/shared/messageText.ts` (new)                                                | `extractMessageText`, `clipText`, `toSingleLine`, shared by utility + renderer |
-| `src/main/ipc/piAgentBridge.ts`                                                  | forward `parentSessionPath` (phase 2)                                          |
-| `src/processes/utility/piAgent.ts`                                               | 4 tree command handlers, `create_session` parent                               |
-| `src/processes/utility/sessionTree.ts` (new)                                     | pure `buildSessionTree(entries, leafId)`, `readEntryText`                      |
-| `src/renderer/src/services/piAgentClient.ts`                                     | 4 wrappers                                                                     |
+| `src/main/ipc/piAgentBridge.ts`                                                  | forward `parentSessionPath`                                                    |
+| `src/processes/utility/piAgent.ts`                                               | 4 tree command handlers, `fork_session`, `create_session` parent               |
+| `src/processes/utility/sessionTree.ts` (new)                                     | pure `buildSessionTree(entries, leafId)`, `readEntryText`, `resolveForkTarget` |
+| `src/renderer/src/services/piAgentClient.ts`                                     | 4 tree wrappers + `forkSession`, `createSession` parent                        |
 | `src/renderer/src/lib/sessionTreeLayout.ts` (new)                                | pure: abandoned count, node → entry id, navigability                           |
 | `src/renderer/src/lib/sessionTreeData.ts` (new)                                  | pure: headless-tree data loader, display tree, active path, filter, row text   |
-| `src/renderer/src/lib/sessionLineage.ts` (new)                                   | pure: lineage build + flatten (phase 2)                                        |
+| `src/renderer/src/lib/sessionLineage.ts` (new)                                   | pure: lineage build + flatten                                                  |
 | `src/renderer/src/components/sessionTree/SessionTreeDialog.tsx` (new)            | the dialog shell: the read behind it, a visit's state, the preview card        |
 | `src/renderer/src/components/sessionTree/SessionTreeList.tsx`                    | the scrolling list: the tree, its version headers, branch lines, row recursion |
 | `src/renderer/src/components/sessionTree/SessionTreeRow.tsx`                     | one row and its insides, shared with the pinned copies                         |
@@ -775,14 +820,16 @@ comparison for `parentSessionPath` is case-insensitive on Windows.
 | `src/renderer/src/state/transcriptController.ts`                                 | `sdkTimestamp`, `hasToolCalls`, `branchSummary` → system node                  |
 | `src/renderer/src/components/message/messageBubbles.tsx`                         | `MessageToolbar({ node })` with tree/fork, `SystemBubble({ node })`            |
 | `src/renderer/src/components/transcript/messageListRows.tsx` / `minimalView.tsx` | pass nodes to the toolbar                                                      |
-| `src/renderer/src/components/session/SessionToolbar.tsx`                         | tree button (`IconBinaryTree`) + disabled reason                               |
+| `src/renderer/src/components/session/SessionToolbar.tsx`                         | tree button (`IconBinaryTree2`) + disabled reason                              |
 | `src/renderer/src/components/transcript/StreamingQueue.tsx`                      | `busyLabel` prop                                                               |
 | `src/renderer/src/components/transcript/MessageList.tsx`                         | `MessageListHandle.suspendAutoScroll()`                                        |
 | `src/renderer/src/components/transcript/messageSearchTargets.ts`                 | search the branch summary body                                                 |
-| `src/renderer/src/components/sidebar/sessionList.tsx`                            | lineage prefix (phase 2)                                                       |
+| `src/renderer/src/components/sidebar/sessionList.tsx`                            | lineage prefix, one row per fork                                               |
+| `src/renderer/src/lib/projectSessions.ts`                                        | carry `parentSessionPath` for a running session                                |
+| `src/renderer/src/state/appStore.ts`                                             | `SessionEntry.parentSessionPath`                                               |
 | `src/renderer/src/lib/toolDisplay.ts`                                            | `getToolCommandPartsForTool(name, args)` for tree rows                         |
 | `src/renderer/src/lib/slashCommands.ts`                                          | `/tree`                                                                        |
-| `src/renderer/src/App.tsx`                                                       | tree navigation, summary prompt state, busy state, actions provider            |
+| `src/renderer/src/App.tsx`                                                       | tree navigation + fork, summary prompt state, busy state, actions provider     |
 | `docs/architecture.md`                                                           | new "Session tree and fork" section (phase 3)                                  |
 
 Dependencies added for the dialog: `@headless-tree/core` and
@@ -795,8 +842,8 @@ ARIA; nothing else in the app uses them.
    `navigate_session_tree`, `abort_branch_summary`), utility handlers,
    `sessionTree.ts`, transcript node fields, hover `tree`, toolbar button,
    dialog, summary prompt + progress, branch summary card, scroll behavior.
-2. **fork** — `fork_session`, `create_session.parentSessionPath`, hover `fork`,
-   `prefillText`, sidebar lineage.
+2. **fork** — done. `fork_session`, `create_session.parentSessionPath`, hover
+   `fork`, `prefillText`, sidebar lineage.
 3. **polish** — docs update, disabled-reason coverage.
 
 ### Automated tests
@@ -807,8 +854,15 @@ iterated on by hand the most:
 - `processes/utility/sessionTree.test.ts` — which entries become rows at all
   (an assistant message waiting on a tool call does not), where their children
   re-attach once hidden rows are dropped, which row carries the current position
-  when the leaf is not a row, tool arguments carried onto result rows, and
-  `readEntryText` including truncation.
+  when the leaf is not a row, tool arguments carried onto result rows,
+  `readEntryText` including truncation, and `resolveForkTarget` (forking at an
+  entry vs. before it, and which fork point hands a user message back).
+- `lib/sessionLineage.test.ts` — nesting a fork under its parent, the order of a
+  block (subtree activity, not the parent's own timestamp), a missing parent and
+  a parent cycle both rendering as roots, Windows path case, and the connector
+  columns (`ancestorContinues`) the rows are drawn from.
+- `components/sessionTree/sessionTreeGeometry.test.ts` — where a lit row sits
+  inside a branch child's subtree (the run the highlight grows into).
 - `lib/sessionTreeData.test.ts` — filtering (kind filters re-attaching kept rows,
   ancestors kept for a query, highlight indexes skipping the unprinted label,
   tree numbering fixed by the session rather than by the filter), the indentation
@@ -820,7 +874,7 @@ Everything that needs a mounted dialog — hover, the pinned band, scrolling,
 focus and the preview card's timers — is still verified by hand in the running
 app; those checks are the ones in the list below.
 
-### Verified so far (phase 1, CDP against scratch sessions)
+### Verified so far (phase 1 and 2, CDP against scratch sessions)
 
 - Entry-id resolution for live and hydrated rows: user, assistant (with and
   without tool calls) and tool result rows all resolve.
@@ -848,8 +902,29 @@ app; those checks are the ones in the list below.
   ancestors: no band at the top of the list, and one row per indent level
   (16px / 36px indents, stacked at 28px steps under the header) once a deep row
   is scrolled to.
-- Navigating with a scrolled-up long transcript keeps the scroll position
-  instead of jumping to the bottom.
+- Navigating with a scrolled-up long transcript lands at the bottom of the
+  branch moved to: 66-message scratch session, read the middle (1920px from the
+  end, follow off), pick a deep row → `scrollTop === scrollHeight −
+clientHeight` (8535/8535), scroll button hidden (follow on). The same jump
+  from a transcript shorter than the viewport (0/0) also ends at the bottom.
+- Fork, on a 66-message scratch session:
+  - `fork` on a user message writes a new file whose header carries
+    `parentSession` (the source), whose entries end at the message _before_ the
+    forked one, and whose first turn is _not_ in the file; the app switched to
+    it, and the message text was in the input box (44 nodes against the source's
+    46).
+  - `fork` on an assistant message keeps that answer, pre-fills nothing, and the
+    new session's transcript matches the source up to that point.
+  - `fork` on the first user message has nothing to copy (`needsNewSession`): the
+    app created an empty session with the source as its parent and pre-filled
+    the first message.
+  - The sidebar nests the fork under the source with `├─` / `└─` connectors
+    (one 12px column, continuous across the list's 4px item gap), the block
+    rises with the fork's activity, and the fork of the first message is nested
+    from the first frame even though it has no file yet.
+  - The original session keeps its process, its leaf and its file: forking does
+    not touch it, and the tree dialog still shows its whole history afterward.
+    Switching back to it from the sidebar restores its transcript as it was.
 
 ### Not verified
 
@@ -857,7 +932,9 @@ app; those checks are the ones in the list below.
 - Row rendering of a session with more than a handful of branches, and the
   dialog on the 600-message session (row count is bounded by visible entries;
   no virtualizer, per §2).
-- `fork` (phase 2).
+- Multi-level lineage (a fork of a fork) beyond the unit tests: the rendering
+  path is the same at every depth, but no session with a grandchild fork has
+  been opened by hand.
 
 ## 9. Edge cases
 
@@ -884,8 +961,10 @@ app; those checks are the ones in the list below.
 - Manual CDP run with the `pigi-debug` skill: create a branch by editing a user
   message, reopen the tree dialog, jump back, confirm the transcript, input box
   and context usage.
-- Scroll behavior after navigation: confirm the list does not jump to the bottom
-  and that bottom follow stays disengaged until the next turn.
+- Scroll behavior after navigation: confirm the transcript ends up at the
+  bottom of the branch moved to (including when the reader was scrolled up
+  before the move) and that follow is on afterwards, so the next turn keeps
+  following.
 - Fork: verify the new file exists, has `parentSession` in the header, appears
   in the sidebar under its parent, and that the original session still streams
   independently.

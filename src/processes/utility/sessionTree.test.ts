@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionEntry, SessionMessageEntry } from '@earendil-works/pi-coding-agent';
 import type { TextContent, ToolCall } from '@earendil-works/pi-ai';
-import { buildSessionTree, readEntryText } from './sessionTree';
+import { buildSessionTree, readEntryText, resolveForkTarget } from './sessionTree';
 
 const TIMESTAMP = '2026-01-01T10:00:00.000Z';
 
@@ -203,5 +203,46 @@ describe('readEntryText', () => {
     const entries = [userEntry('u1', null, 'x'.repeat(25000))];
 
     expect(readEntryText(entries, 'u1').truncated).toBe(true);
+  });
+});
+
+describe('resolveForkTarget', () => {
+  const entries = [
+    userEntry('u1', null, 'first prompt'),
+    assistantEntry('a1', 'u1', 'answer'),
+    userEntry('u2', 'a1', 'second prompt'),
+  ];
+
+  it('keeps the entry itself when forking at it', () => {
+    expect(resolveForkTarget(entries, 'a1', 'at')).toEqual({
+      leafId: 'a1',
+      selectedText: undefined,
+    });
+    expect(resolveForkTarget(entries, 'u2', 'at')).toEqual({
+      leafId: 'u2',
+      selectedText: undefined,
+    });
+  });
+
+  it('ends before the entry and hands a user message back, when forking before it', () => {
+    expect(resolveForkTarget(entries, 'u2', 'before')).toEqual({
+      leafId: 'a1',
+      selectedText: 'second prompt',
+    });
+  });
+
+  it('has nothing before the first message, and does not hand an assistant message back', () => {
+    expect(resolveForkTarget(entries, 'u1', 'before')).toEqual({
+      leafId: null,
+      selectedText: 'first prompt',
+    });
+    expect(resolveForkTarget(entries, 'a1', 'before')).toEqual({
+      leafId: 'u1',
+      selectedText: undefined,
+    });
+  });
+
+  it('answers null for an entry that is not there', () => {
+    expect(resolveForkTarget(entries, 'gone', 'at')).toBeNull();
   });
 });

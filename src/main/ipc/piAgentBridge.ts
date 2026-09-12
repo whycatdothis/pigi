@@ -348,11 +348,14 @@ export function registerIpcHandlers(): void {
   // Spawn the initial warm process
   processPool.ensureWarmProcess();
 
-  ipcMain.handle(PiChannel.CreateSession, async (_e, cwd: string) => {
+  ipcMain.handle(PiChannel.CreateSession, async (_e, cwd: string, parentSessionPath?: string) => {
     if (!cwd || typeof cwd !== 'string') {
       return { success: false, error: 'cwd must be a non-empty string' };
     }
-    return spawnSessionProcess({ type: 'create_session', cwd });
+    if (parentSessionPath !== undefined && typeof parentSessionPath !== 'string') {
+      return { success: false, error: 'parentSessionPath must be a string' };
+    }
+    return spawnSessionProcess({ type: 'create_session', cwd, parentSessionPath });
   });
 
   ipcMain.handle(PiChannel.ResumeSession, async (_e, sessionPath: string) => {

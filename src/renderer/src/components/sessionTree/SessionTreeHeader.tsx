@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconBinaryTree, IconChevronRight } from '@tabler/icons-react';
+import { IconBinaryTree2, IconChevronRight } from '@tabler/icons-react';
 import { formatSessionTreeTime, type SessionTreeRootStats } from '../../lib/sessionTreeData';
 import { cn } from '../../lib/utils';
 
@@ -55,7 +55,7 @@ export function TreeHeader({
           isCurrent ? 'text-[var(--system-accent)]' : 'text-muted-foreground',
         )}
       >
-        <IconBinaryTree size={14} className="mr-1 inline-block align-[-3px] [stroke-width:2.5]" />
+        <IconBinaryTree2 size={14} className="mr-1 inline-block align-[-3px] [stroke-width:2.5]" />
         Tree {position}
       </span>
       {stats && (

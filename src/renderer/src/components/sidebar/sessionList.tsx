@@ -3,6 +3,7 @@ import { IconLoader2, IconPencil } from '@tabler/icons-react';
 import { useTypewriter } from '../../hooks/useTypewriter';
 import type { PiSessionInfo } from '../../../../shared/ipcContract';
 import type { SessionEntry } from '../../state/appStore';
+import { buildLineage, flattenLineage, type LineageRow } from '../../lib/sessionLineage';
 import { useRenameSuppress } from '../../hooks/useRenameSuppress';
 import { SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem } from '../ui/sidebar';
 import {
@@ -16,7 +17,7 @@ import { formatRelativeTime } from '../../lib/utils';
 import { formatDateTime, getSessionTitle, isSessionRunning } from './utils';
 
 interface SessionItemProps {
-  session: PiSessionInfo;
+  row: LineageRow;
   isActive: boolean;
   isRunning: boolean;
   relativeTimeBase: number;
@@ -24,14 +25,58 @@ interface SessionItemProps {
   onRename: (name: string) => void;
 }
 
+/**
+ * Fork connector: one 12px column per ancestor level, plus the elbow into this
+ * row. The list's items are 4px apart, so a line that runs on covers that gap
+ * too (`-bottom-1`) — otherwise every fork reads as a dashed line.
+ */
+const LINEAGE_INDENT_PX = 12;
+const LINEAGE_MAX_DEPTH = 3;
+
+function LineagePrefix({ row }: { row: LineageRow }): React.JSX.Element | null {
+  if (row.depth === 0) return null;
+  // Deeper forks than the indent step allows keep the innermost columns:
+  // a staircase off the sidebar's edge says less than the last few levels do.
+  const columnCount = Math.min(row.depth, LINEAGE_MAX_DEPTH);
+  const firstColumn = row.depth - columnCount;
+
+  return (
+    <span
+      aria-hidden="true"
+      data-lineage-depth={row.depth}
+      className="flex shrink-0 self-stretch"
+      style={{ width: columnCount * LINEAGE_INDENT_PX }}
+    >
+      {Array.from({ length: columnCount }, (_, offset) => {
+        const column = firstColumn + offset;
+        const isOwnColumn = column === row.depth - 1;
+        const continues = isOwnColumn ? !row.isLast : (row.ancestorContinues[column] ?? false);
+        return (
+          <span key={column} className="relative w-3 shrink-0">
+            {continues ? (
+              <span className="absolute left-0 top-0 -bottom-1 w-px bg-foreground/15" />
+            ) : (
+              isOwnColumn && <span className="absolute left-0 top-0 h-1/2 w-px bg-foreground/15" />
+            )}
+            {isOwnColumn && (
+              <span className="absolute left-0 top-1/2 h-px w-full bg-foreground/15" />
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
 export function SessionItem({
-  session,
+  row,
   isActive,
   isRunning,
   relativeTimeBase,
   onSwitch,
   onRename,
 }: SessionItemProps): React.JSX.Element {
+  const session = row.session;
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const [displayTitle, skipNextAnimation] = useTypewriter(getSessionTitle(session));
@@ -103,6 +148,7 @@ export function SessionItem({
             className="w-full justify-start pl-6 text-left text-sidebar-foreground/85 data-active:bg-primary/10 data-active:text-foreground"
           >
             <button type="button" onClick={onSwitch} onDoubleClick={handleStartRename}>
+              <LineagePrefix row={row} />
               <span className="min-w-0 flex-1 truncate text-left" title={getSessionTitle(session)}>
                 {displayTitle}
               </span>
@@ -173,6 +219,18 @@ export function SessionList({
   useEffect(() => {
     showAllRef.current = showAll;
   }, [showAll]);
+
+  // When collapsed with pinned sessions, show only those (a fork whose parent
+  // is not pinned then renders as a root, which is what the list can show).
+  const renderedSessions = useMemo(
+    () =>
+      isCollapsedWithPinned
+        ? projectSessions.filter((s) => visibleWhenCollapsedSessionIds!.has(s.id))
+        : projectSessions,
+    [projectSessions, isCollapsedWithPinned, visibleWhenCollapsedSessionIds],
+  );
+  const rows = useMemo(() => flattenLineage(buildLineage(renderedSessions)), [renderedSessions]);
+
   const suppressAutoExpandPathRef = useRef<string | null>(null);
   useEffect(() => {
     // The suppression marker is set synchronously in the click handler before
@@ -195,11 +253,8 @@ export function SessionList({
     if (showAllRef.current) {
       return;
     }
-    const fullSessions = isCollapsedWithPinned
-      ? projectSessions.filter((s) => visibleWhenCollapsedSessionIds!.has(s.id))
-      : projectSessions;
-    const hidden = fullSessions.slice(visibleSessionCount);
-    if (hidden.some((s) => s.path === selectedSessionPath)) {
+    const hidden = rows.slice(visibleSessionCount);
+    if (hidden.some((row) => row.session.path === selectedSessionPath)) {
       // Expand at most once per selection; after that the user owns showAll.
       suppressAutoExpandPathRef.current = selectedSessionPath;
       requestAnimationFrame(() => {
@@ -208,21 +263,10 @@ export function SessionList({
         }
       });
     }
-  }, [selectedSessionPath, projectSessions, isCollapsedWithPinned, visibleWhenCollapsedSessionIds]);
+  }, [selectedSessionPath, rows]);
 
-  // When collapsed with pinned sessions, show only those.
-  // When expanded, show all with pagination.
-  const sessionsToRender = useMemo(() => {
-    if (isCollapsedWithPinned) {
-      return projectSessions.filter((s) => visibleWhenCollapsedSessionIds!.has(s.id));
-    }
-    return projectSessions;
-  }, [projectSessions, isCollapsedWithPinned, visibleWhenCollapsedSessionIds]);
-
-  const visibleSessions = showAll
-    ? sessionsToRender
-    : sessionsToRender.slice(0, visibleSessionCount);
-  const hiddenCount = sessionsToRender.length - visibleSessions.length;
+  const visibleRows = showAll ? rows : rows.slice(0, visibleSessionCount);
+  const hiddenCount = rows.length - visibleRows.length;
 
   function handleSessionSwitch(session: PiSessionInfo): void {
     // Clicked items are visible by definition (hidden items aren't rendered),
@@ -257,15 +301,15 @@ export function SessionList({
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             ) : (
-              visibleSessions.map((session) => (
+              visibleRows.map((row) => (
                 <SessionItem
-                  key={session.path}
-                  session={session}
-                  isActive={session.path === selectedSessionPath}
-                  isRunning={isSessionRunning(session.path, sessions)}
+                  key={row.session.path}
+                  row={row}
+                  isActive={row.session.path === selectedSessionPath}
+                  isRunning={isSessionRunning(row.session.path, sessions)}
                   relativeTimeBase={relativeTimeBase}
-                  onSwitch={() => handleSessionSwitch(session)}
-                  onRename={(name) => onRenameSession(session.path, name)}
+                  onSwitch={() => handleSessionSwitch(row.session)}
+                  onRename={(name) => onRenameSession(row.session.path, name)}
                 />
               ))
             )}
@@ -284,26 +328,23 @@ export function SessionList({
           </SidebarMenuSub>
         </div>
       </div>
-      {showList &&
-        showAll &&
-        sessionsToRender.length > visibleSessionCount &&
-        !isCollapsedWithPinned && (
-          <SidebarMenuSub
-            data-show-all
-            className="sticky bottom-0 z-10 mx-0 border-l-0 px-0 py-0 gap-0 bg-muted rounded-md hover:bg-[#e5e5e5]"
-          >
-            <SidebarMenuSubItem>
-              <SidebarMenuSubButton
-                asChild
-                className="w-full justify-start pl-6 text-left text-muted-foreground hover:bg-transparent"
-              >
-                <button type="button" onClick={() => setShowAll(false)}>
-                  <span>Show less</span>
-                </button>
-              </SidebarMenuSubButton>
-            </SidebarMenuSubItem>
-          </SidebarMenuSub>
-        )}
+      {showList && showAll && rows.length > visibleSessionCount && !isCollapsedWithPinned && (
+        <SidebarMenuSub
+          data-show-all
+          className="sticky bottom-0 z-10 mx-0 border-l-0 px-0 py-0 gap-0 bg-muted rounded-md hover:bg-[#e5e5e5]"
+        >
+          <SidebarMenuSubItem>
+            <SidebarMenuSubButton
+              asChild
+              className="w-full justify-start pl-6 text-left text-muted-foreground hover:bg-transparent"
+            >
+              <button type="button" onClick={() => setShowAll(false)}>
+                <span>Show less</span>
+              </button>
+            </SidebarMenuSubButton>
+          </SidebarMenuSubItem>
+        </SidebarMenuSub>
+      )}
     </>
   );
 }

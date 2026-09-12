@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  IconBinaryTree,
+  IconBinaryTree2,
   IconCheck,
   IconFilter2,
   IconNotebook,
@@ -141,7 +141,7 @@ export default React.memo(function SessionToolbar({
               disabled={Boolean(treeDisabledReason)}
               className="flex items-center justify-center rounded p-1 text-muted-foreground transition-colors size-7 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50 [-webkit-app-region:no-drag]"
             >
-              <IconBinaryTree size={16} stroke={1.5} />
+              <IconBinaryTree2 size={16} stroke={1.5} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="gap-3">

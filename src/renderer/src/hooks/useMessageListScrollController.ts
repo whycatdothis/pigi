@@ -64,6 +64,8 @@ export interface MessageListScrollController {
   showScrollButton: boolean;
   /** Disables bottom auto-follow (search jump, minimap jump, group toggle...). */
   suspendAutoScroll: () => void;
+  /** Follows the bottom across a transcript replacement (tree navigation). */
+  followAfterContentSwap: () => void;
   handleScrollToBottom: () => void;
   handleMinimalTurnEnd: (turnId: string) => void;
   releaseAutoScrollPin: (isActive: boolean) => void;
@@ -590,6 +592,25 @@ export function useMessageListScrollController({
     setShowScrollButton(false);
   }
 
+  /**
+   * Engage follow and land at the end without reading the current layout, for
+   * a caller that replaces the whole transcript in the same tick (tree
+   * navigation). An immediate write would measure the content on its way out,
+   * and a frame of it could reach the screen; instead the rows-wrapper
+   * observer glues to the new end as soon as the new rows are laid out. The
+   * rAF is the fallback for a replacement whose height happens to match the old
+   * one, since a ResizeObserver only fires on a size change.
+   */
+  function handleFollowAfterContentSwap(): void {
+    clearTopPin();
+    autoScrollRef.current = true;
+    wheelUpSlackRef.current = 0;
+    setShowScrollButton(false);
+    requestAnimationFrame(() => {
+      if (autoScrollRef.current) glueToEnd();
+    });
+  }
+
   const releaseAutoScrollPin = useCallback((isActive: boolean) => {
     const pin = pinRef.current;
     if (pin.phase !== 'idle') {
@@ -686,6 +707,7 @@ export function useMessageListScrollController({
     topPaddingPx,
     showScrollButton,
     suspendAutoScroll,
+    followAfterContentSwap: handleFollowAfterContentSwap,
     handleScrollToBottom,
     handleMinimalTurnEnd,
     releaseAutoScrollPin,

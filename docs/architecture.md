@@ -221,6 +221,26 @@ worker (`ReadSessionMessages`) before the session's utility process is ready, an
 sent before the port exists are buffered in `App.tsx` (`pendingPromptsRef`) and
 flushed on `session_ready`; the UI never shows a reconnecting state.
 
+## Session Tree and Fork
+
+A session file is a tree; the transcript shows one path through it. The tree
+dialog reads that whole tree (`get_session_tree`) and moves the position inside
+the same file (`navigate_session_tree`), and the utility process is what writes:
+the renderer decides whether to ask about summarizing the abandoned branch, the
+process executes the move. `navigate_session_tree` is the only command that
+changes the session's shape, and it is serialized by a ref in the renderer plus
+the SDK's own "cancelled" answer.
+
+`fork_session` exports one path into a new file. It must not disturb the live
+session, so it runs on a **throwaway `SessionManager`** opened over the same
+file: `createBranchedSession` mutates the manager it is called on, and the live
+manager is what persists the running session. The new file's header points back
+at the original (`parentSession`), which is what the sidebar's lineage is built
+from; a fork of the first message has nothing to copy and gets an empty new
+session with that parent instead. Behind it all, `docs/sessionTree.md` is the
+design reference, and `src/renderer/src/components/sessionTree/` holds the dialog
+and its geometry.
+
 ## Collapsible Blocks
 
 `OverflowClamp` clamps tool output, thinking, and user bubbles with pure CSS:

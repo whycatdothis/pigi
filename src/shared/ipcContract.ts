@@ -154,6 +154,18 @@ export interface EntryTextResult {
   error?: string;
 }
 
+export interface ForkSessionResult {
+  success: boolean;
+  /** The new session file. Absent when the SDK has nothing to fork yet. */
+  sessionPath?: string;
+  /** Text for the new session's input box (forking before a user message). */
+  selectedText?: string;
+  /** No file to fork: the caller creates an empty session with this one as its
+   *  parent. */
+  needsNewSession?: boolean;
+  error?: string;
+}
+
 export interface NavigateSessionTreeResult {
   success: boolean;
   /** The user aborted the branch summary (or the SDK refused the move). */
@@ -208,6 +220,7 @@ export type PiCommand =
       customInstructions?: string;
     }
   | { type: 'abort_branch_summary' }
+  | { type: 'fork_session'; entryId: string; position: 'before' | 'at' }
   | { type: 'list_sessions'; cwd?: string }
   | { type: 'cycle_model' }
   | { type: 'cycle_thinking_level' }

@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  IconBinaryTree,
+  IconArrowFork,
+  IconBinaryTree2,
   IconCheck,
   IconCopy,
-  IconGitFork,
   IconSparkles,
   IconTerminal2,
 } from '@tabler/icons-react';
@@ -62,44 +62,77 @@ const ACTION_BUTTON_CLASS_NAME =
   'flex items-center justify-center rounded-sm p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40';
 
 /**
- * Long delay: these are destructive-ish actions next to every message, so the
- * label should only show up when the pointer is really parked on the icon.
+ * These are destructive-ish actions next to every message, so the label waits
+ * for the pointer to settle on the icon — but only half a second: a second felt
+ * like the tooltip was broken.
  */
-const ACTION_TOOLTIP_DELAY_MS = 1000;
+const ACTION_TOOLTIP_DELAY_MS = 500;
 
-/**
- * Hover label for an icon-only message action. Disabled buttons do not receive
- * pointer events, so the trigger wraps the button instead of being the button.
- */
-function MessageActionTooltip({
-  label,
-  hint,
-  disabled,
-  showHelp = false,
-  children,
-}: {
+interface MessageAction {
+  id: 'tree' | 'fork';
   label: string;
   hint?: string;
-  disabled: boolean;
-  /** Adds the "?" that explains the session tree. */
+  icon: React.JSX.Element;
+  /** Adds the "?" that explains the session tree next to this label. */
   showHelp?: boolean;
-  children: React.ReactNode;
+  run: () => void;
+}
+
+/**
+ * The labels for a message's actions, in one tooltip.
+ *
+ * One tooltip per action used to mean two Radix tooltips side by side, and
+ * those do not hand over: leaving one builds a "grace area" — the corridor the
+ * pointer may use to travel into the tooltip — and with the triggers 4px apart
+ * that area covers the icon next door, so the next trigger stays shut and the
+ * first label never goes away. Anchored to the group of icons instead, the
+ * label changes with the icon the pointer is on, the grace area is the pointer's
+ * own toolbar, and the `?` inside the tooltip stays reachable.
+ *
+ * The `?` belongs to the tree's label and goes away with it: the fork is a
+ * different idea, and the button is not there to explain the tree.
+ */
+function MessageActionTooltip({
+  actions,
+  disabled,
+}: {
+  actions: MessageAction[];
+  disabled: boolean;
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
+  const [hoveredId, setHoveredId] = useState<MessageAction['id']>(actions[0].id);
+  const hoveredAction = actions.find((action) => action.id === hoveredId) ?? actions[0];
+
   return (
     <Tooltip open={open} onOpenChange={setOpen}>
+      {/* Radix positions the label against this group, and owns its hover: a
+          disabled action receives no pointer events, so the anchor wraps the
+          icons instead of being one of them. */}
       <TooltipTrigger asChild>
-        <span className={disabled ? 'inline-flex cursor-not-allowed' : 'inline-flex'}>
-          {children}
+        <span className={disabled ? 'inline-flex cursor-not-allowed gap-1' : 'inline-flex gap-1'}>
+          {actions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              className={ACTION_BUTTON_CLASS_NAME}
+              onClick={action.run}
+              onPointerEnter={() => setHoveredId(action.id)}
+              onFocus={() => setHoveredId(action.id)}
+              disabled={disabled}
+              aria-label={action.label}
+            >
+              {action.icon}
+            </button>
+          ))}
         </span>
       </TooltipTrigger>
       <TooltipContent side="bottom" collisionPadding={8} className="items-center gap-3">
         <span className="flex flex-col items-start gap-0.5">
           {/* display:block so the tooltip's two lines do not glue together */}
-          <span className="block">{label}</span>
-          {hint && <span className="block opacity-70">{hint}</span>}
+          <span className="block">{hoveredAction.label}</span>
+          {hoveredAction.hint && <span className="block opacity-70">{hoveredAction.hint}</span>}
         </span>
-        {showHelp && <SessionTreeHelpButton onBeforeOpen={() => setOpen(false)} />}
+        {hoveredAction.showHelp && <SessionTreeHelpButton onBeforeOpen={() => setOpen(false)} />}
       </TooltipContent>
     </Tooltip>
   );
@@ -135,39 +168,34 @@ export function MessageToolbar({ node }: { node: TranscriptNode }): React.JSX.El
         >
           {copied ? <IconCheck size={ACTION_ICON_SIZE} /> : <IconCopy size={ACTION_ICON_SIZE} />}
         </button>
-        {showTreeActions && onTree && (
+        {showTreeActions && (onTree || onFork) && (
           <MessageActionTooltip
-            label={disabledReason ?? 'Move the session here'}
-            hint={treeHint}
             disabled={disabled}
-            showHelp
-          >
-            <button
-              type="button"
-              className={ACTION_BUTTON_CLASS_NAME}
-              onClick={() => onTree(node)}
-              disabled={disabled}
-              aria-label="Move the session here"
-            >
-              <IconBinaryTree size={ACTION_ICON_SIZE} />
-            </button>
-          </MessageActionTooltip>
-        )}
-        {showTreeActions && onFork && (
-          <MessageActionTooltip
-            label={disabledReason ?? 'Continue in a new chat'}
-            disabled={disabled}
-          >
-            <button
-              type="button"
-              className={ACTION_BUTTON_CLASS_NAME}
-              onClick={() => onFork(node)}
-              disabled={disabled}
-              aria-label="Continue in a new chat"
-            >
-              <IconGitFork size={ACTION_ICON_SIZE} />
-            </button>
-          </MessageActionTooltip>
+            actions={[
+              ...(onTree
+                ? [
+                    {
+                      id: 'tree' as const,
+                      label: disabledReason ?? 'Move the session here',
+                      hint: treeHint,
+                      icon: <IconBinaryTree2 size={ACTION_ICON_SIZE} />,
+                      showHelp: true,
+                      run: () => onTree(node),
+                    },
+                  ]
+                : []),
+              ...(onFork
+                ? [
+                    {
+                      id: 'fork' as const,
+                      label: disabledReason ?? 'Fork this msg in new session',
+                      icon: <IconArrowFork size={ACTION_ICON_SIZE} className="rotate-90" />,
+                      run: () => onFork(node),
+                    },
+                  ]
+                : []),
+            ]}
+          />
         )}
       </div>
     </TooltipProvider>
