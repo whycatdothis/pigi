@@ -1,0 +1,35 @@
+name: CI
+
+# Code checks on every push and pull request. The install skips lifecycle
+# scripts on purpose: this job is about types, lint, formatting and tests, and
+# none of them need the native modules rebuilt against Electron. That rebuild
+# (and a production-shaped install) is exercised by release.yml.
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm run typecheck
+
+      - run: npm run lint
+
+      - run: npm run format:check
+
+      - run: npm test
