@@ -38,7 +38,9 @@ export function TreeHeader({
         // Opaque stand-in for the dialog's own surface: a translucent header
         // would tint a second time (a 6-level white band in light mode) and let
         // the rows scroll through it.
-        'sticky top-0 z-10 -mx-2 flex w-[calc(100%+1rem)] items-center gap-2 bg-[var(--dialog-solid)] px-2 py-1.5 text-left',
+        // One line, always: the list's item arithmetic assumes every header is
+        // the same height, and it is measured once.
+        'sticky top-0 z-10 -mx-2 flex w-[calc(100%+1rem)] items-center gap-2 bg-[var(--dialog-solid)] px-2 py-1.5 text-left whitespace-nowrap',
         !isFirst && 'border-t border-border/60',
       )}
       data-testid="session-tree-root-header"

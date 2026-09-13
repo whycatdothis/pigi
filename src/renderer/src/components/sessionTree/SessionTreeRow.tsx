@@ -30,8 +30,6 @@ export interface SessionTreeRowContext {
    * calls the first row focused while nothing is selected at all.
    */
   selectedId: string | null;
-  /** The row the branch tinting is for; null only before the first render. */
-  litRowId: string | null;
   onSelect: (entryId: string) => void;
   onToggleFold: (item: ItemInstance<SessionTreeItem>) => void;
   onRowEnter: (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntry) => void;

@@ -13,6 +13,7 @@ import {
   SESSION_TREE_ROOT_ID,
   buildSessionTreeDisplay,
   collectBranchOwners,
+  collectPathOwners,
   createSessionTreeData,
   describeSessionTreeEntry,
   flattenSessionTreeDisplay,
@@ -161,13 +162,10 @@ describe('createSessionTreeData', () => {
 });
 
 describe('buildSessionTreeDisplay', () => {
-  function display(
-    litRowId: string | null = null,
-    hidden: string[] = [],
-  ): SessionTreeDisplay & { data: SessionTreeData } {
+  function display(hidden: string[] = []): SessionTreeDisplay & { data: SessionTreeData } {
     const data = createSessionTreeData(forkFixture());
     const visible = new Set(nodeIds(data).filter((id) => !hidden.includes(id)));
-    return { data, ...buildSessionTreeDisplay(data, visible, litRowId) };
+    return { data, ...buildSessionTreeDisplay(data, visible) };
   }
 
   it("continues a lone child at its parent's level and indents the children of a fork", () => {
@@ -184,7 +182,7 @@ describe('buildSessionTreeDisplay', () => {
   });
 
   it('leaves out a folded row and everything under it', () => {
-    const { nodes, depthById } = display(null, ['c1']);
+    const { nodes, depthById } = display(['c1']);
 
     const forkRow = nodes[0].continuation?.continuation;
     // One branch is left, so the fork dissolves into a plain continuation.
@@ -193,32 +191,20 @@ describe('buildSessionTreeDisplay', () => {
     expect(depthById.has('d1')).toBe(false);
   });
 
-  it('marks the deepest row of the path when the pointer is not on one', () => {
-    // No hover: the lit row is derived from the position. The leaf is a row
-    // here, and depth counts indentation — a lone child does not add a level —
-    // so the chain above the fork sits at the same depth and the mark belongs
-    // on the last of them rather than the first.
-    expect(display().litRowId).toBe('d1');
+  it('names the row the path enters each level through', () => {
+    const { data, parentById, depthById } = display();
 
-    // Folding the branch that holds the leaf leaves the deepest row still on
-    // screen standing in for the position.
-    expect(display(null, ['c1', 'd1']).litRowId).toBe('b1');
-  });
+    // The leaf sits under `c1`, so `c1` is the row the path enters the fork's
+    // level through: the fork turns in there and its sibling is not on the way.
+    expect([...collectPathOwners('d1', parentById, depthById)]).toEqual([[1, 'c1']]);
 
-  it('lights the sibling a path passes on its way down, and turns in at the path itself', () => {
-    // The leaf sits under `c1`: the fork's first child is the way down, so the
-    // line of the sibling after it stays neutral.
-    const down = display('d1');
-    const [first, second] = down.nodes[0].continuation?.continuation?.branch ?? [];
-    expect(first.railTint).toBe('enter');
-    expect(second.railTint).toBe('none');
+    // The other branch: the path enters at `e1`. What that means for the lines —
+    // which run lights, which sibling is passed — is `collectRailSpans`.
+    expect([...collectPathOwners('e1', parentById, depthById)]).toEqual([[1, 'e1']]);
 
-    // The other branch: the path passes `c1` on the way to `e1`, so that line is
-    // lit all the way through, and `e1` carries the turn.
-    const sideways = display('e1');
-    const [passed, turn] = sideways.nodes[0].continuation?.continuation?.branch ?? [];
-    expect(passed.railTint).toBe('pass');
-    expect(turn.railTint).toBe('enter');
+    // A row with no fork above it owns no line at all.
+    expect([...collectPathOwners('a1', parentById, depthById)]).toEqual([]);
+    expect(data.activePathIds.has('d1')).toBe(true);
   });
 });
 
@@ -246,11 +232,10 @@ describe('flattenSessionTreeDisplay', () => {
   function rowsOf(
     tree: SessionTree,
     hidden: string[] = [],
-    litRowId: string | null = null,
   ): { display: SessionTreeDisplay; rows: SessionTreeFlatRow[] } {
     const data = createSessionTreeData(tree);
     const visible = new Set(data.allItemIds.filter((id) => !hidden.includes(id)));
-    const display = buildSessionTreeDisplay(data, visible, litRowId);
+    const display = buildSessionTreeDisplay(data, visible);
     return { display, rows: flattenSessionTreeDisplay(display) };
   }
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import '../../testing/jsdomSetup';
+import { installViewport } from '../../testing/jsdomSetup';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -55,6 +55,11 @@ function singleTreeSession(): SessionTree {
 }
 
 beforeEach(() => {
+  // The list draws only the rows its viewport holds, and jsdom has no layout to
+  // measure: without a size it would draw none, and every test here would pass by
+  // reading nothing. A viewport tall enough for a whole fixture keeps these tests
+  // about what a row does; the window itself is measured in the browser layer.
+  installViewport({ width: 880, height: 2000 });
   fake = installFakePiApi(dialogTree());
 });
 

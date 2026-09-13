@@ -31,10 +31,9 @@ function moveSelection(tree: TreeInstance<SessionTreeItem>, step: number): void 
   const selectedId = tree.getState().focusedItem;
   const selectedIndex = items.findIndex((item) => item.getId() === selectedId);
   const nextIndex = Math.min(Math.max(selectedIndex + step, 0), items.length - 1);
-  const next = items[nextIndex];
-  if (!next) return;
-  next.setFocused();
-  void next.scrollTo({ block: 'nearest' });
+  // The list brings the focused row into view: an off-screen row has no element
+  // of its own to scroll to.
+  items[nextIndex]?.setFocused();
 }
 
 interface SessionTreeDialogProps {
@@ -189,9 +188,7 @@ export default function SessionTreeDialog({
     const targetId =
       firstMatchId ?? (data.isFiltered ? treeInstance.getItems()[0]?.getId() : undefined);
     if (targetId === undefined) return;
-    const item = treeInstance.getItemInstance(targetId);
-    item.setFocused();
-    void item.scrollTo({ block: 'nearest' });
+    treeInstance.getItemInstance(targetId).setFocused();
   }, [data]);
 
   // Filters, folds and the preview are per visit: clearing them on close means

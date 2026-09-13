@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Session tree: the list draws only the rows on screen, so a long session opens and scrolls with a fraction of the work — the branch lines and the pinned ancestors are computed from the rows instead of measured from the page, and the dialog no longer rebuilds the whole tree when the pointer moves
 - Session tree: the row the session is on wears the theme's colour again, with the `Current` chip on top of it — the chip is painted more solidly than before, so it reads against its own row
 - Session tree: a row the keyboard is on is picked out with a grey background; the position keeps the theme's colour for itself
 - Session tree: searching hands the first match to the keyboard — that row is picked out, `↑` / `↓` move the pick row by row, and Enter moves the session to the row the keyboard is on. The caret stays in the search box while the pick moves, so typing keeps working

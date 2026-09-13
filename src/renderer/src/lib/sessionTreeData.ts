@@ -93,16 +93,6 @@ export interface SessionTreeData {
   getChildren: (itemId: string) => string[];
 }
 
-/**
- * How the lit path meets a branch child's line.
- *
- * `enter`: the path turns in here, so its elbow and the run of line down to the
- * lit row are lit — the line reaches the row it leads to, not just the fork.
- * `pass`: the path runs down this sibling's whole line on its way to a later
- * one. `none`: another branch.
- */
-export type SessionTreeRailTint = 'none' | 'enter' | 'pass';
-
 /** One row of the dialog's display tree, nested the way the rows indent. */
 export interface SessionTreeDisplayNode {
   itemId: string;
@@ -119,11 +109,6 @@ export interface SessionTreeDisplayNode {
    * together row by row.
    */
   branch: SessionTreeDisplayNode[] | null;
-  /**
-   * How the lit path meets this row's line. A row that is not the child of a
-   * fork has no line of its own, so it is always `none`.
-   */
-  railTint: SessionTreeRailTint;
 }
 
 /** One row's text: an optional leading chip, the text, an optional trailing chip. */
@@ -344,11 +329,6 @@ export interface SessionTreeDisplay {
   parentById: Map<string, string>;
   /** Indent level per row; a lone child shares its parent's level. */
   depthById: Map<string, number>;
-  /**
-   * The row the tinting is for: the one under the pointer, or the deepest row
-   * of the active path when nothing is hovered. Null only for an empty list.
-   */
-  litRowId: string | null;
 }
 
 /**
@@ -419,21 +399,17 @@ export function flattenSessionTreeDisplay(display: SessionTreeDisplay): SessionT
  * line can belong to the subtree instead of to each row it passes.
  *
  * `visibleItemIds` is what the tree currently shows (folds and filters
- * applied); anything else is left out. `litRowId` is the row whose branch line
- * the dialog marks — the one under the pointer, or the current leaf — and every
- * line on the way up to it comes back tinted, so the renderer only forwards it.
- * The tint of a line the path turns into covers the run down to that row: a row
- * deep inside a branch lights the line it hangs from, not only the fork above.
+ * applied); anything else is left out. What the lit path does to the branch
+ * lines is not part of this: a line belongs to a fork, and the renderer derives
+ * which lines the path lights from the row the light is on (`collectPathOwners`
+ * below), so a pointer moving along a branch does not rebuild the tree.
  */
 export function buildSessionTreeDisplay(
   data: SessionTreeData,
   visibleItemIds: ReadonlySet<string>,
-  litRowId: string | null = null,
 ): SessionTreeDisplay {
   const parentById = new Map<string, string>();
   const depthById = new Map<string, number>();
-  /** Every fork in the tree, with the indent level of its children. */
-  const forks: { fork: SessionTreeDisplayNode; childDepth: number }[] = [];
 
   const buildNode = (
     itemId: string,
@@ -449,18 +425,14 @@ export function buildSessionTreeDisplay(
         itemId,
         continuation: buildNode(childIds[0], itemId, depth),
         branch: null,
-        railTint: 'none',
       };
     }
     const children = childIds.map((childId) => buildNode(childId, itemId, depth + 1));
-    const node: SessionTreeDisplayNode = {
+    return {
       itemId,
       continuation: null,
       branch: children.length > 1 ? children : null,
-      railTint: 'none',
     };
-    if (node.branch) forks.push({ fork: node, childDepth: depth + 1 });
-    return node;
   };
 
   const nodes = data
@@ -468,54 +440,7 @@ export function buildSessionTreeDisplay(
     .filter((rootId) => visibleItemIds.has(rootId))
     .map((rootId) => buildNode(rootId, null, 0));
 
-  const litId = litRowId ?? findDeepestActiveRowId(data, depthById);
-  if (litId !== null) {
-    // One owner per level: the row the path enters that level through. For each
-    // fork, its children before that row are passed by on the way down, at it the
-    // path turns in, after it they belong to other branches.
-    const owners = collectPathOwners(litId, parentById, depthById);
-    for (const { fork, childDepth } of forks) {
-      const children = fork.branch ?? [];
-      const ownerIndex = children.findIndex((child) => child.itemId === owners.get(childDepth));
-      // A fork the path does not go through lights nothing at all.
-      if (ownerIndex === -1) continue;
-      for (let index = 0; index < children.length; index += 1) {
-        if (index === ownerIndex) {
-          children[index].railTint = 'enter';
-          break;
-        }
-        children[index].railTint = 'pass';
-      }
-    }
-  }
-
-  return { nodes, parentById, depthById, litRowId: litId };
-}
-
-/**
- * The row that stands for the leaf in this display.
- *
- * The leaf itself is usually a row, but folding or filtering can hide it; its
- * path is still on screen, so the deepest visible row of it carries the mark.
- */
-function findDeepestActiveRowId(
-  data: SessionTreeData,
-  depthById: ReadonlyMap<string, number>,
-): string | null {
-  let deepestId: string | null = null;
-  let deepestDepth = -1;
-  for (const itemId of depthById.keys()) {
-    if (!data.activePathIds.has(itemId)) continue;
-    const depth = depthById.get(itemId) ?? 0;
-    // `>=`: depth is the display indentation, which a lone child does not
-    // increase, so a plain chain has every row at the same depth and the mark
-    // belongs on the last of them — the closest to the leaf.
-    if (depth >= deepestDepth) {
-      deepestDepth = depth;
-      deepestId = itemId;
-    }
-  }
-  return deepestId;
+  return { nodes, parentById, depthById };
 }
 
 /**
@@ -538,11 +463,11 @@ function collectRowAncestors(itemId: string, parentById: ReadonlyMap<string, str
  *
  * Walking up from `rowId` to its tree's root passes exactly one branch child per
  * level — the row whose elbow the line turns in at. Everything the renderer does
- * with a lit path follows from this: the line from the fork down to such a row
- * lights, the siblings it passes on the way light with it, and the lines after it
- * do not.
+ * with a lit path follows from this: the fork's line lights from its edge down to
+ * the lit row, the siblings it passes on the way light with it, and the lines
+ * after it do not.
  */
-function collectPathOwners(
+export function collectPathOwners(
   rowId: string,
   parentById: ReadonlyMap<string, string>,
   depthById: ReadonlyMap<string, number>,
