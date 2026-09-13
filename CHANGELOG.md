@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Mermaid diagrams: a ` ```mermaid ` block in a message is drawn as a diagram, with a switch in its header to read or copy the source. Diagrams follow the app's theme, are drawn as they stream in once their closing fence arrives, and can be clicked to zoom. A diagram that cannot be parsed keeps its source and says so
+
 ### Fixed
 
 - Checking again during the two-second "pigi is up to date" countdown no longer has the old timer pull the window away mid-check

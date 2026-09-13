@@ -1,10 +1,13 @@
 import { createContext, memo, useContext, type ReactNode } from 'react';
-import { IconCheck, IconCopy } from '@tabler/icons-react';
-import Markdown, { type Components } from 'react-markdown';
+import Markdown, { type Components, type ExtraProps } from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
+import CodeCopyButton from './codeCopyButton';
+import MermaidDiagram from './mermaidDiagram';
 import SyntaxHighlightedCode from './syntaxHighlightedCode';
-import { useCopyFeedback } from '../../hooks/useCopyFeedback';
+import { isFenceClosed } from '../../lib/markdownFence';
+
+const MERMAID_LANGUAGE = 'mermaid';
 
 interface MarkdownMessageProps {
   text: string;
@@ -21,6 +24,7 @@ const CODE_LANGUAGE_LABELS: Record<string, string> = {
   jsx: 'JSX',
   markdown: 'Markdown',
   md: 'Markdown',
+  mermaid: 'Mermaid',
   python: 'Python',
   py: 'Python',
   sh: 'Shell',
@@ -37,6 +41,10 @@ const CODE_LANGUAGE_LABELS: Record<string, string> = {
 // Only elements needing behavior or structure get an override; all typographic
 // styling lives in the `.markdown-body` rules in main.css.
 const IsInCodeBlockContext = createContext(false);
+
+// The raw markdown, for the one decision that needs it: whether a fenced block
+// has been closed yet (see `isFenceClosed`).
+const MarkdownSourceContext = createContext('');
 
 const markdownComponents: Components = {
   a: ({ href, children }) => (
@@ -71,17 +79,28 @@ const markdownComponents: Components = {
 function MarkdownCode({
   className,
   children,
+  node,
 }: {
   className?: string;
   children?: ReactNode;
+  node?: ExtraProps['node'];
 }): React.JSX.Element {
   const isCodeBlock = useContext(IsInCodeBlockContext);
+  const source = useContext(MarkdownSourceContext);
   if (!isCodeBlock) {
     return <code className={className}>{children}</code>;
   }
 
   const language = getCodeLanguage(className);
   const code = getCodeText(children);
+  // A mermaid block is drawn as a diagram, but only once its fence is closed:
+  // while it streams it is a code block that is still being written, and there
+  // is nothing to draw yet.
+  const endLine = node?.position?.end.line;
+  if (isMermaidLanguage(language) && endLine !== undefined && isFenceClosed(source, endLine)) {
+    return <MermaidDiagram code={code} />;
+  }
+
   if (language) {
     return (
       <div className="markdown-code-block">
@@ -109,14 +128,8 @@ function MarkdownCode({
   );
 }
 
-function CodeCopyButton({ code }: { code: string }): React.JSX.Element {
-  const { copied, copy } = useCopyFeedback(code);
-
-  return (
-    <button type="button" className="markdown-code-copy-button" onClick={copy} title="Copy code">
-      {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-    </button>
-  );
+function isMermaidLanguage(language: string | null): boolean {
+  return language?.toLowerCase() === MERMAID_LANGUAGE;
 }
 
 function getCodeLanguage(className: string | undefined): string | null {
@@ -141,13 +154,15 @@ function getCodeLanguageLabel(language: string): string {
 export default memo(function MarkdownMessage({ text }: MarkdownMessageProps): React.JSX.Element {
   return (
     <div className="markdown-body">
-      <Markdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeSanitize]}
-        components={markdownComponents}
-      >
-        {text}
-      </Markdown>
+      <MarkdownSourceContext.Provider value={text}>
+        <Markdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeSanitize]}
+          components={markdownComponents}
+        >
+          {text}
+        </Markdown>
+      </MarkdownSourceContext.Provider>
     </div>
   );
 });
