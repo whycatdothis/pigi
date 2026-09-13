@@ -23,6 +23,13 @@ export interface SessionTreeRowContext {
   data: SessionTreeData;
   tree: TreeInstance<SessionTreeItem>;
   currentId: string | null;
+  /**
+   * The row the keyboard is on, or null when the keyboard has not moved yet.
+   *
+   * Read from the tree's state rather than from `item.isFocused()`, which also
+   * calls the first row focused while nothing is selected at all.
+   */
+  selectedId: string | null;
   /** The row the branch tinting is for; null only before the first render. */
   litRowId: string | null;
   onSelect: (entryId: string) => void;
@@ -45,6 +52,8 @@ interface TreeRowProps {
   /** Character positions of the fuzzy match inside the row text. */
   matchIndexes: number[] | undefined;
   isCurrent: boolean;
+  /** The row the keyboard is on, when that is not the position itself. */
+  isSelected: boolean;
   rowContext: SessionTreeRowContext;
 }
 
@@ -55,6 +64,7 @@ export function TreeRow({
   isBranchChild,
   matchIndexes,
   isCurrent,
+  isSelected,
   rowContext,
 }: TreeRowProps): React.JSX.Element | null {
   const { onSelect, onToggleFold, onRowEnter, onRowLeave } = rowContext;
@@ -89,6 +99,7 @@ export function TreeRow({
       )}
       style={{ height: ROW_HEIGHT_PX, paddingLeft: rowContentX(depth) }}
       data-tree-current={isCurrent ? 'true' : undefined}
+      data-tree-selected={isSelected ? 'true' : undefined}
       data-tree-match={matched ? 'true' : undefined}
       data-tree-row-id={item.getId()}
       data-testid="session-tree-row"
@@ -98,13 +109,19 @@ export function TreeRow({
       <span
         className={cn(
           'flex h-full min-w-0 flex-1 items-center gap-2 rounded-md pr-2',
-          // Hover is read off the row (a `group-hover`), so pointing at the
-          // indentation highlights the same box as pointing at the text. One
-          // hover class for every row: the current row is marked by its chip,
-          // not by a background, so hover reads the same wherever it lands.
-          'group-hover:bg-foreground/10',
-          matched && 'bg-muted/50',
-          !matched && isMetaKind && 'bg-muted/40',
+          // The position wears the theme colour, and answers the pointer with a
+          // slightly stronger version of it; every other row answers with grey.
+          // One hover class per row, so neither can land on the other.
+          isCurrent
+            ? 'bg-[var(--system-accent)]/10 group-hover:bg-[var(--system-accent)]/15'
+            : 'group-hover:bg-foreground/10',
+          // The row the keyboard is on: a solid grey that holds its own against
+          // the position's tint, and deepens under the pointer instead of fading.
+          // The position is never selected — its own colour and chip already say
+          // where it is.
+          isSelected && 'bg-foreground/20 group-hover:bg-foreground/25',
+          !isSelected && !isCurrent && matched && 'bg-muted/50',
+          !isSelected && !isCurrent && !matched && isMetaKind && 'bg-muted/40',
         )}
       >
         <TreeRowContent
@@ -209,9 +226,10 @@ export function TreeRowContent({
       </span>
 
       {isCurrent && (
-        // A chip rather than a tinted row: the position has to be readable while
-        // the pointer is on it, and a background would be covered by the hover.
-        <span className="shrink-0 rounded-sm bg-[var(--system-accent)]/12 px-1.5 py-0.5 text-[10px] font-medium leading-none text-[var(--system-accent)]">
+        // A chip rather than only a tint: the position has to stay readable while
+        // the pointer is on it, and while the list is scrolled to something else.
+        // Its own tint is stronger than the row's, or it would vanish into it.
+        <span className="shrink-0 rounded-sm bg-[var(--system-accent)]/25 px-1.5 py-0.5 text-[10px] font-medium leading-none text-[var(--system-accent)]">
           Current
         </span>
       )}

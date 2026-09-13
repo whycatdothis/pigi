@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Session tree: the row the session is on wears the theme's colour again, with the `Current` chip on top of it — the chip is painted more solidly than before, so it reads against its own row
+- Session tree: a row the keyboard is on is picked out with a grey background; the position keeps the theme's colour for itself
+- Session tree: searching hands the first match to the keyboard — that row is picked out, `↑` / `↓` move the pick row by row, and Enter moves the session to the row the keyboard is on. The caret stays in the search box while the pick moves, so typing keeps working
+
+### Fixed
+
+- Session tree: Enter after a search moved the session to the first row on screen — usually the ancestor that carries the match — instead of to the match itself
+- Session tree: in a packaged build the dialog opened at the top of a long session instead of at the current row — the scroll ran before the list had its rows, and only development's double-run of effects hid it
+
 ## [0.4.11-beta.1] - 2026-09-13
 
 ### Added

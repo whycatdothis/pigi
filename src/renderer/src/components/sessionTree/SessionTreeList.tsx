@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { hotkeysCoreFeature, syncDataLoaderFeature } from '@headless-tree/core';
 import { useTree } from '@headless-tree/react';
 import type { ItemInstance, TreeInstance } from '@headless-tree/core';
@@ -42,6 +42,22 @@ interface SessionTreeListProps {
   onRowPath: (rowId: string | null) => void;
 }
 
+/** The slice of the tree's state this list owns: the rows that are open, and the row the keyboard is on. */
+interface SessionTreeSelectionState {
+  expandedItems: string[];
+  focusedItem: string | null;
+}
+
+/**
+ * Read one state slot.
+ *
+ * The library types every slot as `Updater<...>` because a setter may be handed an
+ * updater function; what it stores, and what arrives here, is the value itself.
+ */
+function readStateSlot<T>(slot: T | ((previous: T) => T) | undefined, fallback: T): T {
+  return typeof slot === 'function' ? fallback : (slot ?? fallback);
+}
+
 /** The scrolling list: the tree, its version headers and the pinned ancestors. */
 export function SessionTreeList({
   data,
@@ -56,6 +72,17 @@ export function SessionTreeList({
   onRowLeave,
   onRowPath,
 }: SessionTreeListProps): React.JSX.Element {
+  // The tree's own state (what is expanded, which row the keyboard is on) is held as
+  // React state here, which is the adapter contract: the library reports every change
+  // through the setters named in `stateHandlerNames`, and hands the whole object back
+  // when it rebuilds. Owning it is what makes a re-render safe — the library merges
+  // the state it is given over the one it holds, so a value it changed without a
+  // rebuild (the focused row) would otherwise be rolled back by the next render.
+  const [treeState, setTreeState] = useState<SessionTreeSelectionState>(() => ({
+    expandedItems: expandedItemIds(data),
+    focusedItem: null,
+  }));
+
   const tree = useTree<SessionTreeItem>({
     rootItemId: data.rootItemId,
     getItemName: (item) => item.getItemData().entry?.preview ?? '',
@@ -68,6 +95,25 @@ export function SessionTreeList({
     // versions in one file, one long tree would otherwise push the others out
     // of sight. Their headers stay, so none of them can be missed.
     initialState: { expandedItems: expandedItemIds(data) },
+    state: treeState,
+    setState: (next) =>
+      setTreeState((previous) => {
+        const state = typeof next === 'function' ? next(previous) : next;
+        return {
+          expandedItems: readStateSlot(state.expandedItems, previous.expandedItems),
+          focusedItem: readStateSlot(state.focusedItem, previous.focusedItem),
+        };
+      }),
+    setFocusedItem: (next) =>
+      setTreeState((previous) => ({
+        ...previous,
+        focusedItem: readStateSlot(next, previous.focusedItem),
+      })),
+    setExpandedItems: (next) =>
+      setTreeState((previous) => ({
+        ...previous,
+        expandedItems: readStateSlot(next, previous.expandedItems),
+      })),
     features: [syncDataLoaderFeature, hotkeysCoreFeature],
     onPrimaryAction: (item) => {
       const entry = item.getItemData().entry;
@@ -131,6 +177,21 @@ export function SessionTreeList({
     [onRowEnter, onRowPath],
   );
 
+  // The dialog folds the trees the session is not in, and the display leaves their
+  // rows out. The tree itself has to agree: with those rows still in its item list,
+  // Home, End and the arrow keys at a tree's edge would move the cursor onto a row
+  // that is not on screen.
+  useEffect(() => {
+    for (const treeId of data.treeIds) {
+      const item = tree.getItemInstance(treeId);
+      const wanted = !collapsedTreeIds.has(treeId);
+      if (wanted !== item.isExpanded()) {
+        if (wanted) item.expand();
+        else item.collapse();
+      }
+    }
+  }, [tree, data.treeIds, collapsedTreeIds]);
+
   const handleRowLeave = useCallback((): void => {
     onRowPath(null);
     onRowLeave();
@@ -145,15 +206,20 @@ export function SessionTreeList({
 
   // Open at the current position, not at the top of a long session. A live
   // refresh must not yank the list: the user may be reading further up.
+  //
+  // The row count is a dependency because the tree hands its items over a beat
+  // after the first render: on that first pass there is no element to scroll to
+  // yet, and nothing else in this effect would change to bring it back.
   useEffect(() => {
     if (!autoScroll || !currentId) return;
     tree.getItemInstance(currentId).getElement()?.scrollIntoView({ block: 'center' });
-  }, [autoScroll, currentId, tree]);
+  }, [autoScroll, currentId, tree, display.nodes.length]);
 
   const rowContext: SessionTreeRowContext = {
     data,
     tree,
     currentId,
+    selectedId: treeState.focusedItem,
     litRowId: display.litRowId,
     onSelect,
     onToggleFold: toggleFolded,
@@ -244,6 +310,7 @@ function SessionTreeDisplayRow({
         isBranchChild={isBranchChild}
         matchIndexes={data.matchIndexesById.get(node.itemId)}
         isCurrent={node.itemId === currentId}
+        isSelected={rowContext.selectedId === node.itemId && node.itemId !== currentId}
         rowContext={rowContext}
       />
       {node.continuation && (
