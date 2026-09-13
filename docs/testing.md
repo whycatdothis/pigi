@@ -3,12 +3,18 @@
 Four layers, three of them in use. The rule of thumb: pick the cheapest layer that
 can actually fail for the bug you are worried about.
 
-| Layer         | Runs on       | Command                | In CI         | Answers                     |
-| ------------- | ------------- | ---------------------- | ------------- | --------------------------- |
-| **Unit**      | node, no DOM  | `npm test`             | yes           | is this logic right?        |
-| **Component** | jsdom + React | `npm test`             | yes           | does this surface behave?   |
-| **Browser**   | real Chromium | `npm run test:browser` | no, on demand | does it lay out and scroll? |
-| **Electron**  | the real app  | by hand, via CDP       | no            | does it work in the app?    |
+| Layer         | Runs on       | Command           | In CI | Answers                     |
+| ------------- | ------------- | ----------------- | ----- | --------------------------- |
+| **Unit**      | node, no DOM  | `npm test`        | yes   | is this logic right?        |
+| **Component** | jsdom + React | `npm test`        | yes   | does this surface behave?   |
+| **Browser**   | real Chromium | `npm test` (last) | yes   | does it lay out and scroll? |
+| **Electron**  | the real app  | by hand, via CDP  | no    | does it work in the app?    |
+
+`npm test` is the whole thing: unit and component first, the browser layer last, so a
+long session does not cost a browser start until the cheap layers are green. The
+browser layer needs Chromium downloaded once — `npx playwright install chromium` (CI
+runs the same step and caches it). One layer at a time: `npm run test:jsdom`,
+`npm run test:browser`, `npm run test:watch`.
 
 ## What goes where
 
@@ -43,11 +49,11 @@ Presentational components (buttons, chips, markdown rendering) are not tested.
   keyboard sequence.
 - jsdom test files start with `// @vitest-environment jsdom` and import
   `../../testing/jsdomSetup` (matchers plus the few DOM APIs jsdom lacks).
-- A test that mounts a virtual list — the session tree once §11 of
-  `docs/sessionTree.md` lands — calls `installViewport({ width, height })` before
-  rendering. Without a size the list draws no rows at all, and a test that reads
-  rows then measures nothing instead of failing; `testing/jsdomViewport.test.tsx`
-  is the recipe, with what a 320px viewport draws.
+- A test that mounts a virtual list (the session tree list is one) calls
+  `installViewport({ width, height })` before rendering. Without a size the list
+  draws no rows at all, and a test that reads rows then measures nothing instead of
+  failing; `testing/jsdomViewport.test.tsx` is the recipe, with what a 320px
+  viewport draws.
 
 ### Assertions that survive a refactor
 

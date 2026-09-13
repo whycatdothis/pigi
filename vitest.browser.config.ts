@@ -7,9 +7,10 @@ import { playwright } from '@vitest/browser-playwright';
 /**
  * The browser tests: the same components, mounted in a real Chromium.
  *
- * Kept out of `vitest.config.ts` (and so out of `npm test` and CI) because they
- * need a downloaded browser and a page per test — they exist for the things jsdom
- * cannot answer: measured row heights, real scrolling, text that overflows its box.
+ * A config of its own because they need a downloaded Chromium: `npm test` runs
+ * this layer last, and a fresh checkout has to run `npx playwright install
+ * chromium` once (CI installs it too). They exist for the things jsdom cannot
+ * answer: measured row heights, real scrolling, text that overflows its box.
  * Docs: docs/testing.md.
  */
 export default defineConfig({
