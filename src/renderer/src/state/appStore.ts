@@ -8,6 +8,11 @@ import type {
   ThinkingLevel,
 } from '../../../shared/ipcContract';
 import type { Platform } from '../../../shared/platform';
+import type { DiagramThemeChoice } from '../lib/mermaidTheme';
+import {
+  readDiagramThemePreference,
+  writeDiagramThemePreference,
+} from '../lib/diagramThemePreference';
 import type { AgentStatus } from './transcriptController';
 
 export type { AgentStatus };
@@ -84,6 +89,12 @@ interface AppState {
   // Tool block view mode: 'default' shows all cards, 'compact_read' collapses consecutive read-only tools, 'minimal' renders a minimal/codex-style activity view
   toolBlockViewMode: 'default' | 'compact_read' | 'minimal';
   setToolBlockViewMode: (mode: 'default' | 'compact_read' | 'minimal') => void;
+
+  // Theme a diagram is drawn in: 'auto' follows the app's own theme, anything
+  // else is a mermaid theme name the reader picked. Kept here rather than in the
+  // diagram's own module so a settings page has one place to read and write it.
+  diagramTheme: DiagramThemeChoice;
+  setDiagramTheme: (choice: DiagramThemeChoice) => void;
 
   // Platform
   platform: Platform;
@@ -208,6 +219,12 @@ export const useAppStore = create<AppState>((set) => ({
   toolBlockViewMode: 'compact_read',
 
   setToolBlockViewMode: (mode) => set({ toolBlockViewMode: mode }),
+
+  diagramTheme: readDiagramThemePreference(),
+  setDiagramTheme: (choice) => {
+    writeDiagramThemePreference(choice);
+    set({ diagramTheme: choice });
+  },
 
   // Platform
   platform: 'unknown',

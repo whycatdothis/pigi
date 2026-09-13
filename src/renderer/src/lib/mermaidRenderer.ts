@@ -1,5 +1,5 @@
 import mermaid, { type MermaidConfig } from 'mermaid';
-import { appThemeVariables, diagramFontFamily, type DiagramTheme } from './mermaidTheme';
+import { diagramFontFamily, type DiagramTheme } from './mermaidTheme';
 
 export interface RenderedDiagram {
   /** Mermaid's own markup, which is what the drawing is made of. */
@@ -149,9 +149,9 @@ function configFor(theme: DiagramTheme): MermaidConfig {
     // A diagram that fails to parse must not append mermaid's error graphic to
     // the document, where it would sit outside the transcript and never leave.
     suppressErrorRendering: true,
-    theme: theme === 'dark' ? 'dark' : 'default',
+    theme,
+    // Mermaid's palette for the theme, in the stack the app draws text in.
     fontFamily: diagramFontFamily(),
-    themeVariables: appThemeVariables(),
   };
 }
 

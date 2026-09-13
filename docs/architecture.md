@@ -329,13 +329,15 @@ Rules that the code depends on:
   overlay performs on itself — wheel and touch move dismiss it — are stopped from
   reaching it while they are the drawing's, and a click that ends a drag is not
   the click that dismisses the overlay.
-- **Colours come from the app's tokens.** Mermaid derives shades from whatever
-  it is handed, so the values have to be plain sRGB while the app's are
-  `oklch()` and `color-mix()`: `lib/mermaidTheme.ts` paints one pixel on a
-  canvas to convert, drops any token it cannot read and lets the theme's own
-  value stand. The theme lives in a class on the document element, which
-  `useResolvedTheme` observes — that class is the single source of truth for
-  which theme is drawn.
+- **A diagram is drawn in mermaid's own theme.** The light window gets mermaid's
+  `default` and the dark one its `dark`; no theme variable is overridden, so the
+  drawing looks like the diagram it is rather than like the app's chrome around
+  it. The only thing taken from the app is the font stack, so labels sit in the
+  same type as the text beside them. `lib/mermaidTheme.ts` holds the choices a
+  settings page will offer, and the reader's pick is kept in the app store and
+  in `localStorage` until that page exists. The app's theme lives in a class on
+  the document element, which `useResolvedTheme` observes — that class is the
+  single source of truth for which theme is drawn when following the app.
 
 ## Credentials
 
