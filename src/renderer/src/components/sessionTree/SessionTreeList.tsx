@@ -1,27 +1,39 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
 import { hotkeysCoreFeature, syncDataLoaderFeature } from '@headless-tree/core';
 import { useTree } from '@headless-tree/react';
 import type { ItemInstance, TreeInstance } from '@headless-tree/core';
 import type { SessionTreeEntry } from '../../../../shared/ipcContract';
 import {
   buildSessionTreeDisplay,
+  collectPathOwners,
+  flattenSessionTreeDisplay,
   type SessionTreeData,
-  type SessionTreeDisplayNode,
+  type SessionTreeFlatRow,
   type SessionTreeItem,
-  type SessionTreeRailTint,
 } from '../../lib/sessionTreeData';
 import {
   BRANCH_ELBOW_TOP_PX,
   BRANCH_ELBOW_WIDTH_PX,
-  BRANCH_LAST_RAIL_HEIGHT_PX,
   BRANCH_SPACING_PX,
   RAIL_WIDTH_PX,
   chevronCentreX,
-  findLitRowOffsetPx,
   railColor,
 } from './sessionTreeGeometry';
+import {
+  DEFAULT_TREE_HEADER_HEIGHT_PX,
+  buildSessionTreeListItems,
+  collectRailSpans,
+  collectVisibleItemIds,
+  findLitRowId,
+  isRailOwner,
+  listItemHeightPx,
+  listItemOffsetsPx,
+  type SessionTreeListItem,
+} from './sessionTreeListModel';
 import { TreeHeader } from './SessionTreeHeader';
 import { PinnedAncestors } from './SessionTreePinnedBand';
+import { SessionTreeRails } from './SessionTreeRails';
 import { TreeRow, type SessionTreeRowContext } from './SessionTreeRow';
 
 interface SessionTreeListProps {
@@ -58,7 +70,21 @@ function readStateSlot<T>(slot: T | ((previous: T) => T) | undefined, fallback: 
   return typeof slot === 'function' ? fallback : (slot ?? fallback);
 }
 
-/** The scrolling list: the tree, its version headers and the pinned ancestors. */
+/** A row's key in the virtualizer: stable across a resize of the window. */
+function listItemKey(item: SessionTreeListItem): string {
+  return item.kind === 'header' ? `header:${item.treeId}` : `row:${item.row.itemId}`;
+}
+
+/**
+ * The scrolling list: the tree, its version headers and the pinned ancestors.
+ *
+ * The rows are a flat list — the tree's nesting is only how they are ordered —
+ * and only the ones on screen are rendered. Everything else is arithmetic over
+ * that order: where a row starts (`listItemOffsetsPx`), which row is at the top
+ * of the viewport (the pinned band) and where the branch lines run
+ * (`collectRailSpans`). Row heights are constants and headers are measured, so
+ * the arithmetic is exact for rows that are nowhere near the DOM.
+ */
 export function SessionTreeList({
   data,
   currentId,
@@ -135,33 +161,65 @@ export function SessionTreeList({
     [tree],
   );
 
-  // The rows the tree currently shows (folds and filters applied), and how they
-  // nest: the recursion below renders exactly this, so both stay in step.
-  const visibleItemIds = tree
-    .getItems()
-    .map((item) => item.getId())
-    .filter((itemId) => !collapsedTreeIds.has(data.treeRootIdByItemId.get(itemId) ?? itemId));
-  const display = buildSessionTreeDisplay(data, new Set(visibleItemIds), hoverRowId);
+  // The rows the tree currently shows (folds and filters applied). This is the
+  // expensive part — one walk of the visible session — so it is memoised on the
+  // things that can change it, and not on the row the light is on: a pointer
+  // moving along a branch must not rebuild the tree.
+  const visibleItemIds = useMemo(
+    () => collectVisibleItemIds(data, treeState.expandedItems, collapsedTreeIds),
+    [data, treeState.expandedItems, collapsedTreeIds],
+  );
 
-  // One group per tree, in session order, so the header of a folded tree stays
-  // on screen while its rows do not. A filter can leave several roots for one
-  // tree (its root row dropped, rows re-attaching higher up): grouping by tree
-  // rather than by position in the list keeps those rows under one header.
-  const nodesByTreeId = new Map<string, SessionTreeDisplayNode[]>();
-  for (const node of display.nodes) {
-    const treeId = data.treeRootIdByItemId.get(node.itemId) ?? node.itemId;
-    const nodes = nodesByTreeId.get(treeId);
-    if (nodes) nodes.push(node);
-    else nodesByTreeId.set(treeId, [node]);
-  }
-  const treeGroups = data.treeIds.map((treeId, index) => ({
-    treeId,
-    position: index + 1,
-    nodes: nodesByTreeId.get(treeId) ?? [],
-  }));
+  const display = useMemo(
+    () => buildSessionTreeDisplay(data, visibleItemIds),
+    [data, visibleItemIds],
+  );
+  const rows = useMemo(() => flattenSessionTreeDisplay(display), [display]);
+  const items = useMemo(() => buildSessionTreeListItems(data, rows), [data, rows]);
+
+  /** Height of a tree header; every header is the same one-line component. */
+  const [headerHeightPx, setHeaderHeightPx] = useState(DEFAULT_TREE_HEADER_HEIGHT_PX);
+  const offsets = useMemo(() => listItemOffsetsPx(items, headerHeightPx), [items, headerHeightPx]);
+  const itemIndexById = useMemo(() => {
+    const indexById = new Map<string, number>();
+    items.forEach((item, index) => {
+      if (item.kind === 'row') indexById.set(item.row.itemId, index);
+    });
+    return indexById;
+  }, [items]);
+
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => containerRef.current,
+    getItemKey: (index) => listItemKey(items[index]),
+    // Exact for rows (their height is a constant) and a good guess for a header
+    // until the first one is measured.
+    estimateSize: (index) => listItemHeightPx(items[index], headerHeightPx),
+    // Only headers need measuring: a row's height is known, and measuring it
+    // would force a layout read for every row that scrolls in.
+    measureElement: (element, entry, instance): number => {
+      const height = measureElement(element, entry, instance);
+      setHeaderHeightPx((previous) => (Math.abs(previous - height) < 0.5 ? previous : height));
+      return height;
+    },
+    overscan: 8,
+  });
+
+  const litRowId = findLitRowId(rows, data.activePathIds, hoverRowId);
+  const pathOwners = useMemo(
+    (): Map<number, string> =>
+      litRowId === null
+        ? new Map<number, string>()
+        : collectPathOwners(litRowId, display.parentById, display.depthById),
+    [litRowId, display],
+  );
+  const railSpans = useMemo(
+    () => collectRailSpans(items, offsets, pathOwners, litRowId),
+    [items, offsets, pathOwners, litRowId],
+  );
 
   /** Fold or unfold one row. */
-  const toggleFolded = useCallback((target: ItemInstance<SessionTreeItem>) => {
+  const toggleFolded = useCallback((target: ItemInstance<SessionTreeItem>): void => {
     if (target.isExpanded()) {
       target.collapse();
     } else {
@@ -207,241 +265,188 @@ export function SessionTreeList({
   // Open at the current position, not at the top of a long session. A live
   // refresh must not yank the list: the user may be reading further up.
   //
-  // The row count is a dependency because the tree hands its items over a beat
-  // after the first render: on that first pass there is no element to scroll to
-  // yet, and nothing else in this effect would change to bring it back.
+  // The row index is a dependency because the tree hands its items over a beat
+  // after the first render: on that first pass there is no row to scroll to yet,
+  // and nothing else in this effect would change to bring it back.
+  const currentRowIndex = currentId === null ? undefined : itemIndexById.get(currentId);
   useEffect(() => {
-    if (!autoScroll || !currentId) return;
-    tree.getItemInstance(currentId).getElement()?.scrollIntoView({ block: 'center' });
-  }, [autoScroll, currentId, tree, display.nodes.length]);
+    if (!autoScroll || currentRowIndex === undefined) return;
+    virtualizer.scrollToIndex(currentRowIndex, { align: 'center' });
+  }, [autoScroll, currentRowIndex, virtualizer]);
+
+  // Keep the row the keyboard is on in view. The library's own hotkeys move the
+  // focus and leave the scrolling to us: the element of a row outside the window
+  // does not exist, so there is nothing for the browser to scroll to.
+  const focusedRowIndex =
+    treeState.focusedItem === null ? undefined : itemIndexById.get(treeState.focusedItem);
+  useEffect(() => {
+    if (focusedRowIndex === undefined) return;
+    virtualizer.scrollToIndex(focusedRowIndex, { align: 'auto' });
+  }, [focusedRowIndex, virtualizer]);
+
+  /**
+   * Scrolling moves the rows out from under the pointer, and can take the row
+   * the keyboard is on out of the window with it — the focused element unmounts
+   * and focus falls back to the page. Handing the container the focus in that
+   * case keeps the arrow keys working; the search box keeps its own focus, since
+   * the focused element is then outside the list.
+   */
+  const handleScroll = useCallback((): void => {
+    handleRowLeave();
+    const container = containerRef.current;
+    if (!container || document.activeElement !== document.body) return;
+    container.focus({ preventScroll: true });
+  }, [handleRowLeave]);
+
+  /**
+   * What the pinned band takes up in the flow above the rows.
+   *
+   * The band is a sticky strip with no height of its own, but its padding keeps
+   * the pinned rows below the sticky headers — and that padding is a real offset
+   * between the scroll container's top and where the row offsets start. Version
+   * headers are the only thing it accounts for, so a single-tree session has none.
+   */
+  const contentOffsetPx = data.treeIds.length > 1 ? headerHeightPx : 0;
 
   const rowContext: SessionTreeRowContext = {
     data,
     tree,
     currentId,
     selectedId: treeState.focusedItem,
-    litRowId: display.litRowId,
     onSelect,
     onToggleFold: toggleFolded,
     onRowEnter: handleRowEnter,
     onRowLeave: handleRowLeave,
   };
 
+  const windowTopPx = virtualizer.getVirtualItems()[0]?.start ?? 0;
+
   return (
     <div
       {...tree.getContainerProps('Session tree')}
       ref={setContainer}
       className="h-full overflow-y-auto px-2 outline-none"
-      // Scrolling moves the rows out from under the pointer.
-      onScroll={handleRowLeave}
+      onScroll={handleScroll}
     >
       {/* The ancestor band sticks inside the list, above the rows and the tree
           headers (`z-20`), and takes no space in the flow. */}
       <PinnedAncestors
-        containerRef={containerRef}
+        scrollRef={containerRef}
+        items={items}
+        offsets={offsets}
         parentById={display.parentById}
         depthById={display.depthById}
-        visibleRowCount={display.nodes.length > 0 ? tree.getItems().length : 0}
+        contentOffsetPx={contentOffsetPx}
         rowContext={rowContext}
       />
-      {treeGroups.map((group, groupIndex) => (
-        <React.Fragment key={group.treeId}>
-          {/* Several trees in one session file: a header per tree keeps them
-              apart and tells the user how many versions there are. It stays up
-              while searching, so a match is still placed in its version. */}
-          {data.treeIds.length > 1 && (
-            <TreeHeader
-              position={group.position}
-              isCurrent={group.treeId === data.currentRootId}
-              expanded={!collapsedTreeIds.has(group.treeId)}
-              stats={data.rootStatsById.get(group.nodes[0]?.itemId ?? group.treeId)}
-              isFirst={groupIndex === 0}
-              onToggle={() => onToggleTree(group.treeId)}
-            />
-          )}
-          {group.nodes.map((node) => (
-            <SessionTreeDisplayRow
-              key={node.itemId}
-              node={node}
-              level={1}
-              isBranchChild={false}
-              rowContext={rowContext}
-            />
-          ))}
-        </React.Fragment>
-      ))}
+      {/* The spacer is as tall as the whole list, so the scrollbar is honest; the
+          rows inside it are only the ones on screen, and the window moves with
+          the scroll. */}
+      <div
+        className="relative"
+        style={{ height: `${virtualizer.getTotalSize()}px` }}
+        data-testid="session-tree-virtualizer"
+      >
+        <div
+          className="absolute left-0 top-0 w-full"
+          style={{ transform: `translateY(${windowTopPx}px)` }}
+        >
+          <SessionTreeRails spans={railSpans} windowTopPx={windowTopPx} />
+          {virtualizer.getVirtualItems().map((virtualItem) => {
+            const item = items[virtualItem.index];
+            if (!item) return null;
+            if (item.kind === 'header') {
+              return (
+                <div
+                  key={listItemKey(item)}
+                  ref={virtualizer.measureElement}
+                  data-index={virtualItem.index}
+                >
+                  {/* Several trees in one session file: a header per tree keeps
+                      them apart and tells the user how many versions there are.
+                      It stays up while searching, so a match is still placed in
+                      its version. */}
+                  <TreeHeader
+                    position={item.position}
+                    isCurrent={item.treeId === data.currentRootId}
+                    expanded={!collapsedTreeIds.has(item.treeId)}
+                    stats={data.rootStatsById.get(item.statsItemId)}
+                    isFirst={item.isFirst}
+                    onToggle={() => onToggleTree(item.treeId)}
+                  />
+                </div>
+              );
+            }
+            return (
+              <SessionTreeRowItem
+                key={listItemKey(item)}
+                row={item.row}
+                isLitOwner={isRailOwner(item.row, pathOwners)}
+                rowContext={rowContext}
+              />
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
 
-interface SessionTreeDisplayRowProps {
-  node: SessionTreeDisplayNode;
-  /** Nesting level of this row; the roots start at 1 (ARIA's first level). */
-  level: number;
-  isBranchChild: boolean;
+interface SessionTreeRowItemProps {
+  row: SessionTreeFlatRow;
+  /** The light turns in at this row, so its elbow is lit. */
+  isLitOwner: boolean;
   rowContext: SessionTreeRowContext;
 }
 
 /**
- * One row, plus everything that hangs under it.
+ * One row of the list, with the spacing a fork's child carries and its elbow.
  *
- * A lone child continues at the same level, so it renders right here as a
- * sibling; a fork hands each child to a `TreeBranch`, which owns the line the
- * child hangs from. Neither branch nor continuation adds a wrapper, so a long
- * conversation stays a flat list in the DOM.
+ * The elbow is the one piece of a branch line that does belong to a row: it is
+ * where the line meets this row's chevron, so it moves with the row and is the
+ * only piece that is ever painted in the accent on a narrow run.
  */
-function SessionTreeDisplayRow({
-  node,
-  level,
-  isBranchChild,
+function SessionTreeRowItem({
+  row,
+  isLitOwner,
   rowContext,
-}: SessionTreeDisplayRowProps): React.JSX.Element {
-  const { data, tree, currentId } = rowContext;
-  const item = tree.getItemInstance(node.itemId);
-  const depth = level - 1;
-  const branch = node.branch;
-
+}: SessionTreeRowItemProps): React.JSX.Element | null {
+  const { data, tree, currentId, selectedId } = rowContext;
+  const item = tree.getItemInstance(row.itemId);
   return (
-    <>
-      <TreeRow
-        item={item}
-        level={level}
-        depth={depth}
-        isBranchChild={isBranchChild}
-        matchIndexes={data.matchIndexesById.get(node.itemId)}
-        isCurrent={node.itemId === currentId}
-        isSelected={rowContext.selectedId === node.itemId && node.itemId !== currentId}
-        rowContext={rowContext}
-      />
-      {node.continuation && (
-        <SessionTreeDisplayRow
-          node={node.continuation}
-          level={level}
-          isBranchChild={false}
-          rowContext={rowContext}
-        />
-      )}
-      {branch?.map((childNode, index) => (
-        <TreeBranch
-          key={childNode.itemId}
-          forkDepth={depth}
-          isLast={index === branch.length - 1}
-          railTint={childNode.railTint}
-          litOffsetPx={branchLitOffsetPx(childNode, rowContext.litRowId)}
-        >
-          <SessionTreeDisplayRow
-            node={childNode}
-            level={level + 1}
-            isBranchChild
-            rowContext={rowContext}
-          />
-        </TreeBranch>
-      ))}
-    </>
-  );
-}
-
-interface TreeBranchProps {
-  /** Depth of the row the branch starts at; its chevron column carries the line. */
-  forkDepth: number;
-  /**
-   * The last child: its line stops at the middle of its own row, so the fork
-   * ends where the branch visibly ends instead of running on into the subtree.
-   */
-  isLast: boolean;
-  /** How the lit path meets this child's line (see the display builder). */
-  railTint: SessionTreeRailTint;
-  /**
-   * When the path turns in here: pixels from this row's top down to the lit row,
-   * which is what the lit run covers. Zero when the row itself is the lit one.
-   */
-  litOffsetPx: number;
-  children: React.ReactNode;
-}
-
-/**
- * How far down the branch child's line the tint reaches.
- *
- * Zero for every child the path does not turn into: the run then ends at the
- * elbow, which is all those lines ever cover.
- */
-function branchLitOffsetPx(node: SessionTreeDisplayNode, litRowId: string | null): number {
-  if (litRowId === null || node.railTint !== 'enter') return 0;
-  return findLitRowOffsetPx(node, litRowId) ?? 0;
-}
-
-/**
- * One child of a fork, and the line it hangs from.
- *
- * The wrapper spans the child's whole subtree, which is what makes the line
- * continuous: siblings sit next to each other, so their lines join without a
- * seam, and no row has to know where the fork above it started.
- */
-function TreeBranch({
-  forkDepth,
-  isLast,
-  railTint,
-  litOffsetPx,
-  children,
-}: TreeBranchProps): React.JSX.Element {
-  // The pixel just left of the chevron's centre, so the hairline stays whole.
-  const lineLeft = chevronCentreX(forkDepth) - RAIL_WIDTH_PX;
-  // The path turns into this child: its line is lit down to the lit row, so a
-  // hovered row deep inside a branch shows the run it hangs from.
-  const entered = railTint === 'enter';
-  const runHeight = BRANCH_LAST_RAIL_HEIGHT_PX + (entered ? litOffsetPx : 0);
-
-  return (
-    // The spacing sits on the wrapper rather than on the row, so the line above
-    // reaches down to the fork's edge and the siblings stay joined.
-    <div className="relative" style={{ paddingTop: BRANCH_SPACING_PX }} data-tree-branch="true">
-      {/*
-        The line is two pieces: the run from the fork's edge down to the turn
-        into this child — as far as the lit row when the path turns in here — and
-        the run below it, which carries the fork on to the next sibling. A path
-        that turns in here lights the first; a path that passes by on its way to
-        a later sibling lights both. The last child has no second piece: its line
-        stops at its own centre.
-      */}
-      <span
-        className="absolute"
-        aria-hidden="true"
-        style={{
-          left: lineLeft,
-          top: 0,
-          width: RAIL_WIDTH_PX,
-          height: runHeight,
-          background: railColor(railTint !== 'none'),
-        }}
-      />
-      {!isLast && (
+    <div
+      className="relative"
+      style={{ paddingTop: row.isBranchChild ? BRANCH_SPACING_PX : 0 }}
+      data-tree-branch={row.isBranchChild ? 'true' : undefined}
+    >
+      {row.isBranchChild && (
         <span
           className="absolute"
           aria-hidden="true"
+          data-tree-elbow={isLitOwner ? 'lit' : 'quiet'}
           style={{
-            left: lineLeft,
-            top: runHeight,
-            width: RAIL_WIDTH_PX,
-            bottom: 0,
-            background: railColor(railTint === 'pass'),
+            // Starts one pixel to the right of the line: that pixel is the
+            // corner itself, and painting it twice would darken it (the lines
+            // are translucent) and, with an accented fork, mix two colours.
+            left: chevronCentreX(row.depth - 1) + RAIL_WIDTH_PX,
+            top: BRANCH_ELBOW_TOP_PX,
+            width: BRANCH_ELBOW_WIDTH_PX - RAIL_WIDTH_PX,
+            height: RAIL_WIDTH_PX,
+            background: railColor(isLitOwner),
           }}
         />
       )}
-      <span
-        className="absolute"
-        aria-hidden="true"
-        style={{
-          // Starts one pixel to the right of the line: that pixel is the corner
-          // itself, and painting it twice would darken it (the lines are
-          // translucent) and, with an accented fork, mix two different colours.
-          left: lineLeft + RAIL_WIDTH_PX,
-          top: BRANCH_ELBOW_TOP_PX,
-          width: BRANCH_ELBOW_WIDTH_PX - RAIL_WIDTH_PX,
-          height: RAIL_WIDTH_PX,
-          background: railColor(entered),
-        }}
+      <TreeRow
+        item={item}
+        // ARIA level counts from one; the row's depth from zero.
+        level={row.depth + 1}
+        depth={row.depth}
+        isBranchChild={row.isBranchChild}
+        matchIndexes={data.matchIndexesById.get(row.itemId)}
+        isCurrent={row.itemId === currentId}
+        isSelected={selectedId === row.itemId && row.itemId !== currentId}
+        rowContext={rowContext}
       />
-      {children}
     </div>
   );
 }

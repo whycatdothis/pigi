@@ -3,7 +3,7 @@ import { render } from 'vitest-browser-react';
 import type { SessionTree, SessionTreeEntry } from '../../../../shared/ipcContract';
 import { installFakePiApi } from '../../testing/fakePiApi';
 import { sessionTree, sessionTreeEntry } from '../../testing/sessionTreeFixtures';
-import { BRANCH_LAST_RAIL_HEIGHT_PX, ROW_HEIGHT_PX } from './sessionTreeGeometry';
+import { BRANCH_SPACING_PX, ROW_HEIGHT_PX } from './sessionTreeGeometry';
 import SessionTreeDialog from './SessionTreeDialog';
 // The rows are 32px tall and the list scrolls only because the app's own CSS says
 // so: these tests measure the real thing, styles included.
@@ -40,6 +40,71 @@ function requireElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
   if (!element) throw new Error(`nothing on the page matches ${selector}`);
   return element;
+}
+
+function rowIdsInDom(): (string | undefined)[] {
+  return [...document.querySelectorAll<HTMLElement>('[data-tree-row-id]')].map(
+    (element) => element.dataset.treeRowId,
+  );
+}
+
+function pinnedIds(): (string | undefined)[] {
+  return [...document.querySelectorAll<HTMLElement>('[data-tree-pinned-id]')].map(
+    (element) => element.dataset.treePinnedId,
+  );
+}
+
+/** Every drawn branch line: which fork's column, whether it is lit, and its paint. */
+interface DrawnRail {
+  forkDepth: number;
+  lit: boolean;
+  paint: string;
+  height: number;
+  top: number;
+}
+
+function drawnRails(): DrawnRail[] {
+  return [...document.querySelectorAll<HTMLElement>('[data-tree-rail-fork-depth]')].map(
+    (element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        forkDepth: Number(element.dataset.treeRailForkDepth),
+        lit: element.dataset.treeRailLit === 'true',
+        paint: getComputedStyle(element).backgroundColor,
+        height: Math.round(rect.height),
+        top: Math.round(rect.top),
+      };
+    },
+  );
+}
+
+/** The one line of a fork: `lit` picks the lit run or the rest of it. */
+function railOf(forkDepth: number, lit: boolean): DrawnRail {
+  const rail = drawnRails().find(
+    (candidate) => candidate.forkDepth === forkDepth && candidate.lit === lit,
+  );
+  if (!rail) throw new Error(`no ${lit ? 'lit' : 'quiet'} line at fork depth ${forkDepth}`);
+  return rail;
+}
+
+/**
+ * Put a row's top edge at the top of the list, scrolling in steps first: a row far
+ * down the list is not drawn yet, so it cannot be measured until the window reaches it.
+ */
+async function scrollRowToTop(rowId: string): Promise<void> {
+  const list = requireElement<HTMLElement>('[role=tree]');
+  for (let step = 0; step < 40; step += 1) {
+    const row = document.querySelector<HTMLElement>(`[data-tree-row-id="${rowId}"]`);
+    if (row) {
+      const listRect = list.getBoundingClientRect();
+      list.scrollTop += Math.round(row.getBoundingClientRect().top - listRect.top);
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+      return;
+    }
+    list.scrollTop += Math.floor(list.clientHeight / 2);
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+  }
+  throw new Error(`${rowId} never came into the window`);
 }
 
 /**
@@ -122,15 +187,23 @@ test('measures every row at the height the list budgeted for it', async () => {
 test('opens at the current row and scrolls for the rest', async () => {
   await renderDialog(longSession(80));
 
+  // The session's last row is off the bottom of the list when it mounts, and a row
+  // outside the window is not drawn at all: the list has to scroll to it.
+  await expect
+    .poll(() => {
+      const row = document.querySelector<HTMLElement>('[data-tree-current=true]');
+      if (!row) return 'not drawn';
+      const rowRect = row.getBoundingClientRect();
+      const listRect = requireElement<HTMLElement>('[role=tree]').getBoundingClientRect();
+      if (rowRect.top < listRect.top - 1) return 'above the view';
+      if (rowRect.bottom > listRect.bottom + 1) return 'below the view';
+      return 'in view';
+    })
+    .toBe('in view');
+
   const list = requireElement<HTMLElement>('[role=tree]');
   expect(list.scrollHeight).toBeGreaterThan(list.clientHeight + ROW_HEIGHT_PX * 4);
-  await expect.poll(() => list.scrollTop).toBeGreaterThan(0);
-
-  const current = requireElement<HTMLElement>('[data-tree-current=true]');
-  const listRect = list.getBoundingClientRect();
-  const rowRect = current.getBoundingClientRect();
-  expect(rowRect.top).toBeGreaterThanOrEqual(listRect.top - 1);
-  expect(rowRect.bottom).toBeLessThanOrEqual(listRect.bottom + 1);
+  expect(list.scrollTop).toBeGreaterThan(0);
 });
 
 test('paints the position in the theme colour and the keyboard row in grey', async () => {
@@ -184,82 +257,110 @@ test('opens the hover card for a row whose text is cut off', async () => {
 
 test('scrolls a search result into view and hands it the keyboard', async () => {
   // Two matches: the first is far above the rows the list is sitting on, so the
-  // filter alone does not put it on screen — the list has to scroll to it.
+  // filter alone does not put it on screen — and a row outside the window is not
+  // drawn at all, so the list has to scroll to it before it can be looked at.
   const screen = await renderDialog(longSession(200, [55, 190]));
-  const list = requireElement<HTMLElement>('[role=tree]');
-  const listRect = list.getBoundingClientRect();
+
   // The dialog opens at the current row, which is the last one.
-  await expect.poll(() => list.scrollTop).toBeGreaterThan(1760);
+  await expect
+    .poll(() => requireElement<HTMLElement>('[role=tree]').scrollTop)
+    .toBeGreaterThan(1760);
+  expect(rowIdsInDom()).not.toContain('e55');
 
   await screen.getByRole('textbox').fill('needle');
 
-  await expect.poll(() => list.scrollTop).toBeLessThanOrEqual(55 * ROW_HEIGHT_PX);
-  const selected = requireElement<HTMLElement>('[data-tree-selected=true]');
-  expect(selected.dataset.treeRowId).toBe('e55');
-  const rowRect = selected.getBoundingClientRect();
-  expect(rowRect.top).toBeGreaterThanOrEqual(listRect.top - 1);
-  expect(rowRect.bottom).toBeLessThanOrEqual(listRect.bottom + 1);
+  await expect
+    .poll(() => document.querySelector<HTMLElement>('[data-tree-selected=true]')?.dataset.treeRowId)
+    .toBe('e55');
+  // The row is brought into view, not merely selected: it can be at the edge, but
+  // not past it. The list is re-queried because the search remounts it.
+  await expect
+    .poll(() => {
+      const row = document.querySelector<HTMLElement>('[data-tree-selected=true]');
+      if (!row) return 'not drawn';
+      const rowRect = row.getBoundingClientRect();
+      const listRect = requireElement<HTMLElement>('[role=tree]').getBoundingClientRect();
+      if (rowRect.top < listRect.top - 1) return 'above the view';
+      if (rowRect.bottom > listRect.bottom + 1) return 'below the view';
+      return 'in view';
+    })
+    .toBe('in view');
+});
+
+test('draws a window of rows, and a scrollbar as long as the whole session', async () => {
+  await renderDialog(longSession(2000));
+  const list = requireElement<HTMLElement>('[role=tree]');
+  const listRect = list.getBoundingClientRect();
+
+  // The list is 2000 rows tall to scroll through…
+  expect(list.scrollHeight).toBe(2000 * ROW_HEIGHT_PX);
+  // …but only a screenful of rows is in the document.
+  const rows = [...document.querySelectorAll<HTMLElement>('[data-tree-row-id]')];
+  expect(rows.length).toBeGreaterThan(8);
+  expect(rows.length).toBeLessThanOrEqual(Math.ceil(listRect.height / ROW_HEIGHT_PX) + 20);
+
+  // What is drawn is the window around the current row, not the start of the session.
+  expect(rowIdsInDom()).toContain('e1999');
+  expect(rowIdsInDom()).not.toContain('e0');
 });
 
 test('pins the branch the top row hangs from, and only once it is scrolled past', async () => {
   await renderDialog(forkedSession());
-  const list = requireElement<HTMLElement>('[role=tree]');
-  const rowIds = (): (string | undefined)[] =>
-    [...document.querySelectorAll<HTMLElement>('[data-tree-row-id]')].map(
-      (element) => element.dataset.treeRowId,
-    );
-  const pinnedIds = (): (string | undefined)[] =>
-    [...document.querySelectorAll<HTMLElement>('[data-tree-pinned-id]')].map(
-      (element) => element.dataset.treePinnedId,
-    );
 
   // Nothing has scrolled past at the top, so there is no band to show.
   expect(pinnedIds()).toEqual([]);
 
   // Put `y20` at the top of the list. The rows from there down hang from two
   // forks: the inner one that starts the long chain, inside the outer one.
-  const index = rowIds().indexOf('y20');
-  expect(index).toBeGreaterThan(0);
-  list.scrollTop = index * ROW_HEIGHT_PX;
+  await scrollRowToTop('y20');
 
   await expect.poll(pinnedIds).toEqual(['u4', 'b3']);
 });
 
 test('lights the run down to a hovered row, and takes it away again', async () => {
   const screen = await renderDialog(forkedSession());
-  const branchRail = (rowId: string): HTMLElement => {
-    const row = requireElement<HTMLElement>(`[data-tree-row-id="${rowId}"]`);
-    const rail = row
-      .closest('[data-tree-branch=true]')
-      ?.querySelector<HTMLElement>('span[aria-hidden=true]');
-    if (!rail) throw new Error(`no branch line above ${rowId}`);
-    return rail;
+  const rowBox = (rowId: string): DOMRect =>
+    requireElement<HTMLElement>(`[data-tree-row-id="${rowId}"]`).getBoundingClientRect();
+  const railEnd = (forkDepth: number, lit: boolean): number => {
+    const rail = railOf(forkDepth, lit);
+    return rail.top + rail.height;
   };
-  const paintOf = (rowId: string): string => getComputedStyle(branchRail(rowId)).backgroundColor;
-  const heightOf = (rowId: string): number => branchRail(rowId).getBoundingClientRect().height;
 
-  // The pointer starts on the search box, so the only lit path is the one the
-  // session left: down to the leaf in the short branch. Both other branches are quiet.
+  // With the pointer nowhere near the rows, the only lit path is the one the
+  // session left: down to `s1` in the short branch.
   await screen.getByRole('textbox').hover();
-  const litPath = paintOf('s1');
-  const quiet = paintOf('y20');
-  const quietElsewhere = paintOf('x1');
-  expect(litPath).not.toBe(quiet);
-  expect(quiet).toBe(quietElsewhere);
-  // A line with nothing to cover is the run down to its own elbow, no more.
-  expect(heightOf('y20')).toBeCloseTo(BRANCH_LAST_RAIL_HEIGHT_PX, 0);
+  const litPath = railOf(0, true).paint;
+  expect(litPath).not.toBe(railOf(0, false).paint);
+  // The run stops at the elbow of the row it leads to, and starts two pixels above
+  // the fork's first child: the line covers the spacing it is drawn through.
+  expect(railEnd(0, true)).toBeCloseTo(rowBox('s1').top + ROW_HEIGHT_PX / 2, 0);
+  expect(railOf(1, false).top).toBeCloseTo(rowBox('x1').top - BRANCH_SPACING_PX, 0);
+  const litRunAtRest = railOf(0, true).height;
+  const quietRunAtRest = railOf(1, false).height;
 
+  // The row to point at is deep in the long chain, so the window has to reach it
+  // first: a row that is not drawn cannot be hovered.
+  await scrollRowToTop('y20');
   await screen.getByTestId('session-tree-row').filter({ hasText: 'message y20' }).hover();
 
   // Pointing at a row deep in the long chain lights that chain's line — and the run
   // reaches all the way down to the row, not just to the fork it hangs from.
-  await expect.poll(() => paintOf('y20')).toBe(litPath);
-  expect(heightOf('y20')).toBeCloseTo(BRANCH_LAST_RAIL_HEIGHT_PX + 19 * ROW_HEIGHT_PX, 0);
-  // The way down passes the other branch of the inner fork, so its line lights too.
-  await expect.poll(() => paintOf('x1')).toBe(litPath);
+  await expect.poll(() => railOf(1, true).paint).toBe(litPath);
+  const hoveredCentre = rowBox('y20').top + ROW_HEIGHT_PX / 2;
+  expect(railEnd(1, true)).toBeCloseTo(hoveredCentre, 0);
+  expect(railEnd(0, true)).toBeCloseTo(hoveredCentre, 0);
+  expect(railOf(0, true).height).toBeGreaterThan(litRunAtRest);
+  // The light went into the fork's last branch, so that line is lit end to end:
+  // there is no quiet piece left over below it.
+  expect(drawnRails().some((rail) => rail.forkDepth === 1 && !rail.lit)).toBe(false);
 
-  // Off the rows again: the light goes back to the leaf's path, and the run with it.
+  // Off the rows again: the light goes back to the leaf's path, and the line runs
+  // the whole way down its branch again.
   await screen.getByRole('textbox').hover();
-  await expect.poll(() => paintOf('y20')).toBe(quiet);
-  expect(heightOf('y20')).toBeCloseTo(BRANCH_LAST_RAIL_HEIGHT_PX, 0);
+  await expect
+    .poll(() => drawnRails().some((rail) => rail.forkDepth === 1 && rail.lit))
+    .toBe(false);
+  expect(railOf(1, false).top).toBeCloseTo(rowBox('x1').top - BRANCH_SPACING_PX, 0);
+  expect(railOf(1, false).height).toBeCloseTo(quietRunAtRest, 0);
+  expect(railOf(0, true).height).toBeCloseTo(litRunAtRest, 0);
 });

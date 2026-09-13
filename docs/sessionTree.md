@@ -1018,88 +1018,65 @@ clientHeight` (8535/8535), scroll button hidden (follow on). The same jump
 - Whether the tree payload needs a `previews: false` variant if entry counts
   grow large enough for the payload to matter.
 
-### Wiring in a virtual list (planned)
+### The virtual list
 
-A long session — the case this dialog exists for — puts every row of the visible
-entries in the DOM, and every pointer move over a row rebuilds the whole display
-(`buildSessionTreeDisplay` bakes the lit rail tints into the nodes, so `litRowId`
-is an input to it). Neither is measurable at a few hundred rows and both are
-wasteful at a few thousand. Four steps, in this order; each one is verifiable on
-its own.
+The list draws only the rows on screen. Before it, a long session — the case this
+dialog exists for — put every row in the DOM and rebuilt the whole display on every
+pointer move, which a synthetic 2000-row session measured as 2000 row elements and
+about 0.45 s from mount to the first row on screen (three runs, 449 / 459 / 466 ms).
+That is what the work was for; what it must not change is everything about how the
+list looks and behaves, which is why the numbers below are compared against the same
+session and the same scroll position.
 
-Measured before starting, on a synthetic 2000-row session in the browser test
-harness (three runs, 449 / 459 / 466 ms): all 2000 rows are in the DOM, and the
-dialog takes about 0.45 s from mount to the first row on screen. Those are the
-numbers the work is for. What it must not regress is everything above; what it
-must show is a DOM row count of a screenful instead of the session's length.
+What holds it together is that a row's height is a constant: `ROW_HEIGHT_PX` plus the
+two pixels of spacing a fork's child carries above it. So the list is arithmetic over
+the row order, and the geometry of a row that is nowhere near the DOM is still exact —
+`components/sessionTree/sessionTreeListModel.ts` is all of it:
 
-Step 0 landed first, on its own:
+- `buildSessionTreeListItems` weaves the version headers between the rows (a folded
+  version keeps its header, so it stays reachable).
+- `listItemHeightPx` and `listItemOffsetsPx` say where every item starts. Only the
+  headers are measured: they are one line of text, and jsdom cannot measure anything.
+- `findTopRowIndex` binary-searches those offsets for the row at the top of the
+  viewport, which is what the pinned band mirrors. `collectBranchOwners` then names
+  the forks above it — usually rows that are not rendered at all.
+- `collectRailSpans` gives every fork one line, from just above its first child to the
+  elbow of its last; `SessionTreeRails` draws them in one inert layer behind the rows.
+  A line belongs to a fork, not to a row, which is exactly what lets the rows be flat
+  and windowed. The elbow stays with the row, since it is where the line meets it.
+- `findLitRowId` and `collectPathOwners` say where the light is. The tint pass is gone
+  from `buildSessionTreeDisplay`, which now holds structure only — so a pointer moving
+  along a branch re-renders the window, not the session. The rows are not individually
+  subscribed to a store as the first plan had it: with a window in place there are
+  about twenty rows to re-render, and the app is where that was checked.
 
-- `flattenSessionTreeDisplay` in `lib/sessionTreeData.ts`, with tests for the order,
-  the indent, the branch flags, continuations and the folded rows — the model a
-  virtualizer indexes, pinned before anything consumes it.
-- `installViewport` in `testing/jsdomSetup.ts`: without a size, jsdom draws a virtual
-  list as zero rows, which a row-reading test reports as nothing rather than as a
-  failure. `testing/jsdomViewport.test.tsx` pins the recipe (a 320px viewport draws a
-  screenful at `ROW_HEIGHT_PX`, plus overscan).
-- Three browser tests for behaviour the later steps must keep: the band mirroring the
-  forks of the top-most visible row, a search scrolling a match that is off screen
-  into view, and a hover lighting the run down to the row and the branches it passes.
-  All three pass today, which is what makes them a net.
+Scrolling to a row is `virtualizer.scrollToIndex(index)`, because the element of an
+off-screen row does not exist. The list owns it: the search box and the dialog's arrow
+keys only move the focused row, and one effect brings it into view.
 
-**1. Flatten the rows.** `flattenSessionTreeDisplay(display)` in
-`lib/sessionTreeData.ts` returns the rows in document order, each with what it
-needs to draw itself: `{ itemId, depth, isBranchChild, isLastBranchChild,
-continuationOf }`. The nesting the list renders today (a continuation chain
-nested inside its parent's node, a fork's children nested inside the fork's) is
-only how the recursion iterates — the row component already receives its own
-`depth` (for `paddingLeft`) and its own rail tint, so a flat array renders the
-same pixels. What it buys: an index. Virtualizers, `scrollToIndex` and
-`top = index * ROW_HEIGHT_PX` all need one, and a tree of React elements has
-none.
+Two behaviours follow from windowing, both deliberate:
 
-**2. Virtualize with the existing dependency.** `@tanstack/react-virtual` is
-already used by `MessageList`. `estimateSize: () => ROW_HEIGHT_PX` is exact
-because the row height is a constant, so no row needs measuring; the `Tree N`
-headers are virtual items of their own and are measured with `measureElement`
-(variable height, same as tool cards in the transcript). Rows render absolutely
-positioned inside the sized spacer, `overscan` a screenful. `data-tree-row-id`
-stays on the row: the pinned band's DOM pass is replaced in step 3, but the
-attribute is also what the band's own tests and probes read.
+- The focused row can scroll out of the window and unmount, which would drop keyboard
+  focus to the page and kill the arrow keys. The list hands its own container the focus
+  when that happens; the search box keeps its focus, because the focused element is
+  then outside the list.
+- The rail layer is inert (`pointer-events: none`), so a click in the one-pixel gutter
+  lands on the row. Before, the line itself was a dead spot.
 
-**3. Compute the band instead of measuring it.** `PinnedAncestors` currently
-reads every row's `offsetTop` (with a `MutationObserver` to notice a new row set)
-because that was the cheap way when all rows existed. With an index and a
-constant height the top of row `n` is arithmetic: `Σ header heights + n *
-ROW_HEIGHT_PX`. That removes the observer, the per-row layout reads and the
-cached `layoutRef` altogether, and it stays correct for rows that are not in the
-DOM. Header heights are the only thing still measured, and they are already read
-for the band's own offset.
+Measured after, on the app session that put 66 rows in the DOM (3 trees, 196 entries):
+22 rows, the same first and last visible row, the same `scrollHeight` within the one
+pixel the header measures differently, the same pinned band. On a 5680-entry session:
+33 rows in the DOM, rails and band drawn, `scrollHeight` 99760px. And the browser
+layer holds the acceptance: a 2000-row session keeps a scrollbar of 2000 rows while
+the document holds a screenful, and a search scrolls to a match that was never drawn.
 
-**4. Compute the lit rails per row.** Today the tint pass walks every fork in the
-display and writes `railTint` onto its children, so a hover is a full rebuild.
-Instead: keep the structure (parents, depths, branch children) static per
-dataset, hold `litRowId` in a small store, and let each row derive its own tint
-from it — a row knows whether the lit row is itself, a descendant of it, or a
-sibling above it on the way down, all from the parent map it already has. Rows
-subscribe individually (zustand selector, the pattern the rest of the app uses),
-so a pointer moving along a branch re-renders that branch's rows and nothing
-else. `buildSessionTreeDisplay` then drops its `litRowId` parameter and the tint
-pass with it.
+What is left open here:
 
-Two things that follow from step 2 and are easy to miss:
-
-- Scrolling to a row has to stop using `getElement()?.scrollIntoView()` — the
-  element of an off-screen row does not exist. Both call sites (the current row on
-  open, a search result) become `virtualizer.scrollToIndex(index)`.
-- The hover preview card measures the hovered row's element, which is fine
-  precisely because a hovered row is by definition rendered; it must keep reading
-  the row's own box rather than a cached offset.
-
-Tests to add with the step that needs them: the per-row tint for a lit row (its own
-row, its ancestors, the siblings it passes, and unaffected branches) with step 4, and
-the band's index arithmetic including header heights with step 3 — the arithmetic
-behind the lines is already covered, the mix of measured headers and constant rows is
-not. Two more are the acceptance for step 2 itself: the DOM row count staying a
-screenful on a long session, and a row outside the window being reachable by
-`scrollToIndex` alone.
+- The band takes the sticky headers' height out of the flow above the rows, and the
+  offsets are relative to where the rows start: that is `contentOffsetPx`. It is zero
+  for a session with a single tree, and it is the reason the band's arithmetic reads
+  the scroll offset against that origin rather than against the container's top.
+- Folding a row is still the library's item list, not the renderer's. The recorded
+  characterisation test about `End` landing on a folded tree is the symptom; owning the
+  folds would remove it, and would also let the item list be built from the filter and
+  fold state alone instead of from the tree instance.

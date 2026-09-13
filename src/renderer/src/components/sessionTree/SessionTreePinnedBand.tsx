@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { collectBranchOwners, describeSessionTreeRow } from '../../lib/sessionTreeData';
 import { cn } from '../../lib/utils';
 import { ROW_HEIGHT_PX, rowContentX } from './sessionTreeGeometry';
+import { findTopRowIndex, type SessionTreeListItem } from './sessionTreeListModel';
 import { TreeRowContent, type SessionTreeRowContext } from './SessionTreeRow';
 
 /** Opaque stand-in for the dialog's surface, like the tree headers use. */
@@ -65,15 +66,18 @@ function PinnedRow({
 }
 
 interface PinnedAncestorsProps {
-  containerRef: React.RefObject<HTMLDivElement | null>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  items: readonly SessionTreeListItem[];
+  /** Where every item starts, in scroll-content pixels. */
+  offsets: readonly number[];
   parentById: ReadonlyMap<string, string>;
   depthById: ReadonlyMap<string, number>;
   /**
-   * The number of rows the tree instance reports; a first measurement after a
-   * fold the tree owns. What is actually in the list is read from the DOM (see
-   * `measure`), so this is a starting point, not the source of truth.
+   * What the band itself takes up above the rows: the sticky headers' height, or
+   * nothing when a session has a single tree. The offsets are relative to where
+   * the rows start, so the scroll offset has to be read against the same origin.
    */
-  visibleRowCount: number;
+  contentOffsetPx: number;
   rowContext: SessionTreeRowContext;
 }
 
@@ -81,128 +85,66 @@ interface PinnedAncestorsProps {
  * The branch line the list is currently showing, pinned to its top.
  *
  * Scrolling past a fork used to hide who the visible rows hang from. This
- * mirrors the list with the ancestors of the top-most visible row — one row per
- * indent level, so the stack is as tall as the nesting, not as long as the
+ * mirrors the list with the forks the top-most visible row hangs from — one row
+ * per indent level, so the stack is as tall as the nesting, not as long as the
  * conversation. It sticks above the rows (`z-20`) and takes no space in the
  * flow, so nothing shifts when it appears.
+ *
+ * Which row that is comes out of the scroll offset and the item heights: the
+ * rows it names are usually not rendered at all, so measuring them is not an
+ * option, and arithmetic is exact here because only the headers are measured.
  */
 export function PinnedAncestors({
-  containerRef,
+  scrollRef,
+  items,
+  offsets,
   parentById,
   depthById,
-  visibleRowCount,
+  contentOffsetPx,
   rowContext,
 }: PinnedAncestorsProps): React.JSX.Element | null {
-  const [pinned, setPinned] = useState<{ id: string; depth: number }[]>([]);
-  /** Height of the tree header band, so the stack starts under it. */
-  const [headerHeight, setHeaderHeight] = useState(0);
-  const layoutRef = useRef<{ ids: string[]; tops: number[]; headerHeight: number }>({
-    ids: [],
-    tops: [],
-    headerHeight: 0,
-  });
-
-  const update = useCallback((): void => {
-    const container = containerRef.current;
-    if (!container) return;
-    const { ids, tops, headerHeight } = layoutRef.current;
-    if (ids.length === 0) {
-      setPinned((previous) => (previous.length === 0 ? previous : []));
-      return;
-    }
-    // The row the reader is looking at: the last one that starts above the
-    // header band. Its own height does not count, so the stack cannot push
-    // itself into a different answer.
-    const threshold = container.scrollTop + headerHeight;
-    let index = 0;
-    for (let candidate = 0; candidate < tops.length; candidate += 1) {
-      if (tops[candidate] > threshold) break;
-      index = candidate;
-    }
-    const next = collectBranchOwners(ids[index], parentById, depthById);
-    setPinned((previous) =>
-      previous.length === next.length && previous.every((row, i) => row.id === next[i].id)
-        ? previous
-        : next,
-    );
-  }, [containerRef, depthById, parentById]);
-
-  /**
-   * Read every row's offset once per row set.
-   *
-   * Re-measuring on scroll would be the expensive part of this feature (a
-   * forced layout per frame), so the offsets are cached until the rows change
-   * — which folding, filtering, a live refresh and the search box all do, and
-   * which the id list read below detects without touching layout.
-   */
-  const measure = useCallback((): void => {
-    const container = containerRef.current;
-    if (!container) return;
-    const elements = [...container.querySelectorAll<HTMLElement>('[data-tree-row-id]')];
-    const ids = elements.map((element) => element.dataset.treeRowId ?? '');
-    const previous = layoutRef.current.ids;
-    // Reading every row's offset forces a layout, so it only happens when the
-    // rows themselves changed. Counting them is not enough: a filter can swap
-    // one row for another, and folding a whole tree leaves the count alone.
-    if (ids.length === previous.length && ids.every((id, index) => id === previous[index])) {
-      return;
-    }
-    const containerTop = container.getBoundingClientRect().top;
-    const header = container.querySelector<HTMLElement>('[data-testid=session-tree-root-header]');
-    const measuredHeaderHeight = header?.getBoundingClientRect().height ?? 0;
-    layoutRef.current = {
-      ids,
-      tops: elements.map((element) => element.getBoundingClientRect().top - containerTop),
-      headerHeight: measuredHeaderHeight,
-    };
-    setHeaderHeight(measuredHeaderHeight);
-    update();
-  }, [containerRef, update]);
-
-  useLayoutEffect(() => {
-    measure();
-  }, [measure, visibleRowCount]);
-
-  // Which rows are in the list — a live refresh, a filter, a fold — is only
-  // visible in the DOM, so the layout follows the DOM instead of guessing from
-  // state. Moving the pointer over the rows mutates nothing, so this stays quiet.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const observer = new MutationObserver(() => {
-      measure();
-    });
-    observer.observe(container, { childList: true, subtree: true });
-    return () => {
-      observer.disconnect();
-    };
-  }, [containerRef, measure]);
+  const [scrollTopPx, setScrollTopPx] = useState(0);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const element = scrollRef.current;
+    if (!element) return;
     let frame = 0;
     const onScroll = (): void => {
       if (frame !== 0) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        update();
+        setScrollTopPx(element.scrollTop);
       });
     };
-    container.addEventListener('scroll', onScroll, { passive: true });
-    update();
+    element.addEventListener('scroll', onScroll, { passive: true });
+    setScrollTopPx(element.scrollTop);
     return () => {
-      container.removeEventListener('scroll', onScroll);
+      element.removeEventListener('scroll', onScroll);
       if (frame !== 0) cancelAnimationFrame(frame);
     };
-  }, [containerRef, update]);
+  }, [scrollRef]);
+
+  const topRowIndex = findTopRowIndex(
+    items,
+    offsets,
+    scrollTopPx - contentOffsetPx,
+    contentOffsetPx,
+  );
+  const topRowItemId =
+    topRowIndex === null || items[topRowIndex]?.kind !== 'row'
+      ? null
+      : items[topRowIndex].row.itemId;
+  const pinned = useMemo(
+    () => (topRowItemId === null ? [] : collectBranchOwners(topRowItemId, parentById, depthById)),
+    [topRowItemId, parentById, depthById],
+  );
 
   if (pinned.length === 0) return null;
 
   return (
     <div
       className="sticky top-0 z-20 h-0"
-      style={{ paddingTop: headerHeight }}
+      style={{ paddingTop: contentOffsetPx }}
       aria-hidden="true"
       data-testid="session-tree-pinned"
     >

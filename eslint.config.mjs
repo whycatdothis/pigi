@@ -81,5 +81,14 @@ export default defineConfig(
       'react-hooks/incompatible-library': 'off',
     },
   },
+  {
+    // TanStack Virtual's `useVirtualizer` returns imperative helpers, which the
+    // compiler will not memoize: it skips the component by design, and the only
+    // output of that skip is this warning. The repo virtualizes its lists with it.
+    files: ['src/renderer/src/components/sessionTree/SessionTreeList.tsx'],
+    rules: {
+      'react-hooks/incompatible-library': 'off',
+    },
+  },
   eslintConfigPrettier,
 );

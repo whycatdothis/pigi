@@ -250,6 +250,22 @@ waiting for their process. The rule that keeps the two apart: App.tsx renders,
 the hook decides, and anything the hook needs from the shell arrives as a
 parameter instead of being reached for.
 
+The dialog's list is a virtual list (`@tanstack/react-virtual`, the same one the
+transcript uses), because a session can be thousands of rows long. What makes it
+work is that a row's height is a constant: `ROW_HEIGHT_PX` plus the two pixels of
+spacing a fork's child carries. So the whole list is arithmetic over the row
+order — `components/sessionTree/sessionTreeListModel.ts` holds the items, their
+offsets, the row at the top of the viewport and the branch lines — and the
+geometry of a row that is nowhere near the DOM is still exact. Only the version
+headers are measured, and a session with one tree has none.
+
+Two consequences worth knowing before changing it. Branch lines belong to a fork,
+not to a row: they are drawn in one inert layer behind the rows, so the rows can
+be flat and windowed. And the pinned ancestor band is computed from the scroll
+offset rather than measured from the DOM — the rows it mirrors usually are not
+rendered. Both are covered by browser tests, which are the only layer that can
+measure any of it (see `docs/testing.md`).
+
 ## Collapsible Blocks
 
 `OverflowClamp` clamps tool output, thinking, and user bubbles with pure CSS:
