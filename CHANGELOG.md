@@ -40,7 +40,7 @@
 - The session tree ignored the arrow keys: `↑` / `↓` / `Home` / `End` did nothing until you searched, and now move the cursor in the tree as expected
 - The branch line highlighted the wrong row when nothing was hovered: a plain chain of messages sits at one indent level, and the mark stayed on the oldest row of it instead of the newest
 - The pinned ancestors of the topmost row went stale after a search, a filter or folding a version: they were computed from row offsets measured before the rows changed, and could name a row that is no longer on screen
-- The session tree no longer folds your expanded rows back up when the session grows while the dialog is open — a refresh adds its rows in place, only a filter or another session starts the list fresh
+- The session tree no longer folds your expanded rows back up when the session grows while the dialog is open — the refresh leaves your folded rows and your place in the list alone, and the messages that arrived show up the next time you open it; only a filter or another session starts the list fresh
 - A move you cancel, or one that fails, leaves the transcript where it was and keeps following the end: the suspended follow is given back instead of staying off until you scroll
 - Draft text is no longer lost when switching between a session and the new-chat screen
 - Narrowing the window keeps the chat input and the streaming queue aligned with the message list content: the input no longer shrinks by a wider margin than the transcript while the window is resized
