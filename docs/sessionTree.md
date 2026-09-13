@@ -262,57 +262,53 @@ Implementation:
   is shaped into a data loader in `lib/sessionTreeData.ts` (synthetic root, kind
   - fuzzy filter with ancestor re-attachment, match indexes,
     per-tree row counts and time spans).
-- The rows are rendered as a **nested tree**, not as the library's flat list:
-  `buildSessionTreeDisplay` turns the visible items into nodes whose children are
-  the rows of a fork and whose lone children are continuations. Nesting is what
-  puts the structure lines in the DOM: a branch is one element that spans a whole
-  subtree, instead of every row drawing the pieces passing over it. A fork's
-  wrapper needs no measurement to know where its line ends, and a continuation
-  adds no element at all, so a long conversation stays a flat list.
-- The tree header sits at
-  `top: 0` so rows scroll underneath it. Its background is `--dialog-solid`, an
-  opaque colour-mix that equals the dialog's surface (popover at 88% over the
-  `bg-black/20` overlay): the translucent material itself would tint a second
-  time and read as a white band in light mode, and would let rows show through.
-  The list container has no top padding: a sticky header cannot cover it, and
-  rows would show through the gap.
+- The rows are **flat** and the structure lines are one inert overlay
+  (`SessionTreeRails`), drawn from the model's arithmetic instead of from nesting:
+  a fork is one `span` covering the rows its line passes, so the number of line
+  elements is the number of forks, not the depth of the conversation. The display
+  tree still says what hangs from what (`buildSessionTreeDisplay`), and a
+  continuation is still nothing of its own — a long conversation stays a flat
+  list, and `SessionTreeList` renders the window without reading a row's box to
+  decide where a line goes (§11).
+- A version's header keeps that tree reachable and is its fold switch. Its
+  background is `--dialog-solid`, an opaque colour-mix that equals the dialog's
+  surface (popover at 88% over the `bg-black/20` overlay): the translucent
+  material itself would tint a second time and read as a white band in light
+  mode, and would let rows show through. The header in the flow of the list is
+  **not** sticky: with several versions in one file the band holds it at the top
+  for as long as the list is anywhere in that tree (below), and one owner of that
+  space is one place to get it right. A session with a single tree has no header
+  at all, so nothing reserves that space.
 - A fork is drawn from its row's fold chevron: the branch line leaves the **fork
   row's bottom edge**, exactly under that chevron's centre, and each direct child
   gets a horizontal elbow at its own row's centre, from that line to the left
   edge of the child's chevron box. The line crosses to the chevron instead of
   running on to the icon: they share the same column, and stopping at its edge
   keeps the chevron readable as a control.
-- Every child of a fork is one `TreeBranch` wrapper holding the line and the
-  elbow, and the wrapper spans that child's **whole subtree**. Siblings are
-  adjacent, so their lines join without a seam, and no row has to know where the
-  fork above it started. The last child's line stops at its own row's centre (its
-  wrapper clips it to `padding + ROW_HEIGHT_PX / 2`) while the others run the
-  wrapper's full height, which is what makes a fork visibly end at its last
-  child. The two meet in a plain 90° corner — no rounded elbow: a radius made the
-  curve leave the line mid-way and read as a second, unrelated line. The corner
-  pixel belongs to the line: the elbow element starts one pixel to its right, so
-  no pixel is painted twice. Overlapping them would darken the corner (the lines
-  are translucent) and, at an accented fork, blend the accent with neutral grey.
-  A child's line is **two elements**: the run from the fork's edge down to the
-  turn into that child (`BRANCH_LAST_RAIL_HEIGHT_PX` tall, the same run the last
-  child's line is), and the run below it, which carries the fork down to the next
-  sibling. That second piece belongs to the sibling below, not to this child —
-  what the highlight does with it depends on where the path goes (next bullet).
-  The first piece is the one the highlight can **grow**: down to the lit row, when
-  the path turns in at a row below this child (`findLitRowOffsetPx` measures that
-  row inside the child's subtree, spacing included).
+- One fork is one span: the run from the fork's edge down to its last child's
+  row centre, which is what makes a fork visibly end there rather than at the end
+  of the subtree. Each direct child adds its own elbow at its row's centre, from
+  that line to the left edge of the child's chevron box. The two meet in a plain
+  90° corner — no rounded elbow: a radius made the curve leave the line mid-way
+  and read as a second, unrelated line. The corner pixel belongs to the line: the
+  elbow element starts one pixel to its right, so no pixel is painted twice.
+  Overlapping them would darken the corner (the lines are translucent) and, at an
+  accented fork, blend the accent with neutral grey.
+  The highlight grows the same span: it stops at the lit row's centre when the
+  path turns into a row below this fork (`collectRailSpans` computes that end once
+  per fork, in the same walk that decides which spans are lit).
 - Indentation is the **row's own padding** (`rowContentX(depth)`), not a gutter
-  element. A level is 20px (`INDENT_PX`) and the wrapper adds the remaining 4px
-  between its line and the row — geometry that only exists once, in
-  `components/sessionTree/sessionTreeGeometry.ts`, next to the constants it is derived from: the chevron
-  box, the row height and the branch spacing are all set from those constants
-  instead of from classes, so a layout change cannot silently leave the lines
-  behind. (The row box still spans the whole list so the gutter stays clickable;
-  only its _highlight_ is the content box.)
-- The spacing above a branch's children sits on the **wrapper**
-  (`BRANCH_SPACING_PX`), not on the row: a row margin would leave a 2px gap in
-  the line between siblings, and a line that runs from the fork's edge has to
-  cover it.
+  element. A level is 20px (`INDENT_PX`) and the rail's own x (`railLeftPx`) keeps
+  the remaining 4px between the line and the row — geometry that only exists
+  once, in `components/sessionTree/sessionTreeGeometry.ts`, next to the constants
+  it is derived from: the chevron box, the row height and the branch spacing are
+  all set from those constants instead of from classes, so a layout change cannot
+  silently leave the lines behind. (The row box still spans the whole list so the
+  gutter stays clickable; only its _highlight_ is the content box.)
+- The spacing above a branch's children is **part of the row's height**
+  (`listItemHeightPx` adds `BRANCH_SPACING_PX` to a fork's child), not a margin:
+  a margin would leave a 2px gap in the line between siblings, and a line that
+  runs from the fork's edge has to cover it.
 - Lines are hairlines: 1px, on whole pixels — a half-pixel position antialiases
   into a fat grey bar, which is exactly what the old guide lines looked like.
 - Colour says where the leaf is, and where the pointer is. The path is described
@@ -340,24 +336,29 @@ Implementation:
   hover state is keyed by the ids it is made of, so moving along one chain does
   not re-render the list.
 - The ancestors of the top row are pinned above the list: scrolling past a fork
-  used to hide who the visible rows hang from. `PinnedAncestors` renders the rows
-  that **own a visible line** above it (`collectBranchOwners`: a row qualifies
-  when the row below it on the path hangs from it one indent deeper) — one per
-  level, indent included, so the stack is as tall as the nesting and not as long
-  as the conversation — inside a
-  `sticky top-0 z-20 h-0` layer, offset by the tree header's height. It takes no
-  space in the flow (nothing shifts when it appears), it is opaque
-  (`--dialog-solid`, like the headers) so rows scroll underneath it, and its rows
-  are clickable copies that move the session; they are `aria-hidden` because the
-  rows they copy are right there in the tree.
-- The band's offsets are measured, not modelled: every row's offset (and the
-  header height) is read once per row set into a ref, and a scroll listener picks
-  the row at the top of the readable area on an animation frame. Re-measuring per
-  scroll frame would force a layout every frame, which is the expensive half of a
-  feature like this. The row set is read from the DOM (`MutationObserver` on the
-  list) and compared by row id, not by count: folding a whole tree, a filter that
-  swaps one row for another and a live refresh all change the rows, and any of
-  them measured stale would pin the ancestors of a row that is no longer there.
+  used to hide who the visible rows hang from. The band renders the rows that
+  **own a visible line** above it (`collectBranchOwners`: a row qualifies when
+  the row below it on the path hangs from it one indent deeper) — one per level,
+  indent included, so the stack is as tall as the nesting and not as long as the
+  conversation — inside a `sticky top-0 z-20 h-0` layer, so it takes no space in
+  the flow and nothing shifts when it appears. It is opaque (`--dialog-solid`,
+  like the headers) so rows scroll underneath it, and its rows are clickable
+  copies that move the session; they are `aria-hidden` because the rows they copy
+  are right there in the tree.
+- With several versions in one file the band also draws **the header of the tree
+  its rows belong to** above them, because that header is the one thing the list
+  can scroll out from under the band: the band's height is that header plus the
+  pinned rows, and drawing the header is what keeps the band from being a
+  see-through strip with the row underneath showing through the gap. It draws
+  `TreeHeaderContent` in the header's own surface class rather than a sticky copy
+  of the button, so there is no second focus stop; clicking it folds the tree,
+  exactly as the header itself does.
+- What the band mirrors is **computed, not measured**: items, offsets and heights
+  come from `sessionTreeListModel.ts`, and `findTopRowIndex` binary-searches them
+  for the first item below the top of the list. Nothing reads a row box during a
+  scroll, which is the expensive half of a feature like this, and the band's own
+  height is not part of the answer: it is painted over the rows, not in front of
+  them.
 - The structure data is just the display tree plus the set of entries on the
   active path (`activePathIds`); the renderer derives the line geometry from the
   nesting level it is rendering, so `sessionTreeData.ts` no longer computes
@@ -1072,10 +1073,6 @@ the document holds a screenful, and a search scrolls to a match that was never d
 
 What is left open here:
 
-- The band takes the sticky headers' height out of the flow above the rows, and the
-  offsets are relative to where the rows start: that is `contentOffsetPx`. It is zero
-  for a session with a single tree, and it is the reason the band's arithmetic reads
-  the scroll offset against that origin rather than against the container's top.
 - Folding a row is still the library's item list, not the renderer's. The recorded
   characterisation test about `End` landing on a folded tree is the symptom; owning the
   folds would remove it, and would also let the item list be built from the filter and

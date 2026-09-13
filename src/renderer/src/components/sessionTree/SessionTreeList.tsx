@@ -153,13 +153,21 @@ export function SessionTreeList({
   // is what routes the container's keydown into the tree's hotkeys. Spreading it
   // and then writing `ref` would drop that registration, so the element goes to
   // both owners.
-  const setContainer = useCallback(
-    (element: HTMLDivElement | null): void => {
-      containerRef.current = element;
-      tree.registerElement(element);
-    },
-    [tree],
-  );
+  //
+  // The callback must not depend on the tree instance: React re-attaches a ref
+  // callback whose identity changed, and calls the previous one with null. That
+  // would leave `containerRef` empty for a beat after every fold, and the
+  // virtualizer reads that ref for its scroll element — it would detach itself
+  // from the list and stop following the scroll.
+  const currentTreeRef = useRef(tree);
+  useEffect(() => {
+    currentTreeRef.current = tree;
+    tree.registerElement(containerRef.current);
+  }, [tree]);
+  const setContainer = useCallback((element: HTMLDivElement | null): void => {
+    containerRef.current = element;
+    currentTreeRef.current.registerElement(element);
+  }, []);
 
   // The rows the tree currently shows (folds and filters applied). This is the
   // expensive part — one walk of the visible session — so it is memoised on the
@@ -299,14 +307,10 @@ export function SessionTreeList({
   }, [handleRowLeave]);
 
   /**
-   * What the pinned band takes up in the flow above the rows.
-   *
-   * The band is a sticky strip with no height of its own, but its padding keeps
-   * the pinned rows below the sticky headers — and that padding is a real offset
-   * between the scroll container's top and where the row offsets start. Version
-   * headers are the only thing it accounts for, so a single-tree session has none.
+   * The height to budget for a tree header. A session with a single tree has none
+   * of them, and the band that draws the current one works in this unit too.
    */
-  const contentOffsetPx = data.treeIds.length > 1 ? headerHeightPx : 0;
+  const treeHeaderHeightPx = data.treeIds.length > 1 ? headerHeightPx : 0;
 
   const rowContext: SessionTreeRowContext = {
     data,
@@ -336,7 +340,9 @@ export function SessionTreeList({
         offsets={offsets}
         parentById={display.parentById}
         depthById={display.depthById}
-        contentOffsetPx={contentOffsetPx}
+        headerHeightPx={treeHeaderHeightPx}
+        collapsedTreeIds={collapsedTreeIds}
+        onToggleTree={onToggleTree}
         rowContext={rowContext}
       />
       {/* The spacer is as tall as the whole list, so the scrollbar is honest; the

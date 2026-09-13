@@ -31,6 +31,19 @@ export type SessionTreeListItem =
     }
   | { kind: 'row'; treeId: string; row: SessionTreeFlatRow };
 
+/** The header line of one tree. */
+export type SessionTreeHeaderItem = Extract<SessionTreeListItem, { kind: 'header' }>;
+
+/** The tree's header item, which the pinned band draws while the list is inside it. */
+export function findTreeHeaderItem(
+  items: readonly SessionTreeListItem[],
+  treeId: string,
+): SessionTreeHeaderItem | undefined {
+  return items.find(
+    (item): item is SessionTreeHeaderItem => item.kind === 'header' && item.treeId === treeId,
+  );
+}
+
 /** One fork's line: where it starts, where it ends, and where the lit run ends. */
 export interface SessionTreeRailSpan {
   /** The fork's first child: two forks can share a depth, so this is the identity. */
@@ -179,7 +192,10 @@ export function findTopRowIndex(
   scrollTopPx: number,
   headerHeightPx: number,
 ): number | null {
-  const threshold = scrollTopPx + headerHeightPx;
+  // The first item whose bottom is below the top of the list, header heights
+  // counted: the band mirrors from there. What the band itself draws (`the tree
+  // header`) is over the rows, not in front of them, so it adds nothing here.
+  const threshold = scrollTopPx;
   let low = 0;
   let high = items.length - 1;
   let below = -1;
