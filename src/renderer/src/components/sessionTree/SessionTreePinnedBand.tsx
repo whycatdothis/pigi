@@ -2,7 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { collectBranchOwners, describeSessionTreeRow } from '../../lib/sessionTreeData';
 import { cn } from '../../lib/utils';
 import { ROW_HEIGHT_PX, rowContentX } from './sessionTreeGeometry';
-import { findTopRowIndex, type SessionTreeListItem } from './sessionTreeListModel';
+import {
+  findTopRowIndex,
+  findTreeHeaderItem,
+  type SessionTreeListItem,
+} from './sessionTreeListModel';
+import { TREE_HEADER_CLASS_NAME, TreeHeaderContent } from './SessionTreeHeader';
 import { TreeRowContent, type SessionTreeRowContext } from './SessionTreeRow';
 
 /** Opaque stand-in for the dialog's surface, like the tree headers use. */
@@ -73,11 +78,13 @@ interface PinnedAncestorsProps {
   parentById: ReadonlyMap<string, string>;
   depthById: ReadonlyMap<string, number>;
   /**
-   * What the band itself takes up above the rows: the sticky headers' height, or
-   * nothing when a session has a single tree. The offsets are relative to where
-   * the rows start, so the scroll offset has to be read against the same origin.
+   * The height a tree header is drawn at, or zero when a session has a single
+   * tree and there is no header at all. The item arithmetic needs it before any
+   * header has been measured.
    */
-  contentOffsetPx: number;
+  headerHeightPx: number;
+  collapsedTreeIds: ReadonlySet<string>;
+  onToggleTree: (treeId: string) => void;
   rowContext: SessionTreeRowContext;
 }
 
@@ -87,8 +94,9 @@ interface PinnedAncestorsProps {
  * Scrolling past a fork used to hide who the visible rows hang from. This
  * mirrors the list with the forks the top-most visible row hangs from — one row
  * per indent level, so the stack is as tall as the nesting, not as long as the
- * conversation. It sticks above the rows (`z-20`) and takes no space in the
- * flow, so nothing shifts when it appears.
+ * conversation — and, in a session with several trees, with the header of the
+ * tree those rows belong to above them. It sticks above the rows (`z-20`) and
+ * takes no space in the flow, so nothing shifts when it appears.
  *
  * Which row that is comes out of the scroll offset and the item heights: the
  * rows it names are usually not rendered at all, so measuring them is not an
@@ -100,7 +108,9 @@ export function PinnedAncestors({
   offsets,
   parentById,
   depthById,
-  contentOffsetPx,
+  headerHeightPx,
+  collapsedTreeIds,
+  onToggleTree,
   rowContext,
 }: PinnedAncestorsProps): React.JSX.Element | null {
   const [scrollTopPx, setScrollTopPx] = useState(0);
@@ -124,12 +134,7 @@ export function PinnedAncestors({
     };
   }, [scrollRef]);
 
-  const topRowIndex = findTopRowIndex(
-    items,
-    offsets,
-    scrollTopPx - contentOffsetPx,
-    contentOffsetPx,
-  );
+  const topRowIndex = findTopRowIndex(items, offsets, scrollTopPx, headerHeightPx);
   const topRowItemId =
     topRowIndex === null || items[topRowIndex]?.kind !== 'row'
       ? null
@@ -139,15 +144,34 @@ export function PinnedAncestors({
     [topRowItemId, parentById, depthById],
   );
 
-  if (pinned.length === 0) return null;
+  // The header of the version the top row belongs to. With several trees in one
+  // file it is what the band is holding room for, so it draws that line itself:
+  // the header in the flow of the list scrolls away, and reserving its height for
+  // nothing would leave a strip of the row underneath showing through.
+  const treeIdOfTopRow = topRowIndex === null ? undefined : items[topRowIndex]?.treeId;
+  const headerItem =
+    rowContext.data.treeIds.length > 1 && treeIdOfTopRow !== undefined
+      ? findTreeHeaderItem(items, treeIdOfTopRow)
+      : undefined;
+
+  if (headerItem === undefined && pinned.length === 0) return null;
 
   return (
-    <div
-      className="sticky top-0 z-20 h-0"
-      style={{ paddingTop: contentOffsetPx }}
-      aria-hidden="true"
-      data-testid="session-tree-pinned"
-    >
+    <div className="sticky top-0 z-20 h-0" aria-hidden="true" data-testid="session-tree-pinned">
+      {headerItem !== undefined && (
+        <div
+          className={cn(TREE_HEADER_CLASS_NAME, '-mx-2 w-[calc(100%+1rem)]')}
+          data-testid="session-tree-pinned-header"
+          onClick={() => onToggleTree(headerItem.treeId)}
+        >
+          <TreeHeaderContent
+            position={headerItem.position}
+            isCurrent={headerItem.treeId === rowContext.data.currentRootId}
+            expanded={!collapsedTreeIds.has(headerItem.treeId)}
+            stats={rowContext.data.rootStatsById.get(headerItem.statsItemId)}
+          />
+        </div>
+      )}
       {pinned.map((ancestor, index) => (
         <PinnedRow
           key={ancestor.id}

@@ -194,22 +194,20 @@ describe('item heights and offsets', () => {
 describe('findTopRowIndex', () => {
   const { items, offsets } = listOf(forkTree());
 
-  it('names the row at the top of the viewport, headers and all', () => {
-    // At the top: the first row.
+  it('names the row at the top of the viewport', () => {
+    // At the top: the row the list starts with.
     expect(findTopRowIndex(items, offsets, 0, 0)).toBe(0);
-    // Scrolled to the middle of `b1`, with a header band of 28px.
-    expect(findTopRowIndex(items, offsets, 64 - 20, 28)).toBe(itemIndexOf(items, 'b1'));
-    // A third of the way into `c1`: still `c1`, not `d1`.
-    expect(findTopRowIndex(items, offsets, 96 + 10 - 28, 28)).toBe(itemIndexOf(items, 'c1'));
+    // Ten pixels into `b1`: the row whose body the reader is looking at.
+    expect(findTopRowIndex(items, offsets, 64 + 10, 0)).toBe(itemIndexOf(items, 'b1'));
+    // Its body is over: the fork's child has started, spacing included.
+    expect(findTopRowIndex(items, offsets, 96 + 10, 0)).toBe(itemIndexOf(items, 'c1'));
   });
 
-  it('answers with a row when the threshold lands on a header, and past the end', () => {
+  it('answers with a row when the top lands on a header, and past the end', () => {
     const two = listOf(twoTreeSession());
-    // The second header covers what is behind it, so the row below it is the one
-    // the reader is looking at.
-    expect(findTopRowIndex(two.items, two.offsets, 92 - 28 + 4, 28)).toBe(
-      itemIndexOf(two.items, 's1'),
-    );
+    // The second header is the item at the top there. What is behind it is the
+    // tree the reader is in, so the answer is the row below it.
+    expect(findTopRowIndex(two.items, two.offsets, 96, 28)).toBe(itemIndexOf(two.items, 's1'));
     expect(findTopRowIndex(two.items, two.offsets, 100_000, 28)).toBe(itemIndexOf(two.items, 's2'));
   });
 });

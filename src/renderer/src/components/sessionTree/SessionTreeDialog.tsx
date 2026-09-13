@@ -79,8 +79,8 @@ export default function SessionTreeDialog({
   const [kinds, setKinds] = useState<ReadonlySet<SessionTreeKind>>(() => new Set());
   /** The row the pointer is on; its branch line lights up. */
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
-  /** Trees the user folded open or shut; the default comes from the leaf. */
-  const [treeFoldOverrides, setTreeFoldOverrides] = useState<ReadonlyMap<string, boolean>>(
+  /** Whether the user expanded or folded a tree; the default comes from the leaf. */
+  const [treeExpandedOverrides, setTreeExpandedOverrides] = useState<ReadonlyMap<string, boolean>>(
     () => new Map(),
   );
 
@@ -102,23 +102,29 @@ export default function SessionTreeDialog({
   // Several versions in one file: a long tree left open would push the others
   // out of sight, so the trees the leaf is not in start folded. A search or a
   // filter is about rows, not versions, so it keeps every tree open.
+  const currentRootId = data?.currentRootId;
   const collapsedTreeIds = useMemo(() => {
     if (!data || data.isFiltered) return EMPTY_STRING_SET;
     return new Set(
       data.treeIds.filter(
-        (treeId) => !(treeFoldOverrides.get(treeId) ?? treeId === data.currentRootId),
+        (treeId) => !isTreeExpanded(treeId, treeExpandedOverrides, currentRootId),
       ),
     );
-  }, [data, treeFoldOverrides]);
+  }, [data, treeExpandedOverrides, currentRootId]);
 
-  const toggleTree = useCallback((treeId: string): void => {
-    setTreeFoldOverrides((previous) => {
-      const collapsed = previous.get(treeId) ?? false;
-      const next = new Map(previous);
-      next.set(treeId, !collapsed);
-      return next;
-    });
-  }, []);
+  const toggleTree = useCallback(
+    (treeId: string): void => {
+      setTreeExpandedOverrides((previous) => {
+        // Flip what the reader is looking at, not the last thing written down: a
+        // tree with no entry yet is still where the dialog started it, and the
+        // first click on an open header has to fold it.
+        const next = new Map(previous);
+        next.set(treeId, !isTreeExpanded(treeId, previous, currentRootId));
+        return next;
+      });
+    },
+    [currentRootId],
+  );
 
   // Read the tree on open and again whenever the session grows while the dialog
   // is up: entries land as messages finish, so a tree opened mid-turn fills in
@@ -198,7 +204,7 @@ export default function SessionTreeDialog({
       if (!next) {
         setQuery('');
         setKinds(new Set());
-        setTreeFoldOverrides(new Map());
+        setTreeExpandedOverrides(new Map());
         resetPreview();
         firstFetchOfVisitRef.current = true;
         // The next visit starts with no row highlighted.
@@ -319,4 +325,13 @@ export default function SessionTreeDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+/** Whether a tree is open right now: what the reader asked for, or the default. */
+function isTreeExpanded(
+  treeId: string,
+  overrides: ReadonlyMap<string, boolean>,
+  currentRootId: string | null | undefined,
+): boolean {
+  return overrides.get(treeId) ?? treeId === currentRootId;
 }

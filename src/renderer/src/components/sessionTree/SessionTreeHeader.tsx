@@ -17,34 +17,27 @@ interface TreeHeaderProps {
 /**
  * Section header for one of the session's trees.
  *
- * It pins to the top of the list, so in a long tree the user still knows which
- * version they are reading, and it folds the whole tree away — the escape hatch
- * for keeping every other version reachable.
+ * It tells the reader which version they are in and folds the whole tree away —
+ * the escape hatch for keeping every other version reachable. The pinned band
+ * keeps the line of the tree the top rows belong to in view; this is the one in
+ * the flow of the list, which scrolls under it.
+ *
+ * The line itself: chevron, `Tree N`, how many messages and the time span.
+ *
+ * Split out so the pinned band can draw the same line where the header would be
+ * if it were still on screen — with several versions in one file, the band holds
+ * the header of the tree its rows belong to, and the space it takes is what keeps
+ * the band from being a see-through strip.
  */
-export function TreeHeader({
+export function TreeHeaderContent({
   position,
   isCurrent,
   expanded,
   stats,
-  isFirst,
-  onToggle,
-}: TreeHeaderProps): React.JSX.Element {
+}: Omit<TreeHeaderProps, 'isFirst' | 'onToggle'>): React.JSX.Element {
   const range = stats ? formatTreeRange(stats) : '';
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={cn(
-        // Opaque stand-in for the dialog's own surface: a translucent header
-        // would tint a second time (a 6-level white band in light mode) and let
-        // the rows scroll through it.
-        // One line, always: the list's item arithmetic assumes every header is
-        // the same height, and it is measured once.
-        'sticky top-0 z-10 -mx-2 flex w-[calc(100%+1rem)] items-center gap-2 bg-[var(--dialog-solid)] px-2 py-1.5 text-left whitespace-nowrap',
-        !isFirst && 'border-t border-border/60',
-      )}
-      data-testid="session-tree-root-header"
-    >
+    <>
       <IconChevronRight
         size={16}
         className={cn(
@@ -71,6 +64,49 @@ export function TreeHeader({
           {range}
         </span>
       )}
+    </>
+  );
+}
+
+/**
+ * The header's surface. Opaque stand-in for the dialog's own surface: a
+ * translucent header would tint a second time (a 6-level white band in light
+ * mode) and let the rows scroll through it.
+ *
+ * Not sticky: with several trees the band holds this line at the top for as long
+ * as the list is anywhere in that tree, which is what a sticky header would have
+ * been for — and one owner of that space is one place to get it right.
+ */
+export const TREE_HEADER_CLASS_NAME =
+  'flex w-full cursor-pointer items-center gap-2 bg-[var(--dialog-solid)] px-2 py-1.5 text-left whitespace-nowrap';
+
+export function TreeHeader({
+  position,
+  isCurrent,
+  expanded,
+  stats,
+  isFirst,
+  onToggle,
+}: TreeHeaderProps): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      // One line, always: the list's item arithmetic assumes every header is the
+      // same height, and it is measured once.
+      className={cn(
+        TREE_HEADER_CLASS_NAME,
+        '-mx-2 w-[calc(100%+1rem)]',
+        !isFirst && 'border-t border-border/60',
+      )}
+      data-testid="session-tree-root-header"
+    >
+      <TreeHeaderContent
+        position={position}
+        isCurrent={isCurrent}
+        expanded={expanded}
+        stats={stats}
+      />
     </button>
   );
 }

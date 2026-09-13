@@ -114,9 +114,29 @@ describe('SessionTreeDialog', () => {
 
     expect(rowIds()).toEqual(['u1', 'a1', 't1', 'u2', 'a2', 'c1', 'a3']);
     // The header of the tree the leaf is not in stays, so the version is not lost.
-    expect(screen.getByText('Tree 1')).toBeInTheDocument();
-    expect(screen.getByText('Tree 2')).toBeInTheDocument();
+    // Asked for as the button they are: the pinned band draws the same line as a
+    // copy, and the copy is not the control.
+    expect(screen.getByRole('button', { name: /^Tree 1/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Tree 2/ })).toBeInTheDocument();
     expect(screen.getByText('2 trees · 9 messages')).toBeInTheDocument();
+  });
+
+  it('folds a tree from the header the pinned band draws', async () => {
+    await renderDialog({ onSelect: vi.fn(), onOpenChange: vi.fn() });
+    const user = userEvent.setup();
+
+    // The band holds the header of the tree the top rows belong to. Clicking it is
+    // the same gesture as clicking the header itself, which may have scrolled away.
+    await user.click(screen.getByTestId('session-tree-pinned-header'));
+
+    // One click folds the tree away, which the header it leaves behind reports.
+    await waitFor(() => expect(rowIds()).toEqual([]));
+    expect(screen.getByRole('button', { name: /^Tree 1/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Tree 2/ })).toBeInTheDocument();
+
+    // And the click on the header itself is the way back, folds and all.
+    await user.click(screen.getByRole('button', { name: /^Tree 1/ }));
+    await waitFor(() => expect(rowIds()).toEqual(['u1', 'a1', 't1', 'u2', 'a2', 'c1', 'a3']));
   });
 
   it('marks the row the session sits on', async () => {

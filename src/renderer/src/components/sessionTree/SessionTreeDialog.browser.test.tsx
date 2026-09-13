@@ -134,6 +134,19 @@ function forkedSession(): SessionTree {
     );
   }
   entries.push(sessionTreeEntry(5, 's1', 'u4', 'assistant', text('the short branch')));
+  // A second version in the same file: it is folded away, and its header is what the
+  // band has to make room for.
+  for (let index = 0; index <= 4; index += 1) {
+    entries.push(
+      sessionTreeEntry(
+        100 + index,
+        `w${index}`,
+        index === 0 ? null : `w${index - 1}`,
+        'user',
+        text(`second version ${index}`),
+      ),
+    );
+  }
   entries.push(sessionTreeEntry(6, 'b1', 'u4', 'assistant', text('the long branch')));
   entries.push(sessionTreeEntry(7, 'b2', 'b1', 'assistant', text('still going')));
   entries.push(sessionTreeEntry(8, 'b3', 'b2', 'assistant', text('it forks again')));
@@ -317,6 +330,31 @@ test('pins the branch the top row hangs from, and only once it is scrolled past'
   await expect.poll(pinnedIds).toEqual(['u4', 'b3']);
 });
 
+test('holds the tree header, and the pinned rows under it, at the top of the list', async () => {
+  await renderDialog(forkedSession());
+  const list = requireElement<HTMLElement>('[role=tree]');
+  await scrollRowToTop('y20');
+  await expect.poll(pinnedIds).toEqual(['u4', 'b3']);
+
+  // The band owns the top of the list: the header of the version the rows belong to
+  // is drawn there, so the strip above the pinned rows is never a see-through gap
+  // with a row scrolling around in it.
+  const listRect = list.getBoundingClientRect();
+  const atTop = document.elementFromPoint(listRect.left + 60, listRect.top + 8);
+  expect(atTop?.closest('[data-testid=session-tree-pinned]')).not.toBeNull();
+  const headerAtTop = atTop?.closest('[data-testid=session-tree-pinned-header]');
+  expect(headerAtTop?.textContent).toContain('Tree 1');
+  // Painted, not transparent: what is under it may not show through.
+  const headerBackground = headerAtTop ? getComputedStyle(headerAtTop).backgroundColor : 'none';
+  expect(headerBackground).not.toMatch(/^rgba?\(0, 0, 0, 0\)$/);
+
+  // The pinned rows start below that header, so both are readable.
+  const pinnedRow = requireElement<HTMLElement>('[data-tree-pinned-id]');
+  const pinnedTop = pinnedRow.getBoundingClientRect().top - listRect.top;
+  expect(pinnedTop).toBeGreaterThanOrEqual(ROW_HEIGHT_PX - 4);
+  expect(pinnedTop).toBeLessThanOrEqual(ROW_HEIGHT_PX + 8);
+});
+
 test('lights the run down to a hovered row, and takes it away again', async () => {
   const screen = await renderDialog(forkedSession());
   const rowBox = (rowId: string): DOMRect =>
@@ -333,8 +371,13 @@ test('lights the run down to a hovered row, and takes it away again', async () =
   expect(litPath).not.toBe(railOf(0, false).paint);
   // The run stops at the elbow of the row it leads to, and starts two pixels above
   // the fork's first child: the line covers the spacing it is drawn through.
-  expect(railEnd(0, true)).toBeCloseTo(rowBox('s1').top + ROW_HEIGHT_PX / 2, 0);
-  expect(railOf(1, false).top).toBeCloseTo(rowBox('x1').top - BRANCH_SPACING_PX, 0);
+  // Within a pixel: the line's own box is rounded when it is read, and a measured
+  // header puts a fraction into everything below it.
+  const withinPixel = (measured: number, expected: number): void => {
+    expect(Math.abs(measured - expected)).toBeLessThanOrEqual(1);
+  };
+  withinPixel(railEnd(0, true), rowBox('s1').top + ROW_HEIGHT_PX / 2);
+  withinPixel(railOf(1, false).top, rowBox('x1').top - BRANCH_SPACING_PX);
   const litRunAtRest = railOf(0, true).height;
   const quietRunAtRest = railOf(1, false).height;
 
@@ -347,8 +390,8 @@ test('lights the run down to a hovered row, and takes it away again', async () =
   // reaches all the way down to the row, not just to the fork it hangs from.
   await expect.poll(() => railOf(1, true).paint).toBe(litPath);
   const hoveredCentre = rowBox('y20').top + ROW_HEIGHT_PX / 2;
-  expect(railEnd(1, true)).toBeCloseTo(hoveredCentre, 0);
-  expect(railEnd(0, true)).toBeCloseTo(hoveredCentre, 0);
+  withinPixel(railEnd(1, true), hoveredCentre);
+  withinPixel(railEnd(0, true), hoveredCentre);
   expect(railOf(0, true).height).toBeGreaterThan(litRunAtRest);
   // The light went into the fork's last branch, so that line is lit end to end:
   // there is no quiet piece left over below it.
