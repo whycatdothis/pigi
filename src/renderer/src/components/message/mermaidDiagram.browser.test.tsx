@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { peekDiagram, renderDiagram } from '../../lib/mermaidRenderer';
-import { appThemeVariables, resolveColor } from '../../lib/mermaidTheme';
+import { useAppStore } from '../../state/appStore';
 import { findOccurrenceRanges } from '../../lib/highlightMatches';
 import MarkdownMessage from './markdownMessage';
 import MermaidDiagram from './mermaidDiagram';
@@ -387,8 +387,8 @@ test('draws a diagram someone else is already drawing once', async () => {
   // not be left holding one that the next caller replaces.
   const code = 'flowchart LR\n  One --> Two';
   const [first, second] = await Promise.all([
-    renderDiagram(code, 'light'),
-    renderDiagram(code, 'light'),
+    renderDiagram(code, 'default'),
+    renderDiagram(code, 'default'),
   ]);
 
   expect(first.ok).toBe(true);
@@ -399,10 +399,10 @@ test('draws a diagram it has already drawn without going near the source again',
   // What a virtualized row does when it scrolls back into the window: the first
   // frame is the diagram, because the module remembers it.
   const sequence = 'sequenceDiagram\n  Alice->>Bob: ping\n  Bob-->>Alice: pong';
-  const first = await renderDiagram(sequence, 'light');
+  const first = await renderDiagram(sequence, 'default');
   expect(first.ok).toBe(true);
 
-  const remembered = peekDiagram(sequence, 'light');
+  const remembered = peekDiagram(sequence, 'default');
   expect(remembered?.svg).toContain('<svg');
   // Remembered with the rules it was drawn with, which are written for a scope
   // rather than for the one id mermaid happened to give it.
@@ -413,19 +413,29 @@ test('draws a diagram it has already drawn without going near the source again',
   expect(peekDiagram(sequence, 'dark')).toBeNull();
 });
 
-test('reads the app theme for the colours mermaid derives shades from', async () => {
-  // The app's tokens are `oklch()` and `color-mix()`; mermaid derives lighter
-  // and darker shades from whatever it is handed, which needs plain sRGB.
-  expect(resolveColor('oklch(0.55 0.2 277.1)')).toMatch(/^rgb\(/);
-  expect(resolveColor('color-mix(in srgb, rgb(255 0 0) 50%, white)')).toMatch(/^rgb\(/);
-  expect(resolveColor('not-a-colour')).toBeNull();
+test('draws in the theme the reader picks, whatever the app is doing', async () => {
+  const screen = await render(<MermaidDiagram code={FLOWCHART} />);
+  await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
+  const following = graphicIn(screen.container).innerHTML;
 
-  const light = appThemeVariables();
-  expect(light.primaryColor).toMatch(/^rgb\(/);
-  expect(light.background).toMatch(/^rgb\(/);
+  // What a settings page would write: a mermaid theme of the reader's own.
+  useAppStore.getState().setDiagramTheme('forest');
+  await waitFor(() => graphicIn(screen.container).innerHTML !== following);
 
+  // A picked theme is drawn whatever the window is doing, so switching the app's
+  // own theme leaves the drawing alone.
   document.documentElement.classList.add('dark');
-  const dark = appThemeVariables();
-  expect(dark.background).not.toBe(light.background);
-  expect(dark.textColor).not.toBe(light.textColor);
+  const forestInDark = graphicIn(screen.container).innerHTML;
+  expect(forestInDark).not.toBe(following);
+
+  useAppStore.getState().setDiagramTheme('neutral');
+  await waitFor(() => graphicIn(screen.container).innerHTML !== forestInDark);
+
+  // The choice is remembered for the next window.
+  expect(localStorage.getItem('pigi:diagram-theme')).toBe('neutral');
+
+  // Back to following the app, so the rest of this file starts where it did.
+  document.documentElement.classList.remove('dark');
+  useAppStore.getState().setDiagramTheme('auto');
+  await waitFor(() => graphicIn(screen.container).innerHTML === following);
 });
