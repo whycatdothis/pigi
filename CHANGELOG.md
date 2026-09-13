@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Mermaid diagrams: a ` ```mermaid ` block in a message is drawn as a diagram, with a switch in its header to read or copy the source. Diagrams follow the app's theme, are drawn as they stream in once their closing fence arrives, and can be clicked to zoom. A diagram that cannot be parsed keeps its source and says so
+
 ### Changed
 
 - Session tree: the list draws only the rows on screen, so a long session opens and scrolls with a fraction of the work — the branch lines and the pinned ancestors are computed from the rows instead of measured from the page, and the dialog no longer rebuilds the whole tree when the pointer moves

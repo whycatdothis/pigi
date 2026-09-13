@@ -278,6 +278,45 @@ so cards use `overflow-clip` for rounded corners. Read groups
 two groups, keeping the group id of the first tool call so expansion state
 survives merging.
 
+## Mermaid Diagrams
+
+A ` ```mermaid ` block in a message is drawn as a diagram instead of shown as
+code: `markdownMessage.tsx` hands the block to `MermaidDiagram`
+(`components/message/`), which owns the switch between the drawing and its
+source. Everything that touches mermaid goes through `lib/mermaidRenderer.ts`,
+so the rest of the app never sees the library and tests can drive the drawing
+without it.
+
+Rules that the code depends on:
+
+- **Only a closed fence is drawn.** While a message streams, an unterminated
+  fence is still a code block to the parser and its text keeps changing. The
+  parser's own line numbers say whether the closing fence arrived
+  (`lib/markdownFence.ts`), which is the one thing the code text cannot show: a
+  half-written block is a valid prefix of the finished one. So a diagram appears
+  the moment its fence closes, mid-stream or not, and a half-written block is
+  never handed to mermaid.
+- **One render at a time, remembered by source and theme.** Mermaid keeps its
+  configuration and its working state on the module, so renders are serialized
+  through a queue; results are cached (bounded, oldest first) and the cache is
+  readable synchronously (`peekDiagram`) so a row scrolling back into the
+  virtualized window draws in its first frame instead of showing its source
+  again.
+- **The drawing is an image.** Mermaid's SVG goes into a
+  `data:image/svg+xml` URL on an `<img>`, not into our DOM: an `<img>` renders
+  an SVG with its scripts and its links inert, which is what text written by a
+  model deserves, and it is also the element `react-medium-image-zoom` is built
+  around (the same overlay the image preview uses). The intrinsic size for that
+  image comes from the `viewBox` mermaid wrote, and `suppressErrorRendering`
+  keeps a failed diagram from appending its error graphic to the document.
+- **Colours come from the app's tokens.** Mermaid derives shades from whatever
+  it is handed, so the values have to be plain sRGB while the app's are
+  `oklch()` and `color-mix()`: `lib/mermaidTheme.ts` paints one pixel on a
+  canvas to convert, drops any token it cannot read and lets the theme's own
+  value stand. The theme lives in a class on the document element, which
+  `useResolvedTheme` observes — that class is the single source of truth for
+  which theme is drawn.
+
 ## Credentials
 
 Every utility process builds its `ModelRuntime` with `FileCredentialStore`

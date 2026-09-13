@@ -409,6 +409,64 @@
     background: var(--accent);
   }
 
+  /* Header actions sit together at the right edge: two auto margins would share
+     the free space between them instead of pushing both across. */
+  .markdown-code-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+  }
+
+  /* Source/diagram switch of a mermaid block. The width is held at the wider of
+     the two labels so the header's contents do not shuffle when it is pressed. */
+  .markdown-code-source-toggle {
+    padding: 2px 6px;
+    border-radius: 0.25rem;
+    min-width: 7ch;
+    font-size: 12px;
+    text-align: center;
+    color: var(--muted-foreground);
+    transition:
+      color 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .markdown-code-source-toggle:hover {
+    color: var(--foreground);
+    background: var(--accent);
+  }
+
+  /* The drawing keeps the code block's surfaces, so the two read as the same
+     kind of thing. It comes in as an image at the size mermaid laid it out at,
+     with this app's own cap on how tall a diagram may be: a tall one scales down
+     inside the box rather than becoming a wall in the transcript. */
+  .mermaid-diagram-body {
+    display: flex;
+    justify-content: center;
+    padding: 14px;
+    border-radius: 0 0 calc(var(--radius) * 0.8) calc(var(--radius) * 0.8);
+    background: var(--muted);
+    overflow-x: auto;
+    overscroll-behavior-x: none;
+  }
+
+  .mermaid-diagram-graphic {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    max-height: 420px;
+    /* The height cap applies to the box alone, so the drawing would be stretched
+       to fit it: the image keeps its own shape and letterboxes instead. */
+    object-fit: contain;
+  }
+
+  .mermaid-diagram-error {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--destructive);
+  }
+
   /* Inline code: em-relative size scales with surrounding text;
      box-decoration-break keeps the pill intact across line wraps. */
   .markdown-body code {
