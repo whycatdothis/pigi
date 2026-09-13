@@ -40,6 +40,7 @@ function PinnedRow({
       className={cn('group flex w-full items-center', isLast && 'border-b border-border/60')}
       style={{ height: ROW_HEIGHT_PX, paddingLeft: rowContentX(depth), background: PINNED_BG }}
       data-testid="session-tree-pinned-row"
+      data-tree-pinned-id={itemId}
       onClick={() => onSelect(entry.id)}
     >
       <span

@@ -72,5 +72,14 @@ export default defineConfig(
       '@typescript-eslint/explicit-function-return-type': 'off',
     },
   },
+  {
+    // Tests are not shipped, so React Compiler never sees them: the warning that it
+    // skipped a component in one (a virtualizer's imperative helpers, say) says
+    // nothing about the app.
+    files: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'react-hooks/incompatible-library': 'off',
+    },
+  },
   eslintConfigPrettier,
 );

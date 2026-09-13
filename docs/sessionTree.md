@@ -1018,7 +1018,7 @@ clientHeight` (8535/8535), scroll button hidden (follow on). The same jump
 - Whether the tree payload needs a `previews: false` variant if entry counts
   grow large enough for the payload to matter.
 
-### Wiring in a virtual list (planned, not started)
+### Wiring in a virtual list (planned)
 
 A long session — the case this dialog exists for — puts every row of the visible
 entries in the DOM, and every pointer move over a row rebuilds the whole display
@@ -1026,6 +1026,26 @@ entries in the DOM, and every pointer move over a row rebuilds the whole display
 is an input to it). Neither is measurable at a few hundred rows and both are
 wasteful at a few thousand. Four steps, in this order; each one is verifiable on
 its own.
+
+Measured before starting, on a synthetic 2000-row session in the browser test
+harness (three runs, 449 / 459 / 466 ms): all 2000 rows are in the DOM, and the
+dialog takes about 0.45 s from mount to the first row on screen. Those are the
+numbers the work is for. What it must not regress is everything above; what it
+must show is a DOM row count of a screenful instead of the session's length.
+
+Step 0 landed first, on its own:
+
+- `flattenSessionTreeDisplay` in `lib/sessionTreeData.ts`, with tests for the order,
+  the indent, the branch flags, continuations and the folded rows — the model a
+  virtualizer indexes, pinned before anything consumes it.
+- `installViewport` in `testing/jsdomSetup.ts`: without a size, jsdom draws a virtual
+  list as zero rows, which a row-reading test reports as nothing rather than as a
+  failure. `testing/jsdomViewport.test.tsx` pins the recipe (a 320px viewport draws a
+  screenful at `ROW_HEIGHT_PX`, plus overscan).
+- Three browser tests for behaviour the later steps must keep: the band mirroring the
+  forks of the top-most visible row, a search scrolling a match that is off screen
+  into view, and a hover lighting the run down to the row and the branches it passes.
+  All three pass today, which is what makes them a net.
 
 **1. Flatten the rows.** `flattenSessionTreeDisplay(display)` in
 `lib/sessionTreeData.ts` returns the rows in document order, each with what it
@@ -1076,7 +1096,10 @@ Two things that follow from step 2 and are easy to miss:
   precisely because a hovered row is by definition rendered; it must keep reading
   the row's own box rather than a cached offset.
 
-Tests to add with it: the flatten (order, depth, branch flags, and that a lone
-child keeps its parent's depth), the per-row tint for a lit row (its own row, its
-ancestors, the siblings it passes, and unaffected branches), and the band's
-index arithmetic including headers.
+Tests to add with the step that needs them: the per-row tint for a lit row (its own
+row, its ancestors, the siblings it passes, and unaffected branches) with step 4, and
+the band's index arithmetic including header heights with step 3 — the arithmetic
+behind the lines is already covered, the mix of measured headers and constant rows is
+not. Two more are the acceptance for step 2 itself: the DOM row count staying a
+screenful on a long session, and a row outside the window being reachable by
+`scrollToIndex` alone.
