@@ -1,7 +1,7 @@
 import React from 'react';
 import { IconChevronRight, IconUser } from '@tabler/icons-react';
 import type { ItemInstance, TreeInstance } from '@headless-tree/core';
-import type { SessionTreeEntryDto } from '../../../../shared/ipcContract';
+import type { SessionTreeEntry } from '../../../../shared/ipcContract';
 import {
   describeSessionTreeEntry,
   describeSessionTreeRow,
@@ -27,7 +27,7 @@ export interface SessionTreeRowContext {
   litRowId: string | null;
   onSelect: (entryId: string) => void;
   onToggleFold: (item: ItemInstance<SessionTreeItem>) => void;
-  onRowEnter: (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntryDto) => void;
+  onRowEnter: (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntry) => void;
   onRowLeave: () => void;
 }
 
@@ -124,7 +124,7 @@ export function TreeRow({
 
 interface TreeRowContentProps {
   item: ItemInstance<SessionTreeItem>;
-  entry: SessionTreeEntryDto;
+  entry: SessionTreeEntry;
   description: ReturnType<typeof describeSessionTreeEntry>;
   canFold: boolean;
   isError: boolean;

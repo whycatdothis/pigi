@@ -27,7 +27,7 @@ import { ensureTranscriptSession } from './useTranscript';
 import { countAbandonedEntries, resolveEntryId } from '../lib/sessionTreeLayout';
 import type { MessageListHandle } from '../components/transcript/MessageList';
 import type { TranscriptNode } from '../state/transcriptController';
-import type { PiSessionInfo, SessionTreeDto } from '../../../shared/ipcContract';
+import type { PiSessionInfo, SessionTree } from '../../../shared/ipcContract';
 
 interface SessionTreeNavigationOptions {
   /** The session the transcript shows; null in the draft chat. */
@@ -202,7 +202,7 @@ export function useSessionTreeNavigation({
 
   /** Ask about summarizing, then navigate. */
   const continueTreeNavigation = useCallback(
-    async (sessionPath: string, tree: SessionTreeDto, entryId: string): Promise<void> => {
+    async (sessionPath: string, tree: SessionTree, entryId: string): Promise<void> => {
       if (entryId === tree.leafId) return;
       const abandonedCount = countAbandonedEntries(tree, entryId);
       if (abandonedCount > 0) {

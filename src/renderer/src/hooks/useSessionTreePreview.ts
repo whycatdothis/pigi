@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { EntryTextResult, SessionTreeEntryDto } from '../../../shared/ipcContract';
+import type { EntryTextResult, SessionTreeEntry } from '../../../shared/ipcContract';
 import { getEntryText } from '../services/piAgentClient';
 import { CARD_MAX_HEIGHT_PX, ROW_HEIGHT_PX } from '../components/sessionTree/sessionTreeGeometry';
 
@@ -34,7 +34,7 @@ interface SessionTreePreview {
   card: SessionTreeCardState | null;
   /** The text of the card's row; null while it is still being read. */
   previewText: EntryTextResult | null;
-  handleRowEnter: (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntryDto) => void;
+  handleRowEnter: (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntry) => void;
   /** The pointer is on the card: keep it open. */
   cancelCardHide: () => void;
   /** The pointer left a row: close it, after the grace period. */
@@ -117,7 +117,7 @@ export function useSessionTreePreview({
   }, [cancelCardHide, cancelHover]);
 
   const handleRowEnter = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntryDto) => {
+    (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntry) => {
       if (hideTimerRef.current) {
         clearTimeout(hideTimerRef.current);
         hideTimerRef.current = null;

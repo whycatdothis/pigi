@@ -11,11 +11,11 @@
  */
 import fuzzysort from 'fuzzysort';
 import type { ItemInstance } from '@headless-tree/core';
-import type { SessionTreeDto, SessionTreeEntryDto } from '../../../shared/ipcContract';
+import type { SessionTree, SessionTreeEntry } from '../../../shared/ipcContract';
 import { getToolCommandPartsForTool } from './toolDisplay';
 
 /** Entry kinds, as they arrive from the utility process. */
-export type SessionTreeKind = SessionTreeEntryDto['kind'];
+export type SessionTreeKind = SessionTreeEntry['kind'];
 
 /** headless-tree needs exactly one root; real entries never use this id. */
 export const SESSION_TREE_ROOT_ID = '__session-tree-root__';
@@ -29,7 +29,7 @@ const EMPTY_ITEM: SessionTreeItem = {
 
 export interface SessionTreeItem {
   /** null on the synthetic root. */
-  entry: SessionTreeEntryDto | null;
+  entry: SessionTreeEntry | null;
   parentId: string;
   childIds: string[];
 }
@@ -155,12 +155,12 @@ export interface SessionTreeFilter {
  * Rows keep their session order: this is a tree, not a ranked result list.
  */
 export function createSessionTreeData(
-  tree: SessionTreeDto,
+  tree: SessionTree,
   filter: SessionTreeFilter = {},
 ): SessionTreeData {
   const kinds = filter.kinds && filter.kinds.size > 0 ? filter.kinds : null;
   const entries = tree.entries;
-  const entryById = new Map<string, SessionTreeEntryDto>();
+  const entryById = new Map<string, SessionTreeEntry>();
   for (const entry of entries) {
     entryById.set(entry.id, entry);
   }
@@ -300,7 +300,7 @@ export function describeSessionTreeRow(
 }
 
 /** Row text for the tree list. */
-export function describeSessionTreeEntry(entry: SessionTreeEntryDto): SessionTreeDescription {
+export function describeSessionTreeEntry(entry: SessionTreeEntry): SessionTreeDescription {
   if (entry.kind === 'toolResult') {
     const parts = getToolCommandPartsForTool(entry.toolName ?? 'tool', entry.toolArgs);
     const command = `${parts.prefix} ${parts.body}`.trim();
@@ -533,7 +533,7 @@ export function collectBranchOwners(
 /** Entry ids on the active path, deepest first. */
 function collectActivePathIds(
   leafId: string | null,
-  entryById: Map<string, SessionTreeEntryDto>,
+  entryById: Map<string, SessionTreeEntry>,
 ): Set<string> {
   const ids = new Set<string>();
   let current = leafId ? entryById.get(leafId) : undefined;
@@ -579,11 +579,11 @@ export function formatSessionTreeTime(timestamp: number): string {
 /** The matched entries plus every ancestor needed to reach them. */
 function collectAncestorIds(
   matchingIds: ReadonlySet<string>,
-  entryById: Map<string, SessionTreeEntryDto>,
+  entryById: Map<string, SessionTreeEntry>,
 ): Set<string> {
   const ids = new Set<string>();
   for (const id of matchingIds) {
-    let current: SessionTreeEntryDto | undefined = entryById.get(id);
+    let current: SessionTreeEntry | undefined = entryById.get(id);
     while (current && !ids.has(current.id)) {
       ids.add(current.id);
       current = current.parentId ? entryById.get(current.parentId) : undefined;
@@ -593,7 +593,7 @@ function collectAncestorIds(
 }
 
 /** The string a query is matched against: the row's label and text. */
-function fuzzyTarget(entry: SessionTreeEntryDto): string {
+function fuzzyTarget(entry: SessionTreeEntry): string {
   const description = describeSessionTreeEntry(entry);
   return description.label ? `${description.label} ${description.text}` : description.text;
 }
@@ -601,7 +601,7 @@ function fuzzyTarget(entry: SessionTreeEntryDto): string {
 function findSurvivingParentId(
   parentId: string | null,
   survivingIds: Set<string> | null,
-  entryById: Map<string, SessionTreeEntryDto>,
+  entryById: Map<string, SessionTreeEntry>,
 ): string | null {
   let currentId = parentId;
   while (currentId !== null) {
@@ -646,12 +646,12 @@ function collectRootStats(
 /** The tree an entry belongs to; an entry without a parent is its own tree. */
 function findRootId(
   leafId: string | null,
-  entryById: Map<string, SessionTreeEntryDto>,
+  entryById: Map<string, SessionTreeEntry>,
 ): string | null {
   if (!leafId) return null;
   let current = entryById.get(leafId);
   while (current?.parentId) {
-    const parent: SessionTreeEntryDto | undefined = entryById.get(current.parentId);
+    const parent: SessionTreeEntry | undefined = entryById.get(current.parentId);
     if (!parent) break;
     current = parent;
   }

@@ -18,7 +18,7 @@ import type {
   SessionOptions,
   SessionState,
   SessionListResult,
-  SessionTreeDto,
+  SessionTree,
   StreamBatch,
   ThinkingLevel,
 } from '../../../shared/ipcContract';
@@ -212,8 +212,8 @@ export async function listSessions(sessionPath: string, cwd?: string): Promise<u
 // =============================================================================
 
 /** Read the whole session tree (all branches) for the tree dialog. */
-export async function getSessionTree(sessionPath: string): Promise<SessionTreeDto> {
-  return send<SessionTreeDto>(sessionPath, { type: 'get_session_tree' });
+export async function getSessionTree(sessionPath: string): Promise<SessionTree> {
+  return send<SessionTree>(sessionPath, { type: 'get_session_tree' });
 }
 
 /** Full text of one entry, for the tree dialog's hover preview. */
