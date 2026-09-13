@@ -8,6 +8,7 @@
 
 ### Changed
 
+- Messages and tool output: a code block that is still arriving rebuilds only the text that came in with the chunk, not every highlighted line above it — a file being written streams in chunk-sized work instead of milliseconds per chunk that grow with the file
 - Session tree: the list draws only the rows on screen, so a long session opens and scrolls with a fraction of the work — the branch lines and the pinned ancestors are computed from the rows instead of measured from the page, and the dialog no longer rebuilds the whole tree when the pointer moves
 - Session tree: the row the session is on wears the theme's colour again, with the `Current` chip on top of it — the chip is painted more solidly than before, so it reads against its own row
 - Session tree: a row the keyboard is on is picked out with a grey background; the position keeps the theme's colour for itself
