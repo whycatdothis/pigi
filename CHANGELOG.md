@@ -8,6 +8,7 @@
 
 ### Fixed
 
+- Messages: a code block in a reply that is still arriving is highlighted on a throttle instead of on every chunk, so streaming a long one no longer re-tokenizes the whole block dozens of times a second — tool output already did this, message text was left out
 - Checking again during the two-second "pigi is up to date" countdown no longer has the old timer pull the window away mid-check
 - An update window opened while a background check runs now closes itself when that check finds nothing, instead of sitting on "auto closing in 1s"
 - An install Squirrel never finishes returns to "ready to install" after 20 seconds, so updates can be checked again

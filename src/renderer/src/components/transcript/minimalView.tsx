@@ -456,7 +456,7 @@ function AssistantText({
       style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       data-testid={testId}
     >
-      {node.text.length > 0 && <MarkdownMessage text={node.text} />}
+      {node.text.length > 0 && <MarkdownMessage text={node.text} isStreaming={node.isStreaming} />}
       {node.errorMessage && (
         <div className="mt-3 w-fit rounded-lg bg-destructive/10 px-3 py-2 text-[14px] text-destructive">
           {node.errorMessage}

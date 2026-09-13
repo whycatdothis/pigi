@@ -11,6 +11,8 @@ const MERMAID_LANGUAGE = 'mermaid';
 
 interface MarkdownMessageProps {
   text: string;
+  /** Whether the message is still arriving, which puts code blocks on a highlight throttle. */
+  isStreaming?: boolean;
 }
 
 const LANGUAGE_CLASS_PREFIX = 'language-';
@@ -45,6 +47,14 @@ const IsInCodeBlockContext = createContext(false);
 // The raw markdown, for the one decision that needs it: whether a fenced block
 // has been closed yet (see `isFenceClosed`).
 const MarkdownSourceContext = createContext('');
+
+// A message that is still arriving re-renders per chunk, and every one of those
+// renders is a new code string. A code block highlights through a throttle when
+// it is told so (see `useStreamingThrottledCode`); telling it is what keeps a
+// long block from being tokenized again on every chunk. It travels as context
+// because the components below are a module-level map: replacing them per render
+// would remount every element of the message.
+const MarkdownStreamingContext = createContext(false);
 
 const markdownComponents: Components = {
   a: ({ href, children }) => (
@@ -87,6 +97,7 @@ function MarkdownCode({
 }): React.JSX.Element {
   const isCodeBlock = useContext(IsInCodeBlockContext);
   const source = useContext(MarkdownSourceContext);
+  const isStreaming = useContext(MarkdownStreamingContext);
   if (!isCodeBlock) {
     return <code className={className}>{children}</code>;
   }
@@ -109,7 +120,7 @@ function MarkdownCode({
           <CodeCopyButton code={code} />
         </div>
         <pre>
-          <SyntaxHighlightedCode code={code} language={language} />
+          <SyntaxHighlightedCode code={code} language={language} isStreaming={isStreaming} />
         </pre>
       </div>
     );
@@ -151,18 +162,23 @@ function getCodeLanguageLabel(language: string): string {
 // Memoized: the remark/rehype pipeline is expensive, and callers (minimal
 // view turns, message rows) re-render for unrelated reasons like scroll
 // tracking or timer ticks — the text prop is a stable string in those cases.
-export default memo(function MarkdownMessage({ text }: MarkdownMessageProps): React.JSX.Element {
+export default memo(function MarkdownMessage({
+  text,
+  isStreaming = false,
+}: MarkdownMessageProps): React.JSX.Element {
   return (
     <div className="markdown-body">
-      <MarkdownSourceContext.Provider value={text}>
-        <Markdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeSanitize]}
-          components={markdownComponents}
-        >
-          {text}
-        </Markdown>
-      </MarkdownSourceContext.Provider>
+      <MarkdownStreamingContext.Provider value={isStreaming}>
+        <MarkdownSourceContext.Provider value={text}>
+          <Markdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeSanitize]}
+            components={markdownComponents}
+          >
+            {text}
+          </Markdown>
+        </MarkdownSourceContext.Provider>
+      </MarkdownStreamingContext.Provider>
     </div>
   );
 });
