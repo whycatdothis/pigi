@@ -11,6 +11,7 @@
 
 ### Fixed
 
+- Opening the session tree on a long conversation no longer blanks the window — both walks over the tree were recursive, one call per message, and a session can be deeper than the call stack (`Maximum call stack size exceeded`)
 - Session tree: Enter after a search moved the session to the first row on screen — usually the ancestor that carries the match — instead of to the match itself
 - Session tree: in a packaged build the dialog opened at the top of a long session instead of at the current row — the scroll ran before the list had its rows, and only development's double-run of effects hid it
 

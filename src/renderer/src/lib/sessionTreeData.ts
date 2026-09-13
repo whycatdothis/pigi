@@ -365,12 +365,23 @@ export interface SessionTreeFlatRow {
 export function flattenSessionTreeDisplay(display: SessionTreeDisplay): SessionTreeFlatRow[] {
   const rows: SessionTreeFlatRow[] = [];
 
-  const walk = (
-    node: SessionTreeDisplayNode,
-    depth: number,
-    branch: { isLast: boolean } | null,
-    continuationOf: string | null,
-  ): void => {
+  // The walk keeps its own stack: a conversation is mostly continuations, one per
+  // row, so recursion here is as deep as the session is long and a long one takes
+  // the renderer down with it. The stack order is the reading order a row at a
+  // time: the row, then what it continues into, then its fork's branches.
+  interface Frame {
+    node: SessionTreeDisplayNode;
+    depth: number;
+    branch: { isLast: boolean } | null;
+    continuationOf: string | null;
+  }
+  const pending: Frame[] = [];
+  for (let index = display.nodes.length - 1; index >= 0; index -= 1) {
+    pending.push({ node: display.nodes[index], depth: 0, branch: null, continuationOf: null });
+  }
+
+  for (let frame = pending.pop(); frame !== undefined; frame = pending.pop()) {
+    const { node, depth, branch, continuationOf } = frame;
     rows.push({
       itemId: node.itemId,
       depth,
@@ -378,14 +389,21 @@ export function flattenSessionTreeDisplay(display: SessionTreeDisplay): SessionT
       isLastBranchChild: branch?.isLast ?? false,
       continuationOf: branch === null ? continuationOf : null,
     });
-    if (node.continuation) walk(node.continuation, depth, null, node.itemId);
     const children = node.branch ?? [];
-    for (const [index, child] of children.entries()) {
-      walk(child, depth + 1, { isLast: index === children.length - 1 }, null);
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      pending.push({
+        node: children[index],
+        depth: depth + 1,
+        branch: { isLast: index === children.length - 1 },
+        continuationOf: null,
+      });
     }
-  };
+    // Pushed last, so it is read next: the row's continuation comes before its fork.
+    if (node.continuation !== null) {
+      pending.push({ node: node.continuation, depth, branch: null, continuationOf: node.itemId });
+    }
+  }
 
-  for (const node of display.nodes) walk(node, 0, null, null);
   return rows;
 }
 
@@ -411,36 +429,46 @@ export function buildSessionTreeDisplay(
   const parentById = new Map<string, string>();
   const depthById = new Map<string, number>();
 
-  const buildNode = (
-    itemId: string,
-    parentId: string | null,
-    depth: number,
-  ): SessionTreeDisplayNode => {
+  // Nodes are linked as they are created and filled in as the walk reaches them,
+  // so the shape is built without recursing: a lone child is a continuation, and
+  // a straight conversation has one per row — deeper than the call stack allows.
+  const nodeById = new Map<string, SessionTreeDisplayNode>();
+  const nodeFor = (itemId: string): SessionTreeDisplayNode => {
+    const existing = nodeById.get(itemId);
+    if (existing !== undefined) return existing;
+    const created: SessionTreeDisplayNode = { itemId, continuation: null, branch: null };
+    nodeById.set(itemId, created);
+    return created;
+  };
+
+  const rootIds = data.getChildren(data.rootItemId).filter((rootId) => visibleItemIds.has(rootId));
+  const pending: { itemId: string; parentId: string | null; depth: number }[] = rootIds.map(
+    (itemId) => ({ itemId, parentId: null, depth: 0 }),
+  );
+
+  for (let frame = pending.pop(); frame !== undefined; frame = pending.pop()) {
+    const { itemId, parentId, depth } = frame;
     if (parentId !== null) parentById.set(itemId, parentId);
     depthById.set(itemId, depth);
+    const node = nodeFor(itemId);
     const childIds = data.getChildren(itemId).filter((childId) => visibleItemIds.has(childId));
     if (childIds.length === 1) {
       // A continuation shares the level: it is the same line, one row further.
-      return {
-        itemId,
-        continuation: buildNode(childIds[0], itemId, depth),
-        branch: null,
-      };
+      node.continuation = nodeFor(childIds[0]);
+      pending.push({ itemId: childIds[0], parentId: itemId, depth });
+      continue;
     }
-    const children = childIds.map((childId) => buildNode(childId, itemId, depth + 1));
-    return {
-      itemId,
-      continuation: null,
-      branch: children.length > 1 ? children : null,
-    };
-  };
+    if (childIds.length > 1) {
+      node.branch = childIds.map((childId) => nodeFor(childId));
+      // Pushed backwards so the branches are walked first to last: the maps this
+      // records are read in that order.
+      for (let index = childIds.length - 1; index >= 0; index -= 1) {
+        pending.push({ itemId: childIds[index], parentId: itemId, depth: depth + 1 });
+      }
+    }
+  }
 
-  const nodes = data
-    .getChildren(data.rootItemId)
-    .filter((rootId) => visibleItemIds.has(rootId))
-    .map((rootId) => buildNode(rootId, null, 0));
-
-  return { nodes, parentById, depthById };
+  return { nodes: rootIds.map((rootId) => nodeFor(rootId)), parentById, depthById };
 }
 
 /**
