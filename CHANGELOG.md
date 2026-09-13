@@ -6,6 +6,10 @@
 
 - Mermaid diagrams: a ` ```mermaid ` block in a message is drawn as a diagram, with a switch in its header to read or copy the source. Diagrams follow the app's theme, are drawn as they stream in once their closing fence arrives, and can be clicked to zoom. A diagram that cannot be parsed keeps its source and says so
 
+### Changed
+
+- Messages and tool output: a code block that is still arriving rebuilds only the text that came in with the chunk, not every highlighted line above it — a file being written streams in chunk-sized work instead of milliseconds per chunk that grow with the file
+
 ### Fixed
 
 - Messages: a code block in a reply that is still arriving is highlighted on a throttle instead of on every chunk, so streaming a long one no longer re-tokenizes the whole block dozens of times a second — tool output already did this, message text was left out

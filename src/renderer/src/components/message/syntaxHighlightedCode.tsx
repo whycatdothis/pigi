@@ -228,6 +228,37 @@ export default function SyntaxHighlightedCode({
   // Stale-while-revalidate: keep the last successful highlight on screen while
   // the next one computes, so streaming updates never flash back to plain text.
   const highlightedLines = highlightedState?.lines ?? null;
+  // The text the lines were highlighted from, and whether the live text has only
+  // grown since: the last of those lines is drawn as plain text instead, because
+  // the text may have run on inside it.
+  const highlightedSource = highlightedState?.source ?? '';
+  const isAppendOfSource =
+    code.length > highlightedSource.length && code.startsWith(highlightedSource);
+
+  // The lines of the highlight that is on screen. They are built only when a
+  // highlight lands, and handed back unchanged for every render in between: a
+  // block that is still arriving re-renders per chunk, and rebuilding (and
+  // walking) every line of it on each of those renders is the whole cost of a
+  // chunk. React leaves a subtree alone when it is given the same elements
+  // again, so a chunk's work is the tail it appends rather than the block.
+  const highlightedLineNodes = useMemo(() => {
+    if (highlightedLines === null) return null;
+    const lines = isAppendOfSource ? highlightedLines.slice(0, -1) : highlightedLines;
+    return lines.map((line, lineIndex) => (
+      <span
+        key={lineIndex}
+        // Skip layout/paint/raster for lines clipped by the clamp or scrolled
+        // out of view; they render lazily when revealed.
+        className="block min-h-5 [content-visibility:auto] [contain-intrinsic-size:auto_20px]"
+      >
+        {line.map((token, tokenIndex) => (
+          <span key={tokenIndex} style={tokenStyle(token)}>
+            {token.content}
+          </span>
+        ))}
+      </span>
+    ));
+  }, [highlightedLines, isAppendOfSource]);
 
   useEffect(() => {
     let cancelled = false;
@@ -263,19 +294,13 @@ export default function SyntaxHighlightedCode({
     );
   }
 
-  // The stale highlight covers `source`; anything the live `code` has appended
-  // since then is rendered as a plain tail so the latest content is always
-  // visible. It gets highlighted on the next tick. The last highlighted line is
-  // moved into the tail too, since streaming may have extended it.
-  const source = highlightedState?.source ?? '';
-  const isAppendOfSource = code.length > source.length && code.startsWith(source);
-  let renderedLines = highlightedLines;
+  // The stale highlight covers `highlightedSource`; anything the live `code` has
+  // appended since then is drawn as a plain tail after it, so the latest content
+  // is always visible. The tail gets highlighted on the next tick.
   let plainTail = '';
   if (isAppendOfSource) {
-    const lastLineStart = source.lastIndexOf('\n') + 1;
-    plainTail = code.slice(lastLineStart);
-    renderedLines = highlightedLines.slice(0, highlightedLines.length - 1);
-  } else if (code !== source && !code.startsWith(source)) {
+    plainTail = code.slice(highlightedSource.lastIndexOf('\n') + 1);
+  } else if (code !== highlightedSource && !code.startsWith(highlightedSource)) {
     // Content diverged (not a simple append); avoid showing a mismatched
     // highlight and fall back to plain until the next highlight lands.
     return (
@@ -287,20 +312,7 @@ export default function SyntaxHighlightedCode({
 
   return (
     <code className="block min-w-full w-max bg-transparent p-0 font-mono text-[14px]">
-      {renderedLines.map((line, lineIndex) => (
-        <span
-          key={lineIndex}
-          // Skip layout/paint/raster for lines clipped by the clamp or scrolled
-          // out of view; they render lazily when revealed.
-          className="block min-h-5 [content-visibility:auto] [contain-intrinsic-size:auto_20px]"
-        >
-          {line.map((token, tokenIndex) => (
-            <span key={tokenIndex} style={tokenStyle(token)}>
-              {token.content}
-            </span>
-          ))}
-        </span>
-      ))}
+      {highlightedLineNodes}
       {plainTail !== '' && <span className="block whitespace-pre-wrap">{plainTail}</span>}
     </code>
   );
