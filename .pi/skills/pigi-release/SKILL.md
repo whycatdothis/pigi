@@ -10,13 +10,15 @@ description: Commit changes and release new versions. Use when asked to commit, 
 Run both, locally, before every commit and after any significant change while working:
 
 - `npm run check` — typecheck, lint (with fixes), formatting.
-- `npm test` — vitest over the pure helpers: session tree rows, geometry, lineage,
-  abandoned-entry counting. It is milliseconds, so there is no reason to skip it.
+- `npm test` — vitest: the pure helpers (session tree rows, geometry, lineage,
+  abandoned-entry counting) and the component tests in jsdom. Seconds, not minutes.
 
 `.github/workflows/ci.yml` runs the same two read-only on every push, so a green local
-run is what keeps the next push green. `demo`/screenshot checks are not part of this:
-what needs a mounted dialog or a real session is verified by hand, as in
-`docs/sessionTree.md` §8.
+run is what keeps the next push green. `npm run test:browser` (the same components in a
+real Chromium, for measurements jsdom cannot make) is on demand and deliberately not in
+CI, since it needs a browser download; checks that need the whole app — window resizing,
+the real agent, a real session — are still by hand, as in `docs/sessionTree.md` §8. The
+layers and the house rules for them are in `docs/testing.md`.
 
 ## Commit
 

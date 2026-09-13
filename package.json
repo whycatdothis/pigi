@@ -17,6 +17,7 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
+    "test:browser": "vitest run --config vitest.browser.config.ts",
     "test:watch": "vitest",
     "start": "electron-vite preview",
     "dev": "electron-vite dev --inspect 9229",
@@ -67,12 +68,16 @@
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@tailwindcss/vite": "^4.2.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/node": "^22.19.17",
     "@types/proper-lockfile": "^4.1.4",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-react": "^5.1.1",
+    "@vitest/browser-playwright": "^5.0.0",
     "electron": "^41.7.1",
     "electron-builder": "^26.0.12",
     "electron-vite": "^5.0.0",
@@ -80,6 +85,8 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "jsdom": "^29.1.1",
+    "playwright": "^1.63.0",
     "prettier": "^3.7.4",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
@@ -87,6 +94,7 @@
     "tailwindcss": "^4.2.2",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "^7.2.6",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "vitest-browser-react": "^2.3.0"
   }
 }
