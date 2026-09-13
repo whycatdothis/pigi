@@ -4,10 +4,11 @@
  * (how much a move abandons, and which forks a row hangs from).
  *
  * These are the rules that were iterated on by hand in the running app; they are
- * pure functions over a DTO, so they can be pinned down here instead.
+ * pure functions over the tree the utility process sends, so they can be pinned
+ * down here instead.
  */
 import { describe, expect, it } from 'vitest';
-import type { SessionTreeDto, SessionTreeEntryDto } from '../../../shared/ipcContract';
+import type { SessionTree, SessionTreeEntry } from '../../../shared/ipcContract';
 import {
   SESSION_TREE_ROOT_ID,
   buildSessionTreeDisplay,
@@ -27,12 +28,12 @@ function entry(
   parentId: string | null,
   kind: SessionTreeKind,
   preview = '',
-  extra: Partial<SessionTreeEntryDto> = {},
-): SessionTreeEntryDto {
+  extra: Partial<SessionTreeEntry> = {},
+): SessionTreeEntry {
   return { id, parentId, timestamp: TIMESTAMP, kind, preview, ...extra };
 }
 
-function sessionTree(entries: SessionTreeEntryDto[], leafId: string | null): SessionTreeDto {
+function sessionTree(entries: SessionTreeEntry[], leafId: string | null): SessionTree {
   return { leafId, entries };
 }
 
@@ -42,7 +43,7 @@ function sessionTree(entries: SessionTreeEntryDto[], leafId: string | null): Ses
  *   h1 ─ a1 ─ b1 ─┬─ c1 ─ d1
  *                 └─ e1
  */
-function forkFixture(): SessionTreeDto {
+function forkFixture(): SessionTree {
   return sessionTree(
     [
       entry('h1', null, 'user', 'start'),
@@ -112,7 +113,7 @@ describe('createSessionTreeData', () => {
     );
 
     // The label ("bash") is not printed, so the indexes skip it.
-    expect(describeSessionTreeEntry(data.getItem('t1').entry as SessionTreeEntryDto).text).toBe(
+    expect(describeSessionTreeEntry(data.getItem('t1').entry as SessionTreeEntry).text).toBe(
       '$ echo hi · hi',
     );
     expect(data.matchIndexesById.get('t1')).toEqual([2, 3, 4, 5]);

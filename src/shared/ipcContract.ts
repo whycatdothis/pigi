@@ -121,7 +121,7 @@ export interface SkillSlashCommand {
 // =============================================================================
 
 /** One row in the session tree dialog. */
-export interface SessionTreeEntryDto {
+export interface SessionTreeEntry {
   id: string;
   /** Nearest *visible* ancestor, not necessarily the raw entry parent. */
   parentId: string | null;
@@ -141,9 +141,9 @@ export interface SessionTreeEntryDto {
   stopReason?: string;
 }
 
-export interface SessionTreeDto {
+export interface SessionTree {
   leafId: string | null;
-  entries: SessionTreeEntryDto[];
+  entries: SessionTreeEntry[];
 }
 
 export interface EntryTextResult {

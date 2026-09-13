@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { hotkeysCoreFeature, syncDataLoaderFeature } from '@headless-tree/core';
 import { useTree } from '@headless-tree/react';
 import type { ItemInstance, TreeInstance } from '@headless-tree/core';
-import type { SessionTreeEntryDto } from '../../../../shared/ipcContract';
+import type { SessionTreeEntry } from '../../../../shared/ipcContract';
 import {
   buildSessionTreeDisplay,
   type SessionTreeData,
@@ -36,7 +36,7 @@ interface SessionTreeListProps {
   /** The row whose line the pointer is on; its path lights up. */
   hoverRowId: string | null;
   onSelect: (entryId: string) => void;
-  onRowEnter: (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntryDto) => void;
+  onRowEnter: (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntry) => void;
   onRowLeave: () => void;
   /** The hovered row, or null when the pointer left the rows. */
   onRowPath: (rowId: string | null) => void;
@@ -124,7 +124,7 @@ export function SessionTreeList({
   }, []);
 
   const handleRowEnter = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntryDto): void => {
+    (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntry): void => {
       onRowPath(entry.id);
       onRowEnter(event, entry);
     },

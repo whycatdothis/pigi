@@ -575,7 +575,7 @@ Considered and rejected:
 ```ts
 /** Read the tree. Used by the dialog and for entry id resolution. */
 | { type: 'get_session_tree' }
-// → SessionTreeDto
+// → SessionTree
 
 /** Full text of one entry, for the hover preview card. */
 | { type: 'get_entry_text'; entryId: string }
@@ -599,7 +599,7 @@ forwarded to `SessionManager.create(cwd, sessionDir, { parentSession })`.
 ### 5.2 Payloads
 
 ```ts
-export interface SessionTreeEntryDto {
+export interface SessionTreeEntry {
   id: string;
   parentId: string | null;
   timestamp: number; // entry timestamp, ms
@@ -616,9 +616,9 @@ export interface SessionTreeEntryDto {
   stopReason?: string; // assistant
 }
 
-export interface SessionTreeDto {
+export interface SessionTree {
   leafId: string | null;
-  entries: SessionTreeEntryDto[]; // visible set, ascending by timestamp
+  entries: SessionTreeEntry[]; // visible set, ascending by timestamp
 }
 ```
 
@@ -822,7 +822,7 @@ comparison for `parentSessionPath` is case-insensitive on Windows.
 
 | File                                                                             | Change                                                                                                                                 |
 | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/ipcContract.ts`                                                      | 4 tree commands, `create_session.parentSessionPath`, tree DTOs                                                                         |
+| `src/shared/ipcContract.ts`                                                      | 4 tree commands, `create_session.parentSessionPath`, tree types                                                                        |
 | `src/shared/messageText.ts` (new)                                                | `extractMessageText`, `clipText`, `toSingleLine`, shared by utility + renderer                                                         |
 | `src/main/ipc/piAgentBridge.ts`                                                  | forward `parentSessionPath`                                                                                                            |
 | `src/processes/utility/piAgent.ts`                                               | 4 tree command handlers, `fork_session`, `create_session` parent                                                                       |

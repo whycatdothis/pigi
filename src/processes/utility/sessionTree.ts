@@ -12,7 +12,7 @@
  * children attach to its nearest visible ancestor.
  */
 import type { SessionEntry, SessionMessageEntry } from '@earendil-works/pi-coding-agent';
-import type { SessionTreeDto, SessionTreeEntryDto } from '../../shared/ipcContract';
+import type { SessionTree, SessionTreeEntry } from '../../shared/ipcContract';
 import { clipText, extractMessageText, toSingleLine } from '../../shared/messageText';
 
 /** An entry's message. Kept as a lookup so the agent-core package stays an
@@ -25,7 +25,7 @@ const PREVIEW_MAX_LENGTH = 120;
 /** Full text returned by get_entry_text (the hover card). */
 const ENTRY_TEXT_MAX_LENGTH = 20000;
 
-type EntryKind = SessionTreeEntryDto['kind'];
+type EntryKind = SessionTreeEntry['kind'];
 
 interface VisibleEntry {
   entry: SessionEntry;
@@ -40,7 +40,7 @@ interface VisibleEntry {
  * `entries` must be in session (append) order. Rows keep their real entry ids;
  * only `parentId` is rewritten to the nearest visible ancestor.
  */
-export function buildSessionTree(entries: SessionEntry[], leafId: string | null): SessionTreeDto {
+export function buildSessionTree(entries: SessionEntry[], leafId: string | null): SessionTree {
   const byId = new Map<string, SessionEntry>();
   for (const entry of entries) {
     byId.set(entry.id, entry);
@@ -63,12 +63,12 @@ export function buildSessionTree(entries: SessionEntry[], leafId: string | null)
     visible.set(entry.id, resolved);
   }
 
-  const rows: SessionTreeEntryDto[] = [];
+  const rows: SessionTreeEntry[] = [];
   for (const entry of entries) {
     const resolved = visible.get(entry.id);
     if (!resolved) continue;
     rows.push(
-      toRowDto(
+      toTreeEntry(
         entry,
         resolved,
         findNearestVisibleAncestor(entry.parentId, visible, byId),
@@ -193,13 +193,13 @@ function findNearestVisibleAncestor(
   return null;
 }
 
-function toRowDto(
+function toTreeEntry(
   entry: SessionEntry,
   resolved: VisibleEntry,
   parentId: string | null,
   timestamp: string,
-): SessionTreeEntryDto {
-  const row: SessionTreeEntryDto = {
+): SessionTreeEntry {
+  const row: SessionTreeEntry = {
     id: entry.id,
     parentId,
     timestamp: new Date(timestamp).getTime(),

@@ -6,7 +6,7 @@
  * needs: how many entries a move would abandon, and how a transcript node maps
  * back to a session entry.
  */
-import type { SessionTreeDto, SessionTreeEntryDto } from '../../../shared/ipcContract';
+import type { SessionTree, SessionTreeEntry } from '../../../shared/ipcContract';
 import type { TranscriptNode } from '../state/transcriptController';
 
 /**
@@ -16,10 +16,10 @@ import type { TranscriptNode } from '../state/transcriptController';
  * common ancestor of the leaf and the target. Moving to a descendant of the
  * current leaf abandons nothing.
  */
-export function countAbandonedEntries(tree: SessionTreeDto, targetId: string): number {
+export function countAbandonedEntries(tree: SessionTree, targetId: string): number {
   if (!tree.leafId || tree.leafId === targetId) return 0;
 
-  const byId = new Map<string, SessionTreeEntryDto>();
+  const byId = new Map<string, SessionTreeEntry>();
   for (const entry of tree.entries) {
     byId.set(entry.id, entry);
   }
@@ -38,11 +38,8 @@ export function countAbandonedEntries(tree: SessionTreeDto, targetId: string): n
   return commonAncestorIndex;
 }
 
-function pathToRoot(
-  byId: Map<string, SessionTreeEntryDto>,
-  startId: string,
-): SessionTreeEntryDto[] {
-  const path: SessionTreeEntryDto[] = [];
+function pathToRoot(byId: Map<string, SessionTreeEntry>, startId: string): SessionTreeEntry[] {
+  const path: SessionTreeEntry[] = [];
   let current = byId.get(startId);
   while (current) {
     path.push(current);
@@ -58,7 +55,7 @@ function pathToRoot(
  * entry is appended, and hydrated messages carry no id. Every node does carry
  * what the entry carries, so the tree is fetched on demand and matched here.
  */
-export function resolveEntryId(tree: SessionTreeDto, node: TranscriptNode): string | null {
+export function resolveEntryId(tree: SessionTree, node: TranscriptNode): string | null {
   if (node.role === 'tool') {
     const match = tree.entries.find(
       (entry) => entry.kind === 'toolResult' && entry.toolCallId === node.toolCallId,

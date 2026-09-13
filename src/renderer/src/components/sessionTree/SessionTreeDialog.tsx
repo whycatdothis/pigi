@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TreeInstance } from '@headless-tree/core';
-import type { SessionTreeDto } from '../../../../shared/ipcContract';
+import type { SessionTree } from '../../../../shared/ipcContract';
 import { getSessionTree } from '../../services/piAgentClient';
 import {
   createSessionTreeData,
@@ -50,7 +50,7 @@ export default function SessionTreeDialog({
   // is on screen without any cache to invalidate.
   const [loaded, setLoaded] = useState<{
     path: string;
-    tree: SessionTreeDto;
+    tree: SessionTree;
     generation: number;
   } | null>(null);
   const generationRef = useRef(0);

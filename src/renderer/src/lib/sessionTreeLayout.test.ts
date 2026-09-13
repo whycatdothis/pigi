@@ -7,7 +7,7 @@
  * a wrong answer moves the session somewhere the user did not pick.
  */
 import { describe, expect, it } from 'vitest';
-import type { SessionTreeDto, SessionTreeEntryDto } from '../../../shared/ipcContract';
+import type { SessionTree, SessionTreeEntry } from '../../../shared/ipcContract';
 import type { AssistantNode, ToolNode, UserNode } from '../state/transcriptController';
 import { isNavigableNode, resolveEntryId } from './sessionTreeLayout';
 
@@ -15,9 +15,9 @@ const TIMESTAMP = 1_767_000_000_000;
 
 function entry(
   id: string,
-  kind: SessionTreeEntryDto['kind'],
-  extra: Partial<SessionTreeEntryDto> = {},
-): SessionTreeEntryDto {
+  kind: SessionTreeEntry['kind'],
+  extra: Partial<SessionTreeEntry> = {},
+): SessionTreeEntry {
   return { id, parentId: null, timestamp: TIMESTAMP, kind, preview: '', ...extra };
 }
 
@@ -43,7 +43,7 @@ function toolNode(extra: Partial<ToolNode> = {}): ToolNode {
   };
 }
 
-const tree: SessionTreeDto = {
+const tree: SessionTree = {
   leafId: 'a1',
   entries: [
     entry('u1', 'user', { messageTimestamp: TIMESTAMP }),
