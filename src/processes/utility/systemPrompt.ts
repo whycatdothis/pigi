@@ -11,6 +11,4 @@
  * whatever project is open, and this belongs to the app. One entry per point,
  * so what the model is told about the UI reads as a list of what the UI does.
  */
-export const PIGI_SYSTEM_PROMPT = [
-  'The UI renders Mermaid diagrams: a ```mermaid code block in a reply is drawn as a diagram.',
-].join('\n');
+export const PIGI_SYSTEM_PROMPT = ['The UI renders Mermaid diagrams.'].join('\n');
