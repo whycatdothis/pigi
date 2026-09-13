@@ -298,17 +298,37 @@ Rules that the code depends on:
   never handed to mermaid.
 - **One render at a time, remembered by source and theme.** Mermaid keeps its
   configuration and its working state on the module, so renders are serialized
-  through a queue; results are cached (bounded, oldest first) and the cache is
+  through a queue, and two callers asking for the same diagram at the same time
+  share one render. Results are cached (bounded, oldest first) and the cache is
   readable synchronously (`peekDiagram`) so a row scrolling back into the
   virtualized window draws in its first frame instead of showing its source
   again.
-- **The drawing is an image.** Mermaid's SVG goes into a
-  `data:image/svg+xml` URL on an `<img>`, not into our DOM: an `<img>` renders
-  an SVG with its scripts and its links inert, which is what text written by a
-  model deserves, and it is also the element `react-medium-image-zoom` is built
-  around (the same overlay the image preview uses). The intrinsic size for that
-  image comes from the `viewBox` mermaid wrote, and `suppressErrorRendering`
-  keeps a failed diagram from appending its error graphic to the document.
+- **The drawing is part of this document.** Mermaid's markup is mounted into the
+  row, so the text in the drawing is text the reader can select and the
+  transcript's search can find, and its colours come from the app's own rules.
+  What makes that safe is mermaid's `securityLevel: 'strict'`, which is what
+  leaves no script, no event handler and no `javascript:` link behind, with the
+  window's CSP as the second layer. `suppressErrorRendering` keeps a failed
+  diagram from appending mermaid's error graphic to the document, where it would
+  sit outside the transcript and never leave. A drawing is also named after its
+  diagram rather than after the render that produced it, so the same source in
+  the same theme is the same markup however often it is drawn — which is what
+  lets a caller mount it (and the zoom overlay, which looks its element up once,
+  when it mounts) without a later draw taking the drawing out from under it.
+- **The rules that style a drawing are shared.** Mermaid scopes its stylesheet to
+  the id it drew under, and that stylesheet depends only on the kind of diagram
+  and the theme: `lib/mermaidRenderer.ts` rewrites the scope, takes the rules out
+  of the markup, and `ensureDiagramStyles` puts one copy in the document for
+  every drawing that needs it (mounted in a layout effect, so the drawing is
+  never painted unstyled). `DiagramGraphic` is memoised for the same reason: a
+  re-render would otherwise replace the drawing's element, taking any selection
+  and the overlay's reference to it with it.
+- **The overlay zooms and pans the drawing.** `react-medium-image-zoom` owns the
+  dialog, and `react-zoom-pan-pinch` (inside `ZoomContent`) owns the gestures:
+  wheel, pinch, trackpad panning, dragging, arrow keys. The two gestures the
+  overlay performs on itself — wheel and touch move dismiss it — are stopped from
+  reaching it while they are the drawing's, and a click that ends a drag is not
+  the click that dismisses the overlay.
 - **Colours come from the app's tokens.** Mermaid derives shades from whatever
   it is handed, so the values have to be plain sRGB while the app's are
   `oklch()` and `color-mix()`: `lib/mermaidTheme.ts` paints one pixel on a

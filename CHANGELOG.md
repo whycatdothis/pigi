@@ -4,7 +4,7 @@
 
 ### Added
 
-- Mermaid diagrams: a ` ```mermaid ` block in a message is drawn as a diagram, with a switch in its header to read or copy the source. Diagrams follow the app's theme, are drawn as they stream in once their closing fence arrives, and can be clicked to zoom. A diagram that cannot be parsed keeps its source and says so
+- Mermaid diagrams: a ` ```mermaid ` block in a message is drawn as a diagram, with a switch in its header to read or copy the source. Diagrams follow the app's theme, are drawn as they stream in once their closing fence arrives, and can be clicked to open a zoom overlay — in the overlay the wheel, a pinch or a trackpad zoom the drawing, dragging or two fingers pan it, and Escape or a click on the background closes it. The text inside a diagram can be selected and found with the transcript's search. A diagram that cannot be parsed keeps its source and says so
 
 ### Changed
 
