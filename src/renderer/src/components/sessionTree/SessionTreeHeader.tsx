@@ -58,7 +58,7 @@ export function TreeHeader({
           isCurrent ? 'text-[var(--system-accent)]' : 'text-muted-foreground',
         )}
       >
-        <SessionTreeIcon size={14} className="mr-1 inline-block align-[-3px] [stroke-width:2.5]" />
+        <SessionTreeIcon size={14} className="mr-1 inline-block align-[-3px] [stroke-width:2.5]!" />
         Tree {position}
       </span>
       {stats && (
