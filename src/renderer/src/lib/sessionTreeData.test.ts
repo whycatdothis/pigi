@@ -19,6 +19,7 @@ import {
   flattenSessionTreeDisplay,
   type SessionTreeData,
   type SessionTreeDisplay,
+  type SessionTreeDisplayNode,
   type SessionTreeFlatRow,
   type SessionTreeKind,
 } from './sessionTreeData';
@@ -390,5 +391,61 @@ describe('describeSessionTreeEntry', () => {
 
     expect(description.trailing).toBe('42k tokens');
     expect(description.text).toBe('what happened');
+  });
+});
+
+/**
+ * Both walks over the display follow a conversation row by row: a lone child is a
+ * continuation, so a straight conversation of 20000 entries is 20000 nested calls
+ * and the renderer dies on it (a white window — `Maximum call stack size
+ * exceeded`, reported from the flatten walk). The depth a session can reach is the
+ * length of the session, so neither walk may be recursive.
+ */
+describe('a session longer than the call stack', () => {
+  const LENGTH = 20_000;
+
+  function straightSession(): SessionTree {
+    const entries: SessionTreeEntry[] = [];
+    for (let index = 0; index < LENGTH; index += 1) {
+      entries.push(
+        entry(`e${index}`, index === 0 ? null : `e${index - 1}`, 'user', `say ${index}`),
+      );
+    }
+    return sessionTree(entries, `e${LENGTH - 1}`);
+  }
+
+  it('builds and flattens a straight conversation of 20000 entries', () => {
+    const data = createSessionTreeData(straightSession());
+    const display = buildSessionTreeDisplay(data, new Set(data.allItemIds));
+    const rows = flattenSessionTreeDisplay(display);
+
+    expect(rows).toHaveLength(LENGTH);
+    expect(rows.at(-1)).toEqual({
+      itemId: `e${LENGTH - 1}`,
+      depth: 0,
+      isBranchChild: false,
+      isLastBranchChild: false,
+      continuationOf: `e${LENGTH - 2}`,
+    });
+  });
+
+  it('flattens a chain handed to it as a display', () => {
+    let node: SessionTreeDisplayNode = {
+      itemId: `e${LENGTH - 1}`,
+      continuation: null,
+      branch: null,
+    };
+    for (let index = LENGTH - 2; index >= 0; index -= 1) {
+      node = { itemId: `e${index}`, continuation: node, branch: null };
+    }
+
+    const rows = flattenSessionTreeDisplay({
+      nodes: [node],
+      parentById: new Map(),
+      depthById: new Map(),
+    });
+
+    expect(rows).toHaveLength(LENGTH);
+    expect(rows[0].itemId).toBe('e0');
   });
 });
