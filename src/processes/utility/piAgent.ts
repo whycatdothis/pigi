@@ -52,6 +52,7 @@ import {
 } from './queuedPromptInputs';
 import { buildSessionTree, readEntryText, resolveForkTarget } from './sessionTree';
 import { promptInputFromUserMessage } from './userMessageInput';
+import { PIGI_SYSTEM_PROMPT } from './systemPrompt';
 
 // =============================================================================
 // Port interface (compatible with Electron's MessagePortMain)
@@ -223,7 +224,15 @@ function createServicesForCwd(cwd: string): Promise<AgentSessionServices> {
       // to the project directory, not Electron's app directory.
       process.chdir(cwd);
       const modelRuntime = await createModelRuntime(agentDir);
-      return await createAgentSessionServices({ cwd, agentDir, settingsManager, modelRuntime });
+      return await createAgentSessionServices({
+        cwd,
+        agentDir,
+        settingsManager,
+        modelRuntime,
+        // What the app knows about itself, told to every session on top of the
+        // SDK's own prompt.
+        resourceLoaderOptions: { appendSystemPrompt: [PIGI_SYSTEM_PROMPT] },
+      });
     } finally {
       process.chdir(previousCwd);
     }
