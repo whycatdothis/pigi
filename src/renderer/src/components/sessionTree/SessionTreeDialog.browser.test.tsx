@@ -265,7 +265,9 @@ test('opens the hover card for a row whose text is cut off', async () => {
 
   // The card exists to show what the row cut off, so it only appears when the text
   // really overflows — which is a measurement jsdom cannot make.
-  await expect.element(screen.getByTestId('session-tree-preview')).toBeVisible();
+  // The card waits for the pointer to rest (half a second), so this looks for it
+  // rather than expecting it on the spot; the wait itself is a jsdom test.
+  await expect.element(screen.getByTestId('session-tree-preview'), { timeout: 3000 }).toBeVisible();
 });
 
 test('scrolls a search result into view and hands it the keyboard', async () => {

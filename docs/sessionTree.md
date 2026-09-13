@@ -252,7 +252,10 @@ what a query is matched against, which keeps `bash` able to find those rows.
   a second `Esc`, with nothing to clear, closes the dialog.
 - Hover a row → a single preview card (§3.3) with the full entry text. The card
   only appears when the row had to clip its text (`scrollWidth > clientWidth` on
-  the text span): a row that already shows everything has nothing to preview.
+  the text span): a row that already shows everything has nothing to preview. It
+  also waits for the pointer to rest on the row — half a second — because
+  sweeping the list is how a row gets found, and a card per row on the way would
+  flash through the whole list.
 
 Implementation:
 
@@ -371,10 +374,12 @@ Implementation:
   of hanging below it, so the pointer can travel sideways out of the row and into
   the card without ever touching the rows in between. A transparent wrapper
   around the card owns the hover, covers the visual margin and reaches the
-  dialog's right edge, so no gap can dismiss it; and leaving a row only
-  schedules the change — 200ms (`CARD_SWITCH_DELAY_MS`) that entering the card
-  cancels — so crossing rows on the way there does not steal the card or close
-  it. Scrolling inside the card works as expected.
+  dialog's right edge, so no gap can dismiss it. Its timing has three parts: the
+  card opens once the pointer has rested on a row for 500ms (`CARD_SHOW_DELAY_MS`),
+  the row's text is read after 100ms of that wait (`TEXT_FETCH_DELAY_MS`) so it is
+  usually there when the card opens, and leaving a row closes the card after 140ms
+  (`HIDE_DELAY_MS`) — which entering the card cancels, so the trip from the row
+  into the card never closes it. Scrolling inside the card works as expected.
 - The explanation lives in `SessionTreeHelpDialog.tsx` (dialog + round button)
   and is opened through `sessionTreeHelp.ts` (context + `useSessionTreeHelp`).
   The dialog is mounted once at `App` level, because the buttons live in

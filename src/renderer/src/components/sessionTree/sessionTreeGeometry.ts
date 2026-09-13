@@ -54,6 +54,14 @@ export const CARD_WIDTH_PX = 380;
 export const CARD_INSET_PX = 12;
 /** Tallest the card grows before it scrolls. */
 export const CARD_MAX_HEIGHT_PX = 320;
+/**
+ * Distance between the hovered row's top edge and the card's.
+ *
+ * Enough air that the row's own text stays readable while the card is up. It is
+ * *inside* the transparent wrapper that owns the hover, so
+ * the pointer can cross it on its way into the card without the card closing.
+ */
+export const CARD_GAP_PX = 20;
 
 /** Structure line colour for a rail or an elbow. */
 export function railColor(tinted: boolean): string {
