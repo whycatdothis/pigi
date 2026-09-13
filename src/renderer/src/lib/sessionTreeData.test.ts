@@ -15,8 +15,10 @@ import {
   collectBranchOwners,
   createSessionTreeData,
   describeSessionTreeEntry,
+  flattenSessionTreeDisplay,
   type SessionTreeData,
   type SessionTreeDisplay,
+  type SessionTreeFlatRow,
   type SessionTreeKind,
 } from './sessionTreeData';
 import { countAbandonedEntries } from './sessionTreeLayout';
@@ -217,6 +219,131 @@ describe('buildSessionTreeDisplay', () => {
     const [passed, turn] = sideways.nodes[0].continuation?.continuation?.branch ?? [];
     expect(passed.railTint).toBe('pass');
     expect(turn.railTint).toBe('enter');
+  });
+});
+
+/**
+ * A fork inside a fork, to tell a branch's own end from the end of the tree:
+ *
+ *   f1 ─┬─ g1 ─┬─ i1
+ *       │      └─ i2
+ *       └─ h1
+ */
+function nestedForkFixture(): SessionTree {
+  return sessionTree(
+    [
+      entry('f1', null, 'user', 'start'),
+      entry('g1', 'f1', 'assistant', 'try one'),
+      entry('i1', 'g1', 'assistant', 'one a'),
+      entry('i2', 'g1', 'assistant', 'one b'),
+      entry('h1', 'f1', 'assistant', 'try two'),
+    ],
+    'i2',
+  );
+}
+
+describe('flattenSessionTreeDisplay', () => {
+  function rowsOf(
+    tree: SessionTree,
+    hidden: string[] = [],
+    litRowId: string | null = null,
+  ): { display: SessionTreeDisplay; rows: SessionTreeFlatRow[] } {
+    const data = createSessionTreeData(tree);
+    const visible = new Set(data.allItemIds.filter((id) => !hidden.includes(id)));
+    const display = buildSessionTreeDisplay(data, visible, litRowId);
+    return { display, rows: flattenSessionTreeDisplay(display) };
+  }
+
+  it('lists the rows in the order they draw, with their indent and their branch', () => {
+    const { rows } = rowsOf(forkFixture());
+
+    // `d1` continues `c1` at the same indent: a lone child does not step in.
+    expect(rows).toEqual([
+      {
+        itemId: 'h1',
+        depth: 0,
+        isBranchChild: false,
+        isLastBranchChild: false,
+        continuationOf: null,
+      },
+      {
+        itemId: 'a1',
+        depth: 0,
+        isBranchChild: false,
+        isLastBranchChild: false,
+        continuationOf: 'h1',
+      },
+      {
+        itemId: 'b1',
+        depth: 0,
+        isBranchChild: false,
+        isLastBranchChild: false,
+        continuationOf: 'a1',
+      },
+      {
+        itemId: 'c1',
+        depth: 1,
+        isBranchChild: true,
+        isLastBranchChild: false,
+        continuationOf: null,
+      },
+      {
+        itemId: 'd1',
+        depth: 1,
+        isBranchChild: false,
+        isLastBranchChild: false,
+        continuationOf: 'c1',
+      },
+      {
+        itemId: 'e1',
+        depth: 1,
+        isBranchChild: true,
+        isLastBranchChild: true,
+        continuationOf: null,
+      },
+    ]);
+  });
+
+  it('tells the end of a branch from the end of the tree', () => {
+    const { rows } = rowsOf(nestedForkFixture());
+
+    // `i2` ends the inner fork but not the outer one; `h1` ends that; `i1` ends
+    // nothing, and neither does a branch child in the middle of its siblings.
+    expect(rows.map((row) => [row.itemId, row.depth, row.isLastBranchChild])).toEqual([
+      ['f1', 0, false],
+      ['g1', 1, false],
+      ['i1', 2, false],
+      ['i2', 2, true],
+      ['h1', 1, true],
+    ]);
+  });
+
+  it('reads the rows off the display in the display order, once each', () => {
+    const { display, rows } = rowsOf(nestedForkFixture());
+
+    // Independent of the walk that built them: every nested row, in the order the
+    // builder entered them, at the indent it recorded.
+    expect(rows.map((row) => row.itemId)).toEqual([...display.depthById.keys()]);
+    expect(rows.map((row) => row.depth)).toEqual([...display.depthById.values()]);
+  });
+
+  it('leaves out a folded row and everything under it', () => {
+    const { rows } = rowsOf(forkFixture(), ['c1']);
+
+    // The fork dissolves into a plain continuation, so `e1` comes back up to
+    // its parent's level — and it continues `b1` rather than hanging from it.
+    expect(rows.map((row) => [row.itemId, row.depth, row.continuationOf])).toEqual([
+      ['h1', 0, null],
+      ['a1', 0, 'h1'],
+      ['b1', 0, 'a1'],
+      ['e1', 0, 'b1'],
+    ]);
+  });
+
+  it('has no rows for a display with nothing to show', () => {
+    const { rows } = rowsOf(forkFixture(), nodeIds(createSessionTreeData(forkFixture())));
+
+    expect(rows).toEqual([]);
   });
 });
 

@@ -352,6 +352,64 @@ export interface SessionTreeDisplay {
 }
 
 /**
+ * One row of the display as a list, in the order it is drawn.
+ *
+ * The nesting above is how rows are grouped for drawing. A list needs the rows
+ * themselves, each carrying what it takes to draw on its own — the same walk the
+ * renderer already does, written down as data, so a list can index a row instead
+ * of nesting React elements to find one.
+ */
+export interface SessionTreeFlatRow {
+  itemId: string;
+  /** Indent level the row draws at; the roots of a tree start at zero. */
+  depth: number;
+  /** The row hangs under a fork, so it has a line of its own. */
+  isBranchChild: boolean;
+  /** The last child of its fork: its line stops at its own elbow. */
+  isLastBranchChild: boolean;
+  /**
+   * The row this one continues, or null when it hangs under a fork or starts a
+   * tree. A continuation shares its parent's indent: the same line, one row on.
+   */
+  continuationOf: string | null;
+}
+
+/**
+ * Flatten a display into its rows, in document order.
+ *
+ * Reading order is the order the nesting draws: a row, then what it continues
+ * into, then its fork's branches from first to last. Indent, branch flags and
+ * the row a continuation continues are the whole of what the renderer passes
+ * down its recursion, so the same rows come out of this.
+ */
+export function flattenSessionTreeDisplay(display: SessionTreeDisplay): SessionTreeFlatRow[] {
+  const rows: SessionTreeFlatRow[] = [];
+
+  const walk = (
+    node: SessionTreeDisplayNode,
+    depth: number,
+    branch: { isLast: boolean } | null,
+    continuationOf: string | null,
+  ): void => {
+    rows.push({
+      itemId: node.itemId,
+      depth,
+      isBranchChild: branch !== null,
+      isLastBranchChild: branch?.isLast ?? false,
+      continuationOf: branch === null ? continuationOf : null,
+    });
+    if (node.continuation) walk(node.continuation, depth, null, node.itemId);
+    const children = node.branch ?? [];
+    for (const [index, child] of children.entries()) {
+      walk(child, depth + 1, { isLast: index === children.length - 1 }, null);
+    }
+  };
+
+  for (const node of display.nodes) walk(node, 0, null, null);
+  return rows;
+}
+
+/**
  * Nest the rows the way they indent, for the renderer.
  *
  * A conversation is mostly a straight line: indenting every message would

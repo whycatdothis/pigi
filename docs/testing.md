@@ -43,6 +43,11 @@ Presentational components (buttons, chips, markdown rendering) are not tested.
   keyboard sequence.
 - jsdom test files start with `// @vitest-environment jsdom` and import
   `../../testing/jsdomSetup` (matchers plus the few DOM APIs jsdom lacks).
+- A test that mounts a virtual list — the session tree once §11 of
+  `docs/sessionTree.md` lands — calls `installViewport({ width, height })` before
+  rendering. Without a size the list draws no rows at all, and a test that reads
+  rows then measures nothing instead of failing; `testing/jsdomViewport.test.tsx`
+  is the recipe, with what a 320px viewport draws.
 
 ### Assertions that survive a refactor
 
@@ -74,7 +79,8 @@ clock or language is not a test.
 
 ## jsdom cannot
 
-- measure anything: every `clientWidth`, `scrollHeight` and rect is `0`;
+- measure anything: every `clientWidth`, `scrollHeight` and rect is `0`, unless the
+  test called `installViewport`;
 - scroll: `scrollIntoView` is stubbed, `scrollTop` stays put;
 - apply CSS, so `overflow`, sticky and the hairline geometry do nothing;
 - tell whether text overflows its box (which is exactly why the hover card is a
