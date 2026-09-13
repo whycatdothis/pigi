@@ -26,6 +26,15 @@ jobs:
 
       - run: npm ci --ignore-scripts
 
+      # `npm test` ends in the browser layer, which needs a real Chromium. The
+      # download is per Playwright version, so the lockfile is the right key.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
+      - run: npx playwright install --with-deps chromium
+
       - run: npm run typecheck
 
       - run: npm run lint
