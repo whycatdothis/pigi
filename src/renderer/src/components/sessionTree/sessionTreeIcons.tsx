@@ -13,8 +13,13 @@ import { cn } from '../../lib/utils';
  * icons beside it use 18, which reads as a smaller icon. Scaling it up does not
  * touch the box the layout reserves — `transform` never affects layout — and
  * 1.15 puts its height level with the others while staying inside that box.
+ *
+ * The scale multiplies everything the glyph paints, the stroke included, so the
+ * weight divides the same factor back out — otherwise the tree is visibly
+ * heavier than every icon it sits next to. The number is the stylesheet's own
+ * (`.tabler-icon` in main.css).
  */
-const TREE_GLYPH_CLASS_NAME = 'scale-[1.15]';
+const TREE_GLYPH_CLASS_NAME = 'scale-[1.15] [stroke-width:calc(1.5/1.15)]';
 const FORK_GLYPH_CLASS_NAME = 'rotate-90';
 
 interface SessionTreeGlyphProps {
