@@ -157,7 +157,7 @@ function AssistantBubble({
 
         {showText && (
           <div style={{ marginTop: showThinking ? `${MESSAGE_ROW_GAP}px` : undefined }}>
-            <MarkdownMessage text={node.text} />
+            <MarkdownMessage text={node.text} isStreaming={node.isStreaming} />
           </div>
         )}
 

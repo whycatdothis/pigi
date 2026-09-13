@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Messages: a code block in a reply that is still arriving is highlighted on a throttle instead of on every chunk, so streaming a long one no longer re-tokenizes the whole block dozens of times a second — tool output already did this, message text was left out
 - Session tree: with several versions in one file, the pinned parent rows sit at the top of the list under their version's header again — the band reserved room for a header that had already scrolled away, and the row underneath showed through the gap
 - Session tree: clicking a version's header folds it on the first click, including the header the pinned band draws (the version the session sits in used to need two clicks)
 - Opening the session tree on a long conversation no longer blanks the window — both walks over the tree were recursive, one call per message, and a session can be deeper than the call stack (`Maximum call stack size exceeded`)
