@@ -338,6 +338,11 @@ Rules that the code depends on:
   in `localStorage` until that page exists. The app's theme lives in a class on
   the document element, which `useResolvedTheme` observes — that class is the
   single source of truth for which theme is drawn when following the app.
+- **The model is told that the UI draws them.** Every session is given
+  `src/processes/utility/systemPrompt.ts`, appended to pi's own system prompt
+  (`resourceLoaderOptions.appendSystemPrompt` in `piAgent.ts`), so a diagram is
+  something the model can reach for rather than something it has to guess at.
+  That file is where anything else the model should know about this window goes.
 
 ## Credentials
 
