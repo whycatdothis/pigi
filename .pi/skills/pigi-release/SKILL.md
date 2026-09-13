@@ -28,7 +28,8 @@ Only on explicit instruction. Run the checks above if code changed since the las
    `### Changed` / `### Fixed`). Describe what the user experiences; no file names,
    refactors, or tooling. Skip for internal-only changes.
 2. Conventional commit message (`fix:`, `feat:`, `refactor:`, `chore:`, `docs:`), bullets
-   in the body for non-trivial changes. Changelog and code in one commit.
+   in the body for non-trivial changes. Changelog and code in one commit. Keep it
+   short: what changed and why, in a few bullets.
 3. Never amend or force-push without asking.
 
 ## Release
