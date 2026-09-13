@@ -7,8 +7,8 @@ import { defineConfig } from 'vitest/config';
  * The components are plain React with a fake preload bridge, so they run in jsdom
  * (marked per file with `// @vitest-environment jsdom`). What jsdom cannot answer —
  * real layout, scrolling, overflow — lives in the `*.browser.test` files, which
- * `vitest.browser.config.ts` runs on their own: they need a Chromium download, so
- * they stay out of the default run and out of CI.
+ * `vitest.browser.config.ts` runs on its own: `npm test` ends with them, and CI
+ * runs the same command (it downloads a Chromium, cached on the lockfile).
  */
 export default defineConfig({
   resolve: {

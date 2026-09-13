@@ -7,10 +7,14 @@ import {
   type SessionTreeItem,
   type SessionTreeKind,
 } from '../../lib/sessionTreeData';
-import { cn } from '../../lib/utils';
 import { toast } from 'sonner';
 import { useSessionTreePreview } from '../../hooks/useSessionTreePreview';
-import { CARD_INSET_PX, CARD_MAX_HEIGHT_PX, CARD_WIDTH_PX } from './sessionTreeGeometry';
+import {
+  CARD_GAP_PX,
+  CARD_INSET_PX,
+  CARD_MAX_HEIGHT_PX,
+  CARD_WIDTH_PX,
+} from './sessionTreeGeometry';
 import { SessionTreeList } from './SessionTreeList';
 import { SessionTreeToolbar } from './SessionTreeToolbar';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
@@ -300,11 +304,12 @@ export default function SessionTreeDialog({
             onMouseLeave={scheduleCardHide}
           >
             <div
-              className={cn(
-                'mr-3 overflow-y-auto rounded-lg border border-border bg-popover p-3 text-[13px] leading-6 whitespace-pre-wrap text-foreground/85 shadow-lg',
-                card.top !== undefined ? 'mt-1.5' : 'mb-1.5',
-              )}
-              style={{ maxHeight: CARD_MAX_HEIGHT_PX }}
+              className="mr-3 overflow-y-auto rounded-lg border border-border bg-popover p-3 text-[13px] leading-6 whitespace-pre-wrap text-foreground/85 shadow-lg"
+              style={
+                card.top !== undefined
+                  ? { marginTop: CARD_GAP_PX, maxHeight: CARD_MAX_HEIGHT_PX }
+                  : { marginBottom: CARD_GAP_PX, maxHeight: CARD_MAX_HEIGHT_PX }
+              }
               data-testid="session-tree-preview"
             >
               {previewText === null ? (

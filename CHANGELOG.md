@@ -9,6 +9,9 @@
 - Session tree: a row the keyboard is on is picked out with a grey background; the position keeps the theme's colour for itself
 - Session tree: searching hands the first match to the keyboard — that row is picked out, `↑` / `↓` move the pick row by row, and Enter moves the session to the row the keyboard is on. The caret stays in the search box while the pick moves, so typing keeps working
 
+- Session tree: the hover preview waits for the pointer to rest on a row (half a second) before it opens, so sweeping the list no longer flashes a card, and a read, through every row on the way
+- Session tree: the hover preview sits a little further from the row it belongs to, so the row stays readable under it
+
 ### Fixed
 
 - Session tree: with several versions in one file, the pinned parent rows sit at the top of the list under their version's header again — the band reserved room for a header that had already scrolled away, and the row underneath showed through the gap
