@@ -18,6 +18,25 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dia
 /** Handed out when nothing is folded, so the identity stays stable. */
 const EMPTY_STRING_SET: ReadonlySet<string> = new Set<string>();
 
+/**
+ * Move the keyboard selection by one row.
+ *
+ * The search box keeps the caret — the selection moves under it, so typing keeps
+ * working while the list shows what Enter would take. Unlike the library's own
+ * `focusNextItem`, this starts at the first row when nothing is selected yet.
+ */
+function moveSelection(tree: TreeInstance<SessionTreeItem>, step: number): void {
+  const items = tree.getItems();
+  if (items.length === 0) return;
+  const selectedId = tree.getState().focusedItem;
+  const selectedIndex = items.findIndex((item) => item.getId() === selectedId);
+  const nextIndex = Math.min(Math.max(selectedIndex + step, 0), items.length - 1);
+  const next = items[nextIndex];
+  if (!next) return;
+  next.setFocused();
+  void next.scrollTo({ block: 'nearest' });
+}
+
 interface SessionTreeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -138,27 +157,42 @@ export default function SessionTreeDialog({
       }
       const treeInstance = treeRef.current;
       if (!treeInstance) return;
-      if (event.key === 'ArrowDown') {
-        const first = treeInstance.getItems()[0];
-        if (!first) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault();
-        first.setFocused();
-        treeInstance.updateDomFocus();
+        moveSelection(treeInstance, event.key === 'ArrowDown' ? 1 : -1);
         return;
       }
       if (event.key !== 'Enter') return;
       event.preventDefault();
-      // The list is already filtered, so the first row is the best match.
-      const entry = treeInstance.getItems()[0]?.getItemData().entry;
+      // Enter takes the row the list highlights: where the arrow keys moved to, the
+      // first match after a search, or the first row of a filtered list. Taking the
+      // first row of a search would land on the ancestor that carries the match.
+      const targetId = treeInstance.getState().focusedItem ?? treeInstance.getItems()[0]?.getId();
+      const entry = targetId === undefined ? undefined : data?.getItem(targetId).entry;
       if (entry) onSelect(entry.id);
     },
-    [onSelect, query],
+    [data, onSelect, query],
   );
 
   /** Hovering a row lights its own branch line up to every fork above it. */
   const handleRowPath = useCallback((rowId: string | null): void => {
     setHoverRowId((previous) => (previous === rowId ? previous : rowId));
   }, []);
+
+  // What the keyboard is on after a search or a filter: the first match, so the row
+  // Enter would take is the row the list shows as selected. The caret stays in the
+  // search box — the selection moves under it.
+  useEffect(() => {
+    const treeInstance = treeRef.current;
+    if (!treeInstance || !data) return;
+    const firstMatchId = data.matchIndexesById.keys().next().value;
+    const targetId =
+      firstMatchId ?? (data.isFiltered ? treeInstance.getItems()[0]?.getId() : undefined);
+    if (targetId === undefined) return;
+    const item = treeInstance.getItemInstance(targetId);
+    item.setFocused();
+    void item.scrollTo({ block: 'nearest' });
+  }, [data]);
 
   // Filters, folds and the preview are per visit: clearing them on close means
   // the next open starts fresh without an effect that sets state during render.
@@ -170,6 +204,8 @@ export default function SessionTreeDialog({
         setTreeFoldOverrides(new Map());
         resetPreview();
         firstFetchOfVisitRef.current = true;
+        // The next visit starts with no row highlighted.
+        treeRef.current?.applySubStateUpdate('focusedItem', null);
       }
       onOpenChange(next);
     },

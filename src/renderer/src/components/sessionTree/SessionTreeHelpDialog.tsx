@@ -98,7 +98,8 @@ export default function SessionTreeHelpDialog({
 
         <p className="rounded-md bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
           Hover a row for a preview, search or filter to find one, then click it (or press Enter) to
-          move the session there.
+          move the session there. Searching picks out the first match, and the up and down arrows
+          move that pick without leaving the search box.
         </p>
       </DialogContent>
     </Dialog>
