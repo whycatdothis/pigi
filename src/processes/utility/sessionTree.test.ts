@@ -20,7 +20,7 @@ function assistantEntry(
   id: string,
   parentId: string | null,
   text: string,
-  toolCall?: { id: string; name: string; arguments: Record<string, unknown> },
+  toolCall?: { id: string; name: string; arguments: ToolCall['arguments'] },
 ): SessionEntry {
   const content: (TextContent | ToolCall)[] = [{ type: 'text', text }];
   if (toolCall) content.push({ type: 'toolCall', ...toolCall });
