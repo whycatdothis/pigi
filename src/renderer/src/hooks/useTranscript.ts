@@ -72,11 +72,11 @@ function ensureSessionHydration(sessionPath: string, controller: TranscriptContr
 
   hydrationStartedSessions.add(sessionPath);
   void getMessages(sessionPath)
-    .then(({ messages, compactionCount }) => {
+    .then(({ messages, compactionCount, cacheWarmEntries }) => {
       if (controller.state.nodes.length === 0) {
-        controller.hydrate(messages, compactionCount);
+        controller.hydrate(messages, compactionCount, cacheWarmEntries);
       } else {
-        controller.mergeHydratedMessages(messages);
+        controller.mergeHydratedMessages(messages, cacheWarmEntries);
       }
     })
     .catch((err) => {

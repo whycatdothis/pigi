@@ -30,6 +30,7 @@ import { createModelRuntime } from './fileCredentialStore';
 import { writePiSettingsDocument } from './piSettingsWrite';
 import { isSubagentSession } from './subagentMarker';
 import { resolveProjectTrust } from './projectTrust';
+import { collectCacheWarmEntries } from './sessionEntries';
 
 function sendToMain(response: SessionWorkerResponse): void {
   process.parentPort?.postMessage(response);
@@ -379,6 +380,7 @@ process.parentPort?.on('message', async (messageEvent) => {
           compactionCount,
           thinkingLevel: thinkingLevel as ThinkingLevel,
           model,
+          cacheWarmEntries: collectCacheWarmEntries(sessionManager.buildContextEntries()),
         });
       } catch (error) {
         sendToMain({

@@ -260,6 +260,7 @@
 
 ### Added
 
+- Prompt cache: when pi refreshes the prompt cache in the background during a long tool run, the transcript shows a `Cache warmed` line where it happened — the markers are stored in the session, so they come back when the session is reopened
 - The main window has fixed Chat, Files and Diff tabs (⌘1/⌘2/⌘3, shown on
   hover). Files puts the project tree in the sidebar with file icons and a
   ⌘P file search, shows source with line numbers or rendered markdown, quotes

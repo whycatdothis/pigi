@@ -14,6 +14,7 @@ import { createSessionWorkerProcess } from '../processes/createPiAgentProcess';
 import { PiAgentProcessPool } from './piAgentProcessPool';
 import {
   PiChannel,
+  type CacheWarmEntry,
   type CreateSessionOptions,
   type ListProjectSessionsCommand,
   type ModelInfo,
@@ -68,6 +69,7 @@ const READ_SESSION_MESSAGES_REQUEST: SessionWorkerRequest<
     compactionCount?: number;
     thinkingLevel?: string;
     model?: { provider: string; modelId: string } | null;
+    cacheWarmEntries?: CacheWarmEntry[];
     error?: string;
   }
 > = {
@@ -79,6 +81,7 @@ const READ_SESSION_MESSAGES_REQUEST: SessionWorkerRequest<
     compactionCount: reply.compactionCount,
     thinkingLevel: reply.thinkingLevel,
     model: reply.model,
+    cacheWarmEntries: reply.cacheWarmEntries,
     error: reply.error,
   }),
 };

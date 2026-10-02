@@ -171,8 +171,8 @@ export function useSessionTreeNavigation(
         }
         const controller = ensureTranscriptSession(sessionPath);
         controller.reset();
-        const { messages, compactionCount } = await getMessages(sessionPath);
-        controller.hydrate(messages, compactionCount);
+        const { messages, compactionCount, cacheWarmEntries } = await getMessages(sessionPath);
+        controller.hydrate(messages, compactionCount, cacheWarmEntries);
         messageListRef.current?.scrollToBottom();
         if (result.editorInput) {
           setRestoreInput(result.editorInput);

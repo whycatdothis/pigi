@@ -46,6 +46,7 @@ import type {
 import { toModelInfo } from '../../shared/modelInfo';
 import { generateSessionTitle } from './autoRename';
 import { createModelRuntime } from './fileCredentialStore';
+import { collectCacheWarmEntries } from './sessionEntries';
 import { buildPromptContent, hasPromptContent, type BuiltPromptContent } from './promptAttachments';
 import { hasSubagentMarker } from './subagentMarker';
 import {
@@ -672,10 +673,12 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
 
     case 'get_messages': {
       const msgs = runtime.session.messages;
-      const count = runtime.session.sessionManager
+      const sessionManager = runtime.session.sessionManager;
+      const count = sessionManager
         .getBranch()
         .filter((e: { type: string }) => e.type === 'compaction').length;
-      return { messages: msgs, compactionCount: count };
+      const cacheWarmEntries = collectCacheWarmEntries(sessionManager.buildContextEntries());
+      return { messages: msgs, compactionCount: count, cacheWarmEntries };
     }
 
     case 'get_session_tree': {

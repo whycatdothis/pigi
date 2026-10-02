@@ -1166,10 +1166,10 @@ function App(): React.JSX.Element {
       // Hydrate transcript from session file (fast path, no utility process needed)
       if (!options?.freshSession) {
         try {
-          const { messages, compactionCount, thinkingLevel, model } =
+          const { messages, compactionCount, cacheWarmEntries, thinkingLevel, model } =
             await readSessionMessages(sessionPath);
           const controller = getTranscriptController(sessionPath);
-          controller.hydrate(messages, compactionCount);
+          controller.hydrate(messages, compactionCount, cacheWarmEntries);
           if (model) {
             const matchedModel = modelOptions.find(
               (m) => m.id === model.modelId && m.provider === model.provider,

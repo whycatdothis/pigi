@@ -13,6 +13,7 @@ import {
   isPiResult,
   isStreamBatch,
   type ControlPortMessage,
+  type CacheWarmEntry,
   type CreateSessionOptions,
   type DataPortMessage,
   type RemoteCommandOutput,
@@ -421,6 +422,7 @@ const piApi = {
     compactionCount?: number;
     thinkingLevel?: string;
     model?: { provider: string; modelId: string } | null;
+    cacheWarmEntries?: CacheWarmEntry[];
     error?: string;
   }> => ipcRenderer.invoke(PiChannel.ReadSessionMessages, sessionPath),
 

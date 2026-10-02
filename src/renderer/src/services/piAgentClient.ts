@@ -6,6 +6,7 @@
  */
 import type {
   AuthProviderInfo,
+  CacheWarmEntry,
   CreateSessionOptions,
   ClearedQueue,
   EntryTextResult,
@@ -156,6 +157,7 @@ export async function readSessionMessages(sessionPath: string): Promise<{
   compactionCount: number;
   thinkingLevel: string;
   model: { provider: string; modelId: string } | null;
+  cacheWarmEntries: CacheWarmEntry[];
 }> {
   const result = await window.piApi.readSessionMessages(sessionPath);
   if (!result.success || !result.messages) {
@@ -166,6 +168,7 @@ export async function readSessionMessages(sessionPath: string): Promise<{
     compactionCount: result.compactionCount ?? 0,
     thinkingLevel: result.thinkingLevel ?? 'off',
     model: result.model ?? null,
+    cacheWarmEntries: result.cacheWarmEntries ?? [],
   };
 }
 
@@ -274,10 +277,13 @@ export async function getSessionOptions(sessionPath: string): Promise<SessionOpt
 
 export async function getMessages(
   sessionPath: string,
-): Promise<{ messages: unknown[]; compactionCount: number }> {
-  return send<{ messages: unknown[]; compactionCount: number }>(sessionPath, {
-    type: 'get_messages',
-  });
+): Promise<{ messages: unknown[]; compactionCount: number; cacheWarmEntries: CacheWarmEntry[] }> {
+  const result = await send<{
+    messages: unknown[];
+    compactionCount: number;
+    cacheWarmEntries?: CacheWarmEntry[];
+  }>(sessionPath, { type: 'get_messages' });
+  return { ...result, cacheWarmEntries: result.cacheWarmEntries ?? [] };
 }
 
 export async function listSessions(sessionPath: string, cwd?: string): Promise<unknown[]> {

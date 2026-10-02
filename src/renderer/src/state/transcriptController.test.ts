@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { CacheWarmEntry } from '../../../shared/ipcContract';
 import { TranscriptController, type SystemNode } from './transcriptController';
 
 function imageOnlyUserStart(): unknown {
@@ -198,5 +199,104 @@ describe('TranscriptController custom messages', () => {
     });
 
     expect(controller.state.nodes).toHaveLength(0);
+  });
+});
+
+function cacheWarmMessage(role: 'user' | 'assistant', text: string, timestamp: number): unknown {
+  return {
+    id: `${role}-${timestamp}`,
+    role,
+    content: [{ type: 'text', text }],
+    timestamp,
+  };
+}
+
+function cacheWarm(id: string, timestamp: number): CacheWarmEntry {
+  return { id, timestamp: new Date(timestamp).toISOString() };
+}
+
+/**
+ * The SDK appends a `usage` entry with `kind: "cache_warm"` every time it
+ * refreshed the prompt cache in the background during a long tool run. The
+ * marker is placed two ways: live, from the `entry_appended` event, and on
+ * hydration, by comparing the entry's timestamp with the messages around it.
+ * Both are pure controller behavior, so they are pinned down here instead of
+ * by watching a paid request happen.
+ */
+describe('cache warmed markers', () => {
+  it('appends a marker for a live cache_warm usage entry', () => {
+    const controller = new TranscriptController();
+
+    controller.processEvent({
+      type: 'entry_appended',
+      entry: { type: 'usage', kind: 'cache_warm', id: 'entry-1' },
+    });
+
+    expect(controller.state.nodes).toHaveLength(1);
+    expect(controller.state.nodes[0]).toMatchObject({
+      id: 'entry-1',
+      role: 'system',
+      text: 'Cache warmed',
+      continuesUserTurn: true,
+    });
+  });
+
+  it('ignores usage entries that are not cache refreshes', () => {
+    const controller = new TranscriptController();
+
+    controller.processEvent({
+      type: 'entry_appended',
+      entry: { type: 'usage', kind: 'something_else', id: 'entry-1' },
+    });
+    controller.processEvent({
+      type: 'entry_appended',
+      entry: { type: 'message', id: 'entry-2' },
+    });
+
+    expect(controller.state.nodes).toHaveLength(0);
+  });
+
+  it('places hydrated markers by timestamp, between the messages around them', () => {
+    const controller = new TranscriptController();
+    const first = 1_767_000_000_000;
+
+    controller.hydrate(
+      [
+        cacheWarmMessage('user', 'one', first),
+        cacheWarmMessage('assistant', 'two', first + 20_000),
+        cacheWarmMessage('user', 'three', first + 40_000),
+      ],
+      0,
+      [cacheWarm('entry-1', first + 10_000), cacheWarm('entry-2', first + 30_000)],
+    );
+
+    expect(controller.state.nodes.map((node) => node.role)).toEqual([
+      'user',
+      'system',
+      'assistant',
+      'system',
+      'user',
+    ]);
+    expect(controller.state.nodes.filter((node) => node.role === 'system')).toMatchObject([
+      { id: 'entry-1', text: 'Cache warmed' },
+      { id: 'entry-2', text: 'Cache warmed' },
+    ]);
+  });
+
+  it('keeps a refresh that is newer than every message at the end', () => {
+    const controller = new TranscriptController();
+    const first = 1_767_000_000_000;
+
+    controller.hydrate(
+      [
+        cacheWarmMessage('user', 'one', first),
+        cacheWarmMessage('assistant', 'two', first + 20_000),
+      ],
+      0,
+      [cacheWarm('entry-1', first + 30_000)],
+    );
+
+    const last = controller.state.nodes[controller.state.nodes.length - 1];
+    expect(last).toMatchObject({ id: 'entry-1', role: 'system', text: 'Cache warmed' });
   });
 });

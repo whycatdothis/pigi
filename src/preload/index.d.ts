@@ -1,6 +1,7 @@
 import { ElectronAPI } from '@electron-toolkit/preload';
 import type { PigiSettingsChange, PigiSettingsReadResult } from '../shared/pigiSettings';
 import type {
+  CacheWarmEntry,
   CreateSessionOptions,
   RemoteCommandOutput,
   RemoteCommandRequest,
@@ -95,6 +96,7 @@ interface PiApi {
     compactionCount?: number;
     thinkingLevel?: string;
     model?: { provider: string; modelId: string } | null;
+    cacheWarmEntries?: CacheWarmEntry[];
     error?: string;
   }>;
   listProjectSessions: (cwds: string[]) => Promise<SessionListResult>;

@@ -836,6 +836,16 @@ export type SessionWorkerCommand =
   | ReadSettingsCommand
   | WriteSettingsCommand;
 
+/**
+ * A prompt-cache refresh the SDK ran in the background while a long tool run
+ * kept the conversation idle. The transcript draws one marker per refresh.
+ */
+export interface CacheWarmEntry {
+  id: string;
+  /** Entry timestamp (ISO), used to place the marker among hydrated messages. */
+  timestamp: string;
+}
+
 export type SessionWorkerResponse =
   | ({ type: 'project_sessions_chunk' } & ProjectSessionsChunk)
   | { type: 'rename_session_result'; requestId: string; success: boolean; error?: string }
@@ -847,6 +857,7 @@ export type SessionWorkerResponse =
       compactionCount?: number;
       thinkingLevel?: ThinkingLevel;
       model?: { provider: string; modelId: string } | null;
+      cacheWarmEntries?: CacheWarmEntry[];
       error?: string;
     }
   | { type: 'catalog_updated'; models: ModelInfo[] }

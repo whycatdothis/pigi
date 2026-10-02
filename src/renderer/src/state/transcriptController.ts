@@ -1,5 +1,10 @@
 import type { EditToolDetails } from '@earendil-works/pi-coding-agent';
-import type { PromptAttachment, PromptInput, StreamBatch } from '../../../shared/ipcContract';
+import type {
+  CacheWarmEntry,
+  PromptAttachment,
+  PromptInput,
+  StreamBatch,
+} from '../../../shared/ipcContract';
 import { sanitizeUserPromptForDisplay } from '../../../shared/chatAttachments';
 
 /**
@@ -122,6 +127,17 @@ export function getToolArgs(node: ToolNode): Record<string, unknown> | undefined
     return node.args as Record<string, unknown>;
   }
   return undefined;
+}
+
+/**
+ * A prompt-cache refresh the SDK ran in the background while a long tool run
+ * kept the conversation idle. The node id is the session entry's id, so the
+ * live marker and the hydrated one for the same refresh are one node.
+ */
+const CACHE_WARMED_TEXT = 'Cache warmed';
+
+function createCacheWarmNode(id: string): SystemNode {
+  return { id, role: 'system', text: CACHE_WARMED_TEXT, continuesUserTurn: true };
 }
 
 export interface TranscriptState {
@@ -312,10 +328,14 @@ export class TranscriptController {
   }
 
   // From getMessages on session_ready or session switch.
-  hydrate(messages: unknown[], compactionCount?: number): void {
+  hydrate(
+    messages: unknown[],
+    compactionCount?: number,
+    cacheWarmEntries: CacheWarmEntry[] = [],
+  ): void {
     this._optimisticUserMessages.clear();
     this._runPromptPending = false;
-    const nodes = this.createNodesFromMessages(messages);
+    const nodes = this.createNodesFromMessages(messages, cacheWarmEntries);
 
     // If the last message is a compaction marker, update it with the count
     // instead of adding a duplicate line.
@@ -349,8 +369,8 @@ export class TranscriptController {
     this.notify();
   }
 
-  mergeHydratedMessages(messages: unknown[]): void {
-    const hydratedNodes = this.createNodesFromMessages(messages);
+  mergeHydratedMessages(messages: unknown[], cacheWarmEntries: CacheWarmEntry[] = []): void {
+    const hydratedNodes = this.createNodesFromMessages(messages, cacheWarmEntries);
     const currentNodes = this._state.nodes;
     const missingHistoricalNodes = hydratedNodes.filter(
       (node) => !currentNodes.some((currentNode) => areDuplicateNodes(currentNode, node)),
@@ -363,9 +383,32 @@ export class TranscriptController {
     this.setState({ nodes: [...missingHistoricalNodes, ...currentNodes] });
   }
 
-  private createNodesFromMessages(messages: unknown[]): TranscriptNode[] {
+  private createNodesFromMessages(
+    messages: unknown[],
+    cacheWarmEntries: CacheWarmEntry[] = [],
+  ): TranscriptNode[] {
     const nodes: TranscriptNode[] = [];
     const toolCalls = new Map<string, { name: string; args: unknown; startedAt?: number }>();
+
+    // Cache refreshes are placed by timestamp: the SDK appends them between
+    // the messages they happened after, so a hydrated marker lands where the
+    // money was spent instead of at the end of the transcript.
+    const cacheWarmMarkers = cacheWarmEntries
+      .flatMap((entry) => {
+        const at = tryNormalizeTimestamp(entry.timestamp);
+        return at === undefined ? [] : [{ id: entry.id, at }];
+      })
+      .sort((left, right) => left.at - right.at);
+    let nextCacheWarmMarker = 0;
+    const insertCacheWarmMarkers = (upTo: number): void => {
+      while (
+        nextCacheWarmMarker < cacheWarmMarkers.length &&
+        cacheWarmMarkers[nextCacheWarmMarker].at <= upTo
+      ) {
+        nodes.push(createCacheWarmNode(cacheWarmMarkers[nextCacheWarmMarker].id));
+        nextCacheWarmMarker += 1;
+      }
+    };
 
     // Pi SDK places compactionSummary at messages[0]. Extract its timestamp so we can
     // insert the visual marker between pre-compaction kept messages and post-compaction
@@ -397,6 +440,8 @@ export class TranscriptController {
       };
       if (!parsed.role) continue;
 
+      const messageTimestamp = tryNormalizeTimestamp(parsed.timestamp);
+
       // The marker goes at the first message newer than the compaction: the
       // boundary between kept pre-compaction messages and later ones.
       if (
@@ -404,7 +449,6 @@ export class TranscriptController {
         !compactionInserted &&
         parsed.role !== 'compactionSummary'
       ) {
-        const messageTimestamp = tryNormalizeTimestamp(parsed.timestamp);
         if (messageTimestamp !== undefined && messageTimestamp > compactionTimestamp) {
           nodes.push({
             id: nextNodeId(),
@@ -415,6 +459,12 @@ export class TranscriptController {
           });
           compactionInserted = true;
         }
+      }
+
+      // After the compaction marker: a refresh is always newer than the
+      // compaction whose kept messages it followed.
+      if (messageTimestamp !== undefined) {
+        insertCacheWarmMarkers(messageTimestamp);
       }
 
       switch (parsed.role) {
@@ -541,6 +591,9 @@ export class TranscriptController {
         isLoading: false,
       });
     }
+
+    // Refreshes newer than the last message still belong at the end.
+    insertCacheWarmMarkers(Number.POSITIVE_INFINITY);
 
     return nodes;
   }
@@ -845,6 +898,16 @@ export class TranscriptController {
       case 'tool_execution_end':
         this.handleToolEnd(raw as SdkToolExecEnd);
         break;
+
+      case 'entry_appended': {
+        // The SDK appends a usage entry every time it refreshed the prompt
+        // cache in the background; the transcript shows one marker per refresh.
+        const entry = event.entry as { type?: string; kind?: string; id?: string } | undefined;
+        if (entry?.type === 'usage' && entry.kind === 'cache_warm' && entry.id) {
+          this.setState({ nodes: [...this._state.nodes, createCacheWarmNode(entry.id)] });
+        }
+        break;
+      }
 
       case 'compaction_start': {
         const compactionEvent = event as { reason?: string };
