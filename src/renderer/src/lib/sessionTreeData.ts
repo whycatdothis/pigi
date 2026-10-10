@@ -3,33 +3,24 @@
  *
  * The wire payload is a flat list of visible entries with parent ids rewritten
  * to the nearest visible ancestor (see `src/processes/utility/sessionTree.ts`).
- * headless-tree wants a data loader hanging off a single root; a session can
- * have several roots (going back to before the first message starts a new
- * tree), so the entries hang off a synthetic root item instead.
+ * A session can have several roots (going back to before the first message
+ * starts a new tree), so the entries hang off a synthetic root item.
  *
  * Everything here is pure: shaping, row descriptions and time formatting.
  */
 import fuzzysort from 'fuzzysort';
-import type { ItemInstance } from '@headless-tree/core';
 import type { SessionTree, SessionTreeEntry } from '../../../shared/ipcContract';
 import { getToolCommandPartsForTool } from './toolDisplay';
 
 /** Entry kinds, as they arrive from the utility process. */
 export type SessionTreeKind = SessionTreeEntry['kind'];
 
-/** headless-tree needs exactly one root; real entries never use this id. */
+/** The parent of every tree's root; real entries never use this id. */
 export const SESSION_TREE_ROOT_ID = '__session-tree-root__';
 
-/** Placeholder for an id the current dataset does not know. */
-const EMPTY_ITEM: SessionTreeItem = {
-  entry: null,
-  parentId: SESSION_TREE_ROOT_ID,
-  childIds: [],
-};
-
 export interface SessionTreeItem {
-  /** null on the synthetic root. */
-  entry: SessionTreeEntry | null;
+  entry: SessionTreeEntry;
+  /** The surviving parent, or `SESSION_TREE_ROOT_ID` for a row that starts a tree. */
   parentId: string;
   childIds: string[];
 }
@@ -42,9 +33,6 @@ export interface SessionTreeRootStats {
 }
 
 export interface SessionTreeData {
-  rootItemId: string;
-  /** Every entry that survived the filter; the initial expansion state. */
-  allItemIds: string[];
   /**
    * The session's separate trees, oldest first.
    *
@@ -75,8 +63,6 @@ export interface SessionTreeData {
   rootStatsById: Map<string, SessionTreeRootStats>;
   /** Number of rows the tree can show (matches plus their ancestors). */
   itemCount: number;
-  /** Entries that match the query themselves. */
-  matchCount: number;
   /**
    * Positions of the fuzzy match inside each row's text, keyed by entry id.
    * Rows that only survived as ancestors have no entry here.
@@ -89,26 +75,8 @@ export interface SessionTreeData {
    * way back to the leaf, so the renderer needs to ask the tree about it.
    */
   activePathIds: ReadonlySet<string>;
-  getItem: (itemId: string) => SessionTreeItem;
+  getItem: (itemId: string) => SessionTreeItem | undefined;
   getChildren: (itemId: string) => string[];
-}
-
-/** One row of the dialog's display tree, nested the way the rows indent. */
-export interface SessionTreeDisplayNode {
-  itemId: string;
-  /**
-   * A row's only child: it continues the same line, so it renders at the same
-   * nesting level, right after it.
-   */
-  continuation: SessionTreeDisplayNode | null;
-  /**
-   * The children of a fork, one per branch.
-   *
-   * Each of them renders inside a branch wrapper — the element that owns the
-   * fork's guide line, so a line spans a whole subtree instead of being pieced
-   * together row by row.
-   */
-  branch: SessionTreeDisplayNode[] | null;
 }
 
 /** One row's text: an optional leading chip, the text, an optional trailing chip. */
@@ -193,11 +161,6 @@ export function createSessionTreeData(
 
   const rootChildIds = childIdsByParent.get(SESSION_TREE_ROOT_ID) ?? [];
   const itemById = new Map<string, SessionTreeItem>();
-  itemById.set(SESSION_TREE_ROOT_ID, {
-    entry: null,
-    parentId: SESSION_TREE_ROOT_ID,
-    childIds: rootChildIds,
-  });
   for (const entry of entries) {
     const parentId = parentIdByItemId.get(entry.id);
     if (parentId === undefined) continue;
@@ -208,7 +171,6 @@ export function createSessionTreeData(
     });
   }
 
-  const allItemIds = [...itemById.keys()].filter((itemId) => itemId !== SESSION_TREE_ROOT_ID);
   const activePathIds = collectActivePathIds(effectiveLeafId, entryById);
   // Every entry in the session, filtered out or not, so the tree numbering is a
   // property of the session and not of the current search.
@@ -229,21 +191,16 @@ export function createSessionTreeData(
   }
 
   return {
-    rootItemId: SESSION_TREE_ROOT_ID,
-    allItemIds,
     rootIds: rootChildIds,
     treeIds,
     treeRootIdByItemId,
     isFiltered: normalizedQuery !== '' || kinds !== null,
     currentRootId: findRootId(effectiveLeafId, entryById),
     rootStatsById: collectRootStats(rootChildIds, itemById),
-    itemCount: allItemIds.length,
-    matchCount: matchingIds?.size ?? allItemIds.length,
+    itemCount: itemById.size,
     matchIndexesById,
     activePathIds,
-    // headless-tree can briefly ask for an id from a previous dataset (a hot
-    // reload, a filter swap): answer with an empty row instead of throwing.
-    getItem: (itemId) => itemById.get(itemId) ?? EMPTY_ITEM,
+    getItem: (itemId) => itemById.get(itemId),
     getChildren: (itemId) => itemById.get(itemId)?.childIds ?? [],
   };
 }
@@ -255,7 +212,8 @@ export function createSessionTreeData(
  * affordance, while a child of a fork folds the branch it hangs from.
  */
 export function describeSessionTreeRow(
-  item: ItemInstance<SessionTreeItem>,
+  entry: SessionTreeEntry,
+  childCount: number,
   isBranchChild: boolean,
 ): {
   canFold: boolean;
@@ -263,21 +221,11 @@ export function describeSessionTreeRow(
   isMetaKind: boolean;
   isError: boolean;
 } {
-  const entry = item.getItemData().entry;
-  const childCount = item.getItemData().childIds.length;
-  if (!entry) {
-    return {
-      canFold: false,
-      description: { text: '' },
-      isMetaKind: false,
-      isError: false,
-    };
-  }
   const description = describeSessionTreeEntry(entry);
   return {
     // Chains have no fold affordance: the rows a fold would hide do not read as
     // children on screen.
-    canFold: childCount > 1 || (isBranchChild && childCount > 0),
+    canFold: canFoldRow(childCount, isBranchChild),
     description,
     isMetaKind: entry.kind === 'compaction' || entry.kind === 'branchSummary',
     isError: description.destructive === true,
@@ -320,11 +268,25 @@ export function describeSessionTreeEntry(entry: SessionTreeEntry): SessionTreeDe
 }
 
 /**
- * The rows to render, nested the way they indent, plus what the tree shape
- * means for the rows that hang from it.
+ * Whether a row has a fold affordance. Chains have none: the rows a fold would
+ * hide do not read as children on screen.
  */
-export interface SessionTreeDisplay {
-  nodes: SessionTreeDisplayNode[];
+export function canFoldRow(childCount: number, isBranchChild: boolean): boolean {
+  return childCount > 1 || (isBranchChild && childCount > 0);
+}
+
+/** One row of the list, carrying what it takes to draw on its own. */
+export interface SessionTreeFlatRow {
+  itemId: string;
+  /** Indent level the row draws at; the roots of a tree start at zero. */
+  depth: number;
+  /** The row hangs under a fork, so it has a line of its own. */
+  isBranchChild: boolean;
+}
+
+/** The rows to draw, in reading order, and the shape they hang from. */
+export interface SessionTreeRows {
+  rows: SessionTreeFlatRow[];
   /** Display parent per row: the fork it hangs from, or the row it continues. */
   parentById: Map<string, string>;
   /** Indent level per row; a lone child shares its parent's level. */
@@ -332,143 +294,63 @@ export interface SessionTreeDisplay {
 }
 
 /**
- * One row of the display as a list, in the order it is drawn.
- *
- * The nesting above is how rows are grouped for drawing. A list needs the rows
- * themselves, each carrying what it takes to draw on its own — the same walk the
- * renderer already does, written down as data, so a list can index a row instead
- * of nesting React elements to find one.
- */
-export interface SessionTreeFlatRow {
-  itemId: string;
-  /** Indent level the row draws at; the roots of a tree start at zero. */
-  depth: number;
-  /** The row hangs under a fork, so it has a line of its own. */
-  isBranchChild: boolean;
-  /** The last child of its fork: its line stops at its own elbow. */
-  isLastBranchChild: boolean;
-  /**
-   * The row this one continues, or null when it hangs under a fork or starts a
-   * tree. A continuation shares its parent's indent: the same line, one row on.
-   */
-  continuationOf: string | null;
-}
-
-/**
- * Flatten a display into its rows, in document order.
- *
- * Reading order is the order the nesting draws: a row, then what it continues
- * into, then its fork's branches from first to last. Indent, branch flags and
- * the row a continuation continues are the whole of what the renderer passes
- * down its recursion, so the same rows come out of this.
- */
-export function flattenSessionTreeDisplay(display: SessionTreeDisplay): SessionTreeFlatRow[] {
-  const rows: SessionTreeFlatRow[] = [];
-
-  // The walk keeps its own stack: a conversation is mostly continuations, one per
-  // row, so recursion here is as deep as the session is long and a long one takes
-  // the renderer down with it. The stack order is the reading order a row at a
-  // time: the row, then what it continues into, then its fork's branches.
-  interface Frame {
-    node: SessionTreeDisplayNode;
-    depth: number;
-    branch: { isLast: boolean } | null;
-    continuationOf: string | null;
-  }
-  const pending: Frame[] = [];
-  for (let index = display.nodes.length - 1; index >= 0; index -= 1) {
-    pending.push({ node: display.nodes[index], depth: 0, branch: null, continuationOf: null });
-  }
-
-  for (let frame = pending.pop(); frame !== undefined; frame = pending.pop()) {
-    const { node, depth, branch, continuationOf } = frame;
-    rows.push({
-      itemId: node.itemId,
-      depth,
-      isBranchChild: branch !== null,
-      isLastBranchChild: branch?.isLast ?? false,
-      continuationOf: branch === null ? continuationOf : null,
-    });
-    const children = node.branch ?? [];
-    for (let index = children.length - 1; index >= 0; index -= 1) {
-      pending.push({
-        node: children[index],
-        depth: depth + 1,
-        branch: { isLast: index === children.length - 1 },
-        continuationOf: null,
-      });
-    }
-    // Pushed last, so it is read next: the row's continuation comes before its fork.
-    if (node.continuation !== null) {
-      pending.push({ node: node.continuation, depth, branch: null, continuationOf: node.itemId });
-    }
-  }
-
-  return rows;
-}
-
-/**
- * Nest the rows the way they indent, for the renderer.
+ * The rows the list draws, in reading order.
  *
  * A conversation is mostly a straight line: indenting every message would
  * staircase off the right edge, so only real forks indent. A lone child
  * continues at its parent's level, and every child of a fork moves one level
- * deeper — which is exactly the nesting here, and the reason a fork's guide
- * line can belong to the subtree instead of to each row it passes.
+ * deeper. Reading order is depth-first: a row, then what it continues into or
+ * its fork's branches, first to last.
  *
- * `visibleItemIds` is what the tree currently shows (folds and filters
- * applied); anything else is left out. What the lit path does to the branch
- * lines is not part of this: a line belongs to a fork, and the renderer derives
- * which lines the path lights from the row the light is on (`collectPathOwners`
- * below), so a pointer moving along a branch does not rebuild the tree.
+ * The rows of a folded tree are left out, and so is everything under a folded
+ * row. What the lit path does to the branch lines is not part of this: the
+ * renderer derives it from the row the light is on (`collectPathOwners` below),
+ * so a pointer moving along a branch does not rebuild the rows.
+ *
+ * The walk keeps its own stack: a straight conversation is one level per
+ * message, deeper than the call stack allows.
  */
-export function buildSessionTreeDisplay(
+export function buildSessionTreeRows(
   data: SessionTreeData,
-  visibleItemIds: ReadonlySet<string>,
-): SessionTreeDisplay {
+  foldedItemIds: ReadonlySet<string>,
+  collapsedTreeIds: ReadonlySet<string>,
+): SessionTreeRows {
+  const rows: SessionTreeFlatRow[] = [];
   const parentById = new Map<string, string>();
   const depthById = new Map<string, number>();
 
-  // Nodes are linked as they are created and filled in as the walk reaches them,
-  // so the shape is built without recursing: a lone child is a continuation, and
-  // a straight conversation has one per row — deeper than the call stack allows.
-  const nodeById = new Map<string, SessionTreeDisplayNode>();
-  const nodeFor = (itemId: string): SessionTreeDisplayNode => {
-    const existing = nodeById.get(itemId);
-    if (existing !== undefined) return existing;
-    const created: SessionTreeDisplayNode = { itemId, continuation: null, branch: null };
-    nodeById.set(itemId, created);
-    return created;
-  };
-
-  const rootIds = data.getChildren(data.rootItemId).filter((rootId) => visibleItemIds.has(rootId));
-  const pending: { itemId: string; parentId: string | null; depth: number }[] = rootIds.map(
-    (itemId) => ({ itemId, parentId: null, depth: 0 }),
+  interface Frame {
+    itemId: string;
+    parentId: string | null;
+    depth: number;
+    isBranchChild: boolean;
+  }
+  const rootIds = data.rootIds.filter(
+    (rootId) => !collapsedTreeIds.has(data.treeRootIdByItemId.get(rootId) ?? rootId),
   );
+  const pending: Frame[] = rootIds
+    .map((itemId) => ({ itemId, parentId: null, depth: 0, isBranchChild: false }))
+    .reverse();
 
   for (let frame = pending.pop(); frame !== undefined; frame = pending.pop()) {
-    const { itemId, parentId, depth } = frame;
+    const { itemId, parentId, depth, isBranchChild } = frame;
+    rows.push({ itemId, depth, isBranchChild });
     if (parentId !== null) parentById.set(itemId, parentId);
     depthById.set(itemId, depth);
-    const node = nodeFor(itemId);
-    const childIds = data.getChildren(itemId).filter((childId) => visibleItemIds.has(childId));
-    if (childIds.length === 1) {
-      // A continuation shares the level: it is the same line, one row further.
-      node.continuation = nodeFor(childIds[0]);
-      pending.push({ itemId: childIds[0], parentId: itemId, depth });
-      continue;
-    }
-    if (childIds.length > 1) {
-      node.branch = childIds.map((childId) => nodeFor(childId));
-      // Pushed backwards so the branches are walked first to last: the maps this
-      // records are read in that order.
-      for (let index = childIds.length - 1; index >= 0; index -= 1) {
-        pending.push({ itemId: childIds[index], parentId: itemId, depth: depth + 1 });
-      }
+    const childIds = foldedItemIds.has(itemId) ? [] : data.getChildren(itemId);
+    const isFork = childIds.length > 1;
+    // Pushed backwards, so they are read first to last.
+    for (let index = childIds.length - 1; index >= 0; index -= 1) {
+      pending.push({
+        itemId: childIds[index],
+        parentId: itemId,
+        depth: isFork ? depth + 1 : depth,
+        isBranchChild: isFork,
+      });
     }
   }
 
-  return { nodes: rootIds.map((rootId) => nodeFor(rootId)), parentById, depthById };
+  return { rows, parentById, depthById };
 }
 
 /**
@@ -633,16 +515,12 @@ function collectRootStats(
     let startTimestamp = Number.POSITIVE_INFINITY;
     let endTimestamp = Number.NEGATIVE_INFINITY;
     const stack = [rootId];
-    while (stack.length > 0) {
-      const itemId = stack.pop() as string;
+    for (let itemId = stack.pop(); itemId !== undefined; itemId = stack.pop()) {
       const item = itemById.get(itemId);
       if (!item) continue;
       rowCount += 1;
-      const timestamp = item.entry?.timestamp;
-      if (timestamp !== undefined) {
-        startTimestamp = Math.min(startTimestamp, timestamp);
-        endTimestamp = Math.max(endTimestamp, timestamp);
-      }
+      startTimestamp = Math.min(startTimestamp, item.entry.timestamp);
+      endTimestamp = Math.max(endTimestamp, item.entry.timestamp);
       stack.push(...item.childIds);
     }
     stats.set(rootId, {

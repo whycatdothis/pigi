@@ -67,17 +67,13 @@ export function buildSessionTree(entries: SessionEntry[], leafId: string | null)
   for (const entry of entries) {
     const resolved = visible.get(entry.id);
     if (!resolved) continue;
-    rows.push(
-      toTreeEntry(
-        entry,
-        resolved,
-        findNearestVisibleAncestor(entry.parentId, visible, byId),
-        entry.timestamp,
-      ),
-    );
+    rows.push(toTreeEntry(entry, resolved, findNearestVisibleId(entry.parentId, visible, byId)));
   }
 
-  return { leafId: findEffectiveLeafId(leafId, visible, byId), entries: rows };
+  // When the real leaf is not a row (a model change, a label, an assistant
+  // message mid-tool-call), the deepest visible entry on the active path is the
+  // position the user is looking at.
+  return { leafId: findNearestVisibleId(leafId, visible, byId), entries: rows };
 }
 
 /**
@@ -126,16 +122,7 @@ export function readEntryText(
   const entry = entries.find((candidate) => candidate.id === entryId);
   if (!entry) return { text: '', truncated: false };
 
-  let text = '';
-  if (entry.type === 'message' && isLlmMessage(entry.message)) {
-    text = extractMessageText(entry.message.content);
-    if (!text && entry.message.role === 'assistant') {
-      text = extractThinkingText(entry.message) || entry.message.errorMessage || '';
-    }
-  } else if (entry.type === 'compaction' || entry.type === 'branch_summary') {
-    text = entry.summary;
-  }
-
+  const text = entryText(entry);
   const clipped = clipText(text, ENTRY_TEXT_MAX_LENGTH);
   return { text: clipped, truncated: clipped.length < text.length };
 }
@@ -162,30 +149,13 @@ function resolveVisible(entry: SessionEntry): VisibleEntry | undefined {
   }
 }
 
-/**
- * Mark the current position. When the real leaf is not a row (a model change,
- * a label, an assistant message mid-tool-call), the deepest visible entry on
- * the active path is the position the user is looking at.
- */
-function findEffectiveLeafId(
-  leafId: string | null,
+/** `entryId` itself if it is a row, else the closest ancestor that is. */
+function findNearestVisibleId(
+  entryId: string | null,
   visible: Map<string, VisibleEntry>,
   byId: Map<string, SessionEntry>,
 ): string | null {
-  let currentId = leafId;
-  while (currentId !== null) {
-    if (visible.has(currentId)) return currentId;
-    currentId = byId.get(currentId)?.parentId ?? null;
-  }
-  return null;
-}
-
-function findNearestVisibleAncestor(
-  parentId: string | null,
-  visible: Map<string, VisibleEntry>,
-  byId: Map<string, SessionEntry>,
-): string | null {
-  let currentId = parentId;
+  let currentId = entryId;
   while (currentId !== null) {
     if (visible.has(currentId)) return currentId;
     currentId = byId.get(currentId)?.parentId ?? null;
@@ -197,14 +167,13 @@ function toTreeEntry(
   entry: SessionEntry,
   resolved: VisibleEntry,
   parentId: string | null,
-  timestamp: string,
 ): SessionTreeEntry {
   const row: SessionTreeEntry = {
     id: entry.id,
     parentId,
-    timestamp: new Date(timestamp).getTime(),
+    timestamp: new Date(entry.timestamp).getTime(),
     kind: resolved.kind,
-    preview: buildPreview(entry, resolved.kind),
+    preview: clipText(toSingleLine(entryText(entry)), PREVIEW_MAX_LENGTH),
   };
 
   if (entry.type === 'message') {
@@ -225,22 +194,17 @@ function toTreeEntry(
   return row;
 }
 
-function buildPreview(entry: SessionEntry, kind: EntryKind): string {
-  if (kind === 'compaction' || kind === 'branchSummary') {
-    const summary =
-      entry.type === 'compaction' || entry.type === 'branch_summary' ? entry.summary : '';
-    return clipText(toSingleLine(summary), PREVIEW_MAX_LENGTH);
-  }
-  if (entry.type !== 'message') return '';
-
+/**
+ * An entry's text: a message's text (an assistant message with none falls back
+ * to its thinking, then its error), or a summary's body.
+ */
+function entryText(entry: SessionEntry): string {
+  if (entry.type === 'compaction' || entry.type === 'branch_summary') return entry.summary;
+  if (entry.type !== 'message' || !isLlmMessage(entry.message)) return '';
   const message = entry.message;
-  if (!isLlmMessage(message)) return '';
-
-  let text = extractMessageText(message.content);
-  if (!text && message.role === 'assistant') {
-    text = extractThinkingText(message) || message.errorMessage || '';
-  }
-  return clipText(toSingleLine(text), PREVIEW_MAX_LENGTH);
+  const text = extractMessageText(message.content);
+  if (text || message.role !== 'assistant') return text;
+  return extractThinkingText(message) || message.errorMessage || '';
 }
 
 /** LLM messages carry `content`; coding-agent custom messages do not. */
@@ -273,9 +237,10 @@ function collectToolArgs(
   if (message.role !== 'assistant') return;
   for (const block of message.content) {
     if (block.type !== 'toolCall') continue;
+    // Typed as a record, but read from a session file: guard the shape anyway.
     const args = block.arguments;
     if (args && typeof args === 'object' && !Array.isArray(args)) {
-      toolArgsByCallId.set(block.id, args as Record<string, unknown>);
+      toolArgsByCallId.set(block.id, args);
     }
   }
 }

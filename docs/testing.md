@@ -70,8 +70,7 @@ it buys nothing.
 
 ### Characterization tests
 
-Some behaviour is known and not wanted yet (the tree dialog lists rows that arrive
-while it is open only after a reopen). Record it as a test anyway, with a comment
+Some behaviour is known and not wanted yet. Record it as a test anyway, with a comment
 saying it is recorded, not desired — then a later fix shows up as a deliberate change
 instead of an accident.
 
@@ -87,7 +86,8 @@ clock or language is not a test.
 
 - measure anything: every `clientWidth`, `scrollHeight` and rect is `0`, unless the
   test called `installViewport`;
-- scroll: `scrollIntoView` is stubbed, `scrollTop` stays put;
+- scroll: `scrollIntoView` is stubbed, and setting `scrollTop` is remembered but
+  fires no `scroll` event;
 - apply CSS, so `overflow`, sticky and the hairline geometry do nothing;
 - tell whether text overflows its box (which is exactly why the hover card is a
   browser test).

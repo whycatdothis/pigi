@@ -1,43 +1,36 @@
 import React from 'react';
 import { IconChevronRight, IconUser } from '@tabler/icons-react';
-import type { ItemInstance, TreeInstance } from '@headless-tree/core';
 import type { SessionTreeEntry } from '../../../../shared/ipcContract';
 import {
   describeSessionTreeEntry,
   describeSessionTreeRow,
   formatSessionTreeTime,
   type SessionTreeData,
-  type SessionTreeItem,
 } from '../../lib/sessionTreeData';
 import { cn } from '../../lib/utils';
 import { CHEVRON_PX, ROW_HEIGHT_PX, rowContentX } from './sessionTreeGeometry';
 
-/**
- * State the whole row recursion shares.
- *
- * Threading one object keeps the recursion (a row, its continuation, its
- * branches) readable: every level needs the same handlers, the same tree and
- * the same hovered path.
- */
+/** What every row, and every pinned copy of one, reads from the list. */
 export interface SessionTreeRowContext {
   data: SessionTreeData;
-  tree: TreeInstance<SessionTreeItem>;
   currentId: string | null;
-  /**
-   * The row the keyboard is on, or null when the keyboard has not moved yet.
-   *
-   * Read from the tree's state rather than from `item.isFocused()`, which also
-   * calls the first row focused while nothing is selected at all.
-   */
+  /** The row the keyboard is on, or null when the keyboard has not moved yet. */
   selectedId: string | null;
+  /** The one row Tab lands on: the keyboard's row, or the first row. */
+  tabStopId: string | null;
+  foldedItemIds: ReadonlySet<string>;
+  /** Move the session to this entry. */
   onSelect: (entryId: string) => void;
-  onToggleFold: (item: ItemInstance<SessionTreeItem>) => void;
+  /** A click on a row: it becomes the keyboard's row, and the session moves. */
+  onRowClick: (entryId: string) => void;
+  onToggleFold: (itemId: string) => void;
   onRowEnter: (event: React.MouseEvent<HTMLButtonElement>, entry: SessionTreeEntry) => void;
   onRowLeave: () => void;
 }
 
 interface TreeRowProps {
-  item: ItemInstance<SessionTreeItem>;
+  entry: SessionTreeEntry;
+  childCount: number;
   /** ARIA level: the nesting the user sees, not the message tree's depth. */
   level: number;
   /** Indent of this row's content; `level` counts from one, depth from zero. */
@@ -56,7 +49,8 @@ interface TreeRowProps {
 }
 
 export function TreeRow({
-  item,
+  entry,
+  childCount,
   level,
   depth,
   isBranchChild,
@@ -64,26 +58,30 @@ export function TreeRow({
   isCurrent,
   isSelected,
   rowContext,
-}: TreeRowProps): React.JSX.Element | null {
-  const { onSelect, onToggleFold, onRowEnter, onRowLeave } = rowContext;
-  const entry = item.getItemData().entry;
-  if (!entry) return null;
+}: TreeRowProps): React.JSX.Element {
+  const { selectedId, tabStopId, foldedItemIds, onSelect, onRowClick, onToggleFold } = rowContext;
+  const { onRowEnter, onRowLeave } = rowContext;
 
   const matched = matchIndexes !== undefined;
-  const { canFold, description, isMetaKind, isError } = describeSessionTreeRow(item, isBranchChild);
+  const { canFold, description, isMetaKind, isError } = describeSessionTreeRow(
+    entry,
+    childCount,
+    isBranchChild,
+  );
+  const expanded = !foldedItemIds.has(entry.id);
 
   return (
     <button
-      {...item.getProps()}
       type="button"
+      role="treeitem"
+      aria-label={entry.preview}
       // Announce the indentation the user sees, not the message tree's depth.
       aria-level={level}
-      // The library's default click folds folders; here a click moves the
-      // session, and the chevron (or the arrow keys) folds.
-      onClick={() => {
-        item.setFocused();
-        onSelect(entry.id);
-      }}
+      aria-selected={selectedId === entry.id}
+      aria-expanded={canFold ? expanded : undefined}
+      tabIndex={tabStopId === entry.id ? 0 : -1}
+      // A click moves the session; the chevron (or the arrow keys) folds.
+      onClick={() => onRowClick(entry.id)}
       onKeyDown={(event) => {
         if (event.key !== 'Enter') return;
         event.preventDefault();
@@ -99,7 +97,7 @@ export function TreeRow({
       data-tree-current={isCurrent ? 'true' : undefined}
       data-tree-selected={isSelected ? 'true' : undefined}
       data-tree-match={matched ? 'true' : undefined}
-      data-tree-row-id={item.getId()}
+      data-tree-row-id={entry.id}
       data-testid="session-tree-row"
       onMouseEnter={(event) => onRowEnter(event, entry)}
       onMouseLeave={onRowLeave}
@@ -123,14 +121,14 @@ export function TreeRow({
         )}
       >
         <TreeRowContent
-          item={item}
           entry={entry}
           description={description}
           canFold={canFold}
+          expanded={expanded}
           isError={isError}
           isCurrent={isCurrent}
           matchIndexes={matchIndexes}
-          onToggleFold={() => onToggleFold(item)}
+          onToggleFold={() => onToggleFold(entry.id)}
         />
       </span>
     </button>
@@ -138,10 +136,10 @@ export function TreeRow({
 }
 
 interface TreeRowContentProps {
-  item: ItemInstance<SessionTreeItem>;
   entry: SessionTreeEntry;
   description: ReturnType<typeof describeSessionTreeEntry>;
   canFold: boolean;
+  expanded: boolean;
   isError: boolean;
   /** The session's position: marked with a chip, never with a background. */
   isCurrent: boolean;
@@ -157,10 +155,10 @@ interface TreeRowContentProps {
  * the same content — only the shell around it differs.
  */
 export function TreeRowContent({
-  item,
   entry,
   description,
   canFold,
+  expanded,
   isError,
   isCurrent,
   matchIndexes,
@@ -194,7 +192,7 @@ export function TreeRowContent({
           size={16}
           // Default stroke: at 16px the chevron is already bigger than the icons
           // around it, and a thicker line reads as bold next to them.
-          className={cn('transition-transform', item.isExpanded() && 'rotate-90')}
+          className={cn('transition-transform', expanded && 'rotate-90')}
         />
       </span>
 

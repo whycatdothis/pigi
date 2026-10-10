@@ -1,4 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import type { SessionTree, SessionTreeEntry } from '../../../../shared/ipcContract';
 import { installFakePiApi } from '../../testing/fakePiApi';
@@ -317,6 +318,21 @@ test('draws a window of rows, and a scrollbar as long as the whole session', asy
   // What is drawn is the window around the current row, not the start of the session.
   expect(rowIdsInDom()).toContain('e1999');
   expect(rowIdsInDom()).not.toContain('e0');
+});
+
+test('opens a 20000-message conversation at its end, and the keys reach both ends', async () => {
+  await renderDialog(longSession(20_000));
+  const focusedRowId = (): string | undefined =>
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement.dataset.treeRowId
+      : undefined;
+
+  await expect.poll(rowIdsInDom).toContain('e19999');
+  requireElement<HTMLElement>('[data-tree-row-id="e19999"]').focus();
+  await userEvent.keyboard('{Home}');
+  await expect.poll(focusedRowId).toBe('e0');
+  await userEvent.keyboard('{End}');
+  await expect.poll(focusedRowId).toBe('e19999');
 });
 
 test('pins the branch the top row hangs from, and only once it is scrolled past', async () => {

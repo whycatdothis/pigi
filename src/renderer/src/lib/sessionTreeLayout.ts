@@ -1,9 +1,8 @@
 /**
  * Pure helpers for session tree navigation.
  *
- * The tree dialog renders itself through headless-tree (see
- * `sessionTreeData.ts`); what stays here is the bookkeeping the navigation flow
- * needs: how many entries a move would abandon, and how a transcript node maps
+ * The tree dialog's data lives in `sessionTreeData.ts`; what stays here is the
+ * bookkeeping the navigation flow needs: how many entries a move would abandon, and how a transcript node maps
  * back to a session entry.
  */
 import type { SessionTree, SessionTreeEntry } from '../../../shared/ipcContract';

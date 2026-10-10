@@ -11,17 +11,14 @@ import { describe, expect, it } from 'vitest';
 import type { SessionTree, SessionTreeEntry } from '../../../shared/ipcContract';
 import {
   SESSION_TREE_ROOT_ID,
-  buildSessionTreeDisplay,
+  buildSessionTreeRows,
   collectBranchOwners,
   collectPathOwners,
   createSessionTreeData,
   describeSessionTreeEntry,
-  flattenSessionTreeDisplay,
   type SessionTreeData,
-  type SessionTreeDisplay,
-  type SessionTreeDisplayNode,
-  type SessionTreeFlatRow,
   type SessionTreeKind,
+  type SessionTreeRows,
 } from './sessionTreeData';
 import { countAbandonedEntries } from './sessionTreeLayout';
 
@@ -61,42 +58,50 @@ function forkFixture(): SessionTree {
   );
 }
 
-function nodeIds(data: SessionTreeData): string[] {
-  return data.allItemIds;
+/** Every row the data holds, in session order. */
+function nodeIds(tree: SessionTree, data: SessionTreeData): string[] {
+  return tree.entries.map((item) => item.id).filter((id) => data.getItem(id) !== undefined);
 }
+
+const NONE: ReadonlySet<string> = new Set();
 
 describe('createSessionTreeData', () => {
   it('keeps the rows in session order and hangs them off one root', () => {
-    const data = createSessionTreeData(forkFixture());
+    const tree = forkFixture();
+    const data = createSessionTreeData(tree);
 
-    expect(nodeIds(data)).toEqual(['h1', 'a1', 'b1', 'c1', 'd1', 'e1']);
-    expect(data.getChildren(SESSION_TREE_ROOT_ID)).toEqual(['h1']);
-    expect(data.getItem('c1').parentId).toBe('b1');
+    expect(nodeIds(tree, data)).toEqual(['h1', 'a1', 'b1', 'c1', 'd1', 'e1']);
+    expect(data.rootIds).toEqual(['h1']);
+    expect(data.getItem('h1')?.parentId).toBe(SESSION_TREE_ROOT_ID);
+    expect(data.getItem('c1')?.parentId).toBe('b1');
+    expect(data.itemCount).toBe(6);
     expect(data.currentRootId).toBe('h1');
     expect(data.isFiltered).toBe(false);
     expect(data.rootStatsById.get('h1')?.rowCount).toBe(6);
   });
 
   it('drops rows of other kinds and re-attaches their children, heads included', () => {
-    const data = createSessionTreeData(forkFixture(), {
+    const tree = forkFixture();
+    const data = createSessionTreeData(tree, {
       kinds: new Set<SessionTreeKind>(['assistant']),
     });
 
-    expect(nodeIds(data)).toEqual(['a1', 'c1', 'd1', 'e1']);
+    expect(nodeIds(tree, data)).toEqual(['a1', 'c1', 'd1', 'e1']);
     // The rows a kept row hung from are gone, so it moves up to the nearest kept
     // one — and to the root rather than being left orphaned.
-    expect(data.getItem('c1').parentId).toBe('a1');
-    expect(data.getItem('a1').parentId).toBe(SESSION_TREE_ROOT_ID);
-    expect(data.getChildren(SESSION_TREE_ROOT_ID)).toEqual(['a1']);
-    expect(data.matchCount).toBe(4);
+    expect(data.getItem('c1')?.parentId).toBe('a1');
+    expect(data.getItem('a1')?.parentId).toBe(SESSION_TREE_ROOT_ID);
+    expect(data.rootIds).toEqual(['a1']);
+    expect(data.itemCount).toBe(4);
     expect(data.isFiltered).toBe(true);
   });
 
   it('keeps the ancestors of a match, and only matches get highlight indexes', () => {
-    const data = createSessionTreeData(forkFixture(), { query: 'done' });
+    const tree = forkFixture();
+    const data = createSessionTreeData(tree, { query: 'done' });
 
-    expect(nodeIds(data)).toEqual(['h1', 'a1', 'b1', 'c1', 'd1']);
-    expect(data.matchCount).toBe(1);
+    expect(nodeIds(tree, data)).toEqual(['h1', 'a1', 'b1', 'c1', 'd1']);
+    expect(data.matchIndexesById.size).toBe(1);
     expect(data.matchIndexesById.get('d1')).toEqual([0, 1, 2, 3]);
     expect(data.matchIndexesById.has('c1')).toBe(false);
   });
@@ -117,9 +122,8 @@ describe('createSessionTreeData', () => {
     );
 
     // The label ("bash") is not printed, so the indexes skip it.
-    expect(describeSessionTreeEntry(data.getItem('t1').entry as SessionTreeEntry).text).toBe(
-      '$ echo hi · hi',
-    );
+    const toolRow = data.getItem('t1');
+    expect(toolRow && describeSessionTreeEntry(toolRow.entry).text).toBe('$ echo hi · hi');
     expect(data.matchIndexesById.get('t1')).toEqual([2, 3, 4, 5]);
   });
 
@@ -138,7 +142,7 @@ describe('createSessionTreeData', () => {
     );
 
     expect(data.treeIds).toEqual(['h1', 'h2']);
-    expect(data.getChildren(SESSION_TREE_ROOT_ID)).toEqual(['h1', 'h2']);
+    expect(data.rootIds).toEqual(['h1', 'h2']);
     // Every row of the second tree was filtered away, and the tree still has a
     // header with its own number.
     expect(data.treeRootIdByItemId.get('a2')).toBe('h2');
@@ -162,38 +166,65 @@ describe('createSessionTreeData', () => {
   });
 });
 
-describe('buildSessionTreeDisplay', () => {
-  function display(hidden: string[] = []): SessionTreeDisplay & { data: SessionTreeData } {
-    const data = createSessionTreeData(forkFixture());
-    const visible = new Set(nodeIds(data).filter((id) => !hidden.includes(id)));
-    return { data, ...buildSessionTreeDisplay(data, visible) };
+describe('buildSessionTreeRows', () => {
+  function rowsOf(
+    tree: SessionTree,
+    folded: ReadonlySet<string> = NONE,
+    collapsedTrees: ReadonlySet<string> = NONE,
+  ): SessionTreeRows & { data: SessionTreeData } {
+    const data = createSessionTreeData(tree);
+    return { data, ...buildSessionTreeRows(data, folded, collapsedTrees) };
   }
 
-  it("continues a lone child at its parent's level and indents the children of a fork", () => {
-    const { nodes, depthById, parentById } = display();
+  it('lists the rows in the order they draw, with their indent and their branch', () => {
+    const { rows, depthById, parentById } = rowsOf(forkFixture());
 
-    expect(nodes.map((node) => node.itemId)).toEqual(['h1']);
-    expect(nodes[0].continuation?.continuation?.itemId).toBe('b1');
-    const fork = nodes[0].continuation?.continuation;
-    expect(fork?.branch?.map((node) => node.itemId)).toEqual(['c1', 'e1']);
-    expect(depthById.get('h1')).toBe(0);
+    // `d1` continues `c1` at the same indent: a lone child does not step in.
+    expect(rows).toEqual([
+      { itemId: 'h1', depth: 0, isBranchChild: false },
+      { itemId: 'a1', depth: 0, isBranchChild: false },
+      { itemId: 'b1', depth: 0, isBranchChild: false },
+      { itemId: 'c1', depth: 1, isBranchChild: true },
+      { itemId: 'd1', depth: 1, isBranchChild: false },
+      { itemId: 'e1', depth: 1, isBranchChild: true },
+    ]);
     expect(depthById.get('d1')).toBe(1);
-    expect(depthById.get('e1')).toBe(1);
     expect(parentById.get('d1')).toBe('c1');
+    expect(parentById.get('e1')).toBe('b1');
+    expect(parentById.has('h1')).toBe(false);
   });
 
-  it('leaves out a folded row and everything under it', () => {
-    const { nodes, depthById } = display(['c1']);
+  it('nests a fork inside a fork', () => {
+    const { rows } = rowsOf(nestedForkFixture());
 
-    const forkRow = nodes[0].continuation?.continuation;
-    // One branch is left, so the fork dissolves into a plain continuation.
-    expect(forkRow?.branch).toBe(null);
-    expect(forkRow?.continuation?.itemId).toBe('e1');
+    expect(rows.map((row) => [row.itemId, row.depth])).toEqual([
+      ['f1', 0],
+      ['g1', 1],
+      ['i1', 2],
+      ['i2', 2],
+      ['h1', 1],
+    ]);
+  });
+
+  it('keeps a folded row and leaves out everything under it', () => {
+    const { rows, depthById } = rowsOf(forkFixture(), new Set(['c1']));
+
+    expect(rows.map((row) => row.itemId)).toEqual(['h1', 'a1', 'b1', 'c1', 'e1']);
     expect(depthById.has('d1')).toBe(false);
   });
 
+  it('leaves out the rows of a collapsed tree', () => {
+    const tree = sessionTree(
+      [...forkFixture().entries, entry('h2', null, 'user', 'second tree')],
+      'h2',
+    );
+    const { rows } = rowsOf(tree, NONE, new Set(['h1']));
+
+    expect(rows.map((row) => row.itemId)).toEqual(['h2']);
+  });
+
   it('names the row the path enters each level through', () => {
-    const { data, parentById, depthById } = display();
+    const { data, parentById, depthById } = rowsOf(forkFixture());
 
     // The leaf sits under `c1`, so `c1` is the row the path enters the fork's
     // level through: the fork turns in there and its sibling is not on the way.
@@ -229,110 +260,6 @@ function nestedForkFixture(): SessionTree {
   );
 }
 
-describe('flattenSessionTreeDisplay', () => {
-  function rowsOf(
-    tree: SessionTree,
-    hidden: string[] = [],
-  ): { display: SessionTreeDisplay; rows: SessionTreeFlatRow[] } {
-    const data = createSessionTreeData(tree);
-    const visible = new Set(data.allItemIds.filter((id) => !hidden.includes(id)));
-    const display = buildSessionTreeDisplay(data, visible);
-    return { display, rows: flattenSessionTreeDisplay(display) };
-  }
-
-  it('lists the rows in the order they draw, with their indent and their branch', () => {
-    const { rows } = rowsOf(forkFixture());
-
-    // `d1` continues `c1` at the same indent: a lone child does not step in.
-    expect(rows).toEqual([
-      {
-        itemId: 'h1',
-        depth: 0,
-        isBranchChild: false,
-        isLastBranchChild: false,
-        continuationOf: null,
-      },
-      {
-        itemId: 'a1',
-        depth: 0,
-        isBranchChild: false,
-        isLastBranchChild: false,
-        continuationOf: 'h1',
-      },
-      {
-        itemId: 'b1',
-        depth: 0,
-        isBranchChild: false,
-        isLastBranchChild: false,
-        continuationOf: 'a1',
-      },
-      {
-        itemId: 'c1',
-        depth: 1,
-        isBranchChild: true,
-        isLastBranchChild: false,
-        continuationOf: null,
-      },
-      {
-        itemId: 'd1',
-        depth: 1,
-        isBranchChild: false,
-        isLastBranchChild: false,
-        continuationOf: 'c1',
-      },
-      {
-        itemId: 'e1',
-        depth: 1,
-        isBranchChild: true,
-        isLastBranchChild: true,
-        continuationOf: null,
-      },
-    ]);
-  });
-
-  it('tells the end of a branch from the end of the tree', () => {
-    const { rows } = rowsOf(nestedForkFixture());
-
-    // `i2` ends the inner fork but not the outer one; `h1` ends that; `i1` ends
-    // nothing, and neither does a branch child in the middle of its siblings.
-    expect(rows.map((row) => [row.itemId, row.depth, row.isLastBranchChild])).toEqual([
-      ['f1', 0, false],
-      ['g1', 1, false],
-      ['i1', 2, false],
-      ['i2', 2, true],
-      ['h1', 1, true],
-    ]);
-  });
-
-  it('reads the rows off the display in the display order, once each', () => {
-    const { display, rows } = rowsOf(nestedForkFixture());
-
-    // Independent of the walk that built them: every nested row, in the order the
-    // builder entered them, at the indent it recorded.
-    expect(rows.map((row) => row.itemId)).toEqual([...display.depthById.keys()]);
-    expect(rows.map((row) => row.depth)).toEqual([...display.depthById.values()]);
-  });
-
-  it('leaves out a folded row and everything under it', () => {
-    const { rows } = rowsOf(forkFixture(), ['c1']);
-
-    // The fork dissolves into a plain continuation, so `e1` comes back up to
-    // its parent's level — and it continues `b1` rather than hanging from it.
-    expect(rows.map((row) => [row.itemId, row.depth, row.continuationOf])).toEqual([
-      ['h1', 0, null],
-      ['a1', 0, 'h1'],
-      ['b1', 0, 'a1'],
-      ['e1', 0, 'b1'],
-    ]);
-  });
-
-  it('has no rows for a display with nothing to show', () => {
-    const { rows } = rowsOf(forkFixture(), nodeIds(createSessionTreeData(forkFixture())));
-
-    expect(rows).toEqual([]);
-  });
-});
-
 describe('countAbandonedEntries', () => {
   const tree = forkFixture();
 
@@ -358,7 +285,7 @@ describe('countAbandonedEntries', () => {
 describe('collectBranchOwners', () => {
   it('names the forks above a row, and nothing for a plain chain', () => {
     const data = createSessionTreeData(forkFixture());
-    const { parentById, depthById } = buildSessionTreeDisplay(data, new Set(nodeIds(data)));
+    const { parentById, depthById } = buildSessionTreeRows(data, NONE, NONE);
 
     expect(collectBranchOwners('d1', parentById, depthById)).toEqual([{ id: 'b1', depth: 0 }]);
     expect(collectBranchOwners('a1', parentById, depthById)).toEqual([]);
@@ -395,57 +322,25 @@ describe('describeSessionTreeEntry', () => {
 });
 
 /**
- * Both walks over the display follow a conversation row by row: a lone child is a
- * continuation, so a straight conversation of 20000 entries is 20000 nested calls
- * and the renderer dies on it (a white window — `Maximum call stack size
- * exceeded`, reported from the flatten walk). The depth a session can reach is the
- * length of the session, so neither walk may be recursive.
+ * A lone child continues its parent's line, so a straight conversation of 20000
+ * entries is 20000 levels deep, and a recursive walk dies on it (a white window —
+ * `Maximum call stack size exceeded`). The depth a session can reach is the
+ * length of the session, so the walk may not be recursive.
  */
 describe('a session longer than the call stack', () => {
   const LENGTH = 20_000;
 
-  function straightSession(): SessionTree {
+  it('lays out a straight conversation of 20000 entries', () => {
     const entries: SessionTreeEntry[] = [];
     for (let index = 0; index < LENGTH; index += 1) {
       entries.push(
         entry(`e${index}`, index === 0 ? null : `e${index - 1}`, 'user', `say ${index}`),
       );
     }
-    return sessionTree(entries, `e${LENGTH - 1}`);
-  }
-
-  it('builds and flattens a straight conversation of 20000 entries', () => {
-    const data = createSessionTreeData(straightSession());
-    const display = buildSessionTreeDisplay(data, new Set(data.allItemIds));
-    const rows = flattenSessionTreeDisplay(display);
+    const data = createSessionTreeData(sessionTree(entries, `e${LENGTH - 1}`));
+    const { rows } = buildSessionTreeRows(data, NONE, NONE);
 
     expect(rows).toHaveLength(LENGTH);
-    expect(rows.at(-1)).toEqual({
-      itemId: `e${LENGTH - 1}`,
-      depth: 0,
-      isBranchChild: false,
-      isLastBranchChild: false,
-      continuationOf: `e${LENGTH - 2}`,
-    });
-  });
-
-  it('flattens a chain handed to it as a display', () => {
-    let node: SessionTreeDisplayNode = {
-      itemId: `e${LENGTH - 1}`,
-      continuation: null,
-      branch: null,
-    };
-    for (let index = LENGTH - 2; index >= 0; index -= 1) {
-      node = { itemId: `e${index}`, continuation: node, branch: null };
-    }
-
-    const rows = flattenSessionTreeDisplay({
-      nodes: [node],
-      parentById: new Map(),
-      depthById: new Map(),
-    });
-
-    expect(rows).toHaveLength(LENGTH);
-    expect(rows[0].itemId).toBe('e0');
+    expect(rows.at(-1)).toEqual({ itemId: `e${LENGTH - 1}`, depth: 0, isBranchChild: false });
   });
 });

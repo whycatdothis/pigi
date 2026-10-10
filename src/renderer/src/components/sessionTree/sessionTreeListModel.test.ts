@@ -11,18 +11,16 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionTree, SessionTreeEntry } from '../../../../shared/ipcContract';
 import {
-  buildSessionTreeDisplay,
+  buildSessionTreeRows,
   collectPathOwners,
   createSessionTreeData,
-  flattenSessionTreeDisplay,
-  type SessionTreeDisplay,
   type SessionTreeFlatRow,
+  type SessionTreeRows,
 } from '../../lib/sessionTreeData';
 import { BRANCH_SPACING_PX, ROW_HEIGHT_PX, rowContentX } from './sessionTreeGeometry';
 import {
   buildSessionTreeListItems,
   collectRailSpans,
-  collectVisibleItemIds,
   findLitRowId,
   findTopRowIndex,
   isRailOwner,
@@ -92,54 +90,20 @@ function twoTreeSession(): SessionTree {
   );
 }
 
-function listOf(session: SessionTree): {
-  items: SessionTreeListItem[];
-  rows: SessionTreeFlatRow[];
-  display: SessionTreeDisplay;
-  offsets: number[];
-} {
+function listOf(
+  session: SessionTree,
+  folded: ReadonlySet<string> = new Set(),
+  collapsedTrees: ReadonlySet<string> = new Set(),
+): SessionTreeRows & { items: SessionTreeListItem[]; offsets: number[] } {
   const data = createSessionTreeData(session);
-  const visible = new Set(data.allItemIds);
-  const display = buildSessionTreeDisplay(data, visible);
-  const rows = flattenSessionTreeDisplay(display);
-  const items = buildSessionTreeListItems(data, rows);
-  return { items, rows, display, offsets: listItemOffsetsPx(items, 28) };
+  const layout = buildSessionTreeRows(data, folded, collapsedTrees);
+  const items = buildSessionTreeListItems(data, layout.rows);
+  return { ...layout, items, offsets: listItemOffsetsPx(items, 28) };
 }
 
 function itemIndexOf(items: SessionTreeListItem[], itemId: string): number {
   return items.findIndex((item) => item.kind === 'row' && item.row.itemId === itemId);
 }
-
-describe('collectVisibleItemIds', () => {
-  it('shows every row while nothing is folded', () => {
-    const data = createSessionTreeData(forkTree());
-    expect([...collectVisibleItemIds(data, data.allItemIds, new Set())].sort()).toEqual(
-      [...data.allItemIds].sort(),
-    );
-  });
-
-  it('hides the subtree of a folded row, and shows it again when it is open', () => {
-    const data = createSessionTreeData(forkTree());
-    const withoutC1 = collectVisibleItemIds(
-      data,
-      data.allItemIds.filter((id) => id !== 'c1'),
-      new Set(),
-    );
-
-    expect(withoutC1.has('c1')).toBe(true);
-    expect(withoutC1.has('d1')).toBe(false);
-    expect(withoutC1.has('e1')).toBe(true);
-    // Folding a row leaves the continuation chain above and below it alone.
-    expect(withoutC1.has('b1')).toBe(true);
-  });
-
-  it('hides a whole version when its tree is folded', () => {
-    const data = createSessionTreeData(twoTreeSession());
-    const visible = collectVisibleItemIds(data, data.allItemIds, new Set(['s1']));
-
-    expect([...visible]).toEqual(['r1', 'r2']);
-  });
-});
 
 describe('buildSessionTreeListItems', () => {
   it('weaves a header in front of every version, and only when there are several', () => {
@@ -156,10 +120,8 @@ describe('buildSessionTreeListItems', () => {
   });
 
   it('keeps a version without rows in the list, so its header stays reachable', () => {
-    const data = createSessionTreeData(twoTreeSession());
     // The second tree folded away: only its header is left.
-    const display = buildSessionTreeDisplay(data, new Set(['r1', 'r2']));
-    const items = buildSessionTreeListItems(data, flattenSessionTreeDisplay(display));
+    const { items } = listOf(twoTreeSession(), new Set(), new Set(['s1']));
 
     expect(items.map((item) => (item.kind === 'header' ? `#${item.position}` : 'row'))).toEqual([
       '#1',
@@ -222,14 +184,9 @@ describe('findLitRowId', () => {
   });
 
   it('stands in with the deepest row still in the list when the leaf is hidden', () => {
-    const folded = createSessionTreeData(forkTree());
-    const displayWithoutC1 = buildSessionTreeDisplay(folded, new Set(['h1', 'a1', 'b1', 'e1']));
-    const rowsWithoutC1 = flattenSessionTreeDisplay(displayWithoutC1);
-
-    // `d1` is gone with its branch, so the row closest to the leaf carries the
-    // light. Nothing above it indents: a lone child continues its parent.
-    expect(findLitRowId(rowsWithoutC1, folded.activePathIds, null)).toBe('b1');
-    expect(displayWithoutC1.depthById.get('e1')).toBe(0);
+    // `c1` folded: `d1` is gone, so the row closest to the leaf carries the light.
+    const { rows: rowsWithoutD1 } = listOf(forkTree(), new Set(['c1']));
+    expect(findLitRowId(rowsWithoutD1, data.activePathIds, null)).toBe('c1');
   });
 });
 
@@ -244,11 +201,11 @@ describe('collectRailSpans', () => {
     pathOwners: ReadonlyMap<number, string>;
     spans: ReturnType<typeof collectRailSpans>;
   } {
-    const { items, rows, display, offsets } = listOf(session);
+    const { items, rows, parentById, depthById, offsets } = listOf(session);
     const pathOwners =
       litRowId === null
         ? new Map<number, string>()
-        : collectPathOwners(litRowId, display.parentById, display.depthById);
+        : collectPathOwners(litRowId, parentById, depthById);
     return {
       items,
       rows,

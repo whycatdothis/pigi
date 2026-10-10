@@ -1,12 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { TreeInstance } from '@headless-tree/core';
 import type { SessionTree } from '../../../../shared/ipcContract';
 import { getSessionTree } from '../../services/piAgentClient';
-import {
-  createSessionTreeData,
-  type SessionTreeItem,
-  type SessionTreeKind,
-} from '../../lib/sessionTreeData';
+import { createSessionTreeData, type SessionTreeKind } from '../../lib/sessionTreeData';
 import { toast } from 'sonner';
 import { useSessionTreePreview } from '../../hooks/useSessionTreePreview';
 import {
@@ -15,30 +10,12 @@ import {
   CARD_MAX_HEIGHT_PX,
   CARD_WIDTH_PX,
 } from './sessionTreeGeometry';
-import { SessionTreeList } from './SessionTreeList';
+import { SessionTreeList, type SessionTreeListHandle } from './SessionTreeList';
 import { SessionTreeToolbar } from './SessionTreeToolbar';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
 
 /** Handed out when nothing is folded, so the identity stays stable. */
 const EMPTY_STRING_SET: ReadonlySet<string> = new Set<string>();
-
-/**
- * Move the keyboard selection by one row.
- *
- * The search box keeps the caret — the selection moves under it, so typing keeps
- * working while the list shows what Enter would take. Unlike the library's own
- * `focusNextItem`, this starts at the first row when nothing is selected yet.
- */
-function moveSelection(tree: TreeInstance<SessionTreeItem>, step: number): void {
-  const items = tree.getItems();
-  if (items.length === 0) return;
-  const selectedId = tree.getState().focusedItem;
-  const selectedIndex = items.findIndex((item) => item.getId() === selectedId);
-  const nextIndex = Math.min(Math.max(selectedIndex + step, 0), items.length - 1);
-  // The list brings the focused row into view: an off-screen row has no element
-  // of its own to scroll to.
-  items[nextIndex]?.setFocused();
-}
 
 interface SessionTreeDialogProps {
   open: boolean;
@@ -67,18 +44,10 @@ export default function SessionTreeDialog({
 }: SessionTreeDialogProps): React.JSX.Element {
   // The loaded tree is stored together with the session it came from: while a
   // switch is in flight the dialog keeps showing "Loading…" instead of the
-  // previous session's tree. `generation` counts reads, and the list is keyed by
-  // it: a fresh read is a fresh list, so a row that just landed in the session
-  // is on screen without any cache to invalidate.
-  const [loaded, setLoaded] = useState<{
-    path: string;
-    tree: SessionTree;
-    generation: number;
-  } | null>(null);
-  const generationRef = useRef(0);
-  /** The first dataset of a visit scrolls to the current row; a refresh must not. */
-  const firstFetchOfVisitRef = useRef(true);
-  const [scrollGeneration, setScrollGeneration] = useState(0);
+  // previous session's tree.
+  const [loaded, setLoaded] = useState<{ path: string; tree: SessionTree } | null>(null);
+  /** The first tree a visit reads scrolls to the current row; a refresh must not. */
+  const [firstTreeOfVisit, setFirstTreeOfVisit] = useState<SessionTree | null>(null);
   const [query, setQuery] = useState('');
   const [kinds, setKinds] = useState<ReadonlySet<SessionTreeKind>>(() => new Set());
   /** The row the pointer is on; its branch line lights up. */
@@ -90,7 +59,7 @@ export default function SessionTreeDialog({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const treeRef = useRef<TreeInstance<SessionTreeItem> | null>(null);
+  const listRef = useRef<SessionTreeListHandle>(null);
 
   const currentTree = loaded?.path === sessionPath ? loaded.tree : null;
   const data = useMemo(
@@ -140,12 +109,8 @@ export default function SessionTreeDialog({
       try {
         const result = await getSessionTree(sessionPath);
         if (cancelled) return;
-        generationRef.current += 1;
-        setLoaded({ path: sessionPath, tree: result, generation: generationRef.current });
-        if (firstFetchOfVisitRef.current) {
-          firstFetchOfVisitRef.current = false;
-          setScrollGeneration(generationRef.current);
-        }
+        setLoaded({ path: sessionPath, tree: result });
+        setFirstTreeOfVisit((previous) => previous ?? result);
       } catch (error) {
         if (cancelled) return;
         toast.error(error instanceof Error ? error.message : 'Failed to read the session tree');
@@ -164,23 +129,21 @@ export default function SessionTreeDialog({
         setQuery('');
         return;
       }
-      const treeInstance = treeRef.current;
-      if (!treeInstance) return;
+      const list = listRef.current;
+      if (!list) return;
+      // The search box keeps the caret — the selection moves under it, so typing
+      // keeps working while the list shows what Enter would take.
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault();
-        moveSelection(treeInstance, event.key === 'ArrowDown' ? 1 : -1);
+        list.moveSelection(event.key === 'ArrowDown' ? 1 : -1);
         return;
       }
       if (event.key !== 'Enter') return;
       event.preventDefault();
-      // Enter takes the row the list highlights: where the arrow keys moved to, the
-      // first match after a search, or the first row of a filtered list. Taking the
-      // first row of a search would land on the ancestor that carries the match.
-      const targetId = treeInstance.getState().focusedItem ?? treeInstance.getItems()[0]?.getId();
-      const entry = targetId === undefined ? undefined : data?.getItem(targetId).entry;
-      if (entry) onSelect(entry.id);
+      const targetId = list.enterTargetId();
+      if (targetId !== null) onSelect(targetId);
     },
-    [data, onSelect, query],
+    [onSelect, query],
   );
 
   /** Hovering a row lights its own branch line up to every fork above it. */
@@ -188,39 +151,25 @@ export default function SessionTreeDialog({
     setHoverRowId((previous) => (previous === rowId ? previous : rowId));
   }, []);
 
-  // What the keyboard is on after a search or a filter: the first match, so the row
-  // Enter would take is the row the list shows as selected. The caret stays in the
-  // search box — the selection moves under it.
+  // Filters, folds and the scroll are per visit. They are cleared when the dialog
+  // closes, whichever way: Esc, a click outside, or the caller closing it after a
+  // pick. The keyboard row needs nothing here — the list unmounts with the dialog.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (!open) {
+      setQuery('');
+      setKinds(new Set());
+      setTreeExpandedOverrides(new Map());
+      setFirstTreeOfVisit(null);
+    }
+  }
   useEffect(() => {
-    const treeInstance = treeRef.current;
-    if (!treeInstance || !data) return;
-    const firstMatchId = data.matchIndexesById.keys().next().value;
-    const targetId =
-      firstMatchId ?? (data.isFiltered ? treeInstance.getItems()[0]?.getId() : undefined);
-    if (targetId === undefined) return;
-    treeInstance.getItemInstance(targetId).setFocused();
-  }, [data]);
-
-  // Filters, folds and the preview are per visit: clearing them on close means
-  // the next open starts fresh without an effect that sets state during render.
-  const handleOpenChange = useCallback(
-    (next: boolean) => {
-      if (!next) {
-        setQuery('');
-        setKinds(new Set());
-        setTreeExpandedOverrides(new Map());
-        resetPreview();
-        firstFetchOfVisitRef.current = true;
-        // The next visit starts with no row highlighted.
-        treeRef.current?.applySubStateUpdate('focusedItem', null);
-      }
-      onOpenChange(next);
-    },
-    [onOpenChange, resetPreview],
-  );
+    if (!open) resetPreview();
+  }, [open, resetPreview]);
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         ref={dialogRef}
         showCloseButton={false}
@@ -268,15 +217,15 @@ export default function SessionTreeDialog({
           ) : (
             <SessionTreeList
               // A filtered tree, or another session, is a different dataset:
-              // remounting keeps the tree state (expansion, focus) in step with
-              // what is on screen. A live refresh is the same dataset with more
+              // remounting keeps the list state (folds, keyboard row) in step
+              // with what is on screen. A live refresh is the same dataset with more
               // rows, so it updates in place — remounting there would fold back
               // every row the reader opened.
               key={`${sessionPath}\u0000${trimmedQuery}\u0000${[...kinds].sort().join(',')}`}
               data={data}
               currentId={currentTree?.leafId ?? null}
-              autoScroll={scrollGeneration === (loaded?.generation ?? -1)}
-              treeRef={treeRef}
+              ref={listRef}
+              autoScroll={currentTree !== null && currentTree === firstTreeOfVisit}
               collapsedTreeIds={collapsedTreeIds}
               onToggleTree={toggleTree}
               hoverRowId={hoverRowId}

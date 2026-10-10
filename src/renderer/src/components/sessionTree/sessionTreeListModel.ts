@@ -1,7 +1,7 @@
 /**
  * The session tree list as a flat list of items, plus the geometry that follows.
  *
- * The rows come out of `flattenSessionTreeDisplay` in the order they draw; what
+ * The rows come out of `buildSessionTreeRows` in the order they draw; what
  * this adds is everything the list needs on top of that order: the tree headers
  * woven between the rows, the height of every item, where each one starts, which
  * one sits at the top of the viewport, and the branch lines. All of it is
@@ -56,34 +56,6 @@ export interface SessionTreeRailSpan {
   endPx: number;
   /** For a fork the lit path goes through: where the lit part stops. */
   litEndPx: number | null;
-}
-
-/**
- * The rows the tree shows: what the fold state adds up to.
- *
- * The rows are read from the dataset rather than from the tree instance because
- * the library builds its item list after mounting and hands it over a beat later;
- * a list that read it would draw nothing on its first render and again after
- * every remount. The rule is the tree's own: a row is shown unless the version it
- * belongs to is folded away, and its children are shown when it is open.
- */
-export function collectVisibleItemIds(
-  data: SessionTreeData,
-  expandedItemIds: readonly string[],
-  collapsedTreeIds: ReadonlySet<string>,
-): Set<string> {
-  const expanded = new Set(expandedItemIds);
-  const visible = new Set<string>();
-  const visit = (itemId: string): void => {
-    for (const childId of data.getChildren(itemId)) {
-      const treeId = data.treeRootIdByItemId.get(childId) ?? childId;
-      if (collapsedTreeIds.has(treeId)) continue;
-      visible.add(childId);
-      if (expanded.has(childId)) visit(childId);
-    }
-  };
-  visit(data.rootItemId);
-  return visible;
 }
 
 /**

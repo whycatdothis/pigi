@@ -72,23 +72,5 @@ export default defineConfig(
       '@typescript-eslint/explicit-function-return-type': 'off',
     },
   },
-  {
-    // Tests are not shipped, so React Compiler never sees them: the warning that it
-    // skipped a component in one (a virtualizer's imperative helpers, say) says
-    // nothing about the app.
-    files: ['**/*.test.{ts,tsx}'],
-    rules: {
-      'react-hooks/incompatible-library': 'off',
-    },
-  },
-  {
-    // TanStack Virtual's `useVirtualizer` returns imperative helpers, which the
-    // compiler will not memoize: it skips the component by design, and the only
-    // output of that skip is this warning. The repo virtualizes its lists with it.
-    files: ['src/renderer/src/components/sessionTree/SessionTreeList.tsx'],
-    rules: {
-      'react-hooks/incompatible-library': 'off',
-    },
-  },
   eslintConfigPrettier,
 );

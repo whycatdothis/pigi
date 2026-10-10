@@ -10,7 +10,7 @@ const ROW_COUNT = 80;
 const VIEWPORT = { width: 1200, height: 320 };
 
 /**
- * The virtual list the session tree is going to be, in miniature.
+ * The session tree's virtual list, in miniature.
  *
  * What this pins down is the recipe, not the list: jsdom reports no sizes, so a
  * virtualizer draws nothing until the layout is given a viewport. `installViewport`
@@ -18,6 +18,7 @@ const VIEWPORT = { width: 1200, height: 320 };
  */
 function VirtualList(): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line react-hooks/incompatible-library -- approved: TanStack Virtual's documented React usage
   const virtualizer = useVirtualizer({
     count: ROW_COUNT,
     getScrollElement: () => ref.current,

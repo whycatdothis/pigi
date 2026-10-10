@@ -9,7 +9,7 @@
  * rest: which session is being read, whether a move is in flight, and the state
  * the dialogs render from.
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   abortBranchSummary,
@@ -87,28 +87,33 @@ interface SessionTreeNavigation {
  * it before the aborted assistant message is appended would count against a
  * stale leaf.
  */
-async function waitForTranscriptIdle(sessionPath: string, timeoutMs = 2000): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (ensureTranscriptSession(sessionPath).state.status === 'idle') return;
-    await new Promise((resolve) => setTimeout(resolve, 40));
-  }
+function waitForTranscriptIdle(sessionPath: string, timeoutMs = 2000): Promise<void> {
+  const controller = ensureTranscriptSession(sessionPath);
+  if (controller.state.status === 'idle') return Promise.resolve();
+  return new Promise((resolve) => {
+    const finish = (): void => {
+      clearTimeout(timer);
+      unsubscribe();
+      resolve();
+    };
+    const timer = setTimeout(finish, timeoutMs);
+    const unsubscribe = controller.subscribe(() => {
+      if (controller.state.status === 'idle') finish();
+    });
+  });
 }
 
-export function useSessionTreeNavigation({
-  activeSessionPath,
-  activeCwd,
-  busy,
-  compacting,
-  branchSummaryBusy,
-  setBranchSummaryBusy,
-  isSessionStarting,
-  abortTurn,
-  resumeSession,
-  setRestoreText,
-  refreshSessionState,
-  messageListRef,
-}: SessionTreeNavigationOptions): SessionTreeNavigation {
+export function useSessionTreeNavigation(
+  options: SessionTreeNavigationOptions,
+): SessionTreeNavigation {
+  const { activeSessionPath, branchSummaryBusy, compacting } = options;
+  // The actions read the options at the time they run, not at the render that
+  // created them: they stay stable, so the message toolbars that receive them
+  // do not re-render every time the transcript changes status.
+  const optionsRef = useRef(options);
+  useLayoutEffect(() => {
+    optionsRef.current = options;
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [summaryPrompt, setSummaryPrompt] = useState<{
@@ -127,6 +132,8 @@ export function useSessionTreeNavigation({
     ): Promise<void> => {
       if (moveInFlightRef.current) return;
       moveInFlightRef.current = true;
+      const { messageListRef, refreshSessionState, setBranchSummaryBusy, setRestoreText } =
+        optionsRef.current;
       if (options.summarize) setBranchSummaryBusy(true);
       const summarizingToast = options.summarize
         ? toast.loading('Summarizing the abandoned branch…', {
@@ -173,7 +180,7 @@ export function useSessionTreeNavigation({
         if (summarizingToast !== null) toast.dismiss(summarizingToast);
       }
     },
-    [messageListRef, refreshSessionState, setBranchSummaryBusy, setRestoreText],
+    [],
   );
 
   /**
@@ -183,7 +190,13 @@ export function useSessionTreeNavigation({
    * the SDK. Aborting also returns queued messages to the input box.
    */
   const prepareTreeNavigation = useCallback(async (): Promise<string | null> => {
-    const sessionPath = activeSessionPath;
+    const {
+      activeSessionPath: sessionPath,
+      isSessionStarting,
+      compacting,
+      busy,
+      abortTurn,
+    } = optionsRef.current;
     if (!sessionPath) return null;
     if (isSessionStarting(sessionPath)) {
       toast.error('The session is still starting');
@@ -198,18 +211,21 @@ export function useSessionTreeNavigation({
       await waitForTranscriptIdle(sessionPath);
     }
     return sessionPath;
-  }, [abortTurn, activeSessionPath, busy, compacting, isSessionStarting]);
+  }, []);
 
-  /** Ask about summarizing, then navigate. */
+  /**
+   * Ask about summarizing, or navigate. Returns the move, or null when the
+   * question was asked instead and nothing moves until it is answered.
+   */
   const continueTreeNavigation = useCallback(
-    async (sessionPath: string, tree: SessionTree, entryId: string): Promise<void> => {
-      if (entryId === tree.leafId) return;
+    (sessionPath: string, tree: SessionTree, entryId: string): Promise<void> | null => {
+      if (entryId === tree.leafId) return Promise.resolve();
       const abandonedCount = countAbandonedEntries(tree, entryId);
       if (abandonedCount > 0) {
         setSummaryPrompt({ entryId, abandonedCount });
-        return;
+        return null;
       }
-      await runTreeNavigation(sessionPath, entryId, { summarize: false });
+      return runTreeNavigation(sessionPath, entryId, { summarize: false });
     },
     [runTreeNavigation],
   );
@@ -245,9 +261,10 @@ export function useSessionTreeNavigation({
         // The dialog only closes once the move is decided. A pick that needs the
         // summary question keeps it open: the question opens on top of it, and
         // cancelling the question returns the user to the list they were reading.
-        const asksToSummarize = entryId !== tree.leafId && countAbandonedEntries(tree, entryId) > 0;
-        if (!asksToSummarize) setDialogOpen(false);
-        await continueTreeNavigation(sessionPath, tree, entryId);
+        const move = continueTreeNavigation(sessionPath, tree, entryId);
+        if (move === null) return;
+        setDialogOpen(false);
+        await move;
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to read the session tree');
       }
@@ -259,10 +276,13 @@ export function useSessionTreeNavigation({
   const handleForkMessage = useCallback(
     async (node: TranscriptNode): Promise<void> => {
       if (moveInFlightRef.current) return;
-      const sessionPath = await prepareTreeNavigation();
-      if (!sessionPath) return;
+      // Taken before the abort is awaited: a second click during it must not
+      // start a second fork.
       moveInFlightRef.current = true;
       try {
+        const sessionPath = await prepareTreeNavigation();
+        if (!sessionPath) return;
+        const { activeCwd, resumeSession } = optionsRef.current;
         const store = useAppStore.getState();
         const parent = store.sessions.get(sessionPath);
         const cwd = parent?.cwd ?? activeCwd;
@@ -317,7 +337,7 @@ export function useSessionTreeNavigation({
         moveInFlightRef.current = false;
       }
     },
-    [activeCwd, prepareTreeNavigation, resumeSession],
+    [prepareTreeNavigation],
   );
 
   const handleSummaryPromptConfirm = useCallback(

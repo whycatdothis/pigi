@@ -35,11 +35,15 @@ function PinnedRow({
   isLast,
   rowContext,
 }: PinnedRowProps): React.JSX.Element | null {
-  const { tree, currentId, onSelect } = rowContext;
-  const item = tree.getItemInstance(itemId);
-  const entry = item.getItemData().entry;
-  if (!entry) return null;
-  const { canFold, description, isError } = describeSessionTreeRow(item, true);
+  const { data, currentId, foldedItemIds, onSelect } = rowContext;
+  const item = data.getItem(itemId);
+  if (!item) return null;
+  const { entry } = item;
+  const { canFold, description, isError } = describeSessionTreeRow(
+    entry,
+    item.childIds.length,
+    true,
+  );
 
   return (
     <div
@@ -58,10 +62,10 @@ function PinnedRow({
         )}
       >
         <TreeRowContent
-          item={item}
           entry={entry}
           description={description}
           canFold={canFold}
+          expanded={!foldedItemIds.has(itemId)}
           isError={isError}
           isCurrent={entry.id === currentId}
         />
