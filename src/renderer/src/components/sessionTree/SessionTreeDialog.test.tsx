@@ -313,30 +313,29 @@ describe('SessionTreeDialog', () => {
     await waitFor(() => expect(document.activeElement).toBe(row('u1')));
   });
 
-  /**
-   * Recorded, not desired: while another tree is folded, the tree's own item list
-   * still holds that tree's root row, so `End` moves the cursor onto a row that is
-   * not on screen and nothing visibly happens. Making the rows explicit — the first
-   * step of the virtual list in docs/sessionTree.md §11 — is what removes the gap.
-   */
-  it('leaves the cursor put when End lands on a folded tree (recorded)', async () => {
+  it('moves the cursor to the last row on screen, not into a folded tree', async () => {
     await renderDialog({ onSelect: vi.fn(), onOpenChange: vi.fn() });
     const user = userEvent.setup();
 
     await user.click(row('u1'));
     await user.keyboard('{End}');
-    await new Promise((resolve) => setTimeout(resolve, 50));
 
-    expect(document.activeElement).toBe(row('u1'));
+    await waitFor(() => expect(document.activeElement).toBe(row('a3')));
   });
 
-  /**
-   * Recorded, not desired: rows that arrive while the dialog is open do not appear
-   * until it is opened again (docs/testing.md, "Characterization tests"). What does
-   * hold is the other half — a refresh keeps the reader's folds instead of starting
-   * the list over.
-   */
-  it('does not add a row that arrives while it is open, and keeps the folds', async () => {
+  it('steps back to the row a row hangs from when it has nothing to fold', async () => {
+    fake.tree = singleTreeSession();
+    await renderDialog({ onSelect: vi.fn(), onOpenChange: vi.fn() });
+    const user = userEvent.setup();
+
+    await user.click(row('a3'));
+    await user.keyboard('{ArrowLeft}');
+
+    await waitFor(() => expect(document.activeElement).toBe(row('u2')));
+    expect(rowIds()).toEqual(['u1', 'a1', 't1', 'u2', 'a2', 'c1', 'a3']);
+  });
+
+  it('keeps the folds through a refresh, and shows the rows it brought', async () => {
     const onSelect = vi.fn();
     const onOpenChange = vi.fn();
     const { rerender } = render(
@@ -374,6 +373,66 @@ describe('SessionTreeDialog', () => {
     );
 
     expect(rowIds()).toEqual(['u1', 'a1', 't1', 'u2']);
-    expect(rows().some((candidate) => candidate.dataset.treeRowId === 'a4')).toBe(false);
+
+    await user.keyboard('{ArrowRight}');
+    expect(rowIds()).toEqual(['u1', 'a1', 't1', 'u2', 'a2', 'c1', 'a3', 'a4']);
   });
+
+  it('starts the next visit fresh when the caller closes it after a pick', async () => {
+    const onSelect = vi.fn();
+    const onOpenChange = vi.fn();
+    const dialog = (open: boolean): React.JSX.Element => (
+      <SessionTreeDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        sessionPath={SESSION_PATH}
+        revision="1"
+        onSelect={onSelect}
+      />
+    );
+    const { rerender } = render(dialog(true));
+    await screen.findAllByTestId('session-tree-row');
+    const user = userEvent.setup();
+
+    await user.type(screen.getByPlaceholderText('Search this session'), 'echo');
+    expect(rowIds()).toEqual(['u1', 'a1', 't1']);
+
+    // A pick closes the dialog from outside: Radix reports no change of its own.
+    rerender(dialog(false));
+    rerender(dialog(true));
+    await screen.findAllByTestId('session-tree-row');
+
+    expect(screen.getByPlaceholderText('Search this session')).toHaveValue('');
+    expect(rowIds()).toEqual(['u1', 'a1', 't1', 'u2', 'a2', 'c1', 'a3']);
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A conversation is one level deeper per message, so a long one is deeper than
+   * the call stack: any recursive walk over the rows — ours or a library's — takes
+   * the renderer down on open (a white window, `Maximum call stack size
+   * exceeded`). Mounted, not only the layout functions, so the whole path to the
+   * screen is covered.
+   */
+  it('opens on a straight conversation of 20000 messages', async () => {
+    const LENGTH = 20_000;
+    const entries = Array.from({ length: LENGTH }, (_, index) =>
+      sessionTreeEntry(
+        index,
+        `m${index}`,
+        index === 0 ? null : `m${index - 1}`,
+        index % 2 === 0 ? 'user' : 'assistant',
+        `message ${index}`,
+      ),
+    );
+    fake.tree = sessionTree(entries, `m${LENGTH - 1}`);
+    await renderDialog({ onSelect: vi.fn(), onOpenChange: vi.fn() });
+    const user = userEvent.setup();
+
+    // jsdom cannot scroll, so the window stays at the top; the browser layer
+    // covers opening at the end and reaching both ends.
+    await user.click(row('m0'));
+    await user.keyboard('{ArrowDown}');
+    await waitFor(() => expect(document.activeElement).toBe(row('m1')));
+  }, 20_000);
 });

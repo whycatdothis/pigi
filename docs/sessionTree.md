@@ -24,13 +24,9 @@ through the session tree dialog.
 
 - No labels (pi's `Shift+L` bookmarks).
 - No cross-branch search.
-- No filter UI in the tree dialog (search only).
 - No inline branch markers in the transcript, no minimap changes, no right-side
   tree panel.
 - No `1/2` sibling switcher.
-- No virtualization in the tree dialog yet: rows are plain buttons in a
-  scrolling list (§3.3). Row height is a constant, which is what makes the step
-  cheap when a long session makes it worth taking — the plan is in §11.
 - No new keyboard shortcut, no toolbar badge.
 - No `fork of「…」` chip in the session toolbar.
 - No extension hooks (`session_before_tree`, `session_before_fork`,
@@ -259,17 +255,17 @@ what a query is matched against, which keeps `bash` able to find those rows.
 
 Implementation:
 
-- Tree state comes from `@headless-tree/core` + `@headless-tree/react`
-  (flattening, expansion, focus, hotkeys, ARIA `tree`/`treeitem` roles); the
-  rows, branch lines, chips, search, filters and preview card are ours. Wire data
-  is shaped into a data loader in `lib/sessionTreeData.ts` (synthetic root, kind
+- Everything is ours: no tree library. Wire data is shaped in
+  `lib/sessionTreeData.ts` (parent and children per row, kind
   - fuzzy filter with ancestor re-attachment, match indexes,
     per-tree row counts and time spans).
 - The rows are **flat** and the structure lines are one inert overlay
   (`SessionTreeRails`), drawn from the model's arithmetic instead of from nesting:
   a fork is one `span` covering the rows its line passes, so the number of line
-  elements is the number of forks, not the depth of the conversation. The display
-  tree still says what hangs from what (`buildSessionTreeDisplay`), and a
+  elements is the number of forks, not the depth of the conversation.
+  `buildSessionTreeRows` turns the data, the folds and the folded versions into
+  the rows in reading order plus what hangs from what, in one iterative walk (a
+  straight conversation is one level per message, deeper than the call stack); a
   continuation is still nothing of its own — a long conversation stays a flat
   list, and `SessionTreeList` renders the window without reading a row's box to
   decide where a line goes (§11).
@@ -387,19 +383,20 @@ Implementation:
 - The dialog re-reads the tree whenever the session grows while it is open
   (`revision` prop = node count + agent status), so a turn that lands while the
   dialog is up fills in by itself.
-- Every read is a **fresh list**: the data loader reads the dataset directly
-  (no cache and no `rebuildTree()`), and the list is keyed by
-  `session path + query + kinds`, so a filter or another session mounts new tree
-  state while a live refresh keeps the expansion the reader set. The tree library
-  caches children ids per item, and a refresh that only re-expands ids leaves the
-  newly appended rows out; reading through the loader is what makes the refresh
-  land in the rendered list. Only the first read of a visit scrolls to the current
-  row, so a refresh never yanks the list out from under the user. Unknown ids
-  answer with an empty item (a hot reload must not crash a row), and the loaded
-  tree carries the path it came from, so switching sessions cannot show the
-  previous session's tree.
-- Fixed row height (32px), plain buttons, no virtualizer yet (§11 has the plan),
-  no per-row popovers.
+- The list is keyed by `session path + query + kinds`, so a filter or another
+  session mounts a new list (folds and keyboard row start over) while a live
+  refresh keeps the folds the reader set. Folds are the set of folded rows, so a
+  row a refresh adds shows up unfolded. Only the first read of a visit scrolls to
+  the current row, once, so a refresh never yanks the list out from under the
+  user. The loaded tree carries the path it came from, so switching sessions
+  cannot show the previous session's tree. A visit's state (query, kinds,
+  version folds, the first-read scroll) is cleared whenever the dialog closes,
+  including when the caller closes it after a pick.
+- Keyboard: `↑`/`↓`, `Home`/`End`; `→`/`←` unfold/fold a row that has a chevron
+  and otherwise step to the next row or back to the row it hangs from; `Enter`
+  moves the session. The rows use a roving `tabIndex`.
+- Fixed row height (32px), plain buttons, a windowed list (§11), no per-row
+  popovers.
 
 ### 3.10 The "?" explanation
 
@@ -835,10 +832,10 @@ comparison for `parentSessionPath` is case-insensitive on Windows.
 | `src/processes/utility/sessionTree.ts` (new)                                     | pure `buildSessionTree(entries, leafId)`, `readEntryText`, `resolveForkTarget`                                                         |
 | `src/renderer/src/services/piAgentClient.ts`                                     | 4 tree wrappers + `forkSession`, `createSession` parent                                                                                |
 | `src/renderer/src/lib/sessionTreeLayout.ts` (new)                                | pure: abandoned count, node → entry id, navigability                                                                                   |
-| `src/renderer/src/lib/sessionTreeData.ts` (new)                                  | pure: headless-tree data loader, display tree, active path, filter, row text                                                           |
+| `src/renderer/src/lib/sessionTreeData.ts` (new)                                  | pure: tree data, rows in reading order, active path, filter, row text                                                                  |
 | `src/renderer/src/lib/sessionLineage.ts` (new)                                   | pure: lineage build + flatten                                                                                                          |
 | `src/renderer/src/components/sessionTree/SessionTreeDialog.tsx` (new)            | the dialog shell: the read behind it, a visit's state, the preview card                                                                |
-| `src/renderer/src/components/sessionTree/SessionTreeList.tsx`                    | the scrolling list: the tree, its version headers, branch lines, row recursion                                                         |
+| `src/renderer/src/components/sessionTree/SessionTreeList.tsx`                    | the scrolling list: the window, folds, keyboard, version headers, branch lines                                                         |
 | `src/renderer/src/components/sessionTree/SessionTreeRow.tsx`                     | one row and its insides, shared with the pinned copies                                                                                 |
 | `src/renderer/src/components/sessionTree/SessionTreeHeader.tsx`                  | the `Tree n` section header                                                                                                            |
 | `src/renderer/src/components/sessionTree/SessionTreePinnedBand.tsx`              | the ancestors pinned to the top of the list                                                                                            |
@@ -865,9 +862,9 @@ comparison for `parentSessionPath` is case-insensitive on Windows.
 | `src/renderer/src/hooks/useSessionTreeNavigation.ts` (new)                       | tree navigation + fork, summary prompt state, busy state                                                                               |
 | `docs/architecture.md`                                                           | new "Session tree and fork" section (phase 3)                                                                                          |
 
-Dependencies added for the dialog: `@headless-tree/core` and
-`@headless-tree/react` (MIT, ~19KB gzipped together). They own tree state and
-ARIA; nothing else in the app uses them.
+No dependencies added for the dialog. An earlier version used `@headless-tree/core`;
+its item metadata walk is recursive and quadratic, and a 6000-message session
+overflowed the call stack, so the list now owns its folds, focus and keys.
 
 ## 8. Phases
 
@@ -924,7 +921,7 @@ app; those checks are the ones in the list below.
   behind it; answering closes both, closing it cancels the move.
 - Summary progress: `Summarizing branch...` in the working bar plus a toast with
   `Cancel`; cancelling before completion leaves the session untouched.
-- Dialog, after the headless-tree rewrite (verified on the scratch session and
+- Dialog, after the first rewrite (verified on the scratch session and
   on a synthetic session holding all five row kinds plus a second root):
   current row marked and scrolled into view, flat chains with one indent level
   per real branch, fold/expand via chevron, search (6 marks for `echo`, counts,
@@ -976,10 +973,8 @@ clientHeight` (8535/8535), scroll button hidden (follow on). The same jump
 ### Not verified
 
 - Disabled states while compacting (needs a compaction mid-navigation).
-- Row rendering of a session with more than a handful of branches, and the
-  dialog on the 600-message session (row count is bounded by visible entries;
-  no virtualizer yet, per §2 — and no measurement of what a long session costs
-  today).
+- Row rendering of a session with more than a handful of branches by hand (the
+  20000-message straight session is a jsdom test, not a manual run).
 - Multi-level lineage (a fork of a fork) beyond the unit tests: the rendering
   path is the same at every depth, but no session with a grandchild fork has
   been opened by hand.
@@ -1050,15 +1045,21 @@ the row order, and the geometry of a row that is nowhere near the DOM is still e
   elbow of its last; `SessionTreeRails` draws them in one inert layer behind the rows.
   A line belongs to a fork, not to a row, which is exactly what lets the rows be flat
   and windowed. The elbow stays with the row, since it is where the line meets it.
-- `findLitRowId` and `collectPathOwners` say where the light is. The tint pass is gone
-  from `buildSessionTreeDisplay`, which now holds structure only — so a pointer moving
+- `findLitRowId` and `collectPathOwners` say where the light is. The tint pass is not
+  part of `buildSessionTreeRows`, which holds structure only — so a pointer moving
   along a branch re-renders the window, not the session. The rows are not individually
   subscribed to a store as the first plan had it: with a window in place there are
   about twenty rows to re-render, and the app is where that was checked.
 
 Scrolling to a row is `virtualizer.scrollToIndex(index)`, because the element of an
 off-screen row does not exist. The list owns it: the search box and the dialog's arrow
-keys only move the focused row, and one effect brings it into view.
+keys only move the keyboard row, and one effect brings it into view — once per row it
+moves to, so a measured header or a live refresh does not pull the list back.
+
+`useVirtualizer` carries an inline disable of `react-hooks/incompatible-library`
+(approved). The rule flags the API itself — one mutable instance whose methods read
+live state — so no call shape avoids it; the list only reads the instance during
+render and in effects, and never memoises anything derived from it.
 
 Two behaviours follow from windowing, both deliberate:
 
@@ -1075,10 +1076,3 @@ pixel the header measures differently, the same pinned band. On a 5680-entry ses
 33 rows in the DOM, rails and band drawn, `scrollHeight` 99760px. And the browser
 layer holds the acceptance: a 2000-row session keeps a scrollbar of 2000 rows while
 the document holds a screenful, and a search scrolls to a match that was never drawn.
-
-What is left open here:
-
-- Folding a row is still the library's item list, not the renderer's. The recorded
-  characterisation test about `End` landing on a folded tree is the symptom; owning the
-  folds would remove it, and would also let the item list be built from the filter and
-  fold state alone instead of from the tree instance.

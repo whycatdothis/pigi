@@ -60,8 +60,8 @@ describe('resolveEntryId', () => {
     expect(resolveEntryId(tree, assistantNode({ sdkTimestamp: TIMESTAMP + 500 }))).toBe('a1');
   });
 
-  it('matches a tool row by its tool call, not by a timestamp', () => {
-    expect(resolveEntryId(tree, toolNode({ sdkTimestamp: TIMESTAMP + 999 }))).toBe('t1');
+  it('matches a tool row by its tool call', () => {
+    expect(resolveEntryId(tree, toolNode())).toBe('t1');
     expect(resolveEntryId(tree, toolNode({ toolCallId: 'call-2' }))).toBe(null);
   });
 

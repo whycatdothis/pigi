@@ -73,8 +73,6 @@ export interface ToolNode {
   startedAt?: number;
   durationMs?: number;
   details?: EditToolDetails;
-  /** `message.timestamp` of the tool result (see UserNode.sdkTimestamp). */
-  sdkTimestamp?: number;
 }
 
 export interface SystemNode {
@@ -142,13 +140,7 @@ export interface TranscriptState {
 // SDK event shapes (only types actually used in casts are kept)
 interface SdkMessageStart {
   type: 'message_start';
-  message: {
-    id?: string;
-    role?: string;
-    content?: unknown[];
-    timestamp?: number | string;
-    toolCallId?: string;
-  };
+  message: { id?: string; role?: string; content?: unknown[]; timestamp?: number | string };
 }
 interface SdkMessageUpdate {
   type: 'message_update';
@@ -488,7 +480,6 @@ export class TranscriptController {
             startedAt: call?.startedAt,
             durationMs: getElapsedMs(call?.startedAt, completedAt),
             details: toolMessage.details,
-            sdkTimestamp: completedAt,
           });
           break;
         }
@@ -698,21 +689,6 @@ export class TranscriptController {
     }
   }
 
-  /**
-   * Record the SDK timestamp of a tool result message on its row. The message
-   * is emitted separately from `tool_execution_end`, whose payload carries the
-   * raw tool result (no timestamp).
-   */
-  private stampToolNode(toolCallId: string, timestamp: number | string | undefined): void {
-    const sdkTimestamp = tryNormalizeTimestamp(timestamp);
-    if (sdkTimestamp === undefined) return;
-    const found = findToolNodeByCallId(this._state.nodes, toolCallId);
-    if (!found || found.node.sdkTimestamp !== undefined) return;
-    const nodes = [...this._state.nodes];
-    nodes[found.index] = { ...found.node, sdkTimestamp };
-    this.setState({ nodes });
-  }
-
   // ===========================================================================
   // SDK event processing
   // ===========================================================================
@@ -769,8 +745,6 @@ export class TranscriptController {
             this.addUserMessage(text);
           }
           this.stampLastUserMessage(startMessage.timestamp);
-        } else if (startMessage?.role === 'toolResult' && startMessage.toolCallId) {
-          this.stampToolNode(startMessage.toolCallId, startMessage.timestamp);
         } else if (startMessage?.role === 'assistant' && !this._state.activeAssistantId) {
           this.createAssistantNode(startMessage.id, startMessage.timestamp);
         }

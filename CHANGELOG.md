@@ -11,6 +11,8 @@
 
 - Session tree: the hover preview waits for the pointer to rest on a row (half a second) before it opens, so sweeping the list no longer flashes a card, and a read, through every row on the way
 - Session tree: the hover preview sits a little further from the row it belongs to, so the row stays readable under it
+- Session tree: `←` / `→` fold and unfold only the rows that show a fold arrow; on any other row `→` steps to the next row and `←` to the parent
+- Session tree: the list scrolls to the current row once, when it opens — folding a row or new rows arriving no longer pull it back while you read further up
 
 ### Fixed
 
@@ -19,6 +21,8 @@
 - Opening the session tree on a long conversation no longer blanks the window — both walks over the tree were recursive, one call per message, and a session can be deeper than the call stack (`Maximum call stack size exceeded`)
 - The tree icon is drawn with the same stroke weight as the icons beside it — its size correction is a scale, and the scale was enlarging the stroke with it
 - Session tree: Enter after a search moved the session to the first row on screen — usually the ancestor that carries the match — instead of to the match itself
+- Opening the session tree on a straight conversation of several thousand messages no longer runs out of stack — the tree's keyboard and fold state walked the conversation one nested call per message
+- Session tree: closing the dialog any way clears its search and folds, so it always reopens fresh
 - Session tree: in a packaged build the dialog opened at the top of a long session instead of at the current row — the scroll ran before the list had its rows, and only development's double-run of effects hid it
 
 ## [0.4.11-beta.1] - 2026-09-13
