@@ -10,7 +10,7 @@
 <h1 align="center">pigi</h1>
 
 <p align="center">
-  <strong>A sleek desktop GUI for <a href"https://pi.dev">pi</a></strong>
+  <strong>A sleek desktop GUI for <a href="https://pi.dev">pi</a></strong>
 </p>
 
 ---
@@ -21,6 +21,19 @@
 - Faithful to the original pi experience
 - Respects your pi config — picks up models, skills, and settings automatically
 - Built with performance in mind, no compromises
+
+### Highlights
+
+- **Instant history** — past sessions open instantly, even long ones
+- **Fork** — branch a new session from any user message
+- **Session tree** — browse and jump between branches of a session (`/tree` or the toolbar)
+- **View modes** — switch how the transcript renders tool activity:
+  - **Minimal** — Codex-style: working timer, tool cards, final summary
+  - **Compact** — collapses consecutive read-only tool calls into one group
+  - **Show All** — every tool call as its own block, like the native pi log
+- **Session search** — `Ctrl+R` fuzzy-searches across all sessions
+- **Chat minimap** — overview of your messages for quick navigation in long chats
+- **Built-in terminal** — toggle with `Cmd+J`
 
 ![hi pigi](./resources/hi-pigi.jpg)
 
