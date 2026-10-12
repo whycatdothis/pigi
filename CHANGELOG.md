@@ -4,25 +4,23 @@
 
 ### Changed
 
-- Session tree: the list draws only the rows on screen, so a long session opens and scrolls with a fraction of the work — the branch lines and the pinned ancestors are computed from the rows instead of measured from the page, and the dialog no longer rebuilds the whole tree when the pointer moves
-- Session tree: the row the session is on wears the theme's colour again, with the `Current` chip on top of it — the chip is painted more solidly than before, so it reads against its own row
-- Session tree: a row the keyboard is on is picked out with a grey background; the position keeps the theme's colour for itself
-- Session tree: searching hands the first match to the keyboard — that row is picked out, `↑` / `↓` move the pick row by row, and Enter moves the session to the row the keyboard is on. The caret stays in the search box while the pick moves, so typing keeps working
-
-- Session tree: the hover preview waits for the pointer to rest on a row (half a second) before it opens, so sweeping the list no longer flashes a card, and a read, through every row on the way
-- Session tree: the hover preview sits a little further from the row it belongs to, so the row stays readable under it
-- Session tree: `←` / `→` fold and unfold only the rows that show a fold arrow; on any other row `→` steps to the next row and `←` to the parent
+- Session tree: long sessions open and scroll faster — only the rows on screen are drawn, and moving the pointer no longer rebuilds the whole tree
+- Session tree: the row the session is on wears the theme's colour again, with a more solid `Current` chip on top so it stays readable
+- Session tree: the row the keyboard is on is picked out with a grey background, separate from the current row's colour
+- Session tree: searching hands the first match to the keyboard — `↑` / `↓` move from there and Enter moves the session to the picked row, while the caret stays in the search box so typing keeps working
+- Session tree: `←` / `→` fold and unfold only rows that show a fold arrow; on any other row `→` steps to the next row and `←` to the parent
 - Session tree: the list scrolls to the current row once, when it opens — folding a row or new rows arriving no longer pull it back while you read further up
+- Session tree: the hover preview opens only after the pointer rests on a row for half a second, so sweeping the list no longer flashes cards, and it sits a little further from its row so the row stays readable
 
 ### Fixed
 
-- Session tree: with several versions in one file, the pinned parent rows sit at the top of the list under their version's header again — the band reserved room for a header that had already scrolled away, and the row underneath showed through the gap
-- Session tree: clicking a version's header folds it on the first click, including the header the pinned band draws (the version the session sits in used to need two clicks)
-- Opening the session tree on a long conversation no longer blanks the window — every walk over the tree, including the one behind the keyboard and fold state, went one nested call per message, and a straight conversation of several thousand messages is deeper than the call stack (`Maximum call stack size exceeded`)
-- The tree icon is drawn with the same stroke weight as the icons beside it — its size correction is a scale, and the scale was enlarging the stroke with it
-- Session tree: Enter after a search moved the session to the first row on screen — usually the ancestor that carries the match — instead of to the match itself
+- Session tree: opening it on a very long conversation (several thousand messages) no longer blanks the window
+- Session tree: Enter after a search moved the session to the ancestor shown on screen instead of to the match itself
+- Session tree: in a packaged build the dialog opened at the top of a long session instead of at the current row
 - Session tree: closing the dialog any way clears its search and folds, so it always reopens fresh
-- Session tree: in a packaged build the dialog opened at the top of a long session instead of at the current row — the scroll ran before the list had its rows, and only development's double-run of effects hid it
+- Session tree: with several trees in one session, the pinned parent rows sit right under their tree's header again instead of leaving a gap the rows below showed through
+- Session tree: clicking a tree's header (`Tree 1`, `Tree 2`, …) folds it on the first click, including the copy pinned at the top
+- The tree icon is drawn at the same stroke weight as the icons beside it
 
 ## [0.4.11-beta.1] - 2026-09-13
 
