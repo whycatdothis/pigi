@@ -22,20 +22,59 @@
 - Respects your pi config — picks up models, skills, and settings automatically
 - Built with performance in mind, no compromises
 
+![pigi](./resources/hi-pigi.png)
+
 ### Highlights
 
-- **Instant history** — past sessions open instantly, even long ones
-- **Fork** — branch a new session from any user message
-- **Session tree** — browse and jump between branches of a session (`/tree` or the toolbar)
-- **View modes** — switch how the transcript renders tool activity:
-  - **Minimal** — Codex-style: working timer, tool cards, final summary
-  - **Compact** — collapses consecutive read-only tool calls into one group
-  - **Show All** — every tool call as its own block, like the native pi log
-- **Session search** — `Ctrl+R` fuzzy-searches across all sessions
-- **Chat minimap** — overview of your messages for quick navigation in long chats
-- **Built-in terminal** — toggle with `Cmd+J`
+#### Instant history
 
-![hi pigi](./resources/hi-pigi.jpg)
+Past sessions open instantly, even long ones.
+
+#### Fork
+
+Branch a new session from any user message. Forks stay nested under their original session in the sidebar.
+
+![Fork](./resources/fork.png)
+
+#### Session tree
+
+Browse and jump between branches of a session (`/tree` or the toolbar).
+
+![Session tree](./resources/tree.png)
+
+#### View modes
+
+Switch how the transcript renders tool activity.
+
+**Minimal** — Codex-style: working timer, tool cards, final summary.
+
+![Minimal view](./resources/minimal-view.png)
+
+**Compact** — collapses consecutive read-only tool calls into one group.
+
+![Compact view](./resources/compact-view.png)
+
+**Show All** — every tool call as its own block, like the native pi log.
+
+![Show All view](./resources/show-all-view.png)
+
+#### Session search
+
+`Ctrl+R` fuzzy-searches across all sessions.
+
+![Session search](./resources/session-switcher.png)
+
+#### Chat minimap
+
+Overview of your messages for quick navigation in long chats.
+
+![Chat minimap](./resources/minimap.png)
+
+#### Built-in terminal
+
+Toggle with `Cmd+J`.
+
+![Built-in terminal](./resources/terminal.png)
 
 ## Install
 
