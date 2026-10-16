@@ -4,6 +4,11 @@ import AssistantMessage from '../app/AssistantMessage.astro';
 import ThinkingBlock from '../app/ThinkingBlock.astro';
 import ToolCard from '../app/ToolCard.astro';
 import Minimap from './Minimap.astro';
+import {
+  MESSAGE_LIST_HORIZONTAL_PADDING,
+  MESSAGE_LIST_MAX_WIDTH,
+  MESSAGE_LIST_TOP_INSET,
+} from '../../lib/appLayout';
 
 export interface Turn {
   user: string;
@@ -26,9 +31,10 @@ interface Props {
 /**
  * A transcript, laid out the way the app lays one out.
  *
- * The metrics are the app's: a centred column of 860px with 20px of inline
- * padding inside it (MESSAGE_LIST_MAX_WIDTH / MESSAGE_LIST_HORIZONTAL_PADDING), a
- * 24px inset at the top, and one gap step between stacked blocks.
+ * The metrics are the app's: a centred column of MESSAGE_LIST_MAX_WIDTH with
+ * MESSAGE_LIST_HORIZONTAL_PADDING of inline padding inside it, a
+ * MESSAGE_LIST_TOP_INSET inset at the top, and one gap step between stacked
+ * blocks. All three come from the app's layoutConstants, not from here.
  *
  * `scroll` is the difference between a still and a demo. A still is clipped by the
  * window, which is what a reader expects of a picture; the instant-history section
@@ -37,14 +43,26 @@ interface Props {
  */
 const { turns, scroll = false, minimap = false } = Astro.props;
 
-const column = 'mx-auto flex w-full max-w-[860px] flex-col px-5 pb-24 pt-6';
+/**
+ * The last row's inset in the app is MESSAGE_LIST_BOTTOM_INSET. The extra air
+ * here is the same slack a real session shows when its content is shorter than the
+ * window: the app pins the list to the newest message only while it overflows.
+ */
+const column = 'mx-auto flex w-full flex-col pb-24';
+const columnStyle = [
+  `max-width:${MESSAGE_LIST_MAX_WIDTH}px`,
+  `padding-inline:${MESSAGE_LIST_HORIZONTAL_PADDING}px`,
+  `padding-top:${MESSAGE_LIST_TOP_INSET}px`,
+].join(';');
 ---
 
 <div class="relative min-h-0 flex-1" data-minimap-scope={minimap ? '' : undefined}>
   <!--
-    A still is anchored to the bottom the way a live session is: the app keeps the
-    transcript pinned to its newest message, so a short session shows its content
-    against the input with the empty space above it, not below.
+    A still is anchored to the bottom: the app keeps a session pinned to its newest
+    message, so this is the end of one, with the input where the reader looks for
+    the feature just described. A session shorter than the window would instead
+    start at the top in the app — these stills are all shorter than their windows,
+    so the air above the first message is this page's choice, not the app's.
   -->
   <div
     class:list={[
@@ -54,7 +72,7 @@ const column = 'mx-auto flex w-full max-w-[860px] flex-col px-5 pb-24 pt-6';
     ]}
     data-minimap-scroll={scroll ? '' : undefined}
   >
-    <div class={column}>
+    <div class={column} style={columnStyle}>
       {
         turns.map((turn, index) => (
           <div data-message-index={index}>

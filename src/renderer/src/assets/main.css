@@ -516,19 +516,6 @@
     -webkit-mask-image: none;
   }
 
-  .sidebar-surface {
-    position: relative;
-  }
-
-  .sidebar-surface::after {
-    position: absolute;
-    inset: 0 calc(-1 * var(--radius-2xl)) 0 auto;
-    width: var(--radius-2xl);
-    background: inherit;
-    content: '';
-    pointer-events: none;
-  }
-
   /* Frosted menu content: hairline ring + blur shadow */
   .menu-content {
     border-radius: var(--radius-lg);

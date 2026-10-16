@@ -1,52 +1,45 @@
 /**
  * Geometry of the session tree's rows.
  *
- * Ported verbatim from the app
- * (src/renderer/src/components/sessionTree/sessionTreeGeometry.ts) so the tree
- * drawn on this page is measured, not eyeballed: the rows, the branch lines and
- * the elbows all come out of these five numbers, in the app and here.
+ * The constants and the two position helpers are **the app's own file**, imported
+ * rather than copied:
  *
- * Lengths are in CSS pixels.
+ *   src/renderer/src/components/sessionTree/sessionTreeGeometry.ts
+ *
+ * It has no imports of its own, so it compiles here as-is — which is the point.
+ * Change `ROW_HEIGHT_PX` there and the tree on this page is a different tree on
+ * the next build; there is no copy to forget.
+ *
+ * What is left in this file is the arithmetic the app keeps in a second module
+ * (`sessionTreeListModel.ts`) because it works over the app's row items: the row
+ * offsets, the branch spans and the light run. That module wants the app's
+ * `SessionTreeFlatRow` and a measured header height, neither of which exists in a
+ * still — the list here is short enough to measure in one pass. So the algorithm
+ * is the same and the numbers are shared; only the input shape differs.
  */
 
-/** Indent column width: a fork indents its children by exactly this much. */
-export const INDENT_PX = 20;
-/** Row padding before the row's content (`pl-2`). */
-export const ROW_PADDING_PX = 8;
-/** Room an indent column leaves before the content (the row's `gap-2`). */
-export const ROW_GAP_PX = 8;
-/** Width of the fold chevron's box (`size-4`). */
-export const CHEVRON_PX = 16;
-/** Height of a row. */
-export const ROW_HEIGHT_PX = 32;
-/** Structure line width. A hairline, so it never blurs into a grey bar. */
-export const RAIL_WIDTH_PX = 1;
-/** Extra space above a fork's direct children; the line spans it. */
-export const BRANCH_SPACING_PX = 2;
-/** From a fork's line to its child's content, corner included. */
-export const BRANCH_ELBOW_WIDTH_PX = INDENT_PX - CHEVRON_PX / 2 + RAIL_WIDTH_PX;
-/** The elbow sits on the pixel above the row's centre, like the line does. */
-export const BRANCH_ELBOW_TOP_PX = BRANCH_SPACING_PX + ROW_HEIGHT_PX / 2 - RAIL_WIDTH_PX;
+export {
+  BRANCH_ELBOW_TOP_PX,
+  BRANCH_ELBOW_WIDTH_PX,
+  BRANCH_SPACING_PX,
+  CHEVRON_PX,
+  INDENT_PX,
+  RAIL_COLOR,
+  RAIL_COLOR_CURRENT,
+  RAIL_WIDTH_PX,
+  ROW_GAP_PX,
+  ROW_HEIGHT_PX,
+  ROW_PADDING_PX,
+  chevronCentreX,
+  rowContentX,
+} from '../../../src/renderer/src/components/sessionTree/sessionTreeGeometry';
 
-/** Neutral structure line: quieter than the row text, still readable. */
-export const RAIL_COLOR = 'color-mix(in oklab, var(--foreground) 28%, transparent)';
-/** Structure line on the active path, so the way back to the leaf stands out. */
-export const RAIL_COLOR_ACTIVE = 'color-mix(in oklab, var(--system-accent) 60%, transparent)';
-
-/** Where a row at `depth` starts drawing: the left edge of its fold chevron. */
-export function rowContentX(depth: number): number {
-  return ROW_PADDING_PX + depth * INDENT_PX + ROW_GAP_PX;
-}
-
-/** Centre of the fold chevron at `depth`; a fork's line hangs from here. */
-export function chevronCentreX(depth: number): number {
-  return rowContentX(depth) + CHEVRON_PX / 2;
-}
-
-/** Where a fork's line sits, in pixels from the list's left edge. */
-export function railLeftPx(forkDepth: number): number {
-  return chevronCentreX(forkDepth) - RAIL_WIDTH_PX;
-}
+import {
+  BRANCH_SPACING_PX,
+  RAIL_WIDTH_PX,
+  ROW_HEIGHT_PX,
+  chevronCentreX,
+} from '../../../src/renderer/src/components/sessionTree/sessionTreeGeometry';
 
 /**
  * The class on a rail span.
@@ -73,6 +66,11 @@ export interface TreeRailSpan {
   endPx: number;
   /** Null when the active path does not turn into this fork. */
   litEndPx: number | null;
+}
+
+/** Where a fork's line sits, in pixels from the list's left edge. */
+export function railLeftPx(forkDepth: number): number {
+  return chevronCentreX(forkDepth) - RAIL_WIDTH_PX;
 }
 
 /** Where every row starts, in the list's own coordinates. */

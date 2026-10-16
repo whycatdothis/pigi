@@ -18,7 +18,7 @@
  */
 import {
   RAIL_COLOR,
-  RAIL_COLOR_ACTIVE,
+  RAIL_COLOR_CURRENT,
   RAIL_WIDTH_PX,
   RAIL_SPAN_CLASS,
   collectRailSpans,
@@ -286,7 +286,7 @@ function bindSessionTree(tree: HTMLElement, rails: HTMLElement, rows: HTMLElemen
         line.style.top = `${span.topPx}px`;
         line.style.width = `${RAIL_WIDTH_PX}px`;
         line.style.height = `${litHeight}px`;
-        line.style.background = span.litEndPx === null ? RAIL_COLOR : RAIL_COLOR_ACTIVE;
+        line.style.background = span.litEndPx === null ? RAIL_COLOR : RAIL_COLOR_CURRENT;
         return line;
       }),
     );
@@ -295,7 +295,7 @@ function bindSessionTree(tree: HTMLElement, rails: HTMLElement, rows: HTMLElemen
       const elbow = elbows.get(row.id);
       if (!elbow) continue;
       elbow.style.background = isRailOwner(row, row.id, pathOwners)
-        ? RAIL_COLOR_ACTIVE
+        ? RAIL_COLOR_CURRENT
         : RAIL_COLOR;
     }
   }

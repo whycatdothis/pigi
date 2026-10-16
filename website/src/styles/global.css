@@ -99,7 +99,6 @@
      translucent over the page wash below, which is the same trick. */
   --sidebar: color-mix(in srgb, white 55%, transparent);
   --sidebar-solid: color-mix(in oklch, var(--background) 45%, white 55%);
-  --sidebar-surface: var(--sidebar-solid);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.5 0 0 / 10%);
   --sidebar-accent-foreground: oklch(0.205 0 0);
@@ -173,7 +172,6 @@
 
   --sidebar: color-mix(in srgb, oklch(0.269 0 0) 55%, transparent);
   --sidebar-solid: color-mix(in oklch, var(--background) 45%, oklch(0.269 0 0) 55%);
-  --sidebar-surface: var(--sidebar-solid);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.5 0 0 / 10%);
   --sidebar-accent-foreground: oklch(0.985 0 0);

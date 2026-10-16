@@ -11,6 +11,12 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { chromium } from 'playwright';
+import {
+  CANDIDATE_ASSET,
+  CANDIDATE_DOWNLOAD_URL,
+  CANDIDATE_VERSION,
+  stubReleaseApi,
+} from './releaseFixture.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..', 'dist');
 const CONTENT_TYPES = {
@@ -40,6 +46,13 @@ const { port } = server.address();
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+
+/*
+ * A canned release, so the download checks below test this page's logic instead of
+ * GitHub's availability: an unauthenticated API call is rate-limited to 60 an
+ * hour, and a run that trips it would report the fallback link as a failure.
+ */
+await stubReleaseApi(page);
 await page.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
 
 const results = [];
@@ -300,20 +313,12 @@ function check(name, passed, detail = '') {
 
   check(
     'download: every button points at the newest DMG',
-    links.length === 2 &&
-      links.every((link) => /releases\/download\/v.+\.dmg$/.test(link.href ?? '')),
+    links.length === 2 && links.every((link) => link.href === CANDIDATE_DOWNLOAD_URL),
     JSON.stringify(links.map((link) => link.href)),
   );
   check(
     'download: the tracked event carries the resolved version and asset',
-    links.every(
-      (link) =>
-        link.version !== undefined &&
-        link.asset !== undefined &&
-        link.href !== null &&
-        link.href.includes(link.version) &&
-        link.href.endsWith(`/${link.asset}`),
-    ),
+    links.every((link) => link.version === CANDIDATE_VERSION && link.asset === CANDIDATE_ASSET),
     JSON.stringify(links),
   );
 }
