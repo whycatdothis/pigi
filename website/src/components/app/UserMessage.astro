@@ -5,9 +5,13 @@ interface Props {
   time?: string;
   /** Right-aligned bubbles carry the user's own words; the slot holds them. */
   actions?: 'full' | 'copy' | false;
+  /** Keep the actions visible, for a still standing in for a hover. */
+  showActions?: boolean;
+  /** The label the app's tooltip would be showing for the action hovered. */
+  actionTooltip?: { label: string; hint?: string };
 }
 
-const { time, actions = false } = Astro.props;
+const { time, actions = false, showActions = false, actionTooltip } = Astro.props;
 ---
 
 <!-- pt-6 / pb-2 is the app's spacing above a user message and below it. -->
@@ -19,7 +23,16 @@ const { time, actions = false } = Astro.props;
       </div>
     </div>
     <div class="flex w-full items-center justify-end gap-2">
-      {actions !== false && <MessageActions kind={actions} time={time} />}
+      {
+        actions !== false && (
+          <MessageActions
+            kind={actions}
+            time={time}
+            visible={showActions}
+            tooltip={actionTooltip}
+          />
+        )
+      }
       {actions === false && time && <span class="text-xs text-muted-foreground">{time}</span>}
     </div>
   </div>

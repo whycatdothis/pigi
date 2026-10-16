@@ -229,6 +229,17 @@ export const OVERLAY_BG = {
 } satisfies CopiedClasses;
 
 /**
+ * A message's action icon: a bare ghost button that fills in on hover.
+ *
+ * A fork's half of `MessageToolbar` (`messageBubbles.tsx`, `ACTION_BUTTON_CLASS_NAME`).
+ */
+export const ACTION_BUTTON = {
+  classes:
+    'flex items-center justify-center rounded-sm p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
+  source: `${RENDERER}/message/messageBubbles.tsx`,
+} satisfies CopiedClasses;
+
+/**
  * The chat input's card.
  *
  * The app's `InputGroup` in the composer, minus the `has-[[data-slot=…]]`
@@ -254,6 +265,7 @@ export const APP_UI_GROUPS: Record<string, CopiedClasses> = {
   BUTTON_HERO_SIZE,
   TOOLBAR_BUTTON,
   TOOLBAR_BUTTON_ON,
+  ACTION_BUTTON,
   TOOLTIP_KBD,
   TOOLTIP_CONTENT,
   MENU_CONTENT,

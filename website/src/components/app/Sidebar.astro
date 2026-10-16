@@ -7,6 +7,8 @@ interface SessionRow {
   time: string;
   /** This is the session the window has open. */
   active?: boolean;
+  /** 0 for a session, 1+ for a fork of one above it. */
+  depth?: number;
 }
 
 interface Project {
@@ -31,7 +33,8 @@ const projects: Project[] = [
       { title: 'Add the chat minimap', time: '1h' },
       { title: 'The transcript flickers', time: '2h' },
       { title: 'Keep the session tree from blanking', time: 'Yesterday' },
-      { title: 'Fork from message 12', time: 'Mon' },
+      // A fork: listed under the chat it came from, one indent in.
+      { title: 'Fork from message 12', time: 'Mon', depth: 1 },
       { title: 'Bump electron-builder', time: 'Mon' },
     ],
   },
@@ -39,6 +42,14 @@ const projects: Project[] = [
   { name: 'test-playground' },
   { name: 'docs-site' },
 ];
+
+/**
+ * One 12px column per ancestor level, plus the elbow into the row — the app's
+ * `LineagePrefix` (`components/sidebar/sessionList.tsx`) at the depth this still
+ * needs. The gap between rows is 4px and the line runs on over it, which is why
+ * a continuing rail reaches `-bottom-1`.
+ */
+const LINEAGE_INDENT_PX = 12;
 
 interface Props {
   /** The open session's title; the matching row is the selected one. */
@@ -76,8 +87,12 @@ const { activeTitle } = Astro.props;
             <Icon name="folder" size={15} class="shrink-0 text-muted-foreground" />
             <span class="truncate">{project.name}</span>
           </div>
-          {project.sessions?.map((session) => {
+          {project.sessions?.map((session, index) => {
             const active = session.title === activeTitle;
+            // The app keeps a fork under its parent and draws a connector into it
+            // (sessionList.tsx: 12px per ancestor level, plus the elbow).
+            const depth = session.depth ?? 0;
+            const isLast = !(project.sessions?.[index + 1]?.depth ?? 0);
             return (
               <div
                 data-sidebar-row={session.title}
@@ -88,6 +103,22 @@ const { activeTitle } = Astro.props;
                     : 'pl-8 text-sidebar-foreground/85',
                 ]}
               >
+                {depth > 0 && (
+                  <span
+                    aria-hidden="true"
+                    data-lineage-depth={depth}
+                    class="relative h-full shrink-0"
+                    style={`width:${depth * LINEAGE_INDENT_PX}px`}
+                  >
+                    <span
+                      class:list={[
+                        'absolute left-0 w-px bg-foreground/15',
+                        isLast ? 'top-0 h-1/2' : 'top-0 -bottom-1',
+                      ]}
+                    />
+                    <span class="absolute left-0 top-1/2 h-px w-full bg-foreground/15" />
+                  </span>
+                )}
                 <span class="truncate">{session.title}</span>
                 <span class="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">
                   {session.time}

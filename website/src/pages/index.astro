@@ -8,10 +8,18 @@ import DownloadButton from '../components/site/DownloadButton.astro';
 import AppWindow from '../components/app/AppWindow.astro';
 import Transcript from '../components/demos/Transcript.astro';
 import SessionTreeDialog from '../components/demos/SessionTreeDialog.astro';
+import SessionTreeHelp from '../components/demos/SessionTreeHelp.astro';
 import ViewModes from '../components/demos/ViewModes.astro';
 import SessionSwitcher from '../components/demos/SessionSwitcher.astro';
 import TerminalPanel from '../components/demos/TerminalPanel.astro';
-import { heroTurns, historyTurns, switcherTurns, terminalTurns, treeTurns } from '../lib/sessions';
+import {
+  forkTurns,
+  heroTurns,
+  historyTurns,
+  switcherTurns,
+  terminalTurns,
+  treeTurns,
+} from '../lib/sessions';
 import { PI_URL } from '../lib/site';
 
 const title = 'pigi — a sleek desktop GUI for pi';
@@ -105,17 +113,42 @@ const principles = [
       </div>
     </section>
 
-    <!-- Fork and the session tree -->
+    <!-- Fork -->
+    <section class="border-t border-border/70 py-20 md:py-28">
+      <div class="mx-auto max-w-6xl px-6">
+        <SectionIntro eyebrow="Fork" icon="git-fork" title="Branch off any message.">
+          <p>
+            Forking copies the conversation up to that point into a chat of its own, with the same
+            model and thinking level. The original stays where it was, and the fork is listed under
+            it. Fork before one of your own messages and it goes back in the input box to reword.
+          </p>
+        </SectionIntro>
+
+        <div class="mt-10">
+          <!-- The sidebar row this session occupies is the parent of the fork. -->
+          <AppWindow title="Keep the session tree from blanking">
+            <Transcript turns={forkTurns} />
+          </AppWindow>
+        </div>
+        <p class="mt-3 text-center text-xs text-muted-foreground">
+          Hovering a message shows what it can become. Above it in the session list: a chat forked
+          from this one.
+        </p>
+      </div>
+    </section>
+
+    <!-- Session tree -->
     <section class="border-t border-border/70 py-20 md:py-28">
       <div class="mx-auto max-w-6xl px-6">
         <SectionIntro
-          eyebrow="Fork and tree"
-          icon="git-fork"
+          eyebrow="Session tree"
+          icon="binary-tree-2"
           title="Rewind without losing what you had."
         >
           <p>
-            Any message is a place you can go back to. Going back moves the session — it does not
-            delete what it leaves behind, and it does not ask the model to summarise anything.
+            Going back to an earlier message moves the session; it does not delete what it leaves
+            behind, and it does not have to summarise anything. Every branch is still in the tree,
+            and the tree explains itself.
           </p>
         </SectionIntro>
 
@@ -128,6 +161,26 @@ const principles = [
         <p class="mt-3 text-center text-xs text-muted-foreground">
           The accent line is the path to where the session is now. Hover a row to see what a jump
           would leave behind.
+        </p>
+
+        <div class="mt-20 max-w-3xl">
+          <h3 class="text-[19px] font-medium text-foreground">A time machine, and it says so</h3>
+          <p class="mt-3 text-[15px] leading-7 text-muted-foreground">
+            The <span class="font-mono text-[13px]">?</span> beside the tree's search field — or in the
+            tooltip on a message's tree action — opens the explanation: what jumping back really does,
+            what happens to the messages you leave behind, and how the next message you send becomes a
+            branch of its own. Every word of it is the app's.
+          </p>
+        </div>
+
+        <div class="mt-8">
+          <AppWindow title="Add the chat minimap" height={520} overlayOpen>
+            <Transcript turns={treeTurns} />
+            <SessionTreeHelp slot="overlay" />
+          </AppWindow>
+        </div>
+        <p class="mt-3 text-center text-xs text-muted-foreground">
+          A shortened window, because the answer is 520px wide.
         </p>
       </div>
     </section>

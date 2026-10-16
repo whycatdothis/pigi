@@ -10,6 +10,7 @@
  * A glyph is only listed here if something on the site renders it. Astro has to
  * see a static import path to bundle the file, so the map is written out longhand.
  */
+import arrowsMinimize from '@tabler/icons/outline/arrows-minimize.svg?raw';
 import arrowFork from '@tabler/icons/outline/arrow-fork.svg?raw';
 import arrowRight from '@tabler/icons/outline/arrow-right.svg?raw';
 import arrowUp from '@tabler/icons/outline/arrow-up.svg?raw';
@@ -30,6 +31,7 @@ import folder from '@tabler/icons/outline/folder.svg?raw';
 import folderPlus from '@tabler/icons/outline/folder-plus.svg?raw';
 import gitBranch from '@tabler/icons/outline/git-branch.svg?raw';
 import gitFork from '@tabler/icons/outline/git-fork.svg?raw';
+import history from '@tabler/icons/outline/history.svg?raw';
 import keyboard from '@tabler/icons/outline/keyboard.svg?raw';
 import listDetails from '@tabler/icons/outline/list-details.svg?raw';
 import loader2 from '@tabler/icons/outline/loader-2.svg?raw';
@@ -39,6 +41,7 @@ import minus from '@tabler/icons/outline/minus.svg?raw';
 import moon from '@tabler/icons/outline/moon.svg?raw';
 import notebook from '@tabler/icons/outline/notebook.svg?raw';
 import plus from '@tabler/icons/outline/plus.svg?raw';
+import questionMark from '@tabler/icons/outline/question-mark.svg?raw';
 import search from '@tabler/icons/outline/search.svg?raw';
 import settings from '@tabler/icons/outline/settings.svg?raw';
 import sparkles from '@tabler/icons/outline/sparkles.svg?raw';
@@ -49,6 +52,7 @@ import user from '@tabler/icons/outline/user.svg?raw';
 import x from '@tabler/icons/outline/x.svg?raw';
 
 export const ICONS = {
+  'arrows-minimize': arrowsMinimize,
   'arrow-fork': arrowFork,
   'arrow-right': arrowRight,
   'arrow-up': arrowUp,
@@ -69,6 +73,7 @@ export const ICONS = {
   'folder-plus': folderPlus,
   'git-branch': gitBranch,
   'git-fork': gitFork,
+  history,
   keyboard,
   'list-details': listDetails,
   'loader-2': loader2,
@@ -78,6 +83,7 @@ export const ICONS = {
   moon,
   notebook,
   plus,
+  'question-mark': questionMark,
   search,
   settings,
   sparkles,
