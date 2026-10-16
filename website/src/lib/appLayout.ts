@@ -22,6 +22,15 @@ export {
   TERMINAL_DEFAULT_HEIGHT,
 } from '../../../src/renderer/src/lib/layoutConstants';
 
-/** The default window: 1200x800, minus the frame macOS adds. */
+/**
+ * The window, from `createMainWindow.ts`: 1200x800 by default, and never narrower
+ * than 680 — the app has no layout below that, because below that the sidebar and
+ * a chat column stop both being usable.
+ *
+ * `WINDOW_MIN_WIDTH_PX` is what the page scales to when the viewport is narrower
+ * than the app can go. A 390px phone gets the app at its minimum size, complete,
+ * rather than a made-up phone layout of it: see `AppWindow.astro`.
+ */
 export const WINDOW_WIDTH_PX = 1200;
 export const WINDOW_HEIGHT_PX = 800;
+export const WINDOW_MIN_WIDTH_PX = 680;

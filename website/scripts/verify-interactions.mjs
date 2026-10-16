@@ -5,6 +5,12 @@
  * visitor would, and asserts on what changed. Run it after changing anything in
  * src/scripts or the components those scripts bind to.
  *
+ * The last section is the one exception to "interactions": it opens the page at
+ * phone and tablet widths and asserts the shape a window has to keep there — the
+ * app's own minimum width, scaled, with nothing sideways and no dialog hanging
+ * out of it. That contract lives in `AppWindow.astro` and `initWindowFits`, and
+ * the way it breaks is quietly.
+ *
  *   node scripts/verify-interactions.mjs
  */
 import { createServer } from 'node:http';
@@ -328,6 +334,113 @@ function check(name, passed, detail = '') {
     links.every((link) => link.version === CANDIDATE_VERSION && link.asset === CANDIDATE_ASSET),
     JSON.stringify(links),
   );
+}
+
+// --- narrow viewports -------------------------------------------------------
+{
+  /*
+   * The same page on a phone. Nothing here is an interaction — it is the shape
+   * the page promises at a width the app itself cannot go to: a window drawn at
+   * the app's minimum and scaled, overlays that stay inside it, and no sideways
+   * scroll anywhere.
+   */
+  const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await stubReleaseApi(phone);
+  await phone.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
+
+  const measured = await phone.evaluate(() => {
+    const round = (value) => Math.round(value);
+    const windows = [...document.querySelectorAll('[data-window-fit]')].map((fit) => {
+      const canvas = fit.querySelector('[data-window-canvas]');
+      const window_ = canvas.firstElementChild;
+      const fitBox = fit.getBoundingClientRect();
+      const windowBox = window_.getBoundingClientRect();
+      // Everything inside the canvas is drawn full size and then scaled, so the
+      // drawn geometry is the rendered one divided back out by that scale.
+      const scale = windowBox.width / 680;
+      const sidebar = window_.querySelector('aside');
+      return {
+        canvasWidth: canvas.style.width,
+        fitWidth: round(fitBox.width),
+        fitHeight: round(fitBox.height),
+        windowWidth: round(windowBox.width / scale),
+        windowHeight: round(windowBox.height / scale),
+        scale: Number(scale.toFixed(3)),
+        sidebarWidth: round(sidebar.getBoundingClientRect().width / scale),
+        dialogsOutside: [...window_.querySelectorAll('[role="dialog"]')]
+          .map((dialog) => dialog.getBoundingClientRect())
+          .filter(
+            (box) =>
+              box.left < windowBox.left - 1 ||
+              box.right > windowBox.right + 1 ||
+              box.top < windowBox.top - 1 ||
+              box.bottom > windowBox.bottom + 1,
+          ).length,
+      };
+    });
+    return {
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      windows,
+    };
+  });
+
+  const { windows } = measured;
+  check(
+    'phone: the page never scrolls sideways',
+    measured.overflow === 0,
+    `overflow ${measured.overflow}px`,
+  );
+  check(
+    "phone: every window is the app's 680px minimum, scaled to the column",
+    windows.length > 0 &&
+      windows.every(
+        (window_) =>
+          window_.canvasWidth === '680px' &&
+          window_.windowWidth === 680 &&
+          window_.scale > 0.4 &&
+          window_.scale < 0.6,
+      ),
+    JSON.stringify(windows.map((window_) => [window_.canvasWidth, window_.scale])),
+  );
+  check(
+    'phone: the canvas keeps the app 800px tall',
+    windows.every((window_) => window_.windowHeight === 800),
+    JSON.stringify(windows.map((window_) => window_.windowHeight)),
+  );
+  check(
+    'phone: the wrapper reserves the scaled height, not the app height',
+    windows.every((window_) => Math.abs(window_.fitHeight - Math.round(800 * window_.scale)) <= 2),
+    JSON.stringify(windows.map((window_) => [window_.fitHeight, window_.scale])),
+  );
+  check(
+    'phone: the sidebar is drawn in every window',
+    windows.every((window_) => window_.sidebarWidth === 244),
+    JSON.stringify(windows.map((window_) => window_.sidebarWidth)),
+  );
+  check(
+    'phone: no dialog leaves the window it belongs to',
+    windows.every((window_) => window_.dialogsOutside === 0),
+    JSON.stringify(windows.map((window_) => window_.dialogsOutside)),
+  );
+
+  const tablet = await browser.newPage({ viewport: { width: 768, height: 900 } });
+  await stubReleaseApi(tablet);
+  await tablet.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
+  const unscaled = await tablet.evaluate(() => {
+    const fit = document.querySelector('[data-window-fit]');
+    return {
+      width: Math.round(fit.querySelector('[data-window-canvas]').getBoundingClientRect().width),
+      transform: getComputedStyle(fit.querySelector('[data-window-canvas]')).transform,
+    };
+  });
+  check(
+    'tablet: the window is fluid above the app minimum, not scaled',
+    unscaled.transform === 'none' && unscaled.width > 680,
+    JSON.stringify(unscaled),
+  );
+
+  await phone.close();
+  await tablet.close();
 }
 
 // --- reporting --------------------------------------------------------------

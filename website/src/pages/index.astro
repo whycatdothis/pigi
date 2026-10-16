@@ -55,7 +55,7 @@ const principles = [
       <div class="hero-grid pointer-events-none absolute inset-x-0 top-0 h-[720px]"></div>
       <div class="hero-glow pointer-events-none absolute inset-x-0 top-0 h-[720px]"></div>
 
-      <div class="relative mx-auto max-w-6xl px-6 pb-16 pt-16 md:pt-24">
+      <div class="relative mx-auto max-w-[1248px] px-6 pb-16 pt-16 md:pt-24">
         <div class="mx-auto flex max-w-2xl flex-col items-center text-center">
           <a
             href={PI_URL}
@@ -82,7 +82,7 @@ const principles = [
           </div>
         </div>
 
-        <div class="mx-auto mt-14 max-w-[1120px]">
+        <div class="mt-14">
           <AppWindow title="Fix the tree header overlap">
             <Transcript turns={heroTurns} />
           </AppWindow>
@@ -92,7 +92,7 @@ const principles = [
 
     <!-- Instant history -->
     <section id="features" class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-6xl px-6">
+      <div class="mx-auto max-w-[1248px] px-6">
         <SectionIntro
           eyebrow="Instant history"
           icon="bolt"
@@ -117,7 +117,7 @@ const principles = [
 
     <!-- Fork -->
     <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-6xl px-6">
+      <div class="mx-auto max-w-[1248px] px-6">
         <SectionIntro eyebrow="Fork" icon="git-fork" title="Branch off any message.">
           <p>
             Forking copies the conversation up to that point into a chat of its own, with the same
@@ -141,7 +141,7 @@ const principles = [
 
     <!-- Session tree -->
     <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-6xl px-6">
+      <div class="mx-auto max-w-[1248px] px-6">
         <SectionIntro
           eyebrow="Session tree"
           icon="binary-tree-2"
@@ -198,7 +198,7 @@ const principles = [
 
     <!-- View modes -->
     <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-6xl px-6">
+      <div class="mx-auto max-w-[1248px] px-6">
         <SectionIntro
           eyebrow="View modes"
           icon="list-details"
@@ -223,7 +223,7 @@ const principles = [
 
     <!-- Session switcher -->
     <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-6xl px-6">
+      <div class="mx-auto max-w-[1248px] px-6">
         <SectionIntro
           eyebrow="Session switcher"
           icon="search"
@@ -251,7 +251,7 @@ const principles = [
 
     <!-- Terminal -->
     <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-6xl px-6">
+      <div class="mx-auto max-w-[1248px] px-6">
         <SectionIntro eyebrow="Terminal" icon="terminal-2" title="A shell in the same window.">
           <p>
             ⌘J opens a real terminal along the bottom, already in the project the agent is working
@@ -273,7 +273,7 @@ const principles = [
 
     <!-- What it is built on -->
     <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto grid max-w-6xl gap-10 px-6 md:grid-cols-3">
+      <div class="mx-auto grid max-w-[1248px] gap-10 px-6 md:grid-cols-3">
         {
           principles.map((principle) => (
             <div>

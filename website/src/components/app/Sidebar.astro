@@ -59,8 +59,15 @@ interface Props {
 const { activeTitle } = Astro.props;
 ---
 
+<!--
+  Always drawn. The app has no window without a sidebar — it is where sessions,
+  forks and projects live — and this page never draws a window narrower than the
+  app's own minimum, so there is no width at which the window would be the chat
+  column alone: a narrow viewport scales the whole window instead
+  (`AppWindow.astro`).
+-->
 <aside
-  class="hidden shrink-0 flex-col bg-[var(--sidebar-solid)] sm:flex"
+  class="flex shrink-0 flex-col bg-[var(--sidebar-solid)]"
   style={`width:${SIDEBAR_DEFAULT_WIDTH}px`}
 >
   <!-- Room for the traffic lights, which the window paints over this column. -->

@@ -25,7 +25,26 @@ view-mode menu only means something hanging off the toolbar button that opens it
 Each window is self-contained — sidebar, toolbar, transcript, optional panel and overlay — and takes
 its state as props (`terminalOpen`, `viewModes`, `viewMenuOpen`, `overlayOpen`), so a section is a
 window plus a short paragraph. The transcripts live in `src/lib/sessions.ts`; the geometry of a window
-(the app's 800px height, the sidebar's 232px, the terminal's 280px) lives in `src/lib/appLayout.ts`.
+(the app's 800px height, the sidebar's 244px, the terminal's 280px) lives in `src/lib/appLayout.ts`.
+
+### Narrow viewports
+
+A window is always a window the app can actually be. It is fluid from the app's minimum width
+(`WINDOW_MIN_WIDTH_PX`, 680, from `createMainWindow.ts`) up to its default 1200, and the page's
+container is 1248 wide so that a desktop gets the app at its true 1200x800. Below 680 — a phone —
+`AppWindow.astro` draws the window on a fixed 680px canvas and `initWindowFits` in
+`src/scripts/interactions.ts` scales that canvas to the room available.
+
+Scaling instead of reflowing is the whole point. A 1200px window reflowed into 390px is not a small
+window: it is a layout the app has no such thing as, with the sidebar dropped and every dialog cut to
+a ragged truncation — and the sidebar is where the sessions and the fork lineage live, which is half
+of what the page is showing. Scaled, a phone gets the app complete: sidebar, toolbar, transcript,
+dialogs and terminal, at about half size, with the copy around it still at reading size.
+
+Everything inside a window is therefore measured, not assumed. The minimap's bars are the clearest
+case: their width comes from the room between the transcript's column and the window edge
+(`src/lib/minimapGeometry.ts`, ported from `UserMessageMiniMap.tsx`), so a narrow window narrows the
+strip rather than letting it lie over the text.
 
 ### What is on the page
 
@@ -62,12 +81,14 @@ Both scripts drive the built `dist/` in a real browser:
 ```bash
 npm run build
 npm run shots         # writes .shots/*.png: full page and per section
-npm run verify        # asserts the interactive pieces work (25 checks)
+npm run verify        # asserts the interactive pieces work, and the phone-width layout (32 checks)
 npm run check:drift   # asserts the copied app classes still exist in the app
 ```
 
-`npm run shots` takes a viewport width as an argument (`npm run shots 900`) so a narrow layout can be
-looked at without editing the script. Both scripts answer the GitHub releases API from
+`npm run shots` takes a viewport width as an argument (`npm run shots 390`) so a narrow layout can be
+looked at without editing the script. `npm run verify` already opens the page at 390 and 768 to check
+the window contract; the screenshots at those widths are how a change to it gets looked at rather than
+asserted. Both scripts answer the GitHub releases API from
 `scripts/releaseFixture.mjs` rather than the network: an unauthenticated call is limited to 60 an hour,
 and a run that trips the limit would report the download fallback and look like a broken button.
 
