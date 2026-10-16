@@ -1,0 +1,46 @@
+---
+import Icon from '../Icon.astro';
+import { LATEST_RELEASE_URL, UMAMI_EVENT_DOWNLOAD } from '../../lib/site';
+
+/**
+ * The download button, in the hero and in the header.
+ *
+ * The markup points at the release page, which always works. src/scripts/
+ * interactions.ts upgrades the href to the arm64 DMG's direct URL once the
+ * releases API answers, and leaves it alone if it does not.
+ *
+ * The label names the architecture. The app publishes one DMG and it is arm64,
+ * so a button that only said "macOS" would hand an Intel reader a file that
+ * cannot run — the one thing the old install section used to say out loud.
+ */
+interface Props {
+  /** `hero` is the page's primary action; `compact` is the header's. */
+  variant?: 'hero' | 'compact';
+  class?: string;
+}
+
+const { variant = 'hero', class: className } = Astro.props;
+---
+
+<a
+  href={LATEST_RELEASE_URL}
+  data-download-link
+  data-umami-event={UMAMI_EVENT_DOWNLOAD}
+  class:list={[
+    'group shrink-0 items-center gap-2.5 rounded-xl bg-foreground font-medium text-background transition-opacity hover:opacity-85',
+    variant === 'hero' ? 'inline-flex h-12 px-5 text-sm' : 'flex h-8 rounded-lg px-3 text-[13px]',
+    className,
+  ]}
+>
+  <Icon name="download" size={variant === 'hero' ? 17 : 14} />
+  {variant === 'hero' ? 'Download for Apple Silicon' : 'Download'}
+  {
+    variant === 'hero' && (
+      <Icon
+        name="arrow-right"
+        size={16}
+        class="text-background/60 transition-transform group-hover:translate-x-0.5"
+      />
+    )
+  }
+</a>

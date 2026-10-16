@@ -1,0 +1,118 @@
+---
+export interface MinimapMessage {
+  text: string;
+  time: string;
+}
+
+interface Props {
+  messages: MinimapMessage[];
+  activeIndex: number;
+  /**
+   * The hero's window is a still of the app, not a working transcript: there is
+   * nothing to scroll, so there is nothing for the bars to do. Only the strip is
+   * drawn there, without the list it would otherwise open.
+   */
+  interactive?: boolean;
+}
+
+const { messages, activeIndex, interactive = true } = Astro.props;
+
+const LINE_WIDTH_MIN_CAP = 8;
+/**
+ * The app measures the room between the transcript's centred column and the
+ * window edge to size its bars (UserMessageMiniMap.tsx). The window on this page
+ * is a fixed width, so the measurement is a constant: it lands on the same
+ * number, without a ResizeObserver to recompute it.
+ */
+const MAX_LINE_WIDTH = 40;
+
+/**
+ * Bar width by position, ported from the app: the bars swell towards the middle
+ * of the list, which makes the shape of a session readable at a glance — where
+ * the conversation started, where it got dense, where it stopped.
+ */
+function getLineWidth(index: number, total: number, maxWidth: number): number {
+  if (total <= 1) return maxWidth * 0.4;
+  if (total === 2) return Math.round(maxWidth * 0.5);
+
+  const normalized = index / (total - 1);
+  const distanceFromCentre = 1 - Math.abs(normalized * 2 - 1);
+
+  if (total <= 5) {
+    const target = maxWidth * 0.6;
+    return Math.round(LINE_WIDTH_MIN_CAP + distanceFromCentre * (target - LINE_WIDTH_MIN_CAP));
+  }
+  if (total <= 10) {
+    const factor = distanceFromCentre * distanceFromCentre;
+    return Math.round(LINE_WIDTH_MIN_CAP + factor * (maxWidth * 0.8 - LINE_WIDTH_MIN_CAP));
+  }
+
+  const factor = distanceFromCentre * distanceFromCentre;
+  return Math.round(LINE_WIDTH_MIN_CAP + factor * (maxWidth - LINE_WIDTH_MIN_CAP));
+}
+---
+
+<!--
+  Two elements that have to move together: the strip of bars, and the list it
+  opens. Where both are present, src/scripts/interactions.ts binds them to the
+  transcript they sit beside.
+-->
+<div
+  class="absolute right-0 top-1/2 z-10 flex -translate-y-1/2 flex-col items-end gap-1.5 rounded-l py-2 pl-1 opacity-60 transition-opacity hover:opacity-90"
+  data-minimap={interactive ? '' : undefined}
+  role="navigation"
+  aria-label="Message navigation"
+>
+  {
+    messages.map((_message, index) => (
+      <span
+        class="rounded-full transition-colors"
+        data-minimap-bar
+        data-index={index}
+        data-target={index}
+        style={{
+          width: `${getLineWidth(index, messages.length, MAX_LINE_WIDTH)}px`,
+          height: '1.5px',
+          backgroundColor:
+            index === activeIndex
+              ? 'var(--system-accent)'
+              : 'color-mix(in srgb, var(--muted-foreground) 50%, transparent)',
+        }}
+      />
+    ))
+  }
+</div>
+
+{
+  interactive && (
+    <div
+      class="absolute right-2 top-1/2 z-20 hidden w-64 -translate-y-1/2 flex-col gap-0.5 overflow-hidden rounded-lg border border-border/60 bg-popover/90 p-1 shadow-[var(--popover-shadow)] backdrop-blur-md data-[open=true]:flex"
+      data-minimap-panel
+      data-open="false"
+    >
+      {messages.map((message, index) => (
+        <button
+          type="button"
+          class:list={[
+            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+            index === activeIndex
+              ? 'bg-[var(--system-accent)]/10'
+              : 'hover:bg-[var(--system-accent)]/10',
+          ]}
+          data-minimap-entry
+          data-target={index}
+        >
+          <span
+            class:list={[
+              'min-w-0 flex-1 truncate text-[13px]',
+              index === activeIndex ? 'text-[var(--system-accent)]' : 'text-foreground',
+            ]}
+          >
+            {message.text}
+          </span>
+          <span class="shrink-0 text-[11px] text-muted-foreground">{message.time}</span>
+        </button>
+      ))}
+    </div>
+  )
+}

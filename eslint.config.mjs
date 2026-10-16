@@ -9,7 +9,17 @@ import eslintPluginReactRefresh from 'eslint-plugin-react-refresh';
 const BREAKPOINT_VARIANT_PATTERN = '(^|[\\s:])(max-)?(sm|md|lg|xl|2xl):[a-z\\[-]';
 
 export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/out', 'scripts/**/*.cjs'] },
+  {
+    ignores: [
+      '**/node_modules',
+      '**/dist',
+      '**/out',
+      'scripts/**/*.cjs',
+      // The marketing site is its own project with its own toolchain; it is
+      // typechecked, linted and formatted by `npm run check` inside website/.
+      'website/**',
+    ],
+  },
   tseslint.configs.recommended,
   eslintPluginReact.configs.flat.recommended,
   eslintPluginReact.configs.flat['jsx-runtime'],

@@ -1,0 +1,20 @@
+---
+interface Props {
+  duration: string;
+  /** Trimmed to the app's 120px clamp, with the bottom edge fading out. */
+  clamp?: boolean;
+}
+
+const { duration, clamp = false } = Astro.props;
+---
+
+<div class="rounded-md bg-muted/70 px-3 py-1.5 text-muted-foreground">
+  <div class="flex items-center justify-between gap-2 text-[13px] font-medium">
+    <span>Thinking</span>
+    <span class="font-normal tabular-nums">{duration}</span>
+  </div>
+  <div class:list={[clamp && 'max-h-[92px] overflow-hidden content-fade-bottom']}>
+    <pre
+      class="whitespace-pre-wrap break-words font-sans text-[14px] leading-5 text-muted-foreground"><slot /></pre>
+  </div>
+</div>

@@ -1,0 +1,105 @@
+---
+import Sidebar from './Sidebar.astro';
+import SessionToolbar from './SessionToolbar.astro';
+import ChatInput from './ChatInput.astro';
+import { TERMINAL_HEIGHT_PX, WINDOW_HEIGHT_PX } from '../../lib/appLayout';
+
+/**
+ * The app window, as one component.
+ *
+ * Every feature on this page is shown inside a real one of these rather than as
+ * a cropped fragment: the app's layout is the thing that makes a feature legible
+ * — the terminal is only "the terminal" because it takes the bottom of the chat
+ * column and the transcript stays above it, and the tree is only a dialog because
+ * the window behind it dims.
+ *
+ * The measurements are the app's own: 1200x800 for the default window
+ * (src/main/windows/createMainWindow.ts), h-11 for the toolbar, 232px for the
+ * sidebar, TERMINAL_DEFAULT_HEIGHT for the panel.
+ */
+interface Props {
+  /** The session title in the toolbar, and the sidebar row it selects. */
+  title: string;
+  variant?: 'followUp' | 'newSession';
+  height?: number;
+  /** The bottom panel is open, so the chat column stops above it. */
+  terminalOpen?: boolean;
+  /** The view-mode menu is open under the toolbar's filter button. */
+  viewMenuOpen?: boolean;
+  /** A dialog is over the window, so the app behind it dims. */
+  overlayOpen?: boolean;
+  /** This window's transcript is the one the view-mode menu switches. */
+  viewModes?: boolean;
+}
+
+const {
+  title,
+  variant = 'followUp',
+  height = WINDOW_HEIGHT_PX,
+  terminalOpen = false,
+  viewMenuOpen = false,
+  overlayOpen = false,
+  viewModes = false,
+} = Astro.props;
+
+const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_HEIGHT_PX}px` : '0'}`;
+---
+
+<div
+  class="group/view relative overflow-hidden rounded-xl border border-[var(--window-border)] bg-background shadow-[var(--window-shadow)]"
+  style={`height:${height}px`}
+  data-window-title={title}
+  data-view-modes={viewModes ? 'true' : undefined}
+  data-active={viewModes ? 'minimal' : undefined}
+>
+  <!-- The traffic lights the window server usually draws. -->
+  <div class="pointer-events-none absolute left-5 top-5 z-10 flex gap-2">
+    <span class="traffic-light bg-[#ff5f57]"></span>
+    <span class="traffic-light bg-[#febc2e]"></span>
+    <span class="traffic-light bg-[#28c840]"></span>
+  </div>
+
+  <div class="flex h-full">
+    <Sidebar activeTitle={title} />
+
+    <main
+      class="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-l-xl border-l-[0.5px] border-foreground/27 bg-background"
+    >
+      <SessionToolbar
+        title={title}
+        terminalOpen={terminalOpen}
+        viewModes={viewModes}
+        viewMenuOpen={viewMenuOpen}
+      />
+
+      <div class="relative min-h-0 flex-1 overflow-hidden">
+        <!--
+          The chat column. In the app this is an absolutely positioned column
+          whose `bottom` is the terminal's height, animated; that is what makes the
+          transcript's scroll viewport end above the panel instead of being covered
+          by it.
+        -->
+        <div class="absolute inset-x-0 top-0 flex flex-col" style={chatStyle}>
+          <div class="flex min-h-0 flex-1 flex-col">
+            <slot />
+          </div>
+          <ChatInput variant={variant} />
+        </div>
+
+        {
+          terminalOpen && (
+            <div
+              class="absolute inset-x-0 bottom-0 border-t-[0.5px] border-foreground/25"
+              style={`height:${TERMINAL_HEIGHT_PX}px`}
+            >
+              <slot name="panel" />
+            </div>
+          )
+        }
+      </div>
+
+      {overlayOpen && <div class="absolute inset-0 z-20 bg-black/20" aria-hidden="true" />}
+      <slot name="overlay" />
+    </main>
+  </div>
+</div>

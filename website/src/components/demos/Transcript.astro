@@ -1,0 +1,100 @@
+---
+import UserMessage from '../app/UserMessage.astro';
+import AssistantMessage from '../app/AssistantMessage.astro';
+import ThinkingBlock from '../app/ThinkingBlock.astro';
+import ToolCard from '../app/ToolCard.astro';
+import Minimap from './Minimap.astro';
+
+export interface Turn {
+  user: string;
+  time: string;
+  thinking?: string;
+  tool?: { command: string; prefix?: string; output: string[]; duration: string };
+  reply?: string;
+  /** The last reply of a session carries its time; the ones above do not. */
+  last?: boolean;
+}
+
+interface Props {
+  turns: Turn[];
+  /** Whether the transcript is the thing being demonstrated, so it scrolls. */
+  scroll?: boolean;
+  /** The strip of bars on the right — the app's own minimap. */
+  minimap?: boolean;
+}
+
+/**
+ * A transcript, laid out the way the app lays one out.
+ *
+ * The metrics are the app's: a centred column of 860px with 20px of inline
+ * padding inside it (MESSAGE_LIST_MAX_WIDTH / MESSAGE_LIST_HORIZONTAL_PADDING), a
+ * 24px inset at the top, and one gap step between stacked blocks.
+ *
+ * `scroll` is the difference between a still and a demo. A still is clipped by the
+ * window, which is what a reader expects of a picture; the instant-history section
+ * is about scrolling an old session, so there the transcript is a real scroll
+ * container with a real minimap beside it.
+ */
+const { turns, scroll = false, minimap = false } = Astro.props;
+
+const column = 'mx-auto flex w-full max-w-[860px] flex-col px-5 pb-24 pt-6';
+---
+
+<div class="relative min-h-0 flex-1" data-minimap-scope={minimap ? '' : undefined}>
+  <!--
+    A still is anchored to the bottom the way a live session is: the app keeps the
+    transcript pinned to its newest message, so a short session shows its content
+    against the input with the empty space above it, not below.
+  -->
+  <div
+    class:list={[
+      scroll
+        ? 'no-scrollbar h-full overflow-y-auto'
+        : 'flex h-full flex-col justify-end overflow-hidden',
+    ]}
+    data-minimap-scroll={scroll ? '' : undefined}
+  >
+    <div class={column}>
+      {
+        turns.map((turn, index) => (
+          <div data-message-index={index}>
+            <UserMessage time={turn.time}>{turn.user}</UserMessage>
+
+            <div class="flex flex-col gap-2 pt-2">
+              {turn.thinking && (
+                <ThinkingBlock duration="2s" clamp>
+                  {turn.thinking}
+                </ThinkingBlock>
+              )}
+              {turn.tool && (
+                <ToolCard
+                  prefix={turn.tool.prefix}
+                  command={turn.tool.command}
+                  output={turn.tool.output}
+                  duration={turn.tool.duration}
+                />
+              )}
+            </div>
+
+            {turn.reply && (
+              <div class="mt-2">
+                <AssistantMessage time={turn.last ? turn.time : undefined}>
+                  <p>{turn.reply}</p>
+                </AssistantMessage>
+              </div>
+            )}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+
+  {
+    minimap && (
+      <Minimap
+        messages={turns.map((turn) => ({ text: turn.user, time: turn.time }))}
+        activeIndex={turns.length - 1}
+      />
+    )
+  }
+</div>

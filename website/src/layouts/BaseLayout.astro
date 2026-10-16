@@ -1,0 +1,58 @@
+---
+import '../styles/global.css';
+import { UMAMI_SCRIPT_URL, UMAMI_WEBSITE_ID } from '../lib/site';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/icon-256.png" />
+    <meta name="theme-color" content="#f9f9fb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#191919" media="(prefers-color-scheme: dark)" />
+
+    <!--
+      The theme, before the first paint.
+
+      Blocking and inline on purpose: the class has to be on <html> before the
+      body is painted, or a reader who chose dark gets a white flash on every
+      navigation. Same `theme` key and same three values as the app's own
+      themeProvider, so the two agree if a reader sets both.
+    -->
+    <script is:inline>
+      (() => {
+        const stored = localStorage.getItem('theme');
+        const dark =
+          stored === 'dark' ||
+          (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', dark);
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      })();
+    </script>
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL('/icon-256.png', Astro.site).href} />
+    <meta name="twitter:card" content="summary" />
+
+    <script defer src={UMAMI_SCRIPT_URL} data-website-id={UMAMI_WEBSITE_ID}></script>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

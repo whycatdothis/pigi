@@ -1,0 +1,225 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/Icon.astro';
+import Header from '../components/site/Header.astro';
+import Footer from '../components/site/Footer.astro';
+import SectionIntro from '../components/site/SectionIntro.astro';
+import DownloadButton from '../components/site/DownloadButton.astro';
+import AppWindow from '../components/app/AppWindow.astro';
+import Transcript from '../components/demos/Transcript.astro';
+import SessionTreeDialog from '../components/demos/SessionTreeDialog.astro';
+import ViewModes from '../components/demos/ViewModes.astro';
+import SessionSwitcher from '../components/demos/SessionSwitcher.astro';
+import TerminalPanel from '../components/demos/TerminalPanel.astro';
+import { heroTurns, historyTurns, switcherTurns, terminalTurns, treeTurns } from '../lib/sessions';
+import { PI_URL } from '../lib/site';
+
+const title = 'pigi — a sleek desktop GUI for pi';
+const description =
+  'A sleek macOS window for your pi sessions: instant history, forking, a session tree and a terminal, on the pi configuration you already have.';
+
+const principles = [
+  {
+    icon: 'git-fork' as const,
+    title: 'The same agent',
+    body: 'pigi runs the pi agent library itself, in a process beside the window. Every tool pi supports, pigi supports.',
+  },
+  {
+    icon: 'settings' as const,
+    title: 'Your config',
+    body: 'Models, skills and AGENTS.md come from the pi setup already on the machine. Nothing to describe twice.',
+  },
+  {
+    icon: 'lock' as const,
+    title: 'No telemetry',
+    body: 'No analytics, no crash reporting, no account. Sessions stay in pi’s session directory as pi’s own files.',
+  },
+];
+---
+
+<BaseLayout title={title} description={description}>
+  <Header />
+
+  <main>
+    <!-- Hero -->
+    <section class="relative overflow-hidden">
+      <div class="hero-grid pointer-events-none absolute inset-x-0 top-0 h-[720px]"></div>
+      <div class="hero-glow pointer-events-none absolute inset-x-0 top-0 h-[720px]"></div>
+
+      <div class="relative mx-auto max-w-6xl px-6 pb-16 pt-16 md:pt-24">
+        <div class="mx-auto flex max-w-2xl flex-col items-center text-center">
+          <a
+            href={PI_URL}
+            class="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-background/70 py-1 pl-3 pr-2.5 text-[13px] text-muted-foreground backdrop-blur transition-colors hover:text-foreground"
+          >
+            A sleek desktop GUI for pi
+            <Icon name="arrow-right" size={14} />
+          </a>
+
+          <h1
+            class="text-[38px] font-semibold leading-[1.08] tracking-[-0.02em] text-foreground md:text-[54px]"
+          >
+            A sleek GUI for pi that keeps up.
+          </h1>
+
+          <p class="mt-5 text-[17px] leading-7 text-muted-foreground">
+            Your pi sessions, in a window: history that opens instantly, forking, a session tree and
+            a terminal where the work happens.
+          </p>
+
+          <div class="mt-8">
+            <DownloadButton />
+          </div>
+        </div>
+
+        <div class="mx-auto mt-14 max-w-[1120px]">
+          <AppWindow title="Fix the tree header overlap">
+            <Transcript turns={heroTurns} />
+          </AppWindow>
+        </div>
+      </div>
+    </section>
+
+    <!-- Instant history -->
+    <section id="features" class="border-t border-border/70 py-20 md:py-28">
+      <div class="mx-auto max-w-6xl px-6">
+        <SectionIntro
+          eyebrow="Instant history"
+          icon="bolt"
+          title="A long session is not a loading screen."
+        >
+          <p>
+            Sessions open as fast as the window does — parsed in their own process, drawn as a
+            windowed list that measures a row once and remembers it.
+          </p>
+        </SectionIntro>
+
+        <div class="mt-10">
+          <AppWindow title="Terminal panel resize jank">
+            <Transcript turns={historyTurns} scroll minimap />
+          </AppWindow>
+        </div>
+        <p class="mt-3 text-center text-xs text-muted-foreground">
+          Eight turns, all in the window. Scroll it, or click a bar to jump back.
+        </p>
+      </div>
+    </section>
+
+    <!-- Fork and the session tree -->
+    <section class="border-t border-border/70 py-20 md:py-28">
+      <div class="mx-auto max-w-6xl px-6">
+        <SectionIntro
+          eyebrow="Fork and tree"
+          icon="git-fork"
+          title="Rewind without losing what you had."
+        >
+          <p>
+            Any message is a place you can go back to. Going back moves the session — it does not
+            delete what it leaves behind, and it does not ask the model to summarise anything.
+          </p>
+        </SectionIntro>
+
+        <div class="mt-10">
+          <AppWindow title="Add the chat minimap" overlayOpen>
+            <Transcript turns={treeTurns} />
+            <SessionTreeDialog slot="overlay" />
+          </AppWindow>
+        </div>
+        <p class="mt-3 text-center text-xs text-muted-foreground">
+          The accent line is the path to where the session is now. Hover a row to see what a jump
+          would leave behind.
+        </p>
+      </div>
+    </section>
+
+    <!-- View modes -->
+    <section class="border-t border-border/70 py-20 md:py-28">
+      <div class="mx-auto max-w-6xl px-6">
+        <SectionIntro
+          eyebrow="View modes"
+          icon="list-details"
+          title="One transcript, three densities."
+        >
+          <p>
+            Minimal shows the timer and the answer. Compact folds consecutive read-only calls into
+            one line. Show All is the native pi log, line for line.
+          </p>
+        </SectionIntro>
+
+        <div class="mt-10">
+          <AppWindow title="The transcript flickers" viewModes viewMenuOpen>
+            <ViewModes />
+          </AppWindow>
+        </div>
+        <p class="mt-3 text-center text-xs text-muted-foreground">
+          Pick a mode from the filter menu in the toolbar — the turn is the same in all three.
+        </p>
+      </div>
+    </section>
+
+    <!-- Session switcher -->
+    <section class="border-t border-border/70 py-20 md:py-28">
+      <div class="mx-auto max-w-6xl px-6">
+        <SectionIntro eyebrow="Session switcher" icon="search" title="⌃R finds any session.">
+          <p>
+            Every session in every project, in one field. Type a few letters of a title you half
+            remember; the keys that matched are marked, so you can see why a row is there.
+          </p>
+        </SectionIntro>
+
+        <div class="mt-10">
+          <AppWindow title="Add the chat minimap">
+            <Transcript turns={switcherTurns} />
+            <SessionSwitcher slot="overlay" />
+          </AppWindow>
+        </div>
+        <p class="mt-3 text-center text-xs text-muted-foreground">
+          Type to filter it, ↑ and ↓ to move, Enter to take the session.
+        </p>
+      </div>
+    </section>
+
+    <!-- Terminal -->
+    <section class="border-t border-border/70 py-20 md:py-28">
+      <div class="mx-auto max-w-6xl px-6">
+        <SectionIntro eyebrow="Terminal" icon="terminal-2" title="A shell in the same window.">
+          <p>
+            ⌘J opens a real terminal along the bottom, already in the project the agent is working
+            in. Run the test it just broke without leaving the conversation. Tabs included.
+          </p>
+        </SectionIntro>
+
+        <div class="mt-10">
+          <AppWindow title="Fix the tree header overlap" terminalOpen>
+            <Transcript turns={terminalTurns} />
+            <TerminalPanel slot="panel" />
+          </AppWindow>
+        </div>
+        <p class="mt-3 text-center text-xs text-muted-foreground">
+          The transcript's scroll viewport ends above the panel, so nothing is ever covered by it.
+        </p>
+      </div>
+    </section>
+
+    <!-- What it is built on -->
+    <section class="border-t border-border/70 py-20 md:py-28">
+      <div class="mx-auto grid max-w-6xl gap-10 px-6 md:grid-cols-3">
+        {
+          principles.map((principle) => (
+            <div>
+              <Icon name={principle.icon} size={20} class="text-[var(--system-accent)]" />
+              <h3 class="mt-4 text-[15px] font-medium text-foreground">{principle.title}</h3>
+              <p class="mt-2 text-[14px] leading-6 text-muted-foreground">{principle.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<script>
+  import '../scripts/interactions';
+</script>

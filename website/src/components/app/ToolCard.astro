@@ -1,0 +1,103 @@
+---
+import Icon from '../Icon.astro';
+
+export interface DiffLine {
+  type: 'add' | 'remove' | 'context' | 'separator';
+  number?: number;
+  content?: string;
+}
+
+interface Props {
+  /** `$` for a shell command, `→` for a file edit — the app's two prefixes. */
+  prefix?: string;
+  command: string;
+  output?: string[];
+  diff?: DiffLine[];
+  status?: 'success' | 'error' | 'running';
+  duration?: string;
+}
+
+const {
+  prefix = '$',
+  command,
+  output = [],
+  diff,
+  status = 'success',
+  duration = '0.3s',
+} = Astro.props;
+
+/**
+ * The status colours are literal in the app too (they are not theme tokens):
+ * a fixed green, red and grey so a run reads the same in either appearance.
+ */
+const statusClassName = {
+  success: 'text-[#166534]',
+  error: 'text-[#991b1b]',
+  running: 'text-[#854d0e]',
+}[status];
+
+const diffLineClassName = {
+  add: 'bg-green-500/15 text-green-700',
+  remove: 'bg-red-500/15 text-red-700',
+  context: 'text-muted-foreground',
+};
+---
+
+<div
+  class="overflow-clip rounded-md border border-border/65 bg-muted/25 px-3 pt-0 pb-1.5 text-sm text-muted-foreground"
+>
+  <div
+    class="-mx-3 flex items-start gap-1 px-3 pt-1.5 font-mono text-[14px] font-medium leading-5 text-foreground"
+  >
+    <span class="shrink-0">{prefix}</span>
+    <span class="min-w-0 break-words [overflow-wrap:anywhere]">{command}</span>
+  </div>
+
+  {
+    diff && (
+      <div class="overflow-hidden rounded font-mono text-[13px] leading-5">
+        {diff.map((line) =>
+          line.type === 'separator' ? (
+            <div class="bg-muted/30 px-3 py-0.5 text-xs text-muted-foreground">⋯</div>
+          ) : (
+            <div class:list={['flex', diffLineClassName[line.type]]}>
+              <span class="w-4 shrink-0 select-none text-center opacity-50">
+                {line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' '}
+              </span>
+              <span class="w-8 shrink-0 select-none text-right tabular-nums opacity-50">
+                {line.number ?? ''}
+              </span>
+              <span class="min-w-0 whitespace-pre-wrap break-all px-2">{line.content}</span>
+            </div>
+          ),
+        )}
+      </div>
+    )
+  }
+
+  {
+    output.length > 0 && (
+      // `set:text` rather than a template child: whitespace inside a `<pre>` is
+      // content, so the newline and indent the formatter puts around an
+      // expression would appear as an indented first line of output.
+      <pre
+        class="overflow-x-auto overscroll-x-none whitespace-pre font-mono text-[14px] leading-5 text-muted-foreground"
+        set:text={output.join('\n')}
+      />
+    )
+  }
+
+  <div
+    class:list={[
+      '-mx-3 -mb-2 flex items-center justify-between gap-1.5 rounded-b-md px-3 py-1.5 text-xs font-medium',
+      statusClassName,
+    ]}
+  >
+    <span class="flex items-center gap-1">
+      {status === 'success' && <Icon name="check" size={14} stroke={2} />}
+      {status === 'error' && <Icon name="x" size={14} stroke={2} />}
+      {status === 'running' && <Icon name="loader-2" size={14} class="animate-spin" />}
+      <span class="tabular-nums">{duration}</span>
+    </span>
+  </div>
+</div>
