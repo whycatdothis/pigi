@@ -1,0 +1,77 @@
+---
+import Icon from '../Icon.astro';
+import { DIALOG_SURFACE } from '../../lib/appUi';
+
+/**
+ * "Tree: a time machine for this session" — the app's own explanation dialog.
+ *
+ * Every word is `SessionTreeHelpDialog.tsx`: the three points, their order, the
+ * icons beside them, and the note at the bottom about hovering, searching and
+ * pressing Enter. In the app it opens from the `?` beside the tree's search
+ * field or in the tree action's tooltip; here it is a still, because the thing it
+ * explains is a feature and the feature deserves to be read rather than hovered.
+ *
+ * `max-w-[520px]`, which is the app's own override for this dialog.
+ */
+const points = [
+  {
+    icon: 'history' as const,
+    iconClass: '',
+    title: 'Jump anywhere in the history',
+    body: 'Every message this session ever had is still here. Moving to an earlier one rewinds the conversation to that point — nothing is deleted, the messages you leave behind stay in the tree.',
+  },
+  {
+    icon: 'arrows-minimize' as const,
+    iconClass: '',
+    title: 'Summarize the branch you leave, or skip it',
+    body: 'When a jump would leave messages behind, pigi offers to summarize them into the context. Skipping is fine too: a summary only changes what the model sees, never the tree.',
+  },
+  {
+    icon: 'arrow-fork' as const,
+    // The app's fork glyph is drawn on its side (sessionTreeIcons.tsx).
+    iconClass: 'rotate-90',
+    title: 'Keep going from anywhere',
+    body: 'The next message you send after a jump starts a new branch. From that branch you can jump to any node of any other branch at any time.',
+  },
+];
+---
+
+<div
+  role="dialog"
+  aria-label="What is the session tree?"
+  class:list={[
+    'absolute left-1/2 top-1/2 z-30 flex w-[min(520px,92%)] -translate-x-1/2 -translate-y-1/2 flex-col',
+    DIALOG_SURFACE.classes,
+  ]}
+>
+  <div class="flex items-center gap-2">
+    <Icon
+      name="binary-tree-2"
+      size={16}
+      class="shrink-0 scale-[1.15] [stroke-width:calc(1.5/1.15)] text-muted-foreground"
+    />
+    <h3 class="text-sm font-medium text-foreground">Tree: a time machine for this session</h3>
+  </div>
+
+  <div class="mt-4 flex flex-col gap-3">
+    {
+      points.map((point) => (
+        <div class="flex gap-3">
+          <span class="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <Icon name={point.icon} size={14} class={point.iconClass} />
+          </span>
+          <span class="flex min-w-0 flex-col gap-0.5">
+            <span class="text-[13px] font-medium text-foreground">{point.title}</span>
+            <span class="text-[13px] leading-relaxed text-muted-foreground">{point.body}</span>
+          </span>
+        </div>
+      ))
+    }
+  </div>
+
+  <p class="mt-4 rounded-md bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+    Hover a row for a preview, search or filter to find one, then click it (or press Enter) to move
+    the session there. Searching picks out the first match, and the up and down arrows move that
+    pick without leaving the search box.
+  </p>
+</div>

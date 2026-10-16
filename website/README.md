@@ -29,9 +29,14 @@ window plus a short paragraph. The transcripts live in `src/lib/sessions.ts`; th
 
 ### What is on the page
 
-Hero, then five feature sections (instant history, fork and tree, view modes, session switcher,
-terminal), then the three things the app is built on, then the footer. That is the whole page: no
-install section, no shortcut table, no FAQ. Nothing that is not a feature or a claim about one.
+Hero, then six feature sections — instant history, fork, session tree (the tree dialog and the help
+dialog it opens), view modes, session switcher, terminal — then the three things the app is built on,
+then the footer. That is the whole page: no install section, no shortcut table, no FAQ. Nothing that
+is not a feature or a claim about one.
+
+Every section is one window, except the session tree's, which is two: the tree and the explanation it
+opens from the `?` beside its search field. The second window is shorter than the app's default because
+the dialog in it is 520px wide and a still of it does not need 800px of height.
 
 The header's Download button is the same component as the hero's (`variant="compact"`), and both are
 real downloads — there is no `#install` anchor to scroll to. Two claims the page makes have no home

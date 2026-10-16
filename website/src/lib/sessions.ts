@@ -35,6 +35,41 @@ export const heroTurns: Turn[] = [
 ];
 
 /**
+ * The fork window.
+ *
+ * One finished turn and one the user is hovering: the still stands in for a
+ * pointer over the newest message, which is where the app's fork action appears.
+ * The tooltip's words are the app's own label for that action
+ * (`messageBubbles.tsx`).
+ *
+ * The title matches a row in the sidebar, and the row under that one is a chat
+ * forked from it.
+ */
+export const forkTurns: Turn[] = [
+  {
+    user: 'the tree blanks the window when a session is long',
+    time: '11:02',
+    thinking:
+      'Every row is measured on mount, so a session with thousands of entries spends the first frames laying all of them out.',
+    tool: {
+      command: 'read src/renderer/src/components/sessionTree/SessionTreeList.tsx',
+      output: ['86  * Row heights are constants and headers are measured, so'],
+      duration: '0.2s',
+    },
+    reply:
+      'Rows are a fixed height and the list draws a window over them, so it never measures the whole tree.',
+  },
+  {
+    user: 'and the header should stay put while the rows scroll',
+    time: '11:05',
+    actionTooltip: {
+      label: 'Fork this msg in new session',
+      hint: 'Copies the conversation up to here into a chat of its own',
+    },
+  },
+];
+
+/**
  * The instant-history window: eight turns, long enough that the only way back to
  * the top is the minimap. That is the section's claim, so the panel has to be
  * worth navigating.

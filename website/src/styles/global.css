@@ -47,6 +47,20 @@
 }
 
 @layer base {
+  /*
+   * Every `border` utility without a colour of its own is the theme's border
+   * colour, not `currentColor`.
+   *
+   * Tailwind v4 changed that default, and the app resets it here; without the
+   * same line a `border` on this page comes out as dark as the text next to it,
+   * which is what the composer's edge did. `outline-ring/50` comes with it, and
+   * the `:focus-visible` rule below still wins for anything reachable by tab,
+   * since a pseudo-class beats `*`.
+   */
+  * {
+    @apply border-border outline-ring/50;
+  }
+
   html {
     font-family: var(--font-sans);
     scroll-behavior: smooth;
@@ -412,8 +426,24 @@
   transition: opacity 120ms ease 350ms;
 }
 
+/*
+ * The same label, hung off the right edge instead of centred.
+ *
+ * A message's actions sit against the right edge of the transcript, so a centred
+ * label would leave the window. The app's message tooltip carries
+ * `collisionPadding={8}` and Radix shifts it to fit; this is the shifted result,
+ * written down because a still has no pointer to shift for it.
+ */
+.app-tooltip-end {
+  left: auto;
+  right: 0;
+  transform: none;
+  white-space: normal;
+}
+
 .group:hover > .app-tooltip,
-.group:focus-visible > .app-tooltip {
+.group:focus-visible > .app-tooltip,
+.app-tooltip[data-open='true'] {
   opacity: 1;
 }
 

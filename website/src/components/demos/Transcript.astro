@@ -13,6 +13,11 @@ import {
 export interface Turn {
   user: string;
   time: string;
+  /**
+   * The actions a message shows on hover, left visible. The app's own labels:
+   * `Fork this msg in new session`, and for the tree, `Session tree`.
+   */
+  actionTooltip?: { label: string; hint?: string };
   thinking?: string;
   tool?: { command: string; prefix?: string; output: string[]; duration: string };
   reply?: string;
@@ -76,7 +81,14 @@ const columnStyle = [
       {
         turns.map((turn, index) => (
           <div data-message-index={index}>
-            <UserMessage time={turn.time}>{turn.user}</UserMessage>
+            <UserMessage
+              time={turn.time}
+              actions={turn.actionTooltip ? 'full' : false}
+              showActions={turn.actionTooltip !== undefined}
+              actionTooltip={turn.actionTooltip}
+            >
+              {turn.user}
+            </UserMessage>
 
             <div class="flex flex-col gap-2 pt-2">
               {turn.thinking && (

@@ -1,31 +1,64 @@
 ---
 import Icon from '../Icon.astro';
+import { ACTION_BUTTON, TOOLTIP_CONTENT } from '../../lib/appUi';
 
+/**
+ * A message's hover actions: copy, and — on a message that can be a place to
+ * return to — the session tree and a fork.
+ *
+ * The app reveals these on hover and labels them in one tooltip that follows the
+ * pointer from icon to icon (`MessageToolbar` in messageBubbles.tsx); a fork's
+ * label is its own, and the `?` that explains the tree comes and goes with the
+ * tree's. `tooltip` is that label, written out on the stills where there is no
+ * pointer to hover with.
+ */
 interface Props {
   /** `full` is what the app shows on an assistant or user message; `copy` is what
    *  a tool card gets. */
   kind?: 'full' | 'copy';
   time?: string;
+  /** Keep the actions visible, for a still standing in for a hover. */
+  visible?: boolean;
+  /** The label the app would be showing for the action under the pointer. */
+  tooltip?: { label: string; hint?: string };
 }
 
-const { kind = 'full', time } = Astro.props;
+const { kind = 'full', time, visible = false, tooltip } = Astro.props;
+
+const button = ACTION_BUTTON.classes;
 ---
 
 <!-- Hidden until the message is hovered, exactly as the app reveals it. -->
 <div
-  class="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+  class:list={[
+    'group/actions relative flex items-center justify-end gap-1 transition-opacity',
+    visible ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+  ]}
 >
   <span class="flex items-center gap-1 pt-0.5">
-    <span class="flex items-center justify-center rounded-sm p-1 text-muted-foreground">
+    <span class:list={[button]}>
       <Icon name="copy" size={15} />
     </span>
     {
       kind === 'full' && (
         <>
-          <span class="flex items-center justify-center rounded-sm p-1 text-muted-foreground">
+          <span
+            class:list={[
+              button,
+              visible && tooltip?.label === 'Session tree' && 'bg-muted text-foreground',
+            ]}
+          >
             <Icon name="binary-tree-2" size={15} class="scale-[1.15]" stroke={1.3} />
           </span>
-          <span class="flex items-center justify-center rounded-sm p-1 text-muted-foreground">
+          <span
+            class:list={[
+              button,
+              visible &&
+                tooltip !== undefined &&
+                tooltip.label !== 'Session tree' &&
+                'bg-muted text-foreground',
+            ]}
+          >
             <Icon name="arrow-fork" size={15} class="rotate-90" />
           </span>
         </>
@@ -33,4 +66,17 @@ const { kind = 'full', time } = Astro.props;
     }
   </span>
   {time && <span class="text-xs text-muted-foreground tabular-nums">{time}</span>}
+  {
+    tooltip && (
+      <span
+        class:list={['app-tooltip app-tooltip-end max-w-[280px]', TOOLTIP_CONTENT.classes]}
+        data-open={visible ? 'true' : undefined}
+      >
+        <span class="flex flex-col items-start gap-0.5">
+          <span class="block">{tooltip.label}</span>
+          {tooltip.hint && <span class="block opacity-70">{tooltip.hint}</span>}
+        </span>
+      </span>
+    )
+  }
 </div>
