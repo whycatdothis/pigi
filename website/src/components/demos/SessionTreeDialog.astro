@@ -14,6 +14,7 @@ import {
   railLeftPx,
   rowContentX,
 } from '../../lib/treeGeometry';
+import { DIALOG_SURFACE } from '../../lib/appUi';
 
 interface TreeRow {
   id: string;
@@ -151,7 +152,10 @@ const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
   data-tree-dialog
   role="dialog"
   aria-label="Session tree"
-  class="absolute left-1/2 top-1/2 z-30 flex h-[min(624px,88%)] w-[min(820px,92%)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-[var(--dialog-solid)] shadow-[var(--popover-shadow)] ring-1 ring-foreground/10"
+  class:list={[
+    'absolute left-1/2 top-1/2 z-30 flex h-[min(624px,88%)] w-[min(820px,92%)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden',
+    DIALOG_SURFACE.classes,
+  ]}
 >
   <div class="flex shrink-0 items-center gap-3 px-5 pb-3 pt-4">
     <Icon name="search" size={18} class="shrink-0 text-muted-foreground/60" />
@@ -304,7 +308,7 @@ const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
 
         <!-- Follows the pointer down the list; the app opens the same card on hover. -->
         <div
-          class="pointer-events-none absolute right-3 top-0 z-20 w-[300px] rounded-lg border border-border/70 bg-popover/95 p-3 opacity-0 shadow-[var(--popover-shadow)] backdrop-blur transition-opacity duration-150"
+          class="pointer-events-none absolute right-3 top-0 z-20 w-[300px] rounded-lg border border-border/70 bg-popover/95 p-3 opacity-0 shadow-md backdrop-blur transition-opacity duration-150"
           data-tree-preview
           data-open="false"
           data-state="closed"

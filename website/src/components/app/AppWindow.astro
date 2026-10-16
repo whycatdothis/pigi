@@ -3,6 +3,7 @@ import Sidebar from './Sidebar.astro';
 import SessionToolbar from './SessionToolbar.astro';
 import ChatInput from './ChatInput.astro';
 import { TERMINAL_DEFAULT_HEIGHT, WINDOW_HEIGHT_PX } from '../../lib/appLayout';
+import type { ViewModeName } from '../demos/ViewModeMenu.astro';
 
 /**
  * The app window, as one component.
@@ -28,8 +29,8 @@ interface Props {
   viewMenuOpen?: boolean;
   /** A dialog is over the window, so the app behind it dims. */
   overlayOpen?: boolean;
-  /** This window's transcript is the one the view-mode menu switches. */
-  viewModes?: boolean;
+  /** Which of the app's three densities this window draws; null for none. */
+  viewMode?: ViewModeName | null;
 }
 
 const {
@@ -39,7 +40,7 @@ const {
   terminalOpen = false,
   viewMenuOpen = false,
   overlayOpen = false,
-  viewModes = false,
+  viewMode = null,
 } = Astro.props;
 
 const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}`;
@@ -49,8 +50,8 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
   class="group/view relative overflow-hidden rounded-xl border border-[var(--window-border)] bg-background shadow-[var(--window-shadow)]"
   style={`height:${height}px`}
   data-window-title={title}
-  data-view-modes={viewModes ? 'true' : undefined}
-  data-active={viewModes ? 'minimal' : undefined}
+  data-view-modes={viewMode !== null ? 'true' : undefined}
+  data-active={viewMode ?? undefined}
 >
   <!-- The traffic lights the window server usually draws. -->
   <div class="pointer-events-none absolute left-5 top-5 z-10 flex gap-2">
@@ -73,7 +74,7 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
       <SessionToolbar
         title={title}
         terminalOpen={terminalOpen}
-        viewModes={viewModes}
+        viewMode={viewMode}
         viewMenuOpen={viewMenuOpen}
       />
 

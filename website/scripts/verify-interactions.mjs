@@ -119,8 +119,10 @@ function check(name, passed, detail = '') {
       const shown = [...window.querySelectorAll('[data-view-panel]')].filter(
         (panel) => getComputedStyle(panel).display !== 'none',
       );
+      // `data-state=checked` is the attribute the app's menu styles off, so it is
+      // the one this asserts on.
       const checked = [...menu.querySelectorAll('[data-view-mode-button]')]
-        .filter((button) => button.dataset.active === 'true')
+        .filter((button) => button.dataset.state === 'checked')
         .map((button) => button.dataset.viewModeButton);
       const selected = [...menu.querySelectorAll('[data-view-mode-button]')].filter(
         (button) => button.getAttribute('aria-checked') === 'true',
@@ -291,7 +293,12 @@ function check(name, passed, detail = '') {
   const tabs = page.locator('[data-terminal-tab]');
   await tabs.nth(1).click();
   const state = await tabs.evaluateAll((nodes) =>
-    nodes.map((node) => ({ tab: node.dataset.terminalTab, active: node.dataset.active })),
+    nodes.map((node) => ({
+      tab: node.dataset.terminalTab,
+      // The app's own attribute for it: Radix writes `data-state=active`, and the
+      // tab's classes read it.
+      active: String(node.dataset.state === 'active'),
+    })),
   );
   check(
     'terminal: clicking a tab activates it and only it',

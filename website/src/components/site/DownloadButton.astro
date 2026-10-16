@@ -1,6 +1,7 @@
 ---
 import Icon from '../Icon.astro';
 import { LATEST_RELEASE_URL, UMAMI_EVENT_DOWNLOAD } from '../../lib/site';
+import { BUTTON_BASE, BUTTON_FILLED, BUTTON_HERO_SIZE, BUTTON_SIZE_DEFAULT } from '../../lib/appUi';
 
 /**
  * The download button, in the hero and in the header.
@@ -9,12 +10,16 @@ import { LATEST_RELEASE_URL, UMAMI_EVENT_DOWNLOAD } from '../../lib/site';
  * interactions.ts upgrades the href to the arm64 DMG's direct URL once the
  * releases API answers, and leaves it alone if it does not.
  *
- * The label names the architecture. The app publishes one DMG and it is arm64,
- * so a button that only said "macOS" would hand an Intel reader a file that
- * cannot run — the one thing the old install section used to say out loud.
+ * The shape is the app's own Button — base, filled variant, `size="default"` in
+ * the header — with the hero at the page's scale instead, since the app has no
+ * button that tall. See src/lib/appUi.ts for what is copied and from where.
+ *
+ * The label names the architecture. The app publishes one DMG and it is arm64, so
+ * a button that only said "macOS" would hand an Intel reader a file that cannot
+ * run.
  */
 interface Props {
-  /** `hero` is the page's primary action; `compact` is the header's. */
+  /** `hero` is the page's primary action; `compact` matches the app's `size="default"`. */
   variant?: 'hero' | 'compact';
   class?: string;
 }
@@ -27,8 +32,9 @@ const { variant = 'hero', class: className } = Astro.props;
   data-download-link
   data-umami-event={UMAMI_EVENT_DOWNLOAD}
   class:list={[
-    'group shrink-0 items-center gap-2.5 rounded-xl bg-foreground font-medium text-background transition-opacity hover:opacity-85',
-    variant === 'hero' ? 'inline-flex h-12 px-5 text-sm' : 'flex h-8 rounded-lg px-3 text-[13px]',
+    BUTTON_BASE.classes,
+    BUTTON_FILLED.classes,
+    variant === 'hero' ? BUTTON_HERO_SIZE.classes : BUTTON_SIZE_DEFAULT.classes,
     className,
   ]}
 >
@@ -39,7 +45,7 @@ const { variant = 'hero', class: className } = Astro.props;
       <Icon
         name="arrow-right"
         size={16}
-        class="text-background/60 transition-transform group-hover:translate-x-0.5"
+        class="opacity-60 transition-transform group-hover/button:translate-x-0.5"
       />
     )
   }

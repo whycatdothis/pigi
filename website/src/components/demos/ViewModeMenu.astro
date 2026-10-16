@@ -1,5 +1,6 @@
 ---
 import Icon from '../Icon.astro';
+import { MENU_CONTENT, MENU_ITEM } from '../../lib/appUi';
 
 /**
  * The view-mode menu, open.
@@ -7,7 +8,10 @@ import Icon from '../Icon.astro';
  * This is a dropdown off the toolbar's filter button, not a segmented control —
  * the app's SessionToolbar opens a `DropdownMenu` with three radio items and
  * checks the active one inline after its label. Same items, same order, same
- * checked treatment.
+ * checked treatment, and the classes are the app's: the content carries the
+ * `w-fit min-w-0 bg-popover/50 backdrop-blur-md` the toolbar adds to
+ * `DropdownMenuContent`, and each item carries `viewModeItemClassName`, which is
+ * what paints the checked row with the system accent.
  *
  * The descriptions are the app's own tooltips for each item, on `title` rather
  * than a floating card.
@@ -18,13 +22,17 @@ import Icon from '../Icon.astro';
  * space, so `data-[active=compact_read]` would compile to a selector matching
  * neither — the mode names do not need to reach the DOM intact.
  */
+export type ViewModeName = 'minimal' | 'compact' | 'all';
+
 interface Props {
   open?: boolean;
+  /** Which item is checked; the window behind the menu is drawing this one. */
+  active: ViewModeName;
 }
 
-const { open = false } = Astro.props;
+const { open = false, active } = Astro.props;
 
-const modes = [
+const modes: { id: ViewModeName; label: string; description: string }[] = [
   {
     id: 'minimal',
     label: 'Minimal',
@@ -48,21 +56,24 @@ const modes = [
   data-open={String(open)}
   role="menu"
   aria-label="View mode"
-  class="absolute right-0 top-[calc(100%+6px)] z-30 hidden w-fit flex-col gap-1 rounded-lg bg-popover/50 p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10 backdrop-blur-md data-[open=true]:flex"
+  class:list={[
+    'absolute right-0 top-[calc(100%+6px)] hidden flex-col gap-1 data-[open=true]:flex',
+    MENU_CONTENT.classes,
+  ]}
 >
   {
     modes.map((mode) => (
       <button
         type="button"
         role="menuitemradio"
-        aria-checked={mode.id === 'minimal' ? 'true' : 'false'}
+        aria-checked={mode.id === active ? 'true' : 'false'}
         data-view-mode-button={mode.id}
-        data-active={mode.id === 'minimal' ? 'true' : 'false'}
+        data-state={mode.id === active ? 'checked' : 'unchecked'}
         title={mode.description}
-        class="group/mode flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-left text-xs text-foreground/85 transition-colors hover:bg-foreground/5 data-[active=true]:bg-[var(--system-accent)]/10 data-[active=true]:text-[var(--system-accent)]"
+        class:list={['group/mode text-left whitespace-nowrap', MENU_ITEM.classes]}
       >
         {mode.label}
-        <Icon name="check" size={14} class="hidden shrink-0 group-data-[active=true]/mode:block" />
+        {mode.id === active && <Icon name="check" size={14} class="shrink-0" />}
       </button>
     ))
   }

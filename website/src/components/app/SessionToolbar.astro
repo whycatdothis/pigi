@@ -1,23 +1,26 @@
 ---
 import Icon from '../Icon.astro';
-import ViewModeMenu from '../demos/ViewModeMenu.astro';
+import ViewModeMenu, { type ViewModeName } from '../demos/ViewModeMenu.astro';
+import { TOOLBAR_BUTTON, TOOLBAR_BUTTON_ON, TOOLTIP_CONTENT, TOOLTIP_KBD } from '../../lib/appUi';
 
 /**
  * The session toolbar.
  *
  * Three buttons, in the app's order: session tree, terminal, view mode. The
- * hover tooltips carry the same strings and the same shortcuts the app puts on
- * them (SessionToolbar.tsx), so the keys on this page are the keys in the app.
+ * buttons are the app's own toolbar string (plain buttons, not `ui/button.tsx`),
+ * and the hover tooltips carry the same surface, the same strings and the same
+ * shortcuts the app puts on them (SessionToolbar.tsx), so the keys on this page
+ * are the keys in the app.
  */
 interface Props {
   title: string;
   terminalOpen?: boolean;
-  /** Whether this window carries the view-mode menu, or only its button. */
-  viewModes?: boolean;
+  /** Which view mode this window draws; null hides the menu behind the button. */
+  viewMode?: ViewModeName | null;
   viewMenuOpen?: boolean;
 }
 
-const { title, terminalOpen = false, viewModes = false, viewMenuOpen = false } = Astro.props;
+const { title, terminalOpen = false, viewMode = null, viewMenuOpen = false } = Astro.props;
 ---
 
 <!-- h-11 and the hairline below it are the app's toolbar measurements. -->
@@ -38,10 +41,10 @@ const { title, terminalOpen = false, viewModes = false, viewMenuOpen = false } =
     <button
       type="button"
       aria-label="Session tree"
-      class="group relative flex size-7 items-center justify-center rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      class:list={['group relative', TOOLBAR_BUTTON.classes]}
     >
       <Icon name="binary-tree-2" size={15} class="scale-[1.15] [stroke-width:calc(1.5/1.15)]" />
-      <span class="app-tooltip">Session tree</span>
+      <span class:list={['app-tooltip', TOOLTIP_CONTENT.classes]}>Session tree</span>
     </button>
 
     <button
@@ -50,14 +53,15 @@ const { title, terminalOpen = false, viewModes = false, viewMenuOpen = false } =
       aria-label="Toggle terminal"
       aria-pressed={terminalOpen}
       class:list={[
-        'group relative flex size-7 items-center justify-center rounded p-1 transition-colors hover:bg-muted',
-        terminalOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+        'group relative',
+        TOOLBAR_BUTTON.classes,
+        terminalOpen && TOOLBAR_BUTTON_ON.classes,
       ]}
     >
       <Icon name="terminal-2" size={16} />
-      <span class="app-tooltip">
+      <span class:list={['app-tooltip', TOOLTIP_CONTENT.classes]}>
         Toggle terminal
-        <kbd class="kbd ml-2 font-mono">⌘ J</kbd>
+        <kbd class:list={['ml-2', TOOLTIP_KBD.classes]}>⌘ J</kbd>
       </span>
     </button>
 
@@ -68,11 +72,11 @@ const { title, terminalOpen = false, viewModes = false, viewMenuOpen = false } =
         title="View mode"
         aria-haspopup="menu"
         aria-expanded={viewMenuOpen}
-        class="flex size-7 items-center justify-center rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        class:list={['group relative', TOOLBAR_BUTTON.classes]}
       >
         <Icon name="filter-2" size={16} />
       </button>
-      {viewModes && <ViewModeMenu open={viewMenuOpen} />}
+      {viewMode !== null && <ViewModeMenu open={viewMenuOpen} active={viewMode} />}
     </div>
   </div>
 </div>

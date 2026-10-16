@@ -72,7 +72,11 @@ function initViewModes(): void {
 
         root.dataset.active = mode;
         for (const other of buttons) {
-          other.dataset.active = String(other === button);
+          const state = other === button ? 'checked' : 'unchecked';
+          // `data-state` rather than an attribute of this page's own: it is what
+          // Radix writes in the app, and what the app's own menu styles off
+          // (`data-[state=checked]:...` in SessionToolbar.tsx).
+          other.dataset.state = state;
           other.setAttribute('aria-checked', String(other === button));
         }
         close();
@@ -620,7 +624,9 @@ function initTerminalTabs(): void {
     for (const tab of tabs) {
       tab.addEventListener('click', () => {
         for (const other of tabs) {
-          other.dataset.active = String(other === tab);
+          // `data-state=active` is Radix's word for it in the app, and what the
+          // tab's own classes style off.
+          other.dataset.state = other === tab ? 'active' : 'inactive';
         }
       });
     }
