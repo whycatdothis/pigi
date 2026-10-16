@@ -1,0 +1,28 @@
+---
+import Icon from '../Icon.astro';
+
+/**
+ * The app's round `?` — `SessionTreeHelpButton` in `SessionTreeHelpDialog.tsx`.
+ *
+ * It has three homes in the app, and all three are on this page: to the right of
+ * the tree's message count, inside the tree button's toolbar tooltip, and inside
+ * the tree action's message tooltip. A still cannot open a dialog, so this is the
+ * button without the click.
+ */
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<span
+  role="img"
+  aria-label="What is the session tree?"
+  class:list={[
+    'flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground',
+    className,
+  ]}
+>
+  <Icon name="question-mark" size={12} />
+</span>

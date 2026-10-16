@@ -1,6 +1,7 @@
 ---
 import Icon from '../Icon.astro';
 import ViewModeMenu, { type ViewModeName } from '../demos/ViewModeMenu.astro';
+import SessionTreeHelpButton from './SessionTreeHelpButton.astro';
 import { TOOLBAR_BUTTON, TOOLBAR_BUTTON_ON, TOOLTIP_CONTENT, TOOLTIP_KBD } from '../../lib/appUi';
 
 /**
@@ -44,7 +45,10 @@ const { title, terminalOpen = false, viewMode = null, viewMenuOpen = false } = A
       class:list={['group relative', TOOLBAR_BUTTON.classes]}
     >
       <Icon name="binary-tree-2" size={15} class="scale-[1.15] [stroke-width:calc(1.5/1.15)]" />
-      <span class:list={['app-tooltip', TOOLTIP_CONTENT.classes]}>Session tree</span>
+      <span class:list={['app-tooltip gap-3', TOOLTIP_CONTENT.classes]}>
+        <span>Session tree</span>
+        <SessionTreeHelpButton />
+      </span>
     </button>
 
     <button

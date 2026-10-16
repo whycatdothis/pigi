@@ -1,11 +1,15 @@
 ---
-import MessageActions from './MessageActions.astro';
+import MessageActions, { type MessageActionTooltip } from './MessageActions.astro';
 
 interface Props {
   time?: string;
+  /** Keep the actions visible, for a still standing in for a hover. */
+  showActions?: boolean;
+  /** The label the app's tooltip would be showing for the action hovered. */
+  actionTooltip?: MessageActionTooltip;
 }
 
-const { time } = Astro.props;
+const { time, showActions = false, actionTooltip } = Astro.props;
 ---
 
 <div class="group flex justify-start">
@@ -13,6 +17,6 @@ const { time } = Astro.props;
     <div class="markdown-body">
       <slot />
     </div>
-    <MessageActions kind="full" time={time} />
+    <MessageActions kind="full" time={time} visible={showActions} tooltip={actionTooltip} />
   </div>
 </div>

@@ -280,6 +280,13 @@
   -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 24px), transparent);
 }
 
+/* The app's tail-anchored fade (`overflowClamp.tsx`: `TOP_FADE_MASK`), 16px of
+   matte where the clamped content was cut. */
+@utility content-fade-top {
+  mask-image: linear-gradient(to bottom, transparent, black 16px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 16px);
+}
+
 /*
  * The session tree's rows.
  *

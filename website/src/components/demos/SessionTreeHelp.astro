@@ -7,11 +7,15 @@ import { DIALOG_SURFACE } from '../../lib/appUi';
  *
  * Every word is `SessionTreeHelpDialog.tsx`: the three points, their order, the
  * icons beside them, and the note at the bottom about hovering, searching and
- * pressing Enter. In the app it opens from the `?` beside the tree's search
- * field or in the tree action's tooltip; here it is a still, because the thing it
- * explains is a feature and the feature deserves to be read rather than hovered.
+ * pressing Enter. The app's round `?` — the one that opens this, in three places —
+ * is `SessionTreeHelpButton.astro`. Here the dialog is a still: the thing it
+ * explains is a feature, and the feature deserves to be read rather than hovered.
  *
- * `max-w-[520px]`, which is the app's own override for this dialog.
+ * `max-w-[520px]`, which is the app's own override for this dialog, and `p-4`,
+ * which is the padding the app's `DialogContent` gives a dialog that does not
+ * replace it. The icons are the app's own 24px tiles: without them the three
+ * paragraphs start at three different left edges, which is the mess the app
+ * avoids with `size-6`.
  */
 const points = [
   {
@@ -40,7 +44,7 @@ const points = [
   role="dialog"
   aria-label="What is the session tree?"
   class:list={[
-    'absolute left-1/2 top-1/2 z-30 flex w-[min(520px,92%)] -translate-x-1/2 -translate-y-1/2 flex-col',
+    'absolute left-1/2 top-1/2 z-30 flex w-[min(520px,92%)] -translate-x-1/2 -translate-y-1/2 flex-col p-4',
     DIALOG_SURFACE.classes,
   ]}
 >

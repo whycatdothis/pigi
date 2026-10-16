@@ -34,9 +34,9 @@ dialog it opens), view modes, session switcher, terminal — then the three thin
 then the footer. That is the whole page: no install section, no shortcut table, no FAQ. Nothing that
 is not a feature or a claim about one.
 
-Every section is one window, except the session tree's, which is two: the tree and the explanation it
-opens from the `?` beside its search field. The second window is shorter than the app's default because
-the dialog in it is 520px wide and a still of it does not need 800px of height.
+Every section is one window, except the session tree's, which is three: the tree action on a message
+(one way in), the tree itself, and the explanation the `?` opens. The two short ones are cut to 520px
+because the dialogs in them are 520px wide and a still of one does not need the app's 800px of height.
 
 The header's Download button is the same component as the hero's (`variant="compact"`), and both are
 real downloads — there is no `#install` anchor to scroll to. Two claims the page makes have no home

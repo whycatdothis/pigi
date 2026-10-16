@@ -39,8 +39,9 @@ export const heroTurns: Turn[] = [
  *
  * One finished turn and one the user is hovering: the still stands in for a
  * pointer over the newest message, which is where the app's fork action appears.
- * The tooltip's words are the app's own label for that action
- * (`messageBubbles.tsx`).
+ * The tooltip's words are the app's own label for that action, and the fork has
+ * no second line in the app — the extra line about the input box belongs to the
+ * tree action on a user message (`messageBubbles.tsx`).
  *
  * The title matches a row in the sidebar, and the row under that one is a chat
  * forked from it.
@@ -62,10 +63,7 @@ export const forkTurns: Turn[] = [
   {
     user: 'and the header should stay put while the rows scroll',
     time: '11:05',
-    actionTooltip: {
-      label: 'Fork this msg in new session',
-      hint: 'Copies the conversation up to here into a chat of its own',
-    },
+    actionTooltip: { on: 'user', action: 'fork', label: 'Fork this msg in new session' },
   },
 ];
 
@@ -167,6 +165,27 @@ export const historyTurns: Turn[] = [
       duration: '4.1s',
     },
     reply: 'Forty tests, green. Ready to commit whenever you are.',
+    last: true,
+  },
+];
+
+/**
+ * The moment before the tree: a pointer resting on the newest reply's tree action.
+ *
+ * The app puts those actions on assistant messages too, and hovering one is the
+ * other way into the tree — this is the still that shows it. The `?` inside the
+ * tooltip is the same `?` the tree's toolbar carries, and it opens the dialog the
+ * section below shows; the tooltip is the app's own, label and all.
+ *
+ * The session is the one the tree dialog is open on, so the tree in the next still
+ * is this conversation.
+ */
+export const treeEntryTurns: Turn[] = [
+  {
+    user: 'and dim the bars that are not active',
+    time: '09:21',
+    reply: 'Only the bar nearest the middle of the viewport is lit now.',
+    actionTooltip: { on: 'assistant', action: 'tree', label: 'Move the session here', help: true },
     last: true,
   },
 ];
