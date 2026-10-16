@@ -17,12 +17,16 @@ import type { ViewModeName } from '../demos/ViewModeMenu.astro';
  * The measurements are the app's own: 1200x800 for the default window
  * (src/main/windows/createMainWindow.ts), h-11 for the toolbar, the sidebar's
  * SIDEBAR_DEFAULT_WIDTH, the panel's TERMINAL_DEFAULT_HEIGHT.
+ *
+ * That height is not a prop. Every window on this page is the size the app opens
+ * at, because half a window is a picture of something the app never shows: a
+ * dialog is narrower than the window, not shorter, and a short session simply
+ * leaves the space above its last message empty.
  */
 interface Props {
   /** The session title in the toolbar, and the sidebar row it selects. */
   title: string;
   variant?: 'followUp' | 'newSession';
-  height?: number;
   /** The bottom panel is open, so the chat column stops above it. */
   terminalOpen?: boolean;
   /** The view-mode menu is open under the toolbar's filter button. */
@@ -36,7 +40,6 @@ interface Props {
 const {
   title,
   variant = 'followUp',
-  height = WINDOW_HEIGHT_PX,
   terminalOpen = false,
   viewMenuOpen = false,
   overlayOpen = false,
@@ -48,7 +51,7 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
 
 <div
   class="group/view relative overflow-hidden rounded-xl border border-[var(--window-border)] bg-background shadow-[var(--window-shadow)]"
-  style={`height:${height}px`}
+  style={`height:${WINDOW_HEIGHT_PX}px`}
   data-window-title={title}
   data-view-modes={viewMode !== null ? 'true' : undefined}
   data-active={viewMode ?? undefined}
