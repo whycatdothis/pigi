@@ -1,7 +1,7 @@
 /**
  * The page's whole client-side script.
  *
- * The page is static HTML; these are the five places where it is not. Everything
+ * The page is static HTML; these are the six places where it is not. Everything
  * here is progressive: each initializer starts by looking for its own markup and
  * returns quietly when it is not on the page, so a component can be dropped
  * without touching this file — and if the script never loads, every one of these
@@ -27,6 +27,52 @@ import {
   type TreeRowShape,
 } from '../lib/treeGeometry';
 import { LATEST_RELEASE_API, MAC_DMG_PATTERN } from '../lib/site';
+import { getLineWidth, measureMaxLineWidth } from '../lib/minimapGeometry';
+
+// ---------------------------------------------------------------------------
+// Window fit
+// ---------------------------------------------------------------------------
+
+/**
+ * Scales a window to fit when the viewport is narrower than the app can be.
+ *
+ * The app's smallest window is 680x800 (`createMainWindow.ts`), and that is what
+ * each window on this page is drawn at once the room for it drops below 680 — a
+ * fixed canvas, then this `scale`, then a wrapper height of the scaled height, so
+ * the page reserves the room the picture actually takes rather than the canvas's
+ * full 800px.
+ *
+ * Above that the canvas is simply the page's own width and nothing here does
+ * anything: the window is fluid from 680 up to its 1200 maximum.
+ */
+function initWindowFits(): void {
+  for (const fit of document.querySelectorAll<HTMLElement>('[data-window-fit]')) {
+    const canvas = fit.querySelector<HTMLElement>('[data-window-canvas]');
+    const window_ = canvas?.firstElementChild;
+    const minWidth = Number(fit.dataset.windowFit);
+    if (!canvas || !window_ || !Number.isFinite(minWidth) || minWidth <= 0) continue;
+
+    // The canvas's own height, read once: the window's height is fixed.
+    const canvasHeight = window_.getBoundingClientRect().height;
+    let appliedScale = 0;
+
+    const measure = (): void => {
+      const available = fit.clientWidth;
+      const scale = Math.min(1, available / minWidth);
+      // The observer fires on the height this writes, which does not change the
+      // width it reads; comparing the scale is what stops a second pass.
+      if (Math.abs(scale - appliedScale) < 0.001) return;
+      appliedScale = scale;
+
+      canvas.style.width = scale < 1 ? `${minWidth}px` : '';
+      canvas.style.transform = scale < 1 ? `scale(${scale})` : '';
+      fit.style.height = scale < 1 ? `${canvasHeight * scale}px` : '';
+    };
+
+    measure();
+    new ResizeObserver(measure).observe(fit);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // View modes
@@ -138,6 +184,20 @@ function bindMinimap(scroller: HTMLElement, strip: HTMLElement, panel: HTMLEleme
   let closeTimer: number | undefined;
   let frame = 0;
 
+  /**
+   * The bars are as wide as the room beside the transcript allows, which is the
+   * app's own rule (`UserMessageMiniMap.tsx`) and the reason a bar never reaches
+   * into the text: under the app's 860px column the strip shrinks to the page's
+   * inline padding. Built at the app's default-window width; re-measured here
+   * because this window answers the viewport.
+   */
+  function sizeBars(): void {
+    const maxLineWidth = measureMaxLineWidth(scroller.clientWidth);
+    bars.forEach((bar, index) => {
+      bar.style.width = `${getLineWidth(index, bars.length, maxLineWidth)}px`;
+    });
+  }
+
   function setActive(nextIndex: number): void {
     if (nextIndex === activeIndex) return;
     activeIndex = nextIndex;
@@ -199,6 +259,9 @@ function bindMinimap(scroller: HTMLElement, strip: HTMLElement, panel: HTMLEleme
       if (Number.isFinite(index)) scrollToIndex(index);
     });
   }
+
+  sizeBars();
+  new ResizeObserver(sizeBars).observe(scroller);
 
   // Throttled to one pass per frame: a scroll burst costs one layout read per
   // frame rather than one per event, which is what the app does too.
@@ -636,6 +699,7 @@ function initTerminalTabs(): void {
 // ---------------------------------------------------------------------------
 
 initThemeToggle();
+initWindowFits();
 initViewModes();
 initMinimaps();
 initSessionTrees();

@@ -1,5 +1,6 @@
 ---
 import { OVERLAY_BG } from '../../lib/appUi';
+import { LINE_WIDTH_MAX_CAP, getLineWidth } from '../../lib/minimapGeometry';
 
 export interface MinimapMessage {
   text: string;
@@ -19,39 +20,14 @@ interface Props {
 
 const { messages, activeIndex, interactive = true } = Astro.props;
 
-const LINE_WIDTH_MIN_CAP = 8;
 /**
- * The app measures the room between the transcript's centred column and the
- * window edge to size its bars (UserMessageMiniMap.tsx). The window on this page
- * is a fixed width, so the measurement is a constant: it lands on the same
- * number, without a ResizeObserver to recompute it.
+ * The widest bar, at the app's own default window: 1200px leaves a 48px strip in
+ * the gutter and `LINE_WIDTH_MAX_CAP` is 48. The markup is built at that width and
+ * `interactions.ts` re-measures it from the transcript it sits beside, so a
+ * narrower window — down to the phone-scaled one — gets the strip that fits it
+ * instead of one lying over the text.
  */
-const MAX_LINE_WIDTH = 40;
-
-/**
- * Bar width by position, ported from the app: the bars swell towards the middle
- * of the list, which makes the shape of a session readable at a glance — where
- * the conversation started, where it got dense, where it stopped.
- */
-function getLineWidth(index: number, total: number, maxWidth: number): number {
-  if (total <= 1) return maxWidth * 0.4;
-  if (total === 2) return Math.round(maxWidth * 0.5);
-
-  const normalized = index / (total - 1);
-  const distanceFromCentre = 1 - Math.abs(normalized * 2 - 1);
-
-  if (total <= 5) {
-    const target = maxWidth * 0.6;
-    return Math.round(LINE_WIDTH_MIN_CAP + distanceFromCentre * (target - LINE_WIDTH_MIN_CAP));
-  }
-  if (total <= 10) {
-    const factor = distanceFromCentre * distanceFromCentre;
-    return Math.round(LINE_WIDTH_MIN_CAP + factor * (maxWidth * 0.8 - LINE_WIDTH_MIN_CAP));
-  }
-
-  const factor = distanceFromCentre * distanceFromCentre;
-  return Math.round(LINE_WIDTH_MIN_CAP + factor * (maxWidth - LINE_WIDTH_MIN_CAP));
-}
+const MAX_LINE_WIDTH = LINE_WIDTH_MAX_CAP;
 ---
 
 <!--

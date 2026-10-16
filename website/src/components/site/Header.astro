@@ -12,7 +12,7 @@ const navLinks = [
 <header
   class="sticky top-0 z-50 border-b border-border/70 bg-[var(--page-background)]/85 backdrop-blur-md"
 >
-  <div class="mx-auto flex h-14 max-w-6xl items-center gap-6 px-6">
+  <div class="mx-auto flex h-14 max-w-[1248px] items-center gap-6 px-6">
     <a href="/" class="flex shrink-0 items-center gap-2" aria-label="pigi home">
       <img src="/icon-256.png" alt="" width="24" height="24" class="rounded-[6px]" />
       <span class="text-sm font-semibold text-foreground">pigi</span>
@@ -26,22 +26,29 @@ const navLinks = [
           </a>
         ))
       }
-      <a
-        href={REPO_URL}
-        data-umami-event={UMAMI_EVENT_REPO}
-        class="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <Icon name="brand-github" size={15} />
-        GitHub
-      </a>
     </nav>
+
+    <!--
+      Outside the nav, because a phone keeps this one: the two section links have
+      somewhere else to be reached from, and the repository does not. The label
+      goes with the width — the icon alone is the whole link until there is room
+      for the word.
+    -->
+    <a
+      href={REPO_URL}
+      data-umami-event={UMAMI_EVENT_REPO}
+      class="ml-auto flex items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground md:ml-6"
+    >
+      <Icon name="brand-github" size={15} />
+      <span class="hidden md:inline">GitHub</span>
+    </a>
 
     <!--
       A real download, not an anchor: the page has no install section to scroll to,
       and the header is the only place a reader can reach the file from the middle
       of the page. `interactions.ts` upgrades both this and the hero button.
     -->
-    <DownloadButton variant="compact" class="ml-auto md:ml-0" />
+    <DownloadButton variant="compact" />
 
     <!--
       The icon names what the click gives you: a moon in the light theme, a sun in
