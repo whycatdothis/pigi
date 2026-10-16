@@ -1,0 +1,28 @@
+{
+  "name": "pigi-website",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Marketing site for pigi, deployed to Cloudflare Pages",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "astro check && prettier --check .",
+    "shots": "node scripts/shoot.mjs",
+    "verify": "node scripts/verify-interactions.mjs"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.5",
+    "@tabler/icons": "^3.49.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.4.0",
+    "prettier": "^3.7.4",
+    "prettier-plugin-astro": "^0.14.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
+  }
+}

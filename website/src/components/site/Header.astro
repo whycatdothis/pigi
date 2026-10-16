@@ -1,0 +1,61 @@
+---
+import Icon from '../Icon.astro';
+import DownloadButton from './DownloadButton.astro';
+import { REPO_URL, UMAMI_EVENT_REPO } from '../../lib/site';
+
+const navLinks = [
+  { href: '#features', label: 'Features' },
+  { href: '/changelog', label: 'Changelog' },
+];
+---
+
+<header
+  class="sticky top-0 z-50 border-b border-border/70 bg-[var(--page-background)]/85 backdrop-blur-md"
+>
+  <div class="mx-auto flex h-14 max-w-6xl items-center gap-6 px-6">
+    <a href="/" class="flex shrink-0 items-center gap-2" aria-label="pigi home">
+      <img src="/icon-256.png" alt="" width="24" height="24" class="rounded-[6px]" />
+      <span class="text-sm font-semibold text-foreground">pigi</span>
+    </a>
+
+    <nav class="ml-auto hidden items-center gap-6 text-[13px] md:flex">
+      {
+        navLinks.map((link) => (
+          <a href={link.href} class="text-muted-foreground transition-colors hover:text-foreground">
+            {link.label}
+          </a>
+        ))
+      }
+      <a
+        href={REPO_URL}
+        data-umami-event={UMAMI_EVENT_REPO}
+        class="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <Icon name="brand-github" size={15} />
+        GitHub
+      </a>
+    </nav>
+
+    <!--
+      A real download, not an anchor: the page has no install section to scroll to,
+      and the header is the only place a reader can reach the file from the middle
+      of the page. `interactions.ts` upgrades both this and the hero button.
+    -->
+    <DownloadButton variant="compact" class="ml-auto md:ml-0" />
+
+    <!--
+      The icon names what the click gives you: a moon in the light theme, a sun in
+      the dark one. Both are in the markup and the theme class picks one, so the
+      button is correct before any script runs.
+    -->
+    <button
+      type="button"
+      data-theme-toggle
+      aria-label="Switch theme"
+      class="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+    >
+      <Icon name="moon" size={16} class="dark:hidden" />
+      <Icon name="sun" size={16} class="hidden dark:block" />
+    </button>
+  </div>
+</header>

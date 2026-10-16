@@ -1,0 +1,36 @@
+---
+import Icon from '../Icon.astro';
+
+interface Props {
+  /** `full` is what the app shows on an assistant or user message; `copy` is what
+   *  a tool card gets. */
+  kind?: 'full' | 'copy';
+  time?: string;
+}
+
+const { kind = 'full', time } = Astro.props;
+---
+
+<!-- Hidden until the message is hovered, exactly as the app reveals it. -->
+<div
+  class="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+>
+  <span class="flex items-center gap-1 pt-0.5">
+    <span class="flex items-center justify-center rounded-sm p-1 text-muted-foreground">
+      <Icon name="copy" size={15} />
+    </span>
+    {
+      kind === 'full' && (
+        <>
+          <span class="flex items-center justify-center rounded-sm p-1 text-muted-foreground">
+            <Icon name="binary-tree-2" size={15} class="scale-[1.15]" stroke={1.3} />
+          </span>
+          <span class="flex items-center justify-center rounded-sm p-1 text-muted-foreground">
+            <Icon name="arrow-fork" size={15} class="rotate-90" />
+          </span>
+        </>
+      )
+    }
+  </span>
+  {time && <span class="text-xs text-muted-foreground tabular-nums">{time}</span>}
+</div>

@@ -1,0 +1,69 @@
+---
+import Icon from '../Icon.astro';
+
+/**
+ * The view-mode menu, open.
+ *
+ * This is a dropdown off the toolbar's filter button, not a segmented control —
+ * the app's SessionToolbar opens a `DropdownMenu` with three radio items and
+ * checks the active one inline after its label. Same items, same order, same
+ * checked treatment.
+ *
+ * The descriptions are the app's own tooltips for each item, on `title` rather
+ * than a floating card.
+ *
+ * The values are the app's three modes under DOM-friendly names: the store calls
+ * them `minimal`, `compact_read` and `default`, and these are `minimal`,
+ * `compact` and `all`. Tailwind reads an underscore in an arbitrary variant as a
+ * space, so `data-[active=compact_read]` would compile to a selector matching
+ * neither — the mode names do not need to reach the DOM intact.
+ */
+interface Props {
+  open?: boolean;
+}
+
+const { open = false } = Astro.props;
+
+const modes = [
+  {
+    id: 'minimal',
+    label: 'Minimal',
+    description: 'Minimal activity view: working timer, tool cards, final summary',
+  },
+  {
+    id: 'compact',
+    label: 'Compact',
+    description: 'Collapse consecutive read-only tool calls into a single group',
+  },
+  {
+    id: 'all',
+    label: 'Show All',
+    description: 'Display every tool call as an individual expanded block',
+  },
+];
+---
+
+<div
+  data-view-mode-menu
+  data-open={String(open)}
+  role="menu"
+  aria-label="View mode"
+  class="absolute right-0 top-[calc(100%+6px)] z-30 hidden w-fit flex-col gap-1 rounded-lg bg-popover/50 p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10 backdrop-blur-md data-[open=true]:flex"
+>
+  {
+    modes.map((mode) => (
+      <button
+        type="button"
+        role="menuitemradio"
+        aria-checked={mode.id === 'minimal' ? 'true' : 'false'}
+        data-view-mode-button={mode.id}
+        data-active={mode.id === 'minimal' ? 'true' : 'false'}
+        title={mode.description}
+        class="group/mode flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-left text-xs text-foreground/85 transition-colors hover:bg-foreground/5 data-[active=true]:bg-[var(--system-accent)]/10 data-[active=true]:text-[var(--system-accent)]"
+      >
+        {mode.label}
+        <Icon name="check" size={14} class="hidden shrink-0 group-data-[active=true]/mode:block" />
+      </button>
+    ))
+  }
+</div>

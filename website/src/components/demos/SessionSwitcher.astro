@@ -1,0 +1,105 @@
+---
+import Icon from '../Icon.astro';
+
+/**
+ * The session switcher.
+ *
+ * `Ctrl+R` from anywhere in the app raises this over the window: a command
+ * palette, not a panel — the window keeps its size and the palette sits near the
+ * top of it, offset right by the sidebar's width so it centres over the chat
+ * column rather than the window.
+ *
+ * The chrome is the app's (SessionSwitcher.tsx over the dialog and command
+ * primitives): 550px wide, rounded-xl, a 44px input row, and one line per session
+ * carrying the project under the title and the age on the right.
+ *
+ * The surface is the app's opaque stand-in for a translucent dialog
+ * (`--dialog-solid`): the app floats this palette over the window's vibrancy, and a
+ * recreation without that material behind it would let the transcript read through
+ * the list.
+ *
+ * Everything below the input works: type to filter, up and down to move, enter to
+ * take the session. That is the feature, so a still of it would be a picture of
+ * a search box.
+ */
+interface Session {
+  title: string;
+  project: string;
+  time: string;
+}
+
+/**
+ * Long enough that typing beats reading, with a cluster on "minimap" to find and
+ * a decoy in another project.
+ */
+const sessions: Session[] = [
+  { title: 'Add the chat minimap', project: 'pigi', time: '4m' },
+  { title: 'Minimap widths while resizing', project: 'pigi', time: '18m' },
+  { title: 'Fix the tree header overlap', project: 'pigi', time: '1h' },
+  { title: 'Keep the session tree from blanking', project: 'pigi', time: 'Yesterday' },
+  { title: 'Terminal panel resize jank', project: 'pigi', time: 'Yesterday' },
+  { title: 'Ship 0.4.11', project: 'pigi', time: 'Yesterday' },
+  { title: 'Rewrite the diff renderer', project: 'pi-extension', time: '3h' },
+  { title: 'Popup menu grace areas', project: 'pi-extension', time: 'Mon' },
+  { title: 'Skill block parsing', project: 'test-playground', time: 'Mon' },
+];
+
+/** What the app shows as the first match, so the demo opens on something. */
+const initiallySelected = sessions[0].title;
+---
+
+<div
+  data-session-switcher
+  data-selected-title={initiallySelected}
+  role="dialog"
+  aria-label="Session switcher"
+  class="absolute left-[calc(50%+116px)] top-4 z-30 w-full max-w-[550px] -translate-x-1/2 overflow-hidden rounded-xl bg-[var(--dialog-solid)] ring-1 ring-foreground/10"
+>
+  <!-- The input row. 44px, the app's own height for it. -->
+  <div class="p-1 pb-0">
+    <div class="flex h-11 items-center gap-2 rounded-lg border border-input/30 bg-input/50 px-2">
+      <Icon name="search" size={16} class="shrink-0 text-muted-foreground opacity-50" />
+      <input
+        type="text"
+        data-switcher-input
+        placeholder="Type freely to fuzzy search sessions"
+        aria-label="Search sessions"
+        autocomplete="off"
+        spellcheck="false"
+        class="w-full min-w-0 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+      />
+    </div>
+  </div>
+
+  <div
+    role="listbox"
+    aria-label="Sessions"
+    data-switcher-list
+    class="no-scrollbar max-h-96 overflow-x-hidden overflow-y-auto pt-1 pb-1"
+  >
+    {
+      sessions.map((session) => (
+        <button
+          type="button"
+          role="option"
+          data-switcher-row
+          data-title={session.title}
+          data-selected={session.title === initiallySelected ? 'true' : 'false'}
+          aria-selected={session.title === initiallySelected ? 'true' : 'false'}
+          class="flex w-full items-center gap-2 px-2 py-1.5 text-left transition-colors data-[selected=true]:bg-foreground/10"
+        >
+          <span class="flex min-w-0 flex-1 flex-col">
+            <span class="truncate text-sm text-foreground" data-switcher-title>
+              {session.title}
+            </span>
+            <span class="truncate text-xs text-muted-foreground">{session.project}</span>
+          </span>
+          <span class="shrink-0 text-xs text-muted-foreground">{session.time}</span>
+        </button>
+      ))
+    }
+    <p class="px-2 py-6 text-center text-sm text-muted-foreground" hidden data-switcher-empty>
+      No results
+    </p>
+  </div>
+</div>

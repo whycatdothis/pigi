@@ -1,0 +1,78 @@
+---
+import Icon from '../Icon.astro';
+import ViewModeMenu from '../demos/ViewModeMenu.astro';
+
+/**
+ * The session toolbar.
+ *
+ * Three buttons, in the app's order: session tree, terminal, view mode. The
+ * hover tooltips carry the same strings and the same shortcuts the app puts on
+ * them (SessionToolbar.tsx), so the keys on this page are the keys in the app.
+ */
+interface Props {
+  title: string;
+  terminalOpen?: boolean;
+  /** Whether this window carries the view-mode menu, or only its button. */
+  viewModes?: boolean;
+  viewMenuOpen?: boolean;
+}
+
+const { title, terminalOpen = false, viewModes = false, viewMenuOpen = false } = Astro.props;
+---
+
+<!-- h-11 and the hairline below it are the app's toolbar measurements. -->
+<div
+  class="relative z-10 flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 px-3"
+>
+  <div class="flex min-w-0 max-w-[33%] items-center gap-1.5">
+    <Icon name="notebook" size={16} stroke={2} class="shrink-0 text-foreground" />
+    <span class="truncate text-sm font-medium text-foreground">{title}</span>
+  </div>
+
+  <div class="flex-1"></div>
+
+  <div class="flex shrink-0 items-center gap-0.5">
+    <!-- Session tree. `binary-tree-2` carries the app's own scale factor: Tabler
+         draws it small in its box, so it is scaled up and the stroke divides the
+         same factor back out. -->
+    <button
+      type="button"
+      aria-label="Session tree"
+      class="group relative flex size-7 items-center justify-center rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+    >
+      <Icon name="binary-tree-2" size={15} class="scale-[1.15] [stroke-width:calc(1.5/1.15)]" />
+      <span class="app-tooltip">Session tree</span>
+    </button>
+
+    <button
+      type="button"
+      data-terminal-toggle
+      aria-label="Toggle terminal"
+      aria-pressed={terminalOpen}
+      class:list={[
+        'group relative flex size-7 items-center justify-center rounded p-1 transition-colors hover:bg-muted',
+        terminalOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+      ]}
+    >
+      <Icon name="terminal-2" size={16} />
+      <span class="app-tooltip">
+        Toggle terminal
+        <kbd class="kbd ml-2 font-mono">⌘ J</kbd>
+      </span>
+    </button>
+
+    <div class="relative">
+      <button
+        type="button"
+        data-view-menu-trigger
+        title="View mode"
+        aria-haspopup="menu"
+        aria-expanded={viewMenuOpen}
+        class="flex size-7 items-center justify-center rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <Icon name="filter-2" size={16} />
+      </button>
+      {viewModes && <ViewModeMenu open={viewMenuOpen} />}
+    </div>
+  </div>
+</div>

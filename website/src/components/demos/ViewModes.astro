@@ -1,0 +1,213 @@
+---
+import UserMessage from '../app/UserMessage.astro';
+import ThinkingBlock from '../app/ThinkingBlock.astro';
+import ToolCard from '../app/ToolCard.astro';
+import ReadGroup from '../app/ReadGroup.astro';
+import AssistantMessage from '../app/AssistantMessage.astro';
+import { buildReadGroupLabel } from '../../lib/appCopy';
+
+/**
+ * One turn, drawn three ways.
+ *
+ * The turn is identical in all three panels — that is what the section claims, so
+ * the data lives here once and each panel decides what to do with it. The switch
+ * is the real one from the toolbar above: the menu is a dropdown off the filter
+ * button, and picking an item writes `data-active` on the window, which is what
+ * these three panels read.
+ *
+ * Each panel scrolls on its own, because the difference between them is how much
+ * there is to scroll through.
+ */
+const userText = 'the transcript flickers while the terminal panel animates open';
+const thinkingText =
+  "Two things resize on every frame: the panel's height and the transcript's viewport. Every one of those frames re-measures the visible rows, so the list re-lays out sixty times for one gesture. The fix is to stop the transcript from seeing the intermediate heights.";
+
+const readCalls = [
+  'read src/components/terminal/TerminalPanel.tsx',
+  'read src/components/transcript/MessageList.tsx',
+  'read src/lib/layoutConstants.ts',
+  'read src/state/appStore.ts',
+];
+
+const editDiff = [
+  {
+    type: 'context' as const,
+    number: 122,
+    content: 'const containerRef = useRef<HTMLDivElement>(null);',
+  },
+  {
+    type: 'remove' as const,
+    number: 123,
+    content: '  const [panelHeight, setPanelHeight] = useState(0);',
+  },
+  {
+    type: 'add' as const,
+    number: 123,
+    content: '  const panelRef = useRef<HTMLDivElement>(null);',
+  },
+  { type: 'separator' as const },
+  { type: 'context' as const, number: 148, content: '  return (' },
+  { type: 'remove' as const, number: 149, content: '    <div style={{ height: panelHeight }}>' },
+  {
+    type: 'add' as const,
+    number: 149,
+    content: '    <div ref={panelRef} data-panel-resizing={resizing}>',
+  },
+];
+
+const gitOutput = [
+  '8f447ef refactor: drop headless-tree from the session tree',
+  'a69c3ff fix: hold the hover preview until the pointer rests',
+  '62d9bc3 fix: keep the session tree from blanking the window',
+];
+
+const compactLabel = buildReadGroupLabel(false, readCalls.length, 1, 1);
+
+/**
+ * The app's own transcript metrics: 860px wide, 20px of inline padding, a 24px
+ * inset at the top.
+ *
+ * `min-h-full` with `mt-auto` on the content is what keeps a short turn against
+ * the input: the app holds the transcript at its newest message, so the empty
+ * space in a short session is above the text, never below it. The long panels
+ * still scroll from the top, which is the state worth showing when the point is
+ * how much there is to scroll.
+ */
+const SCROLLER = 'no-scrollbar h-full overflow-y-auto';
+const COLUMN = 'mx-auto flex min-h-full max-w-[860px] flex-col px-5 pb-24 pt-6';
+---
+
+<div class="min-h-0 flex-1" data-view-panels>
+  <!--
+    Minimal: the working timer, one line saying what is happening, and the answer.
+    Everything else is behind the timer.
+  -->
+  <div class="hidden h-full group-data-[active=minimal]/view:block" data-view-panel="minimal">
+    <div class={SCROLLER}>
+      <div class={COLUMN}>
+        <div class="mt-auto flex flex-col">
+          <UserMessage time="10:44">{userText}</UserMessage>
+          <div class="flex flex-col">
+            <div class="flex w-full items-center gap-1.5 pb-1 pt-3 text-left">
+              <span class="text-[15px] text-muted-foreground tabular-nums">Worked for 14s</span>
+              <span class="text-[13px] text-muted-foreground/60">· 5 steps</span>
+            </div>
+            <div class="h-px bg-border/60"></div>
+          </div>
+          <div class="mt-3 flex flex-col gap-1">
+            <AssistantMessage>
+              <p>
+                Two things resize on every frame: the panel's height and the transcript's viewport.
+                Each one re-measures the rows that are on screen.
+              </p>
+              <p>
+                The panel height is a CSS custom property now, so the gesture writes one value and
+                the browser paints it on the compositor.
+              </p>
+            </AssistantMessage>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--
+    Compact: consecutive read-only calls folded into one line, so the edit in the
+    middle of them is what the eye lands on.
+  -->
+    <div class="hidden h-full group-data-[active=compact]/view:block" data-view-panel="compact">
+      <div class={SCROLLER}>
+        <div class={COLUMN}>
+          <div class="mt-auto flex flex-col">
+            <UserMessage time="10:44">{userText}</UserMessage>
+            <div class="flex flex-col gap-2 pt-2">
+              <ThinkingBlock duration="2s" clamp>{thinkingText}</ThinkingBlock>
+              <ReadGroup
+                label={compactLabel}
+                entries={readCalls.map((command) => ({ command, status: 'success' as const }))}
+              />
+              <AssistantMessage>
+                <p>
+                  Confirmed — the list re-measures on every frame of the panel's open and close.
+                </p>
+              </AssistantMessage>
+              <ReadGroup
+                label={buildReadGroupLabel(false, 0, 1, 0)}
+                entries={[{ command: 'git log --oneline -5', status: 'success' }]}
+              />
+              <ToolCard
+                prefix="→"
+                command="edit src/components/transcript/MessageList.tsx"
+                diff={editDiff}
+                duration="0.4s"
+              />
+              <AssistantMessage time="10:45">
+                <p>
+                  Panel height now animates on the compositor and the transcript re-measures once,
+                  when the gesture ends.
+                </p>
+              </AssistantMessage>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!--
+    Show All: every call on its own, in order, with its output. This is the native
+    pi log, line for line.
+  -->
+      <div class="hidden h-full group-data-[active=all]/view:block" data-view-panel="all">
+        <div class={SCROLLER}>
+          <div class={COLUMN}>
+            <div class="mt-auto flex flex-col">
+              <UserMessage time="10:44">{userText}</UserMessage>
+              <div class="flex flex-col gap-2 pt-2">
+                <ThinkingBlock duration="2s" clamp>{thinkingText}</ThinkingBlock>
+                <ToolCard
+                  command="rg -n 'panelHeight|setPanelHeight' src/renderer/src"
+                  output={[
+                    'TerminalPanel.tsx:41:  const [panelHeight, setPanelHeight] = useState(0);',
+                    'TerminalPanel.tsx:88:      setPanelHeight(event.contentRect.height);',
+                    'appStore.ts:212:  terminalPanelHeight: 0,',
+                  ]}
+                  duration="0.2s"
+                />
+                <ToolCard
+                  command="read src/components/transcript/MessageList.tsx --offset 100 --limit 60"
+                  output={[
+                    '116   const estimateSize = useCallback(',
+                    '125   const rowVirtualizer = useVirtualizer({',
+                    '126     count: rows.length,',
+                    '134     measureElement: (element, entry, instance) => {',
+                  ]}
+                  duration="0.1s"
+                />
+                <ToolCard command="git log --oneline -5" output={gitOutput} duration="0.1s" />
+                <ToolCard
+                  command="read src/renderer/src/lib/layoutConstants.ts"
+                  output={[
+                    '14  export const MESSAGE_LIST_MAX_WIDTH = 860;',
+                    '16  export const MESSAGE_CONTENT_MAX_WIDTH =',
+                    '17    MESSAGE_LIST_MAX_WIDTH - MESSAGE_LIST_HORIZONTAL_PADDING * 2;',
+                  ]}
+                  duration="0.1s"
+                />
+                <ToolCard
+                  prefix="→"
+                  command="edit src/components/transcript/MessageList.tsx"
+                  diff={editDiff}
+                  duration="0.4s"
+                />
+                <AssistantMessage time="10:45">
+                  <p>
+                    Panel height now animates on the compositor and the transcript re-measures once,
+                    when the gesture ends.
+                  </p>
+                </AssistantMessage>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
