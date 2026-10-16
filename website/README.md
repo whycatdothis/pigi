@@ -35,8 +35,9 @@ then the footer. That is the whole page: no install section, no shortcut table, 
 is not a feature or a claim about one.
 
 Every section is one window, except the session tree's, which is three: the tree action on a message
-(one way in), the tree itself, and the explanation the `?` opens. The two short ones are cut to 520px
-because the dialogs in them are 520px wide and a still of one does not need the app's 800px of height.
+(one way in), the tree itself, and the explanation the `?` opens. All of them are the app's own window
+size — a dialog is 520px wide, not 520px tall, and a shorter window would only be a lie about how the
+app looks.
 
 The header's Download button is the same component as the hero's (`variant="compact"`), and both are
 real downloads — there is no `#install` anchor to scroll to. Two claims the page makes have no home
