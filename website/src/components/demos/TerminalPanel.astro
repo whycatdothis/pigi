@@ -1,5 +1,6 @@
 ---
 import Icon from '../Icon.astro';
+import { TERMINAL_TAB, TERMINAL_TAB_CLOSE, TERMINAL_TABS } from '../../lib/appUi';
 
 /**
  * The terminal panel.
@@ -30,22 +31,23 @@ const DIM = 'text-[var(--terminal-white)]';
 ---
 
 <div class="flex h-full flex-col bg-background">
-  <div class="flex h-10 shrink-0 items-center gap-1 px-2" data-terminal-tabs>
+  <div
+    class:list={['h-10 shrink-0 px-2', TERMINAL_TABS.classes]}
+    data-terminal-tabs
+    data-variant="chip"
+  >
     {
       tabs.map((tab) => (
         <button
           type="button"
           data-terminal-tab={tab}
-          data-active={tab === activeTab ? 'true' : 'false'}
+          data-state={tab === activeTab ? 'active' : 'inactive'}
           title={tab}
-          class="group/tab flex h-8 max-w-40 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-normal text-muted-foreground transition-colors hover:text-foreground data-[active=true]:bg-muted data-[active=true]:text-foreground"
+          class:list={[TERMINAL_TAB.classes]}
         >
           <Icon name="terminal-2" size={13} class="shrink-0 opacity-70" />
           <span class="truncate">{tab}</span>
-          <span
-            class="ml-0.5 -mr-1 flex size-3.5 shrink-0 items-center justify-center rounded opacity-0 transition-opacity group-hover/tab:opacity-100 group-data-[active=true]/tab:opacity-100"
-            aria-hidden="true"
-          >
+          <span class:list={[TERMINAL_TAB_CLOSE.classes]} aria-hidden="true">
             <Icon name="x" size={11} />
           </span>
         </button>

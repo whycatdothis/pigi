@@ -2,6 +2,7 @@
 import Icon from '../Icon.astro';
 import { NEW_CHAT_HEADING } from '../../lib/appCopy';
 import { CHAT_INPUT_MAX_WIDTH } from '../../lib/appLayout';
+import { CHAT_CARD } from '../../lib/appUi';
 
 interface Props {
   /** New-session mode centres the box and names the state instead of the follow-up. */
@@ -28,12 +29,7 @@ const cardStyle = `max-width:${CHAT_INPUT_MAX_WIDTH}px`;
 
 <div class="shrink-0 px-5 pb-1">
   <div class="relative mx-auto w-full" style={cardStyle}>
-    <div
-      class:list={[
-        'flex h-auto flex-col rounded-3xl border bg-background shadow-[0_10px_34px_rgb(0_0_0_/_0.075)]',
-        !isNewSession && 'min-h-28',
-      ]}
-    >
+    <div class:list={['flex', CHAT_CARD.classes, !isNewSession && 'min-h-28']}>
       {
         isNewSession && (
           <h1 class="mb-12 mt-12 text-center text-4xl font-normal text-foreground">

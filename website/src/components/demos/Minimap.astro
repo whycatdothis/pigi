@@ -1,4 +1,6 @@
 ---
+import { OVERLAY_BG } from '../../lib/appUi';
+
 export interface MinimapMessage {
   text: string;
   time: string;
@@ -86,7 +88,10 @@ function getLineWidth(index: number, total: number, maxWidth: number): number {
 {
   interactive && (
     <div
-      class="absolute right-2 top-1/2 z-20 hidden w-64 -translate-y-1/2 flex-col gap-0.5 overflow-hidden rounded-lg border border-border/60 bg-popover/90 p-1 shadow-[var(--popover-shadow)] backdrop-blur-md data-[open=true]:flex"
+      class:list={[
+        'absolute right-2 top-1/2 z-20 hidden w-64 -translate-y-1/2 flex-col gap-0.5 overflow-hidden rounded-lg border border-border/60 p-1 shadow-md data-[open=true]:flex',
+        OVERLAY_BG.classes,
+      ]}
       data-minimap-panel
       data-open="false"
     >

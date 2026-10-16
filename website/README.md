@@ -55,8 +55,9 @@ Both scripts drive the built `dist/` in a real browser:
 
 ```bash
 npm run build
-npm run shots      # writes .shots/*.png: full page and per section
-npm run verify     # asserts the interactive pieces work (25 checks)
+npm run shots         # writes .shots/*.png: full page and per section
+npm run verify        # asserts the interactive pieces work (25 checks)
+npm run check:drift   # asserts the copied app classes still exist in the app
 ```
 
 `npm run shots` takes a viewport width as an argument (`npm run shots 900`) so a narrow layout can be
@@ -132,15 +133,17 @@ Four rules make the page worth its claims, and all of them need a hand when thin
    imports them as they are — change `SIDEBAR_DEFAULT_WIDTH` in the app and this page is built with the
    new width. The one number repeated by hand is the window's size, which lives in the main process
    beside Electron; it says so where it is defined.
-2. **Design tokens are copied, not invented.** Everything in the `@theme inline`, `:root` and `.dark`
-   blocks of `src/styles/global.css` is ported from `src/renderer/src/assets/main.css`, including the
-   terminal palette from `components/terminal/terminalTheme.css`. If a token changes there, change it
-   here. The markdown typography under `.markdown-body` is a straight port too, which is why an
-   assistant message looks the same in the app and on the changelog page.
-3. **The recreated UI tracks the app.** The window chrome, the tool card, the read group, the key
-   caps and the shortcut strings in the toolbar's tooltips all mirror specific files in the app; each
-   one says which. A change to the app's layout that is not reflected here turns this page into a stale
-   screenshot drawn in HTML, which is worse than a screenshot because it looks live.
+2. **The app's component classes are copied, not reinvented** (`src/lib/appUi.ts`). The app's
+   `components/ui/*.tsx` files are shadcn components, and almost all of what they are is a string of
+   Tailwind classes. Those strings are the app's interface, so they are copied verbatim with the file
+   they came from, and where the app composes one at a call site the composition is what is copied.
+   `npm run check:drift` fails when a copied class no longer exists in the app, so drift turns into a
+   failing check instead of a page that quietly stops matching it.
+3. **Design tokens are the app's, from one file.** `src/styles/global.css` imports
+   `src/shared/designTokens.css`, which is the app's `@theme inline` / `:root` / `.dark` and is imported
+   by the app's `assets/main.css` too — one file, two consumers, so a colour or a radius cannot drift.
+   The terminal's palette is imported from `components/terminal/terminalTheme.css` for the same reason.
+   What the site declares itself is named for the page (`--page-*`, `--window-*`) and nothing else.
 4. **Copy that asserts something about the app should be checkable in the app's source.** If a claim
    cannot be pointed at a file, it should not be on the page. Where an interaction stops short of the
    app — the palette closes instead of switching sessions, because the session behind it is a still —

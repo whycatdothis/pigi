@@ -11,7 +11,8 @@
     "typecheck": "astro check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "astro check && prettier --check .",
+    "check": "astro check && node scripts/checkAppClassDrift.mjs && prettier --check .",
+    "check:drift": "node scripts/checkAppClassDrift.mjs",
     "shots": "node scripts/shoot.mjs",
     "verify": "node scripts/verify-interactions.mjs"
   },
