@@ -15,6 +15,7 @@ import {
   rowContentX,
 } from '../../lib/treeGeometry';
 import { DIALOG_SURFACE } from '../../lib/appUi';
+import SessionTreeHelpButton from '../app/SessionTreeHelpButton.astro';
 
 interface TreeRow {
   id: string;
@@ -164,11 +165,7 @@ const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
     </span>
     <span class="shrink-0 text-xs text-muted-foreground/80">{rows.length} messages</span>
     <!-- The `?` the app keeps here, which is how the dialog below it is reached. -->
-    <span
-      class="ml-3 flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"
-    >
-      <Icon name="question-mark" size={12} />
-    </span>
+    <SessionTreeHelpButton class="ml-3" />
   </div>
 
   <div class="flex shrink-0 flex-wrap items-center gap-1.5 px-5 pb-3">

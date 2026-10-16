@@ -1,5 +1,5 @@
 ---
-import MessageActions from './MessageActions.astro';
+import MessageActions, { type MessageActionTooltip } from './MessageActions.astro';
 
 interface Props {
   time?: string;
@@ -8,7 +8,7 @@ interface Props {
   /** Keep the actions visible, for a still standing in for a hover. */
   showActions?: boolean;
   /** The label the app's tooltip would be showing for the action hovered. */
-  actionTooltip?: { label: string; hint?: string };
+  actionTooltip?: MessageActionTooltip;
 }
 
 const { time, actions = false, showActions = false, actionTooltip } = Astro.props;

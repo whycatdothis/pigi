@@ -1,11 +1,23 @@
 ---
+import Icon from '../Icon.astro';
+
+/**
+ * A reasoning block.
+ *
+ * The app clamps one at 120px (`thinkingBlock.tsx` over `overflowClamp.tsx`), and
+ * clamps it *tail-anchored*: the last lines stay visible, the top edge fades, and a
+ * "Show more" pill sits above the cut. Short reasoning is left alone — the clamp
+ * only engages once the text is taller than 120px, which is why the pill is a prop
+ * rather than something measured here. A still cannot measure it, and guessing
+ * would either fade text the app would show in full or clip text it would not.
+ */
 interface Props {
   duration: string;
-  /** Trimmed to the app's 120px clamp, with the bottom edge fading out. */
-  clamp?: boolean;
+  /** The reasoning is taller than the app's 120px clamp. */
+  overflowing?: boolean;
 }
 
-const { duration, clamp = false } = Astro.props;
+const { duration, overflowing = false } = Astro.props;
 ---
 
 <div class="rounded-md bg-muted/70 px-3 py-1.5 text-muted-foreground">
@@ -13,8 +25,25 @@ const { duration, clamp = false } = Astro.props;
     <span>Thinking</span>
     <span class="font-normal tabular-nums">{duration}</span>
   </div>
-  <div class:list={[clamp && 'max-h-[92px] overflow-hidden content-fade-bottom']}>
+  {
+    overflowing && (
+      <span
+        class="flex w-fit items-center gap-1 rounded-full py-0.5 text-xs leading-4 text-muted-foreground"
+        aria-hidden="true"
+      >
+        Show more
+        <Icon name="chevron-up" size={14} />
+      </span>
+    )
+  }
+  <div
+    class:list={[
+      'flex flex-col overflow-hidden',
+      // Tail-anchored: the newest lines are the ones worth keeping.
+      overflowing && 'max-h-[120px] justify-end content-fade-top',
+    ]}
+  >
     <pre
-      class="whitespace-pre-wrap break-words font-sans text-[14px] leading-5 text-muted-foreground"><slot /></pre>
+      class="flow-root shrink-0 whitespace-pre-wrap break-words font-sans text-[14px] leading-5 text-muted-foreground"><slot /></pre>
   </div>
 </div>

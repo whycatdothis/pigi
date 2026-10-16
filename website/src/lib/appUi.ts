@@ -173,6 +173,10 @@ export const MENU_ITEM = {
  * `--dialog-solid` — "a pinned surface inside a dialog cannot use the translucent
  * material". Everything else is untouched.
  *
+ * The app's `p-4` and `gap-4` are the part of that string a dialog is expected to
+ * replace: the session tree passes `p-0`, the switcher pads its own rows. This is
+ * the surface those call sites paint on, so the padding belongs to them.
+ *
  * The base's `p-4` is left out: both dialogs in the app override it with `p-0` and
  * pad their own rows, and both dialogs on this page do the same.
  */

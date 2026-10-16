@@ -19,8 +19,14 @@ import { buildReadGroupLabel } from '../../lib/appCopy';
  * there is to scroll through.
  */
 const userText = 'the transcript flickers while the terminal panel animates open';
+/**
+ * Long enough to pass the app's 120px thinking clamp, because that is what a real
+ * turn's reasoning looks like and because the clamp is worth seeing: the tail of
+ * the block stays, the top edge fades, and a Show more pill appears above it
+ * (`thinkingBlock.tsx`).
+ */
 const thinkingText =
-  "Two things resize on every frame: the panel's height and the transcript's viewport. Every one of those frames re-measures the visible rows, so the list re-lays out sixty times for one gesture. The fix is to stop the transcript from seeing the intermediate heights.";
+  "Two things resize on every frame: the panel's height and the transcript's viewport. Every one of those frames re-measures the visible rows, so the list re-lays out sixty times for one gesture, and the re-measure is what the eye reads as a flicker. The fix is to stop the transcript from seeing the intermediate heights: the panel's height becomes a custom property the compositor animates, and the transcript is told once, when the gesture ends, to re-measure. Same layout, one measurement instead of sixty. The alternatives are worse than they look. Throttling the resize observer only halves the re-lays, and the ones that remain are still visible — a 30fps flicker is still a flicker. Pausing the observer for the duration of the gesture is the honest version of the same idea: the transcript does not need to know that the panel is moving, only where it stopped.";
 
 const readCalls = [
   'read src/components/terminal/TerminalPanel.tsx',
@@ -109,102 +115,100 @@ const COLUMN = 'mx-auto flex min-h-full max-w-[860px] flex-col px-5 pb-24 pt-6';
         </div>
       </div>
     </div>
+  </div>
 
-    <!--
+  <!--
     Compact: consecutive read-only calls folded into one line, so the edit in the
     middle of them is what the eye lands on.
   -->
-    <div class="hidden h-full group-data-[active=compact]/view:block" data-view-panel="compact">
-      <div class={SCROLLER}>
-        <div class={COLUMN}>
-          <div class="mt-auto flex flex-col">
-            <UserMessage time="10:44">{userText}</UserMessage>
-            <div class="flex flex-col gap-2 pt-2">
-              <ThinkingBlock duration="2s" clamp>{thinkingText}</ThinkingBlock>
-              <ReadGroup
-                label={compactLabel}
-                entries={readCalls.map((command) => ({ command, status: 'success' as const }))}
-              />
-              <AssistantMessage>
-                <p>
-                  Confirmed — the list re-measures on every frame of the panel's open and close.
-                </p>
-              </AssistantMessage>
-              <ReadGroup
-                label={buildReadGroupLabel(false, 0, 1, 0)}
-                entries={[{ command: 'git log --oneline -5', status: 'success' }]}
-              />
-              <ToolCard
-                prefix="→"
-                command="edit src/components/transcript/MessageList.tsx"
-                diff={editDiff}
-                duration="0.4s"
-              />
-              <AssistantMessage time="10:45">
-                <p>
-                  Panel height now animates on the compositor and the transcript re-measures once,
-                  when the gesture ends.
-                </p>
-              </AssistantMessage>
-            </div>
+  <div class="hidden h-full group-data-[active=compact]/view:block" data-view-panel="compact">
+    <div class={SCROLLER}>
+      <div class={COLUMN}>
+        <div class="mt-auto flex flex-col">
+          <UserMessage time="10:44">{userText}</UserMessage>
+          <div class="flex flex-col gap-2 pt-2">
+            <ThinkingBlock duration="2s" overflowing>{thinkingText}</ThinkingBlock>
+            <ReadGroup
+              label={compactLabel}
+              entries={readCalls.map((command) => ({ command, status: 'success' as const }))}
+            />
+            <AssistantMessage>
+              <p>Confirmed — the list re-measures on every frame of the panel's open and close.</p>
+            </AssistantMessage>
+            <ReadGroup
+              label={buildReadGroupLabel(false, 0, 1, 0)}
+              entries={[{ command: 'git log --oneline -5', status: 'success' }]}
+            />
+            <ToolCard
+              prefix="→"
+              command="edit src/components/transcript/MessageList.tsx"
+              diff={editDiff}
+              duration="0.4s"
+            />
+            <AssistantMessage time="10:45">
+              <p>
+                Panel height now animates on the compositor and the transcript re-measures once,
+                when the gesture ends.
+              </p>
+            </AssistantMessage>
           </div>
         </div>
       </div>
+    </div>
+  </div>
 
-      <!--
-    Show All: every call on its own, in order, with its output. This is the native
-    pi log, line for line.
-  -->
-      <div class="hidden h-full group-data-[active=all]/view:block" data-view-panel="all">
-        <div class={SCROLLER}>
-          <div class={COLUMN}>
-            <div class="mt-auto flex flex-col">
-              <UserMessage time="10:44">{userText}</UserMessage>
-              <div class="flex flex-col gap-2 pt-2">
-                <ThinkingBlock duration="2s" clamp>{thinkingText}</ThinkingBlock>
-                <ToolCard
-                  command="rg -n 'panelHeight|setPanelHeight' src/renderer/src"
-                  output={[
-                    'TerminalPanel.tsx:41:  const [panelHeight, setPanelHeight] = useState(0);',
-                    'TerminalPanel.tsx:88:      setPanelHeight(event.contentRect.height);',
-                    'appStore.ts:212:  terminalPanelHeight: 0,',
-                  ]}
-                  duration="0.2s"
-                />
-                <ToolCard
-                  command="read src/components/transcript/MessageList.tsx --offset 100 --limit 60"
-                  output={[
-                    '116   const estimateSize = useCallback(',
-                    '125   const rowVirtualizer = useVirtualizer({',
-                    '126     count: rows.length,',
-                    '134     measureElement: (element, entry, instance) => {',
-                  ]}
-                  duration="0.1s"
-                />
-                <ToolCard command="git log --oneline -5" output={gitOutput} duration="0.1s" />
-                <ToolCard
-                  command="read src/renderer/src/lib/layoutConstants.ts"
-                  output={[
-                    '14  export const MESSAGE_LIST_MAX_WIDTH = 860;',
-                    '16  export const MESSAGE_CONTENT_MAX_WIDTH =',
-                    '17    MESSAGE_LIST_MAX_WIDTH - MESSAGE_LIST_HORIZONTAL_PADDING * 2;',
-                  ]}
-                  duration="0.1s"
-                />
-                <ToolCard
-                  prefix="→"
-                  command="edit src/components/transcript/MessageList.tsx"
-                  diff={editDiff}
-                  duration="0.4s"
-                />
-                <AssistantMessage time="10:45">
-                  <p>
-                    Panel height now animates on the compositor and the transcript re-measures once,
-                    when the gesture ends.
-                  </p>
-                </AssistantMessage>
-              </div>
-            </div>
+  <!--
+      Show All: every call on its own, in order, with its output. This is the
+      native pi log, line for line.
+    -->
+  <div class="hidden h-full group-data-[active=all]/view:block" data-view-panel="all">
+    <div class={SCROLLER}>
+      <div class={COLUMN}>
+        <div class="mt-auto flex flex-col">
+          <UserMessage time="10:44">{userText}</UserMessage>
+          <div class="flex flex-col gap-2 pt-2">
+            <ThinkingBlock duration="2s" overflowing>{thinkingText}</ThinkingBlock>
+            <ToolCard
+              command="rg -n 'panelHeight|setPanelHeight' src/renderer/src"
+              output={[
+                'TerminalPanel.tsx:41:  const [panelHeight, setPanelHeight] = useState(0);',
+                'TerminalPanel.tsx:88:      setPanelHeight(event.contentRect.height);',
+                'appStore.ts:212:  terminalPanelHeight: 0,',
+              ]}
+              duration="0.2s"
+            />
+            <ToolCard
+              command="read src/components/transcript/MessageList.tsx --offset 100 --limit 60"
+              output={[
+                '116   const estimateSize = useCallback(',
+                '125   const rowVirtualizer = useVirtualizer({',
+                '126     count: rows.length,',
+                '134     measureElement: (element, entry, instance) => {',
+              ]}
+              duration="0.1s"
+            />
+            <ToolCard command="git log --oneline -5" output={gitOutput} duration="0.1s" />
+            <ToolCard
+              command="read src/renderer/src/lib/layoutConstants.ts"
+              output={[
+                '14  export const MESSAGE_LIST_MAX_WIDTH = 860;',
+                '16  export const MESSAGE_CONTENT_MAX_WIDTH =',
+                '17    MESSAGE_LIST_MAX_WIDTH - MESSAGE_LIST_HORIZONTAL_PADDING * 2;',
+              ]}
+              duration="0.1s"
+            />
+            <ToolCard
+              prefix="→"
+              command="edit src/components/transcript/MessageList.tsx"
+              diff={editDiff}
+              duration="0.4s"
+            />
+            <AssistantMessage time="10:45">
+              <p>
+                Panel height now animates on the compositor and the transcript re-measures once,
+                when the gesture ends.
+              </p>
+            </AssistantMessage>
           </div>
         </div>
       </div>

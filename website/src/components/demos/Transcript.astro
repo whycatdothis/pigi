@@ -3,6 +3,7 @@ import UserMessage from '../app/UserMessage.astro';
 import AssistantMessage from '../app/AssistantMessage.astro';
 import ThinkingBlock from '../app/ThinkingBlock.astro';
 import ToolCard from '../app/ToolCard.astro';
+import { type MessageActionTooltip } from '../app/MessageActions.astro';
 import Minimap from './Minimap.astro';
 import {
   MESSAGE_LIST_HORIZONTAL_PADDING,
@@ -14,10 +15,11 @@ export interface Turn {
   user: string;
   time: string;
   /**
-   * The actions a message shows on hover, left visible. The app's own labels:
-   * `Fork this msg in new session`, and for the tree, `Session tree`.
+   * The actions a message shows on hover, left visible, and which message of the
+   * turn is carrying them — the app offers them on both. `MessageActionTooltip`
+   * holds the app's own label for the action under the pointer.
    */
-  actionTooltip?: { label: string; hint?: string };
+  actionTooltip?: MessageActionTooltip & { on: 'user' | 'assistant' };
   thinking?: string;
   tool?: { command: string; prefix?: string; output: string[]; duration: string };
   reply?: string;
@@ -47,6 +49,11 @@ interface Props {
  * container with a real minimap beside it.
  */
 const { turns, scroll = false, minimap = false } = Astro.props;
+
+/** The tooltip to keep visible, when this turn is the one carrying a hover. */
+function tooltipFor(turn: Turn, on: 'user' | 'assistant'): MessageActionTooltip | undefined {
+  return turn.actionTooltip?.on === on ? turn.actionTooltip : undefined;
+}
 
 /**
  * The last row's inset in the app is MESSAGE_LIST_BOTTOM_INSET. The extra air
@@ -83,19 +90,15 @@ const columnStyle = [
           <div data-message-index={index}>
             <UserMessage
               time={turn.time}
-              actions={turn.actionTooltip ? 'full' : false}
-              showActions={turn.actionTooltip !== undefined}
-              actionTooltip={turn.actionTooltip}
+              actions={tooltipFor(turn, 'user') ? 'full' : false}
+              showActions={tooltipFor(turn, 'user') !== undefined}
+              actionTooltip={tooltipFor(turn, 'user')}
             >
               {turn.user}
             </UserMessage>
 
             <div class="flex flex-col gap-2 pt-2">
-              {turn.thinking && (
-                <ThinkingBlock duration="2s" clamp>
-                  {turn.thinking}
-                </ThinkingBlock>
-              )}
+              {turn.thinking && <ThinkingBlock duration="2s">{turn.thinking}</ThinkingBlock>}
               {turn.tool && (
                 <ToolCard
                   prefix={turn.tool.prefix}
@@ -108,7 +111,11 @@ const columnStyle = [
 
             {turn.reply && (
               <div class="mt-2">
-                <AssistantMessage time={turn.last ? turn.time : undefined}>
+                <AssistantMessage
+                  time={turn.last ? turn.time : undefined}
+                  showActions={tooltipFor(turn, 'assistant') !== undefined}
+                  actionTooltip={tooltipFor(turn, 'assistant')}
+                >
                   <p>{turn.reply}</p>
                 </AssistantMessage>
               </div>
