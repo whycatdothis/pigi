@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The session list and the chat area meet in a straight line: the rounded corner between them is gone, and the hairline that separates them runs the full height of the window
+
 ## [0.4.11] - 2026-10-12
 
 ### Added

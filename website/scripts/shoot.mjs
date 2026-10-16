@@ -15,6 +15,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { chromium } from 'playwright';
+import { stubReleaseApi } from './releaseFixture.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..', 'dist');
 const OUT_DIR = resolve(import.meta.dirname, '..', '.shots');
@@ -54,6 +55,10 @@ page.on('console', (message) => {
   if (message.type() === 'error') failures.push(`console: ${message.text()}`);
 });
 page.on('pageerror', (error) => failures.push(`pageerror: ${error.message}`));
+
+// Same canned release the verify script uses: a screenshot run should not depend
+// on GitHub's rate limit, and a rate-limited API is not a console error to fix.
+await stubReleaseApi(page);
 
 for (const [slug, route] of [
   ['home', '/'],

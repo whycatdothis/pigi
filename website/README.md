@@ -60,7 +60,9 @@ npm run verify     # asserts the interactive pieces work (25 checks)
 ```
 
 `npm run shots` takes a viewport width as an argument (`npm run shots 900`) so a narrow layout can be
-looked at without editing the script.
+looked at without editing the script. Both scripts answer the GitHub releases API from
+`scripts/releaseFixture.mjs` rather than the network: an unauthenticated call is limited to 60 an hour,
+and a run that trips the limit would report the download fallback and look like a broken button.
 
 They import Playwright, which they resolve from the **repository root's** `node_modules` — the app
 already depends on it for its browser test layer, so the site does not install a second copy. A
@@ -122,19 +124,24 @@ and the architecture is the one part a reader needs before clicking.
 
 ## Keeping it honest
 
-Three rules make the page worth its claims, and all of them need a hand when things change:
+Four rules make the page worth its claims, and all of them need a hand when things change:
 
-1. **Design tokens are copied, not invented.** Everything in the `@theme inline`, `:root` and `.dark`
-   blocks of `src/styles/global.css` is ported from `src/renderer/src/assets/main.css` in the app,
-   including the terminal palette from `components/terminal/terminalTheme.css`. If a token changes
-   there, change it here. The markdown typography under `.markdown-body` is a straight port too,
-   which is why an assistant message looks the same in the app and on the changelog page.
-2. **The recreated UI tracks the app.** The window chrome, the tool card, the read group, the tree
-   geometry (`src/lib/treeGeometry.ts`, ported from `sessionTreeGeometry.ts`) and the shortcut table
-   all mirror specific files in the app; each one says which. A change to the app's layout that is not
-   reflected here turns this page into a stale screenshot drawn in HTML, which is worse than a
-   screenshot because it looks live.
-3. **Copy that asserts something about the app should be checkable in the app's source.** If a claim
+1. **Numbers are imported, not repeated.** The sidebar's width, the terminal's height and the
+   transcript's column come from `src/renderer/src/lib/layoutConstants.ts`, and the tree's rows, rails
+   and elbows from `sessionTreeGeometry.ts`. Both files have no imports of their own, so this site
+   imports them as they are — change `SIDEBAR_DEFAULT_WIDTH` in the app and this page is built with the
+   new width. The one number repeated by hand is the window's size, which lives in the main process
+   beside Electron; it says so where it is defined.
+2. **Design tokens are copied, not invented.** Everything in the `@theme inline`, `:root` and `.dark`
+   blocks of `src/styles/global.css` is ported from `src/renderer/src/assets/main.css`, including the
+   terminal palette from `components/terminal/terminalTheme.css`. If a token changes there, change it
+   here. The markdown typography under `.markdown-body` is a straight port too, which is why an
+   assistant message looks the same in the app and on the changelog page.
+3. **The recreated UI tracks the app.** The window chrome, the tool card, the read group, the key
+   caps and the shortcut strings in the toolbar's tooltips all mirror specific files in the app; each
+   one says which. A change to the app's layout that is not reflected here turns this page into a stale
+   screenshot drawn in HTML, which is worse than a screenshot because it looks live.
+4. **Copy that asserts something about the app should be checkable in the app's source.** If a claim
    cannot be pointed at a file, it should not be on the page. Where an interaction stops short of the
    app — the palette closes instead of switching sessions, because the session behind it is a still —
    the component says so in a comment rather than papering over it.

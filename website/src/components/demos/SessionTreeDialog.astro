@@ -5,7 +5,7 @@ import {
   BRANCH_ELBOW_WIDTH_PX,
   BRANCH_SPACING_PX,
   RAIL_COLOR,
-  RAIL_COLOR_ACTIVE,
+  RAIL_COLOR_CURRENT,
   RAIL_WIDTH_PX,
   ROW_HEIGHT_PX,
   chevronCentreX,
@@ -222,7 +222,7 @@ const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
                     top: `${span.topPx}px`,
                     width: `${RAIL_WIDTH_PX}px`,
                     height: `${litHeightPx}px`,
-                    background: span.litEndPx === null ? RAIL_COLOR : RAIL_COLOR_ACTIVE,
+                    background: span.litEndPx === null ? RAIL_COLOR : RAIL_COLOR_CURRENT,
                   }}
                 />
               );
@@ -249,7 +249,7 @@ const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
                       width: `${BRANCH_ELBOW_WIDTH_PX - RAIL_WIDTH_PX}px`,
                       height: `${RAIL_WIDTH_PX}px`,
                       background: isRailOwner(row, row.id, pathOwners)
-                        ? RAIL_COLOR_ACTIVE
+                        ? RAIL_COLOR_CURRENT
                         : RAIL_COLOR,
                     }}
                   />

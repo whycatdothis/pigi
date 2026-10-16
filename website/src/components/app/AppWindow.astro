@@ -2,7 +2,7 @@
 import Sidebar from './Sidebar.astro';
 import SessionToolbar from './SessionToolbar.astro';
 import ChatInput from './ChatInput.astro';
-import { TERMINAL_HEIGHT_PX, WINDOW_HEIGHT_PX } from '../../lib/appLayout';
+import { TERMINAL_DEFAULT_HEIGHT, WINDOW_HEIGHT_PX } from '../../lib/appLayout';
 
 /**
  * The app window, as one component.
@@ -14,8 +14,8 @@ import { TERMINAL_HEIGHT_PX, WINDOW_HEIGHT_PX } from '../../lib/appLayout';
  * the window behind it dims.
  *
  * The measurements are the app's own: 1200x800 for the default window
- * (src/main/windows/createMainWindow.ts), h-11 for the toolbar, 232px for the
- * sidebar, TERMINAL_DEFAULT_HEIGHT for the panel.
+ * (src/main/windows/createMainWindow.ts), h-11 for the toolbar, the sidebar's
+ * SIDEBAR_DEFAULT_WIDTH, the panel's TERMINAL_DEFAULT_HEIGHT.
  */
 interface Props {
   /** The session title in the toolbar, and the sidebar row it selects. */
@@ -42,7 +42,7 @@ const {
   viewModes = false,
 } = Astro.props;
 
-const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_HEIGHT_PX}px` : '0'}`;
+const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}`;
 ---
 
 <div
@@ -62,8 +62,13 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_HEIGHT_PX}px` : '0'}`;
   <div class="flex h-full">
     <Sidebar activeTitle={title} />
 
+    <!--
+      No rounding on this edge. The app's sidebar and its main area meet in a
+      straight line: `border-l-[0.5px]` is the whole separator, drawn by this
+      element and by nothing else — the sidebar has no border of its own.
+    -->
     <main
-      class="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-l-xl border-l-[0.5px] border-foreground/27 bg-background"
+      class="relative flex min-w-0 flex-1 flex-col overflow-hidden border-l-[0.5px] border-foreground/27 bg-background"
     >
       <SessionToolbar
         title={title}
@@ -90,7 +95,7 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_HEIGHT_PX}px` : '0'}`;
           terminalOpen && (
             <div
               class="absolute inset-x-0 bottom-0 border-t-[0.5px] border-foreground/25"
-              style={`height:${TERMINAL_HEIGHT_PX}px`}
+              style={`height:${TERMINAL_DEFAULT_HEIGHT}px`}
             >
               <slot name="panel" />
             </div>

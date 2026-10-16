@@ -1,6 +1,6 @@
 ---
 import Icon from '../Icon.astro';
-import { SIDEBAR_WIDTH_PX } from '../../lib/appLayout';
+import { SIDEBAR_DEFAULT_WIDTH } from '../../lib/appLayout';
 
 interface SessionRow {
   title: string;
@@ -49,8 +49,8 @@ const { activeTitle } = Astro.props;
 ---
 
 <aside
-  class="hidden shrink-0 flex-col border-r border-sidebar-border bg-[var(--sidebar-surface)] sm:flex"
-  style={`width:${SIDEBAR_WIDTH_PX}px`}
+  class="hidden shrink-0 flex-col bg-[var(--sidebar-solid)] sm:flex"
+  style={`width:${SIDEBAR_DEFAULT_WIDTH}px`}
 >
   <!-- Room for the traffic lights, which the window paints over this column. -->
   <div class="h-11 shrink-0"></div>
