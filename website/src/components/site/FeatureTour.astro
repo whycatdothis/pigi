@@ -94,19 +94,37 @@ const active = 0;
         enough that the window has something to be pinned for.
 
         All seven ship visible: without the script this is an article, in order,
-        which is the right thing for it to be. `initFeatureStage` hides the six
-        that are not current only where the index is the control, i.e. below `lg`.
+        which is the right thing for it to be. `initFeatureStage` stamps
+        `data-active` on them, and that one attribute is what stacks them in a
+        cell below `lg` — with no attribute there is no stacking either.
+
+        `lg:pb-24` after the last chapter is the room the sticky window needs to
+        stay pinned while the last one is read: without it the column runs out of
+        container early and the still slides up out of the viewport.
       -->
-      <div data-stage-rail class="grid min-w-0 lg:order-2 lg:block">
+      <div data-stage-rail class="grid min-w-0 gap-10 lg:order-2 lg:block lg:pb-24">
         {
           FEATURE_STEPS.map((step, index) => (
             <section
               id={`stage-copy-${step.id}`}
               aria-labelledby={`stage-chip-${step.id}`}
               data-stage-copy
-              data-active="true"
               data-current={index === active ? 'true' : 'false'}
-              class="group/step col-start-1 row-start-1 max-w-xl transition-[opacity,transform] duration-300 data-[active=false]:invisible data-[active=false]:translate-y-1 data-[active=false]:opacity-0 lg:col-auto lg:row-auto lg:flex lg:min-h-[64vh] lg:max-w-none lg:flex-col lg:justify-center lg:border-l lg:border-border/70 lg:pl-8 lg:transition-none"
+              class:list={[
+                'group/step max-w-xl transition-[opacity,transform] duration-300 data-[active]:col-start-1 data-[active]:row-start-1 data-[active=false]:invisible data-[active=false]:translate-y-1 data-[active=false]:opacity-0 lg:flex lg:max-w-none lg:flex-col lg:justify-center lg:border-l lg:border-border/70 lg:pl-8 lg:transition-none',
+                /*
+                 * The first chapter is a viewport tall, the rest are not.
+                 *
+                 * The window is sticky and centred in a screen-tall column, so
+                 * it only sits fully inside the viewport once that column has
+                 * reached the top of it. At 64vh the first heading crossed the
+                 * line the page reads at while the column was still 160px down
+                 * the page — and a still whose bottom 70px are off-screen reads
+                 * as a broken screenshot. A full-height chapter means the first
+                 * one is only read once the window has come to rest.
+                 */
+                index === 0 ? 'lg:min-h-screen' : 'lg:min-h-[64vh]',
+              ]}
             >
               <span
                 data-stage-number
