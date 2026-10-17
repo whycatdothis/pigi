@@ -194,6 +194,69 @@ function initMinimalDetails(): void {
 }
 
 // ---------------------------------------------------------------------------
+// The instant-switch still
+// ---------------------------------------------------------------------------
+
+/** How long one session stays open before the next one does. */
+const SESSION_CYCLE_MS = 1000;
+
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+/**
+ * Opens the next session, once a second.
+ *
+ * The chapter claims that switching sessions is instant, and a picture of one
+ * session cannot show that; the still draws three and moves through them, the way
+ * the window redraws when a session is taken from the sidebar. It only moves while
+ * the chapter is the one on the window — a timer running behind the fold is work
+ * nobody sees — and it stands still under the pointer, because the minimap in that
+ * window is real and a still that kept moving would take a reader's list away
+ * mid-look. For a reader who asked for less motion it does not move at all, and the
+ * first session simply stays open.
+ */
+function initSessionCycle(): void {
+  const reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY);
+  for (const cycle of document.querySelectorAll<HTMLElement>('[data-session-cycle]')) {
+    const frames = Array.from(cycle.querySelectorAll<HTMLElement>('[data-session-frame]'));
+    if (frames.length < 2) continue;
+    const layer = cycle.closest<HTMLElement>('[data-stage-layer]');
+
+    let open = frames.findIndex((frame) => frame.dataset.active === 'true');
+    if (open < 0) open = 0;
+
+    // Less motion means the first session and nothing else — including for a
+    // reader who turns the setting on while the still is rotating.
+    reducedMotion.addEventListener('change', () => {
+      if (reducedMotion.matches) show(0);
+    });
+
+    // A pointer inside the window is a reader using it: hold the session it is on.
+    let held = false;
+    cycle.addEventListener('pointerenter', () => {
+      held = true;
+    });
+    cycle.addEventListener('pointerleave', () => {
+      held = false;
+    });
+
+    const show = (next: number): void => {
+      frames.forEach((frame, index) => {
+        frame.dataset.active = String(index === next);
+        frame.setAttribute('aria-hidden', String(index !== next));
+      });
+      open = next;
+    };
+
+    window.setInterval(() => {
+      if (reducedMotion.matches || held) return;
+      if (document.visibilityState !== 'visible') return;
+      if (layer !== null && layer.dataset.active !== 'true') return;
+      show((open + 1) % frames.length);
+    }, SESSION_CYCLE_MS);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Minimap
 // ---------------------------------------------------------------------------
 
@@ -1044,6 +1107,7 @@ initWindowFits();
 initTranscriptClips();
 initViewModes();
 initMinimalDetails();
+initSessionCycle();
 initMinimaps();
 initSessionTrees();
 initSessionSwitcher();

@@ -55,9 +55,15 @@
  * theme without knowing the theme exists.
  */
 .dark {
-  /* The page sits *below* the window here, so it goes darker rather than lighter
-     and the window's own edge does the separating. */
-  --page-background: oklch(0.118 0.012 356);
+  /*
+   * The page is the pig's pink here too, and it has to carry it: at night a hue
+   * this dark drowns in the surface, and a page that differed from black by a
+   * fifth of a percent of chroma read as no colour at all. Three percent is
+   * burgundy rather than a tint — the same hue the button is, at the lightness a
+   * page can live at — and the wash over it (below) is where the colour is
+   * actually seen.
+   */
+  --page-background: oklch(0.155 0.03 356);
   --window-border: rgb(255 255 255 / 0.1);
   --window-shadow:
     0 1px 2px rgb(0 0 0 / 0.4), 0 12px 24px rgb(0 0 0 / 0.35), 0 32px 64px -16px rgb(0 0 0 / 0.5);
@@ -413,6 +419,34 @@
     color-mix(in oklab, var(--system-accent) 13%, transparent),
     transparent 72%
   );
+}
+
+/*
+ * Dark mode gets its colour from light rather than from paint: the same radial,
+ * stronger and wider, because a 13% wash over a white page is a tint and over a
+ * near-black one is nothing. The grid's hairlines carry the hue too — on white a
+ * neutral rule is a whisper, but on black it is the only structure on the page.
+ */
+.dark .hero-glow {
+  background-image: radial-gradient(
+    72% 62% at 50% 0%,
+    color-mix(in oklab, var(--system-accent) 26%, transparent),
+    transparent 70%
+  );
+}
+
+.dark .hero-grid {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--system-accent) 16%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--system-accent) 16%, transparent) 1px,
+      transparent 1px
+    );
 }
 
 /* Inline links in body copy: the underline is the affordance, not the colour. */

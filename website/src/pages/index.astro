@@ -1,6 +1,5 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Icon from '../components/Icon.astro';
 import Header from '../components/site/Header.astro';
 import Footer from '../components/site/Footer.astro';
 import FeatureTour from '../components/site/FeatureTour.astro';
@@ -17,19 +16,6 @@ import { heroTurns } from '../lib/sessions';
 const title = 'pigi — a pi agent GUI for macOS';
 const description =
   'A sleek pi GUI for macOS: a desktop window on the pi coding agent, with instant session switching, forking, a session tree and a terminal — on the pi config and sessions already on your machine.';
-
-const principles = [
-  {
-    icon: 'git-fork' as const,
-    title: 'The same agent',
-    body: 'pigi runs the pi agent library itself, in a process beside the window. Every tool pi supports, pigi supports.',
-  },
-  {
-    icon: 'settings' as const,
-    title: 'Your config',
-    body: 'Models, skills and AGENTS.md come from the pi setup already on the machine. Nothing to describe twice.',
-  },
-];
 ---
 
 <BaseLayout title={title} description={description}>
@@ -76,21 +62,6 @@ const principles = [
     </section>
 
     <FeatureTour />
-
-    <!-- What it is built on -->
-    <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto grid max-w-[1248px] gap-10 px-6 md:grid-cols-2">
-        {
-          principles.map((principle) => (
-            <div>
-              <Icon name={principle.icon} size={20} class="text-[var(--system-accent)]" />
-              <h3 class="mt-4 text-[15px] font-medium text-foreground">{principle.title}</h3>
-              <p class="mt-2 text-[14px] leading-6 text-muted-foreground">{principle.body}</p>
-            </div>
-          ))
-        }
-      </div>
-    </section>
   </main>
 
   <Footer />

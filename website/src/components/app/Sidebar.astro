@@ -1,46 +1,12 @@
 ---
 import Icon from '../Icon.astro';
 import { SIDEBAR_DEFAULT_WIDTH } from '../../lib/appLayout';
-
-interface SessionRow {
-  title: string;
-  time: string;
-  /** This is the session the window has open. */
-  active?: boolean;
-  /** 0 for a session, 1+ for a fork of one above it. */
-  depth?: number;
-}
+import { sidebarRows, type SessionRow } from '../../lib/sessions';
 
 interface Project {
   name: string;
   sessions?: SessionRow[];
 }
-
-/**
- * The project list the windows show.
- *
- * A developer's own machine is what the app's screenshots show, so this is
- * authored rather than discovered — but the sessions are the ones this site is
- * about, and `activeTitle` selects the row that matches the window's open
- * session, the way the app's sidebar tracks the active session.
- */
-const projects: Project[] = [
-  {
-    name: 'pigi',
-    sessions: [
-      { title: 'Fix the tree header overlap', time: '4m' },
-      { title: 'Terminal panel resize jank', time: '18m' },
-      { title: 'Add the chat minimap', time: '1h' },
-      { title: 'The transcript flickers', time: '2h' },
-      { title: 'Keep the session tree from blanking', time: '2d' },
-      // A fork: listed under the chat it came from, one indent in.
-      { title: 'Fork from message 12', time: '3d', depth: 1 },
-      { title: 'Bump electron-builder', time: '4d' },
-    ],
-  },
-  { name: 'pi-extension' },
-  { name: 'docs-site' },
-];
 
 /**
  * One 12px column per ancestor level, plus the elbow into the row — the app's
@@ -52,10 +18,32 @@ const LINEAGE_INDENT_PX = 12;
 
 interface Props {
   /** The open session's title; the matching row is the selected one. */
-  activeTitle?: string;
+  activeTitle: string;
+  /**
+   * The rows to list, when a window has to keep its list still while the open
+   * session moves through it (the instant-switch still). Otherwise the list is
+   * the open session, the fork off it, and one older chat.
+   */
+  sessions?: SessionRow[];
 }
 
-const { activeTitle } = Astro.props;
+const { activeTitle, sessions = sidebarRows(activeTitle) } = Astro.props;
+
+/**
+ * The project list the windows show.
+ *
+ * A developer's own machine is what the app's screenshots show, so this is
+ * authored rather than discovered — but the sessions are the ones this site is
+ * about, and `activeTitle` selects the row that matches the window's open
+ * session, the way the app's sidebar tracks the active session. The other two
+ * projects stay collapsed: they are what makes the sidebar a workspace rather
+ * than a chat list.
+ */
+const projects: Project[] = [
+  { name: 'pigi', sessions },
+  { name: 'pi-extension' },
+  { name: 'docs-site' },
+];
 ---
 
 <!--

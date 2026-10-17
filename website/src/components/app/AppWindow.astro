@@ -1,5 +1,6 @@
 ---
 import Sidebar from './Sidebar.astro';
+import type { SessionRow } from '../../lib/sessions';
 import SessionToolbar from './SessionToolbar.astro';
 import ChatInput from './ChatInput.astro';
 import SlashMenu from '../demos/SlashMenu.astro';
@@ -54,6 +55,12 @@ interface Props {
   overlayOpen?: boolean;
   /** Which of the app's three densities this window draws; null for none. */
   viewMode?: ViewModeName | null;
+  /**
+   * The sidebar's rows, when the window's list has to stay put while the open
+   * session changes under it. Omitted, the list is the open session, the fork off
+   * it and one older chat.
+   */
+  sessions?: SessionRow[];
 }
 
 const {
@@ -65,6 +72,7 @@ const {
   viewMenuOpen = false,
   overlayOpen = false,
   viewMode = null,
+  sessions,
 } = Astro.props;
 
 const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}`;
@@ -89,7 +97,7 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
       </div>
 
       <div class="flex h-full">
-        <Sidebar activeTitle={title} />
+        <Sidebar activeTitle={title} sessions={sessions} />
 
         <!--
       No rounding on this edge. The app's sidebar and its main area meet in a

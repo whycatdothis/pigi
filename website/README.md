@@ -47,10 +47,14 @@ the focus ring) uses the accent instead: `SITE_ACCENT_LIGHT`/`SITE_ACCENT_DARK`,
 per theme (4.9:1 on the page, 9.6:1 on the dark page).
 
 The page's surface is that pink too, not a white sheet with a wash at the top: `--page-background` is
-the hue at a fifth of a percent of chroma, in both themes, so the foot of a seven-screen page is the
-same page as its head. A window keeps the app's own `--background`, which is what makes it read as a
-surface _on_ the page rather than a hole in it — and the two `<meta name="theme-color">` values are
-sampled from the same pair, so the browser's chrome matches the page it frames.
+the hue at a fifth of a percent of chroma by day, so the foot of a seven-screen page is the same page
+as its head. Dark mode needs more than that fifth of a percent — at that lightness the hue drowns in
+the surface, and a page that differed from black by that much read as no colour at all — so the dark
+surface carries three percent of it (burgundy rather than a tint) and the hero's wash goes to 26%, on
+a grid whose hairlines are the accent too. A window keeps the app's own `--background`, which is what
+makes it read as a surface _on_ the page rather than a hole in it — and the two
+`<meta name="theme-color">` values are sampled from the same pair, so the browser's chrome matches the
+page it frames.
 
 None of the app's eight accents is the pig's, which makes this the one colour the page names for
 itself; it is also the one thing on the page that is not the app's, together with the download
@@ -86,8 +90,7 @@ strip rather than letting it lie over the text.
 
 ### What is on the page
 
-Hero, then the tour — seven chapters and one window — then the two things the app is built on, then
-the footer. That is the whole page: no install section, no shortcut table, no FAQ. Nothing that is
+Hero, then the tour — seven chapters and one window — then the footer. That is the whole page: no install section, no shortcut table, no FAQ. Nothing that is
 not a feature or a claim about one.
 
 The hero is the title, the page's own download button, and the window — no subtitle, no badge, no
@@ -141,6 +144,19 @@ cannot follow a click.
 Its panels start at the top and grow downwards: the app's list is a plain scroll container (`pb-8
 pt-6`, no `justify-end`), so a short turn sits under the toolbar rather than being pushed down to the
 composer.
+
+The sidebar lists three rows in every window — the session that is open, the fork that came off it,
+and one older chat. A developer's own sidebar is a column of thirty, but a still is read in a second
+and thirty rows say nothing three do not; the fork is the row that cannot go, because it is where the
+fork action's result lives. The windows that have to keep their list still take it as a prop
+(`Sidebar`'s `sessions`), which is what the instant-switch still does.
+
+That still answers its own chapter. Switching sessions is the claim, and a picture of one session
+cannot show it: three sessions are stacked in the same cell and `initSessionCycle` opens the next one
+every second, the window's title and the sidebar's selection moving with it. All three are sessions
+the reader has already met — the hero's, the tree's, the long one the minimap is drawn for — and the
+timer only runs while the chapter is the one on the window, and not at all for a reader who asked for
+less motion.
 
 Minimal keeps the turn folded, and its timer row is a real button, as it is in the app
 (`minimalView.tsx`): clicking it opens the same entries the other two panels draw — the thinking, the
