@@ -270,6 +270,10 @@ Nothing needs a Worker or a Function. There is no server-side code, no redirect 
 `_routes.json`; `public/_headers` is the whole configuration, and it only tells the browser that
 `/_astro/*` — every file named after its own contents — may be cached for a year.
 
+`src/pages/404.astro` is not decoration. Pages answers every unknown path with `index.html` and a 200
+when the build has no `404.html` — it assumes a project without one is a single-page app — so the
+file is what makes `/robots.txt` the text file and a mistyped address a real 404.
+
 ### Changing the domain
 
 `site` in `astro.config.mjs` is what the canonical URL, the Open Graph tags and any absolute link in
