@@ -1,0 +1,90 @@
+---
+import { DIALOG_SURFACE } from '../../lib/appUi';
+
+/**
+ * The slash-command menu, open above the composer.
+ *
+ * The app shows this when the input starts with `/` (`SlashCommandPopover`): a
+ * popover on the field's side of the window, its width the field's width, every
+ * built-in command first and then the skills, divided by a rule. The rows are the
+ * app's: the name in mono, the description beside it for a command, and — because
+ * a skill's description can be a paragraph — nothing beside the name for a skill.
+ *
+ * Which makes this the picture of the section it is in. The commands are the
+ * app's own, and their descriptions say what it reads: `/reload` reloads
+ * "extensions, skills, prompts, settings and context files". The rows under the
+ * rule are skills, and they are here because they are installed in pi, not
+ * because pigi knows them.
+ *
+ * The values are the app's: the command names and descriptions come from
+ * `lib/slashCommands.ts`, and the skills are named after skills this project's own
+ * pi setup has, which is what any reader's menu would be full of — their own.
+ */
+
+/** `BUILTIN_COMMANDS` in `src/renderer/src/lib/slashCommands.ts`, verbatim. */
+const commands: { name: string; description: string }[] = [
+  { name: 'compact', description: 'Compact session context' },
+  { name: 'reload', description: 'Reload extensions, skills, prompts, settings and context files' },
+  { name: 'tree', description: 'Browse session branches' },
+];
+
+/**
+ * Two skills, by name only: the app prints a built-in's description beside it and
+ * a skill's name on its own, because a skill's description is a paragraph. Neither
+ * is a pigi feature — both arrive with the extension that installs them, which is
+ * the whole point of the section they sit in.
+ */
+const skills = ['code-review', 'plannotator'];
+
+/** The first command is the one under the cursor, as it is when the menu opens. */
+const selectedIndex = 0;
+---
+
+<div
+  class:list={[
+    'absolute inset-x-0 bottom-full z-20 mb-1.5 flex flex-col gap-2.5 overflow-y-auto p-1 max-h-[40vh]',
+    DIALOG_SURFACE.classes,
+  ]}
+  role="listbox"
+  aria-label="Slash commands"
+>
+  <div>
+    {
+      commands.map((command, index) => (
+        <div
+          class:list={[
+            'flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-sm',
+            index === selectedIndex && 'bg-foreground/7',
+          ]}
+          role="option"
+          aria-selected={index === selectedIndex}
+        >
+          <span class="shrink-0 font-mono text-foreground">/{command.name}</span>
+          <span
+            class:list={[
+              'min-w-0 truncate',
+              index === selectedIndex ? 'text-foreground' : 'text-muted-foreground',
+            ]}
+          >
+            {command.description}
+          </span>
+        </div>
+      ))
+    }
+
+    <!-- The app's `Separator`: `my-0.5 mx-auto h-px !w-[98%] opacity-90`. -->
+    <div class="mx-auto my-0.5 h-px w-[98%] bg-border opacity-90"></div>
+
+    {
+      skills.map((skill) => (
+        <div
+          class="flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-sm"
+          role="option"
+          aria-selected={false}
+        >
+          <span class="shrink-0 font-mono text-foreground">/{skill}</span>
+        </div>
+      ))
+    }
+  </div>
+</div>

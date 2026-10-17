@@ -1,0 +1,120 @@
+---
+import '../styles/global.css';
+import {
+  LATEST_RELEASE_URL,
+  LICENSE_URL,
+  SITE_ACCENT_DARK,
+  SITE_ACCENT_LIGHT,
+  UMAMI_SCRIPT_URL,
+  UMAMI_WEBSITE_ID,
+} from '../lib/site';
+
+interface Props {
+  title: string;
+  description: string;
+  /**
+   * For a page that is not an address: `404.astro` answers every path the build
+   * did not emit, so a canonical URL would name one arbitrary path as the home of
+   * the other nine hundred, and a search engine should not index it at all.
+   */
+  noindex?: boolean;
+}
+
+const { title, description, noindex = false } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+
+/*
+ * The accent, written the way the app writes it: `applyThemeAccent` sets both
+ * `--accent-light` and `--accent-dark` on <html>, and the app's tokens map
+ * `--system-accent` to one or the other by theme. Everything that reads
+ * `--system-accent` — in a window or on the page — follows, in both themes.
+ */
+const accentStyle = `--accent-light:${SITE_ACCENT_LIGHT};--accent-dark:${SITE_ACCENT_DARK}`;
+---
+
+<!doctype html>
+<html lang="en" style={accentStyle}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {!noindex && <link rel="canonical" href={canonical} />}
+    <link rel="icon" href="/favicon.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/icon-256.png" />
+    <meta name="theme-color" content="#fcf3f6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16070d" media="(prefers-color-scheme: dark)" />
+
+    <!--
+      The theme, before the first paint.
+
+      Blocking and inline on purpose: the class has to be on <html> before the
+      body is painted, or a reader who chose dark gets a white flash on every
+      navigation. Same `theme` key and same three values as the app's own
+      themeProvider, so the two agree if a reader sets both.
+    -->
+    <script is:inline>
+      (() => {
+        const stored = localStorage.getItem('theme');
+        const dark =
+          stored === 'dark' ||
+          (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', dark);
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      })();
+    </script>
+
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    {!noindex && <meta property="og:url" content={canonical} />}
+    <meta property="og:image" content={new URL('/icon-256.png', Astro.site).href} />
+    <meta name="twitter:card" content="summary" />
+
+    <!--
+      What this is, in the vocabulary a search engine reads.
+
+      `alternateName` is where the phrases live: nobody searches for "pigi", and
+      the thing being described is a pi agent GUI. The rest is what the page can
+      honestly claim — a free, arm64 macOS app, not affiliated with pi's authors.
+    -->
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'SoftwareApplication',
+        name: 'pigi',
+        alternateName: ['pi agent GUI', 'pi GUI', 'pigi — pi agent GUI', 'pigi GUI for pi'],
+        applicationCategory: 'DeveloperApplication',
+        applicationSubCategory: 'AI coding agent GUI',
+        operatingSystem: 'macOS',
+        processorRequirements: 'Apple Silicon',
+        description,
+        url: canonical,
+        downloadUrl: LATEST_RELEASE_URL,
+        license: LICENSE_URL,
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+        isAccessibleForFree: true,
+      })}
+    />
+
+    <script defer src={UMAMI_SCRIPT_URL} data-website-id={UMAMI_WEBSITE_ID}></script>
+  </head>
+  <body>
+    <slot />
+
+    <!--
+      The page's whole script, on both pages.
+
+      It used to be imported by the home page alone, which left the changelog
+      without a working theme toggle, without the download button's upgrade to the
+      DMG, and — once the header gained a scrolled state — without a fill over the
+      text scrolling under it. Every initializer looks for its own markup and
+      returns quietly, so one import here covers everything either page uses.
+    -->
+    <script>
+      import '../scripts/interactions';
+    </script>
+  </body>
+</html>

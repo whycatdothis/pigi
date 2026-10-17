@@ -1,0 +1,154 @@
+---
+import Sidebar from './Sidebar.astro';
+import type { SessionRow } from '../../lib/sessions';
+import SessionToolbar from './SessionToolbar.astro';
+import ChatInput from './ChatInput.astro';
+import SlashMenu from '../demos/SlashMenu.astro';
+import {
+  TERMINAL_DEFAULT_HEIGHT,
+  WINDOW_HEIGHT_PX,
+  WINDOW_MIN_WIDTH_PX,
+  WINDOW_WIDTH_PX,
+} from '../../lib/appLayout';
+import type { ViewModeName } from '../demos/ViewModeMenu.astro';
+
+/**
+ * The app window, as one component.
+ *
+ * Every feature on this page is shown inside a real one of these rather than as
+ * a cropped fragment: the app's layout is the thing that makes a feature legible
+ * — the terminal is only "the terminal" because it takes the bottom of the chat
+ * column and the transcript stays above it, and the tree is only a dialog because
+ * the window behind it dims.
+ *
+ * The measurements are the app's own: 1200x800 for the default window
+ * (src/main/windows/createMainWindow.ts), h-11 for the toolbar, the sidebar's
+ * SIDEBAR_DEFAULT_WIDTH, the panel's TERMINAL_DEFAULT_HEIGHT.
+ *
+ * That height is not a prop. Every window on this page is the size the app opens
+ * at, because half a window is a picture of something the app never shows: a
+ * dialog is narrower than the window, not shorter, and a short session simply
+ * leaves the space above its last message empty.
+ *
+ * A phone is narrower than the app can be, so below the app's own minimum width
+ * (`WINDOW_MIN_WIDTH_PX`, from `createMainWindow.ts`) the window is drawn on a
+ * fixed canvas at that minimum and scaled down to fit — `[data-window-fit]` and
+ * its ResizeObserver in `src/scripts/interactions.ts`. The alternative, letting a
+ * 1200px window reflow into 390px, is not a small window: it is a layout the app
+ * has no such thing as, with the sidebar gone and every dialog cut to a ragged
+ * truncation. Scaling keeps the picture true and hands the reader a scaled-down
+ * window instead of a different app.
+ */
+interface Props {
+  /** The session title in the toolbar, and the sidebar row it selects. */
+  title: string;
+  /** What has been typed into the composer, in place of the placeholder. */
+  composerText?: string;
+  /** The slash-command menu is open above the composer, as typing `/` opens it. */
+  slashMenuOpen?: boolean;
+  /** The bottom panel is open, so the chat column stops above it. */
+  terminalOpen?: boolean;
+  /** The view-mode menu is open under the toolbar's filter button. */
+  viewMenuOpen?: boolean;
+  /** A dialog is over the window, so the app behind it dims. */
+  overlayOpen?: boolean;
+  /** Which of the app's three densities this window draws; null for none. */
+  viewMode?: ViewModeName | null;
+  /**
+   * The sidebar's rows, when the window's list has to stay put while the open
+   * session changes under it. Omitted, the list is the open session, the fork off
+   * it and one older chat.
+   */
+  sessions?: SessionRow[];
+}
+
+const {
+  title,
+  composerText,
+  slashMenuOpen = false,
+  terminalOpen = false,
+  viewMenuOpen = false,
+  overlayOpen = false,
+  viewMode = null,
+  sessions,
+} = Astro.props;
+
+const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}`;
+---
+
+<!-- `data-window-fit` carries the app's minimum width: the script scales the
+     canvas to fit only when the room is narrower than that. -->
+<div data-window-fit={WINDOW_MIN_WIDTH_PX}>
+  <div data-window-canvas class="origin-top-left">
+    <div
+      class="group/view relative mx-auto w-full max-w-none overflow-hidden rounded-xl border border-[var(--window-border)] bg-background shadow-[var(--window-shadow)]"
+      style={`height:${WINDOW_HEIGHT_PX}px; max-width:${WINDOW_WIDTH_PX}px`}
+      data-window-title={title}
+      data-view-modes={viewMode !== null ? 'true' : undefined}
+      data-active={viewMode ?? undefined}
+    >
+      <!-- The traffic lights the window server usually draws. -->
+      <div class="pointer-events-none absolute left-5 top-5 z-10 flex gap-2">
+        <span class="traffic-light bg-[#ff5f57]"></span>
+        <span class="traffic-light bg-[#febc2e]"></span>
+        <span class="traffic-light bg-[#28c840]"></span>
+      </div>
+
+      <div class="flex h-full">
+        <Sidebar activeTitle={title} sessions={sessions} />
+
+        <!--
+      No rounding on this edge. The app's sidebar and its main area meet in a
+      straight line: `border-l-[0.5px]` is the whole separator, drawn by this
+      element and by nothing else — the sidebar has no border of its own.
+
+      A `div`, not a `main`: the app's own chat column is the app's main region,
+      and here the page has one. Ten windows each claiming to be the main region
+      of the page would make the landmark list eleven long and the page's own
+      `<main>` one of eleven equals.
+    -->
+        <div
+          class="relative flex min-w-0 flex-1 flex-col overflow-hidden border-l-[0.5px] border-foreground/27 bg-background"
+        >
+          <SessionToolbar
+            title={title}
+            terminalOpen={terminalOpen}
+            viewMode={viewMode}
+            viewMenuOpen={viewMenuOpen}
+          />
+
+          <div class="relative min-h-0 flex-1 overflow-hidden">
+            <!--
+          The chat column. In the app this is an absolutely positioned column
+          whose `bottom` is the terminal's height, animated; that is what makes the
+          transcript's scroll viewport end above the panel instead of being covered
+          by it.
+        -->
+            <div class="absolute inset-x-0 top-0 flex flex-col" style={chatStyle}>
+              <div class="flex min-h-0 flex-1 flex-col">
+                <slot />
+              </div>
+              <ChatInput text={composerText}>
+                {slashMenuOpen && <SlashMenu slot="menu" />}
+              </ChatInput>
+            </div>
+
+            {
+              terminalOpen && (
+                <div
+                  class="absolute inset-x-0 bottom-0 border-t-[0.5px] border-foreground/25"
+                  style={`height:${TERMINAL_DEFAULT_HEIGHT}px`}
+                >
+                  <slot name="panel" />
+                </div>
+              )
+            }
+          </div>
+
+          {overlayOpen && <div class="absolute inset-0 z-20 bg-black/20" aria-hidden="true" />}
+          <slot name="overlay" />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

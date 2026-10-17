@@ -201,7 +201,7 @@ export default function Sidebar({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <ShadcnSidebar collapsible="none" className="sidebar-surface" data-testid="sidebar">
+      <ShadcnSidebar collapsible="none" data-testid="sidebar">
         {/* WebkitAppRegion is Electron-specific, not in React's CSSProperties */}
         <SidebarHeader style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
           <div className="h-10" />

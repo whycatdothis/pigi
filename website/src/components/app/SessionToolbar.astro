@@ -1,0 +1,88 @@
+---
+import Icon from '../Icon.astro';
+import ViewModeMenu, { type ViewModeName } from '../demos/ViewModeMenu.astro';
+import { TOOLBAR_BUTTON, TOOLBAR_BUTTON_ON, TOOLTIP_CONTENT, TOOLTIP_KBD } from '../../lib/appUi';
+
+/**
+ * The session toolbar.
+ *
+ * Three buttons, in the app's order: session tree, terminal, view mode. The
+ * buttons are the app's own toolbar string (plain buttons, not `ui/button.tsx`),
+ * and the hover tooltips carry the same surface, the same strings and the same
+ * shortcuts the app puts on them (SessionToolbar.tsx), so the keys on this page
+ * are the keys in the app.
+ *
+ * A tooltip is a **sibling** of its button, not a child of it, and here it is a
+ * label rather than a surface: the app's tree tooltip also carries the round `?`
+ * (`SessionTreeHelpButton`) in a Radix portal, which can hold a button because it
+ * is positioned over the page and takes the pointer. On this page the tooltip is
+ * a span that fades in under the pointer and never accepts one — a button inside
+ * it would be a control nobody can press, and ten of them across the windows
+ * would be ten invisible stops in the tab order. The `?` lives where it can be
+ * reached instead: in the session tree's own header (`SessionTreeDialog.astro`),
+ * which is the one place on the page where the dialog it opens is also drawn.
+ */
+interface Props {
+  title: string;
+  terminalOpen?: boolean;
+  /** Which view mode this window draws; null hides the menu behind the button. */
+  viewMode?: ViewModeName | null;
+  viewMenuOpen?: boolean;
+}
+
+const { title, terminalOpen = false, viewMode = null, viewMenuOpen = false } = Astro.props;
+---
+
+<!-- h-11 and the hairline below it are the app's toolbar measurements. -->
+<div
+  class="relative z-10 flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 px-3"
+>
+  <div class="flex min-w-0 max-w-[33%] items-center gap-1.5">
+    <Icon name="notebook" size={16} stroke={2} class="shrink-0 text-foreground" />
+    <span class="truncate text-sm font-medium text-foreground">{title}</span>
+  </div>
+
+  <div class="flex-1"></div>
+
+  <div class="flex shrink-0 items-center gap-0.5">
+    <!-- Session tree. `binary-tree-2` carries the app's own scale factor: Tabler
+         draws it small in its box, so it is scaled up and the stroke divides the
+         same factor back out. -->
+    <div class="group relative">
+      <button type="button" aria-label="Session tree" class:list={[TOOLBAR_BUTTON.classes]}>
+        <Icon name="binary-tree-2" size={15} class="scale-[1.15] [stroke-width:calc(1.5/1.15)]" />
+      </button>
+      <span class:list={['app-tooltip', TOOLTIP_CONTENT.classes]}>Session tree</span>
+    </div>
+
+    <div class="group relative">
+      <button
+        type="button"
+        data-terminal-toggle
+        aria-label="Toggle terminal"
+        aria-pressed={terminalOpen}
+        class:list={[TOOLBAR_BUTTON.classes, terminalOpen && TOOLBAR_BUTTON_ON.classes]}
+      >
+        <Icon name="terminal-2" size={16} />
+      </button>
+      <span class:list={['app-tooltip', TOOLTIP_CONTENT.classes]}>
+        Toggle terminal
+        <kbd class:list={['ml-2', TOOLTIP_KBD.classes]}>⌘ J</kbd>
+      </span>
+    </div>
+
+    <div class="relative">
+      <button
+        type="button"
+        data-view-menu-trigger
+        title="View mode"
+        aria-haspopup="menu"
+        aria-expanded={viewMenuOpen}
+        class:list={['group relative', TOOLBAR_BUTTON.classes]}
+      >
+        <Icon name="filter-2" size={16} />
+      </button>
+      {viewMode !== null && <ViewModeMenu open={viewMenuOpen} active={viewMode} />}
+    </div>
+  </div>
+</div>

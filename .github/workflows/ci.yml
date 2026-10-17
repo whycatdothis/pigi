@@ -4,6 +4,9 @@ name: CI
 # scripts on purpose: this job is about types, lint, formatting and tests, and
 # none of them need the native modules rebuilt against Electron. That rebuild
 # (and a production-shaped install) is exercised by release.yml.
+#
+# The marketing site is a project of its own, so it is a job of its own: its own
+# install, its own checks, and its own browser for the interaction tests.
 
 on:
   push:
@@ -42,3 +45,38 @@ jobs:
       - run: npm run format:check
 
       - run: npm test
+
+  website:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - run: npm ci
+
+      # `astro check`, the class drift check, and Prettier. The drift check is the
+      # one that only works here: it compares the classes this site copied out of
+      # the app against the app's own source, and the app is one directory up.
+      - run: npm run check
+
+      - run: npm run build
+
+      # The page's interactive parts, driven in a real browser: `verify` reads the
+      # build output, so it runs after the build. Playwright's Chromium is per
+      # version, so the lockfile is the cache key, as it is for the app's tests.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-website-${{ runner.os }}-${{ hashFiles('website/package-lock.json') }}
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run verify

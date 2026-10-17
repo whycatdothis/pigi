@@ -1,0 +1,49 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/site/Header.astro';
+import Footer from '../components/site/Footer.astro';
+import DownloadButton from '../components/site/DownloadButton.astro';
+
+const title = '404 — pigi';
+const description = 'That page is not here. The app is a download away.';
+
+/*
+ * Pages serves this file for anything the build did not emit, with a 404 status.
+ * Without it, Pages treats a project with no `404.html` as a single-page app and
+ * answers every unknown path with `index.html` and a 200 — a homepage at
+ * `/robots.txt`, and a soft 404 for every address anyone guesses.
+ */
+---
+
+<BaseLayout title={title} description={description} noindex>
+  <Header />
+
+  <main class="mx-auto flex max-w-3xl flex-col items-start px-6 py-24 md:py-32">
+    <p class="text-[13px] font-medium tracking-[0.08em] text-[var(--system-accent)] uppercase">
+      404
+    </p>
+    <h1 class="mt-4 text-[32px] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+      That page is not here.
+    </h1>
+    <p class="mt-4 max-w-prose text-[15px] leading-7 text-muted-foreground">
+      The address may be a typo, or a page that moved. The app, the changelog and the source are all
+      one link away.
+    </p>
+
+    <div class="mt-8 flex flex-wrap items-center gap-4">
+      <DownloadButton variant="hero" />
+      <a
+        href="/"
+        class="text-[14px] text-foreground underline decoration-border underline-offset-2 transition-colors hover:decoration-foreground"
+        >Back to the start</a
+      >
+      <a
+        href="/changelog/"
+        class="text-[14px] text-muted-foreground underline decoration-border underline-offset-2 transition-colors hover:text-foreground"
+        >Changelog</a
+      >
+    </div>
+  </main>
+
+  <Footer />
+</BaseLayout>

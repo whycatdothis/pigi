@@ -1,0 +1,63 @@
+---
+import Icon from '../Icon.astro';
+import { LATEST_RELEASE_URL, UMAMI_EVENT_DOWNLOAD } from '../../lib/site';
+import {
+  BUTTON_BASE,
+  BUTTON_BRAND_FILLED,
+  BUTTON_HERO_SIZE,
+  BUTTON_SIZE_DEFAULT,
+  BUTTON_TEXT_HEADER,
+} from '../../lib/appUi';
+
+/**
+ * The download button, in the hero and in the header.
+ *
+ * The markup points at the release page, which always works. src/scripts/
+ * interactions.ts upgrades the href to the arm64 DMG's direct URL once the
+ * releases API answers, and leaves it alone if it does not.
+ *
+ * The shape, the size and the focus ring are the app's own Button — base,
+ * `size="default"` in the header — and the hero is at the page's scale, since the
+ * app has no button that tall. The type size is the row's: 15px in the hero, and
+ * the header's own 13px in the header. The fill is the accent rather than the
+ * app's neutral primary: this button is the page's action, not a control in a
+ * window. See src/lib/appUi.ts for what is copied and from where.
+ *
+ * The label names the architecture. The app publishes one DMG and it is arm64, so
+ * a button that only said "macOS" would hand an Intel reader a file that cannot
+ * run.
+ */
+interface Props {
+  /** `hero` is the page's primary action; `compact` matches the app's `size="default"`. */
+  variant?: 'hero' | 'compact';
+  class?: string;
+}
+
+const { variant = 'hero', class: className } = Astro.props;
+---
+
+<a
+  href={LATEST_RELEASE_URL}
+  data-download-link
+  data-umami-event={UMAMI_EVENT_DOWNLOAD}
+  class:list={[
+    BUTTON_BASE.classes,
+    BUTTON_BRAND_FILLED.classes,
+    variant === 'hero'
+      ? [BUTTON_HERO_SIZE.classes]
+      : [BUTTON_SIZE_DEFAULT.classes, BUTTON_TEXT_HEADER.classes],
+    className,
+  ]}
+>
+  <Icon name="download" size={variant === 'hero' ? 17 : 14} />
+  {variant === 'hero' ? 'Download for Apple Silicon' : 'Download'}
+  {
+    variant === 'hero' && (
+      <Icon
+        name="arrow-right"
+        size={16}
+        class="opacity-60 transition-transform group-hover/button:translate-x-0.5"
+      />
+    )
+  }
+</a>

@@ -1,0 +1,341 @@
+---
+import Icon from '../Icon.astro';
+import {
+  BRANCH_ELBOW_TOP_PX,
+  BRANCH_ELBOW_WIDTH_PX,
+  BRANCH_SPACING_PX,
+  RAIL_COLOR,
+  RAIL_COLOR_CURRENT,
+  RAIL_WIDTH_PX,
+  ROW_HEIGHT_PX,
+  chevronCentreX,
+  collectRailSpans,
+  isRailOwner,
+  railLeftPx,
+  rowContentX,
+} from '../../lib/treeGeometry';
+import { DIALOG_SURFACE } from '../../lib/appUi';
+import SessionTreeHelpButton from '../app/SessionTreeHelpButton.astro';
+
+interface TreeRow {
+  id: string;
+  kind: 'user' | 'assistant' | 'tool';
+  text: string;
+  time: string;
+  depth: number;
+  /** A child of a fork: one of several alternatives continuing the same message. */
+  isBranchChild: boolean;
+  /** On the active path, i.e. the chain the session's current leaf hangs from. */
+  onPath?: boolean;
+  /** What the hover preview shows for this row. */
+  preview: string;
+}
+
+/**
+ * One session that forked twice.
+ *
+ * Rewound to `make the bars scale`, then to `also show a timestamp`: the chain the
+ * author did not take is still here, which is the point of the tree — a jump
+ * moves the session, it does not delete the messages it leaves behind.
+ *
+ * Depth counts forks, not messages. A straight chain stays at depth 0 however
+ * long it is; only a second child indents by a column.
+ */
+const rows: TreeRow[] = [
+  {
+    id: 'u1',
+    kind: 'user',
+    text: 'Add a minimap to the transcript',
+    time: '09:12',
+    depth: 0,
+    isBranchChild: false,
+    onPath: true,
+    preview:
+      'Add a minimap to the transcript so I can jump between my own messages in a long chat.',
+  },
+  {
+    id: 'a1',
+    kind: 'assistant',
+    text: 'One bar per user message. Here is the plan.',
+    time: '09:12',
+    depth: 0,
+    isBranchChild: false,
+    onPath: true,
+    preview:
+      'One bar per user message, sized by how long the message is, lit when it is the one on screen. Here is the plan.',
+  },
+  {
+    id: 'u2',
+    kind: 'user',
+    text: 'make the bars scale with length',
+    time: '09:14',
+    depth: 1,
+    isBranchChild: true,
+    preview: 'make the bars scale with length',
+  },
+  {
+    id: 'a2',
+    kind: 'assistant',
+    text: 'Width now tracks the message length.',
+    time: '09:15',
+    depth: 1,
+    isBranchChild: true,
+    onPath: true,
+    preview:
+      'Width now tracks the message length, clamped to a readable range so a two-word message is still a target.',
+  },
+  {
+    id: 'u3',
+    kind: 'user',
+    text: 'also show a timestamp on hover',
+    time: '09:18',
+    depth: 2,
+    isBranchChild: true,
+    preview: 'also show a timestamp on hover',
+  },
+  {
+    id: 'u4',
+    kind: 'user',
+    text: 'and dim the bars that are not active',
+    time: '09:21',
+    depth: 2,
+    isBranchChild: true,
+    onPath: true,
+    preview: 'and dim the bars that are not active, they read as one block otherwise',
+  },
+  {
+    id: 'u5',
+    kind: 'user',
+    text: "actually, drop it — it's distracting",
+    time: '09:26',
+    depth: 1,
+    isBranchChild: true,
+    preview: "actually, drop it — it's distracting at the edge of the window",
+  },
+];
+
+const rowIds = rows.map((row) => row.id);
+/** Where the session actually is: the last row of the path, in reading order. */
+const currentRowId = 'u4';
+
+const pathOwners = new Map<number, string>();
+for (const row of rows) {
+  if (row.onPath) pathOwners.set(row.depth, row.id);
+}
+
+const spans = collectRailSpans(rows, rowIds, pathOwners, currentRowId);
+
+const kindTextClassName: Record<TreeRow['kind'], string> = {
+  user: 'font-medium text-foreground',
+  assistant: 'text-foreground/80',
+  tool: 'font-mono text-xs text-muted-foreground',
+};
+
+/** The elbow starts one pixel right of the line: that pixel is the corner. */
+function elbowLeftPx(depth: number): number {
+  return chevronCentreX(depth - 1) + RAIL_WIDTH_PX;
+}
+
+/** The kind chips, from SessionTreeToolbar's own list. */
+const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
+---
+
+<!--
+  The session tree, as the dialog the app opens it in.
+
+  It is a dialog and not a panel because that is what the tree is for: it takes
+  the window for a moment so a jump can be made without the transcript behind it
+  competing for attention. The window behind this one dims for the same reason
+  (the app's own `bg-black/20` scrim), and the surface is the app's `--dialog-solid`
+  — a header pinned inside a translucent dialog would tint a second time.
+-->
+<div
+  data-tree-dialog
+  role="dialog"
+  aria-label="Session tree"
+  class:list={[
+    'absolute left-1/2 top-1/2 z-30 flex h-[min(624px,88%)] w-[min(820px,92%)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden',
+    DIALOG_SURFACE.classes,
+  ]}
+>
+  <div class="flex shrink-0 items-center gap-3 px-5 pb-3 pt-4">
+    <Icon name="search" size={18} class="shrink-0 text-muted-foreground/60" />
+    <span class="min-w-0 flex-1 text-base leading-6 text-muted-foreground/55">
+      Search this session
+    </span>
+    <span class="shrink-0 text-xs text-muted-foreground/80">{rows.length} messages</span>
+    <!-- The `?` the app keeps here, which is how the dialog below it is reached. -->
+    <SessionTreeHelpButton class="ml-3" />
+  </div>
+
+  <div class="flex shrink-0 flex-wrap items-center gap-1.5 px-5 pb-3">
+    {
+      filterChips.map((chip) => (
+        <span class="rounded-md border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
+          {chip}
+        </span>
+      ))
+    }
+    <span class="ml-auto text-[11px] text-muted-foreground/70">Hover a row to read it</span>
+  </div>
+
+  <div class="min-h-0 flex-1 overflow-hidden pb-3">
+    <div class="no-scrollbar h-full overflow-y-auto px-2">
+      <!-- The tree's own header: which version this is, how much is in it, and
+           the span of time it covers. -->
+      <button
+        type="button"
+        data-tree-header
+        class="flex w-full items-center gap-2 bg-[var(--dialog-solid)] px-2 py-1.5 text-left whitespace-nowrap"
+      >
+        <Icon name="chevron-right" size={16} class="shrink-0 rotate-90 text-muted-foreground" />
+        <span
+          class="flex items-center text-[11px] font-medium tracking-wide text-[var(--system-accent)]"
+        >
+          <Icon
+            name="binary-tree-2"
+            size={14}
+            class="mr-1 inline-block align-[-3px] scale-[1.15] [stroke-width:calc(2.5/1.15)]"
+          />
+          Tree 1
+        </span>
+        <span class="text-[11px] text-muted-foreground/80">{rows.length} messages</span>
+        <span class="ml-auto font-mono text-[11px] tabular-nums text-muted-foreground/60">
+          09:12 – 09:26
+        </span>
+      </button>
+
+      <div class="relative pb-6" data-tree>
+        <!--
+          The branch lines, all of them, in one inert layer. A line belongs to a
+          fork rather than to a row, which is why it can be drawn here — and why a
+          row that moves does not take its line with it.
+        -->
+        <div class="pointer-events-none absolute inset-0" aria-hidden="true" data-tree-rails>
+          {
+            spans.map((span) => {
+              const litHeightPx =
+                span.litEndPx === null ? span.endPx - span.topPx : span.litEndPx - span.topPx;
+              return (
+                <span
+                  data-rail-key={span.key}
+                  data-fork-depth={span.forkDepth}
+                  data-top={span.topPx}
+                  data-end={span.endPx}
+                  data-lit-end={span.litEndPx ?? ''}
+                  class="absolute"
+                  style={{
+                    left: `${railLeftPx(span.forkDepth)}px`,
+                    top: `${span.topPx}px`,
+                    width: `${RAIL_WIDTH_PX}px`,
+                    height: `${litHeightPx}px`,
+                    background: span.litEndPx === null ? RAIL_COLOR : RAIL_COLOR_CURRENT,
+                  }}
+                />
+              );
+            })
+          }
+        </div>
+
+        <div>
+          {
+            rows.map((row) => (
+              <div
+                class="group/row relative"
+                style={row.isBranchChild ? `padding-top: ${BRANCH_SPACING_PX}px` : undefined}
+              >
+                {row.isBranchChild && (
+                  <span
+                    class="absolute"
+                    aria-hidden="true"
+                    data-tree-elbow={row.id}
+                    data-lit={isRailOwner(row, row.id, pathOwners) ? 'true' : 'false'}
+                    style={{
+                      left: `${elbowLeftPx(row.depth)}px`,
+                      top: `${BRANCH_ELBOW_TOP_PX}px`,
+                      width: `${BRANCH_ELBOW_WIDTH_PX - RAIL_WIDTH_PX}px`,
+                      height: `${RAIL_WIDTH_PX}px`,
+                      background: isRailOwner(row, row.id, pathOwners)
+                        ? RAIL_COLOR_CURRENT
+                        : RAIL_COLOR,
+                    }}
+                  />
+                )}
+                <button
+                  type="button"
+                  class="tree-row group flex w-full select-none items-center text-left text-[13px] text-foreground"
+                  style={`height: ${ROW_HEIGHT_PX}px; padding-left: ${rowContentX(row.depth)}px`}
+                  data-tree-row
+                  data-row-id={row.id}
+                  data-depth={row.depth}
+                  data-branch-child={row.isBranchChild ? 'true' : 'false'}
+                  data-on-path={row.onPath ? 'true' : 'false'}
+                  data-current={row.id === currentRowId ? 'true' : 'false'}
+                  data-preview={row.preview}
+                >
+                  <span class="tree-row-highlight flex h-full min-w-0 flex-1 items-center gap-2 rounded-md pr-2">
+                    <span
+                      class:list={[
+                        'relative flex shrink-0 items-center justify-center text-muted-foreground',
+                        !row.isBranchChild && 'invisible',
+                      ]}
+                      style="width: 16px; height: 16px"
+                      aria-hidden="true"
+                    >
+                      <Icon name="chevron-right" size={16} />
+                    </span>
+
+                    {row.kind === 'user' && (
+                      <span class="flex size-5 shrink-0 items-center justify-center rounded bg-[var(--system-accent)]/12 text-[var(--system-accent)]">
+                        <Icon name="user" size={13} stroke={2.5} />
+                      </span>
+                    )}
+
+                    <span class:list={['min-w-0 flex-1 truncate', kindTextClassName[row.kind]]}>
+                      {row.text}
+                    </span>
+
+                    <span class="tree-row-chip shrink-0 items-center rounded-sm bg-[var(--system-accent)]/25 px-1.5 py-0.5 text-[10px] font-medium leading-none text-[var(--system-accent)]">
+                      Current
+                    </span>
+
+                    <span
+                      data-tree-row-time
+                      class="w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground"
+                    >
+                      {row.time}
+                    </span>
+                  </span>
+                </button>
+              </div>
+            ))
+          }
+        </div>
+
+        <!--
+          Follows the pointer down the list; the app opens the same card on hover.
+          `data-open` is the only switch, and both the body and the time come from
+          the row the pointer is on.
+        -->
+        <div
+          class="pointer-events-none absolute right-3 top-0 z-20 w-[300px] rounded-lg border border-border/70 bg-popover/95 p-3 opacity-0 shadow-md backdrop-blur transition-opacity duration-150 data-[open=true]:opacity-100"
+          data-tree-preview
+          data-open="false"
+        >
+          <div class="flex items-baseline justify-between gap-2">
+            <span class="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+              <Icon name="user" size={12} />
+              <span data-tree-preview-time>09:12</span>
+            </span>
+            <span class="text-[11px] text-muted-foreground">Jump here</span>
+          </div>
+          <p
+            class="mt-1.5 line-clamp-4 text-[13px] leading-5 text-foreground"
+            data-tree-preview-body
+          >
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
