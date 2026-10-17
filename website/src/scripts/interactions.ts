@@ -107,6 +107,38 @@ function initTranscriptClips(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Stills that move
+// ---------------------------------------------------------------------------
+
+/**
+ * How long a still holds one of its states before it moves to the next one.
+ *
+ * Two of the tour's windows claim something a single picture cannot show — that
+ * sessions switch instantly, and that one turn has three densities — so they open
+ * the next state on a timer. Nothing else on the page moves by itself.
+ */
+const AUTO_ADVANCE_MS = 1500;
+
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+/**
+ * Whether a still is the one on the window, and the page is the one in front:
+ * both have to be true before a timer is allowed to change anything, because a
+ * still moving behind the fold is work nobody sees.
+ */
+function stillIsWatched(root: HTMLElement): boolean {
+  if (document.visibilityState !== 'visible') return false;
+  const layer = root.closest<HTMLElement>('[data-stage-layer]');
+  return layer === null || layer.dataset.active === 'true';
+}
+
+/** A pointer inside the window is a reader using it, and holds it where it is. */
+function holdUnderPointer(root: HTMLElement, listener: (held: boolean) => void): void {
+  root.addEventListener('pointerenter', () => listener(true));
+  root.addEventListener('pointerleave', () => listener(false));
+}
+
+// ---------------------------------------------------------------------------
 // View modes
 // ---------------------------------------------------------------------------
 
@@ -137,29 +169,55 @@ function initViewModes(): void {
 
     const close = (): void => setOpen(false);
 
+    const check = (button: HTMLElement): void => {
+      const mode = button.dataset.viewModeButton;
+      if (mode === undefined) return;
+      root.dataset.active = mode;
+      for (const other of buttons) {
+        // `data-state` rather than an attribute of this page's own: it is what
+        // Radix writes in the app, and what the app's own menu styles off
+        // (`data-[state=checked]:...` in SessionToolbar.tsx). The check itself is
+        // in every item and shown by this state, so it moves with the choice.
+        other.dataset.state = other === button ? 'checked' : 'unchecked';
+        other.setAttribute('aria-checked', String(other === button));
+      }
+    };
+
     trigger.addEventListener('click', (event) => {
       event.stopPropagation();
       setOpen(menu.dataset.open !== 'true');
     });
 
+    /*
+     * Picking a density is a reader taking the wheel: the window keeps what they
+     * chose and the timer stops for good. Otherwise the still cycles the three by
+     * itself, menu open over it, so the claim the chapter makes — one turn, three
+     * densities — is something the page shows rather than something it says.
+     */
+    let chosen: HTMLElement | null = null;
+
     for (const button of buttons) {
       button.addEventListener('click', (event) => {
         event.stopPropagation();
-        const mode = button.dataset.viewModeButton;
-        if (mode === undefined) return;
-
-        root.dataset.active = mode;
-        for (const other of buttons) {
-          const state = other === button ? 'checked' : 'unchecked';
-          // `data-state` rather than an attribute of this page's own: it is what
-          // Radix writes in the app, and what the app's own menu styles off
-          // (`data-[state=checked]:...` in SessionToolbar.tsx).
-          other.dataset.state = state;
-          other.setAttribute('aria-checked', String(other === button));
-        }
+        chosen = button;
+        check(button);
         close();
       });
     }
+
+    const reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY);
+    let held = false;
+    holdUnderPointer(root, (next) => {
+      held = next;
+    });
+
+    window.setInterval(() => {
+      if (chosen !== null || held || reducedMotion.matches) return;
+      if (!stillIsWatched(root)) return;
+      const current = buttons.findIndex((button) => button.dataset.state === 'checked');
+      const next = buttons[(current + 1) % buttons.length];
+      if (next !== undefined) check(next);
+    }, AUTO_ADVANCE_MS);
 
     // Clicking anywhere else, or pressing Escape, dismisses it — both of which a
     // menu is expected to do, and neither of which a still of one can show.
@@ -197,11 +255,6 @@ function initMinimalDetails(): void {
 // The instant-switch still
 // ---------------------------------------------------------------------------
 
-/** How long one session stays open before the next one does. */
-const SESSION_CYCLE_MS = 1000;
-
-const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
-
 /**
  * Opens the next session, once a second.
  *
@@ -219,8 +272,6 @@ function initSessionCycle(): void {
   for (const cycle of document.querySelectorAll<HTMLElement>('[data-session-cycle]')) {
     const frames = Array.from(cycle.querySelectorAll<HTMLElement>('[data-session-frame]'));
     if (frames.length < 2) continue;
-    const layer = cycle.closest<HTMLElement>('[data-stage-layer]');
-
     let open = frames.findIndex((frame) => frame.dataset.active === 'true');
     if (open < 0) open = 0;
 
@@ -230,13 +281,9 @@ function initSessionCycle(): void {
       if (reducedMotion.matches) show(0);
     });
 
-    // A pointer inside the window is a reader using it: hold the session it is on.
     let held = false;
-    cycle.addEventListener('pointerenter', () => {
-      held = true;
-    });
-    cycle.addEventListener('pointerleave', () => {
-      held = false;
+    holdUnderPointer(cycle, (next) => {
+      held = next;
     });
 
     const show = (next: number): void => {
@@ -249,10 +296,9 @@ function initSessionCycle(): void {
 
     window.setInterval(() => {
       if (reducedMotion.matches || held) return;
-      if (document.visibilityState !== 'visible') return;
-      if (layer !== null && layer.dataset.active !== 'true') return;
+      if (!stillIsWatched(cycle)) return;
       show((open + 1) % frames.length);
-    }, SESSION_CYCLE_MS);
+    }, AUTO_ADVANCE_MS);
   }
 }
 

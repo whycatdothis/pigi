@@ -153,10 +153,18 @@ fork action's result lives. The windows that have to keep their list still take 
 
 That still answers its own chapter. Switching sessions is the claim, and a picture of one session
 cannot show it: three sessions are stacked in the same cell and `initSessionCycle` opens the next one
-every second, the window's title and the sidebar's selection moving with it. All three are sessions
-the reader has already met — the hero's, the tree's, the long one the minimap is drawn for — and the
-timer only runs while the chapter is the one on the window, and not at all for a reader who asked for
-less motion.
+every 1.5s (`AUTO_ADVANCE_MS`), the window's title and the sidebar's selection moving with it. All
+three are sessions the reader has already met — the hero's, the tree's, the long one the minimap is
+drawn for — and the timer only runs while the chapter is the one on the window, and not at all for a
+reader who asked for less motion. The window's first frame is that long session, so the minimap the
+chapter is about is the one a reduced-motion reader gets.
+
+The _View modes_ still moves for the same reason: one turn drawn three ways is a claim a single
+picture cannot make either, so `initViewModes` opens the next density every 1.5s with the menu open
+over the window, and the check visibly moves with it. That is also the row that makes the check's
+markup matter — an icon that exists only on the item that shipped checked cannot travel. A reader who
+picks a density keeps it: the timer stops for good. Both timers hold while the pointer is over the
+window (a still being used is not a still to move) and neither runs under reduced motion.
 
 Minimal keeps the turn folded, and its timer row is a real button, as it is in the app
 (`minimalView.tsx`): clicking it opens the same entries the other two panels draw — the thinking, the
