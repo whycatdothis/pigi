@@ -10,11 +10,9 @@ interface Props {
   /** The one-line summary the app builds from the entries it folded in. */
   label: string;
   entries: ReadEntry[];
-  /** Entries the group holds beyond the ones it lists, e.g. for a "Show more". */
-  hiddenCount?: number;
 }
 
-const { label, entries, hiddenCount = 0 } = Astro.props;
+const { label, entries } = Astro.props;
 ---
 
 <!-- The app's compact mode: consecutive read-only calls folded into one card.
@@ -26,14 +24,6 @@ const { label, entries, hiddenCount = 0 } = Astro.props;
       <Icon name="chevron-right" size={14} class="shrink-0" />
     </div>
     <div class="mt-0.5 flex flex-col">
-      {
-        hiddenCount > 0 && (
-          <span class="flex w-fit items-center gap-1 py-0.5 text-xs leading-4 text-muted-foreground">
-            Show more
-            <Icon name="chevron-up" size={14} />
-          </span>
-        )
-      }
       {
         entries.map((entry) => (
           <div

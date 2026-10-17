@@ -15,17 +15,22 @@
     "check:drift": "node scripts/checkAppClassDrift.mjs",
     "shots": "node scripts/shoot.mjs",
     "verify": "node scripts/verify-interactions.mjs",
-    "deploy": "astro build && wrangler pages deploy dist --project-name pigi --branch main --commit-dirty=true"
+    "deploy": "npm run check && astro build && wrangler pages deploy dist --project-name pigi --branch main --commit-dirty=true"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.5",
     "@tabler/icons": "^3.49.0",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.19.17",
     "astro": "^7.4.0",
+    "playwright": "1.63.0",
     "prettier": "^3.7.4",
     "prettier-plugin-astro": "^0.14.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "wrangler": "^4.151.1"
+  },
+  "engines": {
+    "node": ">=22.22.0"
   }
 }

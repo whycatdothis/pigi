@@ -298,11 +298,6 @@
   }
 }
 
-@utility content-fade-bottom {
-  mask-image: linear-gradient(to bottom, black calc(100% - 24px), transparent);
-  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 24px), transparent);
-}
-
 /* The app's tail-anchored fade (`overflowClamp.tsx`: `TOP_FADE_MASK`), 16px of
    matte where the clamped content was cut. */
 @utility content-fade-top {
@@ -344,10 +339,6 @@
 }
 
 /* Rows that match the session filter sit on a tint, the way the app marks them. */
-.tree-row[data-matched='true'] .tree-row-highlight {
-  background-color: color-mix(in srgb, var(--muted) 50%, transparent);
-}
-
 /* The macOS traffic lights, off by one pixel the way the system draws them. */
 .traffic-light {
   width: 12px;

@@ -28,9 +28,11 @@ export const MAC_DMG_PATTERN = /-arm64\.dmg$/;
  * read as text on white. So the page uses that hue at the lightness each job
  * needs, and keeps the icon's own value for the mark itself:
  *
- * - `BRAND_PINK` fills the download button and `BRAND_PINK_INK` (white) prints on
- *   it: 4.8:1, and it does not change with the theme, so the button is the same
- *   pink on a white page and a near-black one.
+ * - `--brand` fills the download button and `--brand-ink` (white) prints on it:
+ *   4.8:1, and it does not change with the theme, so the button is the same pink
+ *   on a white page and a near-black one. Both are tokens in `global.css`, which
+ *   is where the button reads them from — a second copy here would be a pink that
+ *   could drift from the pink on the page.
  * - `SITE_ACCENT_LIGHT`/`SITE_ACCENT_DARK` are the same hue tuned per theme for
  *   things that have to read: the section eyebrows, the lit minimap bar, the
  *   selected session, the focus ring (4.9:1 on the page, 9.6:1 on the dark page).
@@ -42,8 +44,6 @@ export const MAC_DMG_PATTERN = /-arm64\.dmg$/;
  * entries and none of them is the pig's; this is the one colour the page names
  * for itself.
  */
-export const BRAND_PINK = 'oklch(0.58 0.21 356)';
-export const BRAND_PINK_INK = '#ffffff';
 /** Pink at text lightness, per theme; hue held where the icon's pink sits. */
 export const SITE_ACCENT_LIGHT = 'oklch(0.56 0.2 356)';
 export const SITE_ACCENT_DARK = 'oklch(0.78 0.13 356)';

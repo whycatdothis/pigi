@@ -46,7 +46,11 @@ export function stripHtmlComments() {
           );
           if (stripped === html) continue;
           saved += Buffer.byteLength(html) - Buffer.byteLength(stripped);
-          remaining += (stripped.match(/<!--/g) ?? []).length;
+          // Counted the way the strip counts: a `<!--` inside a `<pre>` is part
+          // of the code sample, and the next pass would leave it alone.
+          remaining += [...stripped.matchAll(COMMENT_OR_BLOCK)].filter(
+            ([, block]) => block === undefined,
+          ).length;
           await writeFile(file, stripped);
         }
 

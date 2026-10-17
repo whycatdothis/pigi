@@ -4,8 +4,6 @@
  */
 
 /** chatInput/index.tsx */
-export const NEW_CHAT_HEADING = 'Here we go!';
-export const NEW_CHAT_PLACEHOLDER = 'Type # to quick change project.';
 export const FOLLOW_UP_PLACEHOLDER = 'Ask for follow-up changes';
 
 /** thinkingBlock.tsx */

@@ -10,15 +10,9 @@ export interface MinimapMessage {
 interface Props {
   messages: MinimapMessage[];
   activeIndex: number;
-  /**
-   * The hero's window is a still of the app, not a working transcript: there is
-   * nothing to scroll, so there is nothing for the bars to do. Only the strip is
-   * drawn there, without the list it would otherwise open.
-   */
-  interactive?: boolean;
 }
 
-const { messages, activeIndex, interactive = true } = Astro.props;
+const { messages, activeIndex } = Astro.props;
 
 /**
  * The widest bar, at the app's own default window: 1200px leaves a 48px strip in
@@ -37,7 +31,7 @@ const MAX_LINE_WIDTH = LINE_WIDTH_MAX_CAP;
 -->
 <div
   class="absolute right-0 top-1/2 z-10 flex -translate-y-1/2 flex-col items-end gap-1.5 rounded-l py-2 pl-1 opacity-60 transition-opacity hover:opacity-90"
-  data-minimap={interactive ? '' : undefined}
+  data-minimap
   role="navigation"
   aria-label="Message navigation"
 >
@@ -61,30 +55,28 @@ const MAX_LINE_WIDTH = LINE_WIDTH_MAX_CAP;
   }
 </div>
 
-{
-  interactive && (
-    <div
-      class:list={[
-        'absolute right-2 top-1/2 z-20 hidden w-64 -translate-y-1/2 flex-col gap-0.5 overflow-hidden rounded-lg border border-border/60 p-1 shadow-md data-[open=true]:flex',
-        OVERLAY_BG.classes,
-      ]}
-      data-minimap-panel
-      data-open="false"
-    >
-      {messages.map((message, index) => (
-        <button
-          type="button"
-          class="group/entry flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--system-accent)]/10 data-[selected=true]:bg-[var(--system-accent)]/10"
-          data-minimap-entry
-          data-selected={index === activeIndex ? 'true' : 'false'}
-          data-target={index}
-        >
-          <span class="min-w-0 flex-1 truncate text-[13px] text-foreground transition-colors group-hover/entry:text-[var(--system-accent)] group-data-[selected=true]/entry:text-[var(--system-accent)]">
-            {message.text}
-          </span>
-          <span class="shrink-0 text-[11px] text-muted-foreground">{message.time}</span>
-        </button>
-      ))}
-    </div>
-  )
-}
+<div
+  class:list={[
+    'absolute right-2 top-1/2 z-20 hidden w-64 -translate-y-1/2 flex-col gap-0.5 overflow-hidden rounded-lg border border-border/60 p-1 shadow-md data-[open=true]:flex',
+    OVERLAY_BG.classes,
+  ]}
+  data-minimap-panel
+  data-open="false"
+>
+  {
+    messages.map((message, index) => (
+      <button
+        type="button"
+        class="group/entry flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--system-accent)]/10 data-[selected=true]:bg-[var(--system-accent)]/10"
+        data-minimap-entry
+        data-selected={index === activeIndex ? 'true' : 'false'}
+        data-target={index}
+      >
+        <span class="min-w-0 flex-1 truncate text-[13px] text-foreground transition-colors group-hover/entry:text-[var(--system-accent)] group-data-[selected=true]/entry:text-[var(--system-accent)]">
+          {message.text}
+        </span>
+        <span class="shrink-0 text-[11px] text-muted-foreground">{message.time}</span>
+      </button>
+    ))
+  }
+</div>

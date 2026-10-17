@@ -89,11 +89,6 @@ export function rowTopInItemPx(row: TreeRowShape): number {
   return row.isBranchChild ? BRANCH_SPACING_PX : 0;
 }
 
-/** The centre of a row, which is where its branching line ends. */
-export function rowCentrePx(rows: readonly TreeRowShape[], index: number): number {
-  return rowOffsetsPx(rows)[index] + rowTopInItemPx(rows[index]) + ROW_HEIGHT_PX / 2;
-}
-
 /**
  * The branch lines, one per fork.
  *
