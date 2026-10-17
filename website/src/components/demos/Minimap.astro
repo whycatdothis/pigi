@@ -74,21 +74,12 @@ const MAX_LINE_WIDTH = LINE_WIDTH_MAX_CAP;
       {messages.map((message, index) => (
         <button
           type="button"
-          class:list={[
-            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-            index === activeIndex
-              ? 'bg-[var(--system-accent)]/10'
-              : 'hover:bg-[var(--system-accent)]/10',
-          ]}
+          class="group/entry flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--system-accent)]/10 data-[selected=true]:bg-[var(--system-accent)]/10"
           data-minimap-entry
+          data-selected={index === activeIndex ? 'true' : 'false'}
           data-target={index}
         >
-          <span
-            class:list={[
-              'min-w-0 flex-1 truncate text-[13px]',
-              index === activeIndex ? 'text-[var(--system-accent)]' : 'text-foreground',
-            ]}
-          >
+          <span class="min-w-0 flex-1 truncate text-[13px] text-foreground transition-colors group-hover/entry:text-[var(--system-accent)] group-data-[selected=true]/entry:text-[var(--system-accent)]">
             {message.text}
           </span>
           <span class="shrink-0 text-[11px] text-muted-foreground">{message.time}</span>

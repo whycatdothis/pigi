@@ -51,10 +51,17 @@ function initWindowFits(): void {
     const canvas = fit.querySelector<HTMLElement>('[data-window-canvas]');
     const window_ = canvas?.firstElementChild;
     const minWidth = Number(fit.dataset.windowFit);
-    if (!canvas || !window_ || !Number.isFinite(minWidth) || minWidth <= 0) continue;
+    if (!(window_ instanceof HTMLElement) || !canvas || !Number.isFinite(minWidth) || minWidth <= 0)
+      continue;
 
-    // The canvas's own height, read once: the window's height is fixed.
-    const canvasHeight = window_.getBoundingClientRect().height;
+    /*
+     * The window's height in layout pixels, read once: the window's height is
+     * fixed, so it only has to be read once — but it has to be read as a height,
+     * not as a rect. A still can sit inside a stage that has already scaled it
+     * (the tour's), and a rect is what the eye sees: read there it is 677px, and
+     * scaling that by the width below shrinks it a second time.
+     */
+    const windowHeight = window_.offsetHeight;
     let appliedScale = 0;
 
     const measure = (): void => {
@@ -67,7 +74,7 @@ function initWindowFits(): void {
 
       canvas.style.width = scale < 1 ? `${minWidth}px` : '';
       canvas.style.transform = scale < 1 ? `scale(${scale})` : '';
-      fit.style.height = scale < 1 ? `${canvasHeight * scale}px` : '';
+      fit.style.height = scale < 1 ? `${windowHeight * scale}px` : '';
     };
 
     measure();
@@ -376,7 +383,28 @@ function bindMinimap(scroller: HTMLElement, strip: HTMLElement, panel: HTMLEleme
   }
 
   function scrollToIndex(index: number): void {
-    messages[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const message = messages[index];
+    if (message === undefined) return;
+    /*
+     * The transcript's own scroller, not `scrollIntoView`: that scrolls every
+     * scrollable ancestor too, and the page is one of them, so a click on a bar
+     * would throw the reader out of the chapter they were reading. The behaviour
+     * is the reader's choice as well — a jump is movement, not decoration.
+     *
+     * The distance is a rect difference divided by the scale, because a still can
+     * be drawn inside a scaled stage: a rect is in the pixels the reader sees, and
+     * `scrollTop` is in the app's own. Dividing the scroller's box by its layout
+     * height is that scale, whatever set it.
+     */
+    const box = scroller.getBoundingClientRect();
+    const scale = scroller.offsetHeight === 0 ? 1 : box.height / scroller.offsetHeight;
+    const offset =
+      (message.getBoundingClientRect().top - box.top) / (scale === 0 ? 1 : scale) +
+      scroller.scrollTop;
+    scroller.scrollTo({
+      top: offset,
+      behavior: window.matchMedia(REDUCED_MOTION_QUERY).matches ? 'auto' : 'smooth',
+    });
   }
 
   function updateFromScroll(): void {
@@ -418,7 +446,11 @@ function bindMinimap(scroller: HTMLElement, strip: HTMLElement, panel: HTMLEleme
   for (const control of [...bars, ...entries]) {
     control.addEventListener('click', () => {
       const index = Number(control.dataset.target);
-      if (Number.isFinite(index)) scrollToIndex(index);
+      if (!Number.isFinite(index)) return;
+      scrollToIndex(index);
+      // The app's popover closes on the pick, and the bars stay for the next one.
+      window.clearTimeout(closeTimer);
+      panel.dataset.open = 'false';
     });
   }
 

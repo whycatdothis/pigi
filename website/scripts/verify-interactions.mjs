@@ -646,6 +646,37 @@ async function showStep(index) {
     `lit=${atBottom}`,
   );
 
+  /*
+   * A bar moves the transcript it belongs to, not the page.
+   *
+   * `scrollIntoView` also scrolls every scrollable ancestor, and the page is one:
+   * the reader who clicked a bar in the window was thrown out of the chapter they
+   * were reading, which on this page means the still they clicked in changed.
+   */
+  const pageBefore = await page.evaluate(() => {
+    window.scrollBy({ top: 30, behavior: 'instant' });
+    return window.scrollY;
+  });
+  await page.waitForTimeout(150);
+  await scope.locator('[data-minimap-bar]').nth(2).click();
+  await page.waitForTimeout(700);
+  const pageAfter = await page.evaluate(() => window.scrollY);
+  check(
+    'minimap: a bar moves the transcript, not the page',
+    Math.abs(pageAfter - pageBefore) <= 2,
+    `${Math.round(pageBefore)} -> ${Math.round(pageAfter)}`,
+  );
+
+  // Off the strip: hovering it opens the list, and the list covers the bars.
+  await page.mouse.move(4, 4);
+  await page.waitForTimeout(500);
+
+  // Back to the newest message, which is what the bar above would have picked.
+  await scope.locator('[data-minimap-scroll]').evaluate((node) => {
+    node.scrollTop = node.scrollHeight;
+  });
+  await page.waitForTimeout(200);
+
   await scope.locator('[data-minimap]').hover();
   await page.waitForTimeout(400);
   const panelOpen = await scope.locator('[data-minimap-panel]').getAttribute('data-open');
@@ -656,13 +687,53 @@ async function showStep(index) {
     `open=${panelOpen} visible=${panelVisible}`,
   );
 
+  /*
+   * The list is the bars in words, so the two have to agree about where the
+   * reader is. The markup ships the last entry lit — the app opens a session at
+   * its newest message — and from then on it is `data-selected` and the CSS.
+   */
+  const litEntries = async () =>
+    scope.evaluate((node) =>
+      [...node.querySelectorAll('[data-minimap-entry]')]
+        .map((entry, index) =>
+          getComputedStyle(entry).backgroundColor === 'rgba(0, 0, 0, 0)' ? -1 : index,
+        )
+        .filter((index) => index >= 0),
+    );
+  check(
+    'minimap: the list lights the entry the bars light',
+    JSON.stringify(await litEntries()) === JSON.stringify([atBottom]),
+    JSON.stringify(await litEntries()),
+  );
+
   await scope.locator('[data-minimap-entry]').first().click();
   await page.waitForTimeout(800);
-  const scrollTop = await scope.locator('[data-minimap-scroll]').evaluate((node) => node.scrollTop);
+  /*
+   * "Jumped to it" is the message at the top of the transcript, not scrollTop
+   * near zero: the transcript starts with the session's own padding, so the first
+   * message is already ~260px down the content.
+   */
+  const landed = await scope.evaluate((node) => {
+    const scroller = node.querySelector('[data-minimap-scroll]');
+    const message = scroller.querySelector('[data-message-index]');
+    return Math.round(message.getBoundingClientRect().top - scroller.getBoundingClientRect().top);
+  });
+  check('minimap: clicking an entry jumps to that message', Math.abs(landed) <= 2, `${landed}px`);
   check(
-    'minimap: clicking an entry jumps to that message',
-    scrollTop < 40,
-    `scrollTop=${scrollTop}`,
+    'minimap: the pick closes the list',
+    (await scope.locator('[data-minimap-panel]').getAttribute('data-open')) === 'false',
+    `open=${await scope.locator('[data-minimap-panel]').getAttribute('data-open')}`,
+  );
+  /*
+   * The list and the bars answer the same question — where is the reader — and
+   * after the jump they have to still agree. Which message counts as current near
+   * a boundary is the app's centre rule; what matters here is that one list entry
+   * is lit and it is the one the strip is lit at.
+   */
+  check(
+    'minimap: the light follows the jump',
+    JSON.stringify(await litEntries()) === JSON.stringify([await litIndex()]),
+    JSON.stringify({ entries: await litEntries(), bar: await litIndex() }),
   );
   await page.emulateMedia({ reducedMotion: null });
 }
@@ -811,6 +882,80 @@ async function showStep(index) {
       hero.href === CANDIDATE_DOWNLOAD_URL,
     JSON.stringify(hero),
   );
+}
+
+// --- a window scaled twice ---------------------------------------------
+{
+  /*
+   * A window that has been scaled once and then has to be scaled again.
+   *
+   * `initWindowFits` reads the window's height to reserve the room its picture
+   * takes. Read as a rect on a page that is already wide, the tour's stills hand
+   * back the height their stage has shrunk them to — 677 for an 800px window —
+   * and the next scale shrinks that a second time, so the page reserves 341 where
+   * the window draws 402 and the next section starts on top of it. Only a window
+   * at its natural size is measured correctly, which is why a page loaded narrow
+   * (the block below) looks fine and a page narrowed from a desktop does not.
+   */
+  const resized = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await stubReleaseApi(resized);
+  await resized.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
+  await resized.setViewportSize({ width: 390, height: 844 });
+  await resized.waitForTimeout(600);
+  const fits = await resized.evaluate(() =>
+    [...document.querySelectorAll('[data-window-fit]')].map((fit) => ({
+      reserved: Math.round(fit.getBoundingClientRect().height),
+      drawn: Math.round(fit.querySelector('[data-window-canvas]').getBoundingClientRect().height),
+    })),
+  );
+  const worstReserve = fits.reduce(
+    (worst, fit) => Math.max(worst, Math.abs(fit.reserved - fit.drawn)),
+    0,
+  );
+  check(
+    'fit: a window narrowed after a wide load still reserves what it draws',
+    fits.length > 0 && worstReserve <= 2,
+    `worst ${worstReserve}px over ${fits.length} windows`,
+  );
+  await resized.close();
+}
+
+// --- no script --------------------------------------------------------------
+{
+  /*
+   * The tour without the script, on a phone.
+   *
+   * Every chapter ships visible, and the one attribute `initFeatureStage` writes
+   * is what stacks them in a single cell below `lg`. With no script nothing
+   * writes it, so all seven read as an article — which is what the component
+   * promises, and what seven headings in one cell would break.
+   */
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    javaScriptEnabled: false,
+  });
+  const stillPage = await context.newPage();
+  await stillPage.goto(`http://localhost:${port}/`, { waitUntil: 'load' });
+  const withoutScript = await stillPage.evaluate(() => ({
+    tops: [...document.querySelectorAll('[data-stage-copy]')].map((panel) =>
+      Math.round(panel.getBoundingClientRect().top),
+    ),
+    stills: [...document.querySelectorAll('[data-stage-layer]')].filter(
+      (layer) => getComputedStyle(layer).visibility !== 'hidden',
+    ).length,
+  }));
+  check(
+    'tour: without the script the chapters are an article, not one cell',
+    withoutScript.tops.length === 7 &&
+      new Set(withoutScript.tops).size === withoutScript.tops.length,
+    JSON.stringify(withoutScript.tops),
+  );
+  check(
+    'tour: without the script one still is drawn, not seven',
+    withoutScript.stills === 1,
+    `stills=${withoutScript.stills}`,
+  );
+  await context.close();
 }
 
 // --- narrow viewports -------------------------------------------------------
