@@ -21,14 +21,19 @@ export const LICENSE_URL = `${REPO_URL}/blob/main/LICENSE`;
 export const MAC_DMG_PATTERN = /-arm64\.dmg$/;
 
 /**
- * The page's colour: the pig's own pink.
+ * The page's colour: pink, the pig's.
  *
- * `BRAND_PINK` is sampled from `public/icon-256.png` — the app icon, the colour
- * the site is about. It is a light pink (a hair under 3:1 against white), so it is
- * a *surface* and never text: the download button fills with it and prints
- * `BRAND_PINK_INK` on it (6.4:1). Everything that has to read — the section
- * eyebrows, the minimap's lit bar, the selected session, the focus ring — uses the
- * accent instead, which is the same pink at the lightness text needs.
+ * The icon (`public/icon-256.png`) is `#f6729b`, and that is the pink the page is
+ * about — but it is a 2.7:1 pink: too light to carry white text and too light to
+ * read as text on white. So the page uses that hue at the lightness each job
+ * needs, and keeps the icon's own value for the mark itself:
+ *
+ * - `BRAND_PINK` fills the download button and `BRAND_PINK_INK` (white) prints on
+ *   it: 4.8:1, and it does not change with the theme, so the button is the same
+ *   pink on a white page and a near-black one.
+ * - `SITE_ACCENT_LIGHT`/`SITE_ACCENT_DARK` are the same hue tuned per theme for
+ *   things that have to read: the section eyebrows, the lit minimap bar, the
+ *   selected session, the focus ring (4.9:1 on the page, 9.6:1 on the dark page).
  *
  * The two accents are published the way the app publishes a chosen accent
  * (`applyThemeAccent` writes `--accent-light` and `--accent-dark` on <html>), so
@@ -37,11 +42,11 @@ export const MAC_DMG_PATTERN = /-arm64\.dmg$/;
  * entries and none of them is the pig's; this is the one colour the page names
  * for itself.
  */
-export const BRAND_PINK = '#f6729b';
-export const BRAND_PINK_INK = '#201a1d';
+export const BRAND_PINK = 'oklch(0.58 0.21 356)';
+export const BRAND_PINK_INK = '#ffffff';
 /** Pink at text lightness, per theme; hue held where the icon's pink sits. */
-export const SITE_ACCENT_LIGHT = 'oklch(0.56 0.19 355)';
-export const SITE_ACCENT_DARK = 'oklch(0.78 0.13 355)';
+export const SITE_ACCENT_LIGHT = 'oklch(0.56 0.2 356)';
+export const SITE_ACCENT_DARK = 'oklch(0.78 0.13 356)';
 
 /** Umami, the only analytics on the site. Cookieless, so no consent banner. */
 export const UMAMI_SCRIPT_URL = 'https://cloud.umami.is/script.js';

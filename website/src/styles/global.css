@@ -26,12 +26,13 @@
 :root {
   /*
    * The pig's pink, as a surface: the download button's fill and the ink printed
-   * on it. Both themes use the same pair — the pink is light enough that dark ink
-   * reads on it whether the page is white or near-black (`--brand-ink` is 6.4:1 on
-   * `--brand`), which is why it is not one of the tokens that flips.
+   * on it. The icon's own `#f6729b` is a 2.7:1 pink and cannot carry white text, so
+   * the fill is that hue at the lightness white needs (4.8:1). Both themes use the
+   * same pair — a fill that flipped with the theme would have to flip its ink too,
+   * and the button is the page's one constant colour.
    */
-  --brand: #f6729b;
-  --brand-ink: #201a1d;
+  --brand: oklch(0.58 0.21 356);
+  --brand-ink: #ffffff;
 
   --page-background: oklch(0.984 0.003 264);
   --window-border: rgb(0 0 0 / 0.07);
