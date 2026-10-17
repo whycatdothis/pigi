@@ -1,6 +1,6 @@
 ---
 import Icon from '../Icon.astro';
-import { LATEST_RELEASE_URL, UMAMI_EVENT_DOWNLOAD } from '../../lib/site';
+import { DOWNLOAD_URL, UMAMI_EVENT_DOWNLOAD } from '../../lib/site';
 import {
   BUTTON_BASE,
   BUTTON_BRAND_FILLED,
@@ -12,9 +12,10 @@ import {
 /**
  * The download button, in the hero and in the header.
  *
- * The markup points at the release page, which always works. src/scripts/
- * interactions.ts upgrades the href to the arm64 DMG's direct URL once the
- * releases API answers, and leaves it alone if it does not.
+ * The href is GitHub's `releases/latest/download/<file>`: it resolves to the asset
+ * of whichever release is newest at the moment of the click, so the button is one
+ * click to the file and needs no script, no rebuild and no lookup. Why the file
+ * name carries no version is explained in src/lib/site.ts.
  *
  * The shape, the size and the focus ring are the app's own Button — base,
  * `size="default"` in the header — and the hero is at the page's scale, since the
@@ -24,10 +25,9 @@ import {
  * window. See src/lib/appUi.ts for what is copied and from where.
  *
  * The label says macOS, which is what the reader is choosing between here: this
- * page is the macOS app and nothing else. The DMG it resolves to is arm64 — see
- * `MAC_DMG_PATTERN` — so an Intel Mac would get a file that cannot run; the
- * release notes are where that is said, not the one button the page is built
- * around.
+ * page is the macOS app and nothing else. The DMG it downloads is arm64, so an
+ * Intel Mac would get a file that cannot run; the release notes are where that is
+ * said, not the one button the page is built around.
  */
 interface Props {
   /** `hero` is the page's primary action; `compact` matches the app's `size="default"`. */
@@ -39,7 +39,7 @@ const { variant = 'hero', class: className } = Astro.props;
 ---
 
 <a
-  href={LATEST_RELEASE_URL}
+  href={DOWNLOAD_URL}
   data-download-link
   data-umami-event={UMAMI_EVENT_DOWNLOAD}
   class:list={[
