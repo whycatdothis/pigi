@@ -99,20 +99,20 @@ export const BUTTON_FILLED = {
 
 /**
  * The page's download button: the app's filled variant's mechanics, filled with
- * the accent instead of the app's primary.
+ * the pig's pink instead of the app's primary.
  *
  * Inside a window the primary control is neutral, and it stays that way here —
  * every button on this page that belongs to the app wears `BUTTON_FILLED`
- * unchanged. This one is the page's own call to action, and the page's colour is
- * the accent it runs on; `text-primary-foreground` follows it through both
- * themes, because the accent and the primary invert together (dark fill with
- * light text, light fill with dark).
+ * unchanged. This one is the page's own call to action, so it wears the page's
+ * colour: `--brand`, the icon's pink, with the dark ink that reads on it. The
+ * accent is the same hue at text lightness, which is what the rest of the page
+ * uses; a light pink cannot carry white text (2.7:1), so the button's text is
+ * dark ink rather than the inverted foreground.
  */
 export const BUTTON_BRAND_FILLED = {
-  classes:
-    'bg-[var(--system-accent)] text-primary-foreground [a]:hover:bg-[var(--system-accent)]/85',
+  classes: 'bg-[var(--brand)] text-[var(--brand-ink)] [a]:hover:bg-[var(--brand)]/85',
   source: `${UI}/button.tsx`,
-  siteClasses: ['bg-[var(--system-accent)]', '[a]:hover:bg-[var(--system-accent)]/85'],
+  siteClasses: ['bg-[var(--brand)]', 'text-[var(--brand-ink)]', '[a]:hover:bg-[var(--brand)]/85'],
 } satisfies CopiedClasses;
 
 /**
