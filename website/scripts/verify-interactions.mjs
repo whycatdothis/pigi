@@ -1010,7 +1010,8 @@ async function showStep(index) {
     JSON.stringify(links),
   );
 
-  // The page's primary action sits under the title, and says which Mac it is for.
+  // The page's primary action sits under the title, with one icon and no arrow:
+  // a second glyph after the label is decoration the app's button never carries.
   const hero = await page.evaluate(() => {
     const button = document.querySelector('main > section a[data-download-link]');
     return button === null
@@ -1018,12 +1019,14 @@ async function showStep(index) {
       : {
           label: button.textContent.replace(/\s+/g, ' ').trim(),
           href: button.getAttribute('href'),
+          icons: button.querySelectorAll('svg').length,
         };
   });
   check(
-    'download: the hero carries the primary button, for Apple Silicon',
+    'download: the hero carries the primary button, for macOS',
     hero !== null &&
-      hero.label === 'Download for Apple Silicon' &&
+      hero.label === 'Download for macOS' &&
+      hero.icons === 1 &&
       hero.href === CANDIDATE_DOWNLOAD_URL,
     JSON.stringify(hero),
   );
