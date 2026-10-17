@@ -104,10 +104,11 @@ export const BUTTON_FILLED = {
  * Inside a window the primary control is neutral, and it stays that way here —
  * every button on this page that belongs to the app wears `BUTTON_FILLED`
  * unchanged. This one is the page's own call to action, so it wears the page's
- * colour: `--brand`, the icon's pink, with the dark ink that reads on it. The
- * accent is the same hue at text lightness, which is what the rest of the page
- * uses; a light pink cannot carry white text (2.7:1), so the button's text is
- * dark ink rather than the inverted foreground.
+ * colour: `--brand`, pink, with white printed on it. The icon's own pink
+ * (`#f6729b`) is 2.7:1 against white and cannot carry it, so the fill is that hue
+ * deepened to where white reads (4.8:1) — the same pink the rest of the page uses
+ * at text lightness. The fill does not flip with the theme, so neither does the
+ * ink: the button is one pink in both.
  */
 export const BUTTON_BRAND_FILLED = {
   classes: 'bg-[var(--brand)] text-[var(--brand-ink)] [a]:hover:bg-[var(--brand)]/85',
