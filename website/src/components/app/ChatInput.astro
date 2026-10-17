@@ -1,12 +1,10 @@
 ---
 import Icon from '../Icon.astro';
-import { NEW_CHAT_HEADING } from '../../lib/appCopy';
+import { FOLLOW_UP_PLACEHOLDER } from '../../lib/appCopy';
 import { CHAT_INPUT_MAX_WIDTH } from '../../lib/appLayout';
 import { CHAT_CARD } from '../../lib/appUi';
 
 interface Props {
-  /** New-session mode centres the box and names the state instead of the follow-up. */
-  variant?: 'followUp' | 'newSession';
   /** What has been typed, in place of the placeholder: `/` opens the command menu. */
   text?: string;
   model?: string;
@@ -16,15 +14,12 @@ interface Props {
 }
 
 const {
-  variant = 'followUp',
   text,
   model = 'DeepSeek V4.1 Flash',
   thinking = 'max',
   gitBranch = 'main',
   contextUsage = '1.2%/1000k (auto)',
 } = Astro.props;
-
-const isNewSession = variant === 'newSession';
 
 /** The app's container padding and card width: `px-5`, CHAT_INPUT_MAX_WIDTH. */
 const cardStyle = `max-width:${CHAT_INPUT_MAX_WIDTH}px`;
@@ -40,22 +35,14 @@ const cardStyle = `max-width:${CHAT_INPUT_MAX_WIDTH}px`;
     -->
     <slot name="menu" />
 
-    <div class:list={['flex', CHAT_CARD.classes, !isNewSession && 'min-h-28']}>
-      {
-        isNewSession && (
-          <h1 class="mb-12 mt-12 text-center text-4xl font-normal text-foreground">
-            {NEW_CHAT_HEADING}
-          </h1>
-        )
-      }
+    <div class:list={['flex', CHAT_CARD.classes, 'min-h-28']}>
       <div
         class:list={[
-          'flex-initial text-sm leading-5',
+          'min-h-16 flex-initial px-4 pt-4 pb-2 text-sm leading-5',
           text ? 'text-foreground' : 'text-muted-foreground/70',
-          isNewSession ? 'min-h-24 px-4 pb-2 pt-4' : 'min-h-16 px-4 pb-2 pt-4',
         ]}
       >
-        {text ?? (isNewSession ? 'Type # to quick change project.' : 'Ask for follow-up changes')}
+        {text ?? FOLLOW_UP_PLACEHOLDER}
       </div>
 
       <div class="flex min-w-0 items-center justify-between gap-2 px-2.5 pb-2.5 pt-0">

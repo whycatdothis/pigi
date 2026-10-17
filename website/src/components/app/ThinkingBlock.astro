@@ -1,5 +1,6 @@
 ---
 import Icon from '../Icon.astro';
+import { THINKING_LABEL } from '../../lib/appCopy';
 
 /**
  * A reasoning block.
@@ -22,7 +23,7 @@ const { duration, overflowing = false } = Astro.props;
 
 <div class="rounded-md bg-muted/70 px-3 py-1.5 text-muted-foreground">
   <div class="flex items-center justify-between gap-2 text-[13px] font-medium">
-    <span>Thinking</span>
+    <span>{THINKING_LABEL}</span>
     <span class="font-normal tabular-nums">{duration}</span>
   </div>
   {

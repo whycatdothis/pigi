@@ -42,7 +42,6 @@ import type { ViewModeName } from '../demos/ViewModeMenu.astro';
 interface Props {
   /** The session title in the toolbar, and the sidebar row it selects. */
   title: string;
-  variant?: 'followUp' | 'newSession';
   /** What has been typed into the composer, in place of the placeholder. */
   composerText?: string;
   /** The slash-command menu is open above the composer, as typing `/` opens it. */
@@ -65,7 +64,6 @@ interface Props {
 
 const {
   title,
-  variant = 'followUp',
   composerText,
   slashMenuOpen = false,
   terminalOpen = false,
@@ -130,7 +128,7 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
               <div class="flex min-h-0 flex-1 flex-col">
                 <slot />
               </div>
-              <ChatInput variant={variant} text={composerText}>
+              <ChatInput text={composerText}>
                 {slashMenuOpen && <SlashMenu slot="menu" />}
               </ChatInput>
             </div>

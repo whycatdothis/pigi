@@ -203,11 +203,11 @@ release log is not the thing being searched for.
 
 ```bash
 cd website
-npm install
+npm install        # Node 22.22 or newer; package.json says so
 npm run dev        # http://localhost:4321
 npm run build      # -> dist/
 npm run preview    # serve the built output
-npm run check      # astro check + prettier --check
+npm run check      # astro check + the class drift check + prettier --check
 ```
 
 ### Visual verification
@@ -217,7 +217,7 @@ Both scripts drive the built `dist/` in a real browser:
 ```bash
 npm run build
 npm run shots         # writes .shots/*.png: full page and per section
-npm run verify        # asserts the interactive pieces work, and the phone-width layout (40 checks)
+npm run verify        # asserts the interactive pieces work, and the phone-width layout (70 checks)
 npm run check:drift   # asserts the copied app classes still exist in the app
 ```
 
@@ -228,9 +228,13 @@ asserted. Both scripts answer the GitHub releases API from
 `scripts/releaseFixture.mjs` rather than the network: an unauthenticated call is limited to 60 an hour,
 and a run that trips the limit would report the download fallback and look like a broken button.
 
-They import Playwright, which they resolve from the **repository root's** `node_modules` — the app
-already depends on it for its browser test layer, so the site does not install a second copy. A
-clone of `website/` on its own will need `npm i -D playwright` first.
+They import Playwright, which is a devDependency of this site like any other tool — the version is
+pinned to the one the app's own browser tests use, so both share a single Chromium download.
+
+All of it runs on every push and pull request: `.github/workflows/ci.yml` has a `website` job that
+installs, runs `npm run check`, builds, and runs `npm run verify` in Chromium. The checks are also why
+`npm run deploy` starts with `check`: the one thing a deploy must not do is ship a page whose
+relationships to the app have drifted.
 
 ## Deploying to Cloudflare Pages
 
