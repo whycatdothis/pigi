@@ -2,7 +2,7 @@
 import UserMessage from '../app/UserMessage.astro';
 import AssistantMessage from '../app/AssistantMessage.astro';
 import ThinkingBlock from '../app/ThinkingBlock.astro';
-import ToolCard from '../app/ToolCard.astro';
+import ToolCard, { type DiffLine } from '../app/ToolCard.astro';
 import { type MessageActionTooltip } from '../app/MessageActions.astro';
 import Minimap from './Minimap.astro';
 import {
@@ -22,7 +22,18 @@ export interface Turn {
    */
   actionTooltip?: MessageActionTooltip & { on: 'user' | 'assistant' };
   thinking?: string;
-  tool?: { command: string; prefix?: string; output: string[]; duration: string };
+  /**
+   * One tool call. `prefix` is the app's own naming: `$` for bash, the tool's
+   * name for everything else (`read`, `edit`, `write`), with the path or command
+   * as the body — never `$ read`.
+   */
+  tool?: {
+    command: string;
+    prefix?: string;
+    output?: string[];
+    diff?: DiffLine[];
+    duration: string;
+  };
   reply?: string;
   /** The last reply of a session carries its time; the ones above do not. */
   last?: boolean;
@@ -104,6 +115,7 @@ const columnStyle = [
                   prefix={turn.tool.prefix}
                   command={turn.tool.command}
                   output={turn.tool.output}
+                  diff={turn.tool.diff}
                   duration={turn.tool.duration}
                 />
               )}

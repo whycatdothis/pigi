@@ -16,60 +16,50 @@ import type { Turn } from '../components/demos/Transcript.astro';
 /**
  * The hero's window: what a session looks like, at a glance.
  *
- * Three turns, because that is what the app shows: a session it opens is scrolled
- * to its newest message, so the turns above the fold are cut by the window's top
- * edge. The last of them is also the session the terminal section's window has
- * open (`terminalTurns`), one turn later.
+ * Two short turns, because this is the first picture a reader meets and the app's
+ * own README opens on the same kind of exchange — a question, what the agent did
+ * about it, a reply. The cards are the transcript's three shapes: a thought, a
+ * file read, an edit. The read and the edit are named the way the app names them
+ * (`read`, `edit`, and `$` only for bash), so nothing here says `$ read`.
+ *
+ * The last turn is also the session the terminal section's window has open, one
+ * turn later (`terminalTurns`).
  */
 export const heroTurns: Turn[] = [
   {
-    user: 'hovering the pinned row lights up every pinned row',
-    time: '13:38',
+    user: 'the tree header overlaps the row underneath',
+    time: '13:52',
     thinking:
-      'The copies in the band sit inside the list’s hover group, so `group-hover:` matches the group the whole list belongs to instead of the row under the pointer.',
+      'The band is sticky and zero-height, so it paints over the row instead of taking its space.',
     tool: {
-      command:
-        "rg -n 'group-hover' src/renderer/src/components/sessionTree/SessionTreePinnedBand.tsx",
+      prefix: 'read',
+      command: 'src/renderer/src/components/sessionTree/SessionTreePinnedBand.tsx',
       output: [
-        '57   // The same hover the rows themselves use: the pinned copies must read',
-        "59   'group-hover:bg-foreground/10',",
-      ],
-      duration: '0.2s',
-    },
-    reply:
-      'It was reading the list’s group. Given a group of its own, only the pinned row under the pointer lights up.',
-  },
-  {
-    user: 'and the band should close where the branch does',
-    time: '13:44',
-    thinking:
-      'Copying each ancestor draws the chain, but the last copy has to carry the branch’s closing border or the band runs straight into the row underneath it.',
-    tool: {
-      command: "rg -n 'isLast' src/renderer/src/components/sessionTree/SessionTreePinnedBand.tsx",
-      output: [
-        "50       className={cn('group flex w-full items-center', isLast &&",
-        "51         'border-b border-border/60')}",
+        '164      <div className="sticky top-0 z-20 h-0" aria-hidden="true" data-testid="session-tree-pinned">',
       ],
       duration: '0.1s',
     },
     reply:
-      'The last pinned row carries the border now, so the band ends on the branch instead of opening into the rows below.',
+      'It paints over the row instead of moving it: the band is an overlay, and nothing reserves its height.',
   },
   {
-    user: 'the Tree 1 header overlaps the row underneath',
-    time: '14:02',
-    thinking:
-      'The header is sticky inside the scroll container, so it covers whatever is above the threshold. The pinned band mirrors that header, and it assumes a fixed height — after a filter the header is taller, so the band is short by the difference and the row underneath shows through.',
+    user: 'reserve it then',
+    time: '13:58',
     tool: {
-      command: "rg -n 'pinnedBand|sticky' src/renderer/src/components/sessionTree",
-      output: [
-        'SessionTreePinnedBand.tsx:51:  style={{ height: ROW_HEIGHT_PX, paddingLeft: rowContentX(depth) }}',
-        'SessionTreeList.tsx:355:  <PinnedAncestors',
+      prefix: 'edit',
+      command: 'src/renderer/src/components/sessionTree/SessionTreePinnedBand.tsx',
+      diff: [
+        { type: 'remove', number: 164, content: '  className="sticky top-0 z-20 h-0"' },
+        {
+          type: 'add',
+          number: 164,
+          content: '  className="sticky top-0 z-20 h-[var(--pinned-band)]"',
+        },
       ],
-      duration: '0.2s',
+      duration: '0.4s',
     },
     reply:
-      'The band was measured once, when the tree mounted. After a filter the header grew and the band did not.',
+      'The band holds its own height now, so the rows move up by exactly that much while one is pinned.',
     last: true,
   },
 ];
@@ -163,7 +153,8 @@ export const forkTurns: Turn[] = [
     thinking:
       'Every row is measured on mount, so a session with thousands of entries spends the first frames laying all of them out.',
     tool: {
-      command: 'read src/renderer/src/components/sessionTree/SessionTreeList.tsx',
+      prefix: 'read',
+      command: 'src/renderer/src/components/sessionTree/SessionTreeList.tsx',
       output: ['86  * Row heights are constants and headers are measured, so'],
       duration: '0.2s',
     },
@@ -293,7 +284,8 @@ export const treeTurns: Turn[] = [
     time: '09:12',
     thinking: 'One bar per user message, sized by how long the message is.',
     tool: {
-      command: 'read src/components/transcript/UserMessageMiniMap.tsx',
+      prefix: 'read',
+      command: 'src/components/transcript/UserMessageMiniMap.tsx',
       output: ['78   const [maxLineWidth, setMaxLineWidth] = useState('],
       duration: '0.1s',
     },
