@@ -255,6 +255,16 @@ the build inside `website/`, and publishes `dist/`. There is nothing to run from
 against Electron in the Pages container and fail. Building from `website/` installs only the site's
 dependencies.
 
+**Only two paths trigger a build**: `website/*` and `CHANGELOG.md` (Pages → the project → Settings →
+Build watch paths). The `CHANGELOG.md` half is there because `/changelog/` is rendered from that file's
+last release section; without it, a release would leave the page describing an older version. An
+app-only push — a renderer change, a workflow edit, a dependency bump — builds nothing.
+
+The cost of that: the stills on the page are copies of the app's markup, so an app change that renames
+a class the site draws leaves the site drawing the old one until someone touches `website/`. That
+someone does not have to remember to look: `npm run build` starts with the drift check, so the next
+website push fails and names the class. The site is never _silently_ wrong for longer than that.
+
 **The build checks before it ships.** `npm run build` starts with `scripts/checkAppClassDrift.mjs`,
 which compares every class this site copied out of the app against the app's own source. The app is
 one directory up in the same clone, so a push that changes a class the site draws fails the deploy
