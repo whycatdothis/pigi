@@ -27,6 +27,13 @@ its state as props (`terminalOpen`, `viewModes`, `viewMenuOpen`, `overlayOpen`),
 window plus a short paragraph. The transcripts live in `src/lib/sessions.ts`; the geometry of a window
 (the app's 800px height, the sidebar's 244px, the terminal's 280px) lives in `src/lib/appLayout.ts`.
 
+A still shows its session the way the app shows one: a session taller than the viewport is at its
+newest message, so the still is clipped at the top edge by exactly what the app would be scrolled —
+no floating column, no bottom-aligned flexbox, no invented padding (`initTranscriptClips` writes
+`scrollTop` on a clipped box). A session shorter than the viewport sits at the top with its two insets,
+which is why each still's session is written long enough to overflow: a picture of a conversation is
+the app in use, not the app just opened.
+
 ### Narrow viewports
 
 A window is always a window the app can actually be. It is fluid from the app's minimum width

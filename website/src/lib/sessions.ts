@@ -13,8 +13,48 @@ import type { Turn } from '../components/demos/Transcript.astro';
  * thought, a tool call), then the reply.
  */
 
-/** The hero's window: what a session looks like, at a glance. */
+/**
+ * The hero's window: what a session looks like, at a glance.
+ *
+ * Three turns, because that is what the app shows: a session it opens is scrolled
+ * to its newest message, so the turns above the fold are cut by the window's top
+ * edge. The last of them is also the session the terminal section's window has
+ * open (`terminalTurns`), one turn later.
+ */
 export const heroTurns: Turn[] = [
+  {
+    user: 'hovering the pinned row lights up every pinned row',
+    time: '13:38',
+    thinking:
+      'The copies in the band sit inside the list’s hover group, so `group-hover:` matches the group the whole list belongs to instead of the row under the pointer.',
+    tool: {
+      command:
+        "rg -n 'group-hover' src/renderer/src/components/sessionTree/SessionTreePinnedBand.tsx",
+      output: [
+        '57   // The same hover the rows themselves use: the pinned copies must read',
+        "59   'group-hover:bg-foreground/10',",
+      ],
+      duration: '0.2s',
+    },
+    reply:
+      'It was reading the list’s group. Given a group of its own, only the pinned row under the pointer lights up.',
+  },
+  {
+    user: 'and the band should close where the branch does',
+    time: '13:44',
+    thinking:
+      'Copying each ancestor draws the chain, but the last copy has to carry the branch’s closing border or the band runs straight into the row underneath it.',
+    tool: {
+      command: "rg -n 'isLast' src/renderer/src/components/sessionTree/SessionTreePinnedBand.tsx",
+      output: [
+        "50       className={cn('group flex w-full items-center', isLast &&",
+        "51         'border-b border-border/60')}",
+      ],
+      duration: '0.1s',
+    },
+    reply:
+      'The last pinned row carries the border now, so the band ends on the branch instead of opening into the rows below.',
+  },
   {
     user: 'the Tree 1 header overlaps the row underneath',
     time: '14:02',
@@ -23,8 +63,8 @@ export const heroTurns: Turn[] = [
     tool: {
       command: "rg -n 'pinnedBand|sticky' src/renderer/src/components/sessionTree",
       output: [
-        'SessionTreePinnedBand.tsx:22:  const bandHeight = DEFAULT_HEIGHT;',
-        'SessionTreeList.tsx:301:  <SessionTreePinnedBand topPx={bandTopPx} />',
+        'SessionTreePinnedBand.tsx:51:  style={{ height: ROW_HEIGHT_PX, paddingLeft: rowContentX(depth) }}',
+        'SessionTreeList.tsx:355:  <PinnedAncestors',
       ],
       duration: '0.2s',
     },
@@ -45,8 +85,34 @@ export const heroTurns: Turn[] = [
  *
  * The title matches a row in the sidebar, and the row under that one is a chat
  * forked from it.
+ *
+ * Four turns, so the session overflows its window the way the app's does: the
+ * thing being shown is the newest turn, under a pointer, not a conversation that
+ * would still fit.
  */
 export const forkTurns: Turn[] = [
+  {
+    user: 'does the tree keep a fork under the session it came from',
+    time: '10:51',
+    tool: {
+      command: 'rg -n "depth" src/renderer/src/lib/sessionLineage.ts',
+      output: [
+        '31 export function lineageDepth(parentPath: string | null): number {',
+        '54   const isLastChild = index === siblings.length - 1;',
+      ],
+      duration: '0.1s',
+    },
+    reply:
+      'It does. Depth is read from the session file, so a fork is drawn under its parent wherever it is opened from.',
+  },
+  {
+    user: 'the tree jumps to the wrong row when I reopen it',
+    time: '10:58',
+    thinking:
+      'The scroll position is restored before the rows exist, so the browser clamps it to a list that is still empty.',
+    reply:
+      'It restores before the first window of rows is laid out, and a scroll into an empty list is clamped to nothing. Restored after the first frame, it lands where it left.',
+  },
   {
     user: 'the tree blanks the window when a session is long',
     time: '11:02',
@@ -170,64 +236,12 @@ export const historyTurns: Turn[] = [
 ];
 
 /**
- * The moment before the tree: a pointer resting on the newest reply's tree action.
+ * The window behind the tree dialog, and the one the tree action is hovered in.
  *
- * The app puts those actions on assistant messages too, and hovering one is the
- * other way into the tree — this is the still that shows it. The `?` inside the
- * tooltip is the same `?` the tree's toolbar carries, and it opens the dialog the
- * section below shows; the tooltip is the app's own, label and all.
- *
- * The session is the one the tree dialog is open on, so the tree in the next still
- * is this conversation.
- */
-export const treeEntryTurns: Turn[] = [
-  {
-    user: 'and dim the bars that are not active',
-    time: '09:21',
-    reply: 'Only the bar nearest the middle of the viewport is lit now.',
-    actionTooltip: { on: 'assistant', action: 'tree', label: 'Move the session here', help: true },
-    last: true,
-  },
-];
-
-/** The session-switcher window: whatever was open when the palette came up. */
-export const switcherTurns: Turn[] = [
-  {
-    user: 'the bars should get dimmer when I scroll past them',
-    time: '09:30',
-    tool: {
-      command: 'read src/components/transcript/UserMessageMiniMap.tsx',
-      output: [
-        '132   const distanceFromCentre = 1 - Math.abs(normalized * 2 - 1);',
-        '145   const isActive = index === activeIndex;',
-      ],
-      duration: '0.1s',
-    },
-    reply:
-      'Width comes from the bar’s position in the list; the lit one is the message nearest the middle of the viewport.',
-    last: true,
-  },
-];
-
-/** The terminal window: the session that ran the tests, with the panel open. */
-export const terminalTurns: Turn[] = [
-  {
-    user: 'run the suite before you commit',
-    time: '15:19',
-    tool: {
-      command: 'npm test',
-      output: [' Test Files  3 passed (3)', '      Tests  49 passed (49)'],
-      duration: '4.1s',
-    },
-    reply: 'Green. The panel is open on the run if you want the full output.',
-    last: true,
-  },
-];
-
-/**
- * The window behind the tree dialog. The tree is the feature, so the transcript
- * behind it is the session the tree belongs to, cut off where the dialog covers
- * it.
+ * The tree is the feature, so the transcript behind it is the session the tree
+ * belongs to, cut off where the dialog covers it. Three sections show this one
+ * session — the entry, the dialog and the switcher's window — because in the app
+ * they are the same session, and only the overlay changes.
  */
 export const treeTurns: Turn[] = [
   {
@@ -255,6 +269,48 @@ export const treeTurns: Turn[] = [
     user: 'and dim the bars that are not active',
     time: '09:21',
     reply: 'Only the bar nearest the middle of the viewport is lit now.',
+    last: true,
+  },
+];
+
+/**
+ * The moment before the tree: a pointer resting on the newest reply's tree action.
+ *
+ * The app puts those actions on assistant messages too, and hovering one is the
+ * other way into the tree — this is the still that shows it. The `?` inside the
+ * tooltip is the same `?` the tree's toolbar carries, and it opens the dialog the
+ * next still shows; the tooltip is the app's own, label and all.
+ */
+export const treeEntryTurns: Turn[] = treeTurns.map((turn, index) =>
+  index === treeTurns.length - 1
+    ? {
+        ...turn,
+        actionTooltip: {
+          on: 'assistant',
+          action: 'tree',
+          label: 'Move the session here',
+          help: true,
+        },
+      }
+    : turn,
+);
+
+/**
+ * The terminal window: the hero's session, one turn later, with the panel open
+ * instead of closed. The test run is the newest thing in it, which is what the
+ * panel is showing.
+ */
+export const terminalTurns: Turn[] = [
+  ...heroTurns.map((turn): Turn => ({ ...turn, last: false })),
+  {
+    user: 'run the suite before you commit',
+    time: '15:19',
+    tool: {
+      command: 'npm test',
+      output: [' Test Files  3 passed (3)', '      Tests  49 passed (49)'],
+      duration: '4.1s',
+    },
+    reply: 'Green. The panel is open on the run if you want the full output.',
     last: true,
   },
 ];
