@@ -73,14 +73,14 @@ const compactLabel = buildReadGroupLabel(false, readCalls.length, 1, 1);
  * The app's own transcript metrics: 860px wide, 20px of inline padding, a 24px
  * inset at the top.
  *
- * `min-h-full` with `mt-auto` on the content is what keeps a short turn against
- * the input: the app holds the transcript at its newest message, so the empty
- * space in a short session is above the text, never below it. The long panels
- * still scroll from the top, which is the state worth showing when the point is
- * how much there is to scroll.
+ * A turn starts at the top and grows downwards, as it does in the app: the list
+ * is a plain scroll container (`MessageList.tsx` is `pb-8 pt-6` in a scroller,
+ * with no `justify-end`), so a short turn sits under the toolbar and a long one
+ * scrolls. Pushing a short turn to the bottom instead would leave a gap above
+ * the first message that the app never draws.
  */
 const SCROLLER = 'no-scrollbar h-full overflow-y-auto';
-const COLUMN = 'mx-auto flex min-h-full max-w-[860px] flex-col px-5 pb-24 pt-6';
+const COLUMN = 'mx-auto flex max-w-[860px] flex-col px-5 pb-24 pt-6';
 ---
 
 <div class="min-h-0 flex-1" data-view-panels>
@@ -91,7 +91,7 @@ const COLUMN = 'mx-auto flex min-h-full max-w-[860px] flex-col px-5 pb-24 pt-6';
   <div class="hidden h-full group-data-[active=minimal]/view:block" data-view-panel="minimal">
     <div class={SCROLLER}>
       <div class={COLUMN}>
-        <div class="mt-auto flex flex-col">
+        <div class="flex flex-col">
           <UserMessage time="10:44">{userText}</UserMessage>
           <div class="flex flex-col">
             <div class="flex w-full items-center gap-1.5 pb-1 pt-3 text-left">
@@ -124,7 +124,7 @@ const COLUMN = 'mx-auto flex min-h-full max-w-[860px] flex-col px-5 pb-24 pt-6';
   <div class="hidden h-full group-data-[active=compact]/view:block" data-view-panel="compact">
     <div class={SCROLLER}>
       <div class={COLUMN}>
-        <div class="mt-auto flex flex-col">
+        <div class="flex flex-col">
           <UserMessage time="10:44">{userText}</UserMessage>
           <div class="flex flex-col gap-2 pt-2">
             <ThinkingBlock duration="2s" overflowing>{thinkingText}</ThinkingBlock>
@@ -164,7 +164,7 @@ const COLUMN = 'mx-auto flex min-h-full max-w-[860px] flex-col px-5 pb-24 pt-6';
   <div class="hidden h-full group-data-[active=all]/view:block" data-view-panel="all">
     <div class={SCROLLER}>
       <div class={COLUMN}>
-        <div class="mt-auto flex flex-col">
+        <div class="flex flex-col">
           <UserMessage time="10:44">{userText}</UserMessage>
           <div class="flex flex-col gap-2 pt-2">
             <ThinkingBlock duration="2s" overflowing>{thinkingText}</ThinkingBlock>
