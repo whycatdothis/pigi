@@ -15,8 +15,9 @@ export default defineConfig(
       '**/dist',
       '**/out',
       'scripts/**/*.cjs',
-      // The marketing site is its own project with its own toolchain; it is
-      // typechecked, linted and formatted by `npm run check` inside website/.
+      // The marketing site is its own project with its own toolchain: it is
+      // typechecked, drift-checked and formatted by `npm run check` inside
+      // website/, and CI runs that for it. There is no ESLint there.
       'website/**',
     ],
   },
