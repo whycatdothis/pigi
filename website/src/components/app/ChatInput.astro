@@ -7,6 +7,8 @@ import { CHAT_CARD } from '../../lib/appUi';
 interface Props {
   /** New-session mode centres the box and names the state instead of the follow-up. */
   variant?: 'followUp' | 'newSession';
+  /** What has been typed, in place of the placeholder: `/` opens the command menu. */
+  text?: string;
   model?: string;
   thinking?: string;
   gitBranch?: string;
@@ -15,6 +17,7 @@ interface Props {
 
 const {
   variant = 'followUp',
+  text,
   model = 'DeepSeek V4.1 Flash',
   thinking = 'max',
   gitBranch = 'main',
@@ -29,6 +32,14 @@ const cardStyle = `max-width:${CHAT_INPUT_MAX_WIDTH}px`;
 
 <div class="shrink-0 px-5">
   <div class="relative mx-auto w-full" style={cardStyle}>
+    <!--
+      The command menu floats above the field, the way the app's popover does
+      (`side="top"`, `sideOffset={6}`, the field's own width). It lives here
+      because here is where the app puts it: a child of the input, not of the
+      window.
+    -->
+    <slot name="menu" />
+
     <div class:list={['flex', CHAT_CARD.classes, !isNewSession && 'min-h-28']}>
       {
         isNewSession && (
@@ -39,11 +50,12 @@ const cardStyle = `max-width:${CHAT_INPUT_MAX_WIDTH}px`;
       }
       <div
         class:list={[
-          'flex-initial text-sm leading-5 text-muted-foreground/70',
+          'flex-initial text-sm leading-5',
+          text ? 'text-foreground' : 'text-muted-foreground/70',
           isNewSession ? 'min-h-24 px-4 pb-2 pt-4' : 'min-h-16 px-4 pb-2 pt-4',
         ]}
       >
-        {isNewSession ? 'Type # to quick change project.' : 'Ask for follow-up changes'}
+        {text ?? (isNewSession ? 'Type # to quick change project.' : 'Ask for follow-up changes')}
       </div>
 
       <div class="flex min-w-0 items-center justify-between gap-2 px-2.5 pb-2.5 pt-0">

@@ -20,6 +20,18 @@ export const LICENSE_URL = `${REPO_URL}/blob/main/LICENSE`;
  */
 export const MAC_DMG_PATTERN = /-arm64\.dmg$/;
 
+/**
+ * The app accent the page is drawn with.
+ *
+ * The app ships a set of accents (`lib/themeAccents.ts`, default Indigo) and
+ * paints links, focus rings, the minimap's active bar and the selected session
+ * with whichever one is chosen. The page publishes one of that same set so the
+ * windows it draws and the page around them are the same app, in the same
+ * accent — Rose, because the icon is a pink pig and the accent is the one colour
+ * the page has.
+ */
+export const SITE_ACCENT_ID = 'rose';
+
 /** Umami, the only analytics on the site. Cookieless, so no consent banner. */
 export const UMAMI_SCRIPT_URL = 'https://cloud.umami.is/script.js';
 export const UMAMI_WEBSITE_ID = '4c09383f-bc63-42a4-a5a2-cd56e0ac8368';

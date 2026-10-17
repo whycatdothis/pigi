@@ -75,6 +75,50 @@ export const heroTurns: Turn[] = [
 ];
 
 /**
+ * The window of the pi-configuration section: a session about the release build.
+ *
+ * It is here to be the window behind the composer's command menu, so its newest
+ * turn is complete and the field is holding a `/` — a session you were in, with
+ * the skills a keystroke away. The title matches a row in the sidebar.
+ */
+export const builderTurns: Turn[] = [
+  {
+    user: 'the release DMG has been unsigned since the electron-builder bump',
+    time: '09:05',
+    thinking:
+      'The signing identity is in the config, so the build is finding the config and not the keychain. The bump moved the identity lookup behind an environment flag.',
+    tool: {
+      command: "rg -n 'identity|notarize' electron-builder.yml",
+      output: [
+        '14   identity: Developer ID Application: Earendil Inc. (7X2K4M9QLB)',
+        '22 notarize: true',
+      ],
+      duration: '0.1s',
+    },
+    reply:
+      'The identity is still in the config; the bump resolves it from the environment now, and there is nothing exported in the release job.',
+  },
+  {
+    user: 'pin the version that still reads the config',
+    time: '09:12',
+    tool: {
+      command: 'npm view electron-builder version',
+      output: ['26.0.12'],
+      duration: '0.4s',
+    },
+    reply:
+      'Pinned to 26.0.12, which reads the identity from the config again, and left the version in the release skill so the next bump checks it before tagging.',
+  },
+  {
+    user: 'is the DMG reproducible from this commit',
+    time: '09:18',
+    tool: { command: 'git status --short', output: [], duration: '0.1s' },
+    reply: 'Clean tree, and the lockfile is the one the tag will build from.',
+    last: true,
+  },
+];
+
+/**
  * The fork window.
  *
  * One finished turn and one the user is hovering: the still stands in for a
