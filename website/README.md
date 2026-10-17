@@ -204,7 +204,7 @@ release log is not the thing being searched for.
 
 ```bash
 cd website
-npm install        # Node 22.22 or newer; package.json says so
+npm install        # Node 24 — .node-version, engines and CI all say so
 npm run dev        # http://localhost:4321
 npm run build      # -> dist/
 npm run preview    # serve the built output
@@ -247,7 +247,7 @@ the build inside `website/`, and publishes `dist/`. There is nothing to run from
 | Root directory   | `website` — see below                                                   |
 | Build command    | `npm run build` (the class drift check, then `astro build`)             |
 | Output directory | `dist`                                                                  |
-| Node version     | `NODE_VERSION=22`; Astro 7 needs 22.22 or newer                         |
+| Node version     | 24 — `NODE_VERSION=24`, matching `website/.node-version` and `engines`  |
 | Custom domains   | `pigi.pink` and `www.pigi.pink`, both proxied CNAMEs onto the project   |
 | Canonical URL    | `site` in `astro.config.mjs` — `https://pigi.pink`                      |
 
