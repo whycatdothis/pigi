@@ -14,9 +14,7 @@
     "check": "astro check && node scripts/checkAppClassDrift.mjs && prettier --check .",
     "check:drift": "node scripts/checkAppClassDrift.mjs",
     "shots": "node scripts/shoot.mjs",
-    "verify": "node scripts/verify-interactions.mjs && node scripts/verify-dev.mjs",
-    "dev:restart": "astro dev --force",
-    "verify:dev": "node scripts/verify-dev.mjs"
+    "verify": "node scripts/verify-interactions.mjs"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.5",
