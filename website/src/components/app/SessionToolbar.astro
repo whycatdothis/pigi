@@ -12,6 +12,13 @@ import { TOOLBAR_BUTTON, TOOLBAR_BUTTON_ON, TOOLTIP_CONTENT, TOOLTIP_KBD } from 
  * and the hover tooltips carry the same surface, the same strings and the same
  * shortcuts the app puts on them (SessionToolbar.tsx), so the keys on this page
  * are the keys in the app.
+ *
+ * A tooltip is a **sibling** of its button, not a child of it. The tree's
+ * tooltip carries the app's round `?` (`SessionTreeHelpButton`), which is a
+ * button, and a `<button>` inside a `<button>` is not markup a browser accepts:
+ * the parser closes the outer one at the inner tag, which dropped the `?` out of
+ * the tooltip and into the toolbar — a stray icon in the header that the app
+ * only ever shows while its tooltip is open.
  */
 interface Props {
   title: string;
@@ -39,35 +46,31 @@ const { title, terminalOpen = false, viewMode = null, viewMenuOpen = false } = A
     <!-- Session tree. `binary-tree-2` carries the app's own scale factor: Tabler
          draws it small in its box, so it is scaled up and the stroke divides the
          same factor back out. -->
-    <button
-      type="button"
-      aria-label="Session tree"
-      class:list={['group relative', TOOLBAR_BUTTON.classes]}
-    >
-      <Icon name="binary-tree-2" size={15} class="scale-[1.15] [stroke-width:calc(1.5/1.15)]" />
+    <div class="group relative">
+      <button type="button" aria-label="Session tree" class:list={[TOOLBAR_BUTTON.classes]}>
+        <Icon name="binary-tree-2" size={15} class="scale-[1.15] [stroke-width:calc(1.5/1.15)]" />
+      </button>
       <span class:list={['app-tooltip gap-3', TOOLTIP_CONTENT.classes]}>
         <span>Session tree</span>
         <SessionTreeHelpButton />
       </span>
-    </button>
+    </div>
 
-    <button
-      type="button"
-      data-terminal-toggle
-      aria-label="Toggle terminal"
-      aria-pressed={terminalOpen}
-      class:list={[
-        'group relative',
-        TOOLBAR_BUTTON.classes,
-        terminalOpen && TOOLBAR_BUTTON_ON.classes,
-      ]}
-    >
-      <Icon name="terminal-2" size={16} />
+    <div class="group relative">
+      <button
+        type="button"
+        data-terminal-toggle
+        aria-label="Toggle terminal"
+        aria-pressed={terminalOpen}
+        class:list={[TOOLBAR_BUTTON.classes, terminalOpen && TOOLBAR_BUTTON_ON.classes]}
+      >
+        <Icon name="terminal-2" size={16} />
+      </button>
       <span class:list={['app-tooltip', TOOLTIP_CONTENT.classes]}>
         Toggle terminal
         <kbd class:list={['ml-2', TOOLTIP_KBD.classes]}>⌘ J</kbd>
       </span>
-    </button>
+    </div>
 
     <div class="relative">
       <button

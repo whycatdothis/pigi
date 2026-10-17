@@ -127,6 +127,36 @@ async function showStep(index) {
   await page.emulateMedia({ colorScheme: 'light' });
 }
 
+// --- the toolbar's tooltips -------------------------------------------------
+{
+  /*
+   * The tree's tooltip carries the app's round `?`, which is a button. Put inside
+   * the toolbar's button it is markup a parser rejects — it closes the outer
+   * button at the inner tag — and the `?` ends up drawn in the toolbar, where the
+   * app never shows it. The tooltip therefore has to be the button's sibling.
+   */
+  const toggles = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-tree-help-toggle]')].map((toggle) => {
+      const tooltip = toggle.closest('.app-tooltip');
+      return {
+        inTooltip: tooltip !== null,
+        tooltipOpacity: tooltip === null ? null : getComputedStyle(tooltip).opacity,
+        inDialog: toggle.closest('[role="dialog"]') !== null,
+      };
+    }),
+  );
+  check(
+    'toolbar: every `?` sits in a tooltip or in the tree dialog',
+    toggles.every((entry) => entry.inTooltip || entry.inDialog),
+    JSON.stringify(toggles),
+  );
+  check(
+    'toolbar: no `?` is drawn until its tooltip is open',
+    toggles.every((entry) => entry.tooltipOpacity !== '1'),
+    JSON.stringify(toggles.map((entry) => entry.tooltipOpacity)),
+  );
+}
+
 // --- feature tour -----------------------------------------------------------
 {
   const state = () =>
@@ -216,7 +246,7 @@ async function showStep(index) {
   const menu = root.locator('[data-view-mode-menu]');
 
   const initial = await root.getAttribute('data-active');
-  check('view modes: starts on Minimal', initial === 'minimal', String(initial));
+  check('view modes: opens on Compact', initial === 'compact', String(initial));
   check(
     'view modes: the menu ships open, on the checked item',
     (await menu.getAttribute('data-open')) === 'true',
@@ -232,7 +262,7 @@ async function showStep(index) {
     await page.click(`[data-view-modes] [data-view-mode-button="${mode}"]`);
   };
 
-  for (const mode of ['compact', 'all', 'minimal']) {
+  for (const mode of ['all', 'minimal', 'compact']) {
     await chooseMode(mode);
     const state = await page.evaluate(() => {
       const window = document.querySelector('[data-view-modes]');
@@ -268,6 +298,19 @@ async function showStep(index) {
       JSON.stringify(state),
     );
   }
+
+  // A short turn sits under the toolbar: the app's list has no `justify-end`, so
+  // there is no gap above the first message to push it away from.
+  await chooseMode('minimal');
+  const above = await page.evaluate(() => {
+    const panel = [...document.querySelectorAll('[data-view-panel]')].find(
+      (node) => getComputedStyle(node).display !== 'none',
+    );
+    const scroller = panel.querySelector('.overflow-y-auto');
+    const first = scroller.firstElementChild.firstElementChild;
+    return Math.round(first.getBoundingClientRect().top - scroller.getBoundingClientRect().top);
+  });
+  check('view modes: a short turn starts at the top', above <= 40, `gap=${above}px`);
 
   await page.click('[data-view-modes] [data-view-menu-trigger]');
   const reopened = await menu.getAttribute('data-open');

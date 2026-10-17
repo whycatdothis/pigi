@@ -123,6 +123,17 @@ off one attribute at both sizes and there is no second breakpoint to keep in ste
 Every window is the app's own size — a dialog is 520px wide, not 520px tall, and a shorter window
 would only be a lie about how the app looks.
 
+The _View modes_ still opens on **Compact**, the mode most of a real session is read in, with the
+menu open over it on the checked item. Its panels start at the top and grow downwards: the app's list
+is a plain scroll container (`pb-8 pt-6`, no `justify-end`), so a short turn sits under the toolbar
+rather than being pushed down to the composer.
+
+One markup rule the stills have to keep: a tooltip is a **sibling** of its button, never a child. The
+tree's tooltip carries the app's round `?`, which is a button itself, and a `<button>` inside a
+`<button>` is markup a parser does not accept — it closes the outer one at the inner tag, which
+dropped that `?` out of the tooltip and drew it in the toolbar, an icon the app only ever shows while
+its tooltip is open.
+
 The header's Download button is the page's only one, and it is a real download — there is no
 `#install` anchor to scroll to. Two claims the page makes have no home here any more, so the button
 label carries them: it names the architecture, because the only published DMG is arm64 and "Download
