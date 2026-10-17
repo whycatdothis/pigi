@@ -79,10 +79,15 @@ export const TOOLTIP_KBD = {
  * The page's two download buttons are drawn at their own scale — the app has no
  * hero-sized button to copy — but everything that makes a button a button (the
  * radius, the weight, the focus ring, the icon sizing) is the app's.
+ *
+ * The base's `text-sm` is left to its call site: the app's `text-sm` is 15px on
+ * its own scale, which is right in a window and too big in the site's header,
+ * where the row is 13px. Both sizes are named below rather than left to whichever
+ * of two font-size utilities the stylesheet happens to order last.
  */
 export const BUTTON_BASE = {
   classes:
-    "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-normal whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding font-normal whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   source: `${UI}/button.tsx`,
 } satisfies CopiedClasses;
 
@@ -108,6 +113,19 @@ export const BUTTON_BRAND_FILLED = {
     'bg-[var(--system-accent)] text-primary-foreground [a]:hover:bg-[var(--system-accent)]/85',
   source: `${UI}/button.tsx`,
   siteClasses: ['bg-[var(--system-accent)]', '[a]:hover:bg-[var(--system-accent)]/85'],
+} satisfies CopiedClasses;
+
+/**
+ * The header button's type size: the page's, not the app's.
+ *
+ * Every label in the header is 13px (`text-[13px]` on the nav links). The app's
+ * 15px `text-sm` made the one button in that row a size larger than the row it
+ * sits in.
+ */
+export const BUTTON_TEXT_HEADER = {
+  classes: 'text-[13px]',
+  source: `${UI}/button.tsx`,
+  siteClasses: ['text-[13px]'],
 } satisfies CopiedClasses;
 
 /** `size="default"` — 32px, what the header's download button wears. */
@@ -286,6 +304,7 @@ export const APP_UI_GROUPS: Record<string, CopiedClasses> = {
   BUTTON_FILLED,
   BUTTON_SIZE_DEFAULT,
   BUTTON_HERO_SIZE,
+  BUTTON_TEXT_HEADER,
   TOOLBAR_BUTTON,
   TOOLBAR_BUTTON_ON,
   ACTION_BUTTON,

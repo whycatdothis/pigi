@@ -6,6 +6,7 @@ import {
   BUTTON_BRAND_FILLED,
   BUTTON_HERO_SIZE,
   BUTTON_SIZE_DEFAULT,
+  BUTTON_TEXT_HEADER,
 } from '../../lib/appUi';
 
 /**
@@ -17,9 +18,10 @@ import {
  *
  * The shape, the size and the focus ring are the app's own Button — base,
  * `size="default"` in the header — and the hero is at the page's scale, since the
- * app has no button that tall. The fill is the accent rather than the app's
- * neutral primary: this button is the page's action, not a control in a window.
- * See src/lib/appUi.ts for what is copied and from where.
+ * app has no button that tall. The type size is the row's: 15px in the hero, and
+ * the header's own 13px in the header. The fill is the accent rather than the
+ * app's neutral primary: this button is the page's action, not a control in a
+ * window. See src/lib/appUi.ts for what is copied and from where.
  *
  * The label names the architecture. The app publishes one DMG and it is arm64, so
  * a button that only said "macOS" would hand an Intel reader a file that cannot
@@ -41,7 +43,9 @@ const { variant = 'hero', class: className } = Astro.props;
   class:list={[
     BUTTON_BASE.classes,
     BUTTON_BRAND_FILLED.classes,
-    variant === 'hero' ? BUTTON_HERO_SIZE.classes : BUTTON_SIZE_DEFAULT.classes,
+    variant === 'hero'
+      ? [BUTTON_HERO_SIZE.classes]
+      : [BUTTON_SIZE_DEFAULT.classes, BUTTON_TEXT_HEADER.classes],
     className,
   ]}
 >
