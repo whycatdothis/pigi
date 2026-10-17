@@ -172,6 +172,27 @@ function initViewModes(): void {
   }
 }
 
+/**
+ * The minimal view's timer row, which unfolds the turn.
+ *
+ * In the app this row is a button over the turn's details (`minimalView.tsx`): the
+ * whole activity list is folded behind it, and the chevron turns ninety degrees
+ * while it is open. The still keeps the same affordance, one attribute deep, so
+ * the panel reads as a view you can open rather than a screenshot of one.
+ */
+function initMinimalDetails(): void {
+  for (const button of document.querySelectorAll<HTMLElement>('[data-minimal-timer]')) {
+    const turn = button.closest<HTMLElement>('[data-minimal-turn]');
+    if (turn === null) continue;
+
+    button.addEventListener('click', () => {
+      const open = turn.dataset.details !== 'true';
+      turn.dataset.details = String(open);
+      button.setAttribute('aria-expanded', String(open));
+    });
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Minimap
 // ---------------------------------------------------------------------------
@@ -1022,6 +1043,7 @@ initThemeToggle();
 initWindowFits();
 initTranscriptClips();
 initViewModes();
+initMinimalDetails();
 initMinimaps();
 initSessionTrees();
 initSessionSwitcher();

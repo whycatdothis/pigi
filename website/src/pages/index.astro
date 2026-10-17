@@ -29,11 +29,6 @@ const principles = [
     title: 'Your config',
     body: 'Models, skills and AGENTS.md come from the pi setup already on the machine. Nothing to describe twice.',
   },
-  {
-    icon: 'lock' as const,
-    title: 'No telemetry',
-    body: 'No analytics, no crash reporting, no account. Sessions stay in pi’s session directory as pi’s own files.',
-  },
 ];
 ---
 
@@ -84,7 +79,7 @@ const principles = [
 
     <!-- What it is built on -->
     <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto grid max-w-[1248px] gap-10 px-6 md:grid-cols-3">
+      <div class="mx-auto grid max-w-[1248px] gap-10 px-6 md:grid-cols-2">
         {
           principles.map((principle) => (
             <div>

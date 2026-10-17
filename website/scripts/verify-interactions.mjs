@@ -312,11 +312,25 @@ async function showStep(index) {
       const selected = [...menu.querySelectorAll('[data-view-mode-button]')].filter(
         (button) => button.getAttribute('aria-checked') === 'true',
       );
+      /*
+       * The tick a visitor actually sees. Every item carries the icon and the
+       * checked state shows it, so this counts the drawn ones rather than the
+       * markup: an icon that exists only on the item that shipped active is
+       * exactly the bug this catches, and it passes every attribute check above.
+       */
+      const ticked = [...menu.querySelectorAll('[data-view-mode-button]')]
+        .filter((button) =>
+          [...button.querySelectorAll('svg')].some(
+            (icon) => getComputedStyle(icon).display !== 'none',
+          ),
+        )
+        .map((button) => button.dataset.viewModeButton);
       return {
         active: window.dataset.active,
         shown: shown.map((panel) => panel.dataset.viewPanel),
         checked,
         checkedCount: selected.length,
+        ticked,
         menuOpen: menu.dataset.open,
       };
     });
@@ -328,10 +342,69 @@ async function showStep(index) {
         state.checked.length === 1 &&
         state.checked[0] === mode &&
         state.checkedCount === 1 &&
+        state.ticked.length === 1 &&
+        state.ticked[0] === mode &&
         state.menuOpen === 'false',
       JSON.stringify(state),
     );
   }
+
+  /*
+   * Minimal keeps the turn folded behind its timer row, which is a button in the
+   * app and has to be one here: the row opens the same entries the other two
+   * panels draw, and the chevron turns with it.
+   */
+  await chooseMode('minimal');
+  const timer = page.locator('[data-minimal-timer]');
+  await timer.click();
+  // The chevron rotates over the transition, so read it once it has arrived.
+  await page.waitForTimeout(250);
+  const unfolded = await page.evaluate(() => {
+    const turn = document.querySelector('[data-minimal-turn]');
+    const button = turn.querySelector('[data-minimal-timer]');
+    const chevron = button.querySelector('svg');
+    const details = turn.lastElementChild;
+    const collapsed = details.previousElementSibling;
+    return {
+      open: turn.dataset.details,
+      expanded: button.getAttribute('aria-expanded'),
+      chevron: getComputedStyle(chevron).rotate,
+      details: getComputedStyle(details).display,
+      collapsed: getComputedStyle(collapsed).display,
+      entries: details.querySelectorAll('.markdown-body').length,
+    };
+  });
+  check(
+    'view modes: the minimal timer unfolds the turn, and the chevron turns with it',
+    unfolded.open === 'true' &&
+      unfolded.expanded === 'true' &&
+      unfolded.chevron === '90deg' &&
+      unfolded.details !== 'none' &&
+      unfolded.collapsed === 'none' &&
+      unfolded.entries > 0,
+    JSON.stringify(unfolded),
+  );
+
+  await timer.click();
+  await page.waitForTimeout(250);
+  const folded = await page.evaluate(() => {
+    const turn = document.querySelector('[data-minimal-turn]');
+    const chevron = turn.querySelector('[data-minimal-timer] svg');
+    return {
+      open: turn.dataset.details,
+      chevron: getComputedStyle(chevron).rotate,
+      details: getComputedStyle(turn.lastElementChild).display,
+      collapsed: getComputedStyle(turn.lastElementChild.previousElementSibling).display,
+    };
+  });
+  check(
+    'view modes: clicking the timer again folds the turn back',
+    folded.open === 'false' &&
+      folded.chevron !== '90deg' &&
+      folded.details === 'none' &&
+      folded.collapsed !== 'none',
+    JSON.stringify(folded),
+  );
 
   // A short turn sits under the toolbar: the app's list has no `justify-end`, so
   // there is no gap above the first message to push it away from.

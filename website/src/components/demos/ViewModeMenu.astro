@@ -73,7 +73,17 @@ const modes: { id: ViewModeName; label: string; description: string }[] = [
         class:list={['group/mode text-left whitespace-nowrap', MENU_ITEM.classes]}
       >
         {mode.label}
-        {mode.id === active && <Icon name="check" size={14} class="shrink-0" />}
+        {/*
+          Every item carries the check and the checked state shows it, rather than
+          the check existing only on the item that shipped active: this is a still
+          of a menu that a visitor can click, and an icon that is only in the
+          markup of one row cannot follow the click to another.
+        */}
+        <Icon
+          name="check"
+          size={14}
+          class="hidden shrink-0 group-data-[state=checked]/mode:block"
+        />
       </button>
     ))
   }
