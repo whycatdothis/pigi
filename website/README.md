@@ -7,7 +7,9 @@ The marketing site for pigi. Static HTML, deployed to Cloudflare Pages.
 - **Astro 7** — static output, no server, no framework runtime in the browser.
 - **Tailwind 4** — via `@tailwindcss/vite`, the same major version the app uses.
 - **No client framework.** The whole page is HTML and CSS; `src/scripts/interactions.ts` is the
-  only script, and it is about 9 KB.
+  only script. `BaseLayout.astro` imports it once for both pages, and every initializer guards on
+  its own markup — the changelog has no windows, but it does have the header, the theme toggle and
+  the download button.
 - **Light and dark.** Both come from the app's own token sets — `.dark` here is the app's `.dark`
   block, and the terminal swaps from Atom One Light to Atom One Dark the way it does there.
 - **No screenshots.** Every piece of UI on the page — the window, the transcript, the tool cards,
@@ -36,12 +38,13 @@ Indigo), and `applyThemeAccent` publishes the choice as `--accent-light` and `--
 `<html>`. `BaseLayout.astro` writes those same two properties the same way, from `src/lib/site.ts`,
 and everything that reads `--system-accent` — in a window or on the page — follows, in both themes.
 
-The page's colour is the pig's own pink. `BRAND_PINK` (`#f6729b`) is sampled from
-`public/icon-256.png`, so the button and the icon are the same colour; `BUTTON_BRAND_FILLED` fills
-with it and prints `BRAND_PINK_INK` on it (6.4:1). A light pink is a surface, never text — it is
-2.7:1 against white — so anything that has to read (the eyebrows, the lit minimap bar, the selected
-session, the focus ring) uses the accent instead: `SITE_ACCENT_LIGHT`/`SITE_ACCENT_DARK`, the same
-hue at the lightness text needs (4.9:1 on the page, 9.6:1 on the dark page).
+The page's colour is pink, the pig's. The icon (`public/icon-256.png`) is `#f6729b`, but that is a
+2.7:1 pink: it can neither carry white text nor read as text on white, so the page uses its hue at
+the lightness each job needs. `BRAND_PINK` fills the download button and `BRAND_PINK_INK` (white)
+prints on it — 4.8:1, and the same pair in both themes, because a fill that flipped would have to
+flip its ink too. Anything that has to read (the eyebrows, the lit minimap bar, the selected session,
+the focus ring) uses the accent instead: `SITE_ACCENT_LIGHT`/`SITE_ACCENT_DARK`, the same hue tuned
+per theme (4.9:1 on the page, 9.6:1 on the dark page).
 
 None of the app's eight accents is the pig's, which makes this the one colour the page names for
 itself; it is also the one thing on the page that is not the app's, together with the download
@@ -96,6 +99,13 @@ The header's Download button is the page's only one, and it is a real download �
 `#install` anchor to scroll to. Two claims the page makes have no home here any more, so the button
 label carries them: it names the architecture, because the only published DMG is arm64 and "Download
 for macOS" would hand an Intel reader a file that cannot run.
+
+The header is the page at the top and a floating strip once the page moves. It has no rule under it
+(the line cut a page that has no seam there) and no fill at rest, so the hero's wash runs behind it;
+the hero is pulled up under the header and padded back down so that the wash begins at the top of the
+page rather than at the header's edge. `initHeaderScroll` sets `data-scrolled` past 4px and the bar
+takes the translucent, blurred fill that keeps its links legible over the content passing underneath
+— the same idea as the app's floating surfaces (`bg-background/90 backdrop-blur-sm`).
 
 ## Local development
 

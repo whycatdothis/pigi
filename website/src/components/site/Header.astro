@@ -9,8 +9,24 @@ const navLinks = [
 ];
 ---
 
+<!--
+  No rule under the header, and nothing there either.
+
+  A border drew a line across a page that has no seam at the top: the bar sits on
+  the page's own colour, so the line was the only thing making the header a
+  surface. It is gone, and so is the fill at rest — a translucent bar is still a
+  bar, and the hero's wash begins right beneath it, which made an edge of the 15%
+  it let through. At the top of the page the header is now exactly the page.
+
+  Once the page moves, content would run into the links, so `interactions.ts` sets
+  `data-scrolled` and the bar takes the translucent fill with a blur behind it —
+  the idea the app uses for its own floating surfaces (`bg-background/90
+  backdrop-blur-sm`). No border, so what separates the links from the text under
+  them is softness rather than a line.
+-->
 <header
-  class="sticky top-0 z-50 border-b border-border/70 bg-[var(--page-background)]/85 backdrop-blur-md"
+  data-site-header
+  class="sticky top-0 z-50 transition-colors data-[scrolled]:bg-[var(--page-background)]/85 data-[scrolled]:backdrop-blur-md"
 >
   <div class="mx-auto flex h-14 max-w-[1248px] items-center gap-6 px-6">
     <a href="/" class="flex shrink-0 items-center gap-2" aria-label="pigi home">
