@@ -1,7 +1,7 @@
 /**
  * The page's whole client-side script.
  *
- * The page is static HTML; these are the seven places where it is not. Everything
+ * The page is static HTML; these are the places where it is not. Everything
  * here is progressive: each initializer starts by looking for its own markup and
  * returns quietly when it is not on the page, so a component can be dropped
  * without touching this file — and if the script never loads, every one of these
@@ -674,6 +674,42 @@ function writeCachedRelease(release: CachedRelease): void {
 }
 
 // ---------------------------------------------------------------------------
+// Header
+// ---------------------------------------------------------------------------
+
+/** Below this the page is at the top, and the header is just the page. */
+const HEADER_SCROLLED_AT_PX = 4;
+
+/**
+ * The header's state, for a header that is invisible until it has to be.
+ *
+ * At the top of the page the bar has no fill and no rule — it is the page. The
+ * moment anything scrolls under it that stops being true, and it takes the
+ * translucent fill and the blur that keep the links legible. The classes off
+ * `data-scrolled` are in the markup, so the styling stays where the styling is.
+ *
+ * `sync` runs once on load as well, because a reload can restore a scrolled
+ * position, or arrive on an anchor, before any scroll event is fired.
+ */
+function initHeaderScroll(): void {
+  const header = document.querySelector<HTMLElement>('[data-site-header]');
+  if (header === null) return;
+
+  let frame = 0;
+  const sync = (): void => {
+    frame = 0;
+    header.toggleAttribute('data-scrolled', window.scrollY > HEADER_SCROLLED_AT_PX);
+  };
+  const schedule = (): void => {
+    if (frame !== 0) return;
+    frame = requestAnimationFrame(sync);
+  };
+
+  window.addEventListener('scroll', schedule, { passive: true });
+  sync();
+}
+
+// ---------------------------------------------------------------------------
 // Theme
 // ---------------------------------------------------------------------------
 
@@ -729,6 +765,7 @@ function initTerminalTabs(): void {
 
 // ---------------------------------------------------------------------------
 
+initHeaderScroll();
 initThemeToggle();
 initWindowFits();
 initTranscriptClips();

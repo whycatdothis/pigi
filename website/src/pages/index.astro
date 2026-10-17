@@ -48,8 +48,17 @@ const principles = [
   <Header />
 
   <main>
-    <!-- Hero -->
-    <section class="relative overflow-hidden">
+    <!--
+      Hero.
+
+      `-mt-14 pt-14` is the header's height, cancelled: the section starts under the
+      header and pushes its own content back down, so the wash and the grid drawn
+      inside it begin at the top of the page rather than at the header's bottom edge.
+      Its masks are strongest at their centre, which would otherwise draw a soft but
+      straight step across the page right where the header ends — the line the header
+      no longer has. The header is transparent at rest, so the wash runs behind it.
+    -->
+    <section class="relative -mt-14 overflow-hidden pt-14">
       <div class="hero-grid pointer-events-none absolute inset-x-0 top-0 h-[720px]"></div>
       <div class="hero-glow pointer-events-none absolute inset-x-0 top-0 h-[720px]"></div>
 
@@ -298,7 +307,3 @@ const principles = [
 
   <Footer />
 </BaseLayout>
-
-<script>
-  import '../scripts/interactions';
-</script>

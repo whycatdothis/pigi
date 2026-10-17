@@ -67,5 +67,18 @@ const accentStyle = `--accent-light:${SITE_ACCENT_LIGHT};--accent-dark:${SITE_AC
   </head>
   <body>
     <slot />
+
+    <!--
+      The page's whole script, on both pages.
+
+      It used to be imported by the home page alone, which left the changelog
+      without a working theme toggle, without the download button's upgrade to the
+      DMG, and — once the header gained a scrolled state — without a fill over the
+      text scrolling under it. Every initializer looks for its own markup and
+      returns quietly, so one import here covers everything either page uses.
+    -->
+    <script>
+      import '../scripts/interactions';
+    </script>
   </body>
 </html>
