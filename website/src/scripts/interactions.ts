@@ -27,6 +27,7 @@ import {
   type TreeRowShape,
 } from '../lib/treeGeometry';
 import { LATEST_RELEASE_API, MAC_DMG_PATTERN } from '../lib/site';
+import { WINDOW_HEIGHT_PX, WINDOW_WIDTH_PX } from '../lib/appLayout';
 import { getLineWidth, measureMaxLineWidth } from '../lib/minimapGeometry';
 
 // ---------------------------------------------------------------------------
@@ -674,6 +675,246 @@ function writeCachedRelease(release: CachedRelease): void {
 }
 
 // ---------------------------------------------------------------------------
+// Feature tour
+// ---------------------------------------------------------------------------
+
+/** The width from which the window is pinned beside its chapters. */
+const STAGE_WIDE_QUERY = '(min-width: 1024px)';
+
+/** The smallest the still is allowed to get, and the air kept above and below it. */
+const STAGE_MIN_HEIGHT_PX = 320;
+const STAGE_FLOOR_GAP_PX = 24;
+/**
+ * Where a chapter counts as being read.
+ *
+ * The line sits above the middle of the screen because the chapter's heading and
+ * its number are the first two lines of it: by the time the heading of the next
+ * chapter reaches this line the reader is looking at it, not the one before.
+ */
+const STAGE_TRIGGER_RATIO = 0.4;
+
+/**
+ * The tour: one window, seven chapters.
+ *
+ * From `lg` up the window is pinned (`position: sticky` in the markup) and the
+ * chapters scroll past it. This only decides which chapter is current — the last
+ * one whose heading has crossed the trigger line — and the CSS cross-fades the
+ * window to match. Nothing captures the wheel, nothing fake-scrolls, and the
+ * chapters are ordinary sections, so the page still reads as an article.
+ *
+ * Below `lg` there is no room for both, and the layout is the one this section
+ * had before the window was pinned: the index chooses a chapter and all seven
+ * stills stay stacked. That is the difference the `wide` query drives — the
+ * chapters are hidden down to the current one only there, which is one attribute
+ * write per chapter rather than a second set of styles.
+ *
+ * The still is the page's own scaling, and it is not a reflow: the app is drawn at
+ * its 1200x800 and the whole thing is scaled in one transform until it fits the
+ * screen it is centred on. A window with its own scrollbar, or one whose composer
+ * sits below the fold, would be a picture of a different app.
+ */
+function initFeatureStage(): void {
+  const stage = document.querySelector<HTMLElement>('[data-stage]');
+  if (stage === null) return;
+
+  const chips = Array.from(stage.querySelectorAll<HTMLButtonElement>('[data-stage-chip]'));
+  const panels = Array.from(stage.querySelectorAll<HTMLElement>('[data-stage-copy]'));
+  const layers = Array.from(stage.querySelectorAll<HTMLElement>('[data-stage-layer]'));
+  const scene = stage.querySelector<HTMLElement>('[data-stage-scene]');
+  if (scene === null || chips.length === 0 || chips.length !== layers.length) return;
+
+  const frames = layers.map((layer) => layer.querySelector<HTMLElement>('[data-stage-frame]'));
+  const scalers = layers.map((layer) => layer.querySelector<HTMLElement>('[data-stage-scaler]'));
+
+  const wide = window.matchMedia(STAGE_WIDE_QUERY);
+  let current = Math.max(
+    0,
+    panels.findIndex((panel) => panel.dataset.current === 'true'),
+  );
+
+  /**
+   * Paints the step at `index`.
+   *
+   * Under `lg` that is one chapter and one still; from `lg` up every chapter is
+   * shown and only the still changes hands, because the chapters are what the
+   * reader is scrolling through.
+   */
+  const select = (index: number): void => {
+    current = index;
+    chips.forEach((chip, position) => {
+      const on = position === index;
+      chip.dataset.active = on ? 'true' : 'false';
+      chip.setAttribute('aria-selected', on ? 'true' : 'false');
+      chip.tabIndex = on ? 0 : -1;
+    });
+    panels.forEach((panel, position) => {
+      const on = wide.matches || position === index;
+      panel.dataset.active = on ? 'true' : 'false';
+      panel.dataset.current = position === index ? 'true' : 'false';
+      if (on) panel.removeAttribute('aria-hidden');
+      else panel.setAttribute('aria-hidden', 'true');
+    });
+    layers.forEach((layer, position) => {
+      layer.dataset.active = position === index ? 'true' : 'false';
+    });
+  };
+
+  /*
+   * The still gets the rest of the screen: the window is scaled into the viewport
+   * it is centred on, up to its own size. The page is not shifted by this — the
+   * scene's height is on the scene, and every still in it keeps the app's 1200x800
+   * and is scaled in one transform, so the app's own layout, and every measurement
+   * hanging off it, is untouched.
+   */
+  const fit = (): void => {
+    const reset = (): void => {
+      scene.style.height = '';
+      frames.forEach((frame, index) => {
+        const scaler = scalers[index];
+        if (frame === null || scaler === null) return;
+        frame.style.width = '';
+        frame.style.height = '';
+        scaler.style.transform = '';
+      });
+    };
+    if (!wide.matches) {
+      reset();
+      return;
+    }
+
+    const height = Math.min(
+      WINDOW_HEIGHT_PX,
+      Math.max(STAGE_MIN_HEIGHT_PX, window.innerHeight - STAGE_FLOOR_GAP_PX * 2),
+    );
+    const scale = Math.min(1, scene.clientWidth / WINDOW_WIDTH_PX, height / WINDOW_HEIGHT_PX);
+    if (scale >= 1) {
+      reset();
+      return;
+    }
+    scene.style.height = `${Math.round(WINDOW_HEIGHT_PX * scale)}px`;
+    frames.forEach((frame, index) => {
+      const scaler = scalers[index];
+      if (frame === null || scaler === null) return;
+      frame.style.width = `${WINDOW_WIDTH_PX * scale}px`;
+      frame.style.height = `${WINDOW_HEIGHT_PX * scale}px`;
+      scaler.style.transform = `scale(${scale})`;
+    });
+  };
+
+  /** The chapter whose heading was the last to cross the trigger line. */
+  const readIndex = (): number => {
+    const line = window.innerHeight * STAGE_TRIGGER_RATIO;
+    let index = 0;
+    for (const [position, panel] of panels.entries()) {
+      if (panel.getBoundingClientRect().top <= line) index = position;
+    }
+    return index;
+  };
+
+  let frame = 0;
+  const sync = (): void => {
+    frame = 0;
+    if (!wide.matches) return;
+    const index = readIndex();
+    if (index !== current) select(index);
+  };
+  const onScroll = (): void => {
+    if (frame !== 0) return;
+    frame = window.requestAnimationFrame(sync);
+  };
+
+  chips.forEach((chip, index) => {
+    chip.addEventListener('click', () => select(index));
+    // The keys a tablist is expected to answer to.
+    chip.addEventListener('keydown', (event) => {
+      const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+      if (step === 0 && event.key !== 'Home' && event.key !== 'End') return;
+      event.preventDefault();
+      const next =
+        event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? chips.length - 1
+            : (index + step + chips.length) % chips.length;
+      select(next);
+      chips[next].focus();
+    });
+  });
+
+  select(current);
+  fit();
+  sync();
+  // A resize changes the room and the trigger line; the words above the still
+  // change with the font, so the fit is redone once the fonts have settled.
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener(
+    'resize',
+    () => {
+      fit();
+      sync();
+    },
+    { passive: true },
+  );
+  wide.addEventListener('change', () => {
+    select(current);
+    fit();
+    sync();
+  });
+  void document.fonts.ready.then(fit);
+}
+
+// ---------------------------------------------------------------------------
+// The tree's explanation
+// ---------------------------------------------------------------------------
+
+/**
+ * The tree's `?`, and the dialog it opens.
+ *
+ * The app explains the tree in a dialog off a round `?`, so the page does too: the
+ * button is real and the dialog ships closed, which is the state the app is in
+ * until someone asks. Escape closes it, as a dialog should.
+ */
+function initTreeHelp(): void {
+  const toggles = document.querySelectorAll<HTMLElement>('[data-tree-help-toggle]');
+  if (toggles.length === 0) return;
+
+  const dialogs: HTMLElement[] = [];
+
+  for (const toggle of toggles) {
+    const scope = toggle.closest<HTMLElement>('[data-window-canvas]');
+    if (scope === null) continue;
+    const dialog = scope.querySelector<HTMLElement>('[data-tree-help]');
+    if (dialog === null) continue;
+    dialogs.push(dialog);
+
+    const set = (open: boolean): void => {
+      dialog.dataset.state = open ? 'open' : 'closed';
+      for (const other of scope.querySelectorAll<HTMLElement>('[data-tree-help-toggle]')) {
+        other.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+    };
+
+    toggle.addEventListener('click', () => {
+      set(dialog.dataset.state !== 'open');
+    });
+  }
+
+  if (dialogs.length === 0) return;
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    for (const dialog of dialogs) {
+      if (dialog.dataset.state !== 'open') continue;
+      dialog.dataset.state = 'closed';
+      const scope = dialog.closest<HTMLElement>('[data-window-canvas]');
+      if (scope === null) continue;
+      for (const toggle of scope.querySelectorAll<HTMLElement>('[data-tree-help-toggle]')) {
+        toggle.setAttribute('aria-expanded', 'false');
+      }
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Header
 // ---------------------------------------------------------------------------
 
@@ -765,6 +1006,8 @@ function initTerminalTabs(): void {
 
 // ---------------------------------------------------------------------------
 
+initFeatureStage();
+initTreeHelp();
 initHeaderScroll();
 initThemeToggle();
 initWindowFits();

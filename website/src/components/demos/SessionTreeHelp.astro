@@ -8,8 +8,11 @@ import { DIALOG_SURFACE } from '../../lib/appUi';
  * Every word is `SessionTreeHelpDialog.tsx`: the three points, their order, the
  * icons beside them, and the note at the bottom about hovering, searching and
  * pressing Enter. The app's round `?` — the one that opens this, in three places —
- * is `SessionTreeHelpButton.astro`. Here the dialog is a still: the thing it
- * explains is a feature, and the feature deserves to be read rather than hovered.
+ * is `SessionTreeHelpButton.astro`.
+ *
+ * It ships closed, and the `?` beside the tree's search field opens it
+ * (`initTreeHelp`): the app's help is a click away there, so a page that printed
+ * it permanently over the tree would be showing a state the app is never in.
  *
  * `max-w-[520px]`, which is the app's own override for this dialog, and `p-4`,
  * which is the padding the app's `DialogContent` gives a dialog that does not
@@ -43,8 +46,11 @@ const points = [
 <div
   role="dialog"
   aria-label="What is the session tree?"
+  data-tree-help
+  data-state="closed"
   class:list={[
     'absolute left-1/2 top-1/2 z-30 flex w-[min(520px,92%)] -translate-x-1/2 -translate-y-1/2 flex-col p-4',
+    'transition-opacity duration-150 data-[state=closed]:invisible data-[state=closed]:opacity-0',
     DIALOG_SURFACE.classes,
   ]}
 >

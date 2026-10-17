@@ -310,28 +310,6 @@ export const treeTurns: Turn[] = [
 ];
 
 /**
- * The moment before the tree: a pointer resting on the newest reply's tree action.
- *
- * The app puts those actions on assistant messages too, and hovering one is the
- * other way into the tree — this is the still that shows it. The `?` inside the
- * tooltip is the same `?` the tree's toolbar carries, and it opens the dialog the
- * next still shows; the tooltip is the app's own, label and all.
- */
-export const treeEntryTurns: Turn[] = treeTurns.map((turn, index) =>
-  index === treeTurns.length - 1
-    ? {
-        ...turn,
-        actionTooltip: {
-          on: 'assistant',
-          action: 'tree',
-          label: 'Move the session here',
-          help: true,
-        },
-      }
-    : turn,
-);
-
-/**
  * The terminal window: the hero's session, one turn later, with the panel open
  * instead of closed. The test run is the newest thing in it, which is what the
  * panel is showing.

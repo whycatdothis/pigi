@@ -1,0 +1,241 @@
+---
+import AppWindow from '../app/AppWindow.astro';
+import Transcript from '../demos/Transcript.astro';
+import SessionTreeDialog from '../demos/SessionTreeDialog.astro';
+import SessionTreeHelp from '../demos/SessionTreeHelp.astro';
+import ViewModes from '../demos/ViewModes.astro';
+import SessionSwitcher from '../demos/SessionSwitcher.astro';
+import TerminalPanel from '../demos/TerminalPanel.astro';
+import { FEATURE_STEPS } from '../../lib/features';
+import {
+  builderTurns,
+  forkTurns,
+  historyTurns,
+  terminalTurns,
+  treeTurns,
+} from '../../lib/sessions';
+
+/**
+ * The tour: seven things, one window.
+ *
+ * The page used to stack seven sections, each one a paragraph and a picture of the
+ * app. Seven of the same shape is seven times the same layout, and it made the
+ * page long without making it say more.
+ *
+ * So the window is pinned: the words are seven chapters that scroll past it, and
+ * the window shows whichever chapter is being read. Same window, same position,
+ * same size — only what is inside it changes, and the window itself answers the
+ * pointer while it is pinned (the filter menu picks a density, a minimap bar
+ * jumps, the tree's `?` opens the help, the session field filters, a terminal tab
+ * activates).
+ *
+ * **The scroll is the page's own.** No wheel is captured and nothing is pinned by
+ * force: `position: sticky` holds the window while its chapters go by, and a
+ * listener only decides which chapter is current. A reader who never touches the
+ * page still gets the whole article in order, because the seven chapters are real
+ * sections with real headings; the still is an illustration that follows them.
+ *
+ * Below `lg` there is no room to pin a window beside the words, so the same
+ * markup falls back to what it was: an index row that shows one chapter at a time
+ * over one window. `initFeatureStage` decides which chapters are shown by marking
+ * all seven as active when the pinned layout applies — the CSS keys off that one
+ * attribute either way, so nothing here needs a second breakpoint.
+ *
+ * The stacking is a grid, not absolute positioning: every still sits in the same
+ * cell (`col-start-1 row-start-1`), so the scene is as tall as one window and the
+ * hidden layers still have layout — which is what the minimap and the transcript
+ * clip measure themselves against (`initMinimaps`, `initTranscriptClips`).
+ */
+const active = 0;
+---
+
+<section id="features" data-stage class="border-t border-border/70">
+  <div class="mx-auto max-w-[1440px] px-6">
+    <!--
+      The index. Only below `lg`, where it is the control rather than a label: at
+      `lg` the chapters themselves are the index, and a row of chips would scroll
+      away from the window it describes.
+    -->
+    <div
+      role="tablist"
+      aria-label="Feature tour"
+      class="no-scrollbar -mx-6 flex gap-1 overflow-x-auto px-6 pt-10 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 lg:hidden"
+    >
+      {
+        FEATURE_STEPS.map((step, index) => (
+          <button
+            type="button"
+            role="tab"
+            id={`stage-chip-${step.id}`}
+            aria-controls={`stage-copy-${step.id}`}
+            aria-selected={index === active ? 'true' : 'false'}
+            tabindex={index === active ? 0 : -1}
+            data-stage-chip
+            data-active={index === active ? 'true' : 'false'}
+            class="flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground data-[active=true]:bg-muted data-[active=true]:text-foreground"
+          >
+            <span class="font-mono text-[11px] tabular-nums text-muted-foreground/60">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            {step.label}
+          </button>
+        ))
+      }
+    </div>
+
+    <div
+      class="mt-6 grid min-w-0 gap-8 lg:mt-0 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:gap-12 lg:py-16"
+    >
+      <!--
+        The words. Below `lg` all seven are in the same grid cell, so the block is
+        as tall as the longest paragraph and switching steps moves nothing on the
+        page; from `lg` up they are seven normal-flow chapters, each one tall
+        enough that the window has something to be pinned for.
+
+        All seven ship visible: without the script this is an article, in order,
+        which is the right thing for it to be. `initFeatureStage` hides the six
+        that are not current only where the index is the control, i.e. below `lg`.
+      -->
+      <div data-stage-rail class="grid min-w-0 lg:block">
+        {
+          FEATURE_STEPS.map((step, index) => (
+            <section
+              id={`stage-copy-${step.id}`}
+              aria-labelledby={`stage-chip-${step.id}`}
+              data-stage-copy
+              data-active="true"
+              data-current={index === active ? 'true' : 'false'}
+              class="group/step col-start-1 row-start-1 max-w-xl transition-[opacity,transform] duration-300 data-[active=false]:invisible data-[active=false]:translate-y-1 data-[active=false]:opacity-0 lg:col-auto lg:row-auto lg:flex lg:min-h-[64vh] lg:max-w-none lg:flex-col lg:justify-center lg:border-l lg:border-border/70 lg:pl-8 lg:transition-none"
+            >
+              <span
+                data-stage-number
+                class="font-mono text-[11px] tabular-nums text-muted-foreground/60 transition-colors group-data-[current=true]/step:text-[var(--system-accent)]"
+              >
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <h2 class="mt-2 text-[24px] font-semibold leading-[1.15] tracking-[-0.01em] text-foreground lg:mt-3 lg:text-[23px]">
+                {step.label}
+              </h2>
+              <p
+                class="mt-2.5 text-[15px] leading-7 text-muted-foreground lg:mt-4 lg:text-[14px] lg:leading-6"
+                set:html={step.body}
+              />
+            </section>
+          ))
+        }
+      </div>
+
+      <!--
+        The app: from `lg` up it is the one element that stays put while the words
+        go past. One layer per step, all in the same cell; the active one is the
+        one that is visible, and it is the only one the pointer can reach.
+      -->
+      <div class="min-w-0 lg:sticky lg:top-0 lg:flex lg:h-screen lg:items-center lg:self-start">
+        <div data-stage-scene class="grid min-w-0 *:min-w-0">
+          <div
+            data-stage-layer
+            data-active="true"
+            class="col-start-1 row-start-1 transition-opacity duration-300 data-[active=false]:invisible data-[active=false]:opacity-0 data-[active=true]:z-10"
+          >
+            <div data-stage-frame class="mx-auto w-full lg:w-[1200px]">
+              <div data-stage-scaler class="origin-top-left">
+                <AppWindow title="Bump electron-builder" composerText="/" slashMenuOpen>
+                  <Transcript turns={builderTurns} />
+                </AppWindow>
+              </div>
+            </div>
+          </div>
+
+          <div
+            data-stage-layer
+            data-active="false"
+            class="col-start-1 row-start-1 transition-opacity duration-300 data-[active=false]:invisible data-[active=false]:opacity-0 data-[active=true]:z-10"
+          >
+            <div data-stage-frame class="mx-auto w-full lg:w-[1200px]">
+              <div data-stage-scaler class="origin-top-left">
+                <AppWindow title="The transcript flickers" viewMode="minimal" viewMenuOpen>
+                  <ViewModes />
+                </AppWindow>
+              </div>
+            </div>
+          </div>
+
+          <div
+            data-stage-layer
+            data-active="false"
+            class="col-start-1 row-start-1 transition-opacity duration-300 data-[active=false]:invisible data-[active=false]:opacity-0 data-[active=true]:z-10"
+          >
+            <div data-stage-frame class="mx-auto w-full lg:w-[1200px]">
+              <div data-stage-scaler class="origin-top-left">
+                <AppWindow title="Terminal panel resize jank">
+                  <Transcript turns={historyTurns} scroll minimap />
+                </AppWindow>
+              </div>
+            </div>
+          </div>
+
+          <div
+            data-stage-layer
+            data-active="false"
+            class="col-start-1 row-start-1 transition-opacity duration-300 data-[active=false]:invisible data-[active=false]:opacity-0 data-[active=true]:z-10"
+          >
+            <div data-stage-frame class="mx-auto w-full lg:w-[1200px]">
+              <div data-stage-scaler class="origin-top-left">
+                <AppWindow title="Keep the session tree from blanking">
+                  <Transcript turns={forkTurns} />
+                </AppWindow>
+              </div>
+            </div>
+          </div>
+
+          <div
+            data-stage-layer
+            data-active="false"
+            class="col-start-1 row-start-1 transition-opacity duration-300 data-[active=false]:invisible data-[active=false]:opacity-0 data-[active=true]:z-10"
+          >
+            <div data-stage-frame class="mx-auto w-full lg:w-[1200px]">
+              <div data-stage-scaler class="origin-top-left">
+                <!-- The tree dialog with its `?` live: the explanation is one click away. -->
+                <AppWindow title="Add the chat minimap" overlayOpen>
+                  <Transcript turns={treeTurns} />
+                  <SessionTreeDialog slot="overlay" />
+                  <SessionTreeHelp slot="overlay" />
+                </AppWindow>
+              </div>
+            </div>
+          </div>
+
+          <div
+            data-stage-layer
+            data-active="false"
+            class="col-start-1 row-start-1 transition-opacity duration-300 data-[active=false]:invisible data-[active=false]:opacity-0 data-[active=true]:z-10"
+          >
+            <div data-stage-frame class="mx-auto w-full lg:w-[1200px]">
+              <div data-stage-scaler class="origin-top-left">
+                <AppWindow title="Add the chat minimap">
+                  <Transcript turns={treeTurns} />
+                  <SessionSwitcher slot="overlay" />
+                </AppWindow>
+              </div>
+            </div>
+          </div>
+
+          <div
+            data-stage-layer
+            data-active="false"
+            class="col-start-1 row-start-1 transition-opacity duration-300 data-[active=false]:invisible data-[active=false]:opacity-0 data-[active=true]:z-10"
+          >
+            <div data-stage-frame class="mx-auto w-full lg:w-[1200px]">
+              <div data-stage-scaler class="origin-top-left">
+                <AppWindow title="Fix the tree header overlap" terminalOpen>
+                  <Transcript turns={terminalTurns} />
+                  <TerminalPanel slot="panel" />
+                </AppWindow>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
