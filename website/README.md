@@ -97,6 +97,7 @@ for macOS" would hand an Intel reader a file that cannot run.
 cd website
 npm install
 npm run dev        # http://localhost:4321
+npm run dev:restart # replace a running dev server: a stale module graph looks like a broken import
 npm run build      # -> dist/
 npm run preview    # serve the built output
 npm run check      # astro check + prettier --check
@@ -104,14 +105,35 @@ npm run check      # astro check + prettier --check
 
 ### Visual verification
 
-Both scripts drive the built `dist/` in a real browser:
+`shots` and `verify-interactions` drive the built `dist/` in a real browser;
+`verify-dev` asks a dev server the same questions:
 
 ```bash
 npm run build
 npm run shots         # writes .shots/*.png: full page and per section
-npm run verify        # asserts the interactive pieces work, and the phone-width layout (32 checks)
+npm run verify        # both of the checks below, in order
+npm run verify:dev    # dev-server render checks only (4 checks)
 npm run check:drift   # asserts the copied app classes still exist in the app
 ```
+
+`npm run verify` is `verify-interactions.mjs` (the interactive pieces work, and
+the phone-width layout holds: 32 checks) followed by `verify-dev.mjs`, which is
+the one that has to exist because **dev is a different pipeline from the build**.
+Rollup resolves `dist/` from nothing; Vite serves components over SSR and keeps a
+module graph across edits, watching the filesystem for new ones. When a component
+is added or renamed while a dev server is running, that graph can keep a path that
+no longer exists: the page answers 500 `FailedToLoadModuleSSR` while `astro check`,
+`astro build` and every screenshot of `dist/` pass, because the code is fine and
+only that process is holding the old graph.
+
+So `verify-dev` fetches `/` and `/changelog` twice: once from the dev server that
+is already running (its URL is in `.astro/dev.json` — this is the pass that catches
+the stale graph, since the graph lives in that process) and once from a server it
+starts itself, on its own port and with `--ignore-lock`, so it neither needs nor
+disturbs the one you are working in. Both passes want a 200, no Astro error
+payload, and an `<h1>`. When one fails it prints the remedy: `npm run dev:restart`
+(`astro dev --force`), which replaces a running server instead of refusing to
+start beside it.
 
 `npm run shots` takes a viewport width as an argument (`npm run shots 390`) so a narrow layout can be
 looked at without editing the script. `npm run verify` already opens the page at 390 and 768 to check
