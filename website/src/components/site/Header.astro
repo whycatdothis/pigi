@@ -4,8 +4,10 @@ import DownloadButton from './DownloadButton.astro';
 import { REPO_URL, UMAMI_EVENT_REPO } from '../../lib/site';
 
 const navLinks = [
-  { href: '#features', label: 'Features' },
-  { href: '/changelog', label: 'Changelog' },
+  // Absolute, because the header is on every page and `#features` is only on the
+  // homepage: on the changelog and the 404 it was a link to nowhere.
+  { href: '/#features', label: 'Features' },
+  { href: '/changelog/', label: 'Changelog' },
 ];
 ---
 
@@ -48,11 +50,12 @@ const navLinks = [
       Outside the nav, because a phone keeps this one: the two section links have
       somewhere else to be reached from, and the repository does not. The label
       goes with the width — the icon alone is the whole link until there is room
-      for the word.
+      for the word — so the link names itself for a reader who cannot see it.
     -->
     <a
       href={REPO_URL}
       data-umami-event={UMAMI_EVENT_REPO}
+      aria-label="GitHub"
       class="ml-auto flex items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground md:ml-0"
     >
       <Icon name="brand-github" size={15} />

@@ -12,9 +12,15 @@ import {
 interface Props {
   title: string;
   description: string;
+  /**
+   * For a page that is not an address: `404.astro` answers every path the build
+   * did not emit, so a canonical URL would name one arbitrary path as the home of
+   * the other nine hundred, and a search engine should not index it at all.
+   */
+  noindex?: boolean;
 }
 
-const { title, description } = Astro.props;
+const { title, description, noindex = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 
 /*
@@ -33,7 +39,7 @@ const accentStyle = `--accent-light:${SITE_ACCENT_LIGHT};--accent-dark:${SITE_AC
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    {!noindex && <link rel="canonical" href={canonical} />}
     <link rel="icon" href="/favicon.png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/icon-256.png" />
     <meta name="theme-color" content="#fcf3f6" media="(prefers-color-scheme: light)" />
@@ -58,10 +64,11 @@ const accentStyle = `--accent-light:${SITE_ACCENT_LIGHT};--accent-dark:${SITE_AC
       })();
     </script>
 
+    {noindex && <meta name="robots" content="noindex" />}
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:url" content={canonical} />
+    {!noindex && <meta property="og:url" content={canonical} />}
     <meta property="og:image" content={new URL('/icon-256.png', Astro.site).href} />
     <meta name="twitter:card" content="summary" />
 

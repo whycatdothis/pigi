@@ -130,31 +130,37 @@ async function showStep(index) {
 // --- the toolbar's tooltips -------------------------------------------------
 {
   /*
-   * The tree's tooltip carries the app's round `?`, which is a button. Put inside
-   * the toolbar's button it is markup a parser rejects — it closes the outer
-   * button at the inner tag — and the `?` ends up drawn in the toolbar, where the
-   * app never shows it. The tooltip therefore has to be the button's sibling.
+   * The app's `?` is a button, and its home is inside a Radix tooltip — a portal
+   * that floats over the page and takes the pointer. A still's tooltip is a span
+   * that fades in under the pointer and keeps `pointer-events: none`, so the same
+   * button there can never be pressed, and at `opacity: 0` it is still in the tab
+   * order: ten windows meant ten invisible tab stops whose only action was
+   * nothing. The `?` that survives is the one in the tree dialog's own header,
+   * which is visible at rest and reaches the dialog it opens.
    */
+  // The tree's chapter, where the dialog and its header are actually drawn.
+  await showStep(4);
   const toggles = await page.evaluate(() =>
     [...document.querySelectorAll('[data-tree-help-toggle]')].map((toggle) => {
       const tooltip = toggle.closest('.app-tooltip');
       return {
         inTooltip: tooltip !== null,
-        tooltipOpacity: tooltip === null ? null : getComputedStyle(tooltip).opacity,
         inDialog: toggle.closest('[role="dialog"]') !== null,
+        visible: getComputedStyle(toggle).visibility !== 'hidden' && toggle.checkVisibility(),
       };
     }),
   );
   check(
-    'toolbar: every `?` sits in a tooltip or in the tree dialog',
-    toggles.every((entry) => entry.inTooltip || entry.inDialog),
+    'toolbar: no `?` is hidden inside a tooltip, where it cannot be pressed',
+    toggles.every((entry) => !entry.inTooltip),
     JSON.stringify(toggles),
   );
   check(
-    'toolbar: no `?` is drawn until its tooltip is open',
-    toggles.every((entry) => entry.tooltipOpacity !== '1'),
-    JSON.stringify(toggles.map((entry) => entry.tooltipOpacity)),
+    'toolbar: the `?` that is left is in the tree dialog, and drawn',
+    toggles.length > 0 && toggles.every((entry) => entry.inDialog && entry.visible),
+    JSON.stringify(toggles),
   );
+  await showStep(0);
 }
 
 // --- feature tour -----------------------------------------------------------
@@ -763,8 +769,32 @@ async function showStep(index) {
     `${JSON.stringify(restingRails)} -> ${JSON.stringify(hoveredRails)}`,
   );
 
-  const previewOpen = await tree.locator('[data-tree-preview]').getAttribute('data-open');
-  check('session tree: hovering opens the preview', previewOpen === 'true', String(previewOpen));
+  /*
+   * The preview is a card of the row under the pointer, so it has to be drawn
+   * (`data-open` alone used to change nothing, and the card stayed at
+   * `opacity: 0` for the whole life of the page) and it has to carry that row's
+   * time — it shipped the first row's and never moved.
+   */
+  const preview = await tree.evaluate((node) => {
+    const card = node.querySelector('[data-tree-preview]');
+    const time = card.querySelector('[data-tree-preview-time]');
+    const row = node.querySelector('[data-row-id="u5"]');
+    return {
+      open: card.dataset.open,
+      opacity: getComputedStyle(card).opacity,
+      time: time.textContent.trim(),
+      rowTime: row.querySelector('[data-tree-row-time]').textContent.trim(),
+      body: card.querySelector('[data-tree-preview-body]').textContent.trim().length,
+    };
+  });
+  check(
+    'session tree: hovering opens the preview, drawn and about that row',
+    preview.open === 'true' &&
+      preview.opacity === '1' &&
+      preview.body > 0 &&
+      preview.time === preview.rowTime,
+    JSON.stringify(preview),
+  );
 
   await tree.locator('[data-row-id="u2"]').click();
   await page.waitForTimeout(120);
@@ -814,9 +844,108 @@ async function showStep(index) {
     String(selectedTitle),
   );
 
+  const announced = await switcher.evaluate((node) => {
+    const input = node.querySelector('[data-switcher-input]');
+    const selected = [...node.querySelectorAll('[data-switcher-row]')].filter(
+      (row) => row.getAttribute('aria-selected') === 'true',
+    );
+    return {
+      selected: selected.map((row) => row.dataset.title),
+      activeDescendant: input.getAttribute('aria-activedescendant'),
+      describesSelected: document.getElementById(input.getAttribute('aria-activedescendant') ?? '')
+        ?.dataset.title,
+      role: input.getAttribute('role'),
+      expanded: input.getAttribute('aria-expanded'),
+    };
+  });
+  check(
+    'switcher: the selection the arrow key made is the one announced',
+    JSON.stringify(announced.selected) === JSON.stringify(['Minimap widths while resizing']) &&
+      announced.role === 'combobox' &&
+      announced.expanded === 'true' &&
+      announced.describesSelected === announced.selected[0],
+    JSON.stringify(announced),
+  );
+
+  await switcher.locator('[data-switcher-input]').press('Enter');
+  const taken = await switcher.getAttribute('data-selected-title');
+  check(
+    'switcher: enter takes the row it points at',
+    taken === 'Minimap widths while resizing',
+    String(taken),
+  );
+
   await switcher.locator('[data-switcher-input]').press('Escape');
   const reset = await visibleRows();
   check('switcher: escape clears the query', reset === 9, `visible=${reset}`);
+}
+
+// --- the tree's explanation -------------------------------------------------
+{
+  /*
+   * The `?` is the only control that opens the dialog, so it has to be reachable
+   * and the dialog has to behave like one: focus moves in, Escape closes it and
+   * hands focus back to the button it came from.
+   */
+  await showStep(4);
+  const toggle = page.locator('[data-tree-help-toggle]');
+  const dialog = page.locator('[data-tree-help]');
+  await toggle.click();
+  await page.waitForTimeout(200);
+  const opened = await dialog.evaluate((node) => ({
+    state: node.dataset.state,
+    focused: document.activeElement === node,
+  }));
+  check(
+    'tree help: the `?` opens the dialog and focus moves into it',
+    opened.state === 'open' && opened.focused,
+    JSON.stringify(opened),
+  );
+
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  const closed = await page.evaluate(() => ({
+    state: document.querySelector('[data-tree-help]').dataset.state,
+    onToggle: document.activeElement?.matches('[data-tree-help-toggle]') ?? false,
+    expanded: document.activeElement?.getAttribute('aria-expanded'),
+  }));
+  check(
+    'tree help: Escape closes it and puts focus back on the `?`',
+    closed.state === 'closed' && closed.onToggle && closed.expanded === 'false',
+    JSON.stringify(closed),
+  );
+}
+
+// --- structure --------------------------------------------------------------
+{
+  /*
+   * One main region a page: the windows are pictures of an app that has its own,
+   * and eleven landmarks would tell a screen reader nothing about this page.
+   */
+  const structure = await page.evaluate(() => ({
+    mains: document.querySelectorAll('main').length,
+    inWindows: document.querySelectorAll('[data-window-canvas] main').length,
+    features: document.querySelector('header nav a')?.getAttribute('href'),
+    githubName: document.querySelector('header a[aria-label="GitHub"]') !== null,
+  }));
+  check(
+    'structure: the page has one main region, and the windows have none',
+    structure.mains === 1 && structure.inWindows === 0,
+    JSON.stringify(structure),
+  );
+  check(
+    'structure: Features works from any page, and the GitHub link has a name',
+    structure.features === '/#features' && structure.githubName,
+    JSON.stringify({ features: structure.features, githubName: structure.githubName }),
+  );
+
+  const notFound = await readFile(join(ROOT, '404.html'), 'utf8');
+  check(
+    'structure: the 404 names no canonical URL and asks not to be indexed',
+    !notFound.includes('rel="canonical"') && notFound.includes('name="robots" content="noindex"'),
+    `canonical=${notFound.includes('rel="canonical"')} noindex=${notFound.includes('name="robots" content="noindex"')}`,
+  );
+  await showStep(0);
 }
 
 // --- terminal ---------------------------------------------------------------

@@ -299,7 +299,10 @@ const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
                       Current
                     </span>
 
-                    <span class="w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
+                    <span
+                      data-tree-row-time
+                      class="w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground"
+                    >
                       {row.time}
                     </span>
                   </span>
@@ -309,12 +312,15 @@ const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
           }
         </div>
 
-        <!-- Follows the pointer down the list; the app opens the same card on hover. -->
+        <!--
+          Follows the pointer down the list; the app opens the same card on hover.
+          `data-open` is the only switch, and both the body and the time come from
+          the row the pointer is on.
+        -->
         <div
-          class="pointer-events-none absolute right-3 top-0 z-20 w-[300px] rounded-lg border border-border/70 bg-popover/95 p-3 opacity-0 shadow-md backdrop-blur transition-opacity duration-150"
+          class="pointer-events-none absolute right-3 top-0 z-20 w-[300px] rounded-lg border border-border/70 bg-popover/95 p-3 opacity-0 shadow-md backdrop-blur transition-opacity duration-150 data-[open=true]:opacity-100"
           data-tree-preview
           data-open="false"
-          data-state="closed"
         >
           <div class="flex items-baseline justify-between gap-2">
             <span class="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">

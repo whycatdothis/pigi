@@ -103,8 +103,13 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
       No rounding on this edge. The app's sidebar and its main area meet in a
       straight line: `border-l-[0.5px]` is the whole separator, drawn by this
       element and by nothing else — the sidebar has no border of its own.
+
+      A `div`, not a `main`: the app's own chat column is the app's main region,
+      and here the page has one. Ten windows each claiming to be the main region
+      of the page would make the landmark list eleven long and the page's own
+      `<main>` one of eleven equals.
     -->
-        <main
+        <div
           class="relative flex min-w-0 flex-1 flex-col overflow-hidden border-l-[0.5px] border-foreground/27 bg-background"
         >
           <SessionToolbar
@@ -144,7 +149,7 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
 
           {overlayOpen && <div class="absolute inset-0 z-20 bg-black/20" aria-hidden="true" />}
           <slot name="overlay" />
-        </main>
+        </div>
       </div>
     </div>
   </div>
