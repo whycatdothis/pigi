@@ -17,12 +17,6 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { chromium } from 'playwright';
-import {
-  CANDIDATE_ASSET,
-  CANDIDATE_DOWNLOAD_URL,
-  CANDIDATE_VERSION,
-  stubReleaseApi,
-} from './releaseFixture.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..', 'dist');
 const CONTENT_TYPES = {
@@ -54,11 +48,16 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
 /*
- * A canned release, so the download checks below test this page's logic instead of
- * GitHub's availability: an unauthenticated API call is rate-limited to 60 an
- * hour, and a run that trips it would report the fallback link as a failure.
+ * Every request to the releases API, if the page ever makes one. It should not:
+ * the download href is a `releases/latest/download/` URL that GitHub resolves
+ * itself, so the page needs no lookup at all. The download block asserts this is
+ * still empty.
  */
-await stubReleaseApi(page);
+const releaseApiRequests = [];
+page.on('request', (request) => {
+  if (request.url().startsWith('https://api.github.com/')) releaseApiRequests.push(request.url());
+});
+
 await page.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
 
 const results = [];
@@ -987,27 +986,39 @@ async function showStep(index) {
 // --- download ---------------------------------------------------------------
 {
   /*
-   * Every button on the page, not the first one: the header carries the download
-   * now, and if a second one is ever added beside the hero a link that only
-   * rewrote one of them is the bug this catches.
+   * The expected href is written out rather than imported from the page's own
+   * constants, because what is worth asserting is the shape of the string that
+   * ships: `/releases/latest/download/<file>`, with no version in it. GitHub
+   * answers that URL with the asset of whichever release is newest at the moment
+   * of the click, which is what makes a published release downloadable without a
+   * rebuild. A version in the path would rot on the next release, and a lookup in
+   * the browser — the API — is a request per visitor that can be rate-limited,
+   * blocked by an extension, or unreachable.
    */
+  const EXPECTED_DOWNLOAD_URL =
+    'https://github.com/whycatdothis/pigi/releases/latest/download/pigi-arm64.dmg';
+
   const links = await page.locator('[data-download-link]').evaluateAll((nodes) =>
     nodes.map((node) => ({
       href: node.getAttribute('href'),
-      version: node.dataset.umamiEventVersion,
-      asset: node.dataset.umamiEventAsset,
+      event: node.dataset.umamiEvent ?? null,
     })),
   );
 
   check(
-    'download: every button points at the newest DMG',
-    links.length > 0 && links.every((link) => link.href === CANDIDATE_DOWNLOAD_URL),
+    'download: both buttons point at the latest arm64 DMG',
+    links.length === 2 && links.every((link) => link.href === EXPECTED_DOWNLOAD_URL),
     JSON.stringify(links.map((link) => link.href)),
   );
   check(
-    'download: the tracked event carries the resolved version and asset',
-    links.every((link) => link.version === CANDIDATE_VERSION && link.asset === CANDIDATE_ASSET),
-    JSON.stringify(links),
+    'download: the click carries its event name in the markup',
+    links.every((link) => link.event === 'download-release'),
+    JSON.stringify(links.map((link) => link.event)),
+  );
+  check(
+    'download: the page asks the releases API for nothing',
+    releaseApiRequests.length === 0,
+    JSON.stringify(releaseApiRequests),
   );
 
   // The page's primary action sits under the title, with one icon and no arrow:
@@ -1027,7 +1038,7 @@ async function showStep(index) {
     hero !== null &&
       hero.label === 'Download for macOS' &&
       hero.icons === 1 &&
-      hero.href === CANDIDATE_DOWNLOAD_URL,
+      hero.href === EXPECTED_DOWNLOAD_URL,
     JSON.stringify(hero),
   );
 }
@@ -1046,7 +1057,6 @@ async function showStep(index) {
    * (the block below) looks fine and a page narrowed from a desktop does not.
    */
   const resized = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await stubReleaseApi(resized);
   await resized.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
   await resized.setViewportSize({ width: 390, height: 844 });
   await resized.waitForTimeout(600);
@@ -1115,7 +1125,6 @@ async function showStep(index) {
    * scroll anywhere.
    */
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  await stubReleaseApi(phone);
   await phone.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
 
   const measured = await phone.evaluate(() => {
@@ -1213,7 +1222,6 @@ async function showStep(index) {
   );
 
   const tablet = await browser.newPage({ viewport: { width: 768, height: 900 } });
-  await stubReleaseApi(tablet);
   await tablet.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
   const unscaled = await tablet.evaluate(() => {
     const fit = document.querySelector('[data-window-fit]');

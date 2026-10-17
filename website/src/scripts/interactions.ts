@@ -26,7 +26,6 @@ import {
   railLeftPx,
   type TreeRowShape,
 } from '../lib/treeGeometry';
-import { LATEST_RELEASE_API, MAC_DMG_PATTERN } from '../lib/site';
 import { WINDOW_HEIGHT_PX, WINDOW_WIDTH_PX } from '../lib/appLayout';
 import { getLineWidth, measureMaxLineWidth } from '../lib/minimapGeometry';
 
@@ -764,107 +763,6 @@ function fuzzyMatchIndexes(text: string, query: string): number[] | null {
 }
 
 // ---------------------------------------------------------------------------
-// Download
-// ---------------------------------------------------------------------------
-
-const RELEASE_CACHE_KEY = 'pigi:latest-release';
-const RELEASE_CACHE_TTL_MS = 10 * 60 * 1000;
-
-interface CachedRelease {
-  url: string;
-  version: string;
-  asset: string;
-  size: number;
-  cachedAt: number;
-}
-
-interface GithubAsset {
-  name: string;
-  size: number;
-  browser_download_url: string;
-}
-
-interface GithubRelease {
-  tag_name: string;
-  assets?: GithubAsset[];
-}
-
-/**
- * Points the download buttons at the actual DMG.
- *
- * The markup ships a link to `/releases/latest`, which GitHub redirects to the
- * newest release — correct, but it lands the reader on a web page instead of
- * starting the download. This asks the API which file the newest release holds
- * and rewrites the link to the file itself, so the button is one click.
- *
- * It is a network call, so it is allowed to fail: on any error the fallback the
- * markup shipped with stays exactly where it was, and the button still works.
- */
-async function initDownload(): Promise<void> {
-  const buttons = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-download-link]'));
-  if (buttons.length === 0) return;
-
-  const cached = readCachedRelease();
-  if (cached) {
-    applyRelease(cached);
-    return;
-  }
-
-  try {
-    const response = await fetch(LATEST_RELEASE_API, {
-      headers: { Accept: 'application/vnd.github+json' },
-    });
-    if (!response.ok) return;
-
-    const release: GithubRelease = await response.json();
-    const asset = release.assets?.find((candidate) => MAC_DMG_PATTERN.test(candidate.name));
-    if (!asset) return;
-
-    const resolved: CachedRelease = {
-      url: asset.browser_download_url,
-      version: release.tag_name,
-      asset: asset.name,
-      size: asset.size,
-      cachedAt: Date.now(),
-    };
-    applyRelease(resolved);
-    writeCachedRelease(resolved);
-  } catch {
-    // Offline, rate-limited, or the API changed shape: the fallback stands.
-  }
-
-  function applyRelease(release: CachedRelease): void {
-    for (const button of buttons) {
-      button.href = release.url;
-      // Umami reads these off the element when the click happens, so the
-      // recorded event carries the version that was actually served.
-      button.dataset.umamiEventVersion = release.version;
-      button.dataset.umamiEventAsset = release.asset;
-    }
-  }
-}
-
-function readCachedRelease(): CachedRelease | null {
-  try {
-    const raw = sessionStorage.getItem(RELEASE_CACHE_KEY);
-    if (!raw) return null;
-    const parsed: CachedRelease = JSON.parse(raw);
-    if (Date.now() - parsed.cachedAt > RELEASE_CACHE_TTL_MS) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedRelease(release: CachedRelease): void {
-  try {
-    sessionStorage.setItem(RELEASE_CACHE_KEY, JSON.stringify(release));
-  } catch {
-    // Private mode, or a full quota: the button already works without the cache.
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Feature tour
 // ---------------------------------------------------------------------------
 
@@ -1234,4 +1132,3 @@ initMinimaps();
 initSessionTrees();
 initSessionSwitcher();
 initTerminalTabs();
-void initDownload();

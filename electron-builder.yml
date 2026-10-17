@@ -38,7 +38,11 @@ mac:
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: true
 dmg:
-  artifactName: ${name}-${version}-${arch}.${ext}
+  # No version in the file name, on purpose: it is what lets the site link to
+  # `releases/latest/download/pigi-arm64.dmg` — a URL GitHub resolves against
+  # whichever release is newest when someone clicks, so a published release is
+  # downloadable immediately, with nothing to rebuild. See website/src/lib/site.ts.
+  artifactName: ${name}-${arch}.${ext}
 linux:
   target:
     - AppImage

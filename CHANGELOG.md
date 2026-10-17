@@ -5,6 +5,7 @@
 ### Changed
 
 - The session list and the chat area meet in a straight line: the rounded corner between them is gone, and the hairline that separates them runs the full height of the window
+- The macOS download is named `pigi-arm64.dmg` instead of `pigi-<version>-arm64.dmg`, so the site can link to `releases/latest/download/pigi-arm64.dmg` and hand out the newest release the moment it is published, with nothing to rebuild
 
 ## [0.4.11] - 2026-10-12
 

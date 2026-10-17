@@ -96,7 +96,8 @@ not a feature or a claim about one.
 The hero is the title, the page's own download button, and the window — no subtitle, no badge, no
 second button. The download under the title is the primary action, the one a reader who arrives from
 a search wants before they read anything; the header keeps a compact copy for a reader who has
-already scrolled past it, and both point at the same DMG through `initDownload`. The tour opens with
+already scrolled past it, and both point at the same version-less URL (`releases/latest/download/`,
+see below). The tour opens with
 the migration claim, because it is the question a pi user arrives with: the window there holds a `/`
 in the composer and the command menu open over it, so the skills in the list are visible as skills —
 pi's, not pigi's — and `/reload` says in the app's own words what it reads.
@@ -224,9 +225,9 @@ npm run check:drift   # asserts the copied app classes still exist in the app
 `npm run shots` takes a viewport width as an argument (`npm run shots 390`) so a narrow layout can be
 looked at without editing the script. `npm run verify` already opens the page at 390 and 768 to check
 the window contract; the screenshots at those widths are how a change to it gets looked at rather than
-asserted. Both scripts answer the GitHub releases API from
-`scripts/releaseFixture.mjs` rather than the network: an unauthenticated call is limited to 60 an hour,
-and a run that trips the limit would report the download fallback and look like a broken button.
+asserted. Neither script stubs a network call any more: the download button's href is a
+`releases/latest/download/` URL that GitHub resolves at click time, so the page itself makes no request
+that could be rate-limited or offline.
 
 They import Playwright, which is a devDependency of this site like any other tool — the version is
 pinned to the one the app's own browser tests use, so both share a single Chromium download.
@@ -296,9 +297,8 @@ Umami, and only Umami: cookieless, so the site needs no consent banner (`website
 `src/lib/site.ts`). Two events are tracked, both declared in `src/lib/site.ts` so a rename cannot
 leave the dashboard reading half the site under an old label:
 
-- `download-release` — the download button, with `version` and `asset` attached as event data. The
-  values are written onto the element after the newest release is resolved, so the event records the
-  file that was actually served.
+- `download-release` — the download button. It carries no version: the href has none, and the release
+  that answers it is picked after the click, by GitHub.
 - `open-github` — the GitHub links in the header and footer.
 
 Umami binds `data-umami-event` attributes itself, which is why the download click is recorded even
@@ -307,14 +307,34 @@ says nothing about whether a reader is interested in the app.
 
 ## The download button
 
-The markup ships `https://github.com/whycatdothis/pigi/releases/latest`, which always works. On load,
-the script asks the GitHub API for the newest release, finds the arm64 DMG, and rewrites the link to
-the file itself — one click instead of a page of release notes. The result is cached in
-`sessionStorage` for ten minutes.
+The href is
 
-Every failure path leaves the fallback in place: rate limit (60 requests an hour per IP,
-unauthenticated), offline, or the API changing shape. The button never depends on the request
-succeeding.
+```
+https://github.com/whycatdothis/pigi/releases/latest/download/pigi-arm64.dmg
+```
+
+`releases/latest/download/<file>` is GitHub's own shortcut: it answers with the asset of whichever
+release is newest **at the moment of the click**. Nothing in the chain has to be kept in sync:
+
+- no rebuild — a release published thirty seconds ago is downloadable from a page built last month;
+- no lookup — no request per visitor, so no 60-an-hour anonymous API limit, no extension blocking
+  `api.github.com`, no dependency on that host being reachable from where the reader is;
+- no script — the link works with JavaScript off, and it lands on a file, not on a page of release
+  notes;
+- and an already-cached copy of the page is still right, because the string in it never changes.
+
+That only works if every release publishes a file with the same name, which is why the DMG has no
+version in it (`dmg.artifactName: ${name}-${arch}.${ext}` in `electron-builder.yml` → `pigi-arm64.dmg`).
+The version stays where it is useful: the tag, the release page, `/changelog/`. Histories of earlier
+releases keep their own copy under the same name, so old links point at old files, as they should.
+
+The failure mode of the versioned name it replaced is worth keeping in mind, because it is what makes
+the version-less one necessary rather than merely tidy: the release workflow uploads its artifacts to a
+**draft** release and publishes it last (`gh release edit --draft=false`), and a draft's assets answer
+404 to anyone who is not the owner. Built from the version in `package.json` — the other obvious way to
+write a static link — the button would therefore be broken for the ten minutes between the version bump
+and the publish, and stay broken if the notarisation failed. GitHub only ever redirects to a _published_
+release, so the shortcut is immune to that whole class of ordering mistake.
 
 Nothing about the file is printed next to the button — no version, no size, no architecture — only
 what the label says out loud. The version can be served without a rebuild, the size is a curiosity,

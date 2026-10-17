@@ -4,21 +4,24 @@ export const GITHUB_OWNER = 'whycatdothis';
 export const GITHUB_REPO = 'pigi';
 export const REPO_URL = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}`;
 export const RELEASES_URL = `${REPO_URL}/releases`;
-/** Never 404s: GitHub redirects this to whichever release is newest. */
-export const LATEST_RELEASE_URL = `${RELEASES_URL}/latest`;
-export const LATEST_RELEASE_API = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
+/**
+ * The download, with no version in it.
+ *
+ * `releases/latest/download/<file>` is GitHub's own shortcut: it answers with the
+ * asset of whichever release is newest *at the moment of the click*. So the link
+ * is right the second a release is published — there is nothing to rebuild, and
+ * nothing for the visitor's browser to look up, which also means no API call, no
+ * rate limit and no dependency on `api.github.com` being reachable.
+ *
+ * The one thing it requires is a file name that every release carries, which is
+ * why the DMG is named without its version (`dmg.artifactName` in
+ * `electron-builder.yml`, and `pigi-arm64.dmg` on every release since 0.4.11).
+ */
+export const DOWNLOAD_URL = `${RELEASES_URL}/latest/download/pigi-arm64.dmg`;
 export const PI_URL = 'https://pi.dev';
 
 export const LICENSE_NAME = 'Apache-2.0';
 export const LICENSE_URL = `${REPO_URL}/blob/main/LICENSE`;
-
-/**
- * The macOS build published by the release workflow. `electron-builder.yml` only
- * targets arm64 today, so this is the only artifact the site offers as a
- * download; the pattern is what tells the DMG apart from the zip, the blockmaps
- * and the updater's metadata in the same release.
- */
-export const MAC_DMG_PATTERN = /-arm64\.dmg$/;
 
 /**
  * The page's colour: pink, the pig's.
