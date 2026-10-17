@@ -23,9 +23,11 @@ import {
  * app's neutral primary: this button is the page's action, not a control in a
  * window. See src/lib/appUi.ts for what is copied and from where.
  *
- * The label names the architecture. The app publishes one DMG and it is arm64, so
- * a button that only said "macOS" would hand an Intel reader a file that cannot
- * run.
+ * The label says macOS, which is what the reader is choosing between here: this
+ * page is the macOS app and nothing else. The DMG it resolves to is arm64 — see
+ * `MAC_DMG_PATTERN` — so an Intel Mac would get a file that cannot run; the
+ * release notes are where that is said, not the one button the page is built
+ * around.
  */
 interface Props {
   /** `hero` is the page's primary action; `compact` matches the app's `size="default"`. */
@@ -50,14 +52,5 @@ const { variant = 'hero', class: className } = Astro.props;
   ]}
 >
   <Icon name="download" size={variant === 'hero' ? 17 : 14} />
-  {variant === 'hero' ? 'Download for Apple Silicon' : 'Download'}
-  {
-    variant === 'hero' && (
-      <Icon
-        name="arrow-right"
-        size={16}
-        class="opacity-60 transition-transform group-hover/button:translate-x-0.5"
-      />
-    )
-  }
+  {variant === 'hero' ? 'Download for macOS' : 'Download'}
 </a>
