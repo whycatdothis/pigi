@@ -1,6 +1,8 @@
 ---
 import '../styles/global.css';
 import {
+  LATEST_RELEASE_URL,
+  LICENSE_URL,
   SITE_ACCENT_DARK,
   SITE_ACCENT_LIGHT,
   UMAMI_SCRIPT_URL,
@@ -62,6 +64,33 @@ const accentStyle = `--accent-light:${SITE_ACCENT_LIGHT};--accent-dark:${SITE_AC
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={new URL('/icon-256.png', Astro.site).href} />
     <meta name="twitter:card" content="summary" />
+
+    <!--
+      What this is, in the vocabulary a search engine reads.
+
+      `alternateName` is where the phrases live: nobody searches for "pigi", and
+      the thing being described is a pi agent GUI. The rest is what the page can
+      honestly claim — a free, arm64 macOS app, not affiliated with pi's authors.
+    -->
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'SoftwareApplication',
+        name: 'pigi',
+        alternateName: ['pi agent GUI', 'pi GUI', 'pigi — pi agent GUI', 'pigi GUI for pi'],
+        applicationCategory: 'DeveloperApplication',
+        applicationSubCategory: 'AI coding agent GUI',
+        operatingSystem: 'macOS',
+        processorRequirements: 'Apple Silicon',
+        description,
+        url: canonical,
+        downloadUrl: LATEST_RELEASE_URL,
+        license: LICENSE_URL,
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+        isAccessibleForFree: true,
+      })}
+    />
 
     <script defer src={UMAMI_SCRIPT_URL} data-website-id={UMAMI_WEBSITE_ID}></script>
   </head>

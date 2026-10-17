@@ -90,14 +90,18 @@ Hero, then the tour — seven chapters and one window — then the three things 
 the footer. That is the whole page: no install section, no shortcut table, no FAQ. Nothing that is
 not a feature or a claim about one.
 
-The hero is the title and the window; nothing else, no badge and no second button. The tour opens with
+The hero is the title, the page's own download button, and the window — no subtitle, no badge, no
+second button. The download under the title is the primary action, the one a reader who arrives from
+a search wants before they read anything; the header keeps a compact copy for a reader who has
+already scrolled past it, and both point at the same DMG through `initDownload`. The tour opens with
 the migration claim, because it is the question a pi user arrives with: the window there holds a `/`
 in the composer and the command menu open over it, so the skills in the list are visible as skills —
 pi's, not pigi's — and `/reload` says in the app's own words what it reads.
 
 The tour is the answer to what this page used to be: seven sections of _a paragraph and a picture of
 the app_. Seven of the same shape is seven times the same layout, and the seventh still only says
-what the first did — here is the app. So the window is pinned and the chapters scroll past it
+what the first did — here is the app. So the window is pinned — on the left, the way a
+screenshot is read before its caption — and the chapters scroll past it on the right
 (`position: sticky`, not a captured wheel): _Your pi, unchanged_, _View modes_, _Instant session
 switch_, _Fork_, _Tree_, _Session switcher_, _Terminal_. Only what is inside the window changes, and
 the window keeps answering the pointer while it is pinned — the filter menu picks a density, a
@@ -114,6 +118,12 @@ opens, then every session one line away, then the shell at the bottom of the sam
 Each chapter's heading is its name — _View modes_, _Tree_ — not a sentence, and the sentence that
 used to be the headline is the paragraph's first line: a name says what a feature is, and "It is the
 pi you already have" only says it again at 30px.
+
+The still is the app's 1200x800 laid out at that size and shrunk in one transform, not a window that
+reflowed to the column: `[data-stage-frame]` reserves the box it renders into and
+`[data-stage-scaler]` carries the app's own width and the scale. Leaving the scaler at the frame's
+width instead lays the window out at a narrower size and _then_ shrinks that, which draws the app at
+a width it does not have — and leaves the still sitting short of its column's edge.
 
 Below `lg` there is no room to pin a window beside the words, so the same markup falls back to what
 it was: an index row that shows one chapter over one window. `initFeatureStage` decides which
@@ -134,10 +144,9 @@ tree's tooltip carries the app's round `?`, which is a button itself, and a `<bu
 dropped that `?` out of the tooltip and drew it in the toolbar, an icon the app only ever shows while
 its tooltip is open.
 
-The header's Download button is the page's only one, and it is a real download — there is no
-`#install` anchor to scroll to. Two claims the page makes have no home here any more, so the button
-label carries them: it names the architecture, because the only published DMG is arm64 and "Download
-for macOS" would hand an Intel reader a file that cannot run.
+Both download buttons are real downloads — there is no `#install` anchor to scroll to — and the
+hero's label names the architecture: the only published DMG is arm64, so "Download for macOS" would
+hand an Intel reader a file that cannot run.
 
 The header is the page at the top and a floating strip once the page moves. It has no rule under it
 (the line cut a page that has no seam there) and no fill at rest, so the hero's wash runs behind it;
@@ -145,6 +154,17 @@ the hero is pulled up under the header and padded back down so that the wash beg
 page rather than at the header's edge. `initHeaderScroll` sets `data-scrolled` past 4px and the bar
 takes the translucent, blurred fill that keeps its links legible over the content passing underneath
 — the same idea as the app's floating surfaces (`bg-background/90 backdrop-blur-sm`).
+
+### Search
+
+Nobody searches for "pigi"; they search for what it is. So the title and the description name the
+category — `pigi — a pi agent GUI for macOS`, a "sleek pi GUI for macOS" — and the structured data
+(`SoftwareApplication` in `BaseLayout.astro`) carries the same phrases as `alternateName`: `pi agent
+GUI`, `pi GUI`, `pigi GUI for pi`. The rest of the object is what the page can honestly claim: a
+free, arm64 macOS developer application, licensed Apache-2.0, not affiliated with pi's authors.
+
+Only the home page describes the app; the changelog keeps its own title and description, because a
+release log is not the thing being searched for.
 
 ## Local development
 
