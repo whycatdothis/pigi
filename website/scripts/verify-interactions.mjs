@@ -295,13 +295,13 @@ async function showStep(index) {
       };
     });
 
-  // Off the still, so the pointer does not hold it.
+  // Off the still, so the pointer does not hold it, and past one advance.
   await page.mouse.move(4, 4);
   const firstCycle = await cycleState();
-  await page.waitForTimeout(1150);
+  await page.waitForTimeout(1700);
   const secondCycle = await cycleState();
   check(
-    'switch: the still opens another session after a second',
+    'switch: the still opens another session on its own',
     firstCycle.openCount === 1 &&
       secondCycle.openCount === 1 &&
       secondCycle.open !== firstCycle.open,
@@ -352,6 +352,13 @@ async function showStep(index) {
 
 // --- view modes -------------------------------------------------------------
 {
+  /*
+   * The window opens the next density by itself every 1.5s, which is the claim the
+   * chapter makes. The checks below have to be deterministic, so they run with the
+   * timer held — the still's reduced-motion path, which is a real one — and the
+   * cycling itself is checked separately, before anything is clicked.
+   */
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await showStep(1);
   const root = page.locator('[data-view-modes]');
   const menu = root.locator('[data-view-mode-menu]');
@@ -363,6 +370,44 @@ async function showStep(index) {
     (await menu.getAttribute('data-open')) === 'true',
     String(await menu.getAttribute('data-open')),
   );
+
+  const density = () =>
+    page.evaluate(() => {
+      const window_ = document.querySelector('[data-view-modes]');
+      const menu_ = window_.querySelector('[data-view-mode-menu]');
+      const shown = [...window_.querySelectorAll('[data-view-panel]')]
+        .filter((panel) => getComputedStyle(panel).display !== 'none')
+        .map((panel) => panel.dataset.viewPanel);
+      const ticked = [...menu_.querySelectorAll('[data-view-mode-button]')]
+        .filter((button) =>
+          [...button.querySelectorAll('svg')].some(
+            (icon) => getComputedStyle(icon).visibility !== 'hidden',
+          ),
+        )
+        .map((button) => button.dataset.viewModeButton);
+      return { active: window_.dataset.active, shown, ticked, open: menu_.dataset.open };
+    });
+
+  // Off the still, so the pointer does not hold it, and back to full motion.
+  await page.emulateMedia({ reducedMotion: null });
+  await page.mouse.move(4, 4);
+  const before = await density();
+  await page.waitForTimeout(1700);
+  const cycled = await density();
+  check(
+    'view modes: the still opens the next density on its own, and the check goes with it',
+    before.active === 'compact' &&
+      cycled.active !== before.active &&
+      cycled.shown.length === 1 &&
+      cycled.shown[0] === cycled.active &&
+      cycled.ticked.length === 1 &&
+      cycled.ticked[0] === cycled.active &&
+      cycled.open === 'true',
+    JSON.stringify({ before: before.active, cycled }),
+  );
+
+  // The window keeps what a reader picks: the timer stops for good.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
 
   // The menu closes as soon as an item is taken, so every choice after the first
   // starts by reopening it — which is also what a visitor does.
@@ -398,7 +443,7 @@ async function showStep(index) {
       const ticked = [...menu.querySelectorAll('[data-view-mode-button]')]
         .filter((button) =>
           [...button.querySelectorAll('svg')].some(
-            (icon) => getComputedStyle(icon).display !== 'none',
+            (icon) => getComputedStyle(icon).visibility !== 'hidden',
           ),
         )
         .map((button) => button.dataset.viewModeButton);
@@ -495,6 +540,17 @@ async function showStep(index) {
     return Math.round(first.getBoundingClientRect().top - scroller.getBoundingClientRect().top);
   });
   check('view modes: a short turn starts at the top', above <= 40, `gap=${above}px`);
+
+  // A choice is final: nothing moves the window after one.
+  await page.emulateMedia({ reducedMotion: null });
+  const settled = await density();
+  await page.waitForTimeout(1700);
+  const stillSettled = await density();
+  check(
+    'view modes: a density a reader picked is not taken away a second later',
+    settled.active !== undefined && stillSettled.active === settled.active,
+    JSON.stringify({ settled: settled.active, after: stillSettled.active }),
+  );
 
   await page.click('[data-view-modes] [data-view-menu-trigger]');
   const reopened = await menu.getAttribute('data-open');

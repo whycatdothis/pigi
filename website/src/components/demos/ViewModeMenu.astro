@@ -78,11 +78,17 @@ const modes: { id: ViewModeName; label: string; description: string }[] = [
           the check existing only on the item that shipped active: this is a still
           of a menu that a visitor can click, and an icon that is only in the
           markup of one row cannot follow the click to another.
+
+          `invisible` rather than `hidden`: the window opens the next density on a
+          timer, and a check that took its own space with it changed the menu's
+          width — the longest label is the one that is checked least often — and
+          shifted every label with it, twice a cycle. The app never shows two states
+          in a row, so it can let each item size itself; a still that moves cannot.
         */}
         <Icon
           name="check"
           size={14}
-          class="hidden shrink-0 group-data-[state=checked]/mode:block"
+          class="invisible shrink-0 group-data-[state=checked]/mode:visible"
         />
       </button>
     ))
