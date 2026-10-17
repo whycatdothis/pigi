@@ -1,7 +1,12 @@
 ---
 import Icon from '../Icon.astro';
 import { LATEST_RELEASE_URL, UMAMI_EVENT_DOWNLOAD } from '../../lib/site';
-import { BUTTON_BASE, BUTTON_FILLED, BUTTON_HERO_SIZE, BUTTON_SIZE_DEFAULT } from '../../lib/appUi';
+import {
+  BUTTON_BASE,
+  BUTTON_BRAND_FILLED,
+  BUTTON_HERO_SIZE,
+  BUTTON_SIZE_DEFAULT,
+} from '../../lib/appUi';
 
 /**
  * The download button, in the hero and in the header.
@@ -10,9 +15,11 @@ import { BUTTON_BASE, BUTTON_FILLED, BUTTON_HERO_SIZE, BUTTON_SIZE_DEFAULT } fro
  * interactions.ts upgrades the href to the arm64 DMG's direct URL once the
  * releases API answers, and leaves it alone if it does not.
  *
- * The shape is the app's own Button — base, filled variant, `size="default"` in
- * the header — with the hero at the page's scale instead, since the app has no
- * button that tall. See src/lib/appUi.ts for what is copied and from where.
+ * The shape, the size and the focus ring are the app's own Button — base,
+ * `size="default"` in the header — and the hero is at the page's scale, since the
+ * app has no button that tall. The fill is the accent rather than the app's
+ * neutral primary: this button is the page's action, not a control in a window.
+ * See src/lib/appUi.ts for what is copied and from where.
  *
  * The label names the architecture. The app publishes one DMG and it is arm64, so
  * a button that only said "macOS" would hand an Intel reader a file that cannot
@@ -33,7 +40,7 @@ const { variant = 'hero', class: className } = Astro.props;
   data-umami-event={UMAMI_EVENT_DOWNLOAD}
   class:list={[
     BUTTON_BASE.classes,
-    BUTTON_FILLED.classes,
+    BUTTON_BRAND_FILLED.classes,
     variant === 'hero' ? BUTTON_HERO_SIZE.classes : BUTTON_SIZE_DEFAULT.classes,
     className,
   ]}

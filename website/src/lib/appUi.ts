@@ -92,6 +92,24 @@ export const BUTTON_FILLED = {
   source: `${UI}/button.tsx`,
 } satisfies CopiedClasses;
 
+/**
+ * The page's download button: the app's filled variant's mechanics, filled with
+ * the accent instead of the app's primary.
+ *
+ * Inside a window the primary control is neutral, and it stays that way here —
+ * every button on this page that belongs to the app wears `BUTTON_FILLED`
+ * unchanged. This one is the page's own call to action, and the page's colour is
+ * the accent it runs on; `text-primary-foreground` follows it through both
+ * themes, because the accent and the primary invert together (dark fill with
+ * light text, light fill with dark).
+ */
+export const BUTTON_BRAND_FILLED = {
+  classes:
+    'bg-[var(--system-accent)] text-primary-foreground [a]:hover:bg-[var(--system-accent)]/85',
+  source: `${UI}/button.tsx`,
+  siteClasses: ['bg-[var(--system-accent)]', '[a]:hover:bg-[var(--system-accent)]/85'],
+} satisfies CopiedClasses;
+
 /** `size="default"` — 32px, what the header's download button wears. */
 export const BUTTON_SIZE_DEFAULT = {
   classes: 'h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
@@ -264,6 +282,7 @@ export const CHAT_CARD = {
  */
 export const APP_UI_GROUPS: Record<string, CopiedClasses> = {
   BUTTON_BASE,
+  BUTTON_BRAND_FILLED,
   BUTTON_FILLED,
   BUTTON_SIZE_DEFAULT,
   BUTTON_HERO_SIZE,

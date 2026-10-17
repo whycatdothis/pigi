@@ -23,9 +23,25 @@ with the transcript above it, the tree is only a dialog because the window behin
 view-mode menu only means something hanging off the toolbar button that opens it.
 
 Each window is self-contained — sidebar, toolbar, transcript, optional panel and overlay — and takes
-its state as props (`terminalOpen`, `viewModes`, `viewMenuOpen`, `overlayOpen`), so a section is a
-window plus a short paragraph. The transcripts live in `src/lib/sessions.ts`; the geometry of a window
-(the app's 800px height, the sidebar's 244px, the terminal's 280px) lives in `src/lib/appLayout.ts`.
+its state as props (`terminalOpen`, `viewModes`, `viewMenuOpen`, `overlayOpen`, `slashMenuOpen`), so
+a section is a window plus a short paragraph. The transcripts live in `src/lib/sessions.ts`; the
+geometry of a window (the app's 800px height, the sidebar's 244px, the terminal's 280px) lives in
+`src/lib/appLayout.ts`.
+
+### The accent
+
+The app ships a set of accents (`src/renderer/src/lib/themeAccents.ts`, default Indigo) and paints
+links, focus rings, the minimap's lit bar, the selected session and search highlights with whichever
+one is chosen. `BaseLayout.astro` publishes one of that same set on `<html>`, the way the app's
+`applyThemeAccent` does — both `--accent-light` and `--accent-dark`, so the page and every window on
+it follow the theme — and picks **Rose** (`SITE_ACCENT_ID` in `src/lib/site.ts`), because the icon is
+a pink pig and the page has one colour. Nothing on the page names a colour of its own; everything
+that is tinted reads `--system-accent`.
+
+The one thing that is not the app's is the download button's fill: the app's filled variant is neutral
+`bg-primary`, and this button is the page's own action rather than a control in a window, so it wears
+the accent (`BUTTON_BRAND_FILLED` in `src/lib/appUi.ts`). Every button inside a window still wears the
+app's `BUTTON_FILLED`, unchanged.
 
 A still shows its session the way the app shows one: a session taller than the viewport is at its
 newest message, so the still is clipped at the top edge by exactly what the app would be scrolled —
@@ -55,20 +71,25 @@ strip rather than letting it lie over the text.
 
 ### What is on the page
 
-Hero, then six feature sections — instant history, fork, session tree (the tree dialog and the help
-dialog it opens), view modes, session switcher, terminal — then the three things the app is built on,
-then the footer. That is the whole page: no install section, no shortcut table, no FAQ. Nothing that
-is not a feature or a claim about one.
+Hero, then seven feature sections — your pi, instant history, fork, session tree (the tree dialog and
+the help dialog it opens), view modes, session switcher, terminal — then the three things the app is
+built on, then the footer. That is the whole page: no install section, no shortcut table, no FAQ.
+Nothing that is not a feature or a claim about one.
+
+The hero is the title and the window; nothing else, no badge and no second button. The first section
+is the migration claim, because it is the question a pi user arrives with: the window there holds a
+`/` in the composer and the command menu open over it, so the skills in the list are visible as
+skills — pi's, not pigi's — and `/reload` says in the app's own words what it reads.
 
 Every section is one window, except the session tree's, which is three: the tree action on a message
 (one way in), the tree itself, and the explanation the `?` opens. All of them are the app's own window
 size — a dialog is 520px wide, not 520px tall, and a shorter window would only be a lie about how the
 app looks.
 
-The header's Download button is the same component as the hero's (`variant="compact"`), and both are
-real downloads — there is no `#install` anchor to scroll to. Two claims the page makes have no home
-here any more, so the button label carries them: it names the architecture, because the only
-published DMG is arm64 and "Download for macOS" would hand an Intel reader a file that cannot run.
+The header's Download button is the page's only one, and it is a real download — there is no
+`#install` anchor to scroll to. Two claims the page makes have no home here any more, so the button
+label carries them: it names the architecture, because the only published DMG is arm64 and "Download
+for macOS" would hand an Intel reader a file that cannot run.
 
 ## Local development
 

@@ -315,7 +315,11 @@ function check(name, passed, detail = '') {
 
 // --- download ---------------------------------------------------------------
 {
-  // Every button, because rewriting only the first one is the bug this catches.
+  /*
+   * Every button on the page, not the first one: the header carries the download
+   * now, and if a second one is ever added beside the hero a link that only
+   * rewrote one of them is the bug this catches.
+   */
   const links = await page.locator('[data-download-link]').evaluateAll((nodes) =>
     nodes.map((node) => ({
       href: node.getAttribute('href'),
@@ -326,7 +330,7 @@ function check(name, passed, detail = '') {
 
   check(
     'download: every button points at the newest DMG',
-    links.length === 2 && links.every((link) => link.href === CANDIDATE_DOWNLOAD_URL),
+    links.length > 0 && links.every((link) => link.href === CANDIDATE_DOWNLOAD_URL),
     JSON.stringify(links.map((link) => link.href)),
   );
   check(

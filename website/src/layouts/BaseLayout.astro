@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
-import { UMAMI_SCRIPT_URL, UMAMI_WEBSITE_ID } from '../lib/site';
+import { findThemeAccent } from '../../../src/renderer/src/lib/themeAccents';
+import { SITE_ACCENT_ID, UMAMI_SCRIPT_URL, UMAMI_WEBSITE_ID } from '../lib/site';
 
 interface Props {
   title: string;
@@ -9,10 +10,20 @@ interface Props {
 
 const { title, description } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
+
+/*
+ * The accent, written the way the app writes it: `applyThemeAccent` sets both
+ * `--accent-light` and `--accent-dark` on <html>, and the app's tokens map
+ * `--system-accent` to one or the other by theme. Doing the same here means the
+ * page never names a colour of its own — it picks an accent from the app's list
+ * and everything that reads `--system-accent` follows, in both themes.
+ */
+const accent = findThemeAccent(SITE_ACCENT_ID);
+const accentStyle = `--accent-light:${accent.lightOklch};--accent-dark:${accent.darkOklch}`;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" style={accentStyle}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
