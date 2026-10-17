@@ -10,7 +10,8 @@ import { FEATURE_STEPS } from '../../lib/features';
 import {
   builderTurns,
   forkTurns,
-  historyTurns,
+  switchSessionRows,
+  switchSessions,
   terminalTurns,
   treeTurns,
 } from '../../lib/sessions';
@@ -169,9 +170,31 @@ const active = 0;
           >
             <div data-stage-frame class="mx-auto w-full lg:w-[1200px]">
               <div data-stage-scaler class="origin-top-left">
-                <AppWindow title="Terminal panel resize jank">
-                  <Transcript turns={historyTurns} scroll minimap />
-                </AppWindow>
+                <!--
+                  Switching sessions is the claim, so the window switches: the three
+                  sessions it opens in turn are stacked in the same cell and one is
+                  drawn at a time (`initSessionCycle`), the sidebar's selection moving
+                  with them. Stacked rather than swapped in and out of the DOM,
+                  because every frame has to stay laid out for the minimap and the
+                  scroll position it was measured at.
+                -->
+                <div data-session-cycle class="grid min-w-0 grid-cols-[minmax(0,1fr)]">
+                  {
+                    switchSessions.map((session, index) => (
+                      <div
+                        data-session-frame
+                        data-session-index={index}
+                        data-active={index === 0 ? 'true' : 'false'}
+                        aria-hidden={index === 0 ? 'false' : 'true'}
+                        class="col-start-1 row-start-1 min-w-0 data-[active=false]:invisible data-[active=false]:opacity-0"
+                      >
+                        <AppWindow title={session.title} sessions={switchSessionRows}>
+                          <Transcript turns={session.turns} scroll minimap />
+                        </AppWindow>
+                      </div>
+                    ))
+                  }
+                </div>
               </div>
             </div>
           </div>

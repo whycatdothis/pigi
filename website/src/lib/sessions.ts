@@ -328,3 +328,64 @@ export const terminalTurns: Turn[] = [
     last: true,
   },
 ];
+
+/**
+ * One row of a window's sidebar: a session, or a fork of the one above it.
+ *
+ * The list is short on purpose. A developer's own sidebar is a column of thirty
+ * chats, but a still is read in a second, and thirty rows say nothing that three
+ * do not — the open session, the fork that came off it, and one older chat. The
+ * fork is the part that cannot be dropped: it is where the fork action's result
+ * lives, and the one row that shows the tree is a tree.
+ */
+export interface SessionRow {
+  title: string;
+  time: string;
+  /** 0 for a session, 1+ for a fork of one above it. */
+  depth?: number;
+}
+
+/** The fork the sidebar keeps under the open session. */
+export const FORK_ROW: SessionRow = { title: 'Fork from message 12', time: '3d', depth: 1 };
+
+/** An older chat, for the third row — whatever the open session is not. */
+const OLDER_ROW: SessionRow = { title: 'Terminal panel resize jank', time: '18m' };
+
+/**
+ * The rows a window shows: the session it has open, the fork made from it, and one
+ * chat from before. `now` is the app's own word for the session you are in
+ * (`formatRelativeTime`), which is what the open one always is.
+ */
+export function sidebarRows(activeTitle: string): SessionRow[] {
+  return [
+    { title: activeTitle, time: 'now' },
+    FORK_ROW,
+    activeTitle === OLDER_ROW.title ? { title: 'The transcript flickers', time: '2h' } : OLDER_ROW,
+  ];
+}
+
+/**
+ * The sessions the instant-switch still opens in turn.
+ *
+ * Switching sessions is the claim, so the still has to switch: one second each,
+ * the way the app redraws a window when a session is taken from the sidebar. All
+ * three are already on this page — the hero's session, the one the tree belongs
+ * to, and the long one the minimap is drawn for — so nothing here is a session the
+ * reader has not met.
+ */
+export const switchSessions: { title: string; turns: Turn[] }[] = [
+  { title: 'Terminal panel resize jank', turns: historyTurns },
+  { title: 'Add the chat minimap', turns: treeTurns },
+  { title: 'Fix the tree header overlap', turns: heroTurns },
+];
+
+/**
+ * The list the switch still shows, fixed while the selection moves through it —
+ * which is what switching sessions looks like. No fork row here: the row this
+ * chapter is about is the one that lights up.
+ */
+export const switchSessionRows: SessionRow[] = [
+  { title: 'Fix the tree header overlap', time: 'now' },
+  { title: 'Add the chat minimap', time: '4m' },
+  { title: 'Terminal panel resize jank', time: '18m' },
+];

@@ -270,6 +270,83 @@ async function showStep(index) {
     JSON.stringify(fitted),
   );
 
+  /*
+   * The instant-switch still has to switch: three sessions stacked in one cell,
+   * one drawn at a time, the next one a second after the last. A portrait of a
+   * single session cannot show what the chapter claims.
+   */
+  await showStep(2);
+  const cycleState = () =>
+    page.evaluate(() => {
+      const frames = [...document.querySelectorAll('[data-session-frame]')];
+      const open = frames.findIndex((frame) => frame.dataset.active === 'true');
+      const check = (frame) =>
+        [...frame.querySelectorAll('[data-sidebar-row]')]
+          .filter((row) => row.className.includes('text-foreground'))
+          .map((row) => row.dataset.sidebarRow);
+      return {
+        open,
+        openCount: frames.filter((frame) => frame.dataset.active === 'true').length,
+        title: frames[open].querySelector('[data-window-title]').dataset.windowTitle,
+        rows: frames.map((frame) =>
+          [...frame.querySelectorAll('[data-sidebar-row]')].map((row) => row.dataset.sidebarRow),
+        ),
+        selected: check(frames[open]),
+      };
+    });
+
+  // Off the still, so the pointer does not hold it.
+  await page.mouse.move(4, 4);
+  const firstCycle = await cycleState();
+  await page.waitForTimeout(1150);
+  const secondCycle = await cycleState();
+  check(
+    'switch: the still opens another session after a second',
+    firstCycle.openCount === 1 &&
+      secondCycle.openCount === 1 &&
+      secondCycle.open !== firstCycle.open,
+    JSON.stringify({ first: firstCycle.open, second: secondCycle.open }),
+  );
+  check(
+    'switch: the list stays put while the selection moves through it',
+    firstCycle.rows.length === 3 &&
+      JSON.stringify(firstCycle.rows) === JSON.stringify(secondCycle.rows) &&
+      secondCycle.selected.length === 1 &&
+      secondCycle.selected[0] === secondCycle.title,
+    JSON.stringify({ rows: secondCycle.rows, selected: secondCycle.selected }),
+  );
+
+  /*
+   * Three rows a window, one of them the fork under the session it came from.
+   */
+  const lists = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-window-fit]')].map((fit) => {
+      const rows = [...fit.querySelectorAll('[data-sidebar-row]')];
+      const marked = rows.filter((row) => row.className.includes('text-foreground'));
+      return {
+        title: fit.querySelector('[data-window-title]').dataset.windowTitle,
+        count: rows.length,
+        selected: marked.map((row) => row.dataset.sidebarRow),
+        forks: rows
+          .filter((row) => row.querySelector('[data-lineage-depth]') !== null)
+          .map((row) => row.dataset.sidebarRow),
+      };
+    }),
+  );
+  check(
+    'sidebar: every window lists three sessions, and the open one is one of them',
+    lists.length > 0 &&
+      lists.every(
+        (list) => list.count === 3 && list.selected.length === 1 && list.selected[0] === list.title,
+      ),
+    JSON.stringify(lists.map((list) => [list.title, list.count, list.selected])),
+  );
+  check(
+    'sidebar: the fork is listed under the session it came from',
+    lists.filter((list) => list.forks.length === 1).length >= lists.length - 3,
+    JSON.stringify(lists.map((list) => list.forks)),
+  );
+
   await showStep(0);
 }
 
@@ -465,7 +542,24 @@ async function showStep(index) {
 // --- minimap ----------------------------------------------------------------
 {
   await showStep(2);
-  const scope = page.locator('[data-minimap-scope]');
+  /*
+   * The window here opens a session a second, and the first one is the long
+   * session the minimap is drawn for. A reader who asked for less motion gets
+   * that one and nothing else, which is also what makes these checks measure a
+   * known list instead of whichever session happened to be open.
+   */
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForTimeout(200);
+  const openSession = await page.evaluate(() => {
+    const frames = [...document.querySelectorAll('[data-session-frame]')];
+    return frames.find((frame) => frame.dataset.active === 'true')?.dataset.sessionIndex;
+  });
+  check(
+    'minimap: the still holds the long session for a reader who asked for less motion',
+    openSession === '0',
+    `open=${openSession}`,
+  );
+  const scope = page.locator('[data-session-frame][data-active="true"] [data-minimap-scope]');
   const litIndex = () =>
     scope
       .locator('[data-minimap-bar]')
@@ -514,6 +608,7 @@ async function showStep(index) {
     scrollTop < 40,
     `scrollTop=${scrollTop}`,
   );
+  await page.emulateMedia({ reducedMotion: null });
 }
 
 // --- session tree -----------------------------------------------------------
