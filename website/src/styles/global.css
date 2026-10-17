@@ -34,7 +34,14 @@
   --brand: oklch(0.58 0.21 356);
   --brand-ink: #ffffff;
 
-  --page-background: oklch(0.984 0.003 264);
+  /*
+   * The page is the pig's pink all the way down, not a white sheet with a tint at
+   * the top: the hue is in the surface itself (a fifth of a percent of chroma at
+   * this lightness), so the foot of a long page is the same page as its head.
+   * The window stays on the app's own white, which is what keeps it reading as a
+   * surface *on* the page rather than a hole in it.
+   */
+  --page-background: oklch(0.972 0.011 356);
   --window-border: rgb(0 0 0 / 0.07);
   --window-shadow:
     0 1px 2px rgb(0 0 0 / 0.04), 0 12px 24px rgb(0 0 0 / 0.05), 0 32px 64px -16px rgb(0 0 0 / 0.1);
@@ -50,7 +57,7 @@
 .dark {
   /* The page sits *below* the window here, so it goes darker rather than lighter
      and the window's own edge does the separating. */
-  --page-background: oklch(0.112 0.003 264);
+  --page-background: oklch(0.118 0.012 356);
   --window-border: rgb(255 255 255 / 0.1);
   --window-shadow:
     0 1px 2px rgb(0 0 0 / 0.4), 0 12px 24px rgb(0 0 0 / 0.35), 0 32px 64px -16px rgb(0 0 0 / 0.5);

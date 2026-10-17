@@ -46,6 +46,12 @@ flip its ink too. Anything that has to read (the eyebrows, the lit minimap bar, 
 the focus ring) uses the accent instead: `SITE_ACCENT_LIGHT`/`SITE_ACCENT_DARK`, the same hue tuned
 per theme (4.9:1 on the page, 9.6:1 on the dark page).
 
+The page's surface is that pink too, not a white sheet with a wash at the top: `--page-background` is
+the hue at a fifth of a percent of chroma, in both themes, so the foot of a seven-screen page is the
+same page as its head. A window keeps the app's own `--background`, which is what makes it read as a
+surface _on_ the page rather than a hole in it — and the two `<meta name="theme-color">` values are
+sampled from the same pair, so the browser's chrome matches the page it frames.
+
 None of the app's eight accents is the pig's, which makes this the one colour the page names for
 itself; it is also the one thing on the page that is not the app's, together with the download
 button's fill — the app's filled variant is neutral `bg-primary`, and this button is the page's own
@@ -80,20 +86,42 @@ strip rather than letting it lie over the text.
 
 ### What is on the page
 
-Hero, then seven feature sections — your pi, instant history, fork, session tree (the tree dialog and
-the help dialog it opens), view modes, session switcher, terminal — then the three things the app is
-built on, then the footer. That is the whole page: no install section, no shortcut table, no FAQ.
-Nothing that is not a feature or a claim about one.
+Hero, then the tour — seven chapters and one window — then the three things the app is built on, then
+the footer. That is the whole page: no install section, no shortcut table, no FAQ. Nothing that is
+not a feature or a claim about one.
 
-The hero is the title and the window; nothing else, no badge and no second button. The first section
-is the migration claim, because it is the question a pi user arrives with: the window there holds a
-`/` in the composer and the command menu open over it, so the skills in the list are visible as
-skills — pi's, not pigi's — and `/reload` says in the app's own words what it reads.
+The hero is the title and the window; nothing else, no badge and no second button. The tour opens with
+the migration claim, because it is the question a pi user arrives with: the window there holds a `/`
+in the composer and the command menu open over it, so the skills in the list are visible as skills —
+pi's, not pigi's — and `/reload` says in the app's own words what it reads.
 
-Every section is one window, except the session tree's, which is three: the tree action on a message
-(one way in), the tree itself, and the explanation the `?` opens. All of them are the app's own window
-size — a dialog is 520px wide, not 520px tall, and a shorter window would only be a lie about how the
-app looks.
+The tour is the answer to what this page used to be: seven sections of _a paragraph and a picture of
+the app_. Seven of the same shape is seven times the same layout, and the seventh still only says
+what the first did — here is the app. So the window is pinned and the chapters scroll past it
+(`position: sticky`, not a captured wheel): _Your pi, unchanged_, _View modes_, _Instant session
+switch_, _Fork_, _Tree_, _Session switcher_, _Terminal_. Only what is inside the window changes, and
+the window keeps answering the pointer while it is pinned — the filter menu picks a density, a
+minimap bar jumps, the tree's `?` opens the help, a terminal tab activates — so a chapter's last line
+is an instruction rather than a caption. `initFeatureStage` only decides which chapter is current:
+the last one whose heading crossed a line at 40% of the viewport, one `data-active` write per stack,
+with the CSS fading between stills. Nothing is re-rendered and every still stays laid out, which is
+what the minimap and the transcript clip measured themselves against when the page loaded.
+
+The order is the order a pi user arrives in: first that their own pi comes through unchanged, then
+the three ways through a long session (density, jumping, forking), then the tree the tree action
+opens, then every session one line away, then the shell at the bottom of the same window.
+
+Each chapter's heading is its name — _View modes_, _Tree_ — not a sentence, and the sentence that
+used to be the headline is the paragraph's first line: a name says what a feature is, and "It is the
+pi you already have" only says it again at 30px.
+
+Below `lg` there is no room to pin a window beside the words, so the same markup falls back to what
+it was: an index row that shows one chapter over one window. `initFeatureStage` decides which
+chapters are visible by marking all seven as active where the pinned layout applies, so the CSS keys
+off one attribute at both sizes and there is no second breakpoint to keep in step.
+
+Every window is the app's own size — a dialog is 520px wide, not 520px tall, and a shorter window
+would only be a lie about how the app looks.
 
 The header's Download button is the page's only one, and it is a real download — there is no
 `#install` anchor to scroll to. Two claims the page makes have no home here any more, so the button
@@ -125,7 +153,7 @@ Both scripts drive the built `dist/` in a real browser:
 ```bash
 npm run build
 npm run shots         # writes .shots/*.png: full page and per section
-npm run verify        # asserts the interactive pieces work, and the phone-width layout (32 checks)
+npm run verify        # asserts the interactive pieces work, and the phone-width layout (40 checks)
 npm run check:drift   # asserts the copied app classes still exist in the app
 ```
 

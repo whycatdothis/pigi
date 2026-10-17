@@ -1,5 +1,4 @@
 ---
-import Icon from '../Icon.astro';
 import {
   PI_URL,
   REPO_URL,
@@ -67,15 +66,9 @@ const columns = [
       </div>
     </div>
 
-    <div
-      class="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-border/70 pt-6"
-    >
+    <div class="mt-12 border-t border-border/70 pt-6">
       <p class="text-xs text-muted-foreground">
-        &copy; {new Date().getFullYear()} pigi contributors. Licensed {LICENSE_NAME}.
-      </p>
-      <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Icon name="lock" size={13} />
-        This site sets no cookies. Traffic is counted without them.
+        &copy; {new Date().getFullYear()} whycatdothis. Licensed {LICENSE_NAME}.
       </p>
     </div>
   </div>

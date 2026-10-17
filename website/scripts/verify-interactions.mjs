@@ -66,6 +66,38 @@ function check(name, passed, detail = '') {
   results.push({ name, passed, detail });
 }
 
+/**
+ * Shows one step of the feature tour.
+ *
+ * From `lg` up the tour is driven by the scroll: the window is pinned and each
+ * chapter brings its own still, so showing a step means scrolling that chapter to
+ * the line the page reads at. Below `lg` the index is the control and showing a
+ * step means clicking its chip. Both are what a visitor does, which is the point
+ * of driving the page instead of calling into it.
+ */
+async function showStep(index) {
+  const outcome = await page.evaluate((position) => {
+    const chapter = document.querySelectorAll('[data-stage-copy]')[position];
+    const chip = document.querySelectorAll('[data-stage-chip]')[position];
+    if (!(chapter instanceof HTMLElement)) return 'missing';
+    // `checkVisibility` rather than the chip's own `display`: below `lg` the whole
+    // index row is what is hidden, so the chip itself still computes to `flex`.
+    if (!(chip instanceof HTMLElement) || !chip.checkVisibility()) {
+      document.documentElement.style.scrollBehavior = 'auto';
+      const line = window.innerHeight * 0.4;
+      window.scrollTo({
+        top: chapter.getBoundingClientRect().top + window.scrollY - line + 1,
+        behavior: 'instant',
+      });
+      return 'scrolled';
+    }
+    chip.click();
+    return 'clicked';
+  }, index);
+  if (outcome !== 'missing') await page.waitForTimeout(450);
+  return outcome !== 'missing';
+}
+
 // --- theme ------------------------------------------------------------------
 {
   await page.evaluate(() => localStorage.removeItem('theme'));
@@ -95,8 +127,91 @@ function check(name, passed, detail = '') {
   await page.emulateMedia({ colorScheme: 'light' });
 }
 
+// --- feature tour -----------------------------------------------------------
+{
+  const state = () =>
+    page.evaluate(() => ({
+      chapters: [...document.querySelectorAll('[data-stage-copy]')]
+        .map((panel, index) => [index, getComputedStyle(panel).visibility !== 'hidden'])
+        .filter(([, shown]) => shown)
+        .map(([index]) => index),
+      stills: [...document.querySelectorAll('[data-stage-layer]')]
+        .map((layer, index) => [index, layer.dataset.active, getComputedStyle(layer).visibility])
+        .filter(([, active]) => active === 'true')
+        .map(([index]) => index),
+      current: [...document.querySelectorAll('[data-stage-copy]')].findIndex(
+        (panel) => panel.dataset.current === 'true',
+      ),
+    }));
+
+  const atLoad = await state();
+  check(
+    'tour: every chapter is on the page, the first one on the window',
+    JSON.stringify(atLoad) ===
+      JSON.stringify({ chapters: [0, 1, 2, 3, 4, 5, 6], stills: [0], current: 0 }),
+    JSON.stringify(atLoad),
+  );
+
+  /*
+   * The pinned window is the whole trick, and the way it breaks is that the
+   * sticky rule stops applying — `align-self` on the grid item, or a taller
+   * sibling — and the window scrolls off with its chapters.
+   */
+  const pinned = await page.evaluate(async () => {
+    const settle = () =>
+      new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    const chapter = document.querySelectorAll('[data-stage-copy]')[2];
+    const still = document.querySelector('[data-stage-scene]');
+    document.documentElement.style.scrollBehavior = 'auto';
+    window.scrollTo({
+      top: chapter.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.4 + 1,
+    });
+    await settle();
+    const before = Math.round(still.getBoundingClientRect().top);
+    window.scrollBy(0, 240);
+    await settle();
+    return { before, after: Math.round(still.getBoundingClientRect().top) };
+  });
+  check(
+    'tour: the window stays put while its chapters scroll past',
+    pinned.before > 0 && pinned.after === pinned.before,
+    JSON.stringify(pinned),
+  );
+
+  await showStep(3);
+  const midTour = await state();
+  check(
+    'tour: the chapter at the reading line is the one on the window',
+    JSON.stringify(midTour) ===
+      JSON.stringify({ chapters: [0, 1, 2, 3, 4, 5, 6], stills: [3], current: 3 }),
+    JSON.stringify(midTour),
+  );
+
+  // The still has to fit the screen it is pinned to, not just be scaled by width.
+  const fitted = await page.evaluate(() => {
+    const frame = document.querySelectorAll('[data-stage-frame]')[3].getBoundingClientRect();
+    const header = document.querySelector('[data-site-header]').getBoundingClientRect();
+    return {
+      width: Math.round(frame.width),
+      height: Math.round(frame.height),
+      top: Math.round(frame.top),
+      bottom: Math.round(frame.bottom),
+      viewport: window.innerHeight,
+      headerBottom: Math.round(header.bottom),
+    };
+  });
+  check(
+    'tour: the whole window is on screen, clear of the header',
+    fitted.height > 300 && fitted.top >= fitted.headerBottom && fitted.bottom <= fitted.viewport,
+    JSON.stringify(fitted),
+  );
+
+  await showStep(0);
+}
+
 // --- view modes -------------------------------------------------------------
 {
+  await showStep(1);
   const root = page.locator('[data-view-modes]');
   const menu = root.locator('[data-view-mode-menu]');
 
@@ -165,8 +280,41 @@ function check(name, passed, detail = '') {
   );
 }
 
+// --- the tree's explanation -------------------------------------------------
+{
+  await showStep(4);
+  const dialog = page.locator('[data-tree-help]');
+  const closed = await dialog.getAttribute('data-state');
+  const hidden = await dialog.isVisible();
+  check(
+    'tree help: it ships closed, the way the app is until the `?` is clicked',
+    closed === 'closed' && !hidden,
+    `state=${closed} visible=${hidden}`,
+  );
+
+  // The `?` on the dialog itself: the window's own toolbar sits under the scrim the
+  // dialog puts over everything, which is what the app does too.
+  await page.locator('[data-tree-dialog] [data-tree-help-toggle]').first().click();
+  await page.waitForTimeout(300);
+  const opened = await dialog.getAttribute('data-state');
+  const visible = await dialog.isVisible();
+  check(
+    'tree help: the ? in the tree opens it',
+    opened === 'open' && visible,
+    `state=${opened} visible=${visible}`,
+  );
+
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  const escaped = await dialog.getAttribute('data-state');
+  check('tree help: escape closes it', escaped === 'closed', String(escaped));
+
+  await showStep(0);
+}
+
 // --- minimap ----------------------------------------------------------------
 {
+  await showStep(2);
   const scope = page.locator('[data-minimap-scope]');
   const litIndex = () =>
     scope
@@ -220,12 +368,16 @@ function check(name, passed, detail = '') {
 
 // --- session tree -----------------------------------------------------------
 {
+  await showStep(4);
   const tree = page.locator('[data-tree]');
   const rails = () =>
     tree
       .locator('[data-tree-rails] > span')
       .evaluateAll((spans) => spans.map((span) => span.style.height));
 
+  // Off the tree first: a pointer left on it would already be the resting state.
+  await page.mouse.move(4, 4);
+  await page.waitForTimeout(200);
   const restingRails = await rails();
 
   // The last row is on the wrong branch, so lighting it must change the lines.
@@ -259,6 +411,7 @@ function check(name, passed, detail = '') {
 
 // --- session switcher -------------------------------------------------------
 {
+  await showStep(5);
   const switcher = page.locator('[data-session-switcher]');
   const visibleRows = () => switcher.locator('[data-switcher-row]:visible').count();
 
@@ -296,6 +449,7 @@ function check(name, passed, detail = '') {
 
 // --- terminal ---------------------------------------------------------------
 {
+  await showStep(6);
   const tabs = page.locator('[data-terminal-tab]');
   await tabs.nth(1).click();
   const state = await tabs.evaluateAll((nodes) =>
@@ -425,6 +579,25 @@ function check(name, passed, detail = '') {
     'phone: no dialog leaves the window it belongs to',
     windows.every((window_) => window_.dialogsOutside === 0),
     JSON.stringify(windows.map((window_) => window_.dialogsOutside)),
+  );
+
+  // Below `lg` there is no room to pin the window beside the words: the index is
+  // the control, and it shows one chapter over one still.
+  await phone.evaluate(() => document.querySelectorAll('[data-stage-chip]')[2].click());
+  await phone.waitForTimeout(400);
+  const phoneTour = await phone.evaluate(() => ({
+    chapters: [...document.querySelectorAll('[data-stage-copy]')]
+      .map((panel, index) => [index, getComputedStyle(panel).visibility !== 'hidden'])
+      .filter(([, shown]) => shown)
+      .map(([index]) => index),
+    still: [...document.querySelectorAll('[data-stage-layer]')].findIndex(
+      (layer) => layer.dataset.active === 'true',
+    ),
+  }));
+  check(
+    'tour: on a phone the index shows one chapter over one window',
+    JSON.stringify(phoneTour) === JSON.stringify({ chapters: [2], still: 2 }),
+    JSON.stringify(phoneTour),
   );
 
   const tablet = await browser.newPage({ viewport: { width: 768, height: 900 } });

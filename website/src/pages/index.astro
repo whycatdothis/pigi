@@ -3,27 +3,14 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Icon from '../components/Icon.astro';
 import Header from '../components/site/Header.astro';
 import Footer from '../components/site/Footer.astro';
-import SectionIntro from '../components/site/SectionIntro.astro';
+import FeatureTour from '../components/site/FeatureTour.astro';
 import AppWindow from '../components/app/AppWindow.astro';
 import Transcript from '../components/demos/Transcript.astro';
-import SessionTreeDialog from '../components/demos/SessionTreeDialog.astro';
-import SessionTreeHelp from '../components/demos/SessionTreeHelp.astro';
-import ViewModes from '../components/demos/ViewModes.astro';
-import SessionSwitcher from '../components/demos/SessionSwitcher.astro';
-import TerminalPanel from '../components/demos/TerminalPanel.astro';
-import {
-  builderTurns,
-  forkTurns,
-  heroTurns,
-  historyTurns,
-  terminalTurns,
-  treeEntryTurns,
-  treeTurns,
-} from '../lib/sessions';
+import { heroTurns } from '../lib/sessions';
 
 const title = 'pigi — a sleek desktop GUI for pi';
 const description =
-  'A sleek macOS window for your pi sessions: instant history, forking, a session tree and a terminal, on the pi configuration you already have.';
+  'A sleek macOS window for your pi sessions: instant session switching, forking, a session tree and a terminal, on the pi configuration you already have.';
 
 const principles = [
   {
@@ -63,11 +50,12 @@ const principles = [
       <div class="hero-glow pointer-events-none absolute inset-x-0 top-0 h-[720px]"></div>
 
       <div class="relative mx-auto max-w-[1248px] px-6 pb-16 pt-16 md:pt-24">
-        <div class="mx-auto max-w-3xl text-center">
+        <div class="mx-auto max-w-4xl text-center">
           <h1
             class="text-[38px] font-semibold leading-[1.08] tracking-[-0.02em] text-foreground md:text-[54px]"
           >
-            A sleek GUI for pi that keeps up.
+            <span aria-hidden="true" class="mr-1 inline-block align-baseline">🐷</span> A sleek GUI for
+            pi that keeps up.
           </h1>
         </div>
 
@@ -79,215 +67,7 @@ const principles = [
       </div>
     </section>
 
-    <!-- Your pi -->
-    <section id="features" class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-[1248px] px-6">
-        <SectionIntro
-          eyebrow="Your pi, unchanged"
-          icon="settings"
-          title="It is the pi you already have."
-        >
-          <p>
-            Install pigi and open a project: the models, the skills, the extensions and the sessions
-            are the ones already on the machine, read from pi’s own configuration and session
-            directory. There is no import step and no second setup — nothing to copy over, nothing
-            to keep in sync, and your history stays where pi left it.
-          </p>
-        </SectionIntro>
-
-        <div class="mt-10">
-          <!-- A session, with a `/` in the field: the command menu, open. -->
-          <AppWindow title="Bump electron-builder" composerText="/" slashMenuOpen>
-            <Transcript turns={builderTurns} />
-          </AppWindow>
-        </div>
-        <p class="mt-3 text-center text-xs text-muted-foreground">
-          The commands are the app’s. The two under the rule are skills, and they are listed because
-          the pi on this machine has them installed.
-        </p>
-      </div>
-    </section>
-
-    <!-- Instant history -->
-    <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-[1248px] px-6">
-        <SectionIntro
-          eyebrow="Instant history"
-          icon="bolt"
-          title="A long session is not a loading screen."
-        >
-          <p>
-            Sessions open as fast as the window does — parsed in their own process, drawn as a
-            windowed list that measures a row once and remembers it.
-          </p>
-        </SectionIntro>
-
-        <div class="mt-10">
-          <AppWindow title="Terminal panel resize jank">
-            <Transcript turns={historyTurns} scroll minimap />
-          </AppWindow>
-        </div>
-        <p class="mt-3 text-center text-xs text-muted-foreground">
-          Eight turns, all in the window. Scroll it, or click a bar to jump back.
-        </p>
-      </div>
-    </section>
-
-    <!-- Fork -->
-    <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-[1248px] px-6">
-        <SectionIntro eyebrow="Fork" icon="git-fork" title="Branch off any message.">
-          <p>
-            Forking copies the conversation up to that point into a chat of its own, with the same
-            model and thinking level. The original stays where it was, and the fork is listed under
-            it. Fork before one of your own messages and it goes back in the input box to reword.
-          </p>
-        </SectionIntro>
-
-        <div class="mt-10">
-          <!-- The sidebar row this session occupies is the parent of the fork. -->
-          <AppWindow title="Keep the session tree from blanking">
-            <Transcript turns={forkTurns} />
-          </AppWindow>
-        </div>
-        <p class="mt-3 text-center text-xs text-muted-foreground">
-          Hovering a message shows what it can become. Above it in the session list: a chat forked
-          from this one.
-        </p>
-      </div>
-    </section>
-
-    <!-- Session tree -->
-    <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-[1248px] px-6">
-        <SectionIntro
-          eyebrow="Session tree"
-          icon="binary-tree-2"
-          title="Rewind without losing what you had."
-        >
-          <p>
-            Going back to an earlier message moves the session; it does not delete what it leaves
-            behind, and it does not have to summarise anything. Every branch is still in the tree,
-            and the tree explains itself.
-          </p>
-        </SectionIntro>
-
-        <div class="mt-10">
-          <!-- The way in: the tree action on a message, with the `?` in its tooltip. -->
-          <AppWindow title="Add the chat minimap">
-            <Transcript turns={treeEntryTurns} />
-          </AppWindow>
-        </div>
-        <p class="mt-3 text-center text-xs text-muted-foreground">
-          Any message whose actions carry a tree is a place the session can return to. The{' '}
-          <span class="font-mono text-[11px]">?</span> in that tooltip is the one the tree itself carries,
-          and it opens the explanation below.
-        </p>
-
-        <div class="mt-20">
-          <AppWindow title="Add the chat minimap" overlayOpen>
-            <Transcript turns={treeTurns} />
-            <SessionTreeDialog slot="overlay" />
-          </AppWindow>
-        </div>
-        <p class="mt-3 text-center text-xs text-muted-foreground">
-          The accent line is the path to where the session is now. Hover a row to see what a jump
-          would leave behind.
-        </p>
-
-        <div class="mt-20 max-w-3xl">
-          <h3 class="text-[19px] font-medium text-foreground">A time machine, and it says so</h3>
-          <p class="mt-3 text-[15px] leading-7 text-muted-foreground">
-            The <span class="font-mono text-[13px]">?</span> beside the tree's search field — or in the
-            tooltip on a message's tree action — opens the explanation: what jumping back really does,
-            what happens to the messages you leave behind, and how the next message you send becomes a
-            branch of its own. Every word of it is the app's.
-          </p>
-        </div>
-
-        <div class="mt-8">
-          <AppWindow title="Add the chat minimap" overlayOpen>
-            <Transcript turns={treeTurns} />
-            <SessionTreeHelp slot="overlay" />
-          </AppWindow>
-        </div>
-      </div>
-    </section>
-
-    <!-- View modes -->
-    <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-[1248px] px-6">
-        <SectionIntro
-          eyebrow="View modes"
-          icon="list-details"
-          title="One transcript, three densities."
-        >
-          <p>
-            Minimal shows the timer and the answer. Compact folds consecutive read-only calls into
-            one line. Show All is the native pi log, line for line.
-          </p>
-        </SectionIntro>
-
-        <div class="mt-10">
-          <AppWindow title="The transcript flickers" viewMode="minimal" viewMenuOpen>
-            <ViewModes />
-          </AppWindow>
-        </div>
-        <p class="mt-3 text-center text-xs text-muted-foreground">
-          Pick a mode from the filter menu in the toolbar — the turn is the same in all three.
-        </p>
-      </div>
-    </section>
-
-    <!-- Session switcher -->
-    <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-[1248px] px-6">
-        <SectionIntro
-          eyebrow="Session switcher"
-          icon="search"
-          title="Every session is one line away."
-        >
-          <p>
-            A field over the whole of pigi: every session, in every project, on the keyboard — Ctrl
-            + R — because the moment you want it is the moment you are already typing. Type a few
-            letters of a title you half remember, and the keys that matched are marked, so you can
-            see why a row is there.
-          </p>
-        </SectionIntro>
-
-        <div class="mt-10">
-          <AppWindow title="Add the chat minimap">
-            <Transcript turns={treeTurns} />
-            <SessionSwitcher slot="overlay" />
-          </AppWindow>
-        </div>
-        <p class="mt-3 text-center text-xs text-muted-foreground">
-          Type to filter it, ↑ and ↓ to move, Enter to take the session.
-        </p>
-      </div>
-    </section>
-
-    <!-- Terminal -->
-    <section class="border-t border-border/70 py-20 md:py-28">
-      <div class="mx-auto max-w-[1248px] px-6">
-        <SectionIntro eyebrow="Terminal" icon="terminal-2" title="A shell in the same window.">
-          <p>
-            ⌘J opens a real terminal along the bottom, already in the project the agent is working
-            in. Run the test it just broke without leaving the conversation. Tabs included.
-          </p>
-        </SectionIntro>
-
-        <div class="mt-10">
-          <AppWindow title="Fix the tree header overlap" terminalOpen>
-            <Transcript turns={terminalTurns} />
-            <TerminalPanel slot="panel" />
-          </AppWindow>
-        </div>
-        <p class="mt-3 text-center text-xs text-muted-foreground">
-          The transcript's scroll viewport ends above the panel, so nothing is ever covered by it.
-        </p>
-      </div>
-    </section>
+    <FeatureTour />
 
     <!-- What it is built on -->
     <section class="border-t border-border/70 py-20 md:py-28">

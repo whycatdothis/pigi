@@ -70,12 +70,22 @@ for (const [slug, route] of [
   await page.screenshot({ path: join(OUT_DIR, `${slug}-full-${width}.png`), fullPage: true });
 
   // Per-section shots: a full page this tall is unreadable in one image.
-  const sections = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('main > section, main > div')).map((section, index) => {
-      const rect = section.getBoundingClientRect();
-      return { index, top: Math.round(rect.top + window.scrollY), height: Math.round(rect.height) };
-    }),
-  );
+  // The page's own bands, not the `<main>` inside every recreated window: those are
+  // transcripts, and a shot of one is a shot of the app, not of a section.
+  const sections = await page.evaluate(() => {
+    const page = document.querySelector('body > main');
+    if (page === null) return [];
+    return Array.from(page.children)
+      .filter((child) => child instanceof HTMLElement)
+      .map((child, index) => {
+        const rect = child.getBoundingClientRect();
+        return {
+          index,
+          top: Math.round(rect.top + window.scrollY),
+          height: Math.round(rect.height),
+        };
+      });
+  });
   if (sections.length === 0) {
     await page.screenshot({ path: join(OUT_DIR, `${slug}-section-00.png`), fullPage: true });
   }
@@ -86,6 +96,29 @@ for (const [slug, route] of [
       fullPage: true,
       clip: { x: 0, y: section.top, width, height: Math.min(section.height, 2400) },
     });
+  }
+
+  /*
+   * The tour's window is pinned, and a sticky element is painted once in a
+   * full-page capture — at the top of its section, with the rest of the section
+   * empty. So it gets scrolled through instead: one viewport shot per chapter.
+   */
+  if (route === '/' && width >= 1024) {
+    const stops = await page.evaluate(() =>
+      [...document.querySelectorAll('[data-stage-copy]')].map((chapter) =>
+        Math.round(
+          chapter.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.4 + 1,
+        ),
+      ),
+    );
+    for (const [index, top] of stops.entries()) {
+      await page.evaluate((y) => window.scrollTo(0, y), top);
+      await page.waitForTimeout(450);
+      await page.screenshot({
+        path: join(OUT_DIR, `${slug}-tour-${String(index).padStart(2, '0')}.png`),
+      });
+    }
+    await page.evaluate(() => window.scrollTo(0, 0));
   }
 
   console.log(`${slug}: ${sections.length} sections`);

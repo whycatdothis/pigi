@@ -6,8 +6,10 @@ import Icon from '../Icon.astro';
  *
  * It has three homes in the app, and all three are on this page: to the right of
  * the tree's message count, inside the tree button's toolbar tooltip, and inside
- * the tree action's message tooltip. A still cannot open a dialog, so this is the
- * button without the click.
+ * the tree action's message tooltip. In the app it is a button that opens the
+ * explanation, so here it is a button too: `initTreeHelp` toggles the
+ * `SessionTreeHelp` dialog in the same window, and a placement that has no dialog
+ * beside it simply does nothing.
  */
 interface Props {
   class?: string;
@@ -16,13 +18,15 @@ interface Props {
 const { class: className } = Astro.props;
 ---
 
-<span
-  role="img"
+<button
+  type="button"
+  data-tree-help-toggle
   aria-label="What is the session tree?"
+  aria-expanded="false"
   class:list={[
-    'flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground',
+    'flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
     className,
   ]}
 >
   <Icon name="question-mark" size={12} />
-</span>
+</button>
