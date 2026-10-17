@@ -117,25 +117,6 @@ export const BUTTON_BRAND_FILLED = {
 } satisfies CopiedClasses;
 
 /**
- * The header button's type size: the page's, not the app's.
- *
- * Every label in the header is 13px (`text-[13px]` on the nav links). The app's
- * 15px `text-sm` made the one button in that row a size larger than the row it
- * sits in.
- */
-export const BUTTON_TEXT_HEADER = {
-  classes: 'text-[13px]',
-  source: `${UI}/button.tsx`,
-  siteClasses: ['text-[13px]'],
-} satisfies CopiedClasses;
-
-/** `size="default"` — 32px, what the header's download button wears. */
-export const BUTTON_SIZE_DEFAULT = {
-  classes: 'h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
-  source: `${UI}/button.tsx`,
-} satisfies CopiedClasses;
-
-/**
  * The hero's download button: the app's filled variant at the page's own scale.
  *
  * There is nothing in the app this tall, so the size is this page's — and it is
@@ -303,9 +284,7 @@ export const APP_UI_GROUPS: Record<string, CopiedClasses> = {
   BUTTON_BASE,
   BUTTON_BRAND_FILLED,
   BUTTON_FILLED,
-  BUTTON_SIZE_DEFAULT,
   BUTTON_HERO_SIZE,
-  BUTTON_TEXT_HEADER,
   TOOLBAR_BUTTON,
   TOOLBAR_BUTTON_ON,
   ACTION_BUTTON,

@@ -44,13 +44,12 @@ const description =
             A sleek GUI for pi
           </h1>
           <!--
-            The page's own action, under the name it is about. The header keeps a
-            compact one for a reader who has scrolled away from here; both point at
-            the same `releases/latest/download/` URL, which is always the newest
-            release's DMG — see src/lib/site.ts.
+            The page's own action, under the name it is about, and the only one on
+            the page: the URL is `releases/latest/download/`, which is always the
+            newest release's DMG — see src/lib/site.ts.
           -->
           <div class="mt-8 flex justify-center">
-            <DownloadButton variant="hero" />
+            <DownloadButton />
           </div>
         </div>
 

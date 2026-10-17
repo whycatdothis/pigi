@@ -1,56 +1,34 @@
 ---
 import Icon from '../Icon.astro';
 import { DOWNLOAD_URL, UMAMI_EVENT_DOWNLOAD } from '../../lib/site';
-import {
-  BUTTON_BASE,
-  BUTTON_BRAND_FILLED,
-  BUTTON_HERO_SIZE,
-  BUTTON_SIZE_DEFAULT,
-  BUTTON_TEXT_HEADER,
-} from '../../lib/appUi';
+import { BUTTON_BASE, BUTTON_BRAND_FILLED, BUTTON_HERO_SIZE } from '../../lib/appUi';
 
 /**
- * The download button, in the hero and in the header.
+ * The download button, under the hero's title.
  *
  * The href is GitHub's `releases/latest/download/<file>`: it resolves to the asset
  * of whichever release is newest at the moment of the click, so the button is one
  * click to the file and needs no script, no rebuild and no lookup. Why the file
  * name carries no version is explained in src/lib/site.ts.
  *
- * The shape, the size and the focus ring are the app's own Button — base,
- * `size="default"` in the header — and the hero is at the page's scale, since the
- * app has no button that tall. The type size is the row's: 15px in the hero, and
- * the header's own 13px in the header. The fill is the accent rather than the
- * app's neutral primary: this button is the page's action, not a control in a
- * window. See src/lib/appUi.ts for what is copied and from where.
+ * The shape and the focus ring are the app's own Button, and the size is the
+ * page's own scale, since the app has no button that tall. The fill is the accent
+ * rather than the app's neutral primary: this button is the page's action, not a
+ * control in a window. See src/lib/appUi.ts for what is copied and from where.
  *
  * The label says macOS, which is what the reader is choosing between here: this
  * page is the macOS app and nothing else. The DMG it downloads is arm64, so an
  * Intel Mac would get a file that cannot run; the release notes are where that is
  * said, not the one button the page is built around.
  */
-interface Props {
-  /** `hero` is the page's primary action; `compact` matches the app's `size="default"`. */
-  variant?: 'hero' | 'compact';
-  class?: string;
-}
-
-const { variant = 'hero', class: className } = Astro.props;
 ---
 
 <a
   href={DOWNLOAD_URL}
   data-download-link
   data-umami-event={UMAMI_EVENT_DOWNLOAD}
-  class:list={[
-    BUTTON_BASE.classes,
-    BUTTON_BRAND_FILLED.classes,
-    variant === 'hero'
-      ? [BUTTON_HERO_SIZE.classes]
-      : [BUTTON_SIZE_DEFAULT.classes, BUTTON_TEXT_HEADER.classes],
-    className,
-  ]}
+  class:list={[BUTTON_BASE.classes, BUTTON_BRAND_FILLED.classes, BUTTON_HERO_SIZE.classes]}
 >
-  <Icon name="download" size={variant === 'hero' ? 17 : 14} />
-  {variant === 'hero' ? 'Download for macOS' : 'Download'}
+  <Icon name="download" size={17} />
+  Download for macOS
 </a>
