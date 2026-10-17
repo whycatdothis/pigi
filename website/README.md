@@ -234,27 +234,48 @@ clone of `website/` on its own will need `npm i -D playwright` first.
 
 ## Deploying to Cloudflare Pages
 
-Connect the GitHub repository and set:
+The site is a Pages project called `pigi` on the account that owns `pigi.pink`, and it is deployed
+from this machine, not from CI:
 
-| Setting                | Value                 |
-| ---------------------- | --------------------- |
-| Production branch      | `main`                |
-| Root directory         | `website`             |
-| Build command          | `npm run build`       |
-| Build output directory | `dist`                |
-| Environment variable   | `NODE_VERSION` = `22` |
+```sh
+npx wrangler login          # once, OAuth in the browser
+npm run deploy              # build, then upload dist/ to production
+```
 
-**The root directory is not optional.** The repository's own `package.json` has a `postinstall` of
-`electron-builder install-app-deps`; a build from the repository root would try to rebuild `node-pty`
-against Electron in the Pages container and fail. Building from `website/` installs only the site's
-dependencies. `website/.node-version` pins Node for the same reason — Astro 7 needs 22.22 or newer.
+`npm run deploy` is `astro build && wrangler pages deploy dist --project-name pigi --branch main`.
+The upload is the build output itself — `dist/` is what ships, entry for entry — so what a reader
+gets is what `npm run build` just wrote, comments already stripped and all.
 
-Nothing needs a Worker or a Function. There is no server-side code, no redirect table and no `_routes.json`.
+|                   |                                                                          |
+| ----------------- | ------------------------------------------------------------------------ |
+| Project           | `pigi` (`pigi-1jh.pages.dev`; the plain `pigi.pages.dev` name was taken) |
+| Production branch | `main` — the branch label on the deployment, not a git branch            |
+| Custom domains    | `pigi.pink` and `www.pigi.pink`, both proxied CNAMEs onto the project    |
+| Canonical URL     | `site` in `astro.config.mjs` — `https://pigi.pink`                       |
+
+**Direct upload, not Git-connected.** The project was created with `wrangler pages project create`,
+which is the one-way choice Pages offers: a project created for direct upload cannot later be
+connected to a repository. If deploys should come from GitHub instead, the project has to be made
+again (Create → Pages → Connect to Git), with the domain moved over afterwards; the settings would be
+production branch `main`, root directory `website`, build command `npm run build`, output directory
+`dist`, `NODE_VERSION` = `22`.
+
+**The root directory is not optional** in that flow. The repository's own `package.json` has a
+`postinstall` of `electron-builder install-app-deps`; a build from the repository root would try to
+rebuild `node-pty` against Electron in the Pages container and fail. Building from `website/` installs
+only the site's dependencies. `website/.node-version` pins Node for the same reason — Astro 7 needs
+22.22 or newer.
+
+Nothing needs a Worker or a Function. There is no server-side code, no redirect table and no
+`_routes.json`; `public/_headers` is the whole configuration, and it only tells the browser that
+`/_astro/*` — every file named after its own contents — may be cached for a year.
 
 ### Changing the domain
 
-`site` in `astro.config.mjs` is what the canonical URL and the Open Graph tags are built from. It is
-currently `https://pigi.pages.dev`; point it at the custom domain once one is attached.
+`site` in `astro.config.mjs` is what the canonical URL, the Open Graph tags and any absolute link in
+the page are built from, so it has to be the address a reader arrives at. Move the domain in the
+Pages project, then change `site` to match and deploy again — a page that canonicalises itself to an
+address it is not served from is a page that tells search engines the wrong thing.
 
 ## Analytics
 
