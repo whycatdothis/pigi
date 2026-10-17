@@ -232,43 +232,33 @@ They import Playwright, which is a devDependency of this site like any other too
 pinned to the one the app's own browser tests use, so both share a single Chromium download.
 
 All of it runs on every push and pull request: `.github/workflows/ci.yml` has a `website` job that
-installs, runs `npm run check`, builds, and runs `npm run verify` in Chromium. The checks are also why
-`npm run deploy` starts with `check`: the one thing a deploy must not do is ship a page whose
-relationships to the app have drifted.
+installs, runs `npm run check`, builds, and runs `npm run verify` in Chromium.
 
 ## Deploying to Cloudflare Pages
 
-The site is a Pages project called `pigi` on the account that owns `pigi.pink`, and it is deployed
-from this machine, not from CI:
+The site is a Pages project called `pigi` on the account that owns `pigi.pink`, connected to
+`whycatdothis/pigi` on GitHub. A push to `main` is a deploy: Cloudflare clones the repository, runs
+the build inside `website/`, and publishes `dist/`. There is nothing to run from a laptop.
 
-```sh
-npx wrangler login          # once, OAuth in the browser
-npm run deploy              # build, then upload dist/ to production
-```
+|                  |                                                                         |
+| ---------------- | ----------------------------------------------------------------------- |
+| Build            | Triggered by a push to `main`, and by pull requests as a preview deploy |
+| Root directory   | `website` — see below                                                   |
+| Build command    | `npm run build` (the class drift check, then `astro build`)             |
+| Output directory | `dist`                                                                  |
+| Node version     | `NODE_VERSION=22`; Astro 7 needs 22.22 or newer                         |
+| Custom domains   | `pigi.pink` and `www.pigi.pink`, both proxied CNAMEs onto the project   |
+| Canonical URL    | `site` in `astro.config.mjs` — `https://pigi.pink`                      |
 
-`npm run deploy` is `astro build && wrangler pages deploy dist --project-name pigi --branch main`.
-The upload is the build output itself — `dist/` is what ships, entry for entry — so what a reader
-gets is what `npm run build` just wrote, comments already stripped and all.
+**The root directory is not optional.** The repository's own `package.json` has a `postinstall` of
+`electron-builder install-app-deps`; a build from the repository root would try to rebuild `node-pty`
+against Electron in the Pages container and fail. Building from `website/` installs only the site's
+dependencies.
 
-|                   |                                                                          |
-| ----------------- | ------------------------------------------------------------------------ |
-| Project           | `pigi` (`pigi-1jh.pages.dev`; the plain `pigi.pages.dev` name was taken) |
-| Production branch | `main` — the branch label on the deployment, not a git branch            |
-| Custom domains    | `pigi.pink` and `www.pigi.pink`, both proxied CNAMEs onto the project    |
-| Canonical URL     | `site` in `astro.config.mjs` — `https://pigi.pink`                       |
-
-**Direct upload, not Git-connected.** The project was created with `wrangler pages project create`,
-which is the one-way choice Pages offers: a project created for direct upload cannot later be
-connected to a repository. If deploys should come from GitHub instead, the project has to be made
-again (Create → Pages → Connect to Git), with the domain moved over afterwards; the settings would be
-production branch `main`, root directory `website`, build command `npm run build`, output directory
-`dist`, `NODE_VERSION` = `22`.
-
-**The root directory is not optional** in that flow. The repository's own `package.json` has a
-`postinstall` of `electron-builder install-app-deps`; a build from the repository root would try to
-rebuild `node-pty` against Electron in the Pages container and fail. Building from `website/` installs
-only the site's dependencies. `website/.node-version` pins Node for the same reason — Astro 7 needs
-22.22 or newer.
+**The build checks before it ships.** `npm run build` starts with `scripts/checkAppClassDrift.mjs`,
+which compares every class this site copied out of the app against the app's own source. The app is
+one directory up in the same clone, so a push that changes a class the site draws fails the deploy
+instead of publishing a page that claims to be the app and is not.
 
 Nothing needs a Worker or a Function. There is no server-side code, no redirect table and no
 `_routes.json`; `public/_headers` is the whole configuration, and it only tells the browser that
@@ -277,6 +267,11 @@ Nothing needs a Worker or a Function. There is no server-side code, no redirect 
 `src/pages/404.astro` is not decoration. Pages answers every unknown path with `index.html` and a 200
 when the build has no `404.html` — it assumes a project without one is a single-page app — so the
 file is what makes `/robots.txt` the text file and a mistyped address a real 404.
+
+The project was created for direct upload first, from `wrangler pages deploy`. Pages makes that a
+one-way choice — such a project cannot be connected to a repository later — so it was deleted and
+made again through "Connect to Git", with the domains moved over. If the connection ever has to be
+rebuilt, these are the settings above.
 
 ### Changing the domain
 

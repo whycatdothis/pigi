@@ -6,7 +6,7 @@
   "description": "Marketing site for pigi, deployed to Cloudflare Pages",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "node scripts/checkAppClassDrift.mjs && astro build",
     "preview": "astro preview",
     "typecheck": "astro check",
     "format": "prettier --write .",
@@ -14,8 +14,7 @@
     "check": "astro check && node scripts/checkAppClassDrift.mjs && prettier --check .",
     "check:drift": "node scripts/checkAppClassDrift.mjs",
     "shots": "node scripts/shoot.mjs",
-    "verify": "node scripts/verify-interactions.mjs",
-    "deploy": "npm run check && astro build && wrangler pages deploy dist --project-name pigi --branch main --commit-dirty=true"
+    "verify": "node scripts/verify-interactions.mjs"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.5",
@@ -27,8 +26,7 @@
     "prettier": "^3.7.4",
     "prettier-plugin-astro": "^0.14.1",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.3",
-    "wrangler": "^4.151.1"
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=22.22.0"
