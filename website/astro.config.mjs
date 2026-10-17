@@ -4,8 +4,9 @@ import tailwindcss from '@tailwindcss/vite';
 import { stripHtmlComments } from './scripts/stripHtmlComments.mjs';
 
 export default defineConfig({
-  // `site` is what the canonical URL, the Open Graph tags and the sitemap are
-  // generated from; it has to be the address a reader actually arrives at.
+  // `site` is what the canonical URL and the Open Graph tags are generated
+  // from, and what any absolute link in the page is built on; it has to be the
+  // address a reader actually arrives at.
   site: 'https://pigi.pink',
   vite: {
     /*
