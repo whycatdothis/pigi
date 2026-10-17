@@ -146,8 +146,8 @@ const COLUMN = 'mx-auto flex max-w-[860px] flex-col px-5 pb-24 pt-6';
                   entries={[{ command: 'git log --oneline -5', status: 'success' }]}
                 />
                 <ToolCard
-                  prefix="→"
-                  command="edit src/components/transcript/MessageList.tsx"
+                  prefix="edit"
+                  command="src/components/transcript/MessageList.tsx"
                   diff={editDiff}
                   duration="0.4s"
                 />
@@ -188,8 +188,8 @@ const COLUMN = 'mx-auto flex max-w-[860px] flex-col px-5 pb-24 pt-6';
               entries={[{ command: 'git log --oneline -5', status: 'success' }]}
             />
             <ToolCard
-              prefix="→"
-              command="edit src/components/transcript/MessageList.tsx"
+              prefix="edit"
+              command="src/components/transcript/MessageList.tsx"
               diff={editDiff}
               duration="0.4s"
             />
@@ -226,7 +226,8 @@ const COLUMN = 'mx-auto flex max-w-[860px] flex-col px-5 pb-24 pt-6';
               duration="0.2s"
             />
             <ToolCard
-              command="read src/components/transcript/MessageList.tsx --offset 100 --limit 60"
+              prefix="read"
+              command="src/components/transcript/MessageList.tsx --offset 100 --limit 60"
               output={[
                 '116   const estimateSize = useCallback(',
                 '125   const rowVirtualizer = useVirtualizer({',
@@ -237,7 +238,8 @@ const COLUMN = 'mx-auto flex max-w-[860px] flex-col px-5 pb-24 pt-6';
             />
             <ToolCard command="git log --oneline -5" output={gitOutput} duration="0.1s" />
             <ToolCard
-              command="read src/renderer/src/lib/layoutConstants.ts"
+              prefix="read"
+              command="src/renderer/src/lib/layoutConstants.ts"
               output={[
                 '14  export const MESSAGE_LIST_MAX_WIDTH = 860;',
                 '16  export const MESSAGE_CONTENT_MAX_WIDTH =',
@@ -246,8 +248,8 @@ const COLUMN = 'mx-auto flex max-w-[860px] flex-col px-5 pb-24 pt-6';
               duration="0.1s"
             />
             <ToolCard
-              prefix="→"
-              command="edit src/components/transcript/MessageList.tsx"
+              prefix="edit"
+              command="src/components/transcript/MessageList.tsx"
               diff={editDiff}
               duration="0.4s"
             />

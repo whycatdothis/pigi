@@ -76,20 +76,17 @@ export const builderTurns: Turn[] = [
     user: 'the release DMG has been unsigned since the electron-builder bump',
     time: '09:05',
     thinking:
-      'The signing identity is in the config, so the build is finding the config and not the keychain. The bump moved the identity lookup behind an environment flag.',
+      'Notarizing is on and signing is not, so an unsigned bundle goes out for notarization and comes back. The config names no certificate, and never did.',
     tool: {
       command: "rg -n 'identity|notarize' electron-builder.yml",
-      output: [
-        '14   identity: Developer ID Application: Earendil Inc. (7X2K4M9QLB)',
-        '22 notarize: true',
-      ],
+      output: ['39   notarize: true'],
       duration: '0.1s',
     },
     reply:
-      'The identity is still in the config; the bump resolves it from the environment now, and there is nothing exported in the release job.',
+      'The config asks for notarization and names no identity, so the certificate has to arrive from the release job. Nothing there exports one.',
   },
   {
-    user: 'pin the version that still reads the config',
+    user: 'pin the version that reads the identity from the environment',
     time: '09:12',
     tool: {
       command: 'npm view electron-builder version',
@@ -97,7 +94,7 @@ export const builderTurns: Turn[] = [
       duration: '0.4s',
     },
     reply:
-      'Pinned to 26.0.12, which reads the identity from the config again, and left the version in the release skill so the next bump checks it before tagging.',
+      'Pinned to 26.0.12, and left the version in the release skill so the next bump checks it before tagging.',
   },
   {
     user: 'is the DMG reproducible from this commit',

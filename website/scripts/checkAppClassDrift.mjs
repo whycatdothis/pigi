@@ -4,9 +4,9 @@
  * `src/lib/appUi.ts` copies shadcn class strings verbatim instead of reinventing
  * them; that is only worth doing if someone notices when the app moves on. This
  * walks every group in that file and asserts each Tailwind class still appears in
- * the app file the group names — as a whole class, matched against the source
- * with all whitespace collapsed, so a string rewrapped by Prettier or split
- * across a `cn(...)` call does not read as a change.
+ * the app file the group names — as a whole class, in a class string, so a
+ * string rewrapped by Prettier or split across a `cn(...)` call does not read as
+ * a change, and `p-1` is not satisfied by `p-1.5`.
  *
  * It is a smoke alarm, not a proof: it does not know which element in the app the
  * string belongs to, so a class that moved between two components of the same file
@@ -22,15 +22,26 @@ import { APP_UI_GROUPS } from '../src/lib/appUi.ts';
 
 const ROOT = resolve(import.meta.dirname, '..', '..');
 
-/** The app's source with whitespace collapsed, so a wrapped string still matches. */
-async function readCollapsed(path) {
-  const source = await readFile(resolve(ROOT, path), 'utf8');
-  return source.replace(/\s+/g, ' ');
-}
+/** A quoted string, of any of the three kinds a class string is written in. */
+const STRING_LITERAL = /'[^'\n]*'|"[^"\n]*"|`[^`]*`/g;
 
-/** Every class in a string, as Tailwind would read them. */
-function classesOf(value) {
-  return value.split(/\s+/).filter(Boolean);
+/**
+ * Every class in the app's source.
+ *
+ * A class is only a class inside a string: the file also contains prose, and
+ * prose contains `text-`, `gap-` and words that look like utilities. Splitting
+ * the literals rather than the whole file also keeps the check honest about
+ * boundaries — the rest of `className="mt-2 flex"` is not part of `mt-2`.
+ */
+async function readAppClasses(path) {
+  const source = await readFile(resolve(ROOT, path), 'utf8');
+  const classes = new Set();
+  for (const [literal] of source.matchAll(STRING_LITERAL)) {
+    for (const className of literal.slice(1, -1).split(/\s+/)) {
+      if (className) classes.add(className);
+    }
+  }
+  return classes;
 }
 
 const problems = [];
@@ -38,15 +49,15 @@ let checked = 0;
 
 for (const [name, group] of Object.entries(APP_UI_GROUPS)) {
   const paths = [group.source, ...(group.alsoFrom ?? [])];
-  const sources = await Promise.all(paths.map((path) => readCollapsed(path)));
+  const sources = await Promise.all(paths.map((path) => readAppClasses(path)));
   const siteClasses = new Set(group.siteClasses ?? []);
 
-  for (const className of classesOf(group.classes)) {
+  for (const className of group.classes.split(/\s+/).filter(Boolean)) {
     if (siteClasses.has(className)) continue;
     checked += 1;
-    // A class is "an app class" if it appears in any of the files the group came
-    // from; a call-site override lives in a second file, not in the same one.
-    const found = sources.some((source) => source.includes(className));
+    // A class is "an app class" if it is in one of the files the group came from;
+    // a call-site override lives in a second file, not in the same one.
+    const found = sources.some((classes) => classes.has(className));
     if (!found) problems.push(`${name}: \`${className}\` is not in ${paths.join(' or ')}`);
   }
 }
