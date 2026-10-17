@@ -24,6 +24,15 @@
  * no macOS window server here to draw one.
  */
 :root {
+  /*
+   * The pig's pink, as a surface: the download button's fill and the ink printed
+   * on it. Both themes use the same pair — the pink is light enough that dark ink
+   * reads on it whether the page is white or near-black (`--brand-ink` is 6.4:1 on
+   * `--brand`), which is why it is not one of the tokens that flips.
+   */
+  --brand: #f6729b;
+  --brand-ink: #201a1d;
+
   --page-background: oklch(0.984 0.003 264);
   --window-border: rgb(0 0 0 / 0.07);
   --window-shadow:

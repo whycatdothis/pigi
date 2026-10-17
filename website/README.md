@@ -30,18 +30,24 @@ geometry of a window (the app's 800px height, the sidebar's 244px, the terminal'
 
 ### The accent
 
-The app ships a set of accents (`src/renderer/src/lib/themeAccents.ts`, default Indigo) and paints
-links, focus rings, the minimap's lit bar, the selected session and search highlights with whichever
-one is chosen. `BaseLayout.astro` publishes one of that same set on `<html>`, the way the app's
-`applyThemeAccent` does — both `--accent-light` and `--accent-dark`, so the page and every window on
-it follow the theme — and picks **Rose** (`SITE_ACCENT_ID` in `src/lib/site.ts`), because the icon is
-a pink pig and the page has one colour. Nothing on the page names a colour of its own; everything
-that is tinted reads `--system-accent`.
+The app paints links, focus rings, the minimap's lit bar, the selected session and search highlights
+with an accent the user picks from `src/renderer/src/lib/themeAccents.ts` (eight of them, default
+Indigo), and `applyThemeAccent` publishes the choice as `--accent-light` and `--accent-dark` on
+`<html>`. `BaseLayout.astro` writes those same two properties the same way, from `src/lib/site.ts`,
+and everything that reads `--system-accent` — in a window or on the page — follows, in both themes.
 
-The one thing that is not the app's is the download button's fill: the app's filled variant is neutral
-`bg-primary`, and this button is the page's own action rather than a control in a window, so it wears
-the accent (`BUTTON_BRAND_FILLED` in `src/lib/appUi.ts`). Every button inside a window still wears the
-app's `BUTTON_FILLED`, unchanged.
+The page's colour is the pig's own pink. `BRAND_PINK` (`#f6729b`) is sampled from
+`public/icon-256.png`, so the button and the icon are the same colour; `BUTTON_BRAND_FILLED` fills
+with it and prints `BRAND_PINK_INK` on it (6.4:1). A light pink is a surface, never text — it is
+2.7:1 against white — so anything that has to read (the eyebrows, the lit minimap bar, the selected
+session, the focus ring) uses the accent instead: `SITE_ACCENT_LIGHT`/`SITE_ACCENT_DARK`, the same
+hue at the lightness text needs (4.9:1 on the page, 9.6:1 on the dark page).
+
+None of the app's eight accents is the pig's, which makes this the one colour the page names for
+itself; it is also the one thing on the page that is not the app's, together with the download
+button's fill — the app's filled variant is neutral `bg-primary`, and this button is the page's own
+action rather than a control in a window. Every button inside a window still wears the app's
+`BUTTON_FILLED`, unchanged.
 
 A still shows its session the way the app shows one: a session taller than the viewport is at its
 newest message, so the still is clipped at the top edge by exactly what the app would be scrolled —

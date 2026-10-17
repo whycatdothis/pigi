@@ -21,16 +21,27 @@ export const LICENSE_URL = `${REPO_URL}/blob/main/LICENSE`;
 export const MAC_DMG_PATTERN = /-arm64\.dmg$/;
 
 /**
- * The app accent the page is drawn with.
+ * The page's colour: the pig's own pink.
  *
- * The app ships a set of accents (`lib/themeAccents.ts`, default Indigo) and
- * paints links, focus rings, the minimap's active bar and the selected session
- * with whichever one is chosen. The page publishes one of that same set so the
- * windows it draws and the page around them are the same app, in the same
- * accent — Rose, because the icon is a pink pig and the accent is the one colour
- * the page has.
+ * `BRAND_PINK` is sampled from `public/icon-256.png` — the app icon, the colour
+ * the site is about. It is a light pink (a hair under 3:1 against white), so it is
+ * a *surface* and never text: the download button fills with it and prints
+ * `BRAND_PINK_INK` on it (6.4:1). Everything that has to read — the section
+ * eyebrows, the minimap's lit bar, the selected session, the focus ring — uses the
+ * accent instead, which is the same pink at the lightness text needs.
+ *
+ * The two accents are published the way the app publishes a chosen accent
+ * (`applyThemeAccent` writes `--accent-light` and `--accent-dark` on <html>), so
+ * the windows on the page and the page around them are tinted by the same value.
+ * The app's own accent list (`src/renderer/src/lib/themeAccents.ts`) has eight
+ * entries and none of them is the pig's; this is the one colour the page names
+ * for itself.
  */
-export const SITE_ACCENT_ID = 'rose';
+export const BRAND_PINK = '#f6729b';
+export const BRAND_PINK_INK = '#201a1d';
+/** Pink at text lightness, per theme; hue held where the icon's pink sits. */
+export const SITE_ACCENT_LIGHT = 'oklch(0.56 0.19 355)';
+export const SITE_ACCENT_DARK = 'oklch(0.78 0.13 355)';
 
 /** Umami, the only analytics on the site. Cookieless, so no consent banner. */
 export const UMAMI_SCRIPT_URL = 'https://cloud.umami.is/script.js';
