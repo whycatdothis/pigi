@@ -66,10 +66,14 @@ const initiallySelected = sessions[0].title;
       <input
         type="text"
         data-switcher-input
-        placeholder="Type freely to fuzzy search sessions"
+        role="combobox"
         aria-label="Search sessions"
+        aria-autocomplete="list"
+        aria-expanded="true"
+        aria-controls="switcher-list"
         autocomplete="off"
         spellcheck="false"
+        placeholder="Type freely to fuzzy search sessions"
         class="w-full min-w-0 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
       />
     </div>
@@ -77,15 +81,17 @@ const initiallySelected = sessions[0].title;
 
   <div
     role="listbox"
+    id="switcher-list"
     aria-label="Sessions"
     data-switcher-list
     class="no-scrollbar max-h-96 overflow-x-hidden overflow-y-auto pt-1 pb-1"
   >
     {
-      sessions.map((session) => (
+      sessions.map((session, index) => (
         <button
           type="button"
           role="option"
+          id={`switcher-option-${index}`}
           data-switcher-row
           data-title={session.title}
           data-selected={session.title === initiallySelected ? 'true' : 'false'}

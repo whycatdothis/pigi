@@ -583,6 +583,9 @@ function bindSessionTree(tree: HTMLElement, rails: HTMLElement, rows: HTMLElemen
       previewTimer = window.setTimeout(() => {
         const body = preview.querySelector<HTMLElement>('[data-tree-preview-body]');
         if (body) body.textContent = row.element.dataset.preview ?? '';
+        const time = preview.querySelector<HTMLElement>('[data-tree-preview-time]');
+        const rowTime = row.element.querySelector<HTMLElement>('[data-tree-row-time]');
+        if (time) time.textContent = rowTime?.textContent?.trim() ?? '';
         preview.style.top = `${row.element.parentElement?.offsetTop ?? 0}px`;
         preview.dataset.open = 'true';
       }, PREVIEW_OPEN_DELAY_MS);
@@ -612,8 +615,11 @@ function bindSessionTree(tree: HTMLElement, rails: HTMLElement, rows: HTMLElemen
  * the letters that matched are marked so the reader can see why a row is in the
  * list. Characters are inserted as text nodes, never as markup.
  *
- * Enter and click close the palette; the session behind it is a still, so there is
- * nothing to switch to. The demo stops where the page's recreated session stops.
+ * Enter and click take the row: the selection moves, the row says so in
+ * `data-selected` and `aria-selected`, and the input's `aria-activedescendant`
+ * points at it. That is as far as a still goes — the window behind the palette is
+ * drawn from build-time data, so there is no session to switch to — and it is the
+ * whole of what the keys were already claiming to do.
  */
 function initSessionSwitcher(): void {
   for (const root of document.querySelectorAll<HTMLElement>('[data-session-switcher]')) {
@@ -657,10 +663,19 @@ function bindSessionSwitcher(
     target.replaceChildren(fragment);
   }
 
+  /**
+   * The selection, in the two places that can read it: the row's own state, and
+   * the input the reader is typing in. `aria-selected` was set once at build time
+   * and never moved, so arrow keys lit one row and announced another.
+   */
   function selectRow(selected: HTMLElement | null): void {
     for (const row of rows) {
-      row.dataset.selected = String(row === selected);
+      const isSelected = row === selected;
+      row.dataset.selected = String(isSelected);
+      row.setAttribute('aria-selected', String(isSelected));
     }
+    if (selected?.id) input.setAttribute('aria-activedescendant', selected.id);
+    else input.removeAttribute('aria-activedescendant');
   }
 
   function applyFilter(): void {
@@ -692,11 +707,17 @@ function bindSessionSwitcher(
 
   input.addEventListener('input', applyFilter);
   input.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' || event.key === 'Enter') {
-      if (event.key === 'Escape') {
-        input.value = '';
-        applyFilter();
-      }
+    if (event.key === 'Escape') {
+      input.value = '';
+      applyFilter();
+      return;
+    }
+    if (event.key === 'Enter') {
+      // The row the input points at is the one Enter takes, which is the case
+      // where the keys work and nothing visible happens.
+      event.preventDefault();
+      const selected = rows.find((row) => !row.hidden && row.dataset.selected === 'true');
+      if (selected) root.dataset.selectedTitle = selected.dataset.title ?? '';
       return;
     }
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
@@ -710,6 +731,13 @@ function bindSessionSwitcher(
     selectRow(next);
     next.scrollIntoView({ block: 'nearest' });
   });
+
+  for (const row of rows) {
+    row.addEventListener('click', () => {
+      selectRow(row);
+      root.dataset.selectedTitle = row.dataset.title ?? '';
+    });
+  }
 
   applyFilter();
 }
@@ -1058,10 +1086,24 @@ function initTreeHelp(): void {
     if (dialog === null) continue;
     dialogs.push(dialog);
 
+    /*
+     * Opening a dialog means moving focus into it, and closing it means handing
+     * focus back to the `?` that opened it — otherwise the reader is left on the
+     * page behind a panel that has just gone, with no idea where they are.
+     */
+    const opener = { current: toggle };
+
     const set = (open: boolean): void => {
+      if ((dialog.dataset.state === 'open') === open) return;
       dialog.dataset.state = open ? 'open' : 'closed';
       for (const other of scope.querySelectorAll<HTMLElement>('[data-tree-help-toggle]')) {
         other.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      if (open) {
+        opener.current = toggle;
+        dialog.focus();
+      } else {
+        opener.current.focus();
       }
     };
 
@@ -1081,6 +1123,8 @@ function initTreeHelp(): void {
       for (const toggle of scope.querySelectorAll<HTMLElement>('[data-tree-help-toggle]')) {
         toggle.setAttribute('aria-expanded', 'false');
       }
+      // Escape is a close, and a close puts the reader back where they were.
+      scope.querySelector<HTMLElement>('[data-tree-help-toggle]')?.focus();
     }
   });
 }

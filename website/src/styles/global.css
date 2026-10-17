@@ -499,8 +499,13 @@
   white-space: normal;
 }
 
+/*
+ * Shown on hover, on keyboard focus inside the button's group, and on the
+ * `data-open` the message actions set. The group is a `div`: `:focus-visible` on
+ * it never matches, which left every tooltip invisible to the keyboard.
+ */
 .group:hover > .app-tooltip,
-.group:focus-visible > .app-tooltip,
+.group:focus-within > .app-tooltip,
 .app-tooltip[data-open='true'] {
   opacity: 1;
 }

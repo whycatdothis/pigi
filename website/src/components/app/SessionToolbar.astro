@@ -1,7 +1,6 @@
 ---
 import Icon from '../Icon.astro';
 import ViewModeMenu, { type ViewModeName } from '../demos/ViewModeMenu.astro';
-import SessionTreeHelpButton from './SessionTreeHelpButton.astro';
 import { TOOLBAR_BUTTON, TOOLBAR_BUTTON_ON, TOOLTIP_CONTENT, TOOLTIP_KBD } from '../../lib/appUi';
 
 /**
@@ -13,12 +12,15 @@ import { TOOLBAR_BUTTON, TOOLBAR_BUTTON_ON, TOOLTIP_CONTENT, TOOLTIP_KBD } from 
  * shortcuts the app puts on them (SessionToolbar.tsx), so the keys on this page
  * are the keys in the app.
  *
- * A tooltip is a **sibling** of its button, not a child of it. The tree's
- * tooltip carries the app's round `?` (`SessionTreeHelpButton`), which is a
- * button, and a `<button>` inside a `<button>` is not markup a browser accepts:
- * the parser closes the outer one at the inner tag, which dropped the `?` out of
- * the tooltip and into the toolbar — a stray icon in the header that the app
- * only ever shows while its tooltip is open.
+ * A tooltip is a **sibling** of its button, not a child of it, and here it is a
+ * label rather than a surface: the app's tree tooltip also carries the round `?`
+ * (`SessionTreeHelpButton`) in a Radix portal, which can hold a button because it
+ * is positioned over the page and takes the pointer. On this page the tooltip is
+ * a span that fades in under the pointer and never accepts one — a button inside
+ * it would be a control nobody can press, and ten of them across the windows
+ * would be ten invisible stops in the tab order. The `?` lives where it can be
+ * reached instead: in the session tree's own header (`SessionTreeDialog.astro`),
+ * which is the one place on the page where the dialog it opens is also drawn.
  */
 interface Props {
   title: string;
@@ -50,10 +52,7 @@ const { title, terminalOpen = false, viewMode = null, viewMenuOpen = false } = A
       <button type="button" aria-label="Session tree" class:list={[TOOLBAR_BUTTON.classes]}>
         <Icon name="binary-tree-2" size={15} class="scale-[1.15] [stroke-width:calc(1.5/1.15)]" />
       </button>
-      <span class:list={['app-tooltip gap-3', TOOLTIP_CONTENT.classes]}>
-        <span>Session tree</span>
-        <SessionTreeHelpButton />
-      </span>
+      <span class:list={['app-tooltip', TOOLTIP_CONTENT.classes]}>Session tree</span>
     </div>
 
     <div class="group relative">

@@ -1,6 +1,5 @@
 ---
 import Icon from '../Icon.astro';
-import SessionTreeHelpButton from './SessionTreeHelpButton.astro';
 import { ACTION_BUTTON, TOOLTIP_CONTENT } from '../../lib/appUi';
 
 /**
@@ -76,7 +75,6 @@ const lit = visible && tooltip !== undefined;
           <span class="block">{tooltip.label}</span>
           {tooltip.hint && <span class="block opacity-70">{tooltip.hint}</span>}
         </span>
-        {tooltip.help && <SessionTreeHelpButton />}
       </span>
     )
   }
