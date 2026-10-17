@@ -27,7 +27,7 @@ const isNewSession = variant === 'newSession';
 const cardStyle = `max-width:${CHAT_INPUT_MAX_WIDTH}px`;
 ---
 
-<div class="shrink-0 px-5 pb-1">
+<div class="shrink-0 px-5">
   <div class="relative mx-auto w-full" style={cardStyle}>
     <div class:list={['flex', CHAT_CARD.classes, !isNewSession && 'min-h-28']}>
       {
@@ -69,7 +69,7 @@ const cardStyle = `max-width:${CHAT_INPUT_MAX_WIDTH}px`;
   </div>
 
   <div
-    class="mx-auto flex w-full items-center justify-between gap-4 pt-1.5 text-sm text-muted-foreground"
+    class="mx-auto flex w-full items-center justify-between gap-4 bg-background px-4 pt-1.5 pb-3 text-sm text-muted-foreground"
     style={cardStyle}
   >
     <span class="flex min-w-0 items-center gap-1.5">

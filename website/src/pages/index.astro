@@ -16,7 +16,6 @@ import {
   forkTurns,
   heroTurns,
   historyTurns,
-  switcherTurns,
   terminalTurns,
   treeEntryTurns,
   treeTurns,
@@ -239,7 +238,7 @@ const principles = [
 
         <div class="mt-10">
           <AppWindow title="Add the chat minimap">
-            <Transcript turns={switcherTurns} />
+            <Transcript turns={treeTurns} />
             <SessionSwitcher slot="overlay" />
           </AppWindow>
         </div>

@@ -22,6 +22,16 @@ export {
   TERMINAL_DEFAULT_HEIGHT,
 } from '../../../src/renderer/src/lib/layoutConstants';
 
+import { MESSAGE_LIST_BOTTOM_INSET } from '../../../src/renderer/src/lib/layoutConstants';
+
+/**
+ * The air below the last message of a scrolled session, which the app builds out
+ * of two of the same number: the virtualizer's `paddingEnd` and the last row's
+ * `marginBottom`, both `MESSAGE_LIST_BOTTOM_INSET` (see MessageList.tsx). The top
+ * needs no such sum — it is `MESSAGE_LIST_TOP_INSET`, one inset and nothing else.
+ */
+export const MESSAGE_LIST_END_INSET_PX = MESSAGE_LIST_BOTTOM_INSET * 2;
+
 /**
  * The window, from `createMainWindow.ts`: 1200x800 by default, and never narrower
  * than 680 — the app has no layout below that, because below that the sidebar and

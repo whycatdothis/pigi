@@ -6,6 +6,7 @@ import ToolCard from '../app/ToolCard.astro';
 import { type MessageActionTooltip } from '../app/MessageActions.astro';
 import Minimap from './Minimap.astro';
 import {
+  MESSAGE_LIST_END_INSET_PX,
   MESSAGE_LIST_HORIZONTAL_PADDING,
   MESSAGE_LIST_MAX_WIDTH,
   MESSAGE_LIST_TOP_INSET,
@@ -56,33 +57,32 @@ function tooltipFor(turn: Turn, on: 'user' | 'assistant'): MessageActionTooltip 
 }
 
 /**
- * The last row's inset in the app is MESSAGE_LIST_BOTTOM_INSET. The extra air
- * here is the same slack a real session shows when its content is shorter than the
- * window: the app pins the list to the newest message only while it overflows.
+ * The app's own vertical insets and nothing else: MESSAGE_LIST_TOP_INSET above the
+ * first row, MESSAGE_LIST_END_INSET_PX below the last one. The column is not
+ * floated anywhere — in the app a session shorter than the window starts at the
+ * top, and a session that overflows is scrolled to its newest message, which for a
+ * still is `initTranscriptClips` moving a clipped box to its end.
  */
-const column = 'mx-auto flex w-full flex-col pb-24';
+const column = 'mx-auto flex w-full flex-col';
 const columnStyle = [
   `max-width:${MESSAGE_LIST_MAX_WIDTH}px`,
   `padding-inline:${MESSAGE_LIST_HORIZONTAL_PADDING}px`,
   `padding-top:${MESSAGE_LIST_TOP_INSET}px`,
+  `padding-bottom:${MESSAGE_LIST_END_INSET_PX}px`,
 ].join(';');
 ---
 
 <div class="relative min-h-0 flex-1" data-minimap-scope={minimap ? '' : undefined}>
   <!--
-    A still is anchored to the bottom: the app keeps a session pinned to its newest
-    message, so this is the end of one, with the input where the reader looks for
-    the feature just described. A session shorter than the window would instead
-    start at the top in the app — these stills are all shorter than their windows,
-    so the air above the first message is this page's choice, not the app's.
+    The app's scroll viewport, clipped for a still: `scroll` demos scrolling, so it
+    keeps a real scroller and the minimap beside it; a still is not something to get
+    stuck inside, so it stays hidden — and because `overflow: hidden` is still a
+    scroll container, a session that overflows can be shown at its end anyway.
   -->
   <div
-    class:list={[
-      scroll
-        ? 'no-scrollbar h-full overflow-y-auto'
-        : 'flex h-full flex-col justify-end overflow-hidden',
-    ]}
+    class:list={[scroll ? 'no-scrollbar h-full overflow-y-auto' : 'h-full overflow-hidden']}
     data-minimap-scroll={scroll ? '' : undefined}
+    data-transcript-clip={scroll ? undefined : ''}
   >
     <div class={column} style={columnStyle}>
       {

@@ -1,7 +1,7 @@
 /**
  * The page's whole client-side script.
  *
- * The page is static HTML; these are the six places where it is not. Everything
+ * The page is static HTML; these are the seven places where it is not. Everything
  * here is progressive: each initializer starts by looking for its own markup and
  * returns quietly when it is not on the page, so a component can be dropped
  * without touching this file — and if the script never loads, every one of these
@@ -71,6 +71,37 @@ function initWindowFits(): void {
 
     measure();
     new ResizeObserver(measure).observe(fit);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Transcript clips
+// ---------------------------------------------------------------------------
+
+/**
+ * Shows a still's session at its newest message.
+ *
+ * The app opens a session scrolled to the end, and stays there while it follows a
+ * reply; a session shorter than the window instead sits at the top, with its
+ * insets and the space below it. A still is not a scroller — the page must not
+ * trap the wheel — but `overflow: hidden` is still a scroll container, so setting
+ * `scrollTop` to its own height is exactly the view the app would be in, with no
+ * layout of this page's invention: no `justify-end`, no extra padding, no floating
+ * column.
+ *
+ * Re-pinned on resize because the width decides where the text wraps, and so how
+ * much of the session overflows the window.
+ */
+function initTranscriptClips(): void {
+  for (const clip of document.querySelectorAll<HTMLElement>('[data-transcript-clip]')) {
+    const column = clip.firstElementChild;
+    if (!(column instanceof HTMLElement)) continue;
+    const pin = (): void => {
+      clip.scrollTop = clip.scrollHeight;
+    };
+    pin();
+    // A scroll write cannot change the column's size, so this cannot loop.
+    new ResizeObserver(pin).observe(column);
   }
 }
 
@@ -700,6 +731,7 @@ function initTerminalTabs(): void {
 
 initThemeToggle();
 initWindowFits();
+initTranscriptClips();
 initViewModes();
 initMinimaps();
 initSessionTrees();
