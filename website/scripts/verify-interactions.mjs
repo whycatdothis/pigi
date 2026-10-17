@@ -208,6 +208,40 @@ async function showStep(index) {
     JSON.stringify(pinned),
   );
 
+  // Window on the left, words on the right: the still is read before its caption.
+  const columns = await page.evaluate(() => {
+    const rail = document.querySelector('[data-stage-rail]').getBoundingClientRect();
+    const scene = document.querySelector('[data-stage-scene]').getBoundingClientRect();
+    return { railLeft: Math.round(rail.left), sceneRight: Math.round(scene.right) };
+  });
+  check(
+    'tour: the words sit to the right of the window',
+    columns.railLeft > columns.sceneRight,
+    JSON.stringify(columns),
+  );
+
+  /*
+   * The still is the app's 1200x800 shrunk in one transform. If the scaler is
+   * left at the frame's width the app is laid out narrower and scaled anyway,
+   * which draws a window smaller than its column — the gap this catches.
+   */
+  const still = await page.evaluate(() => {
+    const frame = document.querySelector('[data-stage-frame]').getBoundingClientRect();
+    const canvas = document
+      .querySelector('[data-stage-scaler]')
+      .firstElementChild.getBoundingClientRect();
+    return {
+      frame: Math.round(frame.width),
+      canvas: Math.round(canvas.width),
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+  check(
+    'tour: the window fills the box reserved for it, and nothing scrolls sideways',
+    Math.abs(still.frame - still.canvas) <= 1 && still.overflow === 0,
+    JSON.stringify(still),
+  );
+
   await showStep(3);
   const midTour = await state();
   check(
@@ -534,6 +568,24 @@ async function showStep(index) {
     'download: the tracked event carries the resolved version and asset',
     links.every((link) => link.version === CANDIDATE_VERSION && link.asset === CANDIDATE_ASSET),
     JSON.stringify(links),
+  );
+
+  // The page's primary action sits under the title, and says which Mac it is for.
+  const hero = await page.evaluate(() => {
+    const button = document.querySelector('main > section a[data-download-link]');
+    return button === null
+      ? null
+      : {
+          label: button.textContent.replace(/\s+/g, ' ').trim(),
+          href: button.getAttribute('href'),
+        };
+  });
+  check(
+    'download: the hero carries the primary button, for Apple Silicon',
+    hero !== null &&
+      hero.label === 'Download for Apple Silicon' &&
+      hero.href === CANDIDATE_DOWNLOAD_URL,
+    JSON.stringify(hero),
   );
 }
 

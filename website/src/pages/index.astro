@@ -4,13 +4,19 @@ import Icon from '../components/Icon.astro';
 import Header from '../components/site/Header.astro';
 import Footer from '../components/site/Footer.astro';
 import FeatureTour from '../components/site/FeatureTour.astro';
+import DownloadButton from '../components/site/DownloadButton.astro';
 import AppWindow from '../components/app/AppWindow.astro';
 import Transcript from '../components/demos/Transcript.astro';
 import { heroTurns } from '../lib/sessions';
 
-const title = 'pigi — a sleek desktop GUI for pi';
+/*
+ * The title and the description carry the phrases someone types when they are
+ * looking for this: "pi agent", "pi agent GUI", "pi GUI". The name alone ranks for
+ * nothing, because "pigi" is not a search — the category is.
+ */
+const title = 'pigi — a pi agent GUI for macOS';
 const description =
-  'A sleek macOS window for your pi sessions: instant session switching, forking, a session tree and a terminal, on the pi configuration you already have.';
+  'A sleek pi GUI for macOS: a desktop window on the pi coding agent, with instant session switching, forking, a session tree and a terminal — on the pi config and sessions already on your machine.';
 
 const principles = [
   {
@@ -54,8 +60,16 @@ const principles = [
           <h1
             class="text-[38px] font-semibold leading-[1.08] tracking-[-0.02em] text-foreground md:text-[54px]"
           >
-            A sleek GUI for pi that keeps up.
+            A sleek GUI for pi
           </h1>
+          <!--
+            The page's own action, under the name it is about. The header keeps a
+            compact one for a reader who has scrolled away from here; both resolve
+            to the same DMG through `initDownload`.
+          -->
+          <div class="mt-8 flex justify-center">
+            <DownloadButton variant="hero" />
+          </div>
         </div>
 
         <div class="mt-14">

@@ -774,6 +774,8 @@ function initFeatureStage(): void {
         if (frame === null || scaler === null) return;
         frame.style.width = '';
         frame.style.height = '';
+        scaler.style.width = '';
+        scaler.style.height = '';
         scaler.style.transform = '';
       });
     };
@@ -795,8 +797,15 @@ function initFeatureStage(): void {
     frames.forEach((frame, index) => {
       const scaler = scalers[index];
       if (frame === null || scaler === null) return;
+      // The frame reserves the box the still *renders* into; the scaler is the
+      // app's own 1200x800, laid out at that size and shrunk in one transform.
+      // Leaving the scaler at the frame's width instead would lay the window out
+      // at a narrower size and then shrink that — the app would be drawn at a
+      // width it does not have, and the still would leave a gap in its column.
       frame.style.width = `${WINDOW_WIDTH_PX * scale}px`;
       frame.style.height = `${WINDOW_HEIGHT_PX * scale}px`;
+      scaler.style.width = `${WINDOW_WIDTH_PX}px`;
+      scaler.style.height = `${WINDOW_HEIGHT_PX}px`;
       scaler.style.transform = `scale(${scale})`;
     });
   };

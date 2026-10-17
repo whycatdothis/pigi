@@ -84,7 +84,7 @@ const active = 0;
     </div>
 
     <div
-      class="mt-6 grid min-w-0 gap-8 lg:mt-0 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:gap-12 lg:py-16"
+      class="mt-6 grid min-w-0 gap-8 lg:mt-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] lg:gap-14 lg:py-16"
     >
       <!--
         The words. Below `lg` all seven are in the same grid cell, so the block is
@@ -96,7 +96,7 @@ const active = 0;
         which is the right thing for it to be. `initFeatureStage` hides the six
         that are not current only where the index is the control, i.e. below `lg`.
       -->
-      <div data-stage-rail class="grid min-w-0 lg:block">
+      <div data-stage-rail class="grid min-w-0 lg:order-2 lg:block">
         {
           FEATURE_STEPS.map((step, index) => (
             <section
@@ -130,7 +130,9 @@ const active = 0;
         go past. One layer per step, all in the same cell; the active one is the
         one that is visible, and it is the only one the pointer can reach.
       -->
-      <div class="min-w-0 lg:sticky lg:top-0 lg:flex lg:h-screen lg:items-center lg:self-start">
+      <div
+        class="min-w-0 lg:order-1 lg:sticky lg:top-0 lg:flex lg:h-screen lg:items-center lg:self-start"
+      >
         <div data-stage-scene class="grid min-w-0 *:min-w-0">
           <div
             data-stage-layer
