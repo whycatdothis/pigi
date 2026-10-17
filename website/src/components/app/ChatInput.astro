@@ -1,0 +1,80 @@
+---
+import Icon from '../Icon.astro';
+import { FOLLOW_UP_PLACEHOLDER } from '../../lib/appCopy';
+import { CHAT_INPUT_MAX_WIDTH } from '../../lib/appLayout';
+import { CHAT_CARD } from '../../lib/appUi';
+
+interface Props {
+  /** What has been typed, in place of the placeholder: `/` opens the command menu. */
+  text?: string;
+  model?: string;
+  thinking?: string;
+  gitBranch?: string;
+  contextUsage?: string;
+}
+
+const {
+  text,
+  model = 'DeepSeek V4.1 Flash',
+  thinking = 'max',
+  gitBranch = 'main',
+  contextUsage = '1.2%/1000k (auto)',
+} = Astro.props;
+
+/** The app's container padding and card width: `px-5`, CHAT_INPUT_MAX_WIDTH. */
+const cardStyle = `max-width:${CHAT_INPUT_MAX_WIDTH}px`;
+---
+
+<div class="shrink-0 px-5">
+  <div class="relative mx-auto w-full" style={cardStyle}>
+    <!--
+      The command menu floats above the field, the way the app's popover does
+      (`side="top"`, `sideOffset={6}`, the field's own width). It lives here
+      because here is where the app puts it: a child of the input, not of the
+      window.
+    -->
+    <slot name="menu" />
+
+    <div class:list={['flex', CHAT_CARD.classes, 'min-h-28']}>
+      <div
+        class:list={[
+          'min-h-16 flex-initial px-4 pt-4 pb-2 text-sm leading-5',
+          text ? 'text-foreground' : 'text-muted-foreground/70',
+        ]}
+      >
+        {text ?? FOLLOW_UP_PLACEHOLDER}
+      </div>
+
+      <div class="flex min-w-0 items-center justify-between gap-2 px-2.5 pb-2.5 pt-0">
+        <div class="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden px-1">
+          <span
+            class="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground"
+          >
+            <Icon name="plus" size={16} />
+          </span>
+        </div>
+        <div class="flex shrink-0 items-baseline gap-1.5 pl-2">
+          <span class="text-sm text-foreground">{model}</span>
+          <span class="text-xs text-muted-foreground">{thinking}</span>
+          <Icon name="chevron-down" size={14} class="shrink-0 self-center text-muted-foreground" />
+        </div>
+        <span
+          class="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted-foreground text-background"
+        >
+          <Icon name="arrow-up" size={16} />
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div
+    class="mx-auto flex w-full items-center justify-between gap-4 bg-background px-4 pt-1.5 pb-3 text-sm text-muted-foreground"
+    style={cardStyle}
+  >
+    <span class="flex min-w-0 items-center gap-1.5">
+      <Icon name="git-branch" size={16} class="shrink-0" />
+      <span class="truncate">{gitBranch}</span>
+    </span>
+    <span class="shrink-0 tabular-nums">{contextUsage}</span>
+  </div>
+</div>

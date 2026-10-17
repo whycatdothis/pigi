@@ -1,0 +1,65 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/site/Header.astro';
+import Footer from '../components/site/Footer.astro';
+import Icon from '../components/Icon.astro';
+import { RELEASES_URL } from '../lib/site';
+
+const title = 'Changelog — pigi';
+const description =
+  'Every change to pigi, newest first. The same file the GitHub release notes are written from.';
+
+/**
+ * The collection holds exactly the one file, so it is taken rather than looked up
+ * by id — the id comes from slugifying the filename, and nothing here should
+ * depend on what that slug turns out to be.
+ */
+const [entry] = await getCollection('changelog');
+if (!entry) {
+  throw new Error(
+    'CHANGELOG.md was not found above the site directory. It is read at build time from the repository root.',
+  );
+}
+const { Content } = await render(entry);
+---
+
+<BaseLayout title={title} description={description}>
+  <Header />
+
+  <main class="mx-auto max-w-3xl px-6 py-16 md:py-20">
+    <a
+      href="/"
+      class="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <Icon name="arrow-right" size={14} class="rotate-180" />
+      pigi
+    </a>
+
+    <h1 class="mt-6 text-[32px] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+      Changelog
+    </h1>
+    <p class="mt-3 text-[15px] leading-7 text-muted-foreground">
+      Everything that changed, newest first — written by hand for each release, never generated from
+      commit messages.
+    </p>
+
+    <div class="mt-10 border-t border-border/70 pt-8">
+      {
+        /* The app's own markdown typography, so the changelog reads exactly like an
+          assistant message does inside pigi. */
+      }
+      <div class="changelog-body">
+        <div class="markdown-body text-[15px] text-foreground">
+          <Content />
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-12 flex flex-wrap gap-4 border-t border-border/70 pt-6 text-[13px]">
+      <a href={RELEASES_URL} class="copy-link">Download an older version</a>
+    </div>
+  </main>
+
+  <Footer />
+</BaseLayout>

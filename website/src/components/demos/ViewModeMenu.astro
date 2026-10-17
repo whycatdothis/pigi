@@ -1,0 +1,96 @@
+---
+import Icon from '../Icon.astro';
+import { MENU_CONTENT, MENU_ITEM } from '../../lib/appUi';
+
+/**
+ * The view-mode menu, open.
+ *
+ * This is a dropdown off the toolbar's filter button, not a segmented control —
+ * the app's SessionToolbar opens a `DropdownMenu` with three radio items and
+ * checks the active one inline after its label. Same items, same order, same
+ * checked treatment, and the classes are the app's: the content carries the
+ * `w-fit min-w-0 bg-popover/50 backdrop-blur-md` the toolbar adds to
+ * `DropdownMenuContent`, and each item carries `viewModeItemClassName`, which is
+ * what paints the checked row with the system accent.
+ *
+ * The descriptions are the app's own tooltips for each item, on `title` rather
+ * than a floating card.
+ *
+ * The values are the app's three modes under DOM-friendly names: the store calls
+ * them `minimal`, `compact_read` and `default`, and these are `minimal`,
+ * `compact` and `all`. Tailwind reads an underscore in an arbitrary variant as a
+ * space, so `data-[active=compact_read]` would compile to a selector matching
+ * neither — the mode names do not need to reach the DOM intact.
+ */
+export type ViewModeName = 'minimal' | 'compact' | 'all';
+
+interface Props {
+  open?: boolean;
+  /** Which item is checked; the window behind the menu is drawing this one. */
+  active: ViewModeName;
+}
+
+const { open = false, active } = Astro.props;
+
+const modes: { id: ViewModeName; label: string; description: string }[] = [
+  {
+    id: 'minimal',
+    label: 'Minimal',
+    description: 'Minimal activity view: working timer, tool cards, final summary',
+  },
+  {
+    id: 'compact',
+    label: 'Compact',
+    description: 'Collapse consecutive read-only tool calls into a single group',
+  },
+  {
+    id: 'all',
+    label: 'Show All',
+    description: 'Display every tool call as an individual expanded block',
+  },
+];
+---
+
+<div
+  data-view-mode-menu
+  data-open={String(open)}
+  role="menu"
+  aria-label="View mode"
+  class:list={[
+    'absolute right-0 top-[calc(100%+6px)] hidden flex-col gap-1 data-[open=true]:flex',
+    MENU_CONTENT.classes,
+  ]}
+>
+  {
+    modes.map((mode) => (
+      <button
+        type="button"
+        role="menuitemradio"
+        aria-checked={mode.id === active ? 'true' : 'false'}
+        data-view-mode-button={mode.id}
+        data-state={mode.id === active ? 'checked' : 'unchecked'}
+        title={mode.description}
+        class:list={['group/mode text-left whitespace-nowrap', MENU_ITEM.classes]}
+      >
+        {mode.label}
+        {/*
+          Every item carries the check and the checked state shows it, rather than
+          the check existing only on the item that shipped active: this is a still
+          of a menu that a visitor can click, and an icon that is only in the
+          markup of one row cannot follow the click to another.
+
+          `invisible` rather than `hidden`: the window opens the next density on a
+          timer, and a check that took its own space with it changed the menu's
+          width — the longest label is the one that is checked least often — and
+          shifted every label with it, twice a cycle. The app never shows two states
+          in a row, so it can let each item size itself; a still that moves cannot.
+        */}
+        <Icon
+          name="check"
+          size={14}
+          class="invisible shrink-0 group-data-[state=checked]/mode:visible"
+        />
+      </button>
+    ))
+  }
+</div>

@@ -1,0 +1,516 @@
+@import 'tailwindcss';
+
+/*
+ * The app's tokens, imported rather than copied.
+ *
+ * `src/shared/designTokens.css` is the app's own `@theme inline` / `:root` /
+ * `.dark`; the app's `assets/main.css` imports the same file, so a colour, a
+ * radius or a type scale changed there changes on this page too. The terminal's
+ * palette lives beside the terminal it belongs to, and is imported from there for
+ * the same reason.
+ *
+ * Nothing below this point may redefine one of those tokens: the site keeps its
+ * own handful in `:root` and `.dark` further down, and they are all named for the
+ * page rather than the app (`--page-*`, `--window-*`).
+ */
+@import '../../../src/shared/designTokens.css';
+@import '../../../src/renderer/src/components/terminal/terminalTheme.css';
+
+/*
+ * Site-only tokens.
+ *
+ * The page is a shade off the app's white so the window recreated on it reads as
+ * its own surface, and the window carries a border and a shadow because there is
+ * no macOS window server here to draw one.
+ */
+:root {
+  /*
+   * The pig's pink, as a surface: the download button's fill and the ink printed
+   * on it. The icon's own `#f6729b` is a 2.7:1 pink and cannot carry white text, so
+   * the fill is that hue at the lightness white needs (4.8:1). Both themes use the
+   * same pair — a fill that flipped with the theme would have to flip its ink too,
+   * and the button is the page's one constant colour.
+   */
+  --brand: oklch(0.58 0.21 356);
+  --brand-ink: #ffffff;
+
+  /*
+   * The page is the pig's pink all the way down, not a white sheet with a tint at
+   * the top: the hue is in the surface itself (a fifth of a percent of chroma at
+   * this lightness), so the foot of a long page is the same page as its head.
+   * The window stays on the app's own white, which is what keeps it reading as a
+   * surface *on* the page rather than a hole in it.
+   */
+  --page-background: oklch(0.972 0.011 356);
+  --window-border: rgb(0 0 0 / 0.07);
+  --window-shadow:
+    0 1px 2px rgb(0 0 0 / 0.04), 0 12px 24px rgb(0 0 0 / 0.05), 0 32px 64px -16px rgb(0 0 0 / 0.1);
+}
+
+/*
+ * Dark mode.
+ *
+ * The app's themeProvider puts `.dark` on <html>; the script in BaseLayout.astro
+ * does the same here, which is why every recreation on this page flips with the
+ * theme without knowing the theme exists.
+ */
+.dark {
+  /*
+   * The page is the pig's pink here too, and it has to carry it: at night a hue
+   * this dark drowns in the surface, and a page that differed from black by a
+   * fifth of a percent of chroma read as no colour at all. Three percent is
+   * burgundy rather than a tint — the same hue the button is, at the lightness a
+   * page can live at — and the wash over it (below) is where the colour is
+   * actually seen.
+   */
+  --page-background: oklch(0.155 0.03 356);
+  --window-border: rgb(255 255 255 / 0.1);
+  --window-shadow:
+    0 1px 2px rgb(0 0 0 / 0.4), 0 12px 24px rgb(0 0 0 / 0.35), 0 32px 64px -16px rgb(0 0 0 / 0.5);
+}
+
+@layer base {
+  /*
+   * Every `border` utility without a colour of its own is the theme's border
+   * colour, not `currentColor`.
+   *
+   * Tailwind v4 changed that default, and the app resets it here; without the
+   * same line a `border` on this page comes out as dark as the text next to it,
+   * which is what the composer's edge did. `outline-ring/50` comes with it, and
+   * the `:focus-visible` rule below still wins for anything reachable by tab,
+   * since a pseudo-class beats `*`.
+   */
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    background: var(--page-background);
+    color: var(--foreground);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Icons are Tabler glyphs, which ship a 2px stroke. The app dials them down to
+     1.5 in its stylesheet; the ported UI here has to match. */
+  .tabler-icon {
+    stroke-width: 1.5;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--system-accent) 22%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--system-accent);
+    outline-offset: 2px;
+  }
+
+  /* The mouse does not need a ring; the keyboard does. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+@layer components {
+  /* Ported from the app's main.css: the markdown typographic system the
+     assistant's replies are rendered with. */
+  .markdown-body {
+    --markdown-block-spacing: 0.875rem;
+    --markdown-item-spacing: 0.1875rem;
+    width: 100%;
+    min-width: 0;
+    overflow-wrap: break-word;
+    line-height: 1.5;
+  }
+
+  .markdown-body > :first-child {
+    margin-top: 0;
+  }
+
+  .markdown-body > :last-child {
+    margin-bottom: 0;
+  }
+
+  .markdown-body p {
+    margin-bottom: var(--markdown-block-spacing);
+  }
+
+  .markdown-body h1 {
+    margin: 2rem 0 0.75rem;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 2rem;
+  }
+
+  .markdown-body h2 {
+    margin: 1.75rem 0 0.625rem;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.75rem;
+  }
+
+  .markdown-body h3 {
+    margin: 1.25rem 0 0.5rem;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.5rem;
+  }
+
+  .markdown-body ul,
+  .markdown-body ol {
+    margin-bottom: var(--markdown-block-spacing);
+    padding-left: 1.25rem;
+  }
+
+  .markdown-body ul {
+    list-style: disc;
+  }
+
+  .markdown-body ol {
+    list-style: decimal;
+  }
+
+  .markdown-body li {
+    padding-left: 0.25rem;
+  }
+
+  .markdown-body li + li {
+    margin-top: var(--markdown-item-spacing);
+  }
+
+  .markdown-body li > p {
+    margin-bottom: var(--markdown-item-spacing);
+  }
+
+  .markdown-body li > p:last-child {
+    margin-bottom: 0;
+  }
+
+  .markdown-body blockquote {
+    margin-bottom: var(--markdown-block-spacing);
+    border-left: 2px solid var(--border);
+    padding-left: 0.75rem;
+    color: var(--muted-foreground);
+  }
+
+  .markdown-body hr {
+    margin: 1.5rem 0;
+    border-color: var(--border);
+  }
+
+  .markdown-body pre {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: none;
+    border-radius: calc(var(--radius) * 0.8);
+    background: var(--muted);
+    padding: 10px 14px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--foreground);
+  }
+
+  .markdown-body code {
+    border-radius: 0.25rem;
+    background: var(--muted);
+    padding: 2px 4px;
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  .markdown-body pre code {
+    background: transparent;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  .markdown-body strong {
+    font-weight: 600;
+  }
+
+  .markdown-body a {
+    color: var(--system-accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .markdown-body table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) * 0.8);
+    text-align: left;
+    font-size: 14px;
+    margin-bottom: var(--markdown-block-spacing);
+  }
+
+  .markdown-body th,
+  .markdown-body td {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 10px;
+  }
+
+  .markdown-body th {
+    background: color-mix(in srgb, var(--muted) 60%, transparent);
+    font-weight: 500;
+  }
+
+  .markdown-body th:last-child,
+  .markdown-body td:last-child {
+    border-right: 0;
+  }
+
+  .markdown-body tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .markdown-body :not(pre) > code + code {
+    margin-left: 2px;
+  }
+}
+
+@theme {
+  --font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* The app's tail-anchored fade (`overflowClamp.tsx`: `TOP_FADE_MASK`), 16px of
+   matte where the clamped content was cut. */
+@utility content-fade-top {
+  mask-image: linear-gradient(to bottom, transparent, black 16px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 16px);
+}
+
+/*
+ * The session tree's rows.
+ *
+ * A row's highlight depends on two things at once — whether it is the row the
+ * session is on, and whether the pointer is over it — and the second only
+ * applies when the first is false. That is a two-selector rule; written as
+ * Tailwind variants it would be a pile of stacked group modifiers.
+ */
+.tree-row-highlight {
+  transition: background-color 120ms ease;
+}
+
+.tree-row[data-current='true'] .tree-row-highlight {
+  background-color: color-mix(in srgb, var(--system-accent) 10%, transparent);
+}
+
+.tree-row[data-current='true']:hover .tree-row-highlight {
+  background-color: color-mix(in srgb, var(--system-accent) 15%, transparent);
+}
+
+.tree-row:not([data-current='true']):hover .tree-row-highlight {
+  background-color: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+/* The chip is the position's label, so only the position wears it. */
+.tree-row-chip {
+  display: none;
+}
+
+.tree-row[data-current='true'] .tree-row-chip {
+  display: inline-flex;
+}
+
+/* Rows that match the session filter sit on a tint, the way the app marks them. */
+/* The macOS traffic lights, off by one pixel the way the system draws them. */
+.traffic-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.12);
+}
+
+/*
+ * The changelog page.
+ *
+ * The source is the repository's own CHANGELOG.md, so its shape is the release
+ * note's shape: an `# Changelog` title the page already has, then one `## version
+ * - date` section per release. The title is dropped here rather than in a copy of
+ * the file — editing the markdown to suit one renderer would put the page and the
+ * release notes out of step.
+ */
+.changelog-body .markdown-body h1 {
+  display: none;
+}
+
+.changelog-body .markdown-body h2 {
+  margin: 2.5rem 0 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 2rem;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.changelog-body .markdown-body h2:first-of-type {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 0;
+}
+
+.changelog-body .markdown-body h3 {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+/*
+ * The hero's backdrop: a grid, and a wash of the app's own accent, both fading
+ * out before they reach the window. Two flat background-images and a mask — no
+ * canvas, no animated gradient, nothing that runs after the first paint.
+ */
+.hero-grid {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--foreground) 4%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--foreground) 4%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 56px 56px;
+  mask-image: radial-gradient(70% 60% at 50% 0%, black, transparent);
+  -webkit-mask-image: radial-gradient(70% 60% at 50% 0%, black, transparent);
+}
+
+.hero-glow {
+  background-image: radial-gradient(
+    60% 55% at 50% 0%,
+    color-mix(in oklab, var(--system-accent) 13%, transparent),
+    transparent 72%
+  );
+}
+
+/*
+ * Dark mode gets its colour from light rather than from paint: the same radial,
+ * stronger and wider, because a 13% wash over a white page is a tint and over a
+ * near-black one is nothing. The grid's hairlines carry the hue too — on white a
+ * neutral rule is a whisper, but on black it is the only structure on the page.
+ */
+.dark .hero-glow {
+  background-image: radial-gradient(
+    72% 62% at 50% 0%,
+    color-mix(in oklab, var(--system-accent) 26%, transparent),
+    transparent 70%
+  );
+}
+
+.dark .hero-grid {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--system-accent) 16%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--system-accent) 16%, transparent) 1px,
+      transparent 1px
+    );
+}
+
+/* Inline links in body copy: the underline is the affordance, not the colour. */
+.copy-link {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--border);
+  transition: text-decoration-color 120ms ease;
+}
+
+.copy-link:hover {
+  text-decoration-color: var(--foreground);
+}
+
+/*
+ * Where a toolbar's tooltip sits, and how long it takes to appear.
+ *
+ * The surface itself — radius, padding, hairline ring, the 12px type — is the
+ * app's `ui/tooltip.tsx`, applied in the markup from `src/lib/appUi.ts`. What is
+ * left here is the part the app gets from Radix: 6px below the button (its
+ * `sideOffset`), centred on it, and opened after a hover that lasts — Radix's
+ * 400ms delay, give or take the fade.
+ */
+.app-tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  z-index: 40;
+  width: max-content;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease 350ms;
+}
+
+/*
+ * The same label, hung off the right edge instead of centred.
+ *
+ * A message's actions sit against the right edge of the transcript, so a centred
+ * label would leave the window. The app's message tooltip carries
+ * `collisionPadding={8}` and Radix shifts it to fit; this is the shifted result,
+ * written down because a still has no pointer to shift for it.
+ */
+.app-tooltip-end {
+  left: auto;
+  right: 0;
+  transform: none;
+  white-space: normal;
+}
+
+/*
+ * Shown on hover, on keyboard focus inside the button's group, and on the
+ * `data-open` the message actions set. The group is a `div`: `:focus-visible` on
+ * it never matches, which left every tooltip invisible to the keyboard.
+ */
+.group:hover > .app-tooltip,
+.group:focus-within > .app-tooltip,
+.app-tooltip[data-open='true'] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

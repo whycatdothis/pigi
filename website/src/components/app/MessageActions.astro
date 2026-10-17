@@ -1,0 +1,81 @@
+---
+import Icon from '../Icon.astro';
+import { ACTION_BUTTON, TOOLTIP_CONTENT } from '../../lib/appUi';
+
+/**
+ * The label a message's actions carry in the app: one tooltip, anchored to the
+ * group of icons, following the pointer from icon to icon.
+ *
+ * `action` is which icon is under the pointer, because that decides two things the
+ * app decides the same way — which icon is lit, and which words are in the tooltip.
+ * A user message's tree action carries the extra line about the input box, and the
+ * tree action is the only one with the `?` in its tooltip (`messageBubbles.tsx`).
+ */
+export interface MessageActionTooltip {
+  action: 'tree' | 'fork';
+  label: string;
+  hint?: string;
+  /** The tree action's tooltip carries the round `?` as well. */
+  help?: boolean;
+}
+
+interface Props {
+  /** `full` is what the app shows on an assistant or user message; `copy` is what
+   *  a tool card gets. */
+  kind?: 'full' | 'copy';
+  time?: string;
+  /** Keep the actions visible, for a still standing in for a hover. */
+  visible?: boolean;
+  /** The label the app would be showing for the action under the pointer. */
+  tooltip?: MessageActionTooltip;
+}
+
+const { kind = 'full', time, visible = false, tooltip } = Astro.props;
+
+const button = ACTION_BUTTON.classes;
+const lit = visible && tooltip !== undefined;
+---
+
+<!-- Hidden until the message is hovered, exactly as the app reveals it. -->
+<div
+  class:list={[
+    'group/actions relative flex items-center justify-end gap-1 transition-opacity',
+    visible ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+  ]}
+>
+  <span class="flex items-center gap-1 pt-0.5">
+    <span class:list={[button]}>
+      <Icon name="copy" size={15} />
+    </span>
+    {
+      kind === 'full' && (
+        <>
+          <span
+            class:list={[button, lit && tooltip.action === 'tree' && 'bg-muted text-foreground']}
+          >
+            <Icon name="binary-tree-2" size={15} class="scale-[1.15]" stroke={1.3} />
+          </span>
+          <span
+            class:list={[button, lit && tooltip.action === 'fork' && 'bg-muted text-foreground']}
+          >
+            <Icon name="arrow-fork" size={15} class="rotate-90" />
+          </span>
+        </>
+      )
+    }
+  </span>
+  {time && <span class="text-xs text-muted-foreground tabular-nums">{time}</span>}
+  {
+    tooltip && (
+      <span
+        class:list={['app-tooltip app-tooltip-end gap-3', TOOLTIP_CONTENT.classes]}
+        data-open={visible ? 'true' : undefined}
+      >
+        <span class="flex flex-col items-start gap-0.5">
+          <span class="block">{tooltip.label}</span>
+          {tooltip.hint && <span class="block opacity-70">{tooltip.hint}</span>}
+        </span>
+      </span>
+    )
+  }
+</div>

@@ -1,0 +1,149 @@
+---
+import UserMessage from '../app/UserMessage.astro';
+import AssistantMessage from '../app/AssistantMessage.astro';
+import ThinkingBlock from '../app/ThinkingBlock.astro';
+import ToolCard, { type DiffLine } from '../app/ToolCard.astro';
+import { type MessageActionTooltip } from '../app/MessageActions.astro';
+import Minimap from './Minimap.astro';
+import {
+  MESSAGE_LIST_END_INSET_PX,
+  MESSAGE_LIST_HORIZONTAL_PADDING,
+  MESSAGE_LIST_MAX_WIDTH,
+  MESSAGE_LIST_TOP_INSET,
+} from '../../lib/appLayout';
+
+export interface Turn {
+  user: string;
+  time: string;
+  /**
+   * The actions a message shows on hover, left visible, and which message of the
+   * turn is carrying them — the app offers them on both. `MessageActionTooltip`
+   * holds the app's own label for the action under the pointer.
+   */
+  actionTooltip?: MessageActionTooltip & { on: 'user' | 'assistant' };
+  thinking?: string;
+  /**
+   * One tool call. `prefix` is the app's own naming: `$` for bash, the tool's
+   * name for everything else (`read`, `edit`, `write`), with the path or command
+   * as the body — never `$ read`.
+   */
+  tool?: {
+    command: string;
+    prefix?: string;
+    output?: string[];
+    diff?: DiffLine[];
+    duration: string;
+  };
+  reply?: string;
+  /** The last reply of a session carries its time; the ones above do not. */
+  last?: boolean;
+}
+
+interface Props {
+  turns: Turn[];
+  /** Whether the transcript is the thing being demonstrated, so it scrolls. */
+  scroll?: boolean;
+  /** The strip of bars on the right — the app's own minimap. */
+  minimap?: boolean;
+}
+
+/**
+ * A transcript, laid out the way the app lays one out.
+ *
+ * The metrics are the app's: a centred column of MESSAGE_LIST_MAX_WIDTH with
+ * MESSAGE_LIST_HORIZONTAL_PADDING of inline padding inside it, a
+ * MESSAGE_LIST_TOP_INSET inset at the top, and one gap step between stacked
+ * blocks. All three come from the app's layoutConstants, not from here.
+ *
+ * `scroll` is the difference between a still and a demo. A still is clipped by the
+ * window, which is what a reader expects of a picture; the instant-history section
+ * is about scrolling an old session, so there the transcript is a real scroll
+ * container with a real minimap beside it.
+ */
+const { turns, scroll = false, minimap = false } = Astro.props;
+
+/** The tooltip to keep visible, when this turn is the one carrying a hover. */
+function tooltipFor(turn: Turn, on: 'user' | 'assistant'): MessageActionTooltip | undefined {
+  return turn.actionTooltip?.on === on ? turn.actionTooltip : undefined;
+}
+
+/**
+ * The app's own vertical insets and nothing else: MESSAGE_LIST_TOP_INSET above the
+ * first row, MESSAGE_LIST_END_INSET_PX below the last one. The column is not
+ * floated anywhere — in the app a session shorter than the window starts at the
+ * top, and a session that overflows is scrolled to its newest message, which for a
+ * still is `initTranscriptClips` moving a clipped box to its end.
+ */
+const column = 'mx-auto flex w-full flex-col';
+const columnStyle = [
+  `max-width:${MESSAGE_LIST_MAX_WIDTH}px`,
+  `padding-inline:${MESSAGE_LIST_HORIZONTAL_PADDING}px`,
+  `padding-top:${MESSAGE_LIST_TOP_INSET}px`,
+  `padding-bottom:${MESSAGE_LIST_END_INSET_PX}px`,
+].join(';');
+---
+
+<div class="relative min-h-0 flex-1" data-minimap-scope={minimap ? '' : undefined}>
+  <!--
+    The app's scroll viewport, clipped for a still: `scroll` demos scrolling, so it
+    keeps a real scroller and the minimap beside it; a still is not something to get
+    stuck inside, so it stays hidden — and because `overflow: hidden` is still a
+    scroll container, a session that overflows can be shown at its end anyway.
+  -->
+  <div
+    class:list={[scroll ? 'no-scrollbar h-full overflow-y-auto' : 'h-full overflow-hidden']}
+    data-minimap-scroll={scroll ? '' : undefined}
+    data-transcript-clip={scroll ? undefined : ''}
+  >
+    <div class={column} style={columnStyle}>
+      {
+        turns.map((turn, index) => (
+          <div data-message-index={index}>
+            <UserMessage
+              time={turn.time}
+              actions={tooltipFor(turn, 'user') ? 'full' : false}
+              showActions={tooltipFor(turn, 'user') !== undefined}
+              actionTooltip={tooltipFor(turn, 'user')}
+            >
+              {turn.user}
+            </UserMessage>
+
+            <div class="flex flex-col gap-2 pt-2">
+              {turn.thinking && <ThinkingBlock duration="2s">{turn.thinking}</ThinkingBlock>}
+              {turn.tool && (
+                <ToolCard
+                  prefix={turn.tool.prefix}
+                  command={turn.tool.command}
+                  output={turn.tool.output}
+                  diff={turn.tool.diff}
+                  duration={turn.tool.duration}
+                />
+              )}
+            </div>
+
+            {turn.reply && (
+              <div class="mt-2">
+                <AssistantMessage
+                  time={turn.last ? turn.time : undefined}
+                  showActions={tooltipFor(turn, 'assistant') !== undefined}
+                  actionTooltip={tooltipFor(turn, 'assistant')}
+                >
+                  <p>{turn.reply}</p>
+                </AssistantMessage>
+              </div>
+            )}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+
+  {
+    minimap && (
+      <Minimap
+        messages={turns.map((turn) => ({ text: turn.user, time: turn.time }))}
+        activeIndex={turns.length - 1}
+      />
+    )
+  }
+</div>

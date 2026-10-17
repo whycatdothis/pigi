@@ -1,0 +1,15 @@
+---
+import { renderIcon, type IconName } from '../lib/icons';
+
+interface Props {
+  name: IconName;
+  size?: number;
+  stroke?: number;
+  class?: string;
+  label?: string;
+}
+
+const { name, size, stroke, class: className, label } = Astro.props;
+---
+
+<Fragment set:html={renderIcon(name, { size, stroke, className, label })} />

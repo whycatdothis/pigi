@@ -1,0 +1,134 @@
+---
+import Icon from '../Icon.astro';
+import { SIDEBAR_DEFAULT_WIDTH } from '../../lib/appLayout';
+import { sidebarRows, type SessionRow } from '../../lib/sessions';
+
+interface Project {
+  name: string;
+  sessions?: SessionRow[];
+}
+
+/**
+ * One 12px column per ancestor level, plus the elbow into the row — the app's
+ * `LineagePrefix` (`components/sidebar/sessionList.tsx`) at the depth this still
+ * needs. The gap between rows is 4px and the line runs on over it, which is why
+ * a continuing rail reaches `-bottom-1`.
+ */
+const LINEAGE_INDENT_PX = 12;
+
+interface Props {
+  /** The open session's title; the matching row is the selected one. */
+  activeTitle: string;
+  /**
+   * The rows to list, when a window has to keep its list still while the open
+   * session moves through it (the instant-switch still). Otherwise the list is
+   * the open session, the fork off it, and one older chat.
+   */
+  sessions?: SessionRow[];
+}
+
+const { activeTitle, sessions = sidebarRows(activeTitle) } = Astro.props;
+
+/**
+ * The project list the windows show.
+ *
+ * A developer's own machine is what the app's screenshots show, so this is
+ * authored rather than discovered — but the sessions are the ones this site is
+ * about, and `activeTitle` selects the row that matches the window's open
+ * session, the way the app's sidebar tracks the active session. The other two
+ * projects stay collapsed: they are what makes the sidebar a workspace rather
+ * than a chat list.
+ */
+const projects: Project[] = [
+  { name: 'pigi', sessions },
+  { name: 'pi-extension' },
+  { name: 'docs-site' },
+];
+---
+
+<!--
+  Always drawn. The app has no window without a sidebar — it is where sessions,
+  forks and projects live — and this page never draws a window narrower than the
+  app's own minimum, so there is no width at which the window would be the chat
+  column alone: a narrow viewport scales the whole window instead
+  (`AppWindow.astro`).
+-->
+<aside
+  class="flex shrink-0 flex-col bg-[var(--sidebar-solid)]"
+  style={`width:${SIDEBAR_DEFAULT_WIDTH}px`}
+>
+  <!-- Room for the traffic lights, which the window paints over this column. -->
+  <div class="h-11 shrink-0"></div>
+
+  <div class="flex flex-col gap-0.5 px-2">
+    <div class="flex h-8 items-center gap-2 rounded-md px-2 text-sm text-sidebar-foreground/85">
+      <Icon name="plus" size={16} class="text-muted-foreground" />
+      <span>New chat</span>
+    </div>
+    <div class="flex h-8 items-center gap-2 rounded-md px-2 text-sm text-sidebar-foreground/85">
+      <Icon name="folder-plus" size={16} class="text-muted-foreground" />
+      <span>Open project</span>
+    </div>
+  </div>
+
+  <div class="mt-4 flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden px-2">
+    <p class="px-2 pb-1 text-xs text-sidebar-foreground/55">Projects</p>
+    {
+      projects.map((project) => (
+        <>
+          <div class="flex h-8 items-center gap-2 rounded-md px-2 text-sm text-sidebar-foreground/85">
+            <Icon name="chevron-right" size={14} class="shrink-0 text-muted-foreground/70" />
+            <Icon name="folder" size={15} class="shrink-0 text-muted-foreground" />
+            <span class="truncate">{project.name}</span>
+          </div>
+          {project.sessions?.map((session, index) => {
+            const active = session.title === activeTitle;
+            // The app keeps a fork under its parent and draws a connector into it
+            // (sessionList.tsx: 12px per ancestor level, plus the elbow).
+            const depth = session.depth ?? 0;
+            const isLast = !(project.sessions?.[index + 1]?.depth ?? 0);
+            return (
+              <div
+                data-sidebar-row={session.title}
+                class:list={[
+                  'flex h-8 items-center gap-2 rounded-md pr-2 text-sm',
+                  active
+                    ? 'bg-[var(--system-accent)]/10 pl-8 text-foreground'
+                    : 'pl-8 text-sidebar-foreground/85',
+                ]}
+              >
+                {depth > 0 && (
+                  <span
+                    aria-hidden="true"
+                    data-lineage-depth={depth}
+                    class="relative h-full shrink-0"
+                    style={`width:${depth * LINEAGE_INDENT_PX}px`}
+                  >
+                    <span
+                      class:list={[
+                        'absolute left-0 w-px bg-foreground/15',
+                        isLast ? 'top-0 h-1/2' : 'top-0 -bottom-1',
+                      ]}
+                    />
+                    <span class="absolute left-0 top-1/2 h-px w-full bg-foreground/15" />
+                  </span>
+                )}
+                <span class="truncate">{session.title}</span>
+                <span class="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">
+                  {session.time}
+                </span>
+              </div>
+            );
+          })}
+        </>
+      ))
+    }
+  </div>
+
+  <div class="px-2 pb-2">
+    <div class="flex h-8 items-center gap-2 rounded-md px-2 text-sm text-sidebar-foreground/85">
+      <Icon name="settings" size={16} class="text-muted-foreground" />
+      <span>Settings</span>
+    </div>
+  </div>
+</aside>

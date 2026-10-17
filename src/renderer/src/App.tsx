@@ -1368,7 +1368,7 @@ function App(): React.JSX.Element {
 
           <main
             ref={mainRef}
-            className="group/terminal-layout relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-l-xl border-l-[0.5px] border-foreground/27 bg-background"
+            className="group/terminal-layout relative flex min-w-0 flex-1 flex-col overflow-hidden border-l-[0.5px] border-foreground/27 bg-background"
             style={terminalLayoutStyle}
           >
             <div

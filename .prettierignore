@@ -4,3 +4,6 @@ pnpm-lock.yaml
 LICENSE.md
 tsconfig.json
 tsconfig.*.json
+# The site has its own prettier config and the Astro plugin; the root run would
+# not parse .astro files at all.
+website

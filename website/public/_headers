@@ -1,0 +1,4 @@
+# The build names every asset after its own content, so a name can never point at
+# different bytes: they can be cached for as long as a browser is willing.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable

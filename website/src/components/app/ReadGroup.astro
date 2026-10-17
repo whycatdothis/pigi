@@ -1,0 +1,48 @@
+---
+import Icon from '../Icon.astro';
+
+export interface ReadEntry {
+  command: string;
+  status: 'success' | 'error' | 'running';
+}
+
+interface Props {
+  /** The one-line summary the app builds from the entries it folded in. */
+  label: string;
+  entries: ReadEntry[];
+}
+
+const { label, entries } = Astro.props;
+---
+
+<!-- The app's compact mode: consecutive read-only calls folded into one card.
+     `mb-[22px]` is the margin the group carries in the app. -->
+<div class="mb-[22px] rounded-md border border-border/65 bg-muted/25">
+  <div class="rounded-t-md px-3 py-1.5">
+    <div class="inline-flex items-center gap-1 text-[15px] leading-6 text-foreground">
+      <span>{label}</span>
+      <Icon name="chevron-right" size={14} class="shrink-0" />
+    </div>
+    <div class="mt-0.5 flex flex-col">
+      {
+        entries.map((entry) => (
+          <div
+            class:list={[
+              'flex items-center gap-1.5 text-foreground/70',
+              entry.status === 'running' && 'text-foreground',
+            ]}
+          >
+            {entry.status === 'running' ? (
+              <Icon name="loader-2" size={14} class="shrink-0 animate-spin text-muted-foreground" />
+            ) : entry.status === 'error' ? (
+              <Icon name="x" size={14} stroke={2} class="shrink-0 text-[#991b1b]" />
+            ) : (
+              <Icon name="check" size={14} stroke={2} class="shrink-0 text-[#166534]" />
+            )}
+            <span class="truncate font-mono text-[14px]">{entry.command}</span>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</div>
