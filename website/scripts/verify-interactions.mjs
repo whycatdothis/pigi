@@ -939,6 +939,22 @@ async function showStep(index) {
     JSON.stringify({ features: structure.features, githubName: structure.githubName }),
   );
 
+  /*
+   * The app draws a command as the tool's own prefix and the body: `read` and the
+   * path, `edit` and the path, `$` only for bash (`toolDisplay.ts`). The stills
+   * had `→ edit` and `$ read` — a prefix the app never draws, and a bash prompt in
+   * front of a tool that has none.
+   */
+  const home = await readFile(join(ROOT, 'index.html'), 'utf8');
+  const strayPrefixes = ['$ read', '$ edit', '$ write', '→'].filter((needle) =>
+    home.includes(needle),
+  );
+  check(
+    'tool cards: no command wears a prefix the app does not use',
+    strayPrefixes.length === 0,
+    JSON.stringify(strayPrefixes),
+  );
+
   const notFound = await readFile(join(ROOT, '404.html'), 'utf8');
   check(
     'structure: the 404 names no canonical URL and asks not to be indexed',

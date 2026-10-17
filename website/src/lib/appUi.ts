@@ -236,7 +236,7 @@ export const DIALOG_SURFACE = {
  */
 export const TERMINAL_TABS = {
   classes:
-    'group/tabs-list inline-flex w-fit items-center justify-center rounded-lg gap-1 bg-transparent p-0 h-auto text-muted-foreground',
+    'group/tabs-list inline-flex w-fit items-center justify-center rounded-lg gap-1 bg-transparent p-0 text-muted-foreground',
   source: `${UI}/tabs.tsx`,
 } satisfies CopiedClasses;
 
