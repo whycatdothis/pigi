@@ -1,6 +1,5 @@
 ---
 import Icon from '../Icon.astro';
-import DownloadButton from './DownloadButton.astro';
 import { REPO_URL, UMAMI_EVENT_REPO } from '../../lib/site';
 
 const navLinks = [
@@ -61,13 +60,6 @@ const navLinks = [
       <Icon name="brand-github" size={15} />
       <span class="hidden md:inline">GitHub</span>
     </a>
-
-    <!--
-      A real download, not an anchor: the page has no install section to scroll to,
-      and the header is the only place a reader can reach the file from the middle
-      of the page. `interactions.ts` upgrades both this and the hero button.
-    -->
-    <DownloadButton variant="compact" />
 
     <!--
       The icon names what the click gives you: a moon in the light theme, a sun in

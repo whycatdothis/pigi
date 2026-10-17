@@ -95,12 +95,12 @@ not a feature or a claim about one.
 
 The hero is the title, the page's own download button, and the window — no subtitle, no badge, no
 second button. The download under the title is the primary action, the one a reader who arrives from
-a search wants before they read anything; the header keeps a compact copy for a reader who has
-already scrolled past it, and both point at the same version-less URL (`releases/latest/download/`,
-see below). The tour opens with
-the migration claim, because it is the question a pi user arrives with: the window there holds a `/`
-in the composer and the command menu open over it, so the skills in the list are visible as skills —
-pi's, not pigi's — and `/reload` says in the app's own words what it reads.
+a search wants before they read anything, and it is the only one on the page: the header carries the
+links and the theme toggle, not a copy of it. Its URL is version-less (`releases/latest/download/`,
+see below), so a release published a minute ago is downloadable from a page built a month ago. The
+tour opens with the migration claim, because it is the question a pi user arrives with: the window
+there holds a `/` in the composer and the command menu open over it, so the skills in the list are
+visible as skills — pi's, not pigi's — and `/reload` says in the app's own words what it reads.
 
 The tour is the answer to what this page used to be: seven sections of _a paragraph and a picture of
 the app_. Seven of the same shape is seven times the same layout, and the seventh still only says
@@ -178,9 +178,9 @@ tree's tooltip carries the app's round `?`, which is a button itself, and a `<bu
 dropped that `?` out of the tooltip and drew it in the toolbar, an icon the app only ever shows while
 its tooltip is open.
 
-Both download buttons are real downloads — there is no `#install` anchor to scroll to — and the
-hero's label names the architecture: the only published DMG is arm64, so "Download for macOS" would
-hand an Intel reader a file that cannot run.
+The download button is a real download — there is no `#install` anchor to scroll to — and its label
+names the architecture: the only published DMG is arm64, so "Download for macOS" would hand an Intel
+reader a file that cannot run.
 
 The header is the page at the top and a floating strip once the page moves. It has no rule under it
 (the line cut a page that has no seam there) and no fill at rest, so the hero's wash runs behind it;

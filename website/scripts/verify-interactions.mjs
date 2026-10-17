@@ -1006,9 +1006,14 @@ async function showStep(index) {
   );
 
   check(
-    'download: both buttons point at the latest arm64 DMG',
-    links.length === 2 && links.every((link) => link.href === EXPECTED_DOWNLOAD_URL),
+    'download: the page ships one button, pointing at the latest arm64 DMG',
+    links.length === 1 && links.every((link) => link.href === EXPECTED_DOWNLOAD_URL),
     JSON.stringify(links.map((link) => link.href)),
+  );
+  check(
+    'download: the header carries links, not a second download',
+    (await page.locator('header [data-download-link]').count()) === 0,
+    JSON.stringify(links),
   );
   check(
     'download: the click carries its event name in the markup',
