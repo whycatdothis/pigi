@@ -4,6 +4,7 @@ import ThinkingBlock from '../app/ThinkingBlock.astro';
 import ToolCard from '../app/ToolCard.astro';
 import ReadGroup from '../app/ReadGroup.astro';
 import AssistantMessage from '../app/AssistantMessage.astro';
+import Icon from '../Icon.astro';
 import { buildReadGroupLabel } from '../../lib/appCopy';
 
 /**
@@ -85,34 +86,81 @@ const COLUMN = 'mx-auto flex max-w-[860px] flex-col px-5 pb-24 pt-6';
 
 <div class="min-h-0 flex-1" data-view-panels>
   <!--
-    Minimal: the working timer, one line saying what is happening, and the answer.
-    Everything else is behind the timer.
+    Minimal: the working timer and the answer. Everything the turn did is behind
+    the timer row, which is a real button in the app (`minimalView.tsx`): the row is
+    `flex w-full items-center gap-1.5 pt-3 pb-1` carrying a `size-4` chevron that
+    turns ninety degrees when the details are open, over a `h-px bg-border/60` rule.
+    The details it unfolds are this same turn's entries — the thinking, the read
+    group, the edit, the closing line — which is what `DetailItem` draws.
   -->
   <div class="hidden h-full group-data-[active=minimal]/view:block" data-view-panel="minimal">
     <div class={SCROLLER}>
       <div class={COLUMN}>
-        <div class="flex flex-col">
+        <section class="group/details flex flex-col" data-minimal-turn data-details="false">
           <UserMessage time="10:44">{userText}</UserMessage>
-          <div class="flex flex-col">
-            <div class="flex w-full items-center gap-1.5 pb-1 pt-3 text-left">
+
+          <div
+            class="flex flex-col group-data-[details=true]/details:sticky group-data-[details=true]/details:top-0 group-data-[details=true]/details:z-20 group-data-[details=true]/details:bg-background"
+          >
+            <button
+              type="button"
+              aria-expanded="false"
+              data-minimal-timer
+              class="flex w-full items-center gap-1.5 pb-1 pt-3 text-left"
+            >
               <span class="text-[15px] text-muted-foreground tabular-nums">Worked for 14s</span>
-              <span class="text-[13px] text-muted-foreground/60">· 5 steps</span>
-            </div>
+              <Icon
+                name="chevron-right"
+                class="size-4 shrink-0 text-muted-foreground/50 transition-transform group-data-[details=true]/details:rotate-90"
+              />
+            </button>
             <div class="h-px bg-border/60"></div>
           </div>
-          <div class="mt-3 flex flex-col gap-1">
-            <AssistantMessage>
-              <p>
-                Two things resize on every frame: the panel's height and the transcript's viewport.
-                Each one re-measures the rows that are on screen.
-              </p>
-              <p>
-                The panel height is a CSS custom property now, so the gesture writes one value and
-                the browser paints it on the compositor.
-              </p>
-            </AssistantMessage>
+
+          <div class="mt-2 overflow-hidden group-data-[details=true]/details:hidden">
+            <div class="flex flex-col gap-1">
+              <AssistantMessage time="10:45">
+                <p>
+                  Panel height now animates on the compositor and the transcript re-measures once,
+                  when the gesture ends.
+                </p>
+              </AssistantMessage>
+            </div>
           </div>
-        </div>
+
+          <div class="mt-2 hidden group-data-[details=true]/details:block">
+            <div class="overflow-hidden">
+              <div class="flex flex-col gap-2 pb-1">
+                <ThinkingBlock duration="2s" overflowing>{thinkingText}</ThinkingBlock>
+                <ReadGroup
+                  label={compactLabel}
+                  entries={readCalls.map((command) => ({ command, status: 'success' as const }))}
+                />
+                <AssistantMessage>
+                  <p>
+                    Confirmed — the list re-measures on every frame of the panel's open and close.
+                  </p>
+                </AssistantMessage>
+                <ReadGroup
+                  label={buildReadGroupLabel(false, 0, 1, 0)}
+                  entries={[{ command: 'git log --oneline -5', status: 'success' }]}
+                />
+                <ToolCard
+                  prefix="→"
+                  command="edit src/components/transcript/MessageList.tsx"
+                  diff={editDiff}
+                  duration="0.4s"
+                />
+                <AssistantMessage time="10:45">
+                  <p>
+                    Panel height now animates on the compositor and the transcript re-measures once,
+                    when the gesture ends.
+                  </p>
+                </AssistantMessage>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   </div>

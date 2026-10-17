@@ -86,7 +86,7 @@ strip rather than letting it lie over the text.
 
 ### What is on the page
 
-Hero, then the tour — seven chapters and one window — then the three things the app is built on, then
+Hero, then the tour — seven chapters and one window — then the two things the app is built on, then
 the footer. That is the whole page: no install section, no shortcut table, no FAQ. Nothing that is
 not a feature or a claim about one.
 
@@ -134,9 +134,18 @@ Every window is the app's own size — a dialog is 520px wide, not 520px tall, a
 would only be a lie about how the app looks.
 
 The _View modes_ still opens on **Compact**, the mode most of a real session is read in, with the
-menu open over it on the checked item. Its panels start at the top and grow downwards: the app's list
-is a plain scroll container (`pb-8 pt-6`, no `justify-end`), so a short turn sits under the toolbar
-rather than being pushed down to the composer.
+menu open over it on the checked item — and the check is in every item, shown by `data-state`, so
+choosing a mode moves it. An icon that exists only in the markup of the row that shipped checked
+cannot follow a click.
+
+Its panels start at the top and grow downwards: the app's list is a plain scroll container (`pb-8
+pt-6`, no `justify-end`), so a short turn sits under the toolbar rather than being pushed down to the
+composer.
+
+Minimal keeps the turn folded, and its timer row is a real button, as it is in the app
+(`minimalView.tsx`): clicking it opens the same entries the other two panels draw — the thinking, the
+read group, the edit — and turns the `size-4` chevron ninety degrees. Drawn as a still with no
+details behind the row, Minimal was the one panel that showed less than the app does.
 
 One markup rule the stills have to keep: a tooltip is a **sibling** of its button, never a child. The
 tree's tooltip carries the app's round `?`, which is a button itself, and a `<button>` inside a
