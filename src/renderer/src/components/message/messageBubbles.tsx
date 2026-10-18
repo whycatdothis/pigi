@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { IconCheck, IconCopy, IconSparkles, IconTerminal2 } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconFile, IconSparkles, IconTerminal2 } from '@tabler/icons-react';
 import {
   type SystemNode,
   type TranscriptNode,
@@ -17,6 +17,7 @@ import OverflowClamp from './overflowClamp';
 import { highlightMatches } from '../../lib/highlightMatches';
 import ShimmerOverlay from './shimmerOverlay';
 import { parseSkillBlock, type ParsedSkillBlock } from '../../lib/skillBlock';
+import { displayFileName } from '../../lib/chatAttachments';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
 
 /** Matches a slash command like `/plannotator-review` or `/review staged`. */
@@ -351,15 +352,43 @@ export function UserBubble({
   return (
     <div className="flex justify-end pb-2 pt-6" data-testid="user-message">
       <div className="group flex max-w-[85%] flex-col items-end">
-        <div className="max-w-full w-fit overflow-clip rounded-2xl bg-muted px-3.5 py-2">
-          <OverflowClamp
-            maxHeight={maxHeight}
-            tailAnchor={false}
-            className="text-[15px] leading-6 text-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
-          >
-            {highlightMatches(text, searchQuery, activeOccurrenceIndex)}
-          </OverflowClamp>
-        </div>
+        {node.imageSources && node.imageSources.length > 0 && (
+          <div className="mb-1.5 flex max-w-full flex-wrap justify-end gap-1.5">
+            {node.imageSources.map((source, index) => (
+              <img
+                key={`${index}-${source.slice(0, 24)}`}
+                src={source}
+                alt="Attached image"
+                className="max-h-44 min-h-16 min-w-16 max-w-48 rounded-xl border border-border/40 bg-muted object-cover"
+              />
+            ))}
+          </div>
+        )}
+        {node.filePaths && node.filePaths.length > 0 && (
+          <div className="mb-1.5 flex max-w-full flex-wrap justify-end gap-1.5">
+            {node.filePaths.map((path) => (
+              <span
+                key={path}
+                className="flex max-w-56 items-center gap-1 rounded-lg border border-border/50 bg-muted/60 px-2 py-1 text-xs text-muted-foreground"
+                title={path}
+              >
+                <IconFile className="size-3.5 shrink-0" />
+                <span className="truncate">{displayFileName(path)}</span>
+              </span>
+            ))}
+          </div>
+        )}
+        {text && (
+          <div className="max-w-full w-fit overflow-clip rounded-2xl bg-muted px-3.5 py-2">
+            <OverflowClamp
+              maxHeight={maxHeight}
+              tailAnchor={false}
+              className="text-[15px] leading-6 text-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+            >
+              {highlightMatches(text, searchQuery, activeOccurrenceIndex)}
+            </OverflowClamp>
+          </div>
+        )}
         <div className="flex w-full items-center justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
           <MessageToolbar node={node} />
           <span className="text-xs text-muted-foreground" data-search-ignore>

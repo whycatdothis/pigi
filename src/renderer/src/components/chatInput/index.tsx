@@ -5,11 +5,15 @@ import {
   useImperativeHandle,
   useMemo,
   useState,
+  type ClipboardEvent,
+  type DragEvent,
   type KeyboardEvent,
   type Ref,
 } from 'react';
-import { IconArrowUp, IconGitBranch, IconPlus, IconSquare } from '@tabler/icons-react';
+import { toast } from 'sonner';
+import { IconArrowUp, IconGitBranch, IconSquare } from '@tabler/icons-react';
 import type {
+  ChatAttachmentKind,
   ModelInfo,
   ProjectDirectory,
   SkillSlashCommand,
@@ -33,6 +37,12 @@ import {
 } from '../../lib/slashCommands';
 import { escapeAbortScopeProps } from '../../lib/focusScopes';
 import { NEW_CHAT_DRAFT_KEY, readChatDraft, writeChatDraft } from '../../lib/chatDrafts';
+import {
+  attachmentFromFile,
+  attachmentFromPickedFile,
+  MAX_PROMPT_ATTACHMENTS,
+  type ChatAttachment,
+} from '../../lib/chatAttachments';
 import { useInputHistory } from '../../hooks/useInputHistory';
 import { resizeTextarea } from './textareaMeasure';
 import { formatContextUsage, UNKNOWN_STATUS } from './formatters';
@@ -40,6 +50,7 @@ import { ContextUsageTooltip } from './contextUsageTooltip';
 import { ProjectPicker } from './projectPicker';
 import { ModelSettingsPicker } from './modelSettingsPicker';
 import { SlashCommandPopover } from './slashCommandPopover';
+import { AttachmentChips, AttachmentPickerButton } from './attachmentPicker';
 
 export interface ChatInputHandle {
   focus: () => void;
@@ -47,8 +58,8 @@ export interface ChatInputHandle {
 
 interface ChatInputProps {
   ref?: Ref<ChatInputHandle>;
-  onSend: (message: string) => void;
-  onFollowUp: (message: string) => void;
+  onSend: (message: string, attachments: ChatAttachment[]) => void;
+  onFollowUp: (message: string, attachments: ChatAttachment[]) => void;
   onAbort: () => void;
   onSlashCommand: (command: string, arg: string) => void;
   isStreaming: boolean;
@@ -119,6 +130,126 @@ export default function ChatInput({
   // Hash autocomplete state for project switching (#)
   const [hashMode, setHashMode] = useState(false);
 
+  // Files and images attached to the next message. Kept in a ref alongside
+  // state so async paste/picker handlers always see the latest list.
+  const attachmentsRef = useRef<ChatAttachment[]>([]);
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragDepthRef = useRef(0);
+
+  const setAttachmentList = useCallback((next: ChatAttachment[]) => {
+    attachmentsRef.current = next;
+    setAttachments(next);
+  }, []);
+
+  const handleRemoveAttachment = useCallback(
+    (id: string) => {
+      setAttachmentList(attachmentsRef.current.filter((attachment) => attachment.id !== id));
+    },
+    [setAttachmentList],
+  );
+
+  const addFiles = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
+      const remaining = MAX_PROMPT_ATTACHMENTS - attachmentsRef.current.length;
+      if (remaining <= 0) {
+        toast.error(`You can attach up to ${MAX_PROMPT_ATTACHMENTS} files per message.`);
+        return;
+      }
+      if (files.length > remaining) {
+        toast.error(`Only ${remaining} more attachment${remaining === 1 ? '' : 's'} allowed.`);
+      }
+
+      const built: ChatAttachment[] = [];
+      for (const file of files.slice(0, remaining)) {
+        let path = '';
+        try {
+          path = window.piApi.getPathForFile(file);
+        } catch {
+          path = '';
+        }
+        try {
+          built.push(await attachmentFromFile(file, path));
+        } catch (error) {
+          console.error('Failed to attach file:', error);
+          toast.error(`Could not attach ${file.name || 'file'}.`);
+        }
+      }
+      if (built.length > 0) {
+        setAttachmentList([...attachmentsRef.current, ...built]);
+      }
+    },
+    [setAttachmentList],
+  );
+
+  const handlePickAttachments = useCallback(
+    async (kind: ChatAttachmentKind) => {
+      const remaining = MAX_PROMPT_ATTACHMENTS - attachmentsRef.current.length;
+      if (remaining <= 0) {
+        toast.error(`You can attach up to ${MAX_PROMPT_ATTACHMENTS} files per message.`);
+        return;
+      }
+      const result = await window.piApi.pickAttachments(kind, remaining);
+      if (!result.success) {
+        if (!result.canceled) {
+          toast.error(result.error ?? 'Could not open the file picker.');
+        }
+        return;
+      }
+      if (result.files.length > remaining) {
+        toast.error(`Only ${remaining} more attachment${remaining === 1 ? '' : 's'} allowed.`);
+      }
+      setAttachmentList([
+        ...attachmentsRef.current,
+        ...result.files.slice(0, remaining).map(attachmentFromPickedFile),
+      ]);
+    },
+    [setAttachmentList],
+  );
+
+  const handlePaste = useCallback(
+    (event: ClipboardEvent<HTMLTextAreaElement>) => {
+      const files = Array.from(event.clipboardData.files ?? []);
+      if (files.length === 0) return;
+      // Attach clipboard files instead of inserting their names/contents.
+      event.preventDefault();
+      void addFiles(files);
+    },
+    [addFiles],
+  );
+
+  const handleDragEnter = useCallback((event: DragEvent<HTMLDivElement>) => {
+    if (!event.dataTransfer?.types.includes('Files')) return;
+    event.preventDefault();
+    dragDepthRef.current += 1;
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
+    if (!event.dataTransfer?.types.includes('Files')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const handleDragLeave = useCallback((event: DragEvent<HTMLDivElement>) => {
+    if (!event.dataTransfer?.types.includes('Files')) return;
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      const files = Array.from(event.dataTransfer?.files ?? []);
+      if (files.length === 0) return;
+      event.preventDefault();
+      dragDepthRef.current = 0;
+      setIsDragOver(false);
+      void addFiles(files);
+    },
+    [addFiles],
+  );
+
   const allSlashCommands = useMemo(() => getAllSlashCommands(skillOptions), [skillOptions]);
 
   // Flat index helpers for keyboard nav across builtin + skill groups
@@ -147,6 +278,11 @@ export default function ChatInput({
     // Reset history recall when switching sessions
     resetHistory();
 
+    // Attachments belong to one draft/session; do not carry them across.
+    if (previousKey !== draftKey) {
+      setAttachmentList([]);
+    }
+
     // Restore the current key's draft and auto-focus the input
     if (previousKey !== draftKey) {
       textarea.value = readChatDraft(draftKey);
@@ -155,7 +291,7 @@ export default function ChatInput({
     }
 
     activeDraftKeyRef.current = draftKey;
-  }, [draftKey, resetHistory, getHistoryDraft]);
+  }, [draftKey, resetHistory, getHistoryDraft, setAttachmentList]);
 
   // The textarea is detached whenever the input leaves the tree (switching
   // between the new-chat screen and a session). Persist its draft from the ref
@@ -220,12 +356,13 @@ export default function ChatInput({
     const textarea = textareaRef.current;
     if (!textarea) return;
     const text = textarea.value.trim();
-    if (!text) return;
+    const pendingAttachments = attachmentsRef.current;
+    if (!text && pendingAttachments.length === 0) return;
     // Sending exits history recall; the sent message enters the transcript
     history.reset();
 
     // Check for slash command (only if it matches a known command)
-    if (text.startsWith('/')) {
+    if (text.startsWith('/') && pendingAttachments.length === 0) {
       const spaceIndex = text.indexOf(' ');
       const name = spaceIndex === -1 ? text.slice(1) : text.slice(1, spaceIndex);
       const arg = spaceIndex === -1 ? '' : text.slice(spaceIndex + 1).trim();
@@ -241,25 +378,29 @@ export default function ChatInput({
       const skillMatch = allSlashCommands.find((c) => c.source === 'skill' && c.name === name);
       if (skillMatch) {
         clearInput();
-        onSend(text);
+        setAttachmentList([]);
+        onSend(text, pendingAttachments);
         return;
       }
       // Not a known command: fall through and send as regular message
     }
 
     clearInput();
-    onSend(text);
-  }, [onSend, onSlashCommand, allSlashCommands, history, clearInput]);
+    setAttachmentList([]);
+    onSend(text, pendingAttachments);
+  }, [onSend, onSlashCommand, allSlashCommands, history, clearInput, setAttachmentList]);
 
   const handleFollowUpSend = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     const text = textarea.value.trim();
-    if (!text) return;
+    const pendingAttachments = attachmentsRef.current;
+    if (!text && pendingAttachments.length === 0) return;
     history.reset();
     clearInput();
-    onFollowUp(text);
-  }, [onFollowUp, history, clearInput]);
+    setAttachmentList([]);
+    onFollowUp(text, pendingAttachments);
+  }, [onFollowUp, history, clearInput, setAttachmentList]);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -347,10 +488,15 @@ export default function ChatInput({
   return (
     <div
       className={cn(
-        !isNewSession && 'relative z-10 shrink-0 px-5',
+        'relative',
+        !isNewSession && 'z-10 shrink-0 px-5',
         isNewSession && 'flex flex-1 flex-col items-center justify-center min-h-0 px-5',
       )}
       data-testid="chat-input"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       {...escapeAbortScopeProps}
     >
       {isNewSession && (
@@ -407,6 +553,7 @@ export default function ChatInput({
                 ref={handleTextareaRef}
                 onKeyDown={handleKeyDown}
                 onInput={handleInput}
+                onPaste={handlePaste}
                 placeholder={isNewSession ? NEW_SESSION_PLACEHOLDER : 'Ask for follow-up changes'}
                 rows={1}
                 className={cn(
@@ -415,18 +562,18 @@ export default function ChatInput({
                 )}
                 data-testid="chat-textarea"
               />
+              {attachments.length > 0 && (
+                <AttachmentChips attachments={attachments} onRemove={handleRemoveAttachment} />
+              )}
               <InputGroupAddon
                 align="block-end"
                 className="min-w-0 justify-between gap-2 px-2.5 pb-2.5 pt-0"
               >
                 <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden px-1">
-                  <InputGroupButton
-                    size="icon-sm"
-                    variant="ghost"
-                    className="shrink-0 rounded-full"
-                  >
-                    <IconPlus />
-                  </InputGroupButton>
+                  <AttachmentPickerButton
+                    attachmentCount={attachments.length}
+                    onPick={(kind) => void handlePickAttachments(kind)}
+                  />
                 </div>
                 <div className="flex shrink-0 items-center gap-0.5">
                   <ModelSettingsPicker
@@ -494,6 +641,11 @@ export default function ChatInput({
             )}
           </div>
         </SlashCommandPopover>
+        {isDragOver && (
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-3xl border-2 border-dashed border-ring bg-background/85 text-sm font-medium text-foreground">
+            Drop files to attach
+          </div>
+        )}
       </div>
     </div>
   );

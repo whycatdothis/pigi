@@ -13,7 +13,11 @@ import {
   markSessionHydrated,
   useTranscript,
 } from './hooks/useTranscript';
-import { TranscriptController, type TranscriptNode } from './state/transcriptController';
+import {
+  TranscriptController,
+  type TranscriptNode,
+  type UserNode,
+} from './state/transcriptController';
 import {
   resumeSession,
   createSession,
@@ -54,10 +58,19 @@ import type {
   ModelInfo,
   PiSessionInfo,
   ProjectDirectory,
+  PromptAttachment,
   SkillSlashCommand,
   ThinkingLevel,
 } from '../../shared/ipcContract';
 import { clampThinkingLevelTo } from '../../shared/thinkingLevels';
+import {
+  attachmentFilePaths,
+  attachmentImageSources,
+  chatMessageTitle,
+  promptAttachmentImageSources,
+  toPromptAttachments,
+  type ChatAttachment,
+} from './lib/chatAttachments';
 import Sidebar from './components/session/Sidebar';
 import SessionToolbar from './components/session/SessionToolbar';
 import MessageList, { type MessageListHandle } from './components/transcript/MessageList';
@@ -87,9 +100,18 @@ import {
 import { usePanelResize } from './hooks/usePanelResize';
 const WELCOME_TITLE = 'Welcome to pigi';
 
+/** A message waiting for the session's utility process to become ready. */
+interface PendingPrompt {
+  message: string;
+  attachments: PromptAttachment[];
+}
+
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
 function extractUserHistory(nodes: TranscriptNode[]): string[] {
-  return nodes.filter((node) => node.role === 'user').map((node) => node.text);
+  return nodes
+    .filter((node) => node.role === 'user')
+    .map((node) => node.text)
+    .filter((text) => text.length > 0);
 }
 
 function App(): React.JSX.Element {
@@ -279,7 +301,7 @@ function App(): React.JSX.Element {
   }, [isDraftChat, modelOptions, activeCwd, lastModelSnapshot, draftThinkingLevel]);
 
   // Pending prompt buffer: holds messages sent before the utility process is ready.
-  const pendingPromptsRef = useRef<Map<string, string[]>>(new Map());
+  const pendingPromptsRef = useRef<Map<string, PendingPrompt[]>>(new Map());
   // Tracks sessions whose utility process is still spawning.
   const pendingResumesRef = useRef<Set<string>>(new Set());
 
@@ -487,14 +509,17 @@ function App(): React.JSX.Element {
         void (async () => {
           const first = queue[0];
           if (!first.text.startsWith('/skill:')) {
-            ensureTranscriptSession(sessionId).addUserMessage(first.text);
+            ensureTranscriptSession(sessionId).addUserMessage(first.text, {
+              imageSources: promptAttachmentImageSources(first.attachments),
+              promptAttachments: first.attachments,
+            });
           }
-          await prompt(sessionId, first.text);
+          await prompt(sessionId, first.text, first.attachments ?? []);
           for (let i = 1; i < queue.length; i++) {
             if (queue[i].mode === 'steer') {
-              await steer(sessionId, queue[i].text);
+              await steer(sessionId, queue[i].text, queue[i].attachments ?? []);
             } else {
-              await followUp(sessionId, queue[i].text);
+              await followUp(sessionId, queue[i].text, queue[i].attachments ?? []);
             }
           }
         })();
@@ -502,8 +527,11 @@ function App(): React.JSX.Element {
     );
   }, [activeSessionPath, transcriptControllerRef]);
 
-  async function handleSend(message: string): Promise<void> {
+  async function handleSend(message: string, attachments: ChatAttachment[] = []): Promise<void> {
     const cwd = activeSession?.cwd ?? activeProject?.path ?? window.piApi.getCwd();
+    const promptAttachments = toPromptAttachments(attachments);
+    const imageSources = attachmentImageSources(attachments);
+    const filePaths = attachmentFilePaths(attachments);
 
     // Draft chat: first message triggers session creation in background.
     if (isDraftChat || !activeSessionPath) {
@@ -512,7 +540,11 @@ function App(): React.JSX.Element {
       }
 
       // Show optimistic user message on the draft controller
-      draftControllerRef.current.addUserMessage(message);
+      draftControllerRef.current.addUserMessage(message, {
+        imageSources,
+        filePaths,
+        promptAttachments,
+      });
 
       // If already spawning (user typed multiple messages fast), just buffer
       if (isDraftSpawningRef.current) {
@@ -557,7 +589,9 @@ function App(): React.JSX.Element {
 
       try {
         addSession(sessionPath, cwd);
-        useAppStore.getState().updateSession(sessionPath, { title: message });
+        useAppStore.getState().updateSession(sessionPath, {
+          title: chatMessageTitle(message, attachments),
+        });
 
         // Transfer draft controller content to the real session.
         // Draft only contains UserNodes (optimistic messages), so we just add them.
@@ -565,7 +599,11 @@ function App(): React.JSX.Element {
         const draftNodes = draftControllerRef.current.state.nodes;
         for (const node of draftNodes) {
           if (node.role === 'user') {
-            controller.addUserMessage(node.text);
+            controller.addUserMessage(node.text, {
+              imageSources: node.imageSources,
+              filePaths: node.filePaths,
+              promptAttachments: node.promptAttachments,
+            });
           }
         }
         markSessionHydrated(sessionPath);
@@ -595,16 +633,16 @@ function App(): React.JSX.Element {
 
         // Send the prompt (and any additional messages typed while spawning)
         const messages = draftNodes
-          .filter(
-            (n): n is { id: string; role: 'user'; text: string; sentAt: number } =>
-              n.role === 'user',
-          )
-          .map((n) => n.text);
+          .filter((n): n is UserNode => n.role === 'user')
+          .map((n) => ({
+            message: n.text,
+            attachments: n.promptAttachments ?? [],
+          }));
 
         if (messages.length > 0) {
-          await prompt(sessionPath, messages[0]);
+          await prompt(sessionPath, messages[0].message, messages[0].attachments);
           for (let i = 1; i < messages.length; i++) {
-            await steer(sessionPath, messages[i]);
+            await steer(sessionPath, messages[i].message, messages[i].attachments);
           }
         }
       } catch (err) {
@@ -620,53 +658,74 @@ function App(): React.JSX.Element {
     const sessionPath = activeSessionPath;
     const existing = useAppStore.getState().sessions.get(sessionPath);
     if (existing?.title === 'New chat') {
-      useAppStore.getState().updateSession(sessionPath, { title: message });
+      useAppStore.getState().updateSession(sessionPath, {
+        title: chatMessageTitle(message, attachments),
+      });
     }
 
     // If the session is still pending (utility process not ready), buffer the prompt
     if (pendingResumesRef.current.has(sessionPath)) {
       const queue = pendingPromptsRef.current.get(sessionPath) ?? [];
-      queue.push(message);
+      queue.push({ message, attachments: promptAttachments });
       pendingPromptsRef.current.set(sessionPath, queue);
-      getTranscriptController(sessionPath).addUserMessage(message);
+      getTranscriptController(sessionPath).addUserMessage(message, {
+        imageSources,
+        filePaths,
+        promptAttachments,
+      });
       return;
     }
 
     // Queue locally during compaction
     if (transcript.isCompacting) {
-      transcriptControllerRef.current?.addCompactionMessage(message, 'steer');
+      transcriptControllerRef.current?.addCompactionMessage(message, 'steer', promptAttachments);
       void listProjectSessions([cwd]);
       return;
     }
 
     // If the session is already streaming, steer instead of prompting
     if (transcript.status !== 'idle') {
-      await steer(sessionPath, message);
+      await steer(sessionPath, message, promptAttachments);
     } else {
       if (!message.startsWith('/skill:')) {
-        ensureTranscriptSession(sessionPath).addUserMessage(message);
+        ensureTranscriptSession(sessionPath).addUserMessage(message, {
+          imageSources,
+          filePaths,
+          promptAttachments,
+        });
       }
-      await prompt(sessionPath, message);
+      await prompt(sessionPath, message, promptAttachments);
     }
     void listProjectSessions([cwd]);
   }
 
   const handleFollowUp = useCallback(
-    async (message: string): Promise<void> => {
+    async (message: string, attachments: ChatAttachment[] = []): Promise<void> => {
       const sessionId = activeSessionPath;
       if (!sessionId) return;
+      const promptAttachments = toPromptAttachments(attachments);
+      const imageSources = attachmentImageSources(attachments);
+      const filePaths = attachmentFilePaths(attachments);
 
       // Queue locally during compaction.
       if (transcript.isCompacting) {
-        transcriptControllerRef.current?.addCompactionMessage(message, 'followUp');
+        transcriptControllerRef.current?.addCompactionMessage(
+          message,
+          'followUp',
+          promptAttachments,
+        );
         return;
       }
 
       if (transcript.status !== 'idle') {
-        await followUp(sessionId, message);
+        await followUp(sessionId, message, promptAttachments);
       } else {
-        ensureTranscriptSession(sessionId).addUserMessage(message);
-        await prompt(sessionId, message);
+        ensureTranscriptSession(sessionId).addUserMessage(message, {
+          imageSources,
+          filePaths,
+          promptAttachments,
+        });
+        await prompt(sessionId, message, promptAttachments);
       }
     },
     [activeSessionPath, transcript.status, transcript.isCompacting, transcriptControllerRef],
@@ -691,7 +750,7 @@ function App(): React.JSX.Element {
         for (let i = 0; i < bufferedMessages.length; i++) {
           getTranscriptController(activeSessionPath).removeLastUserMessage();
         }
-        setRestoreText(bufferedMessages.join('\n\n'));
+        setRestoreText(bufferedMessages.map((item) => item.message).join('\n\n'));
       }
       return;
     }
@@ -936,9 +995,9 @@ function App(): React.JSX.Element {
         const bufferedMessages = pendingPromptsRef.current.get(sessionPath);
         if (bufferedMessages && bufferedMessages.length > 0) {
           pendingPromptsRef.current.delete(sessionPath);
-          await prompt(sessionPath, bufferedMessages[0]);
+          await prompt(sessionPath, bufferedMessages[0].message, bufferedMessages[0].attachments);
           for (let i = 1; i < bufferedMessages.length; i++) {
-            await steer(sessionPath, bufferedMessages[i]);
+            await steer(sessionPath, bufferedMessages[i].message, bufferedMessages[i].attachments);
           }
           void listProjectSessions([session.cwd]);
         }
@@ -952,7 +1011,7 @@ function App(): React.JSX.Element {
         }
         const bufferedMessages = pendingPromptsRef.current.get(sessionPath);
         if (bufferedMessages && bufferedMessages.length > 0) {
-          setRestoreText(bufferedMessages.join('\n\n'));
+          setRestoreText(bufferedMessages.map((item) => item.message).join('\n\n'));
         }
         pendingPromptsRef.current.delete(sessionPath);
         pendingResumesRef.current.delete(sessionPath);

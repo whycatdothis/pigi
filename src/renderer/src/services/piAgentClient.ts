@@ -15,6 +15,7 @@ import type {
   GitBranchResult,
   ProjectSessionsChunk,
   ProjectStateResult,
+  PromptAttachment,
   SessionOptions,
   SessionState,
   SessionListResult,
@@ -133,22 +134,46 @@ export function onProjectSessionsChunk(
 // Session commands (via MessagePort)
 // =============================================================================
 
-export async function prompt(sessionPath: string, message: string): Promise<void> {
-  const result = await send<CommandResult>(sessionPath, { type: 'prompt', message });
+export async function prompt(
+  sessionPath: string,
+  message: string,
+  attachments: PromptAttachment[] = [],
+): Promise<void> {
+  const result = await send<CommandResult>(sessionPath, {
+    type: 'prompt',
+    message,
+    attachments: attachments.length > 0 ? attachments : undefined,
+  });
   if (!result.success) {
     throw new Error(result.error || 'prompt failed');
   }
 }
 
-export async function steer(sessionPath: string, message: string): Promise<void> {
-  const result = await send<CommandResult>(sessionPath, { type: 'steer', message });
+export async function steer(
+  sessionPath: string,
+  message: string,
+  attachments: PromptAttachment[] = [],
+): Promise<void> {
+  const result = await send<CommandResult>(sessionPath, {
+    type: 'steer',
+    message,
+    attachments: attachments.length > 0 ? attachments : undefined,
+  });
   if (!result.success) {
     throw new Error(result.error || 'steer failed');
   }
 }
 
-export async function followUp(sessionPath: string, message: string): Promise<void> {
-  const result = await send<CommandResult>(sessionPath, { type: 'follow_up', message });
+export async function followUp(
+  sessionPath: string,
+  message: string,
+  attachments: PromptAttachment[] = [],
+): Promise<void> {
+  const result = await send<CommandResult>(sessionPath, {
+    type: 'follow_up',
+    message,
+    attachments: attachments.length > 0 ? attachments : undefined,
+  });
   if (!result.success) {
     throw new Error(result.error || 'follow_up failed');
   }
