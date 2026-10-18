@@ -44,6 +44,12 @@ import {
   type ChatAttachment,
 } from '../../lib/chatAttachments';
 import { useInputHistory } from '../../hooks/useInputHistory';
+import {
+  findFileMentionContext,
+  formatFileReference,
+  type FileMentionContext,
+} from '../../lib/chatReferences';
+import { loadProjectFiles, rankProjectFiles } from '../../lib/projectFiles';
 import { resizeTextarea } from './textareaMeasure';
 import { formatContextUsage, UNKNOWN_STATUS } from './formatters';
 import { ContextUsageTooltip } from './contextUsageTooltip';
@@ -51,6 +57,8 @@ import { ProjectPicker } from './projectPicker';
 import { ModelSettingsPicker } from './modelSettingsPicker';
 import { SlashCommandPopover } from './slashCommandPopover';
 import { AttachmentChips, AttachmentPickerButton } from './attachmentPicker';
+import { ReferenceHighlights } from './referenceHighlights';
+import { FileMentionPopover } from './fileMentionPopover';
 
 export interface ChatInputHandle {
   focus: () => void;
@@ -126,6 +134,22 @@ export default function ChatInput({
 
   const [slashMatches, setSlashMatches] = useState<SlashCommandMatches>(EMPTY_SLASH_MATCHES);
   const [selectedSlashIndex, setSelectedSlashIndex] = useState(0);
+
+  // The textarea stays uncontrolled so IME input keeps native behavior; this
+  // mirror value feeds the reference highlight layer.
+  const [inputValue, setInputValue] = useState('');
+  // While an IME composition is active the browser paints composition text
+  // with the textarea's own color, so show it there and hide the mirror.
+  const [isComposing, setIsComposing] = useState(false);
+
+  // `@` file references: the active token, the project file list and the
+  // keyboard position inside the popover.
+  const [mention, setMention] = useState<FileMentionContext | null>(null);
+  const [mentionSource, setMentionSource] = useState<{ cwd: string; files: string[] }>({
+    cwd: '',
+    files: [],
+  });
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
 
   // Hash autocomplete state for project switching (#)
   const [hashMode, setHashMode] = useState(false);
@@ -261,6 +285,37 @@ export default function ChatInput({
   }, [slashMatches]);
   const hasSlashMatches = slashMatches.builtin.length > 0 || slashMatches.skill.length > 0;
 
+  // Commands that can appear as an inline label in the composer. The utility
+  // merges extension commands into `skillOptions`, so this covers both.
+  const commandNames = useMemo(
+    () => new Set(skillOptions.map((skill) => skill.name)),
+    [skillOptions],
+  );
+
+  const projectPath = activeProject?.path ?? session?.cwd ?? '';
+  const mentionOpen = mention !== null;
+  const mentionFiles = useMemo(
+    () => (mentionSource.cwd === projectPath ? mentionSource.files : []),
+    [mentionSource, projectPath],
+  );
+  // Files are still loading until a result for this project arrives.
+  const mentionLoading = mentionOpen && mentionSource.cwd !== projectPath;
+  const mentionMatches = useMemo(
+    () => (mention ? rankProjectFiles(mentionFiles, mention.query) : []),
+    [mention, mentionFiles],
+  );
+
+  useEffect(() => {
+    if (!mentionOpen || projectPath.length === 0) return;
+    let cancelled = false;
+    void loadProjectFiles(projectPath).then((files) => {
+      if (!cancelled) setMentionSource({ cwd: projectPath, files });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mentionOpen, projectPath]);
+
   // Save/restore the draft of the input box being switched to/from. Drafts are
   // stored module-level (see lib/chatDrafts.ts) so text typed on the new-chat
   // screen survives the unmount that happens when the user opens a session.
@@ -285,7 +340,9 @@ export default function ChatInput({
 
     // Restore the current key's draft and auto-focus the input
     if (previousKey !== draftKey) {
-      textarea.value = readChatDraft(draftKey);
+      const draft = readChatDraft(draftKey);
+      textarea.value = draft;
+      setInputValue(draft);
       resizeTextarea(textarea);
       textarea.focus();
     }
@@ -323,6 +380,7 @@ export default function ChatInput({
     const currentText = textarea.value.trim();
     const combined = [restoreText, currentText].filter((t) => t).join('\n\n');
     textarea.value = combined;
+    setInputValue(combined);
     resizeTextarea(textarea);
     textarea.focus();
     onRestoredText();
@@ -341,16 +399,41 @@ export default function ChatInput({
     if (!textarea) return;
     textarea.value = '';
     textarea.style.height = 'auto';
+    setInputValue('');
     setSlashMatches(EMPTY_SLASH_MATCHES);
+    setMention(null);
   }, []);
 
   const insertSlashCommand = useCallback((command: SlashCommand) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    textarea.value = `/${command.name} `;
+    const value = `/${command.name} `;
+    textarea.value = value;
+    setInputValue(value);
     setSlashMatches(EMPTY_SLASH_MATCHES);
+    setMention(null);
     textarea.focus();
   }, []);
+
+  const applyMention = useCallback(
+    (path: string) => {
+      const textarea = textareaRef.current;
+      if (!textarea || !mention) return;
+      const caret = textarea.selectionStart;
+      const value = textarea.value;
+      const insertion = formatFileReference(path);
+      const nextValue = value.slice(0, mention.start) + insertion + value.slice(caret);
+      const nextCaret = mention.start + insertion.length;
+      textarea.value = nextValue;
+      textarea.selectionStart = textarea.selectionEnd = nextCaret;
+      setInputValue(nextValue);
+      setMention(null);
+      setSelectedMentionIndex(0);
+      resizeTextarea(textarea);
+      textarea.focus();
+    },
+    [mention],
+  );
 
   const handleSend = useCallback(() => {
     const textarea = textareaRef.current;
@@ -406,6 +489,35 @@ export default function ChatInput({
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
       if (event.nativeEvent.isComposing || event.key === 'Process') return;
 
+      // `@` file reference navigation takes priority over the send shortcut.
+      if (mention) {
+        if (mentionMatches.length > 0) {
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setSelectedMentionIndex(
+              (index) => (index - 1 + mentionMatches.length) % mentionMatches.length,
+            );
+            return;
+          }
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setSelectedMentionIndex((index) => (index + 1) % mentionMatches.length);
+            return;
+          }
+          if (event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey)) {
+            event.preventDefault();
+            const selectedPath = mentionMatches[selectedMentionIndex];
+            if (selectedPath) applyMention(selectedPath);
+            return;
+          }
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setMention(null);
+          return;
+        }
+      }
+
       // Slash command autocomplete navigation
       if (hasSlashMatches) {
         if (event.key === 'ArrowUp') {
@@ -440,7 +552,11 @@ export default function ChatInput({
       }
 
       // Shell-style history recall
-      if (history.handleArrowKey(event)) return;
+      if (history.handleArrowKey(event)) {
+        setInputValue(textareaRef.current?.value ?? '');
+        setMention(null);
+        return;
+      }
 
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
@@ -455,6 +571,10 @@ export default function ChatInput({
       handleSend,
       handleFollowUpSend,
       isStreaming,
+      mention,
+      mentionMatches,
+      selectedMentionIndex,
+      applyMention,
       hasSlashMatches,
       flatSlashMatches,
       selectedSlashIndex,
@@ -472,8 +592,13 @@ export default function ChatInput({
     resizeTextarea(textarea);
 
     const value = textarea.value;
+    setInputValue(value);
     setSlashMatches(matchSlashCommands(value, allSlashCommands));
     setSelectedSlashIndex(0);
+
+    const mentionContext = findFileMentionContext(value, textarea.selectionStart);
+    setMention(mentionContext);
+    if (mentionContext) setSelectedMentionIndex(0);
 
     // Hash autocomplete detection (only in new session mode)
     if (isNewSession) {
@@ -482,6 +607,27 @@ export default function ChatInput({
       setHashMode(textBeforeCursor === '#');
     }
   }, [allSlashCommands, isNewSession, history]);
+
+  // Keep the mention popover in sync when the caret moves without typing
+  // (clicking elsewhere in the text or arrow keys).
+  const handleSelect = useCallback(() => {
+    if (!mention) return;
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    setMention(findFileMentionContext(textarea.value, textarea.selectionStart));
+  }, [mention]);
+
+  const handleBlur = useCallback(() => {
+    setMention(null);
+  }, []);
+
+  const handleCompositionStart = useCallback(() => {
+    setIsComposing(true);
+  }, []);
+
+  const handleCompositionEnd = useCallback(() => {
+    setIsComposing(false);
+  }, []);
 
   const projectLabel = activeProject?.name ?? 'select project';
 
@@ -520,6 +666,7 @@ export default function ChatInput({
                   // Remove the leading # that triggered the picker
                   const cursorPos = textarea.selectionStart;
                   textarea.value = textarea.value.slice(cursorPos);
+                  setInputValue(textarea.value);
                   textarea.selectionStart = textarea.selectionEnd = 0;
                   textarea.focus();
                 }
@@ -543,25 +690,49 @@ export default function ChatInput({
             className="relative mx-auto w-full"
             style={{ maxWidth: `${CHAT_INPUT_MAX_WIDTH}px` }}
           >
+            {mention && (
+              <FileMentionPopover
+                matches={mentionMatches}
+                selectedIndex={selectedMentionIndex}
+                loading={mentionLoading}
+                onSelect={applyMention}
+                onHover={setSelectedMentionIndex}
+              />
+            )}
             <InputGroup
               className={cn(
                 'relative h-auto flex-col rounded-3xl border bg-background shadow-[0_10px_34px_rgb(0_0_0_/_0.075)] has-[[data-slot=input-group-control]:focus-visible]:ring-0 has-[[data-slot=input-group-control]:focus-visible]:border-inherit',
                 !isNewSession && 'min-h-28',
               )}
             >
-              <InputGroupTextarea
-                ref={handleTextareaRef}
-                onKeyDown={handleKeyDown}
-                onInput={handleInput}
-                onPaste={handlePaste}
-                placeholder={isNewSession ? NEW_SESSION_PLACEHOLDER : 'Ask for follow-up changes'}
-                rows={1}
-                className={cn(
-                  'flex-initial field-sizing-fixed px-4 pb-2 text-sm leading-5 placeholder:text-muted-foreground/70 overflow-y-auto',
-                  isNewSession ? 'min-h-24 pt-4' : 'min-h-16 pt-4',
+              <div className="relative w-full">
+                {!isComposing && (
+                  <ReferenceHighlights
+                    text={inputValue}
+                    commandNames={commandNames}
+                    textareaRef={textareaRef}
+                    className="px-4 pb-2 pt-4 text-sm leading-5"
+                  />
                 )}
-                data-testid="chat-textarea"
-              />
+                <InputGroupTextarea
+                  ref={handleTextareaRef}
+                  onKeyDown={handleKeyDown}
+                  onInput={handleInput}
+                  onPaste={handlePaste}
+                  onSelect={handleSelect}
+                  onBlur={handleBlur}
+                  onCompositionStart={handleCompositionStart}
+                  onCompositionEnd={handleCompositionEnd}
+                  placeholder={isNewSession ? NEW_SESSION_PLACEHOLDER : 'Ask for follow-up changes'}
+                  rows={1}
+                  className={cn(
+                    'relative z-10 flex-initial field-sizing-fixed px-4 pb-2 pt-4 text-sm leading-5 placeholder:text-muted-foreground/70 overflow-y-auto bg-transparent caret-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+                    isComposing ? 'text-foreground' : 'text-transparent',
+                    isNewSession ? 'min-h-24' : 'min-h-16',
+                  )}
+                  data-testid="chat-textarea"
+                />
+              </div>
               {attachments.length > 0 && (
                 <AttachmentChips attachments={attachments} onRemove={handleRemoveAttachment} />
               )}

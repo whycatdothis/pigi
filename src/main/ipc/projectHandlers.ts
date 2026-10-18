@@ -9,6 +9,7 @@ import {
   setActiveProject,
 } from '../projects/projectStore';
 import { getGitBranch } from '../projects/gitStatus';
+import { listProjectFiles } from '../projects/projectFiles';
 
 function projectStateResult(): ProjectStateResult {
   return {
@@ -22,6 +23,10 @@ export function registerProjectHandlers(): void {
 
   ipcMain.handle(PiChannel.GetGitBranch, async (_event, cwd: string) => {
     return getGitBranch(cwd);
+  });
+
+  ipcMain.handle(PiChannel.ListProjectFiles, async (_event, cwd: string) => {
+    return listProjectFiles(cwd);
   });
 
   ipcMain.handle(PiChannel.SetActiveProject, async (_event, path: string) => {

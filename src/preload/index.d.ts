@@ -7,6 +7,7 @@ import type {
   PickAttachmentsResult,
   ChatAttachmentKind,
   ProjectSessionsChunk,
+  ProjectFilesResult,
   ProjectStateResult,
   SessionListResult,
   ShortcutBinding,
@@ -29,6 +30,7 @@ interface PiApi {
   // Project directories
   getProjects: () => Promise<ProjectStateResult>;
   getGitBranch: (cwd: string) => Promise<GitBranchResult>;
+  listProjectFiles: (cwd: string) => Promise<ProjectFilesResult>;
   setActiveProject: (path: string) => Promise<ProjectStateResult>;
   openProjectDirectory: () => Promise<ProjectStateResult>;
   removeProject: (path: string) => Promise<ProjectStateResult>;
