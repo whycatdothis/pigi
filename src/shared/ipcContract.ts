@@ -55,6 +55,39 @@ export interface ProjectDirectory {
   name: string;
 }
 
+/** How a chat attachment is delivered to the agent. */
+export type ChatAttachmentKind = 'image' | 'file';
+
+/**
+ * Attachment sent with a prompt.
+ *
+ * Images travel as provider image content; other files are referenced by
+ * absolute path so the agent can read them with its tools. Content pasted
+ * from the clipboard (no path on disk) is carried as base64 `data`.
+ */
+export interface PromptAttachment {
+  kind: ChatAttachmentKind;
+  name: string;
+  mimeType: string;
+  /** Absolute path on disk. */
+  path?: string;
+  /** Base64-encoded bytes (no data: prefix) for clipboard content. */
+  data?: string;
+}
+
+/** One file returned by the native attachment picker. */
+export interface PickedAttachment {
+  path: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  kind: ChatAttachmentKind;
+}
+
+export type PickAttachmentsResult =
+  | { success: true; files: PickedAttachment[] }
+  | { success: false; canceled?: boolean; error?: string };
+
 export interface ProjectState {
   recentProjects: ProjectDirectory[];
   activeProject: ProjectDirectory | null;
@@ -201,9 +234,9 @@ export interface AuthProviderInfo {
 }
 
 export type PiCommand =
-  | { type: 'prompt'; message: string }
-  | { type: 'steer'; message: string }
-  | { type: 'follow_up'; message: string }
+  | { type: 'prompt'; message: string; attachments?: PromptAttachment[] }
+  | { type: 'steer'; message: string; attachments?: PromptAttachment[] }
+  | { type: 'follow_up'; message: string; attachments?: PromptAttachment[] }
   | { type: 'abort' }
   | { type: 'clear_queue' }
   | { type: 'compact' }
@@ -358,6 +391,8 @@ export enum PiChannel {
   ReadSessionMessages = 'pi:read_session_messages',
   /** renderer → main: open a URL in the system browser */
   OpenExternal = 'pi:open_external',
+  /** renderer → main: open a native picker for chat attachments */
+  PickAttachments = 'pi:pick_attachments',
   /** renderer → main: get system accent color */
   GetAccentColor = 'pi:get_accent_color',
   /** renderer → main: get all keyboard shortcut definitions with current bindings */

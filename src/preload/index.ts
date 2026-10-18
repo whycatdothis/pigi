@@ -5,7 +5,7 @@
  * Main process is only involved for lifecycle (create/resume/destroy session).
  */
 import { electronAPI } from '@electron-toolkit/preload';
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import {
   PiChannel,
   isPiPush,
@@ -18,6 +18,8 @@ import {
   type PiCommand,
   type PiPush,
   type PiRequest,
+  type PickAttachmentsResult,
+  type ChatAttachmentKind,
   type ProjectSessionsChunk,
   type ProjectStateResult,
   type SessionListResult,
@@ -305,6 +307,13 @@ const piApi = {
   /** Remove a project from recent projects. */
   removeProject: (path: string): Promise<ProjectStateResult> =>
     ipcRenderer.invoke(PiChannel.RemoveProject, path),
+
+  /** Open the native file picker for chat attachments. */
+  pickAttachments: (kind: ChatAttachmentKind, maxCount: number): Promise<PickAttachmentsResult> =>
+    ipcRenderer.invoke(PiChannel.PickAttachments, kind, maxCount),
+
+  /** Resolve the on-disk path of a dropped or pasted File. Empty for JS-created files. */
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
 
   /** Reorder recent projects. */
   reorderProjects: (paths: string[]): Promise<ProjectStateResult> =>

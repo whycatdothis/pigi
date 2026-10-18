@@ -23,6 +23,7 @@ import {
   getPiAgentDebugSnapshot,
 } from './ipc/piAgentBridge';
 import { registerProjectHandlers } from './ipc/projectHandlers';
+import { registerAttachmentHandlers } from './ipc/attachmentHandlers';
 import { registerShortcutHandlers } from './ipc/shortcutHandlers';
 import { registerTerminalHandlers, stopTerminalProcess } from './terminal/terminalManager';
 import { PiChannel } from '../shared/ipcContract';
@@ -115,6 +116,7 @@ app.whenReady().then(() => {
   initializeShellEnv();
   registerIpcHandlers();
   registerProjectHandlers();
+  registerAttachmentHandlers();
   registerShortcutHandlers();
   registerTerminalHandlers();
 

@@ -43,6 +43,7 @@ import type {
 import { toModelInfo } from '../../shared/modelInfo';
 import { generateSessionTitle } from './autoRename';
 import { createModelRuntime } from './fileCredentialStore';
+import { buildPromptContent, hasPromptContent, type BuiltPromptContent } from './promptAttachments';
 import { buildSessionTree, readEntryText, resolveForkTarget } from './sessionTree';
 
 // =============================================================================
@@ -479,37 +480,63 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
 
   switch (command.type) {
     case 'prompt': {
-      if (!command.message || command.message.trim().length === 0) {
-        return { success: false, error: 'prompt must be a non-empty string' };
+      const attachments = command.attachments ?? [];
+      if (!hasPromptContent(command.message, attachments)) {
+        return { success: false, error: 'prompt must have text or attachments' };
       }
-      runtime.session.prompt(command.message).catch((err) => {
-        // A rejection can happen before agent_end (auth/model/network
-        // preflight), so explicitly release the process-pool busy lease.
-        setSessionBusy(runtime?.session.isStreaming ?? false);
-        if (dataPort) {
-          const errorMessage: PiPush = {
-            type: 'error',
-            error: err instanceof Error ? err.message : String(err),
-          };
-          dataPort.postMessage(errorMessage);
-        }
-      });
+      let content: BuiltPromptContent;
+      try {
+        content = await buildPromptContent(command.message, attachments);
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+      runtime.session
+        .prompt(content.text, content.images.length > 0 ? { images: content.images } : undefined)
+        .catch((err) => {
+          // A rejection can happen before agent_end (auth/model/network
+          // preflight), so explicitly release the process-pool busy lease.
+          setSessionBusy(runtime?.session.isStreaming ?? false);
+          if (dataPort) {
+            const errorMessage: PiPush = {
+              type: 'error',
+              error: err instanceof Error ? err.message : String(err),
+            };
+            dataPort.postMessage(errorMessage);
+          }
+        });
       return { success: true };
     }
 
     case 'steer': {
-      if (!command.message || command.message.trim().length === 0) {
-        return { success: false, error: 'steer message must be a non-empty string' };
+      const attachments = command.attachments ?? [];
+      if (!hasPromptContent(command.message, attachments)) {
+        return { success: false, error: 'steer message must have text or attachments' };
       }
-      await runtime.session.steer(command.message);
+      let content: BuiltPromptContent;
+      try {
+        content = await buildPromptContent(command.message, attachments);
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
+      await runtime.session.steer(content.text, content.images);
       return { success: true };
     }
 
     case 'follow_up': {
-      if (!command.message || command.message.trim().length === 0) {
-        return { success: false, error: 'follow_up message must be a non-empty string' };
+      const attachments = command.attachments ?? [];
+      if (!hasPromptContent(command.message, attachments)) {
+        return { success: false, error: 'follow_up message must have text or attachments' };
       }
-      await runtime.session.followUp(command.message);
+      let content: BuiltPromptContent;
+      try {
+        content = await buildPromptContent(command.message, attachments);
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
+      await runtime.session.followUp(content.text, content.images);
       return { success: true };
     }
 

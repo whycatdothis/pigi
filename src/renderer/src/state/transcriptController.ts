@@ -1,5 +1,6 @@
 import type { EditToolDetails } from '@earendil-works/pi-coding-agent';
-import type { StreamBatch } from '../../../shared/ipcContract';
+import type { PromptAttachment, StreamBatch } from '../../../shared/ipcContract';
+import { sanitizeUserPromptForDisplay } from '../../../shared/chatAttachments';
 
 /**
  * TranscriptController - manages transcript state for a single session.
@@ -24,6 +25,12 @@ export interface UserNode {
   role: 'user';
   text: string;
   sentAt: number;
+  /** Image preview sources (data: or local-file: URLs) shown above the bubble. */
+  imageSources?: string[];
+  /** Attached file paths shown as chips below the bubble. */
+  filePaths?: string[];
+  /** Payload of an optimistic message that has not reached the session yet. */
+  promptAttachments?: PromptAttachment[];
   /** `message.timestamp` from the SDK. The session tree dialog resolves a
    *  transcript row back to its entry id by matching this timestamp, because
    *  entry ids never reach the transcript. */
@@ -130,7 +137,11 @@ export interface TranscriptState {
   queuedSteering: string[];
   queuedFollowUp: string[];
   isCompacting: boolean;
-  compactionQueue: Array<{ text: string; mode: 'steer' | 'followUp' }>;
+  compactionQueue: Array<{
+    text: string;
+    mode: 'steer' | 'followUp';
+    attachments?: PromptAttachment[];
+  }>;
 }
 
 // =============================================================================
@@ -208,7 +219,7 @@ function nextNodeId(): string {
 
 type CompactionReplayCallback = (
   sessionId: string,
-  queue: Array<{ text: string; mode: 'steer' | 'followUp' }>,
+  queue: Array<{ text: string; mode: 'steer' | 'followUp'; attachments?: PromptAttachment[] }>,
 ) => void;
 
 export class TranscriptController {
@@ -405,13 +416,15 @@ export class TranscriptController {
 
       switch (parsed.role) {
         case 'user': {
-          const text = extractText(parsed.content);
+          const { text, imageSources, filePaths } = extractUserContent(parsed.content);
           nodes.push({
             id: parsed.id || nextNodeId(),
             role: 'user',
             text,
             sentAt: normalizeTimestamp(parsed.timestamp),
             sdkTimestamp: tryNormalizeTimestamp(parsed.timestamp),
+            imageSources: imageSources.length > 0 ? imageSources : undefined,
+            filePaths: filePaths.length > 0 ? filePaths : undefined,
           });
           break;
         }
@@ -578,8 +591,15 @@ export class TranscriptController {
   }
 
   /** Queue a message sent during compaction for replay after compaction ends. */
-  addCompactionMessage(text: string, mode: 'steer' | 'followUp'): void {
-    const updated = [...this._state.compactionQueue, { text, mode }];
+  addCompactionMessage(
+    text: string,
+    mode: 'steer' | 'followUp',
+    attachments?: PromptAttachment[],
+  ): void {
+    const updated = [
+      ...this._state.compactionQueue,
+      { text, mode, attachments: attachments?.length ? attachments : undefined },
+    ];
     const steering =
       mode === 'steer' ? [...this._state.queuedSteering, text] : this._state.queuedSteering;
     const followUp =
@@ -628,9 +648,29 @@ export class TranscriptController {
   // Optimistic user message (shown immediately before SDK echo)
   // ===========================================================================
 
-  addUserMessage(text: string): void {
-    this._optimisticUserMessages.set(text, (this._optimisticUserMessages.get(text) ?? 0) + 1);
-    const node: UserNode = { id: nextNodeId(), role: 'user', text, sentAt: Date.now() };
+  addUserMessage(
+    text: string,
+    options?: {
+      imageSources?: string[];
+      filePaths?: string[];
+      promptAttachments?: PromptAttachment[];
+    },
+  ): void {
+    const split = sanitizeUserPromptForDisplay(text);
+    const filePaths = options?.filePaths ?? split.filePaths;
+    const node: UserNode = {
+      id: nextNodeId(),
+      role: 'user',
+      text: split.text,
+      sentAt: Date.now(),
+      imageSources: options?.imageSources?.length ? options.imageSources : undefined,
+      filePaths: filePaths.length > 0 ? filePaths : undefined,
+      promptAttachments: options?.promptAttachments?.length ? options.promptAttachments : undefined,
+    };
+    this._optimisticUserMessages.set(
+      split.text,
+      (this._optimisticUserMessages.get(split.text) ?? 0) + 1,
+    );
     this.setState({ nodes: [...this._state.nodes, node] });
   }
 
@@ -733,16 +773,9 @@ export class TranscriptController {
         const startMessage = startEvent.message;
         if (startMessage?.role === 'user') {
           // Check if this user message was already added optimistically
-          const contentArr = startMessage.content as
-            | Array<{ type?: string; text?: string }>
-            | undefined;
-          const text =
-            contentArr
-              ?.filter((c) => c.type === 'text')
-              .map((c) => c.text)
-              .join('') ?? '';
+          const { text, imageSources, filePaths } = extractUserContent(startMessage.content);
           if (text && !this._hasOptimisticUserMessage(text)) {
-            this.addUserMessage(text);
+            this.addUserMessage(text, { imageSources, filePaths });
           }
           this.stampLastUserMessage(startMessage.timestamp);
         } else if (startMessage?.role === 'assistant' && !this._state.activeAssistantId) {
@@ -1314,7 +1347,13 @@ function areDuplicateNodes(left: TranscriptNode, right: TranscriptNode): boolean
 
   switch (left.role) {
     case 'user':
-      return left.text === (right as UserNode).text;
+      return (
+        left.text === (right as UserNode).text &&
+        (left.imageSources ?? []).join('\u0000') ===
+          ((right as UserNode).imageSources ?? []).join('\u0000') &&
+        (left.filePaths ?? []).join('\u0000') ===
+          ((right as UserNode).filePaths ?? []).join('\u0000')
+      );
     case 'assistant': {
       // right is guaranteed to be AssistantNode here due to role equality check above
       const assistant = right as AssistantNode;
@@ -1342,6 +1381,36 @@ function extractText(content: unknown[] | undefined): string {
     }
   }
   return parts.join('\n');
+}
+
+/**
+ * Extract display data from a user message: visible text, image previews, and
+ * attached file paths (the prompt carries them in a trailing block).
+ */ function extractUserContent(content: unknown): {
+  text: string;
+  imageSources: string[];
+  filePaths: string[];
+} {
+  if (!Array.isArray(content)) {
+    const text = typeof content === 'string' ? content : '';
+    const split = sanitizeUserPromptForDisplay(text);
+    return { text: split.text, imageSources: [], filePaths: split.filePaths };
+  }
+
+  const textParts: string[] = [];
+  const imageSources: string[] = [];
+  for (const block of content) {
+    // SDK content blocks are untyped; runtime shape check
+    const parsed = block as { type?: string; text?: string; data?: string; mimeType?: string };
+    if (parsed.type === 'text' && parsed.text) {
+      textParts.push(parsed.text);
+    } else if (parsed.type === 'image' && parsed.data && parsed.mimeType) {
+      imageSources.push(`data:${parsed.mimeType};base64,${parsed.data}`);
+    }
+  }
+
+  const split = sanitizeUserPromptForDisplay(textParts.join('\n'));
+  return { text: split.text, imageSources, filePaths: split.filePaths };
 }
 
 function extractAssistantContent(content: unknown[] | undefined): {

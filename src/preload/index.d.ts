@@ -4,6 +4,8 @@ import type {
   PiPush,
   GitBranchResult,
   ModelCatalogSnapshot,
+  PickAttachmentsResult,
+  ChatAttachmentKind,
   ProjectSessionsChunk,
   ProjectStateResult,
   SessionListResult,
@@ -31,6 +33,8 @@ interface PiApi {
   openProjectDirectory: () => Promise<ProjectStateResult>;
   removeProject: (path: string) => Promise<ProjectStateResult>;
   reorderProjects: (paths: string[]) => Promise<ProjectStateResult>;
+  pickAttachments: (kind: ChatAttachmentKind, maxCount: number) => Promise<PickAttachmentsResult>;
+  getPathForFile: (file: File) => string;
   renamePersistedSession: (
     sessionPath: string,
     name: string,
