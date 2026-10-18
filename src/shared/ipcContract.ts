@@ -88,6 +88,11 @@ export type PickAttachmentsResult =
   | { success: true; files: PickedAttachment[] }
   | { success: false; canceled?: boolean; error?: string };
 
+/** Files available for inline @ references in the chat input. */
+export type ProjectFilesResult =
+  | { success: true; files: string[] }
+  | { success: false; error: string };
+
 export interface ProjectState {
   recentProjects: ProjectDirectory[];
   activeProject: ProjectDirectory | null;
@@ -393,6 +398,8 @@ export enum PiChannel {
   OpenExternal = 'pi:open_external',
   /** renderer → main: open a native picker for chat attachments */
   PickAttachments = 'pi:pick_attachments',
+  /** renderer → main: list git-visible files for inline @ references */
+  ListProjectFiles = 'pi:list_project_files',
   /** renderer → main: get system accent color */
   GetAccentColor = 'pi:get_accent_color',
   /** renderer → main: get all keyboard shortcut definitions with current bindings */

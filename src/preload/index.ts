@@ -20,6 +20,7 @@ import {
   type PiRequest,
   type PickAttachmentsResult,
   type ChatAttachmentKind,
+  type ProjectFilesResult,
   type ProjectSessionsChunk,
   type ProjectStateResult,
   type SessionListResult,
@@ -295,6 +296,10 @@ const piApi = {
   /** Get current git branch for a project directory. */
   getGitBranch: (cwd: string): Promise<GitBranchResult> =>
     ipcRenderer.invoke(PiChannel.GetGitBranch, cwd),
+
+  /** List files visible to git for inline @ references. */
+  listProjectFiles: (cwd: string): Promise<ProjectFilesResult> =>
+    ipcRenderer.invoke(PiChannel.ListProjectFiles, cwd),
 
   /** Set active project directory from recent projects. */
   setActiveProject: (path: string): Promise<ProjectStateResult> =>
