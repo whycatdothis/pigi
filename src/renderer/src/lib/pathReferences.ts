@@ -69,3 +69,25 @@ export function isLeadingSlashCommand(token: string): boolean {
 export function pathTokenDirectory(token: string): string {
   return token.slice(0, token.lastIndexOf('/') + 1);
 }
+
+/**
+ * Label for a completed path. Keep the prefix the user typed so a chip shows
+ * `src/renderer`, not just `renderer`, and a directory chip can accumulate
+ * further segments under that same full path.
+ */
+export function pathCompletionLabel(
+  token: string,
+  baseLabel: string | null,
+  entryName: string,
+): string {
+  if (baseLabel) return joinPathLabel(baseLabel, entryName);
+  // A bare tilde completes to the home directory itself; keep the alias the
+  // user typed instead of replacing it with the account name.
+  if (token === '~') return '~';
+  return `${pathTokenDirectory(token)}${entryName}`;
+}
+
+function joinPathLabel(baseLabel: string, entryName: string): string {
+  if (baseLabel === '/') return `/${entryName}`;
+  return `${baseLabel.replace(/\/+$/, '')}/${entryName}`;
+}

@@ -1,5 +1,4 @@
 import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react';
-import { IconFolder } from '@tabler/icons-react';
 import { displayFileName } from '../../lib/chatAttachments';
 import { REFERENCE_CHIP_CLASS } from '../../lib/referenceChipStyles';
 import { FileIcon } from '../fileIcon';
@@ -8,6 +7,10 @@ import { FileIcon } from '../fileIcon';
 export function PathChip({ node }: ReactNodeViewProps): React.JSX.Element {
   const path = typeof node.attrs.id === 'string' ? node.attrs.id : '';
   const isDirectory = node.attrs.pathKind === 'directory';
+  const label =
+    typeof node.attrs.label === 'string' && node.attrs.label.length > 0
+      ? node.attrs.label
+      : displayFileName(path);
 
   return (
     <NodeViewWrapper
@@ -16,8 +19,8 @@ export function PathChip({ node }: ReactNodeViewProps): React.JSX.Element {
       data-path-kind={isDirectory ? 'directory' : 'file'}
       className={REFERENCE_CHIP_CLASS}
     >
-      {isDirectory ? <IconFolder className="size-4 shrink-0" /> : <FileIcon path={path} />}
-      <span className="truncate">{displayFileName(path)}</span>
+      {isDirectory ? null : <FileIcon path={path} />}
+      <span className="truncate">{label}</span>
     </NodeViewWrapper>
   );
 }

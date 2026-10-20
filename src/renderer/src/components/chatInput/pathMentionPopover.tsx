@@ -1,12 +1,16 @@
 import { useEffect, useRef } from 'react';
 import type { PathCompletionEntry } from '../../../../shared/ipcContract';
+import { pathCompletionLabel } from '../../lib/pathReferences';
 import { cn } from '../../lib/utils';
 import { FileIcon } from '../fileIcon';
-import { IconFolder } from '@tabler/icons-react';
 
 interface PathMentionPopoverProps {
   /** Empty while a directory read is in flight. */
   entries: PathCompletionEntry[];
+  /** Token being completed, including its directory prefix. */
+  token: string;
+  /** Full path label of a preceding folder chip, if any. */
+  baseLabel: string | null;
   /** Set when the directory listing failed. */
   error: string | null;
   selectedIndex: number;
@@ -17,6 +21,8 @@ interface PathMentionPopoverProps {
 /** Directory entries for the path token being typed. */
 export function PathMentionPopover({
   entries,
+  token,
+  baseLabel,
   error,
   selectedIndex,
   onSelect,
@@ -59,13 +65,9 @@ export function PathMentionPopover({
               }}
               onMouseEnter={() => onHover(index)}
             >
-              {entry.isDirectory ? (
-                <IconFolder className="size-4 shrink-0" />
-              ) : (
-                <FileIcon path={entry.path} />
-              )}
+              {entry.isDirectory ? null : <FileIcon path={entry.path} />}
               <span className="min-w-0 truncate text-foreground">
-                {entry.name}
+                {pathCompletionLabel(token, baseLabel, entry.name)}
                 {entry.isDirectory && '/'}
               </span>
             </button>
