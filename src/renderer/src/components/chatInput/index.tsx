@@ -15,6 +15,7 @@ import { IconArrowUp, IconGitBranch, IconSquare } from '@tabler/icons-react';
 import type {
   ChatAttachmentKind,
   ModelInfo,
+  PathCompletionEntry,
   ProjectDirectory,
   PromptInput,
   SkillSlashCommand,
@@ -53,12 +54,14 @@ import { ModelSettingsPicker } from './modelSettingsPicker';
 import { SlashCommandPopover } from './slashCommandPopover';
 import { AttachmentChips, AttachmentPickerButton } from './attachmentPicker';
 import { FileMentionPopover } from './fileMentionPopover';
+import { PathMentionPopover } from './pathMentionPopover';
 import {
   COMPOSER_TEXT_START,
   createComposerExtensions,
   exitReferenceSuggestion,
   exitReferenceSuggestions,
   type ComposerSuggestion,
+  type PathSuggestion,
 } from './composerExtensions';
 
 export interface ChatInputHandle {
@@ -101,6 +104,7 @@ const FOLLOW_UP_PLACEHOLDER = 'Ask for follow-up changes';
 const NEW_SESSION_HEADING = 'Here we go!';
 const NO_COMMANDS: ReadonlySet<string> = new Set();
 const EMPTY_FILE_MATCHES: string[] = [];
+const EMPTY_PATH_ENTRIES: PathCompletionEntry[] = [];
 const TEXT_BLOCK_SEPARATOR = '\n';
 /** Send and stop share one look so the button does not change colour mid-run. */
 const PRIMARY_ACTION_CLASS_NAME =
@@ -152,6 +156,14 @@ export default function ChatInput({
     files: string[];
     error: string | null;
   }>({ cwd: '', query: '', files: [], error: null });
+  // The open path picker and its latest directory listing.
+  const [pathSuggestion, setPathSuggestion] = useState<PathSuggestion | null>(null);
+  const [pathResult, setPathResult] = useState<{
+    cwd: string;
+    token: string;
+    entries: PathCompletionEntry[];
+  }>({ cwd: '', token: '', entries: [] });
+  const [selectedPathIndex, setSelectedPathIndex] = useState(0);
 
   // Hash autocomplete state for project switching (#)
   const [hashMode, setHashMode] = useState(false);
@@ -188,10 +200,16 @@ export default function ChatInput({
     [],
   );
 
+  const handlePathSuggestionChange = useCallback((next: PathSuggestion | null) => {
+    setPathSuggestion(next);
+    setSelectedPathIndex(0);
+  }, []);
+
   const [extensions] = useState(() =>
     createComposerExtensions({
       placeholder: isNewSession ? NEW_SESSION_PLACEHOLDER : FOLLOW_UP_PLACEHOLDER,
       onSuggestionChange: handleSuggestionChange,
+      onPathSuggestionChange: handlePathSuggestionChange,
     }),
   );
   const [editorProps] = useState<EditorOptions['editorProps']>(() => ({
@@ -226,8 +244,8 @@ export default function ChatInput({
       }
     },
     onBlur: ({ editor: blurredEditor }) => {
-      // The file popover has no outside-click handling of its own.
-      exitReferenceSuggestion(blurredEditor.view, 'file');
+      // The popovers have no outside-click handling of their own.
+      exitReferenceSuggestions(blurredEditor.view);
     },
   });
 
@@ -443,6 +461,9 @@ export default function ChatInput({
   const mentionSearching =
     mentionResult.cwd !== projectPath || mentionResult.query !== mentionQuery;
   const mentionError = mentionOpen && mentionResultIsCurrent ? mentionResult.error : null;
+  // Keep the last listing visible while the next directory read is in flight.
+  const pathEntries =
+    pathSuggestion && pathResult.cwd === projectPath ? pathResult.entries : EMPTY_PATH_ENTRIES;
 
   // An empty query lists the project's most recently modified files, and
   // warms the index on the first open. Search on every keystroke: fff answers
@@ -471,6 +492,30 @@ export default function ChatInput({
       cancelled = true;
     };
   }, [mentionOpen, mentionQuery, projectPath]);
+
+  // Path completion reads one directory at a time; no index and no debounce.
+  useEffect(() => {
+    if (!pathSuggestion || projectPath.length === 0) return;
+    let cancelled = false;
+    void window.piApi
+      .completePath(projectPath, pathSuggestion.token)
+      .catch((error: unknown) => ({
+        success: false as const,
+        error: error instanceof Error ? error.message : String(error),
+      }))
+      .then((result) => {
+        if (cancelled) return;
+        setPathResult({
+          cwd: projectPath,
+          token: pathSuggestion.token,
+          entries: result.success ? result.entries : [],
+        });
+        setSelectedPathIndex(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathSuggestion, projectPath]);
 
   // Save/restore the draft of the input box being switched to/from. Drafts are
   // stored module-level (see lib/chatDrafts.ts) so text typed on the new-chat
@@ -607,6 +652,23 @@ export default function ChatInput({
 
       // Picker navigation takes priority over history and the send shortcut.
       // Escape is left to the suggestion plugin, which closes the picker.
+      if (pathSuggestion && pathEntries.length > 0) {
+        const pathCount = pathEntries.length;
+        if (event.key === 'ArrowUp') {
+          setSelectedPathIndex((index) => (index - 1 + pathCount) % pathCount);
+          return true;
+        }
+        if (event.key === 'ArrowDown') {
+          setSelectedPathIndex((index) => (index + 1) % pathCount);
+          return true;
+        }
+        if (event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey)) {
+          const entry = pathEntries[selectedPathIndex];
+          if (entry) pathSuggestion.insert(entry);
+          return true;
+        }
+      }
+
       const matchCount =
         suggestion?.kind === 'file' ? mentionMatches.length : flatSlashMatches.length;
       if (suggestion && matchCount > 0) {
@@ -657,6 +719,9 @@ export default function ChatInput({
       isStreaming,
       suggestion,
       mentionMatches,
+      pathSuggestion,
+      pathEntries,
+      selectedPathIndex,
       flatSlashMatches,
       selectedSuggestionIndex,
       onSlashCommand,
@@ -728,7 +793,15 @@ export default function ChatInput({
             className="relative mx-auto w-full"
             style={{ maxWidth: `${CHAT_INPUT_MAX_WIDTH}px` }}
           >
-            {mentionOpen && (
+            {pathSuggestion && pathEntries.length > 0 && (
+              <PathMentionPopover
+                entries={pathEntries}
+                selectedIndex={selectedPathIndex}
+                onSelect={(entry) => pathSuggestion.insert(entry)}
+                onHover={setSelectedPathIndex}
+              />
+            )}
+            {mentionOpen && !pathSuggestion && (
               <FileMentionPopover
                 matches={mentionMatches}
                 selectedIndex={selectedSuggestionIndex}
