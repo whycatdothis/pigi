@@ -1101,6 +1101,9 @@ function App(): React.JSX.Element {
       'sidebar.openProject': () => {
         handleOpenProject();
       },
+      'sidebar.toggle': () => {
+        useAppStore.getState().toggleSidebar();
+      },
       'navigation.openSwitcher': () => {
         setSwitcherAutoPreselect(false);
         setSwitcherOpen(true);
@@ -1615,6 +1618,7 @@ function App(): React.JSX.Element {
             // Must follow <main> in DOM order: Electron applies app-region rects in
             // order, so the toolbar's drag rect would otherwise swallow the click.
             <SidebarToggle
+              shortcutBinding={shortcutBindings?.get('sidebar.toggle')}
               className="fixed top-2 z-30 animate-in fade-in-0 duration-300"
               style={{ left: sidebarToggleLeft(platform) }}
             />

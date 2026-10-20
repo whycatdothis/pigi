@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { IconSquareRoundedPlus, IconTrash } from '@tabler/icons-react';
+import { IconFolderPlus, IconMessageCirclePlus, IconTrash } from '@tabler/icons-react';
 import { FolderClosed, FolderOpen } from 'lucide-react';
 import type { PiSessionInfo, ProjectDirectory } from '../../../../shared/ipcContract';
 import type { SessionEntry } from '../../state/appStore';
@@ -108,7 +108,7 @@ function ProjectItem({
             onClick={onNewSession}
             className="opacity-0 group-hover/project:opacity-100 transition-opacity"
           >
-            <IconSquareRoundedPlus />
+            <IconMessageCirclePlus />
             <span className="sr-only">{NEW_PROJECT_SESSION_LABEL}</span>
           </SidebarMenuAction>
 
@@ -215,7 +215,7 @@ export function ProjectList({
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton onClick={onOpenProject} className="text-muted-foreground">
-            <FolderOpen data-icon="inline-start" />
+            <IconFolderPlus data-icon="inline-start" />
             <span>Open a project</span>
           </SidebarMenuButton>
         </SidebarMenuItem>

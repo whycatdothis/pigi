@@ -410,12 +410,12 @@ export enum PiChannel {
   OpenExternal = 'pi:open_external',
   /** renderer → main: open a native picker for chat attachments */
   PickAttachments = 'pi:pick_attachments',
+  /** renderer → main: preview an attached file (Quick Look on macOS) */
+  PreviewFile = 'pi:preview_file',
   /** renderer → main: list git-visible files for inline @ references */
   SearchProjectFiles = 'pi:search_project_files',
   /** renderer → main: get system accent color */
   GetAccentColor = 'pi:get_accent_color',
-  /** renderer → main: render a macOS SF Symbol as a PNG data URL */
-  GetSystemSymbol = 'pi:get_system_symbol',
   /** renderer → main: get all keyboard shortcut definitions with current bindings */
   GetShortcuts = 'pi:get_shortcuts',
   /** renderer → main: update a keyboard shortcut binding */

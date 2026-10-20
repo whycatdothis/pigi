@@ -179,7 +179,7 @@ export default function MessageSearch({
                     className="rounded p-0.5 text-muted-foreground hover:text-foreground"
                     title="Previous match (Shift+Enter)"
                   >
-                    <IconArrowUp className="size-4" stroke={1.75} />
+                    <IconArrowUp className="size-4" />
                   </button>
                   <button
                     type="button"
@@ -187,7 +187,7 @@ export default function MessageSearch({
                     className="rounded p-0.5 text-muted-foreground hover:text-foreground"
                     title="Next match (Enter)"
                   >
-                    <IconArrowDown className="size-4" stroke={1.75} />
+                    <IconArrowDown className="size-4" />
                   </button>
                 </span>
               </>
@@ -201,7 +201,7 @@ export default function MessageSearch({
               className="rounded p-0.5 text-muted-foreground hover:text-foreground"
               title="Close (Esc)"
             >
-              <IconX className="size-4" stroke={1.75} />
+              <IconX className="size-4" />
             </button>
           </div>
         </div>

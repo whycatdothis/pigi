@@ -102,6 +102,9 @@ const NEW_SESSION_HEADING = 'Here we go!';
 const NO_COMMANDS: ReadonlySet<string> = new Set();
 const EMPTY_FILE_MATCHES: string[] = [];
 const TEXT_BLOCK_SEPARATOR = '\n';
+/** Send and stop share one look so the button does not change colour mid-run. */
+const PRIMARY_ACTION_CLASS_NAME =
+  'rounded-full bg-[var(--system-accent)] text-white hover:bg-[var(--system-accent)]';
 
 /** Editor callbacks that need the latest render's state. */
 interface ComposerHandlers {
@@ -189,7 +192,9 @@ export default function ChatInput({
     attributes: {
       class: cn(
         'chat-composer max-h-[17.5vh] overflow-y-auto px-4 pb-2 pt-4 text-sm leading-6 outline-none',
+        // Attachments sit right under the text instead of below the empty min height.
         isNewSession ? 'min-h-24' : 'min-h-16',
+        'in-data-has-attachments:min-h-0',
       ),
       'data-testid': 'chat-composer',
     },
@@ -700,6 +705,7 @@ export default function ChatInput({
                 'relative h-auto flex-col rounded-3xl border bg-background shadow-[0_10px_34px_rgb(0_0_0_/_0.075)]',
                 !isNewSession && 'min-h-28',
               )}
+              data-has-attachments={attachments.length > 0 || undefined}
             >
               <EditorContent editor={editor} className="w-full" />
               {attachments.length > 0 && (
@@ -730,7 +736,7 @@ export default function ChatInput({
                     onClick={onAbort}
                     size="icon-sm"
                     variant="default"
-                    className="rounded-full"
+                    className={PRIMARY_ACTION_CLASS_NAME}
                     data-testid="abort-button"
                   >
                     <IconSquare className="fill-current" />
@@ -740,7 +746,7 @@ export default function ChatInput({
                     onClick={handleSend}
                     size="icon-sm"
                     variant="default"
-                    className="rounded-full bg-[var(--system-accent)]/70 text-white hover:bg-[var(--system-accent)]"
+                    className={PRIMARY_ACTION_CLASS_NAME}
                     data-testid="send-button"
                   >
                     <IconArrowUp />

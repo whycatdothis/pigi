@@ -19,6 +19,7 @@ import {
 } from '../ui/dropdown-menu';
 import { SessionTreeHelpButton } from '../sessionTree/SessionTreeHelpDialog';
 import { SessionTreeIcon } from '../sessionTree/sessionTreeIcons';
+import { Kbd } from '../ui/kbd';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 // 13px menu text (app's text-xs scale, keeps the theme line-height — an
@@ -173,14 +174,12 @@ export default React.memo(function SessionToolbar({
               onClick={onToggleTerminal}
               className={`flex items-center justify-center rounded p-1 transition-colors size-7 hover:bg-muted [-webkit-app-region:no-drag] ${terminalOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              <IconTerminal2 size={16} stroke={1.5} />
+              <IconTerminal2 size={16} />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="flex items-center gap-2">
-            <span>Toggle terminal</span>
-            {terminalShortcutLabel && (
-              <kbd className="font-mono text-xs text-muted-foreground">{terminalShortcutLabel}</kbd>
-            )}
+          <TooltipContent side="bottom">
+            Toggle terminal
+            {terminalShortcutLabel && <Kbd>{terminalShortcutLabel}</Kbd>}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -192,7 +191,7 @@ export default React.memo(function SessionToolbar({
             title="View mode"
             className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors size-7 [-webkit-app-region:no-drag]"
           >
-            <IconFilter2 size={16} stroke={1.5} />
+            <IconFilter2 size={16} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
