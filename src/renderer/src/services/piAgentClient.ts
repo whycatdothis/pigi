@@ -184,15 +184,21 @@ type ClearQueueResult = ({ success: true } & ClearedQueue) | { success: false; e
 
 /**
  * Clear the SDK queues and return the queued messages as the user wrote them.
- * A failed clear returns empty queues.
+ * Returns null when the call fails, so callers can fall back to the local queue
+ * instead of dropping the messages.
  */
-export async function clearQueue(sessionPath: string): Promise<ClearedQueue> {
-  const result = await send<ClearQueueResult>(sessionPath, { type: 'clear_queue' });
-  if (!result.success) {
-    console.error('clear_queue failed:', result.error);
-    return { steering: [], followUp: [] };
+export async function clearQueue(sessionPath: string): Promise<ClearedQueue | null> {
+  try {
+    const result = await send<ClearQueueResult>(sessionPath, { type: 'clear_queue' });
+    if (!result.success) {
+      console.error('clear_queue failed:', result.error);
+      return null;
+    }
+    return { steering: result.steering, followUp: result.followUp };
+  } catch (error) {
+    console.error('clear_queue failed:', error);
+    return null;
   }
-  return { steering: result.steering, followUp: result.followUp };
 }
 
 export async function abort(sessionPath: string): Promise<void> {

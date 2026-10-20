@@ -102,6 +102,8 @@ const NEW_SESSION_HEADING = 'Here we go!';
 const NO_COMMANDS: ReadonlySet<string> = new Set();
 const EMPTY_FILE_MATCHES: string[] = [];
 const TEXT_BLOCK_SEPARATOR = '\n';
+/** Wait for typing to settle before asking the main process to search files. */
+const FILE_SEARCH_DEBOUNCE_MS = 150;
 /** Send and stop share one look so the button does not change colour mid-run. */
 const PRIMARY_ACTION_CLASS_NAME =
   'rounded-full bg-[var(--system-accent)] text-white hover:bg-[var(--system-accent)]';
@@ -150,7 +152,8 @@ export default function ChatInput({
     cwd: string;
     query: string;
     files: string[];
-  }>({ cwd: '', query: '', files: [] });
+    error: string | null;
+  }>({ cwd: '', query: '', files: [], error: null });
 
   // Hash autocomplete state for project switching (#)
   const [hashMode, setHashMode] = useState(false);
@@ -201,6 +204,9 @@ export default function ChatInput({
         isNewSession ? 'min-h-24' : 'min-h-16',
         'in-data-has-attachments:min-h-0',
       ),
+      role: 'textbox',
+      'aria-multiline': 'true',
+      'aria-label': 'Message',
       'data-testid': 'chat-composer',
     },
     handleKeyDown: (_view, event) => handlersRef.current.keyDown(event),
@@ -427,36 +433,47 @@ export default function ChatInput({
     [slashMatches],
   );
 
-  const projectPath = activeProject?.path ?? session?.cwd ?? '';
+  const projectPath = session?.cwd ?? activeProject?.path ?? '';
   const mentionOpen = suggestion?.kind === 'file';
   const mentionQuery = mentionOpen ? suggestion.query.trim() : '';
   // While the next query is in flight, keep showing the previous results
   // instead of flashing an empty list on every keystroke.
+  const mentionResultIsCurrent =
+    mentionResult.cwd === projectPath && mentionResult.query === mentionQuery;
   const mentionMatches =
-    mentionOpen && mentionQuery.length > 0 && mentionResult.cwd === projectPath
+    mentionOpen && mentionQuery.length > 0 && mentionResultIsCurrent
       ? mentionResult.files
       : EMPTY_FILE_MATCHES;
   const mentionSearching =
     mentionResult.cwd !== projectPath || mentionResult.query !== mentionQuery;
+  const mentionError = mentionOpen && mentionResultIsCurrent ? mentionResult.error : null;
 
   // An empty query only warms the project's file index in the main process.
   useEffect(() => {
     if (!mentionOpen || projectPath.length === 0) return;
     let cancelled = false;
-    void window.piApi
-      .searchProjectFiles(projectPath, mentionQuery)
-      .catch(() => null)
-      .then((result) => {
-        if (cancelled) return;
-        setMentionResult({
-          cwd: projectPath,
-          query: mentionQuery,
-          files: result?.success ? result.files : [],
+    const timeout = window.setTimeout(() => {
+      void window.piApi
+        .searchProjectFiles(projectPath, mentionQuery)
+        .catch((error: unknown) => ({
+          success: false as const,
+          error: error instanceof Error ? error.message : String(error),
+        }))
+        .then((result) => {
+          if (cancelled) return;
+          setMentionResult({
+            cwd: projectPath,
+            query: mentionQuery,
+            files: result.success ? result.files : [],
+            // A failed search must not look like an empty project.
+            error: result.success ? null : result.error || 'File search is unavailable.',
+          });
+          setSelectedSuggestionIndex(0);
         });
-        setSelectedSuggestionIndex(0);
-      });
+    }, FILE_SEARCH_DEBOUNCE_MS);
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
     };
   }, [mentionOpen, mentionQuery, projectPath]);
 
@@ -722,6 +739,7 @@ export default function ChatInput({
                 selectedIndex={selectedSuggestionIndex}
                 query={mentionQuery}
                 searching={mentionSearching}
+                error={mentionError}
                 onSelect={(path) => suggestion?.insertReference(path)}
                 onHover={setSelectedSuggestionIndex}
               />

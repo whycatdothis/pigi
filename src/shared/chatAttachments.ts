@@ -12,6 +12,9 @@ export const MAX_PROMPT_ATTACHMENTS = 12;
 /** Clipboard files larger than this are not inlined into the prompt. */
 export const MAX_INLINE_FILE_BYTES = 256 * 1024;
 
+/** Pasted images larger than this are rejected before they are read into base64. */
+export const MAX_PASTED_IMAGE_BYTES = 20 * 1024 * 1024;
+
 /** Marker that introduces the list of attached file paths in a prompt. */
 export const ATTACHED_FILES_HEADER = '[Attached files]';
 
@@ -30,9 +33,10 @@ const SUPPORTED_IMAGE_EXTENSIONS: Record<string, string> = {
 
 // Only the blocks promptAttachments generates are stripped: an inline text
 // file (`\nCONTENT\n`), or one of the generated status lines. User-typed
-// `<file>` markup in prose is left alone.
+// `<file>` markup in prose is left alone. The name is captured so the
+// renderer can show a chip for a clipboard file that has no path.
 const INLINE_FILE_BLOCK_RE =
-  /<file name="[^"\n]*">(?:File too large to include \(\d+ bytes\)\.|Binary file \(\d+ bytes\)\.|File not found: [^\n<]*|Failed to attach: [^\n<]*|\n[\s\S]*?\n)<\/file>\n?/g;
+  /<file name="([^"\n]*)">(?:File too large to include \(\d+ bytes\)\.|Binary file \(\d+ bytes\)\.|File not found: [^\n<]*|Failed to attach: [^\n<]*|\n[\s\S]*?\n)<\/file>\n?/g;
 
 export function baseMimeType(mimeType: string): string {
   return mimeType.split(';')[0]?.trim().toLowerCase() ?? '';
@@ -83,13 +87,28 @@ export function stripAttachmentSummary(text: string): string {
 export function sanitizeUserPromptForDisplay(text: string): {
   text: string;
   filePaths: string[];
+  inlineFileNames: string[];
 } {
-  return splitAttachedFilesBlock(stripInlineFileBlocks(stripAttachmentSummary(text)));
+  const inline = splitInlineFileBlocks(stripAttachmentSummary(text));
+  return { ...splitAttachedFilesBlock(inline.text), inlineFileNames: inline.fileNames };
 }
 
 /** Strip inline `<file>` blocks (clipboard files inlined without a path). */
 export function stripInlineFileBlocks(text: string): string {
-  return text.replace(INLINE_FILE_BLOCK_RE, '').trimEnd();
+  return splitInlineFileBlocks(text).text;
+}
+
+/**
+ * Split inline `<file>` blocks out of a prompt. The names are kept so the
+ * renderer can show a chip for a clipboard attachment that has no path.
+ */
+export function splitInlineFileBlocks(text: string): { text: string; fileNames: string[] } {
+  const fileNames: string[] = [];
+  const stripped = text.replace(INLINE_FILE_BLOCK_RE, (_match, name: string) => {
+    fileNames.push(name);
+    return '';
+  });
+  return { text: stripped.trimEnd(), fileNames };
 }
 
 /**

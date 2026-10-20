@@ -26,6 +26,9 @@ export function registerProjectHandlers(): void {
   });
 
   ipcMain.handle(PiChannel.SearchProjectFiles, async (_event, cwd: string, query: string) => {
+    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+      return { success: false, error: 'cwd must be a non-empty string' };
+    }
     return searchProjectFiles(cwd, typeof query === 'string' ? query : '');
   });
 

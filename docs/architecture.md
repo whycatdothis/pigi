@@ -34,6 +34,13 @@ projects survive. The toolbar title inset uses the same duration and easing
 edge. A width transition must sit under `data-panel-resizing:transition-none`.
 Otherwise dragging would lag behind the pointer.
 
+The message column is capped at `MESSAGE_LIST_MAX_WIDTH` (860px). At the default
+window size the chat viewport is already wider than that cap, so hiding the
+sidebar only changes the margins: the rows keep their width and do not reflow.
+Rows do reflow below roughly sidebar width + 860px (about 1104px with the
+default 244px sidebar), so measure any width-animation concern at a narrow
+window instead of assuming the default one reproduces it.
+
 Native window resizing remains CSS-driven. Keep resize measurements scoped to
 their consumers: the message minimap observes its own available width without
 publishing it through the transcript component. Virtual rows use a stable
@@ -209,6 +216,24 @@ Everything after handshake flows over two direct MessagePorts per session. Split
 { type: 'stream_batch', text?, thinking?, toolOutput? }
 // Flushed every 16ms by StreamBatcher
 ```
+
+### Prompt attachment text contract
+
+The utility process builds the text for `prompt`, `steer` and `follow_up`. It
+adds three kinds of attachment plumbing that the renderer strips again before
+display:
+
+- `[Attached files]` followed by absolute paths — file attachments the agent
+  reads with its tools. `splitAttachedFilesBlock` returns the paths for chips.
+- `<file name="...">…</file>` inline blocks — clipboard files with no path on
+  disk. `splitInlineFileBlocks` removes the body and returns the names.
+- `[Attached N images]` / `[Attached N images, M files]` — the conversation
+  text of an attachment-only message, so the session list has a title.
+
+`src/shared/chatAttachments.ts` owns both sides; keep the writer in
+`src/processes/utility/promptAttachments.ts` and the strippers in sync. Queued
+steer/follow-up inputs are matched back to the SDK queue by the text the SDK
+stores after expanding skills and prompt templates.
 
 ## Why This Design
 

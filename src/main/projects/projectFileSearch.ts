@@ -77,7 +77,12 @@ export async function searchProjectFiles(
     const trimmed = query.trim();
     if (trimmed.length === 0) return { success: true, files: [] };
 
-    if (finder.isScanning()) await finder.waitForScan(INITIAL_SCAN_WAIT_MS);
+    // A timed-out first scan still has a usable partial index; only a failed
+    // wait means the finder cannot answer at all.
+    if (finder.isScanning()) {
+      const scan = await finder.waitForScan(INITIAL_SCAN_WAIT_MS);
+      if (!scan.ok) return { success: false, error: scan.error };
+    }
     const result = finder.fileSearch(trimmed, { pageSize: MAX_MATCHES });
     if (!result.ok) return { success: false, error: result.error };
     return { success: true, files: result.value.items.map((item) => item.relativePath) };

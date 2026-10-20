@@ -8,6 +8,8 @@ interface FileMentionPopoverProps {
   /** Empty until the user types after `@`; searching starts with the first character. */
   query: string;
   searching: boolean;
+  /** Set when the last search failed; an unavailable index is not an empty project. */
+  error: string | null;
   onSelect: (path: string) => void;
   onHover: (index: number) => void;
 }
@@ -18,6 +20,7 @@ export function FileMentionPopover({
   selectedIndex,
   query,
   searching,
+  error,
   onSelect,
   onHover,
 }: FileMentionPopoverProps): React.JSX.Element {
@@ -44,7 +47,9 @@ export function FileMentionPopover({
             ? 'Type to search files'
             : searching
               ? 'Searching…'
-              : 'No files found'}
+              : error
+                ? `File search unavailable: ${error}`
+                : 'No files found'}
         </div>
       ) : (
         <div ref={listRef} className="max-h-[40vh] overflow-y-auto p-1">
