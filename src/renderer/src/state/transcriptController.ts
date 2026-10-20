@@ -1329,8 +1329,9 @@ function areDuplicateNodes(left: TranscriptNode, right: TranscriptNode): boolean
     case 'user':
       return (
         left.text === (right as UserNode).text &&
-        (left.imageSources ?? []).join('\u0000') ===
-          ((right as UserNode).imageSources ?? []).join('\u0000') &&
+        // Optimistic previews use local-file:// URLs while the SDK hands back
+        // data: URLs, so compare how many images each side has.
+        (left.imageSources?.length ?? 0) === ((right as UserNode).imageSources?.length ?? 0) &&
         (left.filePaths ?? []).join('\u0000') ===
           ((right as UserNode).filePaths ?? []).join('\u0000')
       );

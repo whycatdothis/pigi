@@ -36,6 +36,18 @@ describe('chatAttachments', () => {
 
   it('strips inline file blocks', () => {
     expect(stripInlineFileBlocks('hi\n<file name="x.txt">\nbody\n</file>\n')).toBe('hi');
+    expect(stripInlineFileBlocks('hi\n<file name="x.txt">Binary file (12 bytes).</file>\n')).toBe(
+      'hi',
+    );
+  });
+
+  it('leaves user-typed attachment markup alone', () => {
+    expect(stripInlineFileBlocks('hi\n<file name="x.txt">inline</file>')).toBe(
+      'hi\n<file name="x.txt">inline</file>',
+    );
+    expect(stripAttachmentSummary('[Attached to the wall] keep me')).toBe(
+      '[Attached to the wall] keep me',
+    );
   });
 
   it('detects supported image extensions and mime types', () => {

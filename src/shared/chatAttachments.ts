@@ -9,11 +9,15 @@
 /** Maximum number of attachments accepted for one message. */
 export const MAX_PROMPT_ATTACHMENTS = 12;
 
+/** Clipboard files larger than this are not inlined into the prompt. */
+export const MAX_INLINE_FILE_BYTES = 256 * 1024;
+
 /** Marker that introduces the list of attached file paths in a prompt. */
 export const ATTACHED_FILES_HEADER = '[Attached files]';
 
 /** Marker used as message text when the user sent attachments without text. */
-const ATTACHED_SUMMARY_RE = /^\s*\[Attached [^\]\n]*\]\s*\n?/;
+const ATTACHED_SUMMARY_RE =
+  /^\s*\[Attached \d+ (?:images?|files?)(?:, \d+ (?:images?|files?))?\]\s*\n?/;
 
 const SUPPORTED_IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const SUPPORTED_IMAGE_EXTENSIONS: Record<string, string> = {
@@ -24,7 +28,11 @@ const SUPPORTED_IMAGE_EXTENSIONS: Record<string, string> = {
   gif: 'image/gif',
 };
 
-const INLINE_FILE_BLOCK_RE = /<file name="[^"]*">[\s\S]*?<\/file>\n?/g;
+// Only the blocks promptAttachments generates are stripped: an inline text
+// file (`\nCONTENT\n`), or one of the generated status lines. User-typed
+// `<file>` markup in prose is left alone.
+const INLINE_FILE_BLOCK_RE =
+  /<file name="[^"\n]*">(?:File too large to include \(\d+ bytes\)\.|Binary file \(\d+ bytes\)\.|File not found: [^\n<]*|Failed to attach: [^\n<]*|\n[\s\S]*?\n)<\/file>\n?/g;
 
 export function baseMimeType(mimeType: string): string {
   return mimeType.split(';')[0]?.trim().toLowerCase() ?? '';

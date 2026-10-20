@@ -14,10 +14,8 @@ import {
   buildAttachedFilesBlock,
   buildAttachmentSummary,
   displayFileName,
+  MAX_INLINE_FILE_BYTES,
 } from '../../shared/chatAttachments';
-
-/** Clipboard files larger than this are not inlined into the prompt. */
-const MAX_INLINE_FILE_BYTES = 256 * 1024;
 
 export interface BuiltPromptContent {
   text: string;
