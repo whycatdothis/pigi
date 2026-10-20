@@ -1,8 +1,10 @@
 /**
  * The SDK queues steering and follow-up messages as built prompt text, so
  * images and the user's original wording are gone by the time the queue is
- * cleared. This keeps each queued message's input in SDK queue order so
- * clearing the queue can hand the input back to the composer.
+ * cleared. This keeps each queued message's input next to the text the SDK
+ * actually queued, and matches the two by text: the SDK removes delivered
+ * messages by text, and extensions can push into the same queues without
+ * being recorded here.
  */
 import type { ClearedQueue, PromptInput } from '../../shared/ipcContract';
 import { sanitizeUserPromptForDisplay } from '../../shared/chatAttachments';
@@ -11,34 +13,36 @@ export type PromptQueueName = keyof ClearedQueue;
 
 type SdkQueues = Record<PromptQueueName, readonly string[]>;
 
+const QUEUE_NAMES = ['steering', 'followUp'] as const;
+
+interface QueuedInput {
+  /** Prompt text exactly as the SDK stores it in its queue. */
+  text: string;
+  input: PromptInput;
+}
+
 export class QueuedPromptInputs {
-  private queues: ClearedQueue = { steering: [], followUp: [] };
+  private queues: Record<PromptQueueName, QueuedInput[]> = { steering: [], followUp: [] };
 
   /**
-   * Record an input right before the SDK queues it. Returns a function that
-   * drops the record if the SDK rejects the message.
+   * Record an input with the text the SDK queued for it. Call this right after
+   * the SDK accepts the message, before any other queue command can run.
    */
-  add(queueName: PromptQueueName, input: PromptInput): () => void {
-    this.queues[queueName].push(input);
-    return () => {
-      const queue = this.queues[queueName];
-      const index = queue.indexOf(input);
-      if (index !== -1) queue.splice(index, 1);
-    };
+  add(queueName: PromptQueueName, text: string, input: PromptInput): void {
+    this.queues[queueName].push({ text, input });
   }
 
-  /** Drop delivered inputs; the SDK delivers queued messages from the front. */
+  /** Keep only the records whose text is still queued in the SDK. */
   sync(sdkQueues: SdkQueues): void {
-    for (const queueName of ['steering', 'followUp'] as const) {
-      const queue = this.queues[queueName];
-      const deliveredCount = queue.length - sdkQueues[queueName].length;
-      if (deliveredCount > 0) queue.splice(0, deliveredCount);
+    for (const queueName of QUEUE_NAMES) {
+      this.queues[queueName] = matchRecords(this.queues[queueName], sdkQueues[queueName]);
     }
   }
 
   /**
-   * Clear the SDK queues and return the original inputs. Falls back to the
-   * SDK text when the records are out of step with the SDK queue.
+   * Clear the SDK queues and return the original inputs in SDK queue order.
+   * Text queued without a record (extensions) falls back to the stripped SDK
+   * text, since its attachments and original wording are not available.
    */
   clear(clearSdkQueues: () => SdkQueues): ClearedQueue {
     const recorded = this.queues;
@@ -51,10 +55,21 @@ export class QueuedPromptInputs {
   }
 }
 
-function inputsForQueue(recorded: PromptInput[], sdkTexts: readonly string[]): PromptInput[] {
-  if (recorded.length === sdkTexts.length) return recorded;
-  return sdkTexts.map((text) => ({
-    message: sanitizeUserPromptForDisplay(text).text,
-    attachments: [],
-  }));
+function matchRecords(records: QueuedInput[], sdkTexts: readonly string[]): QueuedInput[] {
+  const unmatched = [...records];
+  const matched: QueuedInput[] = [];
+  for (const text of sdkTexts) {
+    const index = unmatched.findIndex((record) => record.text === text);
+    if (index !== -1) matched.push(unmatched.splice(index, 1)[0]);
+  }
+  return matched;
+}
+
+function inputsForQueue(records: QueuedInput[], sdkTexts: readonly string[]): PromptInput[] {
+  const unmatched = [...records];
+  return sdkTexts.map((text) => {
+    const index = unmatched.findIndex((record) => record.text === text);
+    if (index !== -1) return unmatched.splice(index, 1)[0].input;
+    return { message: sanitizeUserPromptForDisplay(text).text, attachments: [] };
+  });
 }

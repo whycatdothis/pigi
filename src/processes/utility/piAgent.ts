@@ -34,6 +34,7 @@ import type {
   PiPush,
   PiRequest,
   PiResult,
+  PromptInput,
   ControlPortMessage,
   StreamBatch,
   StreamBatchToolArgs,
@@ -508,21 +509,43 @@ async function queuePrompt(
   const built = await buildCommandContent(command);
   if (!built.success) return built;
   const { text, images } = built.content;
-  const dropInput = queuedPromptInputs.add(queueName, {
+  const input: PromptInput = {
     message: command.message,
     attachments: command.attachments ?? [],
-  });
-  try {
-    if (queueName === 'steering') {
-      await session.steer(text, images);
-    } else {
-      await session.followUp(text, images);
-    }
-  } catch (err) {
-    dropInput();
-    throw err;
+  };
+  // Record the text the SDK actually queued: it expands skill commands and
+  // prompt templates before storing the message, and queue reconciliation
+  // matches on that text.
+  if (queueName === 'steering') {
+    await session.steer(text, images);
+    const queued = session.getSteeringMessages();
+    queuedPromptInputs.add(queueName, queued[queued.length - 1] ?? text, input);
+  } else {
+    await session.followUp(text, images);
+    const queued = session.getFollowUpMessages();
+    queuedPromptInputs.add(queueName, queued[queued.length - 1] ?? text, input);
   }
   return { success: true };
+}
+
+let commandChain: Promise<void> = Promise.resolve();
+
+/**
+ * Commands that change the SDK's prompt queues must start in the order the
+ * renderer sent them. Building attachment content is async, so without this
+ * chain a later command can finish first and reorder steering, or outlive a
+ * stop that was meant to clear it.
+ *
+ * `prompt` joins the chain only until it has started the run: awaiting the
+ * whole run would hold back steering for its entire duration.
+ */
+function serializeCommand<T>(task: () => Promise<T>): Promise<T> {
+  const result = commandChain.then(task);
+  commandChain = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
 }
 
 async function handleCommand(command: PiCommand): Promise<unknown> {
@@ -530,42 +553,56 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
 
   switch (command.type) {
     case 'prompt': {
-      const built = await buildCommandContent(command);
-      if (!built.success) return built;
-      const { content } = built;
-      runtime.session
-        .prompt(content.text, content.images.length > 0 ? { images: content.images } : undefined)
-        .catch((err) => {
-          // A rejection can happen before agent_end (auth/model/network
-          // preflight), so explicitly release the process-pool busy lease.
-          setSessionBusy(runtime?.session.isStreaming ?? false);
-          if (dataPort) {
-            const errorMessage: PiPush = {
-              type: 'error',
-              error: err instanceof Error ? err.message : String(err),
-            };
-            dataPort.postMessage(errorMessage);
-          }
-        });
-      return { success: true };
+      const session = runtime.session;
+      return serializeCommand(async () => {
+        const built = await buildCommandContent(command);
+        if (!built.success) return built;
+        const { content } = built;
+        session
+          .prompt(content.text, content.images.length > 0 ? { images: content.images } : undefined)
+          .catch((err) => {
+            // A rejection can happen before agent_end (auth/model/network
+            // preflight), so explicitly release the process-pool busy lease.
+            setSessionBusy(session.isStreaming);
+            if (dataPort) {
+              const errorMessage: PiPush = {
+                type: 'error',
+                error: err instanceof Error ? err.message : String(err),
+              };
+              dataPort.postMessage(errorMessage);
+            }
+          });
+        return { success: true };
+      });
     }
 
-    case 'steer':
-      return queuePrompt(runtime.session, 'steering', command);
+    case 'steer': {
+      const session = runtime.session;
+      return serializeCommand(() => queuePrompt(session, 'steering', command));
+    }
 
-    case 'follow_up':
-      return queuePrompt(runtime.session, 'followUp', command);
+    case 'follow_up': {
+      const session = runtime.session;
+      return serializeCommand(() => queuePrompt(session, 'followUp', command));
+    }
 
     case 'clear_queue': {
       const session = runtime.session;
-      return { success: true, ...queuedPromptInputs.clear(() => session.clearQueue()) };
+      return serializeCommand(async () => ({
+        success: true,
+        ...queuedPromptInputs.clear(() => session.clearQueue()),
+      }));
     }
 
-    case 'abort':
-      runtime.session.abortCompaction();
-      await runtime.session.abort();
-      setSessionBusy(runtime.session.isStreaming);
-      return { success: true };
+    case 'abort': {
+      const session = runtime.session;
+      return serializeCommand(async () => {
+        session.abortCompaction();
+        await session.abort();
+        setSessionBusy(session.isStreaming);
+        return { success: true };
+      });
+    }
 
     case 'compact':
       await runtime.session.compact();

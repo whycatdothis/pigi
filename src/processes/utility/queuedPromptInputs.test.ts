@@ -12,8 +12,8 @@ const image: PromptAttachment = {
 describe('QueuedPromptInputs', () => {
   it('hands back the original inputs when the queue is cleared', () => {
     const inputs = new QueuedPromptInputs();
-    inputs.add('steering', { message: '', attachments: [image] });
-    inputs.add('followUp', { message: 'later', attachments: [] });
+    inputs.add('steering', '[Attached 1 image]', { message: '', attachments: [image] });
+    inputs.add('followUp', 'later', { message: 'later', attachments: [] });
 
     const cleared = inputs.clear(() => ({
       steering: ['[Attached 1 image]'],
@@ -26,10 +26,10 @@ describe('QueuedPromptInputs', () => {
     });
   });
 
-  it('drops delivered inputs from the front', () => {
+  it('drops delivered inputs by text', () => {
     const inputs = new QueuedPromptInputs();
-    inputs.add('steering', { message: 'first', attachments: [image] });
-    inputs.add('steering', { message: 'second', attachments: [] });
+    inputs.add('steering', 'first', { message: 'first', attachments: [image] });
+    inputs.add('steering', 'second', { message: 'second', attachments: [] });
     inputs.sync({ steering: ['second'], followUp: [] });
 
     expect(inputs.clear(() => ({ steering: ['second'], followUp: [] })).steering).toEqual([
@@ -37,12 +37,28 @@ describe('QueuedPromptInputs', () => {
     ]);
   });
 
-  it('forgets an input the SDK rejected', () => {
+  it('matches delivered inputs by text, not by position', () => {
     const inputs = new QueuedPromptInputs();
-    const drop = inputs.add('steering', { message: 'rejected', attachments: [] });
-    drop();
+    inputs.add('steering', 'first', { message: 'first', attachments: [image] });
+    inputs.add('steering', 'second', { message: 'second', attachments: [] });
+    inputs.sync({ steering: ['first'], followUp: [] });
 
-    expect(inputs.clear(() => ({ steering: [], followUp: [] })).steering).toEqual([]);
+    expect(inputs.clear(() => ({ steering: ['first'], followUp: [] })).steering).toEqual([
+      { message: 'first', attachments: [image] },
+    ]);
+  });
+
+  it('falls back to sanitized SDK text for messages queued without a record', () => {
+    const inputs = new QueuedPromptInputs();
+    inputs.add('steering', 'mine', { message: 'mine', attachments: [image] });
+    inputs.sync({ steering: ['from extension', 'mine'], followUp: [] });
+
+    expect(
+      inputs.clear(() => ({ steering: ['from extension', 'mine'], followUp: [] })).steering,
+    ).toEqual([
+      { message: 'from extension', attachments: [] },
+      { message: 'mine', attachments: [image] },
+    ]);
   });
 
   it('falls back to sanitized SDK text when out of step', () => {

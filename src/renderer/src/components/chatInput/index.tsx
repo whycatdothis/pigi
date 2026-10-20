@@ -110,6 +110,7 @@ const PRIMARY_ACTION_CLASS_NAME =
 interface ComposerHandlers {
   keyDown: (event: KeyboardEvent) => boolean;
   paste: (event: ClipboardEvent) => boolean;
+  drop: (event: globalThis.DragEvent) => boolean;
 }
 
 export default function ChatInput({
@@ -172,7 +173,11 @@ export default function ChatInput({
     commandNamesRef.current = commandNames;
   }, [commandNames]);
 
-  const handlersRef = useRef<ComposerHandlers>({ keyDown: () => false, paste: () => false });
+  const handlersRef = useRef<ComposerHandlers>({
+    keyDown: () => false,
+    paste: () => false,
+    drop: () => false,
+  });
 
   const handleSuggestionChange = useCallback(
     (kind: ChatReferenceKind, next: ComposerSuggestion | null) => {
@@ -200,6 +205,9 @@ export default function ChatInput({
     },
     handleKeyDown: (_view, event) => handlersRef.current.keyDown(event),
     handlePaste: (_view, event) => handlersRef.current.paste(event),
+    // Claim the editor's drop so ProseMirror does not fall back to inserting a
+    // `text/uri-list` file URL; the wrapper handles drops outside the editor.
+    handleDrop: (_view, event) => handlersRef.current.drop(event),
   }));
 
   const editor = useEditor({
@@ -292,7 +300,9 @@ export default function ChatInput({
           built.push(await attachmentFromFile(file, path));
         } catch (error) {
           console.error('Failed to attach file:', error);
-          toast.error(`Could not attach ${file.name || 'file'}.`);
+          toast.error(
+            error instanceof Error ? error.message : `Could not attach ${file.name || 'file'}.`,
+          );
         }
       }
       if (built.length > 0) {
@@ -374,16 +384,32 @@ export default function ChatInput({
     if (dragDepthRef.current === 0) setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      const files = Array.from(event.dataTransfer?.files ?? []);
-      if (files.length === 0) return;
-      event.preventDefault();
+  const addDroppedFiles = useCallback(
+    (dataTransfer: DataTransfer | null): boolean => {
+      const files = Array.from(dataTransfer?.files ?? []);
+      if (files.length === 0) return false;
       dragDepthRef.current = 0;
       setIsDragOver(false);
       void addFiles(files);
+      return true;
     },
     [addFiles],
+  );
+
+  const handleEditorDrop = useCallback(
+    (event: globalThis.DragEvent): boolean => addDroppedFiles(event.dataTransfer),
+    [addDroppedFiles],
+  );
+
+  const handleDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      // The editor already claimed a drop on its own DOM (and prevented the
+      // default), so the bubbled event must not attach the same files twice.
+      if (event.defaultPrevented) return;
+      if (!addDroppedFiles(event.dataTransfer)) return;
+      event.preventDefault();
+    },
+    [addDroppedFiles],
   );
 
   const allSlashCommands = useMemo(() => getAllSlashCommands(skillOptions), [skillOptions]);
@@ -629,8 +655,8 @@ export default function ChatInput({
   );
 
   useLayoutEffect(() => {
-    handlersRef.current = { keyDown: handleKeyDown, paste: handlePaste };
-  }, [handleKeyDown, handlePaste]);
+    handlersRef.current = { keyDown: handleKeyDown, paste: handlePaste, drop: handleEditorDrop };
+  }, [handleKeyDown, handlePaste, handleEditorDrop]);
 
   const projectLabel = activeProject?.name ?? 'select project';
 
