@@ -55,6 +55,25 @@ export class QueuedPromptInputs {
   }
 }
 
+/**
+ * Return the first text present only in `after`, comparing as multisets so a
+ * message delivered during the call does not hide the appended one. Callers
+ * must snapshot `before`: the SDK queue getters return the live array that
+ * steer/followUp mutate in place.
+ */
+export function firstAppendedQueueText(
+  before: readonly string[],
+  after: readonly string[],
+): string | null {
+  const remaining = [...before];
+  for (const text of after) {
+    const index = remaining.indexOf(text);
+    if (index === -1) return text;
+    remaining.splice(index, 1);
+  }
+  return null;
+}
+
 function matchRecords(records: QueuedInput[], sdkTexts: readonly string[]): QueuedInput[] {
   const unmatched = [...records];
   const matched: QueuedInput[] = [];

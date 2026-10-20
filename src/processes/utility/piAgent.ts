@@ -45,7 +45,11 @@ import { toModelInfo } from '../../shared/modelInfo';
 import { generateSessionTitle } from './autoRename';
 import { createModelRuntime } from './fileCredentialStore';
 import { buildPromptContent, hasPromptContent, type BuiltPromptContent } from './promptAttachments';
-import { QueuedPromptInputs, type PromptQueueName } from './queuedPromptInputs';
+import {
+  QueuedPromptInputs,
+  firstAppendedQueueText,
+  type PromptQueueName,
+} from './queuedPromptInputs';
 import { buildSessionTree, readEntryText, resolveForkTarget } from './sessionTree';
 
 // =============================================================================
@@ -499,19 +503,6 @@ async function buildCommandContent(command: PromptCommand): Promise<BuildCommand
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
-}
-
-function firstAppendedQueueText(
-  before: readonly string[],
-  after: readonly string[],
-): string | null {
-  const remaining = [...before];
-  for (const text of after) {
-    const index = remaining.indexOf(text);
-    if (index === -1) return text;
-    remaining.splice(index, 1);
-  }
-  return null;
 }
 
 async function queuePrompt(

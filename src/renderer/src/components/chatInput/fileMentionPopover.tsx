@@ -5,8 +5,6 @@ import { FileIcon } from '../fileIcon';
 interface FileMentionPopoverProps {
   matches: string[];
   selectedIndex: number;
-  /** Empty until the user types after `@`; searching starts with the first character. */
-  query: string;
   searching: boolean;
   /** Set when the last search failed; an unavailable index is not an empty project. */
   error: string | null;
@@ -18,12 +16,11 @@ interface FileMentionPopoverProps {
 export function FileMentionPopover({
   matches,
   selectedIndex,
-  query,
   searching,
   error,
   onSelect,
   onHover,
-}: FileMentionPopoverProps): React.JSX.Element {
+}: FileMentionPopoverProps): React.JSX.Element | null {
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,23 +33,23 @@ export function FileMentionPopover({
     container.querySelectorAll('button')[selectedIndex]?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex, matches]);
 
+  // Nothing to show until the first search finishes; an empty box or a
+  // "searching" placeholder over the transcript reads as flicker.
+  if (searching && matches.length === 0) return null;
+
   return (
     <div
       className="absolute bottom-full left-0 right-0 z-30 mb-2 overflow-hidden rounded-lg bg-popover/50 shadow-md ring-[0.5px] ring-foreground/25 backdrop-blur-md"
       onMouseDown={(event) => event.preventDefault()}
     >
       {matches.length === 0 ? (
-        <div className="px-3 py-2 text-[0.875rem] text-muted-foreground">
-          {query.length === 0
-            ? 'Type to search files'
-            : searching
-              ? 'Searching…'
-              : error
-                ? `File search unavailable: ${error}`
-                : 'No files found'}
+        <div className="p-1">
+          <div className="px-2 py-1 text-[0.875rem] text-muted-foreground">
+            {error ? `File search unavailable: ${error}` : 'No files found'}
+          </div>
         </div>
       ) : (
-        <div ref={listRef} className="max-h-[40vh] overflow-y-auto p-1">
+        <div ref={listRef} className="max-h-[25vh] overflow-y-auto p-1">
           {matches.map((path, index) => (
             <button
               key={path}
