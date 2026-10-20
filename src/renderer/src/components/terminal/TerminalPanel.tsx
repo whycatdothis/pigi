@@ -189,7 +189,7 @@ export default function TerminalPanel({
                   title={tab.title}
                   className="group/tab h-8 max-w-40 flex-none px-2.5 text-xs font-normal text-muted-foreground"
                 >
-                  <IconTerminal2 size={13} stroke={1.5} className="shrink-0 opacity-70" />
+                  <IconTerminal2 size={13} className="shrink-0 opacity-70" />
                   <span className="truncate">{tab.title}</span>
                   <span
                     role="button"
@@ -205,7 +205,7 @@ export default function TerminalPanel({
                     }}
                     className="-mr-1 ml-0.5 flex size-3.5 shrink-0 items-center justify-center rounded opacity-0 transition-opacity hover:bg-foreground/10 group-hover/tab:opacity-100 group-data-[state=active]/tab:opacity-100"
                   >
-                    <IconX size={7} stroke={2} />
+                    <IconX size={7} />
                   </span>
                 </TabsTrigger>
               ))}
@@ -217,7 +217,7 @@ export default function TerminalPanel({
             onClick={() => terminalController.openTab()}
             className="flex flex-none items-center justify-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            <IconPlus size={18} stroke={1.75} />
+            <IconPlus size={18} />
           </button>
         </div>
         <button
@@ -226,7 +226,7 @@ export default function TerminalPanel({
           onClick={onClose}
           className="flex shrink-0 items-center justify-center rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <IconX size={14} stroke={1.5} />
+          <IconX size={14} />
         </button>
       </div>
       <div ref={containerRef} className="min-h-0 flex-1 px-2 pb-1 text-foreground" />

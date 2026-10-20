@@ -22,6 +22,11 @@ export const SHORTCUT_DEFAULTS: ShortcutEntry[] = [
     defaultBinding: { key: 'o', meta: true },
   },
   {
+    id: 'sidebar.toggle',
+    label: 'Toggle sidebar',
+    defaultBinding: { key: 's', meta: true },
+  },
+  {
     id: 'navigation.openSwitcher',
     label: 'Session switcher',
     defaultBinding: { key: 'r', ctrl: true },

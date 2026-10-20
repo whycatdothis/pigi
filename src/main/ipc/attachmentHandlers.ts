@@ -5,10 +5,14 @@
  * returns absolute paths plus display metadata. The renderer enforces the
  * attachment limit. The utility process reads the bytes, so large files never
  * cross IPC here.
+ *
+ * Attached files in sent messages open in Quick Look on macOS (a preview that
+ * never runs the file) and are revealed in the file manager elsewhere.
  */
-import { dialog, ipcMain } from 'electron';
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
-import { basename } from 'node:path';
+import { basename, isAbsolute } from 'node:path';
 import {
   PiChannel,
   type ChatAttachmentKind,
@@ -72,4 +76,14 @@ export function registerAttachmentHandlers(): void {
       return { success: true, files: filtered };
     },
   );
+
+  ipcMain.on(PiChannel.PreviewFile, (event, path: unknown) => {
+    if (typeof path !== 'string' || !isAbsolute(path) || !existsSync(path)) return;
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (process.platform === 'darwin' && win) {
+      win.previewFile(path, basename(path));
+    } else {
+      shell.showItemInFolder(path);
+    }
+  });
 }

@@ -65,6 +65,7 @@ interface PiApi {
   // Utilities
   getCwd: () => string;
   openExternal: (url: string) => void;
+  previewFile: (path: string) => void;
   getModelCatalog: () => Promise<ModelCatalogSnapshot>;
   refreshModelCatalog: () => Promise<ModelCatalogSnapshot>;
   onModelCatalogUpdated: (callback: (snapshot: ModelCatalogSnapshot) => void) => () => void;
@@ -76,7 +77,6 @@ interface PiApi {
     binding: ShortcutBinding,
   ) => Promise<{ success: boolean; error?: string }>;
   getAccentColor: () => Promise<string | null>;
-  getSystemSymbol: (name: string) => Promise<string | null>;
 
   // Bottom-panel terminals (one PTY per tab, keyed by id, I/O over a MessagePort each)
   terminal: {

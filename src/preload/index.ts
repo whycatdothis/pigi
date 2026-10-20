@@ -456,6 +456,11 @@ const piApi = {
     ipcRenderer.send(PiChannel.OpenExternal, url);
   },
 
+  /** Preview an attached file: Quick Look on macOS, reveal in the file manager elsewhere. */
+  previewFile: (path: string): void => {
+    ipcRenderer.send(PiChannel.PreviewFile, path);
+  },
+
   /** Get all keyboard shortcut definitions with current bindings. */
   getShortcuts: (): Promise<ShortcutDefinition[]> => ipcRenderer.invoke(PiChannel.GetShortcuts),
 
@@ -468,10 +473,6 @@ const piApi = {
 
   /** Get the system accent color as a hex string (e.g. '#007aff'). Returns null on unsupported platforms. */
   getAccentColor: (): Promise<string | null> => ipcRenderer.invoke(PiChannel.GetAccentColor),
-
-  /** Render a macOS SF Symbol (e.g. 'sidebar.left') as a PNG data URL. Null on other platforms or unknown names. */
-  getSystemSymbol: (name: string): Promise<string | null> =>
-    ipcRenderer.invoke(PiChannel.GetSystemSymbol, name),
 
   /** Bottom-panel terminals. One PTY per tab (keyed by id); I/O over a MessagePort. */
   terminal: {

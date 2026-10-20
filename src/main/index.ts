@@ -10,7 +10,6 @@ import {
   BrowserWindow,
   ipcMain,
   Menu,
-  nativeImage,
   net,
   protocol,
   shell,
@@ -133,12 +132,6 @@ app.whenReady().then(() => {
     // macOS 10.14+: returns system accent color as RGBA hex (#RRGGBBAA).
     const accent = systemPreferences.getAccentColor();
     return accent || null;
-  });
-
-  ipcMain.handle(PiChannel.GetSystemSymbol, (_event, name: unknown) => {
-    if (process.platform !== 'darwin' || typeof name !== 'string') return null;
-    const image = nativeImage.createFromNamedImage(name);
-    return image.isEmpty() ? null : image.toDataURL();
   });
 
   openMainWindow();

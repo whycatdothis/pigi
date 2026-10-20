@@ -7,7 +7,8 @@
 - Attach files and images to a message from the `+` button in the chat input
 - Skills, commands and `@` file references show as labels with icons in the chat input; skills show just their name
 - `@` file search is faster and shows file-type icons
-- A button at the top of the sidebar hides and shows it, with an animation; it uses the macOS sidebar symbol
+- A button at the top of the sidebar, or Cmd+S, hides and shows it, with an animation; hovering the button shows the shortcut
+- Images and files you send appear inside your message; click an image to see it larger, or a file to preview it (Quick Look on macOS, the file manager elsewhere)
 
 ### Changed
 
@@ -16,7 +17,8 @@
 - Choosing a project with `#` returns focus to the chat input
 - New sidebar icons for new chat, project folders and opening a project
 - The session title in the toolbar no longer has an icon in front of it
-- Icons use their regular stroke weight
+- Send and stop buttons use the accent color
+- Attachments in the chat input sit right under the text, and their remove buttons only show on hover
 - Taller lines and labels in the chat input
 
 ## [0.4.12] - 2026-10-17

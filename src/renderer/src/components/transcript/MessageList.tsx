@@ -402,7 +402,7 @@ export default React.memo(function MessageList({
           onClick={handleScrollToBottom}
           className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center justify-center rounded-full border-[0.5px] border-border bg-background/90 shadow-md backdrop-blur-sm transition-opacity hover:bg-muted size-9"
         >
-          <IconArrowDown className="size-5 text-muted-foreground" stroke={1.5} />
+          <IconArrowDown className="size-5 text-muted-foreground" />
         </button>
       )}
     </div>

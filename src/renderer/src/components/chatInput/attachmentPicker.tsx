@@ -92,19 +92,20 @@ function AttachmentChip({
     <button
       type="button"
       className={cn(
-        'absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full',
+        'absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full',
         'border border-background bg-[var(--system-accent)] text-[var(--background)] shadow-sm hover:bg-[var(--system-accent)]/90',
+        'opacity-0 transition-opacity group-hover/chip:opacity-100 focus-visible:opacity-100',
       )}
       onClick={() => onRemove(attachment.id)}
       aria-label={`Remove ${attachment.name}`}
     >
-      <IconX className="size-3" />
+      <IconX className="size-2.5" stroke={3} />
     </button>
   );
 
   if (attachment.kind === 'image') {
     return (
-      <div className="relative size-16 shrink-0" title={attachment.name}>
+      <div className="group/chip relative size-16 shrink-0" title={attachment.name}>
         <img
           src={attachment.previewUrl}
           alt={attachment.name}
@@ -117,7 +118,7 @@ function AttachmentChip({
 
   return (
     <div
-      className="relative flex max-w-56 shrink-0 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/50 py-1 pl-1.5 pr-3"
+      className="group/chip relative flex max-w-56 shrink-0 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/50 py-1 pl-1.5 pr-3"
       title={attachment.path ?? attachment.name}
     >
       <FileIcon path={attachment.name} />
