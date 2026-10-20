@@ -15,6 +15,11 @@ beforeAll(async () => {
   await writeFile(join(root, 'README.md'), '');
   await mkdir(join(root, 'target'), { recursive: true });
   await symlink(join(root, 'target'), join(root, 'src/link'));
+  await mkdir(join(root, 'many'));
+  for (let index = 0; index < 24; index += 1) {
+    await mkdir(join(root, 'many', `app-dir-${String(index).padStart(2, '0')}`));
+  }
+  await writeFile(join(root, 'many/app.tsx'), '');
 });
 
 afterAll(async () => {
@@ -66,6 +71,13 @@ describe('completePath', () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.entries.map((entry) => entry.name)).toContain('components');
+  });
+
+  it('keeps matching files when many folders also match', async () => {
+    const result = await completePath(root, 'many/app');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.entries.map((entry) => entry.name)).toContain('app.tsx');
   });
 
   it('shows dotfiles once the prefix starts with a dot', async () => {

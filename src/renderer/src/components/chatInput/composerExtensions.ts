@@ -17,7 +17,11 @@ import {
 } from '@tiptap/suggestion';
 import type { PathCompletionEntry } from '../../../../shared/ipcContract';
 import type { ChatReferenceKind } from '../../lib/chatReferences';
-import { findPathTokenAtEnd, isLeadingSlashCommand } from '../../lib/pathReferences';
+import {
+  findPathTokenAtEnd,
+  isLeadingSlashCommand,
+  pathCompletionLabel,
+} from '../../lib/pathReferences';
 import {
   REFERENCE_TRIGGERS,
   referenceKindForTrigger,
@@ -84,6 +88,8 @@ export interface PathSuggestion {
   token: string;
   /** Directory from a preceding folder chip; `null` for a project-relative token. */
   baseDir: string | null;
+  /** Full path label shown on a preceding folder chip, if any. */
+  baseLabel: string | null;
   /** Document position where replacement starts, including a preceding folder chip. */
   replaceFrom: number;
   /** Replace the token (and a preceding folder chip) with a path chip. */
@@ -150,23 +156,29 @@ function pathSuggestionRenderer(
         directoryChip && props.query.startsWith(PATH_TRIGGER)
           ? props.query.slice(PATH_TRIGGER.length)
           : props.query;
+      const baseLabel = directoryChip?.label ?? null;
       const replaceFrom = directoryChip?.from ?? props.range.from;
       onPathSuggestionChange({
         token,
         baseDir: directoryChip?.path ?? null,
+        baseLabel,
         replaceFrom,
         insert: (entry) => {
+          const label = pathCompletionLabel(token, baseLabel, entry.name);
           const content = entry.isDirectory
             ? [
                 {
                   type: PATH_REFERENCE_NODE_NAME,
-                  attrs: { id: entry.path, pathKind: 'directory' },
+                  attrs: { id: entry.path, pathKind: 'directory', label },
                 },
                 // Keep the slash so typing the next segment reads as one path.
                 { type: 'text', text: PATH_TRIGGER },
               ]
             : [
-                { type: PATH_REFERENCE_NODE_NAME, attrs: { id: entry.path, pathKind: 'file' } },
+                {
+                  type: PATH_REFERENCE_NODE_NAME,
+                  attrs: { id: entry.path, pathKind: 'file', label },
+                },
                 { type: 'text', text: ' ' },
               ];
           props.editor
@@ -196,6 +208,8 @@ interface DirectoryChipContext {
   from: number;
   /** Absolute directory stored on the chip. */
   path: string;
+  /** Full path shown on the chip, if it was created by path completion. */
+  label: string | null;
 }
 
 /** The folder chip immediately before a completion token, if any. */
@@ -217,7 +231,11 @@ function directoryChipBefore(doc: ProseMirrorNode, range: Range): DirectoryChipC
     return null;
   }
 
-  return { from: textStart - preceding.nodeSize, path: preceding.attrs.id };
+  return {
+    from: textStart - preceding.nodeSize,
+    path: preceding.attrs.id,
+    label: typeof preceding.attrs.label === 'string' ? preceding.attrs.label : null,
+  };
 }
 
 const PathMention = Mention.extend({
@@ -231,6 +249,14 @@ const PathMention = Mention.extend({
         renderHTML: (attributes: Record<string, unknown>) => ({
           'data-path-kind': String(attributes.pathKind),
         }),
+      },
+      label: {
+        default: '',
+        parseHTML: (element: HTMLElement) => element.getAttribute('data-path-label') ?? '',
+        renderHTML: (attributes: Record<string, unknown>) =>
+          typeof attributes.label === 'string' && attributes.label.length > 0
+            ? { 'data-path-label': attributes.label }
+            : {},
       },
     };
   },

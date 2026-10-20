@@ -823,6 +823,8 @@ export default function ChatInput({
             {pathSuggestion && (pathEntries.length > 0 || pathError || pathLoading) && (
               <PathMentionPopover
                 entries={pathEntries}
+                token={pathSuggestion.token}
+                baseLabel={pathSuggestion.baseLabel}
                 error={pathError}
                 selectedIndex={selectedPathIndex}
                 onSelect={(entry) => pathSuggestion.insert(entry)}

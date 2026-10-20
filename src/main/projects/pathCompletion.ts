@@ -49,7 +49,7 @@ function isSubsequence(value: string, lowerCaseQuery: string): boolean {
   return true;
 }
 
-/** Folders first, then fuzzy matches (or alphabetical when nothing is typed). */
+/** Folders first when nothing is typed; otherwise rank folders and files together. */
 function orderEntries(entries: PathCompletionEntry[], namePrefix: string): PathCompletionEntry[] {
   // Dotfiles stay hidden until the typed segment starts with a dot.
   const visible = namePrefix.startsWith('.')
@@ -62,18 +62,25 @@ function orderEntries(entries: PathCompletionEntry[], namePrefix: string): PathC
     return [...directories.sort(compareNames), ...files.sort(compareNames)].slice(0, MAX_ENTRIES);
   }
 
-  const rank = (list: PathCompletionEntry[]): PathCompletionEntry[] => {
-    const lowerCaseQuery = namePrefix.toLowerCase();
-    const candidates =
-      list.length > FUZZY_PREFILTER_THRESHOLD
-        ? list.filter((entry) => isSubsequence(entry.name, lowerCaseQuery))
-        : list;
-    return fuzzysort
-      .go(namePrefix, candidates, { key: 'name', limit: MAX_ENTRIES })
-      .map((result) => result.obj);
-  };
-
-  return [...rank(directories), ...rank(files)].slice(0, MAX_ENTRIES);
+  const lowerCaseQuery = namePrefix.toLowerCase();
+  const candidates =
+    visible.length > FUZZY_PREFILTER_THRESHOLD
+      ? visible.filter((entry) => isSubsequence(entry.name, lowerCaseQuery))
+      : visible;
+  const matches = fuzzysort
+    .go(namePrefix, candidates, { key: 'name' })
+    .map((result) => ({ entry: result.obj, score: result.score }));
+  // Rank folders and files together. Concatenating the two lists used to let
+  // a directory with 20 weak folder matches crowd every matching file out of
+  // the result, so a file could not be completed at all.
+  matches.sort((left, right) => {
+    if (left.score !== right.score) return right.score - left.score;
+    if (left.entry.isDirectory !== right.entry.isDirectory) {
+      return left.entry.isDirectory ? -1 : 1;
+    }
+    return compareNames(left.entry, right.entry);
+  });
+  return matches.slice(0, MAX_ENTRIES).map((match) => match.entry);
 }
 
 function errorCode(error: unknown): string | undefined {

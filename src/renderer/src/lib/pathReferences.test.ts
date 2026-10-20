@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { findPathTokenAtEnd, isLeadingSlashCommand, pathTokenDirectory } from './pathReferences';
+import {
+  findPathTokenAtEnd,
+  isLeadingSlashCommand,
+  pathCompletionLabel,
+  pathTokenDirectory,
+} from './pathReferences';
 
 describe('findPathTokenAtEnd', () => {
   it('finds the token that ends at the cursor', () => {
@@ -91,6 +96,27 @@ describe('pathTokenDirectory', () => {
 
   it('keeps a trailing slash', () => {
     expect(pathTokenDirectory('src/')).toBe('src/');
+  });
+});
+
+describe('pathCompletionLabel', () => {
+  it('keeps the typed path prefix', () => {
+    expect(pathCompletionLabel('src/ren', null, 'renderer')).toBe('src/renderer');
+    expect(pathCompletionLabel('~/Doc', null, 'Documents')).toBe('~/Documents');
+    expect(pathCompletionLabel('/', null, 'Users')).toBe('/Users');
+  });
+
+  it('keeps a bare tilde as the home alias', () => {
+    expect(pathCompletionLabel('~', null, 'mingxin')).toBe('~');
+  });
+
+  it('appends the next segment to a directory chip label', () => {
+    expect(pathCompletionLabel('src', 'src/renderer', 'main')).toBe('src/renderer/main');
+    expect(pathCompletionLabel('', '~', 'Documents')).toBe('~/Documents');
+  });
+
+  it('joins a root directory without a double slash', () => {
+    expect(pathCompletionLabel('', '/', 'Users')).toBe('/Users');
   });
 });
 

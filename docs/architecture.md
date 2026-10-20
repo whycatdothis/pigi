@@ -242,14 +242,18 @@ exception is a leading `/name` with no second slash, which stays with the
 slash-command picker; `/Users/me` is absolute and completes as a path.
 `pi:complete_path` reads one directory with `readdir` instead of using the
 project index, because it must work outside the project and see gitignored
-files. Matching is fuzzy over the last path segment, and entries are ordered
-folders first.
+files. Matching is fuzzy over the last path segment. With no query, entries
+are folders first; with a query, folders and files are ranked together by
+match score (folders break ties), so a directory full of folder matches cannot
+push every file out of the list.
 
-A completed path is a `pathReference` chip whose `id` is the absolute path.
-Selecting a folder inserts the chip followed by a `/`; the next token is
-completed relative to that chip and replaces it, so drilling down through
-folders never leaves two partial paths in the prompt. Selecting a file replaces
-the folder chip with the file chip and adds a space.
+A completed path is a `pathReference` chip whose `id` is the absolute path and
+whose label is the full path the user typed, such as `src/renderer` or
+`~/Documents`. Selecting a folder inserts the chip followed by a `/`; the next
+token is completed relative to that chip and replaces it, but the new chip
+carries the full path forward, so the visible path never collapses to just the
+child name. Folder chips have no icon; the trailing slash marks them. Selecting
+a file replaces the folder chip with the file chip and adds a space.
 
 A bare `~` offers the home directory; choosing it lists its children. A space
 right after a bare folder (or `~`) closes the picker; once a name has been
