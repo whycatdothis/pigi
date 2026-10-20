@@ -102,8 +102,6 @@ const NEW_SESSION_HEADING = 'Here we go!';
 const NO_COMMANDS: ReadonlySet<string> = new Set();
 const EMPTY_FILE_MATCHES: string[] = [];
 const TEXT_BLOCK_SEPARATOR = '\n';
-/** Wait for typing to settle before asking the main process to search files. */
-const FILE_SEARCH_DEBOUNCE_MS = 150;
 /** Send and stop share one look so the button does not change colour mid-run. */
 const PRIMARY_ACTION_CLASS_NAME =
   'rounded-full bg-[var(--system-accent)] text-white hover:bg-[var(--system-accent)]';
@@ -441,39 +439,36 @@ export default function ChatInput({
   const mentionResultIsCurrent =
     mentionResult.cwd === projectPath && mentionResult.query === mentionQuery;
   const mentionMatches =
-    mentionOpen && mentionQuery.length > 0 && mentionResultIsCurrent
-      ? mentionResult.files
-      : EMPTY_FILE_MATCHES;
+    mentionOpen && mentionResult.cwd === projectPath ? mentionResult.files : EMPTY_FILE_MATCHES;
   const mentionSearching =
     mentionResult.cwd !== projectPath || mentionResult.query !== mentionQuery;
   const mentionError = mentionOpen && mentionResultIsCurrent ? mentionResult.error : null;
 
-  // An empty query only warms the project's file index in the main process.
+  // An empty query lists the project's most recently modified files, and
+  // warms the index on the first open. Search on every keystroke: fff answers
+  // from the in-memory index, and the cancelled flag drops stale replies.
   useEffect(() => {
     if (!mentionOpen || projectPath.length === 0) return;
     let cancelled = false;
-    const timeout = window.setTimeout(() => {
-      void window.piApi
-        .searchProjectFiles(projectPath, mentionQuery)
-        .catch((error: unknown) => ({
-          success: false as const,
-          error: error instanceof Error ? error.message : String(error),
-        }))
-        .then((result) => {
-          if (cancelled) return;
-          setMentionResult({
-            cwd: projectPath,
-            query: mentionQuery,
-            files: result.success ? result.files : [],
-            // A failed search must not look like an empty project.
-            error: result.success ? null : result.error || 'File search is unavailable.',
-          });
-          setSelectedSuggestionIndex(0);
+    void window.piApi
+      .searchProjectFiles(projectPath, mentionQuery)
+      .catch((error: unknown) => ({
+        success: false as const,
+        error: error instanceof Error ? error.message : String(error),
+      }))
+      .then((result) => {
+        if (cancelled) return;
+        setMentionResult({
+          cwd: projectPath,
+          query: mentionQuery,
+          files: result.success ? result.files : [],
+          // A failed search must not look like an empty project.
+          error: result.success ? null : result.error || 'File search is unavailable.',
         });
-    }, FILE_SEARCH_DEBOUNCE_MS);
+        setSelectedSuggestionIndex(0);
+      });
     return () => {
       cancelled = true;
-      window.clearTimeout(timeout);
     };
   }, [mentionOpen, mentionQuery, projectPath]);
 
@@ -737,7 +732,6 @@ export default function ChatInput({
               <FileMentionPopover
                 matches={mentionMatches}
                 selectedIndex={selectedSuggestionIndex}
-                query={mentionQuery}
                 searching={mentionSearching}
                 error={mentionError}
                 onSelect={(path) => suggestion?.insertReference(path)}

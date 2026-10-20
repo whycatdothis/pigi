@@ -7,6 +7,7 @@
 - Attach files and images to a message from the `+` button in the chat input
 - Skills, commands and `@` file references show as labels with icons in the chat input; skills show just their name
 - `@` file search is faster and shows file-type icons
+- `@` shows the project's most recently modified files before you type
 - A button at the top of the sidebar, or Cmd+B, hides and shows it, with an animation; hovering the button shows the shortcut
 - Images and files you send appear inside your message; click an image to see it larger, or a file to preview it (Quick Look on macOS, the file manager elsewhere)
 
@@ -27,7 +28,7 @@
 - Dropping a file onto the chat input no longer inserts a file URL into the message
 - A message with images no longer appears twice after it is sent
 - Text you type that looks like attachment plumbing (for example `[Attached to the wall]`) is no longer removed from your messages
-- Clipboard files and pasted images too large to inline are rejected with a message instead of being read in full
+- Clipboard files and pasted images too large to attach are rejected with a message instead of being read in full
 - When `@` file search is unavailable, the input says so instead of reporting that no files were found
 
 ## [0.4.12] - 2026-10-17

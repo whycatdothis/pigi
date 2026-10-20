@@ -61,8 +61,8 @@ function getFinder(cwd: string): FileFinder {
 }
 
 /**
- * Fuzzy-search files for `@` references. An empty query returns no files but
- * starts indexing the project, so results are ready by the first keystroke.
+ * Fuzzy-search files for `@` references. An empty query returns the files
+ * modified most recently, so the popover has a default list before typing.
  */
 export async function searchProjectFiles(
   cwd: string,
@@ -75,7 +75,6 @@ export async function searchProjectFiles(
   try {
     const finder = getFinder(cwd);
     const trimmed = query.trim();
-    if (trimmed.length === 0) return { success: true, files: [] };
 
     // A timed-out first scan still has a usable partial index; only a failed
     // wait means the finder cannot answer at all.

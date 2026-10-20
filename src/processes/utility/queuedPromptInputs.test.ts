@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PromptAttachment } from '../../shared/ipcContract';
-import { QueuedPromptInputs } from './queuedPromptInputs';
+import { QueuedPromptInputs, firstAppendedQueueText } from './queuedPromptInputs';
 
 const image: PromptAttachment = {
   kind: 'image',
@@ -8,6 +8,20 @@ const image: PromptAttachment = {
   mimeType: 'image/png',
   data: 'AA==',
 };
+
+describe('firstAppendedQueueText', () => {
+  it('returns the text appended after the snapshot', () => {
+    expect(firstAppendedQueueText(['a'], ['a', 'c'])).toBe('c');
+  });
+
+  it('ignores a message delivered while the new one was queued', () => {
+    expect(firstAppendedQueueText(['a', 'b'], ['b', 'c'])).toBe('c');
+  });
+
+  it('returns null when the appended text is indistinguishable from an existing one', () => {
+    expect(firstAppendedQueueText(['a'], ['a'])).toBeNull();
+  });
+});
 
 describe('QueuedPromptInputs', () => {
   it('hands back the original inputs when the queue is cleared', () => {
