@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { IconCheck, IconCopy, IconCube, IconTerminal2 } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconCube } from '@tabler/icons-react';
 import {
   type SystemNode,
   type TranscriptNode,
@@ -17,6 +17,10 @@ import OverflowClamp from './overflowClamp';
 import { highlightMatches } from '../../lib/highlightMatches';
 import ShimmerOverlay from './shimmerOverlay';
 import { parseSkillBlock, type ParsedSkillBlock } from '../../lib/skillBlock';
+import {
+  INTERACTIVE_REFERENCE_CHIP_CLASS,
+  REFERENCE_CHIP_CLASS,
+} from '../../lib/referenceChipStyles';
 import { MessageAttachments } from './messageAttachments';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
 
@@ -245,10 +249,7 @@ function SkillLinkBubble({
         <div className="rounded-2xl bg-muted px-3.5 py-1.5 text-[15px] leading-6 text-foreground max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] w-fit">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="mx-px mt-px inline-flex h-5.5 max-w-60 items-center gap-1 rounded-[6px] bg-[var(--system-accent)]/10 px-1.5 align-top text-[0.875rem] text-[var(--system-accent)] hover:opacity-80 cursor-pointer"
-              >
+              <button type="button" className={INTERACTIVE_REFERENCE_CHIP_CLASS}>
                 <IconCube className="size-4 shrink-0" />
                 <span className="truncate">{skillBlock.name}</span>
               </button>
@@ -292,9 +293,9 @@ function CommandBubble({
     <div className="flex justify-end pb-2 pt-6" data-testid="command-message">
       <div className="group flex max-w-[85%] flex-col items-end">
         <div className="rounded-2xl bg-muted px-3.5 py-1.5 text-[15px] leading-6 text-foreground max-w-full w-fit">
-          <span className="text-[var(--system-accent)]">
-            <IconTerminal2 className="size-4 shrink-0 inline -mt-0.5 mr-0.5" />
-            <span className="font-medium">{name}</span>
+          <span className={REFERENCE_CHIP_CLASS}>
+            <IconCube className="size-4 shrink-0" />
+            <span className="truncate">{name}</span>
           </span>
           {args && <span className="ml-1 text-muted-foreground">{args}</span>}
         </div>
