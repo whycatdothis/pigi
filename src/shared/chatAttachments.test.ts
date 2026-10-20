@@ -7,6 +7,7 @@ import {
   isSupportedImageMimeType,
   sanitizeUserPromptForDisplay,
   splitAttachedFilesBlock,
+  splitInlineFileBlocks,
   stripAttachmentSummary,
   stripInlineFileBlocks,
 } from './chatAttachments';
@@ -39,6 +40,18 @@ describe('chatAttachments', () => {
     expect(stripInlineFileBlocks('hi\n<file name="x.txt">Binary file (12 bytes).</file>\n')).toBe(
       'hi',
     );
+  });
+
+  it('returns inline file names for display chips', () => {
+    expect(splitInlineFileBlocks('hi\n<file name="notes.txt">\nbody\n</file>\n')).toEqual({
+      text: 'hi',
+      fileNames: ['notes.txt'],
+    });
+    expect(sanitizeUserPromptForDisplay('<file name="a.bin">\nraw\n</file>')).toEqual({
+      text: '',
+      filePaths: [],
+      inlineFileNames: ['a.bin'],
+    });
   });
 
   it('leaves user-typed attachment markup alone', () => {
@@ -75,6 +88,7 @@ describe('chatAttachments', () => {
     expect(sanitizeUserPromptForDisplay(text)).toEqual({
       text: '',
       filePaths: ['/a/b.ts'],
+      inlineFileNames: [],
     });
   });
 });

@@ -8,10 +8,8 @@ import { FileIcon } from '../fileIcon';
 import { displayFileName, formatFileSize, type ChatAttachment } from '../../lib/chatAttachments';
 
 export function AttachmentPickerButton({
-  disabled,
   onPick,
 }: {
-  disabled?: boolean;
   onPick: (kind: ChatAttachmentKind) => void;
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
@@ -28,7 +26,6 @@ export function AttachmentPickerButton({
           size="icon-sm"
           variant="ghost"
           className="shrink-0 rounded-full"
-          disabled={disabled}
           data-testid="attachment-button"
           aria-label="Add attachments"
         >

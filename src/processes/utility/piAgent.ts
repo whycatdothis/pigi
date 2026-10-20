@@ -501,6 +501,19 @@ async function buildCommandContent(command: PromptCommand): Promise<BuildCommand
   }
 }
 
+function firstAppendedQueueText(
+  before: readonly string[],
+  after: readonly string[],
+): string | null {
+  const remaining = [...before];
+  for (const text of after) {
+    const index = remaining.indexOf(text);
+    if (index === -1) return text;
+    remaining.splice(index, 1);
+  }
+  return null;
+}
+
 async function queuePrompt(
   session: AgentSessionRuntime['session'],
   queueName: PromptQueueName,
@@ -515,15 +528,20 @@ async function queuePrompt(
   };
   // Record the text the SDK actually queued: it expands skill commands and
   // prompt templates before storing the message, and queue reconciliation
-  // matches on that text.
+  // matches on that text. Diffing the queue around the call keeps a message
+  // that was delivered before this continuation from being mistaken for the
+  // new one. Snapshot first: the getters return the SDK's live array, which
+  // steer/followUp mutate in place.
   if (queueName === 'steering') {
+    const before = [...session.getSteeringMessages()];
     await session.steer(text, images);
-    const queued = session.getSteeringMessages();
-    queuedPromptInputs.add(queueName, queued[queued.length - 1] ?? text, input);
+    const queuedText = firstAppendedQueueText(before, session.getSteeringMessages());
+    queuedPromptInputs.add(queueName, queuedText ?? text, input);
   } else {
+    const before = [...session.getFollowUpMessages()];
     await session.followUp(text, images);
-    const queued = session.getFollowUpMessages();
-    queuedPromptInputs.add(queueName, queued[queued.length - 1] ?? text, input);
+    const queuedText = firstAppendedQueueText(before, session.getFollowUpMessages());
+    queuedPromptInputs.add(queueName, queuedText ?? text, input);
   }
   return { success: true };
 }

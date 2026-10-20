@@ -7,9 +7,11 @@ import { Dialog, DialogClose, DialogContent, DialogTitle } from '../ui/dialog';
 export function MessageAttachments({
   imageSources,
   filePaths,
+  inlineFileNames,
 }: {
   imageSources: string[];
   filePaths: string[];
+  inlineFileNames: string[];
 }): React.JSX.Element {
   const [viewedImage, setViewedImage] = useState<string | null>(null);
 
@@ -34,7 +36,7 @@ export function MessageAttachments({
           ))}
         </div>
       )}
-      {filePaths.length > 0 && (
+      {(filePaths.length > 0 || inlineFileNames.length > 0) && (
         <div className="flex flex-wrap gap-1.5">
           {filePaths.map((path) => (
             <button
@@ -47,6 +49,16 @@ export function MessageAttachments({
               <FileIcon path={path} className="size-3.5" />
               <span className="truncate">{displayFileName(path)}</span>
             </button>
+          ))}
+          {inlineFileNames.map((name, index) => (
+            <span
+              key={`${index}-${name}`}
+              className="flex max-w-56 items-center gap-1.5 rounded-lg border border-border/50 bg-background/70 px-2 py-1 text-xs text-foreground"
+              title="Pasted file"
+            >
+              <FileIcon path={name} className="size-3.5" />
+              <span className="truncate">{displayFileName(name)}</span>
+            </span>
           ))}
         </div>
       )}

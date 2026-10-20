@@ -27,7 +27,8 @@
 - Dropping a file onto the chat input no longer inserts a file URL into the message
 - A message with images no longer appears twice after it is sent
 - Text you type that looks like attachment plumbing (for example `[Attached to the wall]`) is no longer removed from your messages
-- Clipboard files too large to inline are rejected with a message instead of being read in full
+- Clipboard files and pasted images too large to inline are rejected with a message instead of being read in full
+- When `@` file search is unavailable, the input says so instead of reporting that no files were found
 
 ## [0.4.12] - 2026-10-17
 

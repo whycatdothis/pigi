@@ -63,6 +63,7 @@ import type {
   ThinkingLevel,
 } from '../../shared/ipcContract';
 import { clampThinkingLevelTo } from '../../shared/thinkingLevels';
+import { sanitizeUserPromptForDisplay } from '../../shared/chatAttachments';
 import {
   attachmentFilePaths,
   attachmentImageSources,
@@ -638,7 +639,7 @@ function App(): React.JSX.Element {
         const messages = draftNodes
           .filter((n): n is UserNode => n.role === 'user')
           .map((n) => ({
-            message: n.text,
+            message: n.promptText ?? n.text,
             attachments: n.promptAttachments ?? [],
           }));
 
@@ -757,10 +758,21 @@ function App(): React.JSX.Element {
       }
       return;
     }
-    // Clear queued messages and restore them to input
+    // Clear queued messages and restore them to input. Snapshot the local
+    // queue first: if the clear RPC fails, abort's queue_update can wipe it.
+    const localState = getTranscriptController(activeSessionPath).state;
+    // queue_update carries the SDK's constructed prompt, including the
+    // attachment plumbing. The restore path only needs readable text.
+    const localQueued = [...localState.queuedSteering, ...localState.queuedFollowUp].map(
+      (message) => ({ message: sanitizeUserPromptForDisplay(message).text, attachments: [] }),
+    );
     const cleared = await clearQueue(activeSessionPath);
-    const queued = [...cleared.steering, ...cleared.followUp];
-    await abort(activeSessionPath);
+    try {
+      await abort(activeSessionPath);
+    } catch (error) {
+      console.error('abort failed:', error);
+    }
+    const queued = cleared ? [...cleared.steering, ...cleared.followUp] : localQueued;
     if (queued.length > 0) {
       setRestoreInputs(queued);
     }
@@ -779,7 +791,12 @@ function App(): React.JSX.Element {
       }
 
       try {
-        const { steering, followUp: followUps } = await clearQueue(activeSessionPath);
+        const cleared = await clearQueue(activeSessionPath);
+        if (!cleared) {
+          toast.error('Could not edit the queued message.');
+          return;
+        }
+        const { steering, followUp: followUps } = cleared;
         const editedInput =
           type === 'steer' ? steering.splice(index, 1)[0] : followUps.splice(index, 1)[0];
         // Re-queue remaining

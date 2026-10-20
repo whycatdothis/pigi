@@ -14,6 +14,7 @@ import {
   imageMimeTypeForPath,
   isSupportedImageMimeType,
   MAX_INLINE_FILE_BYTES,
+  MAX_PASTED_IMAGE_BYTES,
   MAX_PROMPT_ATTACHMENTS,
 } from '../../../shared/chatAttachments';
 
@@ -99,10 +100,16 @@ export async function attachmentFromFile(file: File, path: string): Promise<Chat
     };
   }
 
-  // Images are resized after transfer, so only inline files need the cap; check
-  // it before reading the whole clipboard payload into base64.
+  // Images are resized after transfer, so only inline files need the 256KB
+  // cap; check it before reading the whole clipboard payload into base64.
   if (kind === 'file' && file.size > MAX_INLINE_FILE_BYTES) {
     throw new Error(`File is too large to attach (max ${formatFileSize(MAX_INLINE_FILE_BYTES)}).`);
+  }
+  // Pasted images also have to be readable into memory; refuse absurd ones.
+  if (kind === 'image' && file.size > MAX_PASTED_IMAGE_BYTES) {
+    throw new Error(
+      `Image is too large to attach (max ${formatFileSize(MAX_PASTED_IMAGE_BYTES)}).`,
+    );
   }
 
   const data = await readFileAsBase64(file);

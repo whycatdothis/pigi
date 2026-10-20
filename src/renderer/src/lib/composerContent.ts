@@ -7,8 +7,8 @@ import {
 } from './chatReferences';
 
 /** Node name of the Tiptap Mention extension, which renders reference chips. */
-export const REFERENCE_NODE_NAME = 'mention';
-export const HARD_BREAK_NODE_NAME = 'hardBreak';
+const REFERENCE_NODE_NAME = 'mention';
+const HARD_BREAK_NODE_NAME = 'hardBreak';
 
 /** Character that opens each reference picker and prefixes its serialized text. */
 export const REFERENCE_TRIGGERS = {

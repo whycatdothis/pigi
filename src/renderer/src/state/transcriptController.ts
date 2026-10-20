@@ -25,10 +25,14 @@ export interface UserNode {
   role: 'user';
   text: string;
   sentAt: number;
+  /** User-typed text before attachment plumbing was stripped, for draft replay. */
+  promptText?: string;
   /** Image preview sources (data: or local-file: URLs) shown above the bubble. */
   imageSources?: string[];
   /** Attached file paths shown as chips below the bubble. */
   filePaths?: string[];
+  /** Clipboard files inlined without a path, shown as chips below the bubble. */
+  inlineFileNames?: string[];
   /** Payload of an optimistic message that has not reached the session yet. */
   promptAttachments?: PromptAttachment[];
   /** `message.timestamp` from the SDK. The session tree dialog resolves a
@@ -416,7 +420,9 @@ export class TranscriptController {
 
       switch (parsed.role) {
         case 'user': {
-          const { text, imageSources, filePaths } = extractUserContent(parsed.content);
+          const { text, imageSources, filePaths, inlineFileNames } = extractUserContent(
+            parsed.content,
+          );
           nodes.push({
             id: parsed.id || nextNodeId(),
             role: 'user',
@@ -425,6 +431,7 @@ export class TranscriptController {
             sdkTimestamp: tryNormalizeTimestamp(parsed.timestamp),
             imageSources: imageSources.length > 0 ? imageSources : undefined,
             filePaths: filePaths.length > 0 ? filePaths : undefined,
+            inlineFileNames: inlineFileNames.length > 0 ? inlineFileNames : undefined,
           });
           break;
         }
@@ -644,19 +651,29 @@ export class TranscriptController {
     options?: {
       imageSources?: string[];
       filePaths?: string[];
+      inlineFileNames?: string[];
       promptAttachments?: PromptAttachment[];
     },
   ): void {
     // Same sanitizing as message_start so the optimistic key matches the echo.
     const split = sanitizeUserPromptForDisplay(text);
     const filePaths = options?.filePaths ?? split.filePaths;
+    // Path-less clipboard files are inlined into the prompt by the utility, so
+    // the optimistic bubble derives their chips from the attachment payload.
+    const inlineFileNames =
+      options?.inlineFileNames ??
+      (options?.promptAttachments ?? [])
+        .filter((attachment) => attachment.kind === 'file' && !attachment.path)
+        .map((attachment) => attachment.name);
     const node: UserNode = {
       id: nextNodeId(),
       role: 'user',
       text: split.text,
       sentAt: Date.now(),
+      promptText: text === split.text ? undefined : text,
       imageSources: options?.imageSources?.length ? options.imageSources : undefined,
       filePaths: filePaths.length > 0 ? filePaths : undefined,
+      inlineFileNames: inlineFileNames.length > 0 ? inlineFileNames : undefined,
       promptAttachments: options?.promptAttachments?.length ? options.promptAttachments : undefined,
     };
     this._optimisticUserMessages.set(
@@ -765,10 +782,13 @@ export class TranscriptController {
         const startMessage = startEvent.message;
         if (startMessage?.role === 'user') {
           // Check if this user message was already added optimistically
-          const { text, imageSources, filePaths } = extractUserContent(startMessage.content);
-          const hasContent = text || imageSources.length > 0 || filePaths.length > 0;
+          const { text, imageSources, filePaths, inlineFileNames } = extractUserContent(
+            startMessage.content,
+          );
+          const hasContent =
+            text || imageSources.length > 0 || filePaths.length > 0 || inlineFileNames.length > 0;
           if (hasContent && !this._hasOptimisticUserMessage(text)) {
-            this.addUserMessage(text, { imageSources, filePaths });
+            this.addUserMessage(text, { imageSources, filePaths, inlineFileNames });
           }
           this.stampLastUserMessage(startMessage.timestamp);
         } else if (startMessage?.role === 'assistant' && !this._state.activeAssistantId) {
@@ -1333,7 +1353,8 @@ function areDuplicateNodes(left: TranscriptNode, right: TranscriptNode): boolean
         // data: URLs, so compare how many images each side has.
         (left.imageSources?.length ?? 0) === ((right as UserNode).imageSources?.length ?? 0) &&
         (left.filePaths ?? []).join('\u0000') ===
-          ((right as UserNode).filePaths ?? []).join('\u0000')
+          ((right as UserNode).filePaths ?? []).join('\u0000') &&
+        (left.inlineFileNames?.length ?? 0) === ((right as UserNode).inlineFileNames?.length ?? 0)
       );
     case 'assistant': {
       // right is guaranteed to be AssistantNode here due to role equality check above
@@ -1372,11 +1393,17 @@ function extractUserContent(content: unknown): {
   text: string;
   imageSources: string[];
   filePaths: string[];
+  inlineFileNames: string[];
 } {
   if (!Array.isArray(content)) {
     const text = typeof content === 'string' ? content : '';
     const split = sanitizeUserPromptForDisplay(text);
-    return { text: split.text, imageSources: [], filePaths: split.filePaths };
+    return {
+      text: split.text,
+      imageSources: [],
+      filePaths: split.filePaths,
+      inlineFileNames: split.inlineFileNames,
+    };
   }
 
   const textParts: string[] = [];
@@ -1392,7 +1419,12 @@ function extractUserContent(content: unknown): {
   }
 
   const split = sanitizeUserPromptForDisplay(textParts.join('\n'));
-  return { text: split.text, imageSources, filePaths: split.filePaths };
+  return {
+    text: split.text,
+    imageSources,
+    filePaths: split.filePaths,
+    inlineFileNames: split.inlineFileNames,
+  };
 }
 
 function extractAssistantContent(content: unknown[] | undefined): {

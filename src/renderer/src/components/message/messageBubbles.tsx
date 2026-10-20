@@ -362,10 +362,11 @@ export function UserBubble({
               {highlightMatches(text, searchQuery, activeOccurrenceIndex)}
             </OverflowClamp>
           )}
-          {(node.imageSources || node.filePaths) && (
+          {(node.imageSources || node.filePaths || node.inlineFileNames) && (
             <MessageAttachments
               imageSources={node.imageSources ?? []}
               filePaths={node.filePaths ?? []}
+              inlineFileNames={node.inlineFileNames ?? []}
             />
           )}
         </div>
