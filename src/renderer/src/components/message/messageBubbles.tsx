@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { IconCheck, IconCopy, IconCube } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconCube, IconTerminal2 } from '@tabler/icons-react';
 import {
   type SystemNode,
   type TranscriptNode,
@@ -294,7 +294,7 @@ function CommandBubble({
       <div className="group flex max-w-[85%] flex-col items-end">
         <div className="rounded-2xl bg-muted px-3.5 py-1.5 text-[15px] leading-6 text-foreground max-w-full w-fit">
           <span className={REFERENCE_CHIP_CLASS}>
-            <IconCube className="size-4 shrink-0" />
+            <IconTerminal2 className="size-4 shrink-0" />
             <span className="truncate">{name}</span>
           </span>
           {args && <span className="ml-1 text-muted-foreground">{args}</span>}
