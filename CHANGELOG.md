@@ -18,7 +18,7 @@
 - Pasting text no longer turns `@words` in it into file references
 - Choosing a project with `#` returns focus to the chat input
 - New sidebar icons for new chat, project folders and opening a project
-- Sending a skill keeps the same chip style in the message bubble as in the chat input
+- Sending a skill or slash command keeps the same chip style in the message bubble as in the chat input
 - The session title in the toolbar no longer has an icon in front of it
 - Send and stop buttons use the accent color
 - Attachments in the chat input sit right under the text, and their remove buttons only show on hover
