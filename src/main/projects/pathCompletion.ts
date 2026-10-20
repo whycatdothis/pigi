@@ -1,10 +1,13 @@
-import { readdir } from 'node:fs/promises';
+import { readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import fuzzysort from 'fuzzysort';
 import type { PathCompletionEntry, PathCompletionResult } from '../../shared/ipcContract';
 
 const MAX_ENTRIES = 20;
+/** Above this many names, cheaply drop non-subsequence candidates before scoring. */
+const FUZZY_PREFILTER_THRESHOLD = 2000;
+const NAME_COLLATOR = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
 
 interface PathPrefix {
   /** Absolute directory whose children are offered. */
@@ -31,7 +34,19 @@ export function parsePathPrefix(cwd: string, token: string): PathPrefix {
 }
 
 function compareNames(left: PathCompletionEntry, right: PathCompletionEntry): number {
-  return left.name.localeCompare(right.name);
+  return NAME_COLLATOR.compare(left.name, right.name);
+}
+
+/** Case-insensitive fuzzy prefilter; cheaper than scoring every long name. */
+function isSubsequence(value: string, lowerCaseQuery: string): boolean {
+  const haystack = value.toLowerCase();
+  let position = 0;
+  for (let index = 0; index < lowerCaseQuery.length; index += 1) {
+    position = haystack.indexOf(lowerCaseQuery[index], position);
+    if (position === -1) return false;
+    position += 1;
+  }
+  return true;
 }
 
 /** Folders first, then fuzzy matches (or alphabetical when nothing is typed). */
@@ -47,8 +62,16 @@ function orderEntries(entries: PathCompletionEntry[], namePrefix: string): PathC
     return [...directories.sort(compareNames), ...files.sort(compareNames)].slice(0, MAX_ENTRIES);
   }
 
-  const rank = (list: PathCompletionEntry[]): PathCompletionEntry[] =>
-    fuzzysort.go(namePrefix, list, { key: 'name' }).map((result) => result.obj);
+  const rank = (list: PathCompletionEntry[]): PathCompletionEntry[] => {
+    const lowerCaseQuery = namePrefix.toLowerCase();
+    const candidates =
+      list.length > FUZZY_PREFILTER_THRESHOLD
+        ? list.filter((entry) => isSubsequence(entry.name, lowerCaseQuery))
+        : list;
+    return fuzzysort
+      .go(namePrefix, candidates, { key: 'name', limit: MAX_ENTRIES })
+      .map((result) => result.obj);
+  };
 
   return [...rank(directories), ...rank(files)].slice(0, MAX_ENTRIES);
 }
@@ -68,20 +91,38 @@ export async function completePath(cwd: string, token: string): Promise<PathComp
 
   try {
     const dirents = await readdir(directory, { withFileTypes: true });
-    const entries: PathCompletionEntry[] = dirents.map((dirent) => ({
-      name: dirent.name,
-      path: join(directory, dirent.name),
-      isDirectory: dirent.isDirectory(),
-    }));
+    const symlinkChecks: Promise<void>[] = [];
+    const entries = dirents.map((dirent) => {
+      const path = join(directory, dirent.name);
+      const entry: PathCompletionEntry = {
+        name: dirent.name,
+        path,
+        isDirectory: dirent.isDirectory(),
+      };
+      // `readdir` reports a symlink as a link, not as its target type.
+      if (!entry.isDirectory && dirent.isSymbolicLink()) {
+        symlinkChecks.push(
+          stat(path)
+            .then((stats) => {
+              entry.isDirectory = stats.isDirectory();
+            })
+            .catch(() => {
+              // Broken links and unreadable targets are listed as files.
+            }),
+        );
+      }
+      return entry;
+    });
+    await Promise.all(symlinkChecks);
     return { success: true, entries: orderEntries(entries, namePrefix) };
   } catch (error) {
     const code = errorCode(error);
     // A half-typed path often points at a directory that does not exist yet;
     // that is an empty completion, not a failure worth showing.
     if (code === 'ENOENT' || code === 'ENOTDIR') return { success: true, entries: [] };
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unable to list the directory',
-    };
+    if (code === 'EACCES' || code === 'EPERM') {
+      return { success: false, error: 'No permission to read this folder' };
+    }
+    return { success: false, error: 'Unable to read this folder' };
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '../../lib/utils';
 import { FileIcon } from '../fileIcon';
 
@@ -22,6 +22,19 @@ export function FileMentionPopover({
   onHover,
 }: FileMentionPopoverProps): React.JSX.Element | null {
   const listRef = useRef<HTMLDivElement>(null);
+  const [showSearchingHint, setShowSearchingHint] = useState(false);
+
+  useEffect(() => {
+    if (!searching) {
+      // Clear on the next task; setting state synchronously in an effect
+      // triggers a cascading render lint error.
+      const reset = window.setTimeout(() => setShowSearchingHint(false), 0);
+      return () => window.clearTimeout(reset);
+    }
+    // Brief searches finish under this delay; only a cold index shows the hint.
+    const timer = window.setTimeout(() => setShowSearchingHint(true), 250);
+    return () => window.clearTimeout(timer);
+  }, [searching]);
 
   useEffect(() => {
     const container = listRef.current;
@@ -33,9 +46,9 @@ export function FileMentionPopover({
     container.querySelectorAll('button')[selectedIndex]?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex, matches]);
 
-  // Nothing to show until the first search finishes; an empty box or a
-  // "searching" placeholder over the transcript reads as flicker.
-  if (searching && matches.length === 0) return null;
+  // Keep the popover hidden for fast searches; a cold index gets a hint after
+  // a short delay instead of looking like nothing happened.
+  if (searching && matches.length === 0 && !showSearchingHint) return null;
 
   return (
     <div
@@ -45,7 +58,11 @@ export function FileMentionPopover({
       {matches.length === 0 ? (
         <div className="p-1">
           <div className="px-2 py-1 text-[0.875rem] text-muted-foreground">
-            {error ? `File search unavailable: ${error}` : 'No files found'}
+            {searching
+              ? 'Searching files…'
+              : error
+                ? `File search unavailable: ${error}`
+                : 'No files found'}
           </div>
         </div>
       ) : (

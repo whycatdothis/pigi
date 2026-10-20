@@ -1,6 +1,6 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { homedir, tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { completePath, parsePathPrefix } from './pathCompletion';
 
@@ -13,6 +13,8 @@ beforeAll(async () => {
   await writeFile(join(root, 'src/compose.ts'), '');
   await writeFile(join(root, 'src/.env'), '');
   await writeFile(join(root, 'README.md'), '');
+  await mkdir(join(root, 'target'), { recursive: true });
+  await symlink(join(root, 'target'), join(root, 'src/link'));
 });
 
 afterAll(async () => {
@@ -50,6 +52,7 @@ describe('completePath', () => {
     expect(result.entries.map((entry) => entry.name)).toEqual([
       'components',
       'compose',
+      'link',
       'compose.ts',
     ]);
     expect(result.entries[0]).toMatchObject({
@@ -70,6 +73,28 @@ describe('completePath', () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.entries.map((entry) => entry.name)).toContain('.env');
+  });
+
+  it('follows a symlink when deciding whether an entry is a directory', async () => {
+    const result = await completePath(root, 'src/l');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.entries).toContainEqual({
+      name: 'link',
+      path: join(root, 'src/link'),
+      isDirectory: true,
+    });
+  });
+
+  it('offers the home directory for a bare tilde', async () => {
+    const result = await completePath(root, '~');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.entries).toContainEqual({
+      name: basename(homedir()),
+      path: homedir(),
+      isDirectory: true,
+    });
   });
 
   it('accepts an absolute token', async () => {

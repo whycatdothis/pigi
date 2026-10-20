@@ -6,6 +6,7 @@ import HardBreak from '@tiptap/extension-hard-break';
 import Mention, { type MentionNodeAttrs } from '@tiptap/extension-mention';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { PluginKey } from '@tiptap/pm/state';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 import {
   exitSuggestion,
@@ -16,7 +17,7 @@ import {
 } from '@tiptap/suggestion';
 import type { PathCompletionEntry } from '../../../../shared/ipcContract';
 import type { ChatReferenceKind } from '../../lib/chatReferences';
-import { findPathTokenAtEnd } from '../../lib/pathReferences';
+import { findPathTokenAtEnd, isLeadingSlashCommand } from '../../lib/pathReferences';
 import {
   REFERENCE_TRIGGERS,
   referenceKindForTrigger,
@@ -53,6 +54,11 @@ export function exitReferenceSuggestion(view: EditorView, kind: ChatReferenceKin
   if (key.getState(view.state)?.active) exitSuggestion(view, key);
 }
 
+/** Close the path picker if it is open. */
+export function exitPathSuggestion(view: EditorView): void {
+  if (PATH_SUGGESTION_KEY.getState(view.state)?.active) exitSuggestion(view, PATH_SUGGESTION_KEY);
+}
+
 /**
  * Close every picker. Used after programmatic text changes (drafts, history,
  * restores) so a recalled `/...` or `@...` token does not open a picker that
@@ -74,11 +80,13 @@ interface ComposerExtensionOptions {
 
 /** An open path picker in the composer. */
 export interface PathSuggestion {
-  /** The typed path token, e.g. `src/renderer`. */
+  /** Token to complete, relative to `baseDir` or the project directory. */
   token: string;
-  /** Document range of the token, replaced on selection. */
-  range: Range;
-  /** Replace the token with a file or directory chip. */
+  /** Directory from a preceding folder chip; `null` for a project-relative token. */
+  baseDir: string | null;
+  /** Document position where replacement starts, including a preceding folder chip. */
+  replaceFrom: number;
+  /** Replace the token (and a preceding folder chip) with a path chip. */
   insert: (entry: PathCompletionEntry) => void;
 }
 
@@ -115,11 +123,18 @@ function findPathSuggestionMatch(config: Trigger): SuggestionMatch {
   if (!token) return null;
 
   const from = config.$position.pos - text.length + token.startOffset;
-  // The first `/` belongs to the slash-command picker, not to a path.
-  if (from === COMPOSER_TEXT_START && token.token.startsWith(PATH_TRIGGER)) return null;
+  const range = { from, to: config.$position.pos };
+  const directoryChip = directoryChipBefore(config.$position.doc, range);
+
+  // A leading `/com` belongs to the slash-command picker; `/Users/me` is an
+  // absolute path and completes here.
+  if (from === COMPOSER_TEXT_START && isLeadingSlashCommand(token.token)) return null;
+  // After a folder chip the `/` inserted with the chip is the separator. A
+  // bare token would be glued to the chip path in the prompt text.
+  if (directoryChip && !token.token.startsWith(PATH_TRIGGER)) return null;
 
   return {
-    range: { from, to: config.$position.pos },
+    range,
     query: token.token,
     text: token.token,
   };
@@ -130,23 +145,34 @@ function pathSuggestionRenderer(
 ): SuggestionOptions<unknown, MentionNodeAttrs>['render'] {
   return () => {
     const publish = (props: ReferenceSuggestionProps): void => {
+      const directoryChip = directoryChipBefore(props.editor.state.doc, props.range);
+      const token =
+        directoryChip && props.query.startsWith(PATH_TRIGGER)
+          ? props.query.slice(PATH_TRIGGER.length)
+          : props.query;
+      const replaceFrom = directoryChip?.from ?? props.range.from;
       onPathSuggestionChange({
-        token: props.query,
-        range: props.range,
+        token,
+        baseDir: directoryChip?.path ?? null,
+        replaceFrom,
         insert: (entry) => {
+          const content = entry.isDirectory
+            ? [
+                {
+                  type: PATH_REFERENCE_NODE_NAME,
+                  attrs: { id: entry.path, pathKind: 'directory' },
+                },
+                // Keep the slash so typing the next segment reads as one path.
+                { type: 'text', text: PATH_TRIGGER },
+              ]
+            : [
+                { type: PATH_REFERENCE_NODE_NAME, attrs: { id: entry.path, pathKind: 'file' } },
+                { type: 'text', text: ' ' },
+              ];
           props.editor
             .chain()
             .focus()
-            .insertContentAt(props.range, [
-              {
-                type: PATH_REFERENCE_NODE_NAME,
-                attrs: {
-                  id: entry.path,
-                  pathKind: entry.isDirectory ? 'directory' : 'file',
-                },
-              },
-              { type: 'text', text: ' ' },
-            ])
+            .insertContentAt({ from: replaceFrom, to: props.range.to }, content)
             .run();
         },
       });
@@ -164,6 +190,35 @@ const ReferenceMention = Mention.extend({
     return ReactNodeViewRenderer(ReferenceChip, { as: 'span' });
   },
 });
+
+interface DirectoryChipContext {
+  /** Document position where the folder chip starts. */
+  from: number;
+  /** Absolute directory stored on the chip. */
+  path: string;
+}
+
+/** The folder chip immediately before a completion token, if any. */
+function directoryChipBefore(doc: ProseMirrorNode, range: Range): DirectoryChipContext | null {
+  const $to = doc.resolve(range.to);
+  const tokenNode = $to.nodeBefore;
+  if (!tokenNode?.isText) return null;
+
+  const textStart = range.to - tokenNode.nodeSize;
+  // A token after a space starts a new path, not a continuation of the chip.
+  if (range.from !== textStart) return null;
+
+  const preceding = doc.resolve(textStart).nodeBefore;
+  if (
+    preceding?.type.name !== PATH_REFERENCE_NODE_NAME ||
+    preceding.attrs.pathKind !== 'directory' ||
+    typeof preceding.attrs.id !== 'string'
+  ) {
+    return null;
+  }
+
+  return { from: textStart - preceding.nodeSize, path: preceding.attrs.id };
+}
 
 const PathMention = Mention.extend({
   name: PATH_REFERENCE_NODE_NAME,

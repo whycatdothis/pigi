@@ -16,11 +16,7 @@ export function PathChip({ node }: ReactNodeViewProps): React.JSX.Element {
       data-path-kind={isDirectory ? 'directory' : 'file'}
       className={REFERENCE_CHIP_CLASS}
     >
-      {isDirectory ? (
-        <IconFolder className="size-4 shrink-0" strokeWidth={1.75} />
-      ) : (
-        <FileIcon path={path} />
-      )}
+      {isDirectory ? <IconFolder className="size-4 shrink-0" /> : <FileIcon path={path} />}
       <span className="truncate">{displayFileName(path)}</span>
     </NodeViewWrapper>
   );

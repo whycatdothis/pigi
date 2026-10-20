@@ -235,6 +235,33 @@ display:
 steer/follow-up inputs are matched back to the SDK queue by the text the SDK
 stores after expanding skills and prompt templates.
 
+### Path completion in the composer
+
+A path token containing `/`, or a bare `~`, opens the path picker. The
+exception is a leading `/name` with no second slash, which stays with the
+slash-command picker; `/Users/me` is absolute and completes as a path.
+`pi:complete_path` reads one directory with `readdir` instead of using the
+project index, because it must work outside the project and see gitignored
+files. Matching is fuzzy over the last path segment, and entries are ordered
+folders first.
+
+A completed path is a `pathReference` chip whose `id` is the absolute path.
+Selecting a folder inserts the chip followed by a `/`; the next token is
+completed relative to that chip and replaces it, so drilling down through
+folders never leaves two partial paths in the prompt. Selecting a file replaces
+the folder chip with the file chip and adds a space.
+
+A bare `~` offers the home directory; choosing it lists its children. A space
+right after a bare folder (or `~`) closes the picker; once a name has been
+typed, spaces stay in the fuzzy query so names with spaces can match. The right
+arrow also closes completion.
+
+Only POSIX paths are completed. Spaces are allowed once a name has been typed;
+a path with a space in an earlier segment is easiest to pick through the folder
+picker. The channel accepts any directory the renderer asks for (absolute
+paths, `..`, `~`), the same trust level as file preview and the agent's own
+tools; revisit this if the renderer can ever load untrusted content.
+
 ## Why This Design
 
 | Decision                                | Rationale                                                                                                                                               |
