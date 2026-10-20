@@ -105,6 +105,19 @@ export type ProjectFileSearchResult =
   | { success: true; files: string[] }
   | { success: false; error: string };
 
+/** One filesystem entry offered while completing a typed path. */
+export interface PathCompletionEntry {
+  /** Base name, shown in the picker and the chip. */
+  name: string;
+  /** Absolute path, stored in the chip and sent as prompt text. */
+  path: string;
+  isDirectory: boolean;
+}
+
+export type PathCompletionResult =
+  | { success: true; entries: PathCompletionEntry[] }
+  | { success: false; error: string };
+
 export interface ProjectState {
   recentProjects: ProjectDirectory[];
   activeProject: ProjectDirectory | null;
@@ -414,6 +427,8 @@ export enum PiChannel {
   PreviewFile = 'pi:preview_file',
   /** renderer → main: list git-visible files for inline @ references */
   SearchProjectFiles = 'pi:search_project_files',
+  /** renderer → main: list directory entries for inline path completion */
+  CompletePath = 'pi:complete_path',
   /** renderer → main: get system accent color */
   GetAccentColor = 'pi:get_accent_color',
   /** renderer → main: get all keyboard shortcut definitions with current bindings */

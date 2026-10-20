@@ -21,6 +21,7 @@ import {
   type PickAttachmentsResult,
   type ChatAttachmentKind,
   type ProjectFileSearchResult,
+  type PathCompletionResult,
   type ProjectSessionsChunk,
   type ProjectStateResult,
   type SessionListResult,
@@ -300,6 +301,10 @@ const piApi = {
   /** List files visible to git for inline @ references. */
   searchProjectFiles: (cwd: string, query: string): Promise<ProjectFileSearchResult> =>
     ipcRenderer.invoke(PiChannel.SearchProjectFiles, cwd, query),
+
+  /** List directory entries that complete a typed path. */
+  completePath: (cwd: string, token: string): Promise<PathCompletionResult> =>
+    ipcRenderer.invoke(PiChannel.CompletePath, cwd, token),
 
   /** Set active project directory from recent projects. */
   setActiveProject: (path: string): Promise<ProjectStateResult> =>

@@ -4,8 +4,12 @@ import { FileFinder, findBinary } from '@ff-labs/fff-node';
 import type { ProjectFileSearchResult } from '../../shared/ipcContract';
 
 const MAX_MATCHES = 20;
-/** Each finder keeps an index and a file watcher alive; bound how many stay open. */
-const MAX_OPEN_FINDERS = 4;
+/**
+ * Each finder keeps an index and a file watcher alive. Only the active
+ * project needs one: a cold scan is ~150ms per 100k files, so caching more
+ * buys little and keeps idle watchers and indexes in memory.
+ */
+const MAX_OPEN_FINDERS = 1;
 /** First search in a project waits this long for the initial scan before using a partial index. */
 const INITIAL_SCAN_WAIT_MS = 3000;
 const LIBRARY_PATH_ENV = 'FFF_C_LIB';
@@ -14,6 +18,11 @@ const UNPACKED_ASAR_SEGMENT = `app.asar.unpacked${sep}`;
 
 /** Open finders by project path; Map insertion order doubles as LRU order. */
 const finders = new Map<string, FileFinder>();
+/**
+ * Finders whose initial scan has already been awaited. Waiting is only useful
+ * once: otherwise every keystroke during a slow scan would wait again.
+ */
+const initialScanAwaited = new WeakSet<FileFinder>();
 
 /**
  * In a packaged app fff resolves its native library inside app.asar, which
@@ -77,8 +86,10 @@ export async function searchProjectFiles(
     const trimmed = query.trim();
 
     // A timed-out first scan still has a usable partial index; only a failed
-    // wait means the finder cannot answer at all.
-    if (finder.isScanning()) {
+    // wait means the finder cannot answer at all. Wait once per finder so a
+    // slow initial scan does not block every subsequent keystroke.
+    if (finder.isScanning() && !initialScanAwaited.has(finder)) {
+      initialScanAwaited.add(finder);
       const scan = await finder.waitForScan(INITIAL_SCAN_WAIT_MS);
       if (!scan.ok) return { success: false, error: scan.error };
     }

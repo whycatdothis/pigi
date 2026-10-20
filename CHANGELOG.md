@@ -8,6 +8,7 @@
 - Skills, commands and `@` file references show as labels with icons in the chat input; skills show just their name
 - `@` file search is faster and shows file-type icons
 - `@` shows the project's most recently modified files before you type
+- Type a path in the chat input to complete files and folders with fuzzy matching; completed paths become chips
 - A button at the top of the sidebar, or Cmd+B, hides and shows it, with an animation; hovering the button shows the shortcut
 - Images and files you send appear inside your message; click an image to see it larger, or a file to preview it (Quick Look on macOS, the file manager elsewhere)
 
@@ -17,6 +18,7 @@
 - Pasting text no longer turns `@words` in it into file references
 - Choosing a project with `#` returns focus to the chat input
 - New sidebar icons for new chat, project folders and opening a project
+- Sending a skill keeps the same chip style in the message bubble as in the chat input
 - The session title in the toolbar no longer has an icon in front of it
 - Send and stop buttons use the accent color
 - Attachments in the chat input sit right under the text, and their remove buttons only show on hover
