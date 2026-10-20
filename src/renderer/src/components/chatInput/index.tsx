@@ -47,6 +47,7 @@ import {
   inlineContentFromText,
   REFERENCE_TRIGGERS,
 } from '../../lib/composerContent';
+import { pathTokenDirectory } from '../../lib/pathReferences';
 import { formatContextUsage, UNKNOWN_STATUS } from './formatters';
 import { ContextUsageTooltip } from './contextUsageTooltip';
 import { ProjectPicker } from './projectPicker';
@@ -58,6 +59,7 @@ import { PathMentionPopover } from './pathMentionPopover';
 import {
   COMPOSER_TEXT_START,
   createComposerExtensions,
+  exitPathSuggestion,
   exitReferenceSuggestion,
   exitReferenceSuggestions,
   type ComposerSuggestion,
@@ -159,10 +161,12 @@ export default function ChatInput({
   // The open path picker and its latest directory listing.
   const [pathSuggestion, setPathSuggestion] = useState<PathSuggestion | null>(null);
   const [pathResult, setPathResult] = useState<{
-    cwd: string;
-    token: string;
+    projectPath: string;
+    baseDir: string | null;
+    tokenDir: string;
     entries: PathCompletionEntry[];
-  }>({ cwd: '', token: '', entries: [] });
+    error: string | null;
+  }>({ projectPath: '', baseDir: null, tokenDir: '', entries: [], error: null });
   const [selectedPathIndex, setSelectedPathIndex] = useState(0);
 
   // Hash autocomplete state for project switching (#)
@@ -461,9 +465,22 @@ export default function ChatInput({
   const mentionSearching =
     mentionResult.cwd !== projectPath || mentionResult.query !== mentionQuery;
   const mentionError = mentionOpen && mentionResultIsCurrent ? mentionResult.error : null;
-  // Keep the last listing visible while the next directory read is in flight.
-  const pathEntries =
-    pathSuggestion && pathResult.cwd === projectPath ? pathResult.entries : EMPTY_PATH_ENTRIES;
+  // Keep the last listing visible while the next directory read is in flight,
+  // but never show entries from a different directory than the current token.
+  const pathTokenDir = pathSuggestion ? pathTokenDirectory(pathSuggestion.token) : '';
+  const pathResultIsCurrent =
+    pathSuggestion !== null &&
+    pathResult.projectPath === projectPath &&
+    pathResult.baseDir === pathSuggestion.baseDir &&
+    pathResult.tokenDir === pathTokenDir;
+  const pathEntries = pathResultIsCurrent ? pathResult.entries : EMPTY_PATH_ENTRIES;
+  const pathError = pathResultIsCurrent ? pathResult.error : null;
+  // Drilling into a folder changes the base directory; keep the popover
+  // mounted with a loading row instead of unmounting it for a frame.
+  const pathLoading =
+    pathSuggestion !== null &&
+    pathSuggestion.baseDir !== null &&
+    pathResult.baseDir !== pathSuggestion.baseDir;
 
   // An empty query lists the project's most recently modified files, and
   // warms the index on the first open. Search on every keystroke: fff answers
@@ -496,9 +513,12 @@ export default function ChatInput({
   // Path completion reads one directory at a time; no index and no debounce.
   useEffect(() => {
     if (!pathSuggestion || projectPath.length === 0) return;
+    const baseDir = pathSuggestion.baseDir;
+    const token = pathSuggestion.token;
+    const tokenDir = pathTokenDirectory(token);
     let cancelled = false;
     void window.piApi
-      .completePath(projectPath, pathSuggestion.token)
+      .completePath(baseDir ?? projectPath, token)
       .catch((error: unknown) => ({
         success: false as const,
         error: error instanceof Error ? error.message : String(error),
@@ -506,9 +526,11 @@ export default function ChatInput({
       .then((result) => {
         if (cancelled) return;
         setPathResult({
-          cwd: projectPath,
-          token: pathSuggestion.token,
+          projectPath,
+          baseDir,
+          tokenDir,
           entries: result.success ? result.entries : [],
+          error: result.success ? null : result.error || 'Path completion is unavailable.',
         });
         setSelectedPathIndex(0);
       });
@@ -650,8 +672,12 @@ export default function ChatInput({
     (event: KeyboardEvent): boolean => {
       if (event.isComposing || event.key === 'Process') return false;
 
-      // Picker navigation takes priority over history and the send shortcut.
+      // A picker navigation takes priority over history and the send shortcut.
       // Escape is left to the suggestion plugin, which closes the picker.
+      if (pathSuggestion && event.key === 'ArrowRight') {
+        exitPathSuggestion(editor.view);
+        return false;
+      }
       if (pathSuggestion && pathEntries.length > 0) {
         const pathCount = pathEntries.length;
         if (event.key === 'ArrowUp') {
@@ -662,7 +688,7 @@ export default function ChatInput({
           setSelectedPathIndex((index) => (index + 1) % pathCount);
           return true;
         }
-        if (event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey)) {
+        if (event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey && !event.altKey)) {
           const entry = pathEntries[selectedPathIndex];
           if (entry) pathSuggestion.insert(entry);
           return true;
@@ -680,7 +706,7 @@ export default function ChatInput({
           setSelectedSuggestionIndex((index) => (index + 1) % matchCount);
           return true;
         }
-        if (event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey)) {
+        if (event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey && !event.altKey)) {
           if (suggestion.kind === 'file') {
             const selectedPath = mentionMatches[selectedSuggestionIndex];
             if (selectedPath) suggestion.insertReference(selectedPath);
@@ -728,6 +754,7 @@ export default function ChatInput({
       history,
       clearInput,
       insertSlashCommand,
+      editor,
     ],
   );
 
@@ -793,9 +820,10 @@ export default function ChatInput({
             className="relative mx-auto w-full"
             style={{ maxWidth: `${CHAT_INPUT_MAX_WIDTH}px` }}
           >
-            {pathSuggestion && pathEntries.length > 0 && (
+            {pathSuggestion && (pathEntries.length > 0 || pathError || pathLoading) && (
               <PathMentionPopover
                 entries={pathEntries}
+                error={pathError}
                 selectedIndex={selectedPathIndex}
                 onSelect={(entry) => pathSuggestion.insert(entry)}
                 onHover={setSelectedPathIndex}

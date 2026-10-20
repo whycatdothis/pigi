@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findPathTokenAtEnd } from './pathReferences';
+import { findPathTokenAtEnd, isLeadingSlashCommand, pathTokenDirectory } from './pathReferences';
 
 describe('findPathTokenAtEnd', () => {
   it('finds the token that ends at the cursor', () => {
@@ -35,5 +35,79 @@ describe('findPathTokenAtEnd', () => {
       token: '/Users/me',
       startOffset: 5,
     });
+  });
+
+  it('treats a bare tilde as the home directory token', () => {
+    expect(findPathTokenAtEnd('~')).toEqual({ token: '~', startOffset: 0 });
+    expect(findPathTokenAtEnd('open ~')).toEqual({ token: '~', startOffset: 5 });
+  });
+
+  it('keeps spaces once a name has been typed', () => {
+    expect(findPathTokenAtEnd('src/My Doc')).toEqual({
+      token: 'src/My Doc',
+      startOffset: 0,
+    });
+    expect(findPathTokenAtEnd('look at src/My Doc')).toEqual({
+      token: 'src/My Doc',
+      startOffset: 8,
+    });
+  });
+
+  it('ends completion on the first space after a bare directory', () => {
+    expect(findPathTokenAtEnd('src/ ')).toBeNull();
+    expect(findPathTokenAtEnd('~ ')).toBeNull();
+    expect(findPathTokenAtEnd('open /Users/ ')).toBeNull();
+  });
+
+  it('does not reopen for prose after a bare path was closed with a space', () => {
+    expect(findPathTokenAtEnd('src/ hello')).toBeNull();
+    expect(findPathTokenAtEnd('/ hello')).toBeNull();
+    expect(findPathTokenAtEnd('~ hello')).toBeNull();
+  });
+
+  it('keeps matching when a typed name is followed by another word', () => {
+    expect(findPathTokenAtEnd('src/My hello')).toEqual({
+      token: 'src/My hello',
+      startOffset: 0,
+    });
+  });
+
+  it('keeps a trailing space after a typed name', () => {
+    expect(findPathTokenAtEnd('src/My ')).toEqual({
+      token: 'src/My ',
+      startOffset: 0,
+    });
+  });
+});
+
+describe('pathTokenDirectory', () => {
+  it('keeps everything through the last slash', () => {
+    expect(pathTokenDirectory('src/renderer/file')).toBe('src/renderer/');
+  });
+
+  it('is empty when the token has no directory', () => {
+    expect(pathTokenDirectory('renderer')).toBe('');
+  });
+
+  it('keeps a trailing slash', () => {
+    expect(pathTokenDirectory('src/')).toBe('src/');
+  });
+});
+
+describe('isLeadingSlashCommand', () => {
+  it('treats a leading slash without a second slash as a command', () => {
+    expect(isLeadingSlashCommand('/com')).toBe(true);
+    expect(isLeadingSlashCommand('/tmp')).toBe(true);
+    expect(isLeadingSlashCommand('/')).toBe(true);
+  });
+
+  it('treats a leading absolute path as a path', () => {
+    expect(isLeadingSlashCommand('/Users/me')).toBe(false);
+    expect(isLeadingSlashCommand('/usr/local')).toBe(false);
+  });
+
+  it('ignores tokens that do not start with a slash', () => {
+    expect(isLeadingSlashCommand('src/foo')).toBe(false);
+    expect(isLeadingSlashCommand('~/foo')).toBe(false);
   });
 });
