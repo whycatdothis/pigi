@@ -110,19 +110,17 @@ export async function attachmentFromFile(file: File, path: string): Promise<Chat
   };
 }
 
-export function isImageAttachment(attachment: ChatAttachment): boolean {
-  return attachment.kind === 'image';
-}
-
 /** Image preview URLs for transcript bubbles. */
 export function attachmentImageSources(attachments: ChatAttachment[]): string[] {
   return attachments.flatMap((attachment) =>
-    isImageAttachment(attachment) && attachment.previewUrl ? [attachment.previewUrl] : [],
+    attachment.kind === 'image' && attachment.previewUrl ? [attachment.previewUrl] : [],
   );
 }
 
 /** Attached file paths for transcript chips. */
-export function attachmentFilePaths(attachments: ChatAttachment[]): string[] {
+export function attachmentFilePaths(
+  attachments: ReadonlyArray<Pick<PromptAttachment, 'kind' | 'path'>> = [],
+): string[] {
   return attachments.flatMap((attachment) =>
     attachment.kind === 'file' && attachment.path ? [attachment.path] : [],
   );
@@ -135,6 +133,21 @@ export function promptAttachmentImageSources(attachments?: PromptAttachment[]): 
       ? [`data:${attachment.mimeType};base64,${attachment.data}`]
       : [],
   );
+}
+
+/** Rebuild a composer attachment from a prompt payload (abort/dequeue restore). */
+export function attachmentFromPromptAttachment(attachment: PromptAttachment): ChatAttachment {
+  return {
+    id: nextAttachmentId(),
+    kind: attachment.kind,
+    name: attachment.name,
+    mimeType: attachment.mimeType,
+    // Path attachments carry no size; the chip hides a zero size.
+    size: attachment.data ? Math.floor((attachment.data.length * 3) / 4) : 0,
+    path: attachment.path,
+    data: attachment.data,
+    previewUrl: attachment.kind === 'image' ? imagePreviewUrl(attachment) : undefined,
+  };
 }
 
 /** Payload sent to the utility process (drops renderer-only fields). */
@@ -159,7 +172,7 @@ export function chatMessageTitle(message: string, attachments: ChatAttachment[])
   const trimmed = message.trim();
   if (trimmed) return trimmed;
   if (attachments.length === 0) return '';
-  const imageCount = attachments.filter(isImageAttachment).length;
+  const imageCount = attachments.filter((attachment) => attachment.kind === 'image').length;
   if (imageCount === attachments.length) {
     return imageCount === 1 ? 'Image' : `${imageCount} images`;
   }

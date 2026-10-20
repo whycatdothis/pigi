@@ -7,7 +7,7 @@ import type {
   PickAttachmentsResult,
   ChatAttachmentKind,
   ProjectSessionsChunk,
-  ProjectFilesResult,
+  ProjectFileSearchResult,
   ProjectStateResult,
   SessionListResult,
   ShortcutBinding,
@@ -30,12 +30,12 @@ interface PiApi {
   // Project directories
   getProjects: () => Promise<ProjectStateResult>;
   getGitBranch: (cwd: string) => Promise<GitBranchResult>;
-  listProjectFiles: (cwd: string) => Promise<ProjectFilesResult>;
+  searchProjectFiles: (cwd: string, query: string) => Promise<ProjectFileSearchResult>;
   setActiveProject: (path: string) => Promise<ProjectStateResult>;
   openProjectDirectory: () => Promise<ProjectStateResult>;
   removeProject: (path: string) => Promise<ProjectStateResult>;
   reorderProjects: (paths: string[]) => Promise<ProjectStateResult>;
-  pickAttachments: (kind: ChatAttachmentKind, maxCount: number) => Promise<PickAttachmentsResult>;
+  pickAttachments: (kind: ChatAttachmentKind) => Promise<PickAttachmentsResult>;
   getPathForFile: (file: File) => string;
   renamePersistedSession: (
     sessionPath: string,
@@ -76,6 +76,7 @@ interface PiApi {
     binding: ShortcutBinding,
   ) => Promise<{ success: boolean; error?: string }>;
   getAccentColor: () => Promise<string | null>;
+  getSystemSymbol: (name: string) => Promise<string | null>;
 
   // Bottom-panel terminals (one PTY per tab, keyed by id, I/O over a MessagePort each)
   terminal: {

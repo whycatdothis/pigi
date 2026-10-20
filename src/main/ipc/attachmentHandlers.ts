@@ -2,8 +2,9 @@
  * Native attachment picker for the chat input.
  *
  * The renderer asks for either images or files; main opens the OS dialog and
- * returns absolute paths plus display metadata. The utility process reads the
- * bytes, so large files never cross IPC here.
+ * returns absolute paths plus display metadata. The renderer enforces the
+ * attachment limit. The utility process reads the bytes, so large files never
+ * cross IPC here.
  */
 import { dialog, ipcMain } from 'electron';
 import { stat } from 'node:fs/promises';
@@ -14,22 +15,11 @@ import {
   type PickedAttachment,
   type PickAttachmentsResult,
 } from '../../shared/ipcContract';
-import {
-  imageMimeTypeForPath,
-  isSupportedImageMimeType,
-  MAX_PROMPT_ATTACHMENTS,
-} from '../../shared/chatAttachments';
+import { imageMimeTypeForPath, isSupportedImageMimeType } from '../../shared/chatAttachments';
 import { getMainWindow } from '../windows/createMainWindow';
 
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
 const FILE_MIME_TYPE = 'application/octet-stream';
-
-function normalizeMaxCount(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return MAX_PROMPT_ATTACHMENTS;
-  }
-  return Math.max(1, Math.min(MAX_PROMPT_ATTACHMENTS, Math.floor(value)));
-}
 
 async function describeFile(path: string): Promise<PickedAttachment> {
   let size = 0;
@@ -54,7 +44,7 @@ async function describeFile(path: string): Promise<PickedAttachment> {
 export function registerAttachmentHandlers(): void {
   ipcMain.handle(
     PiChannel.PickAttachments,
-    async (_event, kind: ChatAttachmentKind, maxCount: unknown): Promise<PickAttachmentsResult> => {
+    async (_event, kind: ChatAttachmentKind): Promise<PickAttachmentsResult> => {
       if (kind !== 'image' && kind !== 'file') {
         return { success: false, error: 'kind must be image or file' };
       }
@@ -70,9 +60,7 @@ export function registerAttachmentHandlers(): void {
         return { success: false, canceled: true };
       }
 
-      const limit = normalizeMaxCount(maxCount);
-      const selected = result.filePaths.slice(0, limit);
-      const files = await Promise.all(selected.map((path) => describeFile(path)));
+      const files = await Promise.all(result.filePaths.map((path) => describeFile(path)));
 
       // Defensive: the filter above should already exclude non-images, but a
       // typed path in the dialog can slip through.

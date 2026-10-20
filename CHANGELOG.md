@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Attach files and images to a message from the `+` button in the chat input
+- Skills, commands and `@` file references show as labels with icons in the chat input; skills show just their name
+- `@` file search is faster and shows file-type icons
+- A button at the top of the sidebar hides and shows it, with an animation; it uses the macOS sidebar symbol
+
+### Changed
+
+- Messages sent while the agent is working (steer and follow-up) keep their attachments, and stopping the agent puts queued messages back in the input with their attachments
+- Pasting text no longer turns `@words` in it into file references
+- Choosing a project with `#` returns focus to the chat input
+- New sidebar icons for new chat, project folders and opening a project
+- The session title in the toolbar no longer has an icon in front of it
+- Icons use their regular stroke weight
+- Taller lines and labels in the chat input
+
 ## [0.4.12] - 2026-10-17
 
 ### Changed

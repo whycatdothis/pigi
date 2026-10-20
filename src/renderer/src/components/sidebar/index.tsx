@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { IconFolderPlus, IconPlus, IconSettings, IconLogin2 } from '@tabler/icons-react';
+import { IconSquareRoundedPlus, IconSettings, IconLogin2 } from '@tabler/icons-react';
+import { FolderOpen } from 'lucide-react';
+import { SidebarToggle } from './sidebarToggle';
 import type { PiSessionInfo } from '../../../../shared/ipcContract';
 import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
@@ -204,11 +206,13 @@ export default function Sidebar({
       <ShadcnSidebar collapsible="none" data-testid="sidebar">
         {/* WebkitAppRegion is Electron-specific, not in React's CSSProperties */}
         <SidebarHeader style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
-          <div className="h-10" />
+          <div className="flex h-10 items-start justify-end">
+            <SidebarToggle />
+          </div>
           <SidebarMenu style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
             <SidebarMenuItem>
               <SidebarMenuButton onClick={onNewSession}>
-                <IconPlus data-icon="inline-start" />
+                <IconSquareRoundedPlus data-icon="inline-start" />
                 <span>New chat</span>
                 <Kbd className="ml-auto hidden shrink-0 group-hover/menu-item:inline-flex">
                   {formatShortcutLabel(
@@ -220,7 +224,7 @@ export default function Sidebar({
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton onClick={onOpenProject}>
-                <IconFolderPlus data-icon="inline-start" />
+                <FolderOpen data-icon="inline-start" />
                 <span>Open project</span>
                 <Kbd className="ml-auto hidden shrink-0 group-hover/menu-item:inline-flex">
                   {formatShortcutLabel(
@@ -244,7 +248,7 @@ export default function Sidebar({
                 title="Open project"
                 className="opacity-0 group-hover/projects-header:opacity-100 transition-opacity"
               >
-                <IconFolderPlus />
+                <FolderOpen />
                 <span className="sr-only">Open project</span>
               </SidebarGroupAction>
             </div>

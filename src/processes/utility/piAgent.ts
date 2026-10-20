@@ -44,6 +44,7 @@ import { toModelInfo } from '../../shared/modelInfo';
 import { generateSessionTitle } from './autoRename';
 import { createModelRuntime } from './fileCredentialStore';
 import { buildPromptContent, hasPromptContent, type BuiltPromptContent } from './promptAttachments';
+import { QueuedPromptInputs, type PromptQueueName } from './queuedPromptInputs';
 import { buildSessionTree, readEntryText, resolveForkTarget } from './sessionTree';
 
 // =============================================================================
@@ -145,6 +146,7 @@ let unsubscribeEvents: (() => void) | null = null;
 let isCleanedUp = false;
 let isSessionBusy = false;
 let hasAutoRenamed = false;
+let queuedPromptInputs = new QueuedPromptInputs();
 // Services are expensive to build; prewarm them while the user is browsing sessions.
 const servicesByCwd = new Map<string, Promise<AgentSessionServices>>();
 let serviceCreationQueue: Promise<void> = Promise.resolve();
@@ -453,6 +455,11 @@ function subscribeToSession(rt: AgentSessionRuntime, port: Port, batch: StreamBa
         autoRenameOnce(event, session, rt, push);
         break;
 
+      case 'queue_update':
+        queuedPromptInputs.sync(event);
+        push({ type: 'event', event });
+        break;
+
       case 'tool_execution_update': {
         const { toolCallId, partialResult } = event;
         const text = partialResult?.content?.[0]?.text;
@@ -475,24 +482,57 @@ function subscribeToSession(rt: AgentSessionRuntime, port: Port, batch: StreamBa
 // Command handling (via control MessagePort from renderer)
 // =============================================================================
 
+type BuildCommandContentResult =
+  | { success: true; content: BuiltPromptContent }
+  | { success: false; error: string };
+
+type PromptCommand = Extract<PiCommand, { type: 'prompt' | 'steer' | 'follow_up' }>;
+
+async function buildCommandContent(command: PromptCommand): Promise<BuildCommandContentResult> {
+  const attachments = command.attachments ?? [];
+  if (!hasPromptContent(command.message, attachments)) {
+    return { success: false, error: `${command.type} must have text or attachments` };
+  }
+  try {
+    return { success: true, content: await buildPromptContent(command.message, attachments) };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+async function queuePrompt(
+  session: AgentSessionRuntime['session'],
+  queueName: PromptQueueName,
+  command: PromptCommand,
+): Promise<{ success: boolean; error?: string }> {
+  const built = await buildCommandContent(command);
+  if (!built.success) return built;
+  const { text, images } = built.content;
+  const dropInput = queuedPromptInputs.add(queueName, {
+    message: command.message,
+    attachments: command.attachments ?? [],
+  });
+  try {
+    if (queueName === 'steering') {
+      await session.steer(text, images);
+    } else {
+      await session.followUp(text, images);
+    }
+  } catch (err) {
+    dropInput();
+    throw err;
+  }
+  return { success: true };
+}
+
 async function handleCommand(command: PiCommand): Promise<unknown> {
   if (!runtime) return { success: false, error: 'session not initialized' };
 
   switch (command.type) {
     case 'prompt': {
-      const attachments = command.attachments ?? [];
-      if (!hasPromptContent(command.message, attachments)) {
-        return { success: false, error: 'prompt must have text or attachments' };
-      }
-      let content: BuiltPromptContent;
-      try {
-        content = await buildPromptContent(command.message, attachments);
-      } catch (err) {
-        return {
-          success: false,
-          error: err instanceof Error ? err.message : String(err),
-        };
-      }
+      const built = await buildCommandContent(command);
+      if (!built.success) return built;
+      const { content } = built;
       runtime.session
         .prompt(content.text, content.images.length > 0 ? { images: content.images } : undefined)
         .catch((err) => {
@@ -510,39 +550,15 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
       return { success: true };
     }
 
-    case 'steer': {
-      const attachments = command.attachments ?? [];
-      if (!hasPromptContent(command.message, attachments)) {
-        return { success: false, error: 'steer message must have text or attachments' };
-      }
-      let content: BuiltPromptContent;
-      try {
-        content = await buildPromptContent(command.message, attachments);
-      } catch (err) {
-        return { success: false, error: err instanceof Error ? err.message : String(err) };
-      }
-      await runtime.session.steer(content.text, content.images);
-      return { success: true };
-    }
+    case 'steer':
+      return queuePrompt(runtime.session, 'steering', command);
 
-    case 'follow_up': {
-      const attachments = command.attachments ?? [];
-      if (!hasPromptContent(command.message, attachments)) {
-        return { success: false, error: 'follow_up message must have text or attachments' };
-      }
-      let content: BuiltPromptContent;
-      try {
-        content = await buildPromptContent(command.message, attachments);
-      } catch (err) {
-        return { success: false, error: err instanceof Error ? err.message : String(err) };
-      }
-      await runtime.session.followUp(content.text, content.images);
-      return { success: true };
-    }
+    case 'follow_up':
+      return queuePrompt(runtime.session, 'followUp', command);
 
     case 'clear_queue': {
-      const { steering, followUp } = runtime.session.clearQueue();
-      return { success: true, steering, followUp };
+      const session = runtime.session;
+      return { success: true, ...queuedPromptInputs.clear(() => session.clearQueue()) };
     }
 
     case 'abort':
@@ -1000,6 +1016,7 @@ function attachPorts(nextControlPort: Port, nextDataPort: Port): void {
   setSessionBusy(runtime.session.isStreaming);
   batcher = new StreamBatcher();
   batcher.start(nextDataPort);
+  queuedPromptInputs = new QueuedPromptInputs();
   unsubscribeEvents = subscribeToSession(runtime, nextDataPort, batcher);
   setupControlPortListener(nextControlPort);
 

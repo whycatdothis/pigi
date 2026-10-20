@@ -48,12 +48,9 @@ async function buildImageContent(attachment: PromptAttachment): Promise<ImageCon
   };
 }
 
+/** Inline a clipboard file that has no path on disk. */
 async function buildInlineFileSection(attachment: PromptAttachment): Promise<string> {
-  const name = attachment.path ?? attachment.name;
-  if (attachment.path) {
-    // Path attachments are referenced; the agent reads them only if needed.
-    return '';
-  }
+  const name = attachment.name;
   const bytes = await readAttachmentBytes(attachment);
   if (bytes.byteLength > MAX_INLINE_FILE_BYTES) {
     return `<file name="${name}">File too large to include (${bytes.byteLength} bytes).</file>`;
@@ -90,8 +87,7 @@ export async function buildPromptContent(
         }
         continue;
       }
-      const section = await buildInlineFileSection(attachment);
-      if (section) inlineSections.push(section);
+      inlineSections.push(await buildInlineFileSection(attachment));
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       inlineSections.push(

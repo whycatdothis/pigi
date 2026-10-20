@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react';
-import type { SlashCommand, SlashCommandMatches } from '../../lib/slashCommands';
+import {
+  slashCommandDisplayName,
+  type SlashCommand,
+  type SlashCommandMatches,
+} from '../../lib/slashCommands';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Separator } from '../ui/separator';
 import { cn } from '../../lib/utils';
@@ -112,7 +116,9 @@ function SlashCommandItem({
       }}
       onMouseEnter={onHover}
     >
-      <span className="shrink-0 font-mono text-foreground">/{slashCommand.name}</span>
+      <span className="shrink-0 font-mono text-foreground">
+        /{slashCommandDisplayName(slashCommand.name)}
+      </span>
       {slashCommand.source !== 'skill' && (
         <span
           className={cn(

@@ -9,7 +9,7 @@ import {
   setActiveProject,
 } from '../projects/projectStore';
 import { getGitBranch } from '../projects/gitStatus';
-import { listProjectFiles } from '../projects/projectFiles';
+import { searchProjectFiles } from '../projects/projectFileSearch';
 
 function projectStateResult(): ProjectStateResult {
   return {
@@ -25,8 +25,8 @@ export function registerProjectHandlers(): void {
     return getGitBranch(cwd);
   });
 
-  ipcMain.handle(PiChannel.ListProjectFiles, async (_event, cwd: string) => {
-    return listProjectFiles(cwd);
+  ipcMain.handle(PiChannel.SearchProjectFiles, async (_event, cwd: string, query: string) => {
+    return searchProjectFiles(cwd, typeof query === 'string' ? query : '');
   });
 
   ipcMain.handle(PiChannel.SetActiveProject, async (_event, path: string) => {
