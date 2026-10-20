@@ -13,12 +13,6 @@
     @apply border-border outline-ring/50;
   }
 
-  /* The app's icon weight. A stylesheet rule beats the `stroke` attribute
-     Tabler's icons write, so this is the number that decides how they look. */
-  .tabler-icon {
-    stroke-width: 1.5;
-  }
-
   html {
     @apply font-sans;
     height: 100%;
@@ -338,6 +332,15 @@
 
   .markdown-body tbody tr:last-child td {
     border-bottom: 0;
+  }
+
+  /* Chat composer placeholder, set by the Tiptap Placeholder extension. */
+  .chat-composer .is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+    color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
   }
 }
 

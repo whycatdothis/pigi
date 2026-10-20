@@ -25,6 +25,15 @@ so changing an inherited CSS variable does not invalidate styles throughout the
 transcript. Flex layout gives the chat the remaining width automatically. The
 terminal height lives on the common chat/terminal container because both consume it.
 
+Showing and hiding the sidebar animates the wrapper between `--sidebar-width`
+and `0`, so the chat keeps real reserved space while it grows. The content keeps
+its full width and slides out with a transform, so it does not reflow. The
+collapsed wrapper is `inert` and stays mounted, so scroll position and expanded
+projects survive. The toolbar title inset uses the same duration and easing
+(`SIDEBAR_TRANSITION_CLASS_NAME`), so the title moves in step with the sidebar
+edge. A width transition must sit under `data-panel-resizing:transition-none`.
+Otherwise dragging would lag behind the pointer.
+
 Native window resizing remains CSS-driven. Keep resize measurements scoped to
 their consumers: the message minimap observes its own available width without
 publishing it through the transcript component. Virtual rows use a stable
@@ -326,7 +335,7 @@ src/
     └── src/
         ├── components/           # One directory per surface, no loose files
         │   ├── app/              # theme provider, sign-in, menus
-        │   ├── chatInput/        # composer: textarea, pickers, slash commands
+        │   ├── chatInput/        # composer: Tiptap editor, reference chips, pickers
         │   ├── message/          # one message: bubbles, markdown, tools, diff
         │   ├── session/          # sidebar entry, session toolbar, switcher
         │   ├── sessionTree/      # tree dialog, rows, branch lines, help

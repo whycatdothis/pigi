@@ -10,6 +10,7 @@ import {
   BrowserWindow,
   ipcMain,
   Menu,
+  nativeImage,
   net,
   protocol,
   shell,
@@ -26,6 +27,7 @@ import { registerProjectHandlers } from './ipc/projectHandlers';
 import { registerAttachmentHandlers } from './ipc/attachmentHandlers';
 import { registerShortcutHandlers } from './ipc/shortcutHandlers';
 import { registerTerminalHandlers, stopTerminalProcess } from './terminal/terminalManager';
+import { stopProjectFileSearch } from './projects/projectFileSearch';
 import { PiChannel } from '../shared/ipcContract';
 import { configureDebugPanel, installMainDebugHandle } from './debugConfig';
 import { initializeShellEnv } from './processes/shellEnvResolver';
@@ -133,6 +135,12 @@ app.whenReady().then(() => {
     return accent || null;
   });
 
+  ipcMain.handle(PiChannel.GetSystemSymbol, (_event, name: unknown) => {
+    if (process.platform !== 'darwin' || typeof name !== 'string') return null;
+    const image = nativeImage.createFromNamedImage(name);
+    return image.isEmpty() ? null : image.toDataURL();
+  });
+
   openMainWindow();
 
   app.on('activate', () => {
@@ -151,6 +159,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   stopAllProcesses();
   stopTerminalProcess();
+  stopProjectFileSearch();
 });
 
 /**

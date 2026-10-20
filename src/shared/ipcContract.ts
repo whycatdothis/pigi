@@ -75,6 +75,18 @@ export interface PromptAttachment {
   data?: string;
 }
 
+/** A message as the user wrote it, before the utility builds prompt text. */
+export interface PromptInput {
+  message: string;
+  attachments: PromptAttachment[];
+}
+
+/** Queued messages handed back by `clear_queue`, in queue order. */
+export interface ClearedQueue {
+  steering: PromptInput[];
+  followUp: PromptInput[];
+}
+
 /** One file returned by the native attachment picker. */
 export interface PickedAttachment {
   path: string;
@@ -88,8 +100,8 @@ export type PickAttachmentsResult =
   | { success: true; files: PickedAttachment[] }
   | { success: false; canceled?: boolean; error?: string };
 
-/** Files available for inline @ references in the chat input. */
-export type ProjectFilesResult =
+/** Best matches for an inline @ file reference query in the chat input. */
+export type ProjectFileSearchResult =
   | { success: true; files: string[] }
   | { success: false; error: string };
 
@@ -399,9 +411,11 @@ export enum PiChannel {
   /** renderer → main: open a native picker for chat attachments */
   PickAttachments = 'pi:pick_attachments',
   /** renderer → main: list git-visible files for inline @ references */
-  ListProjectFiles = 'pi:list_project_files',
+  SearchProjectFiles = 'pi:search_project_files',
   /** renderer → main: get system accent color */
   GetAccentColor = 'pi:get_accent_color',
+  /** renderer → main: render a macOS SF Symbol as a PNG data URL */
+  GetSystemSymbol = 'pi:get_system_symbol',
   /** renderer → main: get all keyboard shortcut definitions with current bindings */
   GetShortcuts = 'pi:get_shortcuts',
   /** renderer → main: update a keyboard shortcut binding */

@@ -6,6 +6,7 @@
  */
 import type {
   AuthProviderInfo,
+  ClearedQueue,
   EntryTextResult,
   ForkSessionResult,
   ModelCatalogSnapshot,
@@ -179,15 +180,19 @@ export async function followUp(
   }
 }
 
-interface ClearQueueResult {
-  success: boolean;
-  steering?: string[];
-  followUp?: string[];
-  error?: string;
-}
+type ClearQueueResult = ({ success: true } & ClearedQueue) | { success: false; error?: string };
 
-export async function clearQueue(sessionPath: string): Promise<ClearQueueResult> {
-  return send<ClearQueueResult>(sessionPath, { type: 'clear_queue' });
+/**
+ * Clear the SDK queues and return the queued messages as the user wrote them.
+ * A failed clear returns empty queues.
+ */
+export async function clearQueue(sessionPath: string): Promise<ClearedQueue> {
+  const result = await send<ClearQueueResult>(sessionPath, { type: 'clear_queue' });
+  if (!result.success) {
+    console.error('clear_queue failed:', result.error);
+    return { steering: [], followUp: [] };
+  }
+  return { steering: result.steering, followUp: result.followUp };
 }
 
 export async function abort(sessionPath: string): Promise<void> {

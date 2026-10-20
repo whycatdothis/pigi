@@ -3,29 +3,25 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useState,
-  type ClipboardEvent,
   type DragEvent,
-  type KeyboardEvent,
   type Ref,
 } from 'react';
+import { EditorContent, useEditor, type EditorOptions } from '@tiptap/react';
 import { toast } from 'sonner';
 import { IconArrowUp, IconGitBranch, IconSquare } from '@tabler/icons-react';
 import type {
   ChatAttachmentKind,
   ModelInfo,
   ProjectDirectory,
+  PromptInput,
   SkillSlashCommand,
   ThinkingLevel,
 } from '../../../../shared/ipcContract';
 import type { SessionEntry } from '../../state/appStore';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupTextarea,
-} from '../ui/input-group';
+import { InputGroup, InputGroupAddon, InputGroupButton } from '../ui/input-group';
 import { CHAT_INPUT_MAX_WIDTH } from '../../lib/layoutConstants';
 import { cn } from '../../lib/utils';
 import {
@@ -33,32 +29,37 @@ import {
   matchSlashCommands,
   EMPTY_SLASH_MATCHES,
   type SlashCommand,
-  type SlashCommandMatches,
 } from '../../lib/slashCommands';
 import { escapeAbortScopeProps } from '../../lib/focusScopes';
 import { NEW_CHAT_DRAFT_KEY, readChatDraft, writeChatDraft } from '../../lib/chatDrafts';
 import {
   attachmentFromFile,
   attachmentFromPickedFile,
+  attachmentFromPromptAttachment,
   MAX_PROMPT_ATTACHMENTS,
   type ChatAttachment,
 } from '../../lib/chatAttachments';
-import { useInputHistory } from '../../hooks/useInputHistory';
+import { useInputHistory, type HistoryComposer } from '../../hooks/useInputHistory';
+import type { ChatReferenceKind } from '../../lib/chatReferences';
 import {
-  findFileMentionContext,
-  formatFileReference,
-  type FileMentionContext,
-} from '../../lib/chatReferences';
-import { loadProjectFiles, rankProjectFiles } from '../../lib/projectFiles';
-import { resizeTextarea } from './textareaMeasure';
+  composerDocumentFromText,
+  inlineContentFromText,
+  REFERENCE_TRIGGERS,
+} from '../../lib/composerContent';
 import { formatContextUsage, UNKNOWN_STATUS } from './formatters';
 import { ContextUsageTooltip } from './contextUsageTooltip';
 import { ProjectPicker } from './projectPicker';
 import { ModelSettingsPicker } from './modelSettingsPicker';
 import { SlashCommandPopover } from './slashCommandPopover';
 import { AttachmentChips, AttachmentPickerButton } from './attachmentPicker';
-import { ReferenceHighlights } from './referenceHighlights';
 import { FileMentionPopover } from './fileMentionPopover';
+import {
+  COMPOSER_TEXT_START,
+  createComposerExtensions,
+  exitReferenceSuggestion,
+  exitReferenceSuggestions,
+  type ComposerSuggestion,
+} from './composerExtensions';
 
 export interface ChatInputHandle {
   focus: () => void;
@@ -72,8 +73,9 @@ interface ChatInputProps {
   onSlashCommand: (command: string, arg: string) => void;
   isStreaming: boolean;
   gitBranch: string | null;
-  restoreText: string | null;
-  onRestoredText: () => void;
+  /** Messages handed back by abort/dequeue, restored before the current input. */
+  restoreInputs: PromptInput[] | null;
+  onRestoredInputs: () => void;
   onRefreshGitBranch: () => Promise<void>;
   session: SessionEntry | null;
   modelOptions: ModelInfo[];
@@ -95,7 +97,17 @@ interface ChatInputProps {
 const MODEL_FALLBACK = 'Model';
 const THINKING_FALLBACK = 'Thinking';
 const NEW_SESSION_PLACEHOLDER = 'Type # to quick change project.';
+const FOLLOW_UP_PLACEHOLDER = 'Ask for follow-up changes';
 const NEW_SESSION_HEADING = 'Here we go!';
+const NO_COMMANDS: ReadonlySet<string> = new Set();
+const EMPTY_FILE_MATCHES: string[] = [];
+const TEXT_BLOCK_SEPARATOR = '\n';
+
+/** Editor callbacks that need the latest render's state. */
+interface ComposerHandlers {
+  keyDown: (event: KeyboardEvent) => boolean;
+  paste: (event: ClipboardEvent) => boolean;
+}
 
 export default function ChatInput({
   ref,
@@ -105,8 +117,8 @@ export default function ChatInput({
   onSlashCommand,
   isStreaming,
   gitBranch,
-  restoreText,
-  onRestoredText,
+  restoreInputs,
+  onRestoredInputs,
   onRefreshGitBranch,
   session,
   modelOptions,
@@ -121,35 +133,20 @@ export default function ChatInput({
   activeProject = null,
   onSelectProject,
 }: ChatInputProps): React.JSX.Element {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  useImperativeHandle(ref, () => ({ focus: () => textareaRef.current?.focus() }), []);
-  // Which input box currently owns the textarea: the active session's path, or
+  // Which input box currently owns the composer: the active session's path, or
   // NEW_CHAT_DRAFT_KEY while composing the first message of a new chat.
   const draftKey = session?.sessionPath || NEW_CHAT_DRAFT_KEY;
   const activeDraftKeyRef = useRef<string | null>(null);
 
-  const history = useInputHistory(textareaRef, userHistory);
-  // Stable references for effect deps; `history` itself changes with userHistory.
-  const { reset: resetHistory, getDraftForSave: getHistoryDraft } = history;
-
-  const [slashMatches, setSlashMatches] = useState<SlashCommandMatches>(EMPTY_SLASH_MATCHES);
-  const [selectedSlashIndex, setSelectedSlashIndex] = useState(0);
-
-  // The textarea stays uncontrolled so IME input keeps native behavior; this
-  // mirror value feeds the reference highlight layer.
-  const [inputValue, setInputValue] = useState('');
-  // While an IME composition is active the browser paints composition text
-  // with the textarea's own color, so show it there and hide the mirror.
-  const [isComposing, setIsComposing] = useState(false);
-
-  // `@` file references: the active token, the project file list and the
-  // keyboard position inside the popover.
-  const [mention, setMention] = useState<FileMentionContext | null>(null);
-  const [mentionSource, setMentionSource] = useState<{ cwd: string; files: string[] }>({
-    cwd: '',
-    files: [],
-  });
-  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  // The open `/` or `@` picker and the keyboard position inside it.
+  const [suggestion, setSuggestion] = useState<ComposerSuggestion | null>(null);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
+  // Latest `@` search result, tagged with the project and query it answers.
+  const [mentionResult, setMentionResult] = useState<{
+    cwd: string;
+    query: string;
+    files: string[];
+  }>({ cwd: '', query: '', files: [] });
 
   // Hash autocomplete state for project switching (#)
   const [hashMode, setHashMode] = useState(false);
@@ -160,6 +157,99 @@ export default function ChatInput({
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const dragDepthRef = useRef(0);
+
+  // Commands that can appear as a chip. The utility merges extension commands
+  // into `skillOptions`, so this covers both.
+  const commandNames = useMemo(
+    () => new Set(skillOptions.map((skill) => skill.name)),
+    [skillOptions],
+  );
+  const commandNamesRef = useRef(commandNames);
+  useLayoutEffect(() => {
+    commandNamesRef.current = commandNames;
+  }, [commandNames]);
+
+  const handlersRef = useRef<ComposerHandlers>({ keyDown: () => false, paste: () => false });
+
+  const handleSuggestionChange = useCallback(
+    (kind: ChatReferenceKind, next: ComposerSuggestion | null) => {
+      setSuggestion((current) => next ?? (current?.kind === kind ? null : current));
+      setSelectedSuggestionIndex(0);
+    },
+    [],
+  );
+
+  const [extensions] = useState(() =>
+    createComposerExtensions({
+      placeholder: isNewSession ? NEW_SESSION_PLACEHOLDER : FOLLOW_UP_PLACEHOLDER,
+      onSuggestionChange: handleSuggestionChange,
+    }),
+  );
+  const [editorProps] = useState<EditorOptions['editorProps']>(() => ({
+    attributes: {
+      class: cn(
+        'chat-composer max-h-[17.5vh] overflow-y-auto px-4 pb-2 pt-4 text-sm leading-6 outline-none',
+        isNewSession ? 'min-h-24' : 'min-h-16',
+      ),
+      'data-testid': 'chat-composer',
+    },
+    handleKeyDown: (_view, event) => handlersRef.current.keyDown(event),
+    handlePaste: (_view, event) => handlersRef.current.paste(event),
+  }));
+
+  const editor = useEditor({
+    extensions,
+    editorProps,
+    onUpdate: ({ editor: updatedEditor }) => {
+      history.handleTyping();
+      // Hash autocomplete detection (only in new session mode)
+      if (isNewSession) {
+        const { doc, selection } = updatedEditor.state;
+        setHashMode(doc.textBetween(0, selection.from, TEXT_BLOCK_SEPARATOR) === '#');
+      }
+    },
+    onBlur: ({ editor: blurredEditor }) => {
+      // The file popover has no outside-click handling of its own.
+      exitReferenceSuggestion(blurredEditor.view, 'file');
+    },
+  });
+
+  useImperativeHandle(ref, () => ({ focus: () => editor.commands.focus() }), [editor]);
+
+  const composer = useMemo<HistoryComposer>(
+    () => ({
+      getText: () => editor.getText({ blockSeparator: TEXT_BLOCK_SEPARATOR }),
+      setText: (text) => {
+        editor
+          .chain()
+          .setContent(composerDocumentFromText(text, commandNamesRef.current), {
+            emitUpdate: false,
+          })
+          .focus('end')
+          .run();
+        exitReferenceSuggestions(editor.view);
+      },
+      isCaretOnFirstLine: () => {
+        const { selection } = editor.state;
+        return (
+          selection.empty && selection.$from.index(0) === 0 && editor.view.endOfTextblock('up')
+        );
+      },
+      isCaretOnLastLine: () => {
+        const { selection, doc } = editor.state;
+        return (
+          selection.empty &&
+          selection.$from.index(0) === doc.childCount - 1 &&
+          editor.view.endOfTextblock('down')
+        );
+      },
+    }),
+    [editor],
+  );
+
+  const history = useInputHistory(composer, userHistory);
+  // Stable references for effect deps; `history` itself changes with userHistory.
+  const { reset: resetHistory, getDraftForSave: getHistoryDraft } = history;
 
   const setAttachmentList = useCallback((next: ChatAttachment[]) => {
     attachmentsRef.current = next;
@@ -214,7 +304,7 @@ export default function ChatInput({
         toast.error(`You can attach up to ${MAX_PROMPT_ATTACHMENTS} files per message.`);
         return;
       }
-      const result = await window.piApi.pickAttachments(kind, remaining);
+      const result = await window.piApi.pickAttachments(kind);
       if (!result.success) {
         if (!result.canceled) {
           toast.error(result.error ?? 'Could not open the file picker.');
@@ -232,15 +322,32 @@ export default function ChatInput({
     [setAttachmentList],
   );
 
+  // Clipboard files become attachments; text is inserted as plain text with a
+  // leading `/command` turned into a chip. Pasted `@` tokens stay text: in code
+  // and shell commands they are rarely file references (`@Override`,
+  // `npm i @types/node`).
   const handlePaste = useCallback(
-    (event: ClipboardEvent<HTMLTextAreaElement>) => {
-      const files = Array.from(event.clipboardData.files ?? []);
-      if (files.length === 0) return;
-      // Attach clipboard files instead of inserting their names/contents.
-      event.preventDefault();
-      void addFiles(files);
+    (event: ClipboardEvent): boolean => {
+      const files = Array.from(event.clipboardData?.files ?? []);
+      if (files.length > 0) {
+        void addFiles(files);
+        return true;
+      }
+      const text = event.clipboardData?.getData('text/plain');
+      if (!text) return false;
+      const atPromptStart = editor.state.selection.from === COMPOSER_TEXT_START;
+      editor
+        .chain()
+        .insertContent(
+          inlineContentFromText(text, atPromptStart ? commandNames : NO_COMMANDS, {
+            fileReferences: false,
+          }),
+        )
+        .scrollIntoView()
+        .run();
+      return true;
     },
-    [addFiles],
+    [addFiles, editor, commandNames],
   );
 
   const handleDragEnter = useCallback((event: DragEvent<HTMLDivElement>) => {
@@ -276,52 +383,58 @@ export default function ChatInput({
 
   const allSlashCommands = useMemo(() => getAllSlashCommands(skillOptions), [skillOptions]);
 
-  // Flat index helpers for keyboard nav across builtin + skill groups
-  const flatSlashMatches = useMemo(() => {
-    const items: SlashCommand[] = [];
-    for (const command of slashMatches.builtin) items.push(command);
-    for (const command of slashMatches.skill) items.push(command);
-    return items;
-  }, [slashMatches]);
-  const hasSlashMatches = slashMatches.builtin.length > 0 || slashMatches.skill.length > 0;
-
-  // Commands that can appear as an inline label in the composer. The utility
-  // merges extension commands into `skillOptions`, so this covers both.
-  const commandNames = useMemo(
-    () => new Set(skillOptions.map((skill) => skill.name)),
-    [skillOptions],
+  const slashMatches = useMemo(
+    () =>
+      suggestion?.kind === 'skill'
+        ? matchSlashCommands(`${REFERENCE_TRIGGERS.skill}${suggestion.query}`, allSlashCommands)
+        : EMPTY_SLASH_MATCHES,
+    [suggestion, allSlashCommands],
+  );
+  // Flat list for keyboard nav across builtin + skill groups
+  const flatSlashMatches = useMemo(
+    () => [...slashMatches.builtin, ...slashMatches.skill],
+    [slashMatches],
   );
 
   const projectPath = activeProject?.path ?? session?.cwd ?? '';
-  const mentionOpen = mention !== null;
-  const mentionFiles = useMemo(
-    () => (mentionSource.cwd === projectPath ? mentionSource.files : []),
-    [mentionSource, projectPath],
-  );
-  // Files are still loading until a result for this project arrives.
-  const mentionLoading = mentionOpen && mentionSource.cwd !== projectPath;
-  const mentionMatches = useMemo(
-    () => (mention ? rankProjectFiles(mentionFiles, mention.query) : []),
-    [mention, mentionFiles],
-  );
+  const mentionOpen = suggestion?.kind === 'file';
+  const mentionQuery = mentionOpen ? suggestion.query.trim() : '';
+  // While the next query is in flight, keep showing the previous results
+  // instead of flashing an empty list on every keystroke.
+  const mentionMatches =
+    mentionOpen && mentionQuery.length > 0 && mentionResult.cwd === projectPath
+      ? mentionResult.files
+      : EMPTY_FILE_MATCHES;
+  const mentionSearching =
+    mentionResult.cwd !== projectPath || mentionResult.query !== mentionQuery;
 
+  // An empty query only warms the project's file index in the main process.
   useEffect(() => {
     if (!mentionOpen || projectPath.length === 0) return;
     let cancelled = false;
-    void loadProjectFiles(projectPath).then((files) => {
-      if (!cancelled) setMentionSource({ cwd: projectPath, files });
-    });
+    void window.piApi
+      .searchProjectFiles(projectPath, mentionQuery)
+      .catch(() => null)
+      .then((result) => {
+        if (cancelled) return;
+        setMentionResult({
+          cwd: projectPath,
+          query: mentionQuery,
+          files: result?.success ? result.files : [],
+        });
+        setSelectedSuggestionIndex(0);
+      });
     return () => {
       cancelled = true;
     };
-  }, [mentionOpen, projectPath]);
+  }, [mentionOpen, mentionQuery, projectPath]);
 
   // Save/restore the draft of the input box being switched to/from. Drafts are
   // stored module-level (see lib/chatDrafts.ts) so text typed on the new-chat
   // screen survives the unmount that happens when the user opens a session.
+  // Content is set outside the effect: chips are React node views, which
+  // Tiptap renders with flushSync, and React forbids that during an effect.
   useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
     const previousKey = activeDraftKeyRef.current;
 
     // Save the previous key's draft (if navigating history, the saved draft is
@@ -333,58 +446,50 @@ export default function ChatInput({
     // Reset history recall when switching sessions
     resetHistory();
 
-    // Attachments belong to one draft/session; do not carry them across.
     if (previousKey !== draftKey) {
+      // Attachments belong to one draft/session; do not carry them across.
       setAttachmentList([]);
-    }
-
-    // Restore the current key's draft and auto-focus the input
-    if (previousKey !== draftKey) {
+      // Restore the current key's draft and auto-focus the input
       const draft = readChatDraft(draftKey);
-      textarea.value = draft;
-      setInputValue(draft);
-      resizeTextarea(textarea);
-      textarea.focus();
+      queueMicrotask(() => composer.setText(draft));
     }
 
     activeDraftKeyRef.current = draftKey;
-  }, [draftKey, resetHistory, getHistoryDraft, setAttachmentList]);
+  }, [draftKey, resetHistory, getHistoryDraft, setAttachmentList, composer]);
 
-  // The textarea is detached whenever the input leaves the tree (switching
-  // between the new-chat screen and a session). Persist its draft from the ref
-  // callback: React still hands over the node there, while an effect cleanup
-  // would already see the ref cleared.
-  const handleTextareaRef = useCallback(
-    (node: HTMLTextAreaElement | null): void => {
-      if (node) {
-        textareaRef.current = node;
-        return;
-      }
+  // The composer leaves the tree when switching between the new-chat screen
+  // and a session; persist its draft. The editor itself is destroyed after
+  // this cleanup, so its text is still readable here.
+  useEffect(
+    () => () => {
       const key = activeDraftKeyRef.current;
-      if (key !== null) {
-        writeChatDraft(key, getHistoryDraft());
-      }
-      textareaRef.current = null;
+      if (key !== null) writeChatDraft(key, getHistoryDraft());
     },
     [getHistoryDraft],
   );
 
-  // Restore text from abort/dequeue
+  // Restore messages from abort/dequeue
   useEffect(() => {
-    if (restoreText === null) return;
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    if (restoreInputs === null) return;
     // Programmatic value change: exit history recall
     resetHistory();
-    // Join restored text with current input (current goes last)
-    const currentText = textarea.value.trim();
-    const combined = [restoreText, currentText].filter((t) => t).join('\n\n');
-    textarea.value = combined;
-    setInputValue(combined);
-    resizeTextarea(textarea);
-    textarea.focus();
-    onRestoredText();
-  }, [restoreText, onRestoredText, resetHistory]);
+    // Restored messages go before the current input
+    const combined = [...restoreInputs.map((input) => input.message), composer.getText().trim()]
+      .filter((text) => text)
+      .join('\n\n');
+    queueMicrotask(() => composer.setText(combined));
+    const restoredAttachments = restoreInputs.flatMap((input) =>
+      input.attachments.map(attachmentFromPromptAttachment),
+    );
+    if (restoredAttachments.length > 0) {
+      const merged = [...restoredAttachments, ...attachmentsRef.current];
+      if (merged.length > MAX_PROMPT_ATTACHMENTS) {
+        toast.error(`Only the first ${MAX_PROMPT_ATTACHMENTS} attachments were kept.`);
+      }
+      setAttachmentList(merged.slice(0, MAX_PROMPT_ATTACHMENTS));
+    }
+    onRestoredInputs();
+  }, [restoreInputs, onRestoredInputs, resetHistory, composer, setAttachmentList]);
 
   const contextUsage = session?.contextUsage ?? null;
   const autoCompactionEnabled = session?.autoCompactionEnabled ?? false;
@@ -395,50 +500,27 @@ export default function ChatInput({
   const thinkingLabel = rawThinkingLevel ?? THINKING_FALLBACK;
 
   const clearInput = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    textarea.value = '';
-    textarea.style.height = 'auto';
-    setInputValue('');
-    setSlashMatches(EMPTY_SLASH_MATCHES);
-    setMention(null);
-  }, []);
+    editor.commands.clearContent();
+  }, [editor]);
 
-  const insertSlashCommand = useCallback((command: SlashCommand) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const value = `/${command.name} `;
-    textarea.value = value;
-    setInputValue(value);
-    setSlashMatches(EMPTY_SLASH_MATCHES);
-    setMention(null);
-    textarea.focus();
-  }, []);
-
-  const applyMention = useCallback(
-    (path: string) => {
-      const textarea = textareaRef.current;
-      if (!textarea || !mention) return;
-      const caret = textarea.selectionStart;
-      const value = textarea.value;
-      const insertion = formatFileReference(path);
-      const nextValue = value.slice(0, mention.start) + insertion + value.slice(caret);
-      const nextCaret = mention.start + insertion.length;
-      textarea.value = nextValue;
-      textarea.selectionStart = textarea.selectionEnd = nextCaret;
-      setInputValue(nextValue);
-      setMention(null);
-      setSelectedMentionIndex(0);
-      resizeTextarea(textarea);
-      textarea.focus();
+  const insertSlashCommand = useCallback(
+    (command: SlashCommand) => {
+      if (!suggestion) return;
+      if (command.source === 'skill') {
+        suggestion.insertReference(command.name);
+        return;
+      }
+      editor
+        .chain()
+        .focus()
+        .insertContentAt(suggestion.range, `${REFERENCE_TRIGGERS.skill}${command.name} `)
+        .run();
     },
-    [mention],
+    [editor, suggestion],
   );
 
   const handleSend = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const text = textarea.value.trim();
+    const text = composer.getText().trim();
     const pendingAttachments = attachmentsRef.current;
     if (!text && pendingAttachments.length === 0) return;
     // Sending exits history recall; the sent message enters the transcript
@@ -457,82 +539,49 @@ export default function ChatInput({
         return;
       }
 
-      // Skill commands are sent as a regular prompt; the SDK handles expansion
-      const skillMatch = allSlashCommands.find((c) => c.source === 'skill' && c.name === name);
-      if (skillMatch) {
-        clearInput();
-        setAttachmentList([]);
-        onSend(text, pendingAttachments);
-        return;
-      }
-      // Not a known command: fall through and send as regular message
+      // Skills and unknown commands are sent as a regular prompt; the SDK
+      // expands skills.
     }
 
     clearInput();
     setAttachmentList([]);
     onSend(text, pendingAttachments);
-  }, [onSend, onSlashCommand, allSlashCommands, history, clearInput, setAttachmentList]);
+  }, [composer, onSend, onSlashCommand, allSlashCommands, history, clearInput, setAttachmentList]);
 
   const handleFollowUpSend = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const text = textarea.value.trim();
+    const text = composer.getText().trim();
     const pendingAttachments = attachmentsRef.current;
     if (!text && pendingAttachments.length === 0) return;
     history.reset();
     clearInput();
     setAttachmentList([]);
     onFollowUp(text, pendingAttachments);
-  }, [onFollowUp, history, clearInput, setAttachmentList]);
+  }, [composer, onFollowUp, history, clearInput, setAttachmentList]);
 
   const handleKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (event.nativeEvent.isComposing || event.key === 'Process') return;
+    (event: KeyboardEvent): boolean => {
+      if (event.isComposing || event.key === 'Process') return false;
 
-      // `@` file reference navigation takes priority over the send shortcut.
-      if (mention) {
-        if (mentionMatches.length > 0) {
-          if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            setSelectedMentionIndex(
-              (index) => (index - 1 + mentionMatches.length) % mentionMatches.length,
-            );
-            return;
-          }
-          if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            setSelectedMentionIndex((index) => (index + 1) % mentionMatches.length);
-            return;
-          }
-          if (event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey)) {
-            event.preventDefault();
-            const selectedPath = mentionMatches[selectedMentionIndex];
-            if (selectedPath) applyMention(selectedPath);
-            return;
-          }
-        }
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          setMention(null);
-          return;
-        }
-      }
-
-      // Slash command autocomplete navigation
-      if (hasSlashMatches) {
+      // Picker navigation takes priority over history and the send shortcut.
+      // Escape is left to the suggestion plugin, which closes the picker.
+      const matchCount =
+        suggestion?.kind === 'file' ? mentionMatches.length : flatSlashMatches.length;
+      if (suggestion && matchCount > 0) {
         if (event.key === 'ArrowUp') {
-          event.preventDefault();
-          setSelectedSlashIndex((i) => (i - 1 + flatSlashMatches.length) % flatSlashMatches.length);
-          return;
+          setSelectedSuggestionIndex((index) => (index - 1 + matchCount) % matchCount);
+          return true;
         }
         if (event.key === 'ArrowDown') {
-          event.preventDefault();
-          setSelectedSlashIndex((i) => (i + 1) % flatSlashMatches.length);
-          return;
+          setSelectedSuggestionIndex((index) => (index + 1) % matchCount);
+          return true;
         }
         if (event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey)) {
-          event.preventDefault();
-          const selectedCommand = flatSlashMatches[selectedSlashIndex];
+          if (suggestion.kind === 'file') {
+            const selectedPath = mentionMatches[selectedSuggestionIndex];
+            if (selectedPath) suggestion.insertReference(selectedPath);
+            return true;
+          }
+          const selectedCommand = flatSlashMatches[selectedSuggestionIndex];
           if (selectedCommand) {
             if (selectedCommand.source === 'builtin' && !selectedCommand.hasArg) {
               // Builtin no-arg: execute immediately (e.g., /compact, /new)
@@ -542,42 +591,31 @@ export default function ChatInput({
               insertSlashCommand(selectedCommand);
             }
           }
-          return;
-        }
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          setSlashMatches(EMPTY_SLASH_MATCHES);
-          return;
+          return true;
         }
       }
 
       // Shell-style history recall
-      if (history.handleArrowKey(event)) {
-        setInputValue(textareaRef.current?.value ?? '');
-        setMention(null);
-        return;
-      }
+      if (history.handleArrowKey(event)) return true;
 
       if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
         if (event.altKey && isStreaming) {
           handleFollowUpSend();
         } else {
           handleSend();
         }
+        return true;
       }
+      return false;
     },
     [
       handleSend,
       handleFollowUpSend,
       isStreaming,
-      mention,
+      suggestion,
       mentionMatches,
-      selectedMentionIndex,
-      applyMention,
-      hasSlashMatches,
       flatSlashMatches,
-      selectedSlashIndex,
+      selectedSuggestionIndex,
       onSlashCommand,
       history,
       clearInput,
@@ -585,49 +623,9 @@ export default function ChatInput({
     ],
   );
 
-  const handleInput = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    history.handleTyping();
-    resizeTextarea(textarea);
-
-    const value = textarea.value;
-    setInputValue(value);
-    setSlashMatches(matchSlashCommands(value, allSlashCommands));
-    setSelectedSlashIndex(0);
-
-    const mentionContext = findFileMentionContext(value, textarea.selectionStart);
-    setMention(mentionContext);
-    if (mentionContext) setSelectedMentionIndex(0);
-
-    // Hash autocomplete detection (only in new session mode)
-    if (isNewSession) {
-      const cursorPos = textarea.selectionStart;
-      const textBeforeCursor = value.slice(0, cursorPos);
-      setHashMode(textBeforeCursor === '#');
-    }
-  }, [allSlashCommands, isNewSession, history]);
-
-  // Keep the mention popover in sync when the caret moves without typing
-  // (clicking elsewhere in the text or arrow keys).
-  const handleSelect = useCallback(() => {
-    if (!mention) return;
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    setMention(findFileMentionContext(textarea.value, textarea.selectionStart));
-  }, [mention]);
-
-  const handleBlur = useCallback(() => {
-    setMention(null);
-  }, []);
-
-  const handleCompositionStart = useCallback(() => {
-    setIsComposing(true);
-  }, []);
-
-  const handleCompositionEnd = useCallback(() => {
-    setIsComposing(false);
-  }, []);
+  useLayoutEffect(() => {
+    handlersRef.current = { keyDown: handleKeyDown, paste: handlePaste };
+  }, [handleKeyDown, handlePaste]);
 
   const projectLabel = activeProject?.name ?? 'select project';
 
@@ -661,78 +659,49 @@ export default function ChatInput({
                 setHashMode(false);
                 onSelectProject?.(path);
                 void onRefreshGitBranch();
-                const textarea = textareaRef.current;
-                if (textarea) {
-                  // Remove the leading # that triggered the picker
-                  const cursorPos = textarea.selectionStart;
-                  textarea.value = textarea.value.slice(cursorPos);
-                  setInputValue(textarea.value);
-                  textarea.selectionStart = textarea.selectionEnd = 0;
-                  textarea.focus();
-                }
+                // Remove the leading # that triggered the picker
+                editor
+                  .chain()
+                  .focus()
+                  .deleteRange({ from: COMPOSER_TEXT_START, to: editor.state.selection.from })
+                  .run();
               }}
               forceOpen={hashMode}
               onClose={() => {
                 setHashMode(false);
-                textareaRef.current?.focus();
+                editor.commands.focus();
               }}
             />
           </div>
         )}
         <SlashCommandPopover
           matches={slashMatches}
-          selectedIndex={selectedSlashIndex}
+          selectedIndex={selectedSuggestionIndex}
           onSelect={insertSlashCommand}
-          onHover={setSelectedSlashIndex}
-          onDismiss={() => setSlashMatches(EMPTY_SLASH_MATCHES)}
+          onHover={setSelectedSuggestionIndex}
+          onDismiss={() => exitReferenceSuggestion(editor.view, 'skill')}
         >
           <div
             className="relative mx-auto w-full"
             style={{ maxWidth: `${CHAT_INPUT_MAX_WIDTH}px` }}
           >
-            {mention && (
+            {mentionOpen && (
               <FileMentionPopover
                 matches={mentionMatches}
-                selectedIndex={selectedMentionIndex}
-                loading={mentionLoading}
-                onSelect={applyMention}
-                onHover={setSelectedMentionIndex}
+                selectedIndex={selectedSuggestionIndex}
+                query={mentionQuery}
+                searching={mentionSearching}
+                onSelect={(path) => suggestion?.insertReference(path)}
+                onHover={setSelectedSuggestionIndex}
               />
             )}
             <InputGroup
               className={cn(
-                'relative h-auto flex-col rounded-3xl border bg-background shadow-[0_10px_34px_rgb(0_0_0_/_0.075)] has-[[data-slot=input-group-control]:focus-visible]:ring-0 has-[[data-slot=input-group-control]:focus-visible]:border-inherit',
+                'relative h-auto flex-col rounded-3xl border bg-background shadow-[0_10px_34px_rgb(0_0_0_/_0.075)]',
                 !isNewSession && 'min-h-28',
               )}
             >
-              <div className="relative w-full">
-                {!isComposing && (
-                  <ReferenceHighlights
-                    text={inputValue}
-                    commandNames={commandNames}
-                    textareaRef={textareaRef}
-                    className="px-4 pb-2 pt-4 text-sm leading-5"
-                  />
-                )}
-                <InputGroupTextarea
-                  ref={handleTextareaRef}
-                  onKeyDown={handleKeyDown}
-                  onInput={handleInput}
-                  onPaste={handlePaste}
-                  onSelect={handleSelect}
-                  onBlur={handleBlur}
-                  onCompositionStart={handleCompositionStart}
-                  onCompositionEnd={handleCompositionEnd}
-                  placeholder={isNewSession ? NEW_SESSION_PLACEHOLDER : 'Ask for follow-up changes'}
-                  rows={1}
-                  className={cn(
-                    'relative z-10 flex-initial field-sizing-fixed px-4 pb-2 pt-4 text-sm leading-5 placeholder:text-muted-foreground/70 overflow-y-auto bg-transparent caret-foreground [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-                    isComposing ? 'text-foreground' : 'text-transparent',
-                    isNewSession ? 'min-h-24' : 'min-h-16',
-                  )}
-                  data-testid="chat-textarea"
-                />
-              </div>
+              <EditorContent editor={editor} className="w-full" />
               {attachments.length > 0 && (
                 <AttachmentChips attachments={attachments} onRemove={handleRemoveAttachment} />
               )}
@@ -741,10 +710,7 @@ export default function ChatInput({
                 className="min-w-0 justify-between gap-2 px-2.5 pb-2.5 pt-0"
               >
                 <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden px-1">
-                  <AttachmentPickerButton
-                    attachmentCount={attachments.length}
-                    onPick={(kind) => void handlePickAttachments(kind)}
-                  />
+                  <AttachmentPickerButton onPick={(kind) => void handlePickAttachments(kind)} />
                 </div>
                 <div className="flex shrink-0 items-center gap-0.5">
                   <ModelSettingsPicker
@@ -774,7 +740,7 @@ export default function ChatInput({
                     onClick={handleSend}
                     size="icon-sm"
                     variant="default"
-                    className="rounded-full bg-muted-foreground text-background hover:bg-foreground"
+                    className="rounded-full bg-[var(--system-accent)]/70 text-white hover:bg-[var(--system-accent)]"
                     data-testid="send-button"
                   >
                     <IconArrowUp />

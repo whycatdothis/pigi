@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { IconCheck, IconCopy, IconFile, IconSparkles, IconTerminal2 } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconCube, IconTerminal2 } from '@tabler/icons-react';
 import {
   type SystemNode,
   type TranscriptNode,
@@ -18,6 +18,7 @@ import { highlightMatches } from '../../lib/highlightMatches';
 import ShimmerOverlay from './shimmerOverlay';
 import { parseSkillBlock, type ParsedSkillBlock } from '../../lib/skillBlock';
 import { displayFileName } from '../../lib/chatAttachments';
+import { FileIcon } from '../fileIcon';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
 
 /** Matches a slash command like `/plannotator-review` or `/review staged`. */
@@ -249,7 +250,7 @@ function SkillLinkBubble({
                 type="button"
                 className="inline text-[var(--system-accent)] hover:opacity-80 cursor-pointer"
               >
-                <IconSparkles className="size-4 shrink-0 inline -mt-0.5 mr-0.5" />
+                <IconCube className="size-4 shrink-0 inline -mt-0.5 mr-0.5" />
                 {skillBlock.name}
               </button>
             </PopoverTrigger>
@@ -259,7 +260,7 @@ function SkillLinkBubble({
               className="w-[32rem] max-h-[60vh] overflow-y-auto p-4"
             >
               <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-                <IconSparkles className="size-4 shrink-0" />
+                <IconCube className="size-4 shrink-0" />
                 <span>{skillBlock.name}</span>
               </div>
               <MarkdownMessage text={skillBlock.body} />
@@ -372,7 +373,7 @@ export function UserBubble({
                 className="flex max-w-56 items-center gap-1 rounded-lg border border-border/50 bg-muted/60 px-2 py-1 text-xs text-muted-foreground"
                 title={path}
               >
-                <IconFile className="size-3.5 shrink-0" />
+                <FileIcon path={path} className="size-3.5" />
                 <span className="truncate">{displayFileName(path)}</span>
               </span>
             ))}

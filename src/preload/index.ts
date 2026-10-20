@@ -20,7 +20,7 @@ import {
   type PiRequest,
   type PickAttachmentsResult,
   type ChatAttachmentKind,
-  type ProjectFilesResult,
+  type ProjectFileSearchResult,
   type ProjectSessionsChunk,
   type ProjectStateResult,
   type SessionListResult,
@@ -298,8 +298,8 @@ const piApi = {
     ipcRenderer.invoke(PiChannel.GetGitBranch, cwd),
 
   /** List files visible to git for inline @ references. */
-  listProjectFiles: (cwd: string): Promise<ProjectFilesResult> =>
-    ipcRenderer.invoke(PiChannel.ListProjectFiles, cwd),
+  searchProjectFiles: (cwd: string, query: string): Promise<ProjectFileSearchResult> =>
+    ipcRenderer.invoke(PiChannel.SearchProjectFiles, cwd, query),
 
   /** Set active project directory from recent projects. */
   setActiveProject: (path: string): Promise<ProjectStateResult> =>
@@ -314,8 +314,8 @@ const piApi = {
     ipcRenderer.invoke(PiChannel.RemoveProject, path),
 
   /** Open the native file picker for chat attachments. */
-  pickAttachments: (kind: ChatAttachmentKind, maxCount: number): Promise<PickAttachmentsResult> =>
-    ipcRenderer.invoke(PiChannel.PickAttachments, kind, maxCount),
+  pickAttachments: (kind: ChatAttachmentKind): Promise<PickAttachmentsResult> =>
+    ipcRenderer.invoke(PiChannel.PickAttachments, kind),
 
   /** Resolve the on-disk path of a dropped or pasted File. Empty for JS-created files. */
   getPathForFile: (file: File): string => webUtils.getPathForFile(file),
@@ -468,6 +468,10 @@ const piApi = {
 
   /** Get the system accent color as a hex string (e.g. '#007aff'). Returns null on unsupported platforms. */
   getAccentColor: (): Promise<string | null> => ipcRenderer.invoke(PiChannel.GetAccentColor),
+
+  /** Render a macOS SF Symbol (e.g. 'sidebar.left') as a PNG data URL. Null on other platforms or unknown names. */
+  getSystemSymbol: (name: string): Promise<string | null> =>
+    ipcRenderer.invoke(PiChannel.GetSystemSymbol, name),
 
   /** Bottom-panel terminals. One PTY per tab (keyed by id); I/O over a MessagePort. */
   terminal: {

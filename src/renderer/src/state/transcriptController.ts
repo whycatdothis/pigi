@@ -1,5 +1,5 @@
 import type { EditToolDetails } from '@earendil-works/pi-coding-agent';
-import type { PromptAttachment, StreamBatch } from '../../../shared/ipcContract';
+import type { PromptAttachment, PromptInput, StreamBatch } from '../../../shared/ipcContract';
 import { sanitizeUserPromptForDisplay } from '../../../shared/chatAttachments';
 
 /**
@@ -581,15 +581,6 @@ export class TranscriptController {
   // ===========================================================================
   private _optimisticUserMessages = new Map<string, number>();
 
-  /**
-   * Optimistically clear local queue state before a programmatic clearQueue RPC.
-   * When the subsequent queue_update arrives with empty arrays, the diff against
-   * the already-empty local state produces no "delivered" messages.
-   */
-  clearLocalQueue(): void {
-    this.setState({ queuedSteering: [], queuedFollowUp: [] });
-  }
-
   /** Queue a message sent during compaction for replay after compaction ends. */
   addCompactionMessage(
     text: string,
@@ -608,10 +599,10 @@ export class TranscriptController {
   }
 
   /**
-   * Remove a compaction-queued message by type and index, returning its text.
+   * Remove a compaction-queued message by type and index, returning its input.
    * Used when the user clicks "Edit" on a queued message during compaction.
    */
-  removeCompactionMessage(type: 'steer' | 'followUp', index: number): string | undefined {
+  removeCompactionMessage(type: 'steer' | 'followUp', index: number): PromptInput | undefined {
     // Find the nth message of the given type in the compaction queue
     let seen = 0;
     let queueIndex = -1;
@@ -637,7 +628,7 @@ export class TranscriptController {
       queuedSteering: steering,
       queuedFollowUp: followUp,
     });
-    return removed.text;
+    return { message: removed.text, attachments: removed.attachments ?? [] };
   }
 
   /** Clear the compaction queue after replaying its messages. */
@@ -656,6 +647,7 @@ export class TranscriptController {
       promptAttachments?: PromptAttachment[];
     },
   ): void {
+    // Same sanitizing as message_start so the optimistic key matches the echo.
     const split = sanitizeUserPromptForDisplay(text);
     const filePaths = options?.filePaths ?? split.filePaths;
     const node: UserNode = {
@@ -774,7 +766,8 @@ export class TranscriptController {
         if (startMessage?.role === 'user') {
           // Check if this user message was already added optimistically
           const { text, imageSources, filePaths } = extractUserContent(startMessage.content);
-          if (text && !this._hasOptimisticUserMessage(text)) {
+          const hasContent = text || imageSources.length > 0 || filePaths.length > 0;
+          if (hasContent && !this._hasOptimisticUserMessage(text)) {
             this.addUserMessage(text, { imageSources, filePaths });
           }
           this.stampLastUserMessage(startMessage.timestamp);
@@ -853,21 +846,8 @@ export class TranscriptController {
         if (typeof event !== 'object' || event === null) break;
         const newSteering: string[] = Array.isArray(event.steering) ? event.steering : [];
         const newFollowUp: string[] = Array.isArray(event.followUp) ? event.followUp : [];
-
-        // Detect delivered messages: items removed from the front (FIFO).
-        // If clearLocalQueue() was called beforehand, prev arrays are already empty
-        // so no delivery is detected — this avoids the false-delivery bug.
-        const prevSteering = this._state.queuedSteering;
-        const prevFollowUp = this._state.queuedFollowUp;
-        const deliveredSteering = prevSteering.slice(0, prevSteering.length - newSteering.length);
-        const deliveredFollowUp = prevFollowUp.slice(0, prevFollowUp.length - newFollowUp.length);
-        for (const delivered of deliveredSteering) {
-          this.addUserMessage(delivered);
-        }
-        for (const delivered of deliveredFollowUp) {
-          this.addUserMessage(delivered);
-        }
-
+        // Delivered messages leave the queue right before their message_start,
+        // which adds the user bubble with its images.
         this.setState({
           queuedSteering: newSteering,
           queuedFollowUp: newFollowUp,
@@ -1386,7 +1366,8 @@ function extractText(content: unknown[] | undefined): string {
 /**
  * Extract display data from a user message: visible text, image previews, and
  * attached file paths (the prompt carries them in a trailing block).
- */ function extractUserContent(content: unknown): {
+ */
+function extractUserContent(content: unknown): {
   text: string;
   imageSources: string[];
   filePaths: string[];

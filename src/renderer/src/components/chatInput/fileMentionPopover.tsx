@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { IconFile } from '@tabler/icons-react';
 import { cn } from '../../lib/utils';
+import { FileIcon } from '../fileIcon';
 
 interface FileMentionPopoverProps {
   matches: string[];
   selectedIndex: number;
-  loading: boolean;
+  /** Empty until the user types after `@`; searching starts with the first character. */
+  query: string;
+  searching: boolean;
   onSelect: (path: string) => void;
   onHover: (index: number) => void;
 }
@@ -14,7 +16,8 @@ interface FileMentionPopoverProps {
 export function FileMentionPopover({
   matches,
   selectedIndex,
-  loading,
+  query,
+  searching,
   onSelect,
   onHover,
 }: FileMentionPopoverProps): React.JSX.Element {
@@ -32,12 +35,16 @@ export function FileMentionPopover({
 
   return (
     <div
-      className="absolute bottom-full left-0 right-0 z-30 mb-2 overflow-hidden rounded-xl border bg-popover shadow-lg"
+      className="absolute bottom-full left-0 right-0 z-30 mb-2 overflow-hidden rounded-lg bg-popover/50 shadow-md ring-[0.5px] ring-foreground/25 backdrop-blur-md"
       onMouseDown={(event) => event.preventDefault()}
     >
       {matches.length === 0 ? (
-        <div className="px-3 py-2 text-sm text-muted-foreground">
-          {loading ? 'Loading files…' : 'No files found'}
+        <div className="px-3 py-2 text-[0.875rem] text-muted-foreground">
+          {query.length === 0
+            ? 'Type to search files'
+            : searching
+              ? 'Searching…'
+              : 'No files found'}
         </div>
       ) : (
         <div ref={listRef} className="max-h-[40vh] overflow-y-auto p-1">
@@ -46,7 +53,7 @@ export function FileMentionPopover({
               key={path}
               type="button"
               className={cn(
-                'flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm',
+                'flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[0.875rem]',
                 index === selectedIndex && 'bg-foreground/7',
               )}
               onMouseDown={(event) => {
@@ -55,7 +62,7 @@ export function FileMentionPopover({
               }}
               onMouseEnter={() => onHover(index)}
             >
-              <IconFile className="size-4 shrink-0 text-muted-foreground" />
+              <FileIcon path={path} />
               <span className="truncate text-foreground">{path}</span>
             </button>
           ))}

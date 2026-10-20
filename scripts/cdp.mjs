@@ -18,7 +18,7 @@ import {
   DEVTOOLS_URL_PREFIX,
 } from './cdpClient.mjs';
 
-const CHAT_INPUT_SELECTOR = '@chat-textarea';
+const CHAT_INPUT_SELECTOR = '@chat-composer';
 const DEFAULT_CONSOLE_SECONDS = 1;
 const ERROR_LEVELS = new Set(['error', 'assert']);
 const WARNING_LEVELS = new Set(['warning', 'warn']);
