@@ -1,6 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { IconCheck, IconFilter2, IconNotebook, IconTerminal2 } from '@tabler/icons-react';
+import { IconCheck, IconFilter2, IconTerminal2 } from '@tabler/icons-react';
 import { useAppStore } from '../../state/appStore';
+import {
+  SIDEBAR_TOGGLE_CLEARANCE_PX,
+  SIDEBAR_TRANSITION_CLASS_NAME,
+  sidebarToggleLeft,
+} from '../../lib/layoutConstants';
+import { cn } from '../../lib/utils';
 import { useTypewriter } from '../../hooks/useTypewriter';
 import { useRenameSuppress } from '../../hooks/useRenameSuppress';
 import { getSessionTitle } from '../sidebar/utils';
@@ -13,6 +19,7 @@ import {
 } from '../ui/dropdown-menu';
 import { SessionTreeHelpButton } from '../sessionTree/SessionTreeHelpDialog';
 import { SessionTreeIcon } from '../sessionTree/sessionTreeIcons';
+import { Kbd } from '../ui/kbd';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 // 13px menu text (app's text-xs scale, keeps the theme line-height — an
@@ -58,6 +65,12 @@ export default React.memo(function SessionToolbar({
       [sessionPath],
     ),
   );
+  // With the sidebar hidden, the title starts after the traffic lights and the sidebar toggle.
+  const titleInset = useAppStore((state) =>
+    state.sidebarExpanded
+      ? undefined
+      : sidebarToggleLeft(state.platform) + SIDEBAR_TOGGLE_CLEARANCE_PX,
+  );
   const toolBlockViewMode = useAppStore((state) => state.toolBlockViewMode);
   const setToolBlockViewMode = useAppStore((state) => state.setToolBlockViewMode);
 
@@ -99,9 +112,14 @@ export default React.memo(function SessionToolbar({
   );
 
   return (
-    <div className="flex shrink-0 items-center gap-2 px-3 h-11 border-b-[0.5px] border-foreground/27 [-webkit-app-region:drag]">
-      <div className="flex min-w-0 max-w-[33%] items-center gap-1.5 [-webkit-app-region:no-drag]">
-        <IconNotebook size={16} stroke={2} className="shrink-0 text-foreground" />
+    <div
+      className={cn(
+        'flex shrink-0 items-center gap-2 px-3 h-11 border-b-[0.5px] border-foreground/27 transition-[padding] [-webkit-app-region:drag]',
+        SIDEBAR_TRANSITION_CLASS_NAME,
+      )}
+      style={{ paddingLeft: titleInset }}
+    >
+      <div className="flex min-w-0 max-w-[33%] items-center [-webkit-app-region:no-drag]">
         {isEditing ? (
           <input
             type="text"
@@ -156,14 +174,12 @@ export default React.memo(function SessionToolbar({
               onClick={onToggleTerminal}
               className={`flex items-center justify-center rounded p-1 transition-colors size-7 hover:bg-muted [-webkit-app-region:no-drag] ${terminalOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              <IconTerminal2 size={16} stroke={1.5} />
+              <IconTerminal2 size={16} />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="flex items-center gap-2">
-            <span>Toggle terminal</span>
-            {terminalShortcutLabel && (
-              <kbd className="font-mono text-xs text-muted-foreground">{terminalShortcutLabel}</kbd>
-            )}
+          <TooltipContent side="bottom">
+            Toggle terminal
+            {terminalShortcutLabel && <Kbd>{terminalShortcutLabel}</Kbd>}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -175,7 +191,7 @@ export default React.memo(function SessionToolbar({
             title="View mode"
             className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors size-7 [-webkit-app-region:no-drag]"
           >
-            <IconFilter2 size={16} stroke={1.5} />
+            <IconFilter2 size={16} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent

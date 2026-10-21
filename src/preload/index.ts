@@ -5,7 +5,7 @@
  * Main process is only involved for lifecycle (create/resume/destroy session).
  */
 import { electronAPI } from '@electron-toolkit/preload';
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import {
   PiChannel,
   isPiPush,
@@ -18,6 +18,10 @@ import {
   type PiCommand,
   type PiPush,
   type PiRequest,
+  type PickAttachmentsResult,
+  type ChatAttachmentKind,
+  type ProjectFileSearchResult,
+  type PathCompletionResult,
   type ProjectSessionsChunk,
   type ProjectStateResult,
   type SessionListResult,
@@ -294,6 +298,14 @@ const piApi = {
   getGitBranch: (cwd: string): Promise<GitBranchResult> =>
     ipcRenderer.invoke(PiChannel.GetGitBranch, cwd),
 
+  /** List files visible to git for inline @ references. */
+  searchProjectFiles: (cwd: string, query: string): Promise<ProjectFileSearchResult> =>
+    ipcRenderer.invoke(PiChannel.SearchProjectFiles, cwd, query),
+
+  /** List directory entries that complete a typed path. */
+  completePath: (cwd: string, token: string): Promise<PathCompletionResult> =>
+    ipcRenderer.invoke(PiChannel.CompletePath, cwd, token),
+
   /** Set active project directory from recent projects. */
   setActiveProject: (path: string): Promise<ProjectStateResult> =>
     ipcRenderer.invoke(PiChannel.SetActiveProject, path),
@@ -305,6 +317,13 @@ const piApi = {
   /** Remove a project from recent projects. */
   removeProject: (path: string): Promise<ProjectStateResult> =>
     ipcRenderer.invoke(PiChannel.RemoveProject, path),
+
+  /** Open the native file picker for chat attachments. */
+  pickAttachments: (kind: ChatAttachmentKind): Promise<PickAttachmentsResult> =>
+    ipcRenderer.invoke(PiChannel.PickAttachments, kind),
+
+  /** Resolve the on-disk path of a dropped or pasted File. Empty for JS-created files. */
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
 
   /** Reorder recent projects. */
   reorderProjects: (paths: string[]): Promise<ProjectStateResult> =>
@@ -440,6 +459,11 @@ const piApi = {
   /** Open a URL in the system browser. */
   openExternal: (url: string): void => {
     ipcRenderer.send(PiChannel.OpenExternal, url);
+  },
+
+  /** Preview an attached file: Quick Look on macOS, reveal in the file manager elsewhere. */
+  previewFile: (path: string): void => {
+    ipcRenderer.send(PiChannel.PreviewFile, path);
   },
 
   /** Get all keyboard shortcut definitions with current bindings. */

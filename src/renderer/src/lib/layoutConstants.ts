@@ -1,3 +1,5 @@
+import type { Platform } from '../../../shared/platform';
+
 /** Max height (px) for collapsible thinking content before showing expand button */
 export const BLOCK_CONTENT_MAX_HEIGHT = 300;
 
@@ -59,6 +61,21 @@ export const SIDEBAR_DEFAULT_WIDTH = 244;
 export const SIDEBAR_MIN_WIDTH = 220;
 export const SIDEBAR_MAX_WIDTH = 360;
 export const SIDEBAR_WIDTH_PROPERTY = '--sidebar-width';
+
+/** The sidebar toggle sits right of the macOS traffic lights (main window
+ *  `trafficLightPosition` x 16, three 12px lights with 8px gaps). */
+export const SIDEBAR_TOGGLE_LEFT_MAC_PX = 76;
+export const SIDEBAR_TOGGLE_LEFT_PX = 8;
+/** Toggle button width (28px) plus an 8px gap before the toolbar title. */
+export const SIDEBAR_TOGGLE_CLEARANCE_PX = 36;
+
+/** Shared by the sidebar width and the toolbar title inset so both move in step. */
+export const SIDEBAR_TRANSITION_CLASS_NAME =
+  'duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none';
+
+export function sidebarToggleLeft(platform: Platform): number {
+  return platform === 'mac' ? SIDEBAR_TOGGLE_LEFT_MAC_PX : SIDEBAR_TOGGLE_LEFT_PX;
+}
 
 /** Used by Dialog, Popover, and ContextMenu — these need backdrop-blur but blur renders incorrectly in vibrant regions, so they use a separate configuration. */
 export const VIBRANCY_OVERLAY_CONTENT =

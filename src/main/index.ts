@@ -23,8 +23,10 @@ import {
   getPiAgentDebugSnapshot,
 } from './ipc/piAgentBridge';
 import { registerProjectHandlers } from './ipc/projectHandlers';
+import { registerAttachmentHandlers } from './ipc/attachmentHandlers';
 import { registerShortcutHandlers } from './ipc/shortcutHandlers';
 import { registerTerminalHandlers, stopTerminalProcess } from './terminal/terminalManager';
+import { stopProjectFileSearch } from './projects/projectFileSearch';
 import { PiChannel } from '../shared/ipcContract';
 import { configureDebugPanel, installMainDebugHandle } from './debugConfig';
 import { initializeShellEnv } from './processes/shellEnvResolver';
@@ -115,6 +117,7 @@ app.whenReady().then(() => {
   initializeShellEnv();
   registerIpcHandlers();
   registerProjectHandlers();
+  registerAttachmentHandlers();
   registerShortcutHandlers();
   registerTerminalHandlers();
 
@@ -149,6 +152,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   stopAllProcesses();
   stopTerminalProcess();
+  stopProjectFileSearch();
 });
 
 /**

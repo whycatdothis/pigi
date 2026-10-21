@@ -44,7 +44,7 @@ Interaction uses real input events, so React handlers and focus behave like a us
 node scripts/cdp.mjs click @send-button            # @foo = [data-testid="foo"]
 node scripts/cdp.mjs click 'button[aria-label=Settings]'
 node scripts/cdp.mjs click 'text=New chat'         # exact visible text
-node scripts/cdp.mjs type 'draft text'             # into chat textarea, does NOT submit
+node scripts/cdp.mjs type 'draft text'             # into chat composer, does NOT submit
 node scripts/cdp.mjs type 'x' --into 'input[type=search]'
 node scripts/cdp.mjs send 'hello'                  # type into chat + Enter
 node scripts/cdp.mjs press Meta+k                  # Enter, Escape, Shift+Enter, Meta+Shift+p, ArrowDown ...
@@ -82,7 +82,7 @@ node scripts/cdp.mjs --main eval '__pigi.snapshot().piAgent'
 
 For `click @id` / `wait @id` / `scroll @id` (grep `data-testid` in `src/renderer` for the current list):
 `app-shell`, `sidebar`, `message-list`, `message-virtualizer`, `user-message`, `assistant-message`,
-`system-message`, `command-message`, `skill-message`, `chat-input`, `chat-textarea`, `send-button`,
+`system-message`, `command-message`, `skill-message`, `chat-input`, `chat-composer`, `send-button`,
 `abort-button`, `tool-block-<toolCallId>`, `minimal-*` (minimal view).
 Prefer adding a `data-testid` over text matching when a flow needs a new hook.
 

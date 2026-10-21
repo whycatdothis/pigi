@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { IconCheck, IconCopy, IconSparkles, IconTerminal2 } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconCube, IconTerminal2 } from '@tabler/icons-react';
 import {
   type SystemNode,
   type TranscriptNode,
@@ -17,6 +17,11 @@ import OverflowClamp from './overflowClamp';
 import { highlightMatches } from '../../lib/highlightMatches';
 import ShimmerOverlay from './shimmerOverlay';
 import { parseSkillBlock, type ParsedSkillBlock } from '../../lib/skillBlock';
+import {
+  INTERACTIVE_REFERENCE_CHIP_CLASS,
+  REFERENCE_CHIP_CLASS,
+} from '../../lib/referenceChipStyles';
+import { MessageAttachments } from './messageAttachments';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
 
 /** Matches a slash command like `/plannotator-review` or `/review staged`. */
@@ -244,12 +249,9 @@ function SkillLinkBubble({
         <div className="rounded-2xl bg-muted px-3.5 py-1.5 text-[15px] leading-6 text-foreground max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] w-fit">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="inline text-[var(--system-accent)] hover:opacity-80 cursor-pointer"
-              >
-                <IconSparkles className="size-4 shrink-0 inline -mt-0.5 mr-0.5" />
-                {skillBlock.name}
+              <button type="button" className={INTERACTIVE_REFERENCE_CHIP_CLASS}>
+                <IconCube className="size-4 shrink-0" />
+                <span className="truncate">{skillBlock.name}</span>
               </button>
             </PopoverTrigger>
             <PopoverContent
@@ -258,7 +260,7 @@ function SkillLinkBubble({
               className="w-[32rem] max-h-[60vh] overflow-y-auto p-4"
             >
               <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-                <IconSparkles className="size-4 shrink-0" />
+                <IconCube className="size-4 shrink-0" />
                 <span>{skillBlock.name}</span>
               </div>
               <MarkdownMessage text={skillBlock.body} />
@@ -291,9 +293,9 @@ function CommandBubble({
     <div className="flex justify-end pb-2 pt-6" data-testid="command-message">
       <div className="group flex max-w-[85%] flex-col items-end">
         <div className="rounded-2xl bg-muted px-3.5 py-1.5 text-[15px] leading-6 text-foreground max-w-full w-fit">
-          <span className="text-[var(--system-accent)]">
-            <IconTerminal2 className="size-4 shrink-0 inline -mt-0.5 mr-0.5" />
-            <span className="font-medium">{name}</span>
+          <span className={REFERENCE_CHIP_CLASS}>
+            <IconTerminal2 className="size-4 shrink-0" />
+            <span className="truncate">{name}</span>
           </span>
           {args && <span className="ml-1 text-muted-foreground">{args}</span>}
         </div>
@@ -351,14 +353,23 @@ export function UserBubble({
   return (
     <div className="flex justify-end pb-2 pt-6" data-testid="user-message">
       <div className="group flex max-w-[85%] flex-col items-end">
-        <div className="max-w-full w-fit overflow-clip rounded-2xl bg-muted px-3.5 py-2">
-          <OverflowClamp
-            maxHeight={maxHeight}
-            tailAnchor={false}
-            className="text-[15px] leading-6 text-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
-          >
-            {highlightMatches(text, searchQuery, activeOccurrenceIndex)}
-          </OverflowClamp>
+        <div className="flex max-w-full w-fit flex-col gap-2 overflow-clip rounded-2xl bg-muted px-3.5 py-2">
+          {text && (
+            <OverflowClamp
+              maxHeight={maxHeight}
+              tailAnchor={false}
+              className="text-[15px] leading-6 text-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+            >
+              {highlightMatches(text, searchQuery, activeOccurrenceIndex)}
+            </OverflowClamp>
+          )}
+          {(node.imageSources || node.filePaths || node.inlineFileNames) && (
+            <MessageAttachments
+              imageSources={node.imageSources ?? []}
+              filePaths={node.filePaths ?? []}
+              inlineFileNames={node.inlineFileNames ?? []}
+            />
+          )}
         </div>
         <div className="flex w-full items-center justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
           <MessageToolbar node={node} />

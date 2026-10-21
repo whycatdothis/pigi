@@ -4,7 +4,11 @@ import type {
   PiPush,
   GitBranchResult,
   ModelCatalogSnapshot,
+  PickAttachmentsResult,
+  ChatAttachmentKind,
   ProjectSessionsChunk,
+  ProjectFileSearchResult,
+  PathCompletionResult,
   ProjectStateResult,
   SessionListResult,
   ShortcutBinding,
@@ -27,10 +31,14 @@ interface PiApi {
   // Project directories
   getProjects: () => Promise<ProjectStateResult>;
   getGitBranch: (cwd: string) => Promise<GitBranchResult>;
+  searchProjectFiles: (cwd: string, query: string) => Promise<ProjectFileSearchResult>;
+  completePath: (cwd: string, token: string) => Promise<PathCompletionResult>;
   setActiveProject: (path: string) => Promise<ProjectStateResult>;
   openProjectDirectory: () => Promise<ProjectStateResult>;
   removeProject: (path: string) => Promise<ProjectStateResult>;
   reorderProjects: (paths: string[]) => Promise<ProjectStateResult>;
+  pickAttachments: (kind: ChatAttachmentKind) => Promise<PickAttachmentsResult>;
+  getPathForFile: (file: File) => string;
   renamePersistedSession: (
     sessionPath: string,
     name: string,
@@ -59,6 +67,7 @@ interface PiApi {
   // Utilities
   getCwd: () => string;
   openExternal: (url: string) => void;
+  previewFile: (path: string) => void;
   getModelCatalog: () => Promise<ModelCatalogSnapshot>;
   refreshModelCatalog: () => Promise<ModelCatalogSnapshot>;
   onModelCatalogUpdated: (callback: (snapshot: ModelCatalogSnapshot) => void) => () => void;

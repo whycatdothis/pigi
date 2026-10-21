@@ -13,7 +13,11 @@ import {
   markSessionHydrated,
   useTranscript,
 } from './hooks/useTranscript';
-import { TranscriptController, type TranscriptNode } from './state/transcriptController';
+import {
+  TranscriptController,
+  type TranscriptNode,
+  type UserNode,
+} from './state/transcriptController';
 import {
   resumeSession,
   createSession,
@@ -54,10 +58,20 @@ import type {
   ModelInfo,
   PiSessionInfo,
   ProjectDirectory,
+  PromptInput,
   SkillSlashCommand,
   ThinkingLevel,
 } from '../../shared/ipcContract';
 import { clampThinkingLevelTo } from '../../shared/thinkingLevels';
+import { sanitizeUserPromptForDisplay } from '../../shared/chatAttachments';
+import {
+  attachmentFilePaths,
+  attachmentImageSources,
+  chatMessageTitle,
+  promptAttachmentImageSources,
+  toPromptAttachments,
+  type ChatAttachment,
+} from './lib/chatAttachments';
 import Sidebar from './components/session/Sidebar';
 import SessionToolbar from './components/session/SessionToolbar';
 import MessageList, { type MessageListHandle } from './components/transcript/MessageList';
@@ -72,6 +86,8 @@ import StreamingQueue from './components/transcript/StreamingQueue';
 import LoginDialog from './components/app/LoginDialog';
 import SessionSwitcher from './components/session/SessionSwitcher';
 import { SidebarProvider } from './components/ui/sidebar';
+import { SidebarToggle } from './components/sidebar/sidebarToggle';
+import { cn } from './lib/utils';
 import { Empty, EmptyTitle, EmptyDescription, EmptyHeader } from './components/ui/empty';
 import { ESCAPE_ABORT_SCOPE_SELECTOR } from './lib/focusScopes';
 import { getProjectSessions } from './lib/projectSessions';
@@ -83,13 +99,18 @@ import {
   SIDEBAR_MIN_WIDTH,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_WIDTH_PROPERTY,
+  sidebarToggleLeft,
+  SIDEBAR_TRANSITION_CLASS_NAME,
 } from './lib/layoutConstants';
 import { usePanelResize } from './hooks/usePanelResize';
 const WELCOME_TITLE = 'Welcome to pigi';
 
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
 function extractUserHistory(nodes: TranscriptNode[]): string[] {
-  return nodes.filter((node) => node.role === 'user').map((node) => node.text);
+  return nodes
+    .filter((node) => node.role === 'user')
+    .map((node) => node.text)
+    .filter((text) => text.length > 0);
 }
 
 function App(): React.JSX.Element {
@@ -117,6 +138,8 @@ function App(): React.JSX.Element {
     terminalMounted,
     toggleTerminal,
     terminalHeight,
+    sidebarExpanded,
+    platform,
   } = useAppStore(
     useShallow((state) => ({
       activeSessionPath: state.activeSessionPath,
@@ -137,6 +160,8 @@ function App(): React.JSX.Element {
       terminalMounted: state.terminalMounted,
       toggleTerminal: state.toggleTerminal,
       terminalHeight: state.terminalHeight,
+      sidebarExpanded: state.sidebarExpanded,
+      platform: state.platform,
     })),
   );
 
@@ -181,7 +206,7 @@ function App(): React.JSX.Element {
     useTranscript(activeSessionPath);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [authProviders, setAuthProviders] = useState<AuthProviderInfo[]>([]);
-  const [restoreText, setRestoreText] = useState<string | null>(null);
+  const [restoreInputs, setRestoreInputs] = useState<PromptInput[] | null>(null);
   const chatInputRef = useRef<ChatInputHandle>(null);
   const messageListRef = useRef<MessageListHandle>(null);
   // Bumped whenever the session grows, so an open tree dialog refreshes itself.
@@ -279,7 +304,7 @@ function App(): React.JSX.Element {
   }, [isDraftChat, modelOptions, activeCwd, lastModelSnapshot, draftThinkingLevel]);
 
   // Pending prompt buffer: holds messages sent before the utility process is ready.
-  const pendingPromptsRef = useRef<Map<string, string[]>>(new Map());
+  const pendingPromptsRef = useRef<Map<string, PromptInput[]>>(new Map());
   // Tracks sessions whose utility process is still spawning.
   const pendingResumesRef = useRef<Set<string>>(new Set());
 
@@ -487,14 +512,18 @@ function App(): React.JSX.Element {
         void (async () => {
           const first = queue[0];
           if (!first.text.startsWith('/skill:')) {
-            ensureTranscriptSession(sessionId).addUserMessage(first.text);
+            ensureTranscriptSession(sessionId).addUserMessage(first.text, {
+              imageSources: promptAttachmentImageSources(first.attachments),
+              filePaths: attachmentFilePaths(first.attachments),
+              promptAttachments: first.attachments,
+            });
           }
-          await prompt(sessionId, first.text);
+          await prompt(sessionId, first.text, first.attachments ?? []);
           for (let i = 1; i < queue.length; i++) {
             if (queue[i].mode === 'steer') {
-              await steer(sessionId, queue[i].text);
+              await steer(sessionId, queue[i].text, queue[i].attachments ?? []);
             } else {
-              await followUp(sessionId, queue[i].text);
+              await followUp(sessionId, queue[i].text, queue[i].attachments ?? []);
             }
           }
         })();
@@ -502,8 +531,11 @@ function App(): React.JSX.Element {
     );
   }, [activeSessionPath, transcriptControllerRef]);
 
-  async function handleSend(message: string): Promise<void> {
+  async function handleSend(message: string, attachments: ChatAttachment[] = []): Promise<void> {
     const cwd = activeSession?.cwd ?? activeProject?.path ?? window.piApi.getCwd();
+    const promptAttachments = toPromptAttachments(attachments);
+    const imageSources = attachmentImageSources(attachments);
+    const filePaths = attachmentFilePaths(attachments);
 
     // Draft chat: first message triggers session creation in background.
     if (isDraftChat || !activeSessionPath) {
@@ -512,7 +544,11 @@ function App(): React.JSX.Element {
       }
 
       // Show optimistic user message on the draft controller
-      draftControllerRef.current.addUserMessage(message);
+      draftControllerRef.current.addUserMessage(message, {
+        imageSources,
+        filePaths,
+        promptAttachments,
+      });
 
       // If already spawning (user typed multiple messages fast), just buffer
       if (isDraftSpawningRef.current) {
@@ -557,7 +593,9 @@ function App(): React.JSX.Element {
 
       try {
         addSession(sessionPath, cwd);
-        useAppStore.getState().updateSession(sessionPath, { title: message });
+        useAppStore.getState().updateSession(sessionPath, {
+          title: chatMessageTitle(message, attachments),
+        });
 
         // Transfer draft controller content to the real session.
         // Draft only contains UserNodes (optimistic messages), so we just add them.
@@ -565,7 +603,11 @@ function App(): React.JSX.Element {
         const draftNodes = draftControllerRef.current.state.nodes;
         for (const node of draftNodes) {
           if (node.role === 'user') {
-            controller.addUserMessage(node.text);
+            controller.addUserMessage(node.text, {
+              imageSources: node.imageSources,
+              filePaths: node.filePaths,
+              promptAttachments: node.promptAttachments,
+            });
           }
         }
         markSessionHydrated(sessionPath);
@@ -595,16 +637,16 @@ function App(): React.JSX.Element {
 
         // Send the prompt (and any additional messages typed while spawning)
         const messages = draftNodes
-          .filter(
-            (n): n is { id: string; role: 'user'; text: string; sentAt: number } =>
-              n.role === 'user',
-          )
-          .map((n) => n.text);
+          .filter((n): n is UserNode => n.role === 'user')
+          .map((n) => ({
+            message: n.promptText ?? n.text,
+            attachments: n.promptAttachments ?? [],
+          }));
 
         if (messages.length > 0) {
-          await prompt(sessionPath, messages[0]);
+          await prompt(sessionPath, messages[0].message, messages[0].attachments);
           for (let i = 1; i < messages.length; i++) {
-            await steer(sessionPath, messages[i]);
+            await steer(sessionPath, messages[i].message, messages[i].attachments);
           }
         }
       } catch (err) {
@@ -620,53 +662,74 @@ function App(): React.JSX.Element {
     const sessionPath = activeSessionPath;
     const existing = useAppStore.getState().sessions.get(sessionPath);
     if (existing?.title === 'New chat') {
-      useAppStore.getState().updateSession(sessionPath, { title: message });
+      useAppStore.getState().updateSession(sessionPath, {
+        title: chatMessageTitle(message, attachments),
+      });
     }
 
     // If the session is still pending (utility process not ready), buffer the prompt
     if (pendingResumesRef.current.has(sessionPath)) {
       const queue = pendingPromptsRef.current.get(sessionPath) ?? [];
-      queue.push(message);
+      queue.push({ message, attachments: promptAttachments });
       pendingPromptsRef.current.set(sessionPath, queue);
-      getTranscriptController(sessionPath).addUserMessage(message);
+      getTranscriptController(sessionPath).addUserMessage(message, {
+        imageSources,
+        filePaths,
+        promptAttachments,
+      });
       return;
     }
 
     // Queue locally during compaction
     if (transcript.isCompacting) {
-      transcriptControllerRef.current?.addCompactionMessage(message, 'steer');
+      transcriptControllerRef.current?.addCompactionMessage(message, 'steer', promptAttachments);
       void listProjectSessions([cwd]);
       return;
     }
 
     // If the session is already streaming, steer instead of prompting
     if (transcript.status !== 'idle') {
-      await steer(sessionPath, message);
+      await steer(sessionPath, message, promptAttachments);
     } else {
       if (!message.startsWith('/skill:')) {
-        ensureTranscriptSession(sessionPath).addUserMessage(message);
+        ensureTranscriptSession(sessionPath).addUserMessage(message, {
+          imageSources,
+          filePaths,
+          promptAttachments,
+        });
       }
-      await prompt(sessionPath, message);
+      await prompt(sessionPath, message, promptAttachments);
     }
     void listProjectSessions([cwd]);
   }
 
   const handleFollowUp = useCallback(
-    async (message: string): Promise<void> => {
+    async (message: string, attachments: ChatAttachment[] = []): Promise<void> => {
       const sessionId = activeSessionPath;
       if (!sessionId) return;
+      const promptAttachments = toPromptAttachments(attachments);
+      const imageSources = attachmentImageSources(attachments);
+      const filePaths = attachmentFilePaths(attachments);
 
       // Queue locally during compaction.
       if (transcript.isCompacting) {
-        transcriptControllerRef.current?.addCompactionMessage(message, 'followUp');
+        transcriptControllerRef.current?.addCompactionMessage(
+          message,
+          'followUp',
+          promptAttachments,
+        );
         return;
       }
 
       if (transcript.status !== 'idle') {
-        await followUp(sessionId, message);
+        await followUp(sessionId, message, promptAttachments);
       } else {
-        ensureTranscriptSession(sessionId).addUserMessage(message);
-        await prompt(sessionId, message);
+        ensureTranscriptSession(sessionId).addUserMessage(message, {
+          imageSources,
+          filePaths,
+          promptAttachments,
+        });
+        await prompt(sessionId, message, promptAttachments);
       }
     },
     [activeSessionPath, transcript.status, transcript.isCompacting, transcriptControllerRef],
@@ -691,25 +754,29 @@ function App(): React.JSX.Element {
         for (let i = 0; i < bufferedMessages.length; i++) {
           getTranscriptController(activeSessionPath).removeLastUserMessage();
         }
-        setRestoreText(bufferedMessages.join('\n\n'));
+        setRestoreInputs(bufferedMessages);
       }
       return;
     }
-    // Clear local queue state to prevent false delivery detection
-    transcriptControllerRef.current?.clearLocalQueue();
-    // Clear queued messages and restore them to input
-    const result = await clearQueue(activeSessionPath);
-    let queued = [...(result.steering ?? []), ...(result.followUp ?? [])];
-    // Fallback: use local transcript state if clearQueue returned nothing
-    if (queued.length === 0) {
-      const ts = ensureTranscriptSession(activeSessionPath).state;
-      queued = [...ts.queuedSteering, ...ts.queuedFollowUp];
+    // Clear queued messages and restore them to input. Snapshot the local
+    // queue first: if the clear RPC fails, abort's queue_update can wipe it.
+    const localState = getTranscriptController(activeSessionPath).state;
+    // queue_update carries the SDK's constructed prompt, including the
+    // attachment plumbing. The restore path only needs readable text.
+    const localQueued = [...localState.queuedSteering, ...localState.queuedFollowUp].map(
+      (message) => ({ message: sanitizeUserPromptForDisplay(message).text, attachments: [] }),
+    );
+    const cleared = await clearQueue(activeSessionPath);
+    try {
+      await abort(activeSessionPath);
+    } catch (error) {
+      console.error('abort failed:', error);
     }
-    await abort(activeSessionPath);
+    const queued = cleared ? [...cleared.steering, ...cleared.followUp] : localQueued;
     if (queued.length > 0) {
-      setRestoreText(queued.join('\n\n'));
+      setRestoreInputs(queued);
     }
-  }, [activeSessionPath, branchSummaryBusy, transcriptControllerRef]);
+  }, [activeSessionPath, branchSummaryBusy]);
 
   const handleEditQueuedMessage = useCallback(
     async (type: 'steer' | 'followUp', index: number) => {
@@ -718,26 +785,29 @@ function App(): React.JSX.Element {
       // During compaction messages are queued locally, not in the SDK.
       // Remove from the local compaction queue instead of calling clearQueue.
       if (transcript.isCompacting) {
-        const editedMessage = transcriptControllerRef.current?.removeCompactionMessage(type, index);
-        if (editedMessage) setRestoreText(editedMessage);
+        const editedInput = transcriptControllerRef.current?.removeCompactionMessage(type, index);
+        if (editedInput) setRestoreInputs([editedInput]);
         return;
       }
 
-      // Clear local queue state to prevent false delivery detection
-      transcriptControllerRef.current?.clearLocalQueue();
       try {
-        const result = await clearQueue(activeSessionPath);
-        const steeringMessages = [...(result.steering ?? [])];
-        const followUpMessages = [...(result.followUp ?? [])];
-        const editedMessage =
-          type === 'steer'
-            ? steeringMessages.splice(index, 1)[0]
-            : followUpMessages.splice(index, 1)[0];
+        const cleared = await clearQueue(activeSessionPath);
+        if (!cleared) {
+          toast.error('Could not edit the queued message.');
+          return;
+        }
+        const { steering, followUp: followUps } = cleared;
+        const editedInput =
+          type === 'steer' ? steering.splice(index, 1)[0] : followUps.splice(index, 1)[0];
         // Re-queue remaining
-        for (const message of steeringMessages) await steer(activeSessionPath, message);
-        for (const message of followUpMessages) await followUp(activeSessionPath, message);
+        for (const input of steering) {
+          await steer(activeSessionPath, input.message, input.attachments);
+        }
+        for (const input of followUps) {
+          await followUp(activeSessionPath, input.message, input.attachments);
+        }
         // Restore edited message to input
-        if (editedMessage) setRestoreText(editedMessage);
+        if (editedInput) setRestoreInputs([editedInput]);
       } catch (err) {
         console.error('Failed to edit queued message:', err);
       }
@@ -745,7 +815,7 @@ function App(): React.JSX.Element {
     [activeSessionPath, transcript.isCompacting, transcriptControllerRef],
   );
 
-  const handleRestoredText = useCallback(() => setRestoreText(null), []);
+  const handleRestoredInputs = useCallback(() => setRestoreInputs(null), []);
 
   // ===========================================================================
   // Session tree
@@ -900,7 +970,7 @@ function App(): React.JSX.Element {
       setActiveSession(sessionPath);
       setPendingSelectedPath(null);
       if (options?.prefillText) {
-        setRestoreText(options.prefillText);
+        setRestoreInputs([{ message: options.prefillText, attachments: [] }]);
       }
 
       if (options?.freshSession) {
@@ -936,9 +1006,9 @@ function App(): React.JSX.Element {
         const bufferedMessages = pendingPromptsRef.current.get(sessionPath);
         if (bufferedMessages && bufferedMessages.length > 0) {
           pendingPromptsRef.current.delete(sessionPath);
-          await prompt(sessionPath, bufferedMessages[0]);
+          await prompt(sessionPath, bufferedMessages[0].message, bufferedMessages[0].attachments);
           for (let i = 1; i < bufferedMessages.length; i++) {
-            await steer(sessionPath, bufferedMessages[i]);
+            await steer(sessionPath, bufferedMessages[i].message, bufferedMessages[i].attachments);
           }
           void listProjectSessions([session.cwd]);
         }
@@ -952,7 +1022,7 @@ function App(): React.JSX.Element {
         }
         const bufferedMessages = pendingPromptsRef.current.get(sessionPath);
         if (bufferedMessages && bufferedMessages.length > 0) {
-          setRestoreText(bufferedMessages.join('\n\n'));
+          setRestoreInputs(bufferedMessages);
         }
         pendingPromptsRef.current.delete(sessionPath);
         pendingResumesRef.current.delete(sessionPath);
@@ -981,7 +1051,7 @@ function App(): React.JSX.Element {
     isSessionStarting: (sessionPath) => pendingResumesRef.current.has(sessionPath),
     abortTurn: handleAbort,
     resumeSession: handleResumeSession,
-    setRestoreText,
+    setRestoreText: (text) => setRestoreInputs([{ message: text, attachments: [] }]),
     refreshSessionState: (sessionPath) => {
       void refreshSessionState(sessionPath);
     },
@@ -1047,6 +1117,9 @@ function App(): React.JSX.Element {
       },
       'sidebar.openProject': () => {
         handleOpenProject();
+      },
+      'sidebar.toggle': () => {
+        useAppStore.getState().toggleSidebar();
       },
       'navigation.openSwitcher': () => {
         setSwitcherAutoPreselect(false);
@@ -1343,27 +1416,43 @@ function App(): React.JSX.Element {
     <SessionTreeHelpContext.Provider value={tree.help}>
       <MessageActionsContext.Provider value={messageActions}>
         <SidebarProvider className="h-screen min-h-0" data-testid="app-shell">
+          {/* Collapsed to zero width rather than unmounted, so scroll position and
+              expanded projects survive. The width animates (reserving real space for
+              the chat); the content slides with it at its full width. */}
           <div
             ref={sidebarRef}
-            className="relative flex h-full shrink-0"
+            inert={!sidebarExpanded}
+            className={cn(
+              'relative flex h-full shrink-0 overflow-hidden transition-[width] data-[panel-resizing]:transition-none',
+              SIDEBAR_TRANSITION_CLASS_NAME,
+              sidebarExpanded ? 'w-(--sidebar-width)' : 'w-0',
+            )}
             style={sidebarLayoutStyle}
           >
-            <Sidebar
-              sessions={sessions}
-              selectedSessionPath={selectedSessionPath}
-              recentProjects={recentProjects}
-              projectSessions={projectSessions}
-              shortcutBindings={shortcutBindings}
-              onNewSession={handleNewSession}
-              onNewSessionForProject={handleNewSessionForProject}
-              onResumeSession={handleResumeSession}
-              onOpenProject={handleOpenProject}
-              onSelectProject={handleSelectProject}
-              onRemoveProject={handleRemoveProject}
-              onReorderProjects={handleReorderProjects}
-              onRenameSession={handleRenameSession}
-              onLogin={handleLogin}
-            />
+            <div
+              className={cn(
+                'flex h-full w-(--sidebar-width) shrink-0 transition-transform',
+                SIDEBAR_TRANSITION_CLASS_NAME,
+                !sidebarExpanded && '-translate-x-full',
+              )}
+            >
+              <Sidebar
+                sessions={sessions}
+                selectedSessionPath={selectedSessionPath}
+                recentProjects={recentProjects}
+                projectSessions={projectSessions}
+                shortcutBindings={shortcutBindings}
+                onNewSession={handleNewSession}
+                onNewSessionForProject={handleNewSessionForProject}
+                onResumeSession={handleResumeSession}
+                onOpenProject={handleOpenProject}
+                onSelectProject={handleSelectProject}
+                onRemoveProject={handleRemoveProject}
+                onReorderProjects={handleReorderProjects}
+                onRenameSession={handleRenameSession}
+                onLogin={handleLogin}
+              />
+            </div>
           </div>
 
           <main
@@ -1371,13 +1460,15 @@ function App(): React.JSX.Element {
             className="group/terminal-layout relative flex min-w-0 flex-1 flex-col overflow-hidden border-l-[0.5px] border-foreground/27 bg-background"
             style={terminalLayoutStyle}
           >
-            <div
-              aria-label="Resize sidebar"
-              role="separator"
-              aria-orientation="vertical"
-              className="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize"
-              onPointerDown={handleSidebarResizeStart}
-            />
+            {sidebarExpanded && (
+              <div
+                aria-label="Resize sidebar"
+                role="separator"
+                aria-orientation="vertical"
+                className="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize"
+                onPointerDown={handleSidebarResizeStart}
+              />
+            )}
             {activeSession ? (
               <>
                 <SessionToolbar
@@ -1427,8 +1518,8 @@ function App(): React.JSX.Element {
                         onSlashCommand={handleSlashCommand}
                         isStreaming={isSessionBusy}
                         gitBranch={gitBranch}
-                        restoreText={restoreText}
-                        onRestoredText={handleRestoredText}
+                        restoreInputs={restoreInputs}
+                        onRestoredInputs={handleRestoredInputs}
                         onRefreshGitBranch={refreshGitBranch}
                         session={activeSession}
                         modelOptions={activeSessionPath ? modelOptions : []}
@@ -1456,8 +1547,8 @@ function App(): React.JSX.Element {
                         onSlashCommand={handleSlashCommand}
                         isStreaming={isDraftSpawning}
                         gitBranch={gitBranch}
-                        restoreText={restoreText}
-                        onRestoredText={handleRestoredText}
+                        restoreInputs={restoreInputs}
+                        onRestoredInputs={handleRestoredInputs}
                         onRefreshGitBranch={refreshGitBranch}
                         session={draftSession}
                         modelOptions={modelOptions}
@@ -1485,8 +1576,8 @@ function App(): React.JSX.Element {
                           onSlashCommand={handleSlashCommand}
                           isStreaming={isDraftSpawning}
                           gitBranch={gitBranch}
-                          restoreText={restoreText}
-                          onRestoredText={handleRestoredText}
+                          restoreInputs={restoreInputs}
+                          onRestoredInputs={handleRestoredInputs}
                           onRefreshGitBranch={refreshGitBranch}
                           session={draftSession}
                           modelOptions={modelOptions}
@@ -1538,6 +1629,17 @@ function App(): React.JSX.Element {
               />
             )}
           </main>
+
+          {!sidebarExpanded && (
+            // Beside the traffic lights while the sidebar (and its own toggle) is hidden.
+            // Must follow <main> in DOM order: Electron applies app-region rects in
+            // order, so the toolbar's drag rect would otherwise swallow the click.
+            <SidebarToggle
+              shortcutBinding={shortcutBindings?.get('sidebar.toggle')}
+              className="fixed top-2 z-30 animate-in fade-in-0 duration-300"
+              style={{ left: sidebarToggleLeft(platform) }}
+            />
+          )}
 
           <SessionSwitcher
             projectSessions={projectSessions}

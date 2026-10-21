@@ -1,5 +1,29 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Attach files and images to a message with the `+` button, by pasting, or by dropping them on the chat input. Messages sent while the agent is working (steer and follow-up) keep their attachments, and files too large to attach are refused with a message
+- Images and files you send appear inside your message; click an image to see it larger, or a file to preview it (Quick Look on macOS, the file manager elsewhere)
+- Type `@` to reference a project file: the most recently modified files show before you type, then results narrow as you type, with file-type icons
+- Type a path (anything with a `/`, or `~` for your home folder) to complete files and folders with fuzzy matching. A completed path becomes a chip that shows the whole path; a folder stays open until you type a space, so you can keep typing or pick to go deeper, and Backspace goes up a level
+- Skills, slash commands and `@` file references show as labels with icons, both in the chat input and in sent messages
+- A button at the top of the sidebar, or Cmd+B, hides and shows it, with an animation; hovering the button shows the shortcut
+
+### Changed
+
+- Choosing a project with `#` returns focus to the chat input
+- New sidebar icons for new chat, project folders and opening a project
+- The session title in the toolbar no longer has an icon in front of it
+- Send and stop buttons use the accent color
+- Taller lines in the chat input
+
+### Fixed
+
+- Stopping the agent puts queued steer and follow-up messages back in the input in the order you sent them
+- Sending the same steer message twice shows both instead of hiding the second
+
 ## [0.4.12] - 2026-10-17
 
 ### Changed

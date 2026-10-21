@@ -13,6 +13,7 @@ import type {
   SessionWorkerResponse,
   ThinkingLevel,
 } from '../../shared/ipcContract';
+import { promptTitle } from '../../shared/chatAttachments';
 import { toModelInfo } from '../../shared/modelInfo';
 import { createModelRuntime } from './fileCredentialStore';
 
@@ -216,7 +217,8 @@ function serializeSessionInfo(session: SessionInfo): PiSessionInfo {
     created: session.created.toISOString(),
     modified: session.modified.toISOString(),
     messageCount: session.messageCount,
-    firstMessage: session.firstMessage,
+    // Raw prompt text carries attachment markers, paths and inlined file contents.
+    firstMessage: promptTitle(session.firstMessage),
     allMessagesText: session.allMessagesText,
   };
 }

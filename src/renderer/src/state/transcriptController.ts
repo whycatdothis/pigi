@@ -1,5 +1,6 @@
 import type { EditToolDetails } from '@earendil-works/pi-coding-agent';
-import type { StreamBatch } from '../../../shared/ipcContract';
+import type { PromptAttachment, PromptInput, StreamBatch } from '../../../shared/ipcContract';
+import { sanitizeUserPromptForDisplay } from '../../../shared/chatAttachments';
 
 /**
  * TranscriptController - manages transcript state for a single session.
@@ -24,6 +25,16 @@ export interface UserNode {
   role: 'user';
   text: string;
   sentAt: number;
+  /** User-typed text before attachment plumbing was stripped, for draft replay. */
+  promptText?: string;
+  /** Image preview sources (data: or local-file: URLs) shown above the bubble. */
+  imageSources?: string[];
+  /** Attached file paths shown as chips below the bubble. */
+  filePaths?: string[];
+  /** Clipboard files inlined without a path, shown as chips below the bubble. */
+  inlineFileNames?: string[];
+  /** Payload of an optimistic message that has not reached the session yet. */
+  promptAttachments?: PromptAttachment[];
   /** `message.timestamp` from the SDK. The session tree dialog resolves a
    *  transcript row back to its entry id by matching this timestamp, because
    *  entry ids never reach the transcript. */
@@ -91,6 +102,13 @@ export interface SystemNode {
 
 export type TranscriptNode = UserNode | AssistantNode | ToolNode | SystemNode;
 
+interface UserMessageOptions {
+  imageSources?: string[];
+  filePaths?: string[];
+  inlineFileNames?: string[];
+  promptAttachments?: PromptAttachment[];
+}
+
 export type AgentStatus = 'idle' | 'streaming' | 'tool_running' | 'error';
 
 // =============================================================================
@@ -130,7 +148,11 @@ export interface TranscriptState {
   queuedSteering: string[];
   queuedFollowUp: string[];
   isCompacting: boolean;
-  compactionQueue: Array<{ text: string; mode: 'steer' | 'followUp' }>;
+  compactionQueue: Array<{
+    text: string;
+    mode: 'steer' | 'followUp';
+    attachments?: PromptAttachment[];
+  }>;
 }
 
 // =============================================================================
@@ -208,7 +230,7 @@ function nextNodeId(): string {
 
 type CompactionReplayCallback = (
   sessionId: string,
-  queue: Array<{ text: string; mode: 'steer' | 'followUp' }>,
+  queue: Array<{ text: string; mode: 'steer' | 'followUp'; attachments?: PromptAttachment[] }>,
 ) => void;
 
 export class TranscriptController {
@@ -405,13 +427,18 @@ export class TranscriptController {
 
       switch (parsed.role) {
         case 'user': {
-          const text = extractText(parsed.content);
+          const { text, imageSources, filePaths, inlineFileNames } = extractUserContent(
+            parsed.content,
+          );
           nodes.push({
             id: parsed.id || nextNodeId(),
             role: 'user',
             text,
             sentAt: normalizeTimestamp(parsed.timestamp),
             sdkTimestamp: tryNormalizeTimestamp(parsed.timestamp),
+            imageSources: imageSources.length > 0 ? imageSources : undefined,
+            filePaths: filePaths.length > 0 ? filePaths : undefined,
+            inlineFileNames: inlineFileNames.length > 0 ? inlineFileNames : undefined,
           });
           break;
         }
@@ -568,18 +595,16 @@ export class TranscriptController {
   // ===========================================================================
   private _optimisticUserMessages = new Map<string, number>();
 
-  /**
-   * Optimistically clear local queue state before a programmatic clearQueue RPC.
-   * When the subsequent queue_update arrives with empty arrays, the diff against
-   * the already-empty local state produces no "delivered" messages.
-   */
-  clearLocalQueue(): void {
-    this.setState({ queuedSteering: [], queuedFollowUp: [] });
-  }
-
   /** Queue a message sent during compaction for replay after compaction ends. */
-  addCompactionMessage(text: string, mode: 'steer' | 'followUp'): void {
-    const updated = [...this._state.compactionQueue, { text, mode }];
+  addCompactionMessage(
+    text: string,
+    mode: 'steer' | 'followUp',
+    attachments?: PromptAttachment[],
+  ): void {
+    const updated = [
+      ...this._state.compactionQueue,
+      { text, mode, attachments: attachments?.length ? attachments : undefined },
+    ];
     const steering =
       mode === 'steer' ? [...this._state.queuedSteering, text] : this._state.queuedSteering;
     const followUp =
@@ -588,10 +613,10 @@ export class TranscriptController {
   }
 
   /**
-   * Remove a compaction-queued message by type and index, returning its text.
+   * Remove a compaction-queued message by type and index, returning its input.
    * Used when the user clicks "Edit" on a queued message during compaction.
    */
-  removeCompactionMessage(type: 'steer' | 'followUp', index: number): string | undefined {
+  removeCompactionMessage(type: 'steer' | 'followUp', index: number): PromptInput | undefined {
     // Find the nth message of the given type in the compaction queue
     let seen = 0;
     let queueIndex = -1;
@@ -617,7 +642,7 @@ export class TranscriptController {
       queuedSteering: steering,
       queuedFollowUp: followUp,
     });
-    return removed.text;
+    return { message: removed.text, attachments: removed.attachments ?? [] };
   }
 
   /** Clear the compaction queue after replaying its messages. */
@@ -628,10 +653,36 @@ export class TranscriptController {
   // Optimistic user message (shown immediately before SDK echo)
   // ===========================================================================
 
-  addUserMessage(text: string): void {
-    this._optimisticUserMessages.set(text, (this._optimisticUserMessages.get(text) ?? 0) + 1);
-    const node: UserNode = { id: nextNodeId(), role: 'user', text, sentAt: Date.now() };
+  addUserMessage(text: string, options?: UserMessageOptions): void {
+    const key = this.appendUserNode(text, options);
+    this._optimisticUserMessages.set(key, (this._optimisticUserMessages.get(key) ?? 0) + 1);
+  }
+
+  /** Append a user node and return its display text, the optimistic-echo key. */
+  private appendUserNode(text: string, options?: UserMessageOptions): string {
+    // Same sanitizing as message_start so the optimistic key matches the echo.
+    const split = sanitizeUserPromptForDisplay(text);
+    const filePaths = options?.filePaths ?? split.filePaths;
+    // Path-less clipboard files are inlined into the prompt by the utility, so
+    // the optimistic bubble derives their chips from the attachment payload.
+    const inlineFileNames =
+      options?.inlineFileNames ??
+      (options?.promptAttachments ?? [])
+        .filter((attachment) => attachment.kind === 'file' && !attachment.path)
+        .map((attachment) => attachment.name);
+    const node: UserNode = {
+      id: nextNodeId(),
+      role: 'user',
+      text: split.text,
+      sentAt: Date.now(),
+      promptText: text === split.text ? undefined : text,
+      imageSources: options?.imageSources?.length ? options.imageSources : undefined,
+      filePaths: filePaths.length > 0 ? filePaths : undefined,
+      inlineFileNames: inlineFileNames.length > 0 ? inlineFileNames : undefined,
+      promptAttachments: options?.promptAttachments?.length ? options.promptAttachments : undefined,
+    };
     this.setState({ nodes: [...this._state.nodes, node] });
+    return split.text;
   }
 
   /** Remove the last user message node (used when aborting a buffered prompt). */
@@ -733,16 +784,13 @@ export class TranscriptController {
         const startMessage = startEvent.message;
         if (startMessage?.role === 'user') {
           // Check if this user message was already added optimistically
-          const contentArr = startMessage.content as
-            | Array<{ type?: string; text?: string }>
-            | undefined;
-          const text =
-            contentArr
-              ?.filter((c) => c.type === 'text')
-              .map((c) => c.text)
-              .join('') ?? '';
-          if (text && !this._hasOptimisticUserMessage(text)) {
-            this.addUserMessage(text);
+          const { text, imageSources, filePaths, inlineFileNames } = extractUserContent(
+            startMessage.content,
+          );
+          const hasContent =
+            text || imageSources.length > 0 || filePaths.length > 0 || inlineFileNames.length > 0;
+          if (hasContent && !this._hasOptimisticUserMessage(text)) {
+            this.appendUserNode(text, { imageSources, filePaths, inlineFileNames });
           }
           this.stampLastUserMessage(startMessage.timestamp);
         } else if (startMessage?.role === 'assistant' && !this._state.activeAssistantId) {
@@ -820,21 +868,8 @@ export class TranscriptController {
         if (typeof event !== 'object' || event === null) break;
         const newSteering: string[] = Array.isArray(event.steering) ? event.steering : [];
         const newFollowUp: string[] = Array.isArray(event.followUp) ? event.followUp : [];
-
-        // Detect delivered messages: items removed from the front (FIFO).
-        // If clearLocalQueue() was called beforehand, prev arrays are already empty
-        // so no delivery is detected — this avoids the false-delivery bug.
-        const prevSteering = this._state.queuedSteering;
-        const prevFollowUp = this._state.queuedFollowUp;
-        const deliveredSteering = prevSteering.slice(0, prevSteering.length - newSteering.length);
-        const deliveredFollowUp = prevFollowUp.slice(0, prevFollowUp.length - newFollowUp.length);
-        for (const delivered of deliveredSteering) {
-          this.addUserMessage(delivered);
-        }
-        for (const delivered of deliveredFollowUp) {
-          this.addUserMessage(delivered);
-        }
-
+        // Delivered messages leave the queue right before their message_start,
+        // which adds the user bubble with its images.
         this.setState({
           queuedSteering: newSteering,
           queuedFollowUp: newFollowUp,
@@ -1314,7 +1349,15 @@ function areDuplicateNodes(left: TranscriptNode, right: TranscriptNode): boolean
 
   switch (left.role) {
     case 'user':
-      return left.text === (right as UserNode).text;
+      return (
+        left.text === (right as UserNode).text &&
+        // Optimistic previews use local-file:// URLs while the SDK hands back
+        // data: URLs, so compare how many images each side has.
+        (left.imageSources?.length ?? 0) === ((right as UserNode).imageSources?.length ?? 0) &&
+        (left.filePaths ?? []).join('\u0000') ===
+          ((right as UserNode).filePaths ?? []).join('\u0000') &&
+        (left.inlineFileNames?.length ?? 0) === ((right as UserNode).inlineFileNames?.length ?? 0)
+      );
     case 'assistant': {
       // right is guaranteed to be AssistantNode here due to role equality check above
       const assistant = right as AssistantNode;
@@ -1342,6 +1385,48 @@ function extractText(content: unknown[] | undefined): string {
     }
   }
   return parts.join('\n');
+}
+
+/**
+ * Extract display data from a user message: visible text, image previews, and
+ * attached file paths (the prompt carries them in a trailing block).
+ */
+function extractUserContent(content: unknown): {
+  text: string;
+  imageSources: string[];
+  filePaths: string[];
+  inlineFileNames: string[];
+} {
+  if (!Array.isArray(content)) {
+    const text = typeof content === 'string' ? content : '';
+    const split = sanitizeUserPromptForDisplay(text);
+    return {
+      text: split.text,
+      imageSources: [],
+      filePaths: split.filePaths,
+      inlineFileNames: split.inlineFileNames,
+    };
+  }
+
+  const textParts: string[] = [];
+  const imageSources: string[] = [];
+  for (const block of content) {
+    // SDK content blocks are untyped; runtime shape check
+    const parsed = block as { type?: string; text?: string; data?: string; mimeType?: string };
+    if (parsed.type === 'text' && parsed.text) {
+      textParts.push(parsed.text);
+    } else if (parsed.type === 'image' && parsed.data && parsed.mimeType) {
+      imageSources.push(`data:${parsed.mimeType};base64,${parsed.data}`);
+    }
+  }
+
+  const split = sanitizeUserPromptForDisplay(textParts.join('\n'));
+  return {
+    text: split.text,
+    imageSources,
+    filePaths: split.filePaths,
+    inlineFileNames: split.inlineFileNames,
+  };
 }
 
 function extractAssistantContent(content: unknown[] | undefined): {

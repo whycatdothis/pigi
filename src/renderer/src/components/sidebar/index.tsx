@@ -1,5 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { IconFolderPlus, IconPlus, IconSettings, IconLogin2 } from '@tabler/icons-react';
+import {
+  IconFolderPlus,
+  IconMessageCirclePlus,
+  IconSettings,
+  IconLogin2,
+} from '@tabler/icons-react';
+import { SidebarToggle } from './sidebarToggle';
 import type { PiSessionInfo } from '../../../../shared/ipcContract';
 import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
@@ -204,11 +210,13 @@ export default function Sidebar({
       <ShadcnSidebar collapsible="none" data-testid="sidebar">
         {/* WebkitAppRegion is Electron-specific, not in React's CSSProperties */}
         <SidebarHeader style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
-          <div className="h-10" />
+          <div className="flex h-10 items-start justify-end">
+            <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
+          </div>
           <SidebarMenu style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
             <SidebarMenuItem>
               <SidebarMenuButton onClick={onNewSession}>
-                <IconPlus data-icon="inline-start" />
+                <IconMessageCirclePlus data-icon="inline-start" />
                 <span>New chat</span>
                 <Kbd className="ml-auto hidden shrink-0 group-hover/menu-item:inline-flex">
                   {formatShortcutLabel(
