@@ -63,14 +63,13 @@ export const TOOLBAR_BUTTON_ON = {
 } satisfies CopiedClasses;
 
 /**
- * The shortcut inside that button's tooltip.
- *
- * A plain `<kbd>`, not `ui/kbd.tsx`: the app only boxes a key cap in a menu, and
- * in a tooltip it lets the text sit on the tooltip's own surface.
+ * The shortcut inside that button's tooltip: the app's `ui/kbd.tsx` key cap.
+ * Give the element `data-slot="kbd"` so the tooltip's kbd padding applies.
  */
 export const TOOLTIP_KBD = {
-  classes: 'font-mono text-xs text-muted-foreground',
-  source: `${RENDERER}/session/SessionToolbar.tsx`,
+  classes:
+    'inline-flex h-5 w-fit min-w-5 items-center justify-center gap-1 rounded-sm bg-muted px-1 font-sans text-xs font-normal text-muted-foreground select-none',
+  source: `${UI}/kbd.tsx`,
 } satisfies CopiedClasses;
 
 /**
@@ -139,7 +138,7 @@ export const BUTTON_HERO_SIZE = {
  */
 export const TOOLTIP_CONTENT = {
   classes:
-    'z-50 inline-flex w-fit max-w-xs items-center gap-1.5 text-xs rounded-md bg-popover px-2.5 py-1.5 text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25',
+    'z-50 inline-flex w-fit max-w-xs items-center gap-1.5 text-xs has-data-[slot=kbd]:pr-1.5 rounded-md bg-popover px-2.5 py-1.5 text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25',
   source: `${UI}/tooltip.tsx`,
 } satisfies CopiedClasses;
 
