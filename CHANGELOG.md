@@ -4,57 +4,25 @@
 
 ### Added
 
-- Attach files and images to a message from the `+` button in the chat input
-- Skills, commands and `@` file references show as labels with icons in the chat input; skills show just their name
-- `@` file search is faster and shows file-type icons
-- `@` shows the project's most recently modified files before you type
-- Type a path in the chat input to complete files and folders with fuzzy matching; completed paths become chips that keep the full path you typed
-- Type `~` to complete your home directory, then keep typing to filter its contents
-- A button at the top of the sidebar, or Cmd+B, hides and shows it, with an animation; hovering the button shows the shortcut
+- Attach files and images to a message with the `+` button, by pasting, or by dropping them on the chat input. Messages sent while the agent is working (steer and follow-up) keep their attachments, and files too large to attach are refused with a message
 - Images and files you send appear inside your message; click an image to see it larger, or a file to preview it (Quick Look on macOS, the file manager elsewhere)
+- Type `@` to reference a project file: the most recently modified files show before you type, then results narrow as you type, with file-type icons
+- Type a path (anything with a `/`, or `~` for your home folder) to complete files and folders with fuzzy matching. A completed path becomes a chip that shows the whole path; a folder stays open until you type a space, so you can keep typing or pick to go deeper, and Backspace goes up a level
+- Skills, slash commands and `@` file references show as labels with icons, both in the chat input and in sent messages
+- A button at the top of the sidebar, or Cmd+B, hides and shows it, with an animation; hovering the button shows the shortcut
 
 ### Changed
 
-- Messages sent while the agent is working (steer and follow-up) keep their attachments, and stopping the agent puts queued messages back in the input with their attachments
-- Pasting text no longer turns `@words` in it into file references
 - Choosing a project with `#` returns focus to the chat input
 - New sidebar icons for new chat, project folders and opening a project
-- Sending a skill or slash command keeps the same chip style in the message bubble as in the chat input
-- Slash command chips use a terminal icon so they stand apart from skills
 - The session title in the toolbar no longer has an icon in front of it
 - Send and stop buttons use the accent color
-- Attachments in the chat input sit right under the text, and their remove buttons only show on hover
-- Taller lines and labels in the chat input
-- The path picker is only as wide as its entries
-- Folder suggestions and chips show the full path without a folder icon
-- A space after a bare folder closes path completion; after a typed name, spaces stay in the fuzzy query. The right arrow also closes it.
-- A completed folder stays editable until you type a space: keep typing or pick to go deeper, Backspace to go up a level. No `/` is left behind the folder chip.
-- Path chips show the whole path instead of cutting it off
+- Taller lines in the chat input
 
 ### Fixed
 
-- Stopping the agent clears and restores queued steer and follow-up messages in the order you sent them, attachments included
-- After completing a folder, you can keep completing inside it; the full path stays in the chip instead of collapsing to the child name
-- File matches stay in the path picker even when a large folder has many matching subfolders
-- An absolute path at the very start of a message completes instead of being treated as a slash command
-- Opening `@` in a project that is still indexing shows a searching hint after a moment
-- Alt+Enter sends a follow-up even while a file or path picker is open
-- Symlinked folders appear as folders in path completion
-- Dropping a file onto the chat input no longer inserts a file URL into the message
-- A message with images no longer appears twice after it is sent
-- Text you type that looks like attachment plumbing (for example `[Attached to the wall]`) is no longer removed from your messages
-- Clipboard files and pasted images too large to attach are rejected with a message instead of being read in full
-- When `@` file search is unavailable, the input says so instead of reporting that no files were found
-- Path completion reports a directory it cannot read instead of silently showing nothing
-- Picking a folder inside a completed folder lists the new folder instead of the previous one
-- Completing `~/` lists your home folder instead of `~/<your user name>`
-- Escape in the chat input stops the agent again; with a picker open it closes the picker first
-- Session titles in the sidebar no longer show attachment markers, file paths or pasted file contents; attachment-only sessions are titled by the file name or image count
-- Text written after attached files is no longer dropped from the displayed message
+- Stopping the agent puts queued steer and follow-up messages back in the input in the order you sent them
 - Sending the same steer message twice shows both instead of hiding the second
-- An image that cannot be read is left out with a note instead of failing the whole message
-- A clipboard file whose name contains quotes no longer shows its contents in the message
-- Queued messages keep their attachments after the window reconnects to a running session
 
 ## [0.4.12] - 2026-10-17
 
