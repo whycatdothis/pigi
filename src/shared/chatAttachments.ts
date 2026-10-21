@@ -21,6 +21,7 @@ export const ATTACHED_FILES_HEADER = '[Attached files]';
 /** Marker used as message text when the user sent attachments without text. */
 const ATTACHED_SUMMARY_RE =
   /^\s*\[Attached \d+ (?:images?|files?)(?:, \d+ (?:images?|files?))?\]\s*\n?/;
+const SUMMARY_IMAGE_COUNT_RE = /(\d+) images?/;
 
 const SUPPORTED_IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const SUPPORTED_IMAGE_EXTENSIONS: Record<string, string> = {
@@ -31,10 +32,11 @@ const SUPPORTED_IMAGE_EXTENSIONS: Record<string, string> = {
   gif: 'image/gif',
 };
 
-// Only the blocks promptAttachments generates are stripped: an inline text
-// file (`\nCONTENT\n`), or one of the generated status lines. User-typed
-// `<file>` markup in prose is left alone. The name is captured so the
-// renderer can show a chip for a clipboard file that has no path.
+// Matches the shapes promptAttachments generates: an inline text file
+// (`\nCONTENT\n`) or one of the generated status lines. Single-line
+// user-typed `<file>` markup is left alone; a user-typed block in the
+// multi-line shape cannot be told apart and is stripped too. The name is
+// captured so the renderer can show a chip for a clipboard file without a path.
 const INLINE_FILE_BLOCK_RE =
   /<file name="([^"\n]*)">(?:File too large to include \(\d+ bytes\)\.|Binary file \(\d+ bytes\)\.|File not found: [^\n<]*|Failed to attach: [^\n<]*|\n[\s\S]*?\n)<\/file>\n?/g;
 
@@ -93,9 +95,24 @@ export function sanitizeUserPromptForDisplay(text: string): {
   return { ...splitAttachedFilesBlock(inline.text), inlineFileNames: inline.fileNames };
 }
 
-/** Strip inline `<file>` blocks (clipboard files inlined without a path). */
-export function stripInlineFileBlocks(text: string): string {
-  return splitInlineFileBlocks(text).text;
+/** Title for an attachment-only message: "Image", "3 images", "notes.md" or "4 files". */
+export function attachmentOnlyTitle(imageCount: number, fileNames: string[]): string {
+  const total = imageCount + fileNames.length;
+  if (total === 0) return '';
+  if (fileNames.length === 0) return imageCount === 1 ? 'Image' : `${imageCount} images`;
+  if (total === 1) return fileNames[0];
+  return `${total} files`;
+}
+
+/** Session-list title for a stored prompt, without the attachment plumbing. */
+export function promptTitle(text: string): string {
+  const split = sanitizeUserPromptForDisplay(text);
+  const trimmed = split.text.trim();
+  if (trimmed) return trimmed;
+  const summary = ATTACHED_SUMMARY_RE.exec(text)?.[0] ?? '';
+  const imageCount = Number(SUMMARY_IMAGE_COUNT_RE.exec(summary)?.[1] ?? 0);
+  const fileNames = [...split.filePaths.map(displayFileName), ...split.inlineFileNames];
+  return attachmentOnlyTitle(imageCount, fileNames);
 }
 
 /**
@@ -133,18 +150,21 @@ export function splitAttachedFilesBlock(text: string): { text: string; filePaths
   }
 
   const filePaths: string[] = [];
-  for (const line of text.slice(bodyStart).split('\n')) {
+  const bodyLines = text.slice(bodyStart).split('\n');
+  let consumedLines = 0;
+  for (const line of bodyLines) {
     const trimmed = line.trim();
-    if (!trimmed) continue;
     // Only treat path-looking lines as attachments; stop at the first one
-    // that does not look like a path so trailing user text is never eaten.
-    const isPath = trimmed.startsWith('/') || /^[A-Za-z]:[\\/]/.test(trimmed);
-    if (!isPath) break;
-    filePaths.push(trimmed);
+    // that does not look like a path and keep it and the rest as text.
+    if (trimmed && !trimmed.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(trimmed)) break;
+    if (trimmed) filePaths.push(trimmed);
+    consumedLines += 1;
   }
 
   if (filePaths.length === 0) {
     return { text, filePaths: [] };
   }
-  return { text: text.slice(0, headerStart).trimEnd(), filePaths };
+  const before = text.slice(0, headerStart).trimEnd();
+  const after = bodyLines.slice(consumedLines).join('\n').trim();
+  return { text: [before, after].filter(Boolean).join('\n\n'), filePaths };
 }

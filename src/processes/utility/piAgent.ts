@@ -1004,6 +1004,7 @@ async function createSession(cwd: string, parentSessionPath?: string): Promise<v
       agentDir: getAgentDir(),
       sessionManager: SessionManager.create(cwd, undefined, { parentSession: parentSessionPath }),
     });
+    queuedPromptInputs = new QueuedPromptInputs();
     // TODO: pass commandContextActions (waitForIdle, newSession, fork, navigateTree,
     // switchSession, reload) to support extensions that manage sessions.
     await runtime.session.bindExtensions({ uiContext: createExtensionUIContext(), mode: 'rpc' });
@@ -1031,6 +1032,8 @@ async function resumeSession(sessionPath: string): Promise<void> {
       agentDir: getAgentDir(),
       sessionManager,
     });
+    // Queue records follow the runtime, not the ports: its SDK queue survives attachPorts.
+    queuedPromptInputs = new QueuedPromptInputs();
     // TODO: pass commandContextActions (see createSession)
     await runtime.session.bindExtensions({ uiContext: createExtensionUIContext(), mode: 'rpc' });
     // Resumed sessions already have names; skip auto-rename
@@ -1062,7 +1065,6 @@ function attachPorts(nextControlPort: Port, nextDataPort: Port): void {
   setSessionBusy(runtime.session.isStreaming);
   batcher = new StreamBatcher();
   batcher.start(nextDataPort);
-  queuedPromptInputs = new QueuedPromptInputs();
   unsubscribeEvents = subscribeToSession(runtime, nextDataPort, batcher);
   setupControlPortListener(nextControlPort);
 

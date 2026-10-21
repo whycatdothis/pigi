@@ -49,6 +49,12 @@
 - Picking a folder inside a completed folder lists the new folder instead of the previous one
 - Completing `~/` lists your home folder instead of `~/<your user name>`
 - Escape in the chat input stops the agent again; with a picker open it closes the picker first
+- Session titles in the sidebar no longer show attachment markers, file paths or pasted file contents; attachment-only sessions are titled by the file name or image count
+- Text written after attached files is no longer dropped from the displayed message
+- Sending the same steer message twice shows both instead of hiding the second
+- An image that cannot be read is left out with a note instead of failing the whole message
+- A clipboard file whose name contains quotes no longer shows its contents in the message
+- Queued messages keep their attachments after the window reconnects to a running session
 
 ## [0.4.12] - 2026-10-17
 
