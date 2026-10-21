@@ -25,6 +25,22 @@ so changing an inherited CSS variable does not invalidate styles throughout the
 transcript. Flex layout gives the chat the remaining width automatically. The
 terminal height lives on the common chat/terminal container because both consume it.
 
+Showing and hiding the sidebar animates the wrapper between `--sidebar-width`
+and `0`, so the chat keeps real reserved space while it grows. The content keeps
+its full width and slides out with a transform, so it does not reflow. The
+collapsed wrapper is `inert` and stays mounted, so scroll position and expanded
+projects survive. The toolbar title inset uses the same duration and easing
+(`SIDEBAR_TRANSITION_CLASS_NAME`), so the title moves in step with the sidebar
+edge. A width transition must sit under `data-panel-resizing:transition-none`.
+Otherwise dragging would lag behind the pointer.
+
+The message column is capped at `MESSAGE_LIST_MAX_WIDTH` (860px). At the default
+window size the chat viewport is already wider than that cap, so hiding the
+sidebar only changes the margins: the rows keep their width and do not reflow.
+Rows do reflow below roughly sidebar width + 860px (about 1104px with the
+default 244px sidebar), so measure any width-animation concern at a narrow
+window instead of assuming the default one reproduces it.
+
 Native window resizing remains CSS-driven. Keep resize measurements scoped to
 their consumers: the message minimap observes its own available width without
 publishing it through the transcript component. Virtual rows use a stable
@@ -201,6 +217,63 @@ Everything after handshake flows over two direct MessagePorts per session. Split
 // Flushed every 16ms by StreamBatcher
 ```
 
+### Prompt attachment text contract
+
+The utility process builds the text for `prompt`, `steer` and `follow_up`. It
+adds three kinds of attachment plumbing that the renderer strips again before
+display:
+
+- `[Attached files]` followed by absolute paths — file attachments the agent
+  reads with its tools. `splitAttachedFilesBlock` returns the paths for chips.
+- `<file name="...">…</file>` inline blocks — clipboard files with no path on
+  disk. `splitInlineFileBlocks` removes the body and returns the names.
+- `[Attached N images]` / `[Attached N images, M files]` — the conversation
+  text of an attachment-only message, so the session list has a title.
+
+`src/shared/chatAttachments.ts` owns both sides; keep the writer in
+`src/processes/utility/promptAttachments.ts` and the strippers in sync. Queued
+steer/follow-up inputs are matched back to the SDK queue by the text the SDK
+stores after expanding skills and prompt templates.
+
+### Path completion in the composer
+
+A path token containing `/`, or a bare `~`, opens the path picker. The
+exception is a leading `/name` with no second slash, which stays with the
+slash-command picker; `/Users/me` is absolute and completes as a path.
+`pi:complete_path` reads one directory with `readdir` instead of using the
+project index, because it must work outside the project and see gitignored
+files. Matching is fuzzy over the last path segment. With no query, entries
+are folders first; with a query, folders and files are ranked together by
+match score (folders break ties), so a directory full of folder matches cannot
+push every file out of the list.
+
+A completed path is a `pathReference` chip whose `id` is the absolute path and
+whose label is the full path the user typed, such as `src/renderer` or
+`~/Documents`. Selecting a folder inserts just the chip. While the cursor sits
+right after a folder chip, or after text glued to it with no space, the picker
+lists that folder: typed text filters it (a leading `/` is tolerated), picking
+a folder replaces the chip with the deeper one, and plain Backspace replaces it
+with its parent (or removes a single-segment chip). The path stays editable
+until a space commits it, and moving the cursor back next to the chip resumes
+editing. The chip serializes with a trailing `/`, so text typed after it never
+glues onto the folder name. Selecting a file replaces the folder chip with the
+file chip and adds a space.
+
+Swapping one folder chip for another can leave the suggestion range and query
+unchanged, and the Tiptap suggestion plugin only notifies on those changes, so
+the composer republishes the picker itself after such a swap.
+
+A bare `~` offers the home directory; choosing it lists its children. For a
+typed token, a space right after a bare folder (or `~`) closes the picker; once
+a name has been typed, spaces stay in the fuzzy query so names with spaces can
+match. The right arrow also closes completion.
+
+Only POSIX paths are completed. Spaces are allowed once a name has been typed;
+a path with a space in an earlier segment is easiest to pick through the folder
+picker. The channel accepts any directory the renderer asks for (absolute
+paths, `..`, `~`), the same trust level as file preview and the agent's own
+tools; revisit this if the renderer can ever load untrusted content.
+
 ## Why This Design
 
 | Decision                                | Rationale                                                                                                                                               |
@@ -326,7 +399,7 @@ src/
     └── src/
         ├── components/           # One directory per surface, no loose files
         │   ├── app/              # theme provider, sign-in, menus
-        │   ├── chatInput/        # composer: textarea, pickers, slash commands
+        │   ├── chatInput/        # composer: Tiptap editor, reference chips, pickers
         │   ├── message/          # one message: bubbles, markdown, tools, diff
         │   ├── session/          # sidebar entry, session toolbar, switcher
         │   ├── sessionTree/      # tree dialog, rows, branch lines, help

@@ -15,6 +15,10 @@ asarUnpack:
   - resources/**
   # Native module: its .node binary must live outside the asar to be require-able.
   - node_modules/node-pty/**
+  # fff (file search) loads its native library through ffi-rs via dlopen.
+  - node_modules/@ff-labs/**
+  - node_modules/ffi-rs/**
+  - node_modules/@yuuang/**
 win:
   executableName: pigi
 nsis:

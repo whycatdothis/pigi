@@ -9,6 +9,8 @@ import {
   setActiveProject,
 } from '../projects/projectStore';
 import { getGitBranch } from '../projects/gitStatus';
+import { searchProjectFiles } from '../projects/projectFileSearch';
+import { completePath } from '../projects/pathCompletion';
 
 function projectStateResult(): ProjectStateResult {
   return {
@@ -22,6 +24,23 @@ export function registerProjectHandlers(): void {
 
   ipcMain.handle(PiChannel.GetGitBranch, async (_event, cwd: string) => {
     return getGitBranch(cwd);
+  });
+
+  ipcMain.handle(PiChannel.SearchProjectFiles, async (_event, cwd: string, query: string) => {
+    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+      return { success: false, error: 'cwd must be a non-empty string' };
+    }
+    return searchProjectFiles(cwd, typeof query === 'string' ? query : '');
+  });
+
+  ipcMain.handle(PiChannel.CompletePath, async (_event, cwd: string, token: string) => {
+    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+      return { success: false, error: 'cwd must be a non-empty string' };
+    }
+    if (typeof token !== 'string') {
+      return { success: false, error: 'token must be a string' };
+    }
+    return completePath(cwd, token);
   });
 
   ipcMain.handle(PiChannel.SetActiveProject, async (_event, path: string) => {

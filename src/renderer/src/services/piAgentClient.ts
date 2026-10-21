@@ -6,6 +6,7 @@
  */
 import type {
   AuthProviderInfo,
+  ClearedQueue,
   EntryTextResult,
   ForkSessionResult,
   ModelCatalogSnapshot,
@@ -15,6 +16,7 @@ import type {
   GitBranchResult,
   ProjectSessionsChunk,
   ProjectStateResult,
+  PromptAttachment,
   SessionOptions,
   SessionState,
   SessionListResult,
@@ -133,36 +135,70 @@ export function onProjectSessionsChunk(
 // Session commands (via MessagePort)
 // =============================================================================
 
-export async function prompt(sessionPath: string, message: string): Promise<void> {
-  const result = await send<CommandResult>(sessionPath, { type: 'prompt', message });
+export async function prompt(
+  sessionPath: string,
+  message: string,
+  attachments: PromptAttachment[] = [],
+): Promise<void> {
+  const result = await send<CommandResult>(sessionPath, {
+    type: 'prompt',
+    message,
+    attachments: attachments.length > 0 ? attachments : undefined,
+  });
   if (!result.success) {
     throw new Error(result.error || 'prompt failed');
   }
 }
 
-export async function steer(sessionPath: string, message: string): Promise<void> {
-  const result = await send<CommandResult>(sessionPath, { type: 'steer', message });
+export async function steer(
+  sessionPath: string,
+  message: string,
+  attachments: PromptAttachment[] = [],
+): Promise<void> {
+  const result = await send<CommandResult>(sessionPath, {
+    type: 'steer',
+    message,
+    attachments: attachments.length > 0 ? attachments : undefined,
+  });
   if (!result.success) {
     throw new Error(result.error || 'steer failed');
   }
 }
 
-export async function followUp(sessionPath: string, message: string): Promise<void> {
-  const result = await send<CommandResult>(sessionPath, { type: 'follow_up', message });
+export async function followUp(
+  sessionPath: string,
+  message: string,
+  attachments: PromptAttachment[] = [],
+): Promise<void> {
+  const result = await send<CommandResult>(sessionPath, {
+    type: 'follow_up',
+    message,
+    attachments: attachments.length > 0 ? attachments : undefined,
+  });
   if (!result.success) {
     throw new Error(result.error || 'follow_up failed');
   }
 }
 
-interface ClearQueueResult {
-  success: boolean;
-  steering?: string[];
-  followUp?: string[];
-  error?: string;
-}
+type ClearQueueResult = ({ success: true } & ClearedQueue) | { success: false; error?: string };
 
-export async function clearQueue(sessionPath: string): Promise<ClearQueueResult> {
-  return send<ClearQueueResult>(sessionPath, { type: 'clear_queue' });
+/**
+ * Clear the SDK queues and return the queued messages as the user wrote them.
+ * Returns null when the call fails, so callers can fall back to the local queue
+ * instead of dropping the messages.
+ */
+export async function clearQueue(sessionPath: string): Promise<ClearedQueue | null> {
+  try {
+    const result = await send<ClearQueueResult>(sessionPath, { type: 'clear_queue' });
+    if (!result.success) {
+      console.error('clear_queue failed:', result.error);
+      return null;
+    }
+    return { steering: result.steering, followUp: result.followUp };
+  } catch (error) {
+    console.error('clear_queue failed:', error);
+    return null;
+  }
 }
 
 export async function abort(sessionPath: string): Promise<void> {

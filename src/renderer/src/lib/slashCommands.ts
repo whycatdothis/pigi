@@ -16,6 +16,13 @@ export interface SlashCommandMatches {
 
 export const EMPTY_SLASH_MATCHES: SlashCommandMatches = { builtin: [], skill: [] };
 
+/** pi invokes skills as `/skill:<name>`; the UI shows only `<name>`. */
+const SKILL_COMMAND_PREFIX = 'skill:';
+
+export function slashCommandDisplayName(name: string): string {
+  return name.startsWith(SKILL_COMMAND_PREFIX) ? name.slice(SKILL_COMMAND_PREFIX.length) : name;
+}
+
 const BUILTIN_COMMANDS: SlashCommand[] = [
   { name: 'compact', description: 'Compact session context', source: 'builtin' },
   { name: 'login', description: 'Configure provider authentication', source: 'builtin' },

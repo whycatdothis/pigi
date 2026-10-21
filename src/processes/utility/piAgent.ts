@@ -34,6 +34,7 @@ import type {
   PiPush,
   PiRequest,
   PiResult,
+  PromptInput,
   ControlPortMessage,
   StreamBatch,
   StreamBatchToolArgs,
@@ -43,6 +44,12 @@ import type {
 import { toModelInfo } from '../../shared/modelInfo';
 import { generateSessionTitle } from './autoRename';
 import { createModelRuntime } from './fileCredentialStore';
+import { buildPromptContent, hasPromptContent, type BuiltPromptContent } from './promptAttachments';
+import {
+  QueuedPromptInputs,
+  firstAppendedQueueText,
+  type PromptQueueName,
+} from './queuedPromptInputs';
 import { buildSessionTree, readEntryText, resolveForkTarget } from './sessionTree';
 
 // =============================================================================
@@ -144,6 +151,7 @@ let unsubscribeEvents: (() => void) | null = null;
 let isCleanedUp = false;
 let isSessionBusy = false;
 let hasAutoRenamed = false;
+let queuedPromptInputs = new QueuedPromptInputs();
 // Services are expensive to build; prewarm them while the user is browsing sessions.
 const servicesByCwd = new Map<string, Promise<AgentSessionServices>>();
 let serviceCreationQueue: Promise<void> = Promise.resolve();
@@ -452,6 +460,11 @@ function subscribeToSession(rt: AgentSessionRuntime, port: Port, batch: StreamBa
         autoRenameOnce(event, session, rt, push);
         break;
 
+      case 'queue_update':
+        queuedPromptInputs.sync(event);
+        push({ type: 'event', event });
+        break;
+
       case 'tool_execution_update': {
         const { toolCallId, partialResult } = event;
         const text = partialResult?.content?.[0]?.text;
@@ -474,55 +487,131 @@ function subscribeToSession(rt: AgentSessionRuntime, port: Port, batch: StreamBa
 // Command handling (via control MessagePort from renderer)
 // =============================================================================
 
+type BuildCommandContentResult =
+  | { success: true; content: BuiltPromptContent }
+  | { success: false; error: string };
+
+type PromptCommand = Extract<PiCommand, { type: 'prompt' | 'steer' | 'follow_up' }>;
+
+async function buildCommandContent(command: PromptCommand): Promise<BuildCommandContentResult> {
+  const attachments = command.attachments ?? [];
+  if (!hasPromptContent(command.message, attachments)) {
+    return { success: false, error: `${command.type} must have text or attachments` };
+  }
+  try {
+    return { success: true, content: await buildPromptContent(command.message, attachments) };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+async function queuePrompt(
+  session: AgentSessionRuntime['session'],
+  queueName: PromptQueueName,
+  command: PromptCommand,
+): Promise<{ success: boolean; error?: string }> {
+  const built = await buildCommandContent(command);
+  if (!built.success) return built;
+  const { text, images } = built.content;
+  const input: PromptInput = {
+    message: command.message,
+    attachments: command.attachments ?? [],
+  };
+  // Record the text the SDK actually queued: it expands skill commands and
+  // prompt templates before storing the message, and queue reconciliation
+  // matches on that text. Diffing the queue around the call keeps a message
+  // that was delivered before this continuation from being mistaken for the
+  // new one. Snapshot first: the getters return the SDK's live array, which
+  // steer/followUp mutate in place.
+  if (queueName === 'steering') {
+    const before = [...session.getSteeringMessages()];
+    await session.steer(text, images);
+    const queuedText = firstAppendedQueueText(before, session.getSteeringMessages());
+    queuedPromptInputs.add(queueName, queuedText ?? text, input);
+  } else {
+    const before = [...session.getFollowUpMessages()];
+    await session.followUp(text, images);
+    const queuedText = firstAppendedQueueText(before, session.getFollowUpMessages());
+    queuedPromptInputs.add(queueName, queuedText ?? text, input);
+  }
+  return { success: true };
+}
+
+let commandChain: Promise<void> = Promise.resolve();
+
+/**
+ * Commands that change the SDK's prompt queues must start in the order the
+ * renderer sent them. Building attachment content is async, so without this
+ * chain a later command can finish first and reorder steering, or outlive a
+ * stop that was meant to clear it.
+ *
+ * `prompt` joins the chain only until it has started the run: awaiting the
+ * whole run would hold back steering for its entire duration.
+ */
+function serializeCommand<T>(task: () => Promise<T>): Promise<T> {
+  const result = commandChain.then(task);
+  commandChain = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
 async function handleCommand(command: PiCommand): Promise<unknown> {
   if (!runtime) return { success: false, error: 'session not initialized' };
 
   switch (command.type) {
     case 'prompt': {
-      if (!command.message || command.message.trim().length === 0) {
-        return { success: false, error: 'prompt must be a non-empty string' };
-      }
-      runtime.session.prompt(command.message).catch((err) => {
-        // A rejection can happen before agent_end (auth/model/network
-        // preflight), so explicitly release the process-pool busy lease.
-        setSessionBusy(runtime?.session.isStreaming ?? false);
-        if (dataPort) {
-          const errorMessage: PiPush = {
-            type: 'error',
-            error: err instanceof Error ? err.message : String(err),
-          };
-          dataPort.postMessage(errorMessage);
-        }
+      const session = runtime.session;
+      return serializeCommand(async () => {
+        const built = await buildCommandContent(command);
+        if (!built.success) return built;
+        const { content } = built;
+        session
+          .prompt(content.text, content.images.length > 0 ? { images: content.images } : undefined)
+          .catch((err) => {
+            // A rejection can happen before agent_end (auth/model/network
+            // preflight), so explicitly release the process-pool busy lease.
+            setSessionBusy(session.isStreaming);
+            if (dataPort) {
+              const errorMessage: PiPush = {
+                type: 'error',
+                error: err instanceof Error ? err.message : String(err),
+              };
+              dataPort.postMessage(errorMessage);
+            }
+          });
+        return { success: true };
       });
-      return { success: true };
     }
 
     case 'steer': {
-      if (!command.message || command.message.trim().length === 0) {
-        return { success: false, error: 'steer message must be a non-empty string' };
-      }
-      await runtime.session.steer(command.message);
-      return { success: true };
+      const session = runtime.session;
+      return serializeCommand(() => queuePrompt(session, 'steering', command));
     }
 
     case 'follow_up': {
-      if (!command.message || command.message.trim().length === 0) {
-        return { success: false, error: 'follow_up message must be a non-empty string' };
-      }
-      await runtime.session.followUp(command.message);
-      return { success: true };
+      const session = runtime.session;
+      return serializeCommand(() => queuePrompt(session, 'followUp', command));
     }
 
     case 'clear_queue': {
-      const { steering, followUp } = runtime.session.clearQueue();
-      return { success: true, steering, followUp };
+      const session = runtime.session;
+      return serializeCommand(async () => ({
+        success: true,
+        ...queuedPromptInputs.clear(() => session.clearQueue()),
+      }));
     }
 
-    case 'abort':
-      runtime.session.abortCompaction();
-      await runtime.session.abort();
-      setSessionBusy(runtime.session.isStreaming);
-      return { success: true };
+    case 'abort': {
+      const session = runtime.session;
+      return serializeCommand(async () => {
+        session.abortCompaction();
+        await session.abort();
+        setSessionBusy(session.isStreaming);
+        return { success: true };
+      });
+    }
 
     case 'compact':
       await runtime.session.compact();
@@ -915,6 +1004,7 @@ async function createSession(cwd: string, parentSessionPath?: string): Promise<v
       agentDir: getAgentDir(),
       sessionManager: SessionManager.create(cwd, undefined, { parentSession: parentSessionPath }),
     });
+    queuedPromptInputs = new QueuedPromptInputs();
     // TODO: pass commandContextActions (waitForIdle, newSession, fork, navigateTree,
     // switchSession, reload) to support extensions that manage sessions.
     await runtime.session.bindExtensions({ uiContext: createExtensionUIContext(), mode: 'rpc' });
@@ -942,6 +1032,8 @@ async function resumeSession(sessionPath: string): Promise<void> {
       agentDir: getAgentDir(),
       sessionManager,
     });
+    // Queue records follow the runtime, not the ports: its SDK queue survives attachPorts.
+    queuedPromptInputs = new QueuedPromptInputs();
     // TODO: pass commandContextActions (see createSession)
     await runtime.session.bindExtensions({ uiContext: createExtensionUIContext(), mode: 'rpc' });
     // Resumed sessions already have names; skip auto-rename

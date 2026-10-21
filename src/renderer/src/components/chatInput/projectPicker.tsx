@@ -59,7 +59,7 @@ export function ProjectPicker({
             'flex items-center rounded-md px-1.5 py-0.5 text-sm font-normal bg-muted/60 hover:bg-muted transition-colors text-muted-foreground',
           )}
         >
-          <span className={cn('mr-0.5', hashActive && 'text-yellow-500')}>#</span>
+          <span className={cn('mr-0.5', hashActive && 'text-[var(--system-accent)]')}>#</span>
           <span className="truncate">{projectName}</span>
           <IconChevronDown className="size-4 shrink-0 ml-1 [&_path]:stroke-[1.8]" />
         </button>
@@ -68,6 +68,8 @@ export function ProjectPicker({
         align="start"
         side="bottom"
         className="w-auto min-w-40 gap-0 overflow-visible p-0 bg-popover/50"
+        // Radix returns focus to the trigger on close; the composer takes it instead (onClose).
+        onCloseAutoFocus={(event) => event.preventDefault()}
       >
         <Command>
           <CommandInput

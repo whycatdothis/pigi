@@ -1,11 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
-import {
-  IconFolder,
-  IconFolderOpen,
-  IconFolderPlus,
-  IconPlus,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconFolderPlus, IconMessageCirclePlus, IconTrash } from '@tabler/icons-react';
+import { FolderClosed, FolderOpen } from 'lucide-react';
 import type { PiSessionInfo, ProjectDirectory } from '../../../../shared/ipcContract';
 import type { SessionEntry } from '../../state/appStore';
 import { cn } from '../../lib/utils';
@@ -101,9 +96,9 @@ function ProjectItem({
               className="text-sidebar-foreground/65"
             >
               {isExpanded ? (
-                <IconFolderOpen data-icon="inline-start" />
+                <FolderOpen data-icon="inline-start" />
               ) : (
-                <IconFolder data-icon="inline-start" />
+                <FolderClosed data-icon="inline-start" />
               )}
               <span>{project.name}</span>
             </SidebarMenuButton>
@@ -113,7 +108,7 @@ function ProjectItem({
             onClick={onNewSession}
             className="opacity-0 group-hover/project:opacity-100 transition-opacity"
           >
-            <IconPlus />
+            <IconMessageCirclePlus />
             <span className="sr-only">{NEW_PROJECT_SESSION_LABEL}</span>
           </SidebarMenuAction>
 

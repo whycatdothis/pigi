@@ -1,6 +1,13 @@
 import { IconStarFilled } from '@tabler/icons-react';
 import { cn } from '../../lib/utils';
 import { CHAT_INPUT_MAX_WIDTH } from '../../lib/layoutConstants';
+import { sanitizeUserPromptForDisplay } from '../../../../shared/chatAttachments';
+
+/** Hide attachment plumbing from the one-line queue bar. */
+function queueBarLabel(message: string): string {
+  const split = sanitizeUserPromptForDisplay(message);
+  return split.text || 'Attachment';
+}
 
 interface StreamingQueueProps {
   isStreaming: boolean;
@@ -49,7 +56,7 @@ function QueuedMessageBar({
   return (
     <QueueBar>
       <span className={cn('shrink-0 font-normal', labelClassName)}>{label}</span>
-      <span className="flex-1 truncate">{message}</span>
+      <span className="flex-1 truncate">{queueBarLabel(message)}</span>
       <button
         type="button"
         className="ml-auto shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors"
