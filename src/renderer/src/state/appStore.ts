@@ -102,10 +102,32 @@ interface AppState {
   /** Remove a session path from all history stacks */
   removeFromNavigationHistory: (sessionPath: string) => void;
 
+  // Sessions whose run finished while the user was viewing another session;
+  // cleared when the session is opened. Persisted in localStorage, and kept
+  // across process exits (the pool reaps idle background processes).
+  unreadSessionPaths: Set<string>;
+
   // Tracks session paths that were manually renamed (to suppress typewriter animation)
   renamedSessionPaths: Set<string>;
   markSessionRenamed: (sessionPath: string) => void;
   clearSessionRenamed: (sessionPath: string) => void;
+}
+
+function isAgentBusy(status: AgentStatus): boolean {
+  return status === 'streaming' || status === 'tool_running';
+}
+
+const UNREAD_SESSIONS_STORAGE_KEY = 'pigi.unreadSessionPaths';
+
+function loadUnreadSessionPaths(): Set<string> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(UNREAD_SESSIONS_STORAGE_KEY) ?? '[]');
+    return Array.isArray(parsed)
+      ? new Set(parsed.filter((path): path is string => typeof path === 'string'))
+      : new Set();
+  } catch {
+    return new Set();
+  }
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -159,16 +181,35 @@ export const useAppStore = create<AppState>((set) => ({
       return { sessions, activeSessionPath };
     }),
 
-  setActiveSession: (activeSessionPath) => set({ activeSessionPath }),
+  setActiveSession: (activeSessionPath) =>
+    set((state) => {
+      if (activeSessionPath === null || !state.unreadSessionPaths.has(activeSessionPath)) {
+        return { activeSessionPath };
+      }
+      const unreadSessionPaths = new Set(state.unreadSessionPaths);
+      unreadSessionPaths.delete(activeSessionPath);
+      return { activeSessionPath, unreadSessionPaths };
+    }),
 
   updateSession: (sessionPath, updates) =>
     set((state) => {
       const sessions = new Map(state.sessions);
       const existing = sessions.get(sessionPath);
-      if (existing) {
-        sessions.set(sessionPath, { ...existing, ...updates });
+      if (!existing) {
+        return { sessions };
       }
-      return { sessions };
+      sessions.set(sessionPath, { ...existing, ...updates });
+      const finishedUnseen =
+        updates.status !== undefined &&
+        isAgentBusy(existing.status) &&
+        !isAgentBusy(updates.status) &&
+        sessionPath !== state.activeSessionPath;
+      if (!finishedUnseen || state.unreadSessionPaths.has(sessionPath)) {
+        return { sessions };
+      }
+      const unreadSessionPaths = new Set(state.unreadSessionPaths);
+      unreadSessionPaths.add(sessionPath);
+      return { sessions, unreadSessionPaths };
     }),
 
   setProjects: (recentProjects, activeProject) => set({ recentProjects, activeProject }),
@@ -275,6 +316,8 @@ export const useAppStore = create<AppState>((set) => ({
       navigationForwardStack: state.navigationForwardStack.filter((p) => p !== sessionPath),
     })),
 
+  unreadSessionPaths: loadUnreadSessionPaths(),
+
   renamedSessionPaths: new Set(),
   markSessionRenamed: (sessionPath) =>
     set((state) => {
@@ -289,3 +332,12 @@ export const useAppStore = create<AppState>((set) => ({
       return { renamedSessionPaths: next };
     }),
 }));
+
+useAppStore.subscribe((state, previous) => {
+  if (state.unreadSessionPaths !== previous.unreadSessionPaths) {
+    localStorage.setItem(
+      UNREAD_SESSIONS_STORAGE_KEY,
+      JSON.stringify([...state.unreadSessionPaths]),
+    );
+  }
+});
