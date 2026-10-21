@@ -6,6 +6,10 @@
 
 - A session that finishes while you are in another one shows an accent-colored dot in the sidebar in place of its time, until you open it. The dot is kept across restarts
 
+### Changed
+
+- The path completion list opens above the path you are typing instead of at the left edge of the chat input, and folders no longer end with `/`
+
 ### Fixed
 
 - Extension commands (such as `/plannotator-review`) show a terminal icon in the chat input, matching the sent message, instead of the skill icon

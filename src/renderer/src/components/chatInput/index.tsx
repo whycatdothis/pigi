@@ -849,6 +849,7 @@ export default function ChatInput({
                 selectedIndex={selectedPathIndex}
                 onSelect={(entry) => pathSuggestion.insert(entry)}
                 onHover={setSelectedPathIndex}
+                anchorRect={pathSuggestion.anchorRect}
               />
             )}
             {mentionOpen && !pathSuggestion && (
