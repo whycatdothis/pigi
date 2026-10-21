@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { IconLoader2, IconPencil } from '@tabler/icons-react';
 import { useTypewriter } from '../../hooks/useTypewriter';
 import type { PiSessionInfo } from '../../../../shared/ipcContract';
-import type { SessionEntry } from '../../state/appStore';
+import { useAppStore, type SessionEntry } from '../../state/appStore';
 import { buildLineage, flattenLineage, type LineageRow } from '../../lib/sessionLineage';
 import { useRenameSuppress } from '../../hooks/useRenameSuppress';
 import { SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem } from '../ui/sidebar';
@@ -68,6 +68,48 @@ function LineagePrefix({ row }: { row: LineageRow }): React.JSX.Element | null {
   );
 }
 
+/** Right-side slot of a session row: running spinner, unread dot, or relative time. */
+function SessionTrailing({
+  session,
+  isRunning,
+  isUnread,
+  relativeTimeBase,
+}: {
+  session: PiSessionInfo;
+  isRunning: boolean;
+  isUnread: boolean;
+  relativeTimeBase: number;
+}): React.JSX.Element {
+  if (isRunning) {
+    return (
+      <IconLoader2 className="ml-2 size-3.5 shrink-0 animate-[spin_1.8s_linear_infinite] text-green-500 will-change-transform" />
+    );
+  }
+  if (isUnread) {
+    return (
+      <span
+        role="status"
+        aria-label="Unread"
+        className="ml-2 size-2 shrink-0 rounded-full bg-[var(--system-accent)]"
+      />
+    );
+  }
+  const modifiedTime = session.modified || session.created;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+          {formatRelativeTime(modifiedTime, relativeTimeBase)}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs flex flex-col gap-0.5 items-start">
+        <div>Created: {formatDateTime(session.created)}</div>
+        {session.modified && <div>Updated: {formatDateTime(session.modified)}</div>}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function SessionItem({
   row,
   isActive,
@@ -79,6 +121,7 @@ export function SessionItem({
   const session = row.session;
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
+  const isUnread = useAppStore((state) => state.unreadSessionPaths.has(session.path));
   const [displayTitle, skipNextAnimation] = useTypewriter(getSessionTitle(session));
   useRenameSuppress(session.path, skipNextAnimation);
 
@@ -111,8 +154,6 @@ export function SessionItem({
     },
     [handleFinishRename],
   );
-
-  const modifiedTime = session.modified || session.created;
 
   if (isEditing) {
     return (
@@ -152,21 +193,12 @@ export function SessionItem({
               <span className="min-w-0 flex-1 truncate text-left" title={getSessionTitle(session)}>
                 {displayTitle}
               </span>
-              {isRunning ? (
-                <IconLoader2 className="ml-2 size-3.5 shrink-0 animate-[spin_1.8s_linear_infinite] text-green-500 will-change-transform" />
-              ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="ml-2 shrink-0 text-xs text-muted-foreground">
-                      {formatRelativeTime(modifiedTime, relativeTimeBase)}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs flex flex-col gap-0.5 items-start">
-                    <div>Created: {formatDateTime(session.created)}</div>
-                    {session.modified && <div>Updated: {formatDateTime(session.modified)}</div>}
-                  </TooltipContent>
-                </Tooltip>
-              )}
+              <SessionTrailing
+                session={session}
+                isRunning={isRunning}
+                isUnread={isUnread}
+                relativeTimeBase={relativeTimeBase}
+              />
             </button>
           </SidebarMenuSubButton>
         </SidebarMenuSubItem>
