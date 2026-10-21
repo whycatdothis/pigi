@@ -108,6 +108,8 @@ export interface PathSuggestion {
   insert: (entry: PathCompletionEntry) => void;
   /** Go one level up from the folder chip; set only when nothing is typed after it. */
   leaveFolder: (() => void) | null;
+  /** Viewport rect of the token being completed, to anchor the picker. */
+  anchorRect: () => DOMRect | null;
 }
 
 /** Items are computed by the composer, so the plugin itself never lists any. */
@@ -168,7 +170,12 @@ function pathChipContent(path: string, pathKind: 'file' | 'directory', label: st
 function pathSuggestionRenderer(
   onPathSuggestionChange: ComposerExtensionOptions['onPathSuggestionChange'],
 ): SuggestionOptions<unknown, MentionNodeAttrs>['render'] {
-  const publish = (editor: Editor, range: Range, query: string): void => {
+  const publish = (
+    editor: Editor,
+    range: Range,
+    query: string,
+    anchorRect: PathSuggestion['anchorRect'],
+  ): void => {
     const directoryChip = directoryChipBefore(editor.state.doc, range.from);
     // The chip already ends the folder; tolerate a habitual `/` after it.
     const token = directoryChip && query.startsWith(PATH_TRIGGER) ? query.slice(1) : query;
@@ -192,7 +199,7 @@ function pathSuggestionRenderer(
         next.range.from === range.from &&
         next.range.to === range.to
       ) {
-        publish(editor, next.range, next.query);
+        publish(editor, next.range, next.query, anchorRect);
       }
     };
 
@@ -221,11 +228,12 @@ function pathSuggestionRenderer(
               );
             }
           : null,
+      anchorRect,
     });
   };
   return () => {
     const publishProps = (props: ReferenceSuggestionProps): void =>
-      publish(props.editor, props.range, props.query);
+      publish(props.editor, props.range, props.query, () => props.clientRect?.() ?? null);
     return {
       onStart: publishProps,
       onUpdate: publishProps,

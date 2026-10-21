@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { PathCompletionEntry } from '../../../../shared/ipcContract';
 import { pathCompletionLabel } from '../../lib/pathReferences';
 import { cn } from '../../lib/utils';
@@ -16,6 +16,8 @@ interface PathMentionPopoverProps {
   selectedIndex: number;
   onSelect: (entry: PathCompletionEntry) => void;
   onHover: (index: number) => void;
+  /** Viewport rect of the token being completed. */
+  anchorRect: () => DOMRect | null;
 }
 
 /** Directory entries for the path token being typed. */
@@ -27,8 +29,24 @@ export function PathMentionPopover({
   selectedIndex,
   onSelect,
   onHover,
+  anchorRect,
 }: PathMentionPopoverProps): React.JSX.Element {
+  const popoverRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Sit above the token's line, starting at the token, like editor completion
+  // (`mb-2` is the gap). Without an anchor it stays at the composer's top-left.
+  useLayoutEffect(() => {
+    const popover = popoverRef.current;
+    const container = popover?.offsetParent;
+    const anchor = anchorRect();
+    if (!popover || !(container instanceof HTMLElement) || !anchor) return;
+    const containerRect = container.getBoundingClientRect();
+    const maxLeft = Math.max(0, containerRect.width - popover.offsetWidth);
+    const left = Math.min(Math.max(0, anchor.left - containerRect.left), maxLeft);
+    popover.style.left = `${left}px`;
+    popover.style.bottom = `${containerRect.bottom - anchor.top}px`;
+  }, [anchorRect, entries, token, baseLabel, error]);
 
   useEffect(() => {
     const container = listRef.current;
@@ -42,6 +60,7 @@ export function PathMentionPopover({
 
   return (
     <div
+      ref={popoverRef}
       className="absolute bottom-full left-0 z-30 mb-2 w-max max-w-full overflow-hidden rounded-lg bg-popover/50 shadow-md ring-[0.5px] ring-foreground/25 backdrop-blur-md"
       onMouseDown={(event) => event.preventDefault()}
     >
@@ -68,7 +87,6 @@ export function PathMentionPopover({
               {entry.isDirectory ? null : <FileIcon path={entry.path} />}
               <span className="min-w-0 truncate text-foreground">
                 {pathCompletionLabel(token, baseLabel, entry.name)}
-                {entry.isDirectory && '/'}
               </span>
             </button>
           ))
