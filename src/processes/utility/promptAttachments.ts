@@ -39,11 +39,17 @@ async function readAttachmentBytes(attachment: PromptAttachment): Promise<Buffer
 async function buildImageContent(attachment: PromptAttachment): Promise<ImageContent> {
   const bytes = await readAttachmentBytes(attachment);
   const resized = await resizeImage(bytes, attachment.mimeType);
-  return {
-    type: 'image',
-    data: resized?.data ?? bytes.toString('base64'),
-    mimeType: resized?.mimeType ?? attachment.mimeType,
-  };
+  // Null means it could not be decoded or brought under the provider's inline
+  // limit; the original bytes would fail the whole prompt, so leave it out.
+  if (!resized) {
+    throw new Error('image could not be resized below the inline image size limit');
+  }
+  return { type: 'image', data: resized.data, mimeType: resized.mimeType };
+}
+
+/** A `<file>` block. The name must stay quote-free for the display sanitizer to match it. */
+function fileSection(name: string, body: string): string {
+  return `<file name="${name.replaceAll('"', "'")}">${body}</file>`;
 }
 
 /** Inline a clipboard file that has no path on disk. */
@@ -51,12 +57,12 @@ async function buildInlineFileSection(attachment: PromptAttachment): Promise<str
   const name = attachment.name;
   const bytes = await readAttachmentBytes(attachment);
   if (bytes.byteLength > MAX_INLINE_FILE_BYTES) {
-    return `<file name="${name}">File too large to include (${bytes.byteLength} bytes).</file>`;
+    return fileSection(name, `File too large to include (${bytes.byteLength} bytes).`);
   }
   if (bytes.includes(0)) {
-    return `<file name="${name}">Binary file (${bytes.byteLength} bytes).</file>`;
+    return fileSection(name, `Binary file (${bytes.byteLength} bytes).`);
   }
-  return `<file name="${name}">\n${bytes.toString('utf-8')}\n</file>`;
+  return fileSection(name, `\n${bytes.toString('utf-8')}\n`);
 }
 
 /** Build the text and images for a prompt command. */
@@ -80,7 +86,7 @@ export async function buildPromptContent(
           filePaths.push(attachment.path);
         } catch {
           inlineSections.push(
-            `<file name="${displayFileName(attachment.path)}">File not found: ${attachment.path}</file>`,
+            fileSection(displayFileName(attachment.path), `File not found: ${attachment.path}`),
           );
         }
         continue;
@@ -89,7 +95,10 @@ export async function buildPromptContent(
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       inlineSections.push(
-        `<file name="${displayFileName(attachment.path ?? attachment.name)}">Failed to attach: ${reason}</file>`,
+        fileSection(
+          displayFileName(attachment.path ?? attachment.name),
+          `Failed to attach: ${reason}`,
+        ),
       );
     }
   }

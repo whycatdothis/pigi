@@ -5,11 +5,11 @@ import {
   displayFileName,
   imageMimeTypeForPath,
   isSupportedImageMimeType,
+  promptTitle,
   sanitizeUserPromptForDisplay,
   splitAttachedFilesBlock,
   splitInlineFileBlocks,
   stripAttachmentSummary,
-  stripInlineFileBlocks,
 } from './chatAttachments';
 
 describe('chatAttachments', () => {
@@ -28,6 +28,14 @@ describe('chatAttachments', () => {
     });
   });
 
+  it('keeps text after the path list', () => {
+    const text = `${buildAttachedFilesBlock(['/a/b.ts'])}\nthen review it`;
+    expect(splitAttachedFilesBlock(`before\n\n${text}`)).toEqual({
+      text: 'before\n\nthen review it',
+      filePaths: ['/a/b.ts'],
+    });
+  });
+
   it('leaves text without a block untouched', () => {
     expect(splitAttachedFilesBlock('just a question')).toEqual({
       text: 'just a question',
@@ -36,10 +44,10 @@ describe('chatAttachments', () => {
   });
 
   it('strips inline file blocks', () => {
-    expect(stripInlineFileBlocks('hi\n<file name="x.txt">\nbody\n</file>\n')).toBe('hi');
-    expect(stripInlineFileBlocks('hi\n<file name="x.txt">Binary file (12 bytes).</file>\n')).toBe(
-      'hi',
-    );
+    expect(splitInlineFileBlocks('hi\n<file name="x.txt">\nbody\n</file>\n').text).toBe('hi');
+    expect(
+      splitInlineFileBlocks('hi\n<file name="x.txt">Binary file (12 bytes).</file>\n').text,
+    ).toBe('hi');
   });
 
   it('returns inline file names for display chips', () => {
@@ -55,7 +63,7 @@ describe('chatAttachments', () => {
   });
 
   it('leaves user-typed attachment markup alone', () => {
-    expect(stripInlineFileBlocks('hi\n<file name="x.txt">inline</file>')).toBe(
+    expect(splitInlineFileBlocks('hi\n<file name="x.txt">inline</file>').text).toBe(
       'hi\n<file name="x.txt">inline</file>',
     );
     expect(stripAttachmentSummary('[Attached to the wall] keep me')).toBe(
@@ -90,5 +98,17 @@ describe('chatAttachments', () => {
       filePaths: ['/a/b.ts'],
       inlineFileNames: [],
     });
+  });
+
+  it('titles stored prompts without attachment plumbing', () => {
+    const files = buildAttachedFilesBlock(['/repo/notes.md']);
+    expect(promptTitle(`fix this\n\n${files}`)).toBe('fix this');
+    expect(promptTitle(buildAttachmentSummary(1, 0))).toBe('Image');
+    expect(promptTitle(buildAttachmentSummary(3, 0))).toBe('3 images');
+    expect(promptTitle(`${buildAttachmentSummary(0, 1)}\n${files}`)).toBe('notes.md');
+    expect(
+      promptTitle(`${buildAttachmentSummary(0, 1)}\n<file name="a.txt">\nhello\n</file>`),
+    ).toBe('a.txt');
+    expect(promptTitle(`${buildAttachmentSummary(1, 1)}\n${files}`)).toBe('2 files');
   });
 });

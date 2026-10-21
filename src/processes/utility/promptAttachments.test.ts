@@ -2,6 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { promptTitle, sanitizeUserPromptForDisplay } from '../../shared/chatAttachments';
 import { buildPromptContent } from './promptAttachments';
 
 // 1x1 transparent PNG.
@@ -58,6 +59,36 @@ describe('buildPromptContent', () => {
 
     expect(content.text).toContain('<file name="clipboard.txt">');
     expect(content.text).toContain('pasted body');
+  });
+
+  it('keeps a quoted clipboard file name out of the displayed text', async () => {
+    const content = await buildPromptContent('', [
+      {
+        kind: 'file',
+        name: 'say "hi".txt',
+        mimeType: 'text/plain',
+        data: Buffer.from('pasted body', 'utf-8').toString('base64'),
+      },
+    ]);
+
+    const display = sanitizeUserPromptForDisplay(content.text);
+    expect(display.text).toBe('');
+    expect(display.inlineFileNames).toEqual(["say 'hi'.txt"]);
+    expect(promptTitle(content.text)).toBe("say 'hi'.txt");
+  });
+
+  it('leaves out an image that cannot be decoded instead of sending raw bytes', async () => {
+    const content = await buildPromptContent('look', [
+      {
+        kind: 'image',
+        name: 'broken.png',
+        mimeType: 'image/png',
+        data: Buffer.from('not an image').toString('base64'),
+      },
+    ]);
+
+    expect(content.images).toEqual([]);
+    expect(content.text).toContain('<file name="broken.png">Failed to attach:');
   });
 
   it('turns image attachments into provider image content', async () => {

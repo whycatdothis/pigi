@@ -102,6 +102,13 @@ export interface SystemNode {
 
 export type TranscriptNode = UserNode | AssistantNode | ToolNode | SystemNode;
 
+interface UserMessageOptions {
+  imageSources?: string[];
+  filePaths?: string[];
+  inlineFileNames?: string[];
+  promptAttachments?: PromptAttachment[];
+}
+
 export type AgentStatus = 'idle' | 'streaming' | 'tool_running' | 'error';
 
 // =============================================================================
@@ -646,15 +653,13 @@ export class TranscriptController {
   // Optimistic user message (shown immediately before SDK echo)
   // ===========================================================================
 
-  addUserMessage(
-    text: string,
-    options?: {
-      imageSources?: string[];
-      filePaths?: string[];
-      inlineFileNames?: string[];
-      promptAttachments?: PromptAttachment[];
-    },
-  ): void {
+  addUserMessage(text: string, options?: UserMessageOptions): void {
+    const key = this.appendUserNode(text, options);
+    this._optimisticUserMessages.set(key, (this._optimisticUserMessages.get(key) ?? 0) + 1);
+  }
+
+  /** Append a user node and return its display text, the optimistic-echo key. */
+  private appendUserNode(text: string, options?: UserMessageOptions): string {
     // Same sanitizing as message_start so the optimistic key matches the echo.
     const split = sanitizeUserPromptForDisplay(text);
     const filePaths = options?.filePaths ?? split.filePaths;
@@ -676,11 +681,8 @@ export class TranscriptController {
       inlineFileNames: inlineFileNames.length > 0 ? inlineFileNames : undefined,
       promptAttachments: options?.promptAttachments?.length ? options.promptAttachments : undefined,
     };
-    this._optimisticUserMessages.set(
-      split.text,
-      (this._optimisticUserMessages.get(split.text) ?? 0) + 1,
-    );
     this.setState({ nodes: [...this._state.nodes, node] });
+    return split.text;
   }
 
   /** Remove the last user message node (used when aborting a buffered prompt). */
@@ -788,7 +790,7 @@ export class TranscriptController {
           const hasContent =
             text || imageSources.length > 0 || filePaths.length > 0 || inlineFileNames.length > 0;
           if (hasContent && !this._hasOptimisticUserMessage(text)) {
-            this.addUserMessage(text, { imageSources, filePaths, inlineFileNames });
+            this.appendUserNode(text, { imageSources, filePaths, inlineFileNames });
           }
           this.stampLastUserMessage(startMessage.timestamp);
         } else if (startMessage?.role === 'assistant' && !this._state.activeAssistantId) {

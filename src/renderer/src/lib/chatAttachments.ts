@@ -10,6 +10,7 @@ import type {
   PromptAttachment,
 } from '../../../shared/ipcContract';
 import {
+  attachmentOnlyTitle,
   displayFileName,
   imageMimeTypeForPath,
   isSupportedImageMimeType,
@@ -185,11 +186,8 @@ export function formatFileSize(bytes: number): string {
 export function chatMessageTitle(message: string, attachments: ChatAttachment[]): string {
   const trimmed = message.trim();
   if (trimmed) return trimmed;
-  if (attachments.length === 0) return '';
-  const imageCount = attachments.filter((attachment) => attachment.kind === 'image').length;
-  if (imageCount === attachments.length) {
-    return imageCount === 1 ? 'Image' : `${imageCount} images`;
-  }
-  if (attachments.length === 1) return attachments[0].name;
-  return `${attachments.length} files`;
+  const fileNames = attachments
+    .filter((attachment) => attachment.kind !== 'image')
+    .map((attachment) => attachment.name);
+  return attachmentOnlyTitle(attachments.length - fileNames.length, fileNames);
 }
