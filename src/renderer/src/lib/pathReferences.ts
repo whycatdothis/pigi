@@ -60,6 +60,21 @@ function canContinueAfterPathWord(word: string): boolean {
   return word.slice(lastSlash + 1).trim().length > 0;
 }
 
+/** Text typed after a folder chip is a query until the first path boundary (e.g. a space). */
+export function isPathQueryText(text: string): boolean {
+  return !PATH_TOKEN_BOUNDARY.test(text);
+}
+
+/**
+ * One level up: `src/main` -> `src`, `/Users` -> `/`. Works on both chip
+ * labels and absolute paths. `null` when there is no parent segment left.
+ */
+export function parentPath(path: string): string | null {
+  const lastSlash = path.lastIndexOf('/');
+  if (lastSlash === -1 || path === '/') return null;
+  return lastSlash === 0 ? '/' : path.slice(0, lastSlash);
+}
+
 /** A leading `/name` token is a slash command only when it has no second slash. */
 export function isLeadingSlashCommand(token: string): boolean {
   return token.startsWith('/') && !token.slice(1).includes('/');
@@ -80,7 +95,7 @@ export function pathCompletionLabel(
   baseLabel: string | null,
   entryName: string,
 ): string {
-  if (baseLabel) return joinPathLabel(baseLabel, entryName);
+  if (baseLabel) return joinPathLabel(baseLabel, `${pathTokenDirectory(token)}${entryName}`);
   // A bare tilde completes to the home directory itself; keep the alias the
   // user typed instead of replacing it with the account name.
   if (token === '~') return '~';

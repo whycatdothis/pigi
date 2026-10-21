@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   findPathTokenAtEnd,
   isLeadingSlashCommand,
+  isPathQueryText,
+  parentPath,
   pathCompletionLabel,
   pathTokenDirectory,
 } from './pathReferences';
@@ -117,6 +119,37 @@ describe('pathCompletionLabel', () => {
 
   it('joins a root directory without a double slash', () => {
     expect(pathCompletionLabel('', '/', 'Users')).toBe('/Users');
+  });
+
+  it('keeps segments typed after a directory chip', () => {
+    expect(pathCompletionLabel('main/ip', 'src', 'ipc')).toBe('src/main/ipc');
+  });
+});
+
+describe('parentPath', () => {
+  it('drops the last segment', () => {
+    expect(parentPath('src/main')).toBe('src');
+    expect(parentPath('~/Documents')).toBe('~');
+    expect(parentPath('/Users/me')).toBe('/Users');
+  });
+
+  it('stops at the filesystem root', () => {
+    expect(parentPath('/Users')).toBe('/');
+    expect(parentPath('/')).toBeNull();
+  });
+
+  it('has no parent for a single relative segment', () => {
+    expect(parentPath('src')).toBeNull();
+    expect(parentPath('~')).toBeNull();
+  });
+});
+
+describe('isPathQueryText', () => {
+  it('ends at whitespace', () => {
+    expect(isPathQueryText('comp')).toBe(true);
+    expect(isPathQueryText('main/ip')).toBe(true);
+    expect(isPathQueryText(' ')).toBe(false);
+    expect(isPathQueryText('comp more')).toBe(false);
   });
 });
 

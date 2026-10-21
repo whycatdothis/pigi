@@ -62,6 +62,7 @@ import {
   exitPathSuggestion,
   exitReferenceSuggestion,
   exitReferenceSuggestions,
+  hasActiveSuggestion,
   type ComposerSuggestion,
   type PathSuggestion,
 } from './composerExtensions';
@@ -228,6 +229,13 @@ export default function ChatInput({
       'aria-multiline': 'true',
       'aria-label': 'Message',
       'data-testid': 'chat-composer',
+    },
+    handleDOMEvents: {
+      // ProseMirror prevents the default of every Escape, which hides it from
+      // the app-level abort shortcut. Skip ProseMirror's handling unless a
+      // picker is open, so Escape closes the picker first and aborts otherwise.
+      keydown: (view, event) =>
+        event.key === 'Escape' && !event.isComposing && !hasActiveSuggestion(view.state),
     },
     handleKeyDown: (_view, event) => handlersRef.current.keyDown(event),
     handlePaste: (_view, event) => handlersRef.current.paste(event),
@@ -677,6 +685,18 @@ export default function ChatInput({
       if (pathSuggestion && event.key === 'ArrowRight') {
         exitPathSuggestion(editor.view);
         return false;
+      }
+      // Plain Backspace after a folder chip goes up one level; word and line
+      // deletion shortcuts keep their default behavior.
+      if (
+        pathSuggestion?.leaveFolder &&
+        event.key === 'Backspace' &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.ctrlKey
+      ) {
+        pathSuggestion.leaveFolder();
+        return true;
       }
       if (pathSuggestion && pathEntries.length > 0) {
         const pathCount = pathEntries.length;
