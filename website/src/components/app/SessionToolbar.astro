@@ -67,7 +67,7 @@ const { title, terminalOpen = false, viewMode = null, viewMenuOpen = false } = A
       </button>
       <span class:list={['app-tooltip', TOOLTIP_CONTENT.classes]}>
         Toggle terminal
-        <kbd class:list={['ml-2', TOOLTIP_KBD.classes]}>⌘ J</kbd>
+        <kbd data-slot="kbd" class={TOOLTIP_KBD.classes}>⌘ J</kbd>
       </span>
     </div>
 
