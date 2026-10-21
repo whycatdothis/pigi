@@ -6,6 +6,10 @@
 
 - A session that finishes while you are in another one shows an accent-colored dot in the sidebar in place of its time, until you open it. The dot is kept across restarts
 
+### Fixed
+
+- Extension commands (such as `/plannotator-review`) show a terminal icon in the chat input, matching the sent message, instead of the skill icon
+
 ## [0.4.13] - 2026-10-21
 
 ### Added
