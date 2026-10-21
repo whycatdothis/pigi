@@ -13,6 +13,10 @@
   <strong>A sleek desktop GUI for <a href="https://pi.dev">pi</a></strong>
 </p>
 
+<p align="center">
+  <a href="https://pigi.pink">pigi.pink</a>
+</p>
+
 ---
 
 ## Features
