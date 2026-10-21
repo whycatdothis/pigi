@@ -249,16 +249,24 @@ push every file out of the list.
 
 A completed path is a `pathReference` chip whose `id` is the absolute path and
 whose label is the full path the user typed, such as `src/renderer` or
-`~/Documents`. Selecting a folder inserts the chip followed by a `/`; the next
-token is completed relative to that chip and replaces it, but the new chip
-carries the full path forward, so the visible path never collapses to just the
-child name. Folder chips have no icon; the trailing slash marks them. Selecting
-a file replaces the folder chip with the file chip and adds a space.
+`~/Documents`. Selecting a folder inserts just the chip. While the cursor sits
+right after a folder chip, or after text glued to it with no space, the picker
+lists that folder: typed text filters it (a leading `/` is tolerated), picking
+a folder replaces the chip with the deeper one, and plain Backspace replaces it
+with its parent (or removes a single-segment chip). The path stays editable
+until a space commits it, and moving the cursor back next to the chip resumes
+editing. The chip serializes with a trailing `/`, so text typed after it never
+glues onto the folder name. Selecting a file replaces the folder chip with the
+file chip and adds a space.
 
-A bare `~` offers the home directory; choosing it lists its children. A space
-right after a bare folder (or `~`) closes the picker; once a name has been
-typed, spaces stay in the fuzzy query so names with spaces can match. The right
-arrow also closes completion.
+Swapping one folder chip for another can leave the suggestion range and query
+unchanged, and the Tiptap suggestion plugin only notifies on those changes, so
+the composer republishes the picker itself after such a swap.
+
+A bare `~` offers the home directory; choosing it lists its children. For a
+typed token, a space right after a bare folder (or `~`) closes the picker; once
+a name has been typed, spaces stay in the fuzzy query so names with spaces can
+match. The right arrow also closes completion.
 
 Only POSIX paths are completed. Spaces are allowed once a name has been typed;
 a path with a space in an earlier segment is easiest to pick through the folder

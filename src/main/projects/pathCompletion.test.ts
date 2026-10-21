@@ -41,6 +41,11 @@ describe('parsePathPrefix', () => {
     });
   });
 
+  it('lists the home directory itself for ~/', () => {
+    expect(parsePathPrefix(root, '~/')).toEqual({ directory: homedir(), namePrefix: '' });
+    expect(parsePathPrefix(root, '~/Doc')).toEqual({ directory: homedir(), namePrefix: 'Doc' });
+  });
+
   it('resolves parent segments against the project directory', () => {
     expect(parsePathPrefix(root, '../other/file')).toEqual({
       directory: join(root, '..', 'other'),

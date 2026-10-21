@@ -28,6 +28,8 @@
 - The path picker is only as wide as its entries
 - Folder suggestions and chips show the full path without a folder icon
 - A space after a bare folder closes path completion; after a typed name, spaces stay in the fuzzy query. The right arrow also closes it.
+- A completed folder stays editable until you type a space: keep typing or pick to go deeper, Backspace to go up a level. No `/` is left behind the folder chip.
+- Path chips show the whole path instead of cutting it off
 
 ### Fixed
 
@@ -44,6 +46,9 @@
 - Clipboard files and pasted images too large to attach are rejected with a message instead of being read in full
 - When `@` file search is unavailable, the input says so instead of reporting that no files were found
 - Path completion reports a directory it cannot read instead of silently showing nothing
+- Picking a folder inside a completed folder lists the new folder instead of the previous one
+- Completing `~/` lists your home folder instead of `~/<your user name>`
+- Escape in the chat input stops the agent again; with a picker open it closes the picker first
 
 ## [0.4.12] - 2026-10-17
 

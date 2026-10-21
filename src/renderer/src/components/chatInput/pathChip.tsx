@@ -1,6 +1,6 @@
 import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react';
 import { displayFileName } from '../../lib/chatAttachments';
-import { REFERENCE_CHIP_CLASS } from '../../lib/referenceChipStyles';
+import { PATH_CHIP_CLASS } from '../../lib/referenceChipStyles';
 import { FileIcon } from '../fileIcon';
 
 /** Inline chip for a completed filesystem path. */
@@ -17,7 +17,7 @@ export function PathChip({ node }: ReactNodeViewProps): React.JSX.Element {
       as="span"
       title={path}
       data-path-kind={isDirectory ? 'directory' : 'file'}
-      className={REFERENCE_CHIP_CLASS}
+      className={PATH_CHIP_CLASS}
     >
       {isDirectory ? null : <FileIcon path={path} />}
       <span className="truncate">{label}</span>

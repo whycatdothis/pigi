@@ -1,11 +1,17 @@
-import { ReactNodeViewRenderer, type Extensions, type Range } from '@tiptap/react';
+import {
+  ReactNodeViewRenderer,
+  type Editor,
+  type Extensions,
+  type JSONContent,
+  type Range,
+} from '@tiptap/react';
 import Document from '@tiptap/extension-document';
 import Paragraph from '@tiptap/extension-paragraph';
 import Text from '@tiptap/extension-text';
 import HardBreak from '@tiptap/extension-hard-break';
 import Mention, { type MentionNodeAttrs } from '@tiptap/extension-mention';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
-import { PluginKey } from '@tiptap/pm/state';
+import { PluginKey, type EditorState } from '@tiptap/pm/state';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 import {
@@ -20,6 +26,8 @@ import type { ChatReferenceKind } from '../../lib/chatReferences';
 import {
   findPathTokenAtEnd,
   isLeadingSlashCommand,
+  isPathQueryText,
+  parentPath,
   pathCompletionLabel,
 } from '../../lib/pathReferences';
 import {
@@ -46,6 +54,7 @@ const SUGGESTION_KEYS: Record<ChatReferenceKind, PluginKey> = {
   file: new PluginKey('composerFileSuggestion'),
 };
 const PATH_SUGGESTION_KEY = new PluginKey('composerPathSuggestion');
+const ALL_SUGGESTION_KEYS = [...Object.values(SUGGESTION_KEYS), PATH_SUGGESTION_KEY];
 const PATH_TRIGGER = '/';
 const PATH_REFERENCE_NODE_NAME = 'pathReference';
 
@@ -69,9 +78,14 @@ export function exitPathSuggestion(view: EditorView): void {
  * would capture the arrow keys.
  */
 export function exitReferenceSuggestions(view: EditorView): void {
-  for (const key of [...Object.values(SUGGESTION_KEYS), PATH_SUGGESTION_KEY]) {
+  for (const key of ALL_SUGGESTION_KEYS) {
     if (key.getState(view.state)?.active) exitSuggestion(view, key);
   }
+}
+
+/** Whether any picker is open. */
+export function hasActiveSuggestion(state: EditorState): boolean {
+  return ALL_SUGGESTION_KEYS.some((key) => key.getState(state)?.active === true);
 }
 
 interface ComposerExtensionOptions {
@@ -86,14 +100,14 @@ interface ComposerExtensionOptions {
 export interface PathSuggestion {
   /** Token to complete, relative to `baseDir` or the project directory. */
   token: string;
-  /** Directory from a preceding folder chip; `null` for a project-relative token. */
+  /** Directory of the folder chip being completed into; `null` for a typed token. */
   baseDir: string | null;
-  /** Full path label shown on a preceding folder chip, if any. */
+  /** Full path label shown on that folder chip, if any. */
   baseLabel: string | null;
-  /** Document position where replacement starts, including a preceding folder chip. */
-  replaceFrom: number;
-  /** Replace the token (and a preceding folder chip) with a path chip. */
+  /** Replace the token (and the folder chip) with a path chip. */
   insert: (entry: PathCompletionEntry) => void;
+  /** Go one level up from the folder chip; set only when nothing is typed after it. */
+  leaveFolder: (() => void) | null;
 }
 
 /** Items are computed by the composer, so the plugin itself never lists any. */
@@ -121,77 +135,100 @@ function suggestionRenderer(
 }
 
 function findPathSuggestionMatch(config: Trigger): SuggestionMatch {
-  const nodeBefore = config.$position.nodeBefore;
+  const { doc, pos, nodeBefore } = config.$position;
+
+  // Right after a folder chip the picker keeps listing that folder, so the
+  // path stays editable until a space commits it.
+  if (directoryChipBefore(doc, pos)) return { range: { from: pos, to: pos }, query: '', text: '' };
   if (!nodeBefore?.isText) return null;
 
   const text = nodeBefore.text ?? '';
+  const textStart = pos - text.length;
+  if (isPathQueryText(text) && directoryChipBefore(doc, textStart)) {
+    return { range: { from: textStart, to: pos }, query: text, text };
+  }
+
   const token = findPathTokenAtEnd(text);
   if (!token) return null;
 
-  const from = config.$position.pos - text.length + token.startOffset;
-  const range = { from, to: config.$position.pos };
-  const directoryChip = directoryChipBefore(config.$position.doc, range);
-
+  const from = textStart + token.startOffset;
   // A leading `/com` belongs to the slash-command picker; `/Users/me` is an
   // absolute path and completes here.
   if (from === COMPOSER_TEXT_START && isLeadingSlashCommand(token.token)) return null;
-  // After a folder chip the `/` inserted with the chip is the separator. A
-  // bare token would be glued to the chip path in the prompt text.
-  if (directoryChip && !token.token.startsWith(PATH_TRIGGER)) return null;
+  // Text glued to a folder chip with a space in it has been committed.
+  if (directoryChipBefore(doc, from)) return null;
 
-  return {
-    range,
-    query: token.token,
-    text: token.token,
-  };
+  return { range: { from, to: pos }, query: token.token, text: token.token };
+}
+
+function pathChipContent(path: string, pathKind: 'file' | 'directory', label: string): JSONContent {
+  return { type: PATH_REFERENCE_NODE_NAME, attrs: { id: path, pathKind, label } };
 }
 
 function pathSuggestionRenderer(
   onPathSuggestionChange: ComposerExtensionOptions['onPathSuggestionChange'],
 ): SuggestionOptions<unknown, MentionNodeAttrs>['render'] {
-  return () => {
-    const publish = (props: ReferenceSuggestionProps): void => {
-      const directoryChip = directoryChipBefore(props.editor.state.doc, props.range);
-      const token =
-        directoryChip && props.query.startsWith(PATH_TRIGGER)
-          ? props.query.slice(PATH_TRIGGER.length)
-          : props.query;
-      const baseLabel = directoryChip?.label ?? null;
-      const replaceFrom = directoryChip?.from ?? props.range.from;
-      onPathSuggestionChange({
-        token,
-        baseDir: directoryChip?.path ?? null,
-        baseLabel,
-        replaceFrom,
-        insert: (entry) => {
-          const label = pathCompletionLabel(token, baseLabel, entry.name);
-          const content = entry.isDirectory
-            ? [
-                {
-                  type: PATH_REFERENCE_NODE_NAME,
-                  attrs: { id: entry.path, pathKind: 'directory', label },
-                },
-                // Keep the slash so typing the next segment reads as one path.
-                { type: 'text', text: PATH_TRIGGER },
-              ]
-            : [
-                {
-                  type: PATH_REFERENCE_NODE_NAME,
-                  attrs: { id: entry.path, pathKind: 'file', label },
-                },
-                { type: 'text', text: ' ' },
-              ];
-          props.editor
-            .chain()
-            .focus()
-            .insertContentAt({ from: replaceFrom, to: props.range.to }, content)
-            .run();
-        },
-      });
+  const publish = (editor: Editor, range: Range, query: string): void => {
+    const directoryChip = directoryChipBefore(editor.state.doc, range.from);
+    // The chip already ends the folder; tolerate a habitual `/` after it.
+    const token = directoryChip && query.startsWith(PATH_TRIGGER) ? query.slice(1) : query;
+    const baseLabel = directoryChip?.label ?? null;
+
+    const replaceToken = (content: JSONContent[]): void => {
+      const target = { from: directoryChip?.from ?? range.from, to: range.to };
+      const chain = editor.chain().focus();
+      (content.length > 0
+        ? chain.insertContentAt(target, content)
+        : chain.deleteRange(target)
+      ).run();
+
+      // Swapping one folder chip for another keeps the same range and query,
+      // and the plugin only notifies when those change. Publish again so the
+      // picker lists the new folder.
+      const next = PATH_SUGGESTION_KEY.getState(editor.state);
+      if (
+        next?.active &&
+        next.query === query &&
+        next.range.from === range.from &&
+        next.range.to === range.to
+      ) {
+        publish(editor, next.range, next.query);
+      }
     };
+
+    onPathSuggestionChange({
+      token,
+      baseDir: directoryChip?.path ?? null,
+      baseLabel,
+      insert: (entry) => {
+        const label = pathCompletionLabel(token, baseLabel, entry.name);
+        replaceToken(
+          entry.isDirectory
+            ? [pathChipContent(entry.path, 'directory', label)]
+            : // A file cannot go deeper, so it commits right away.
+              [pathChipContent(entry.path, 'file', label), { type: 'text', text: ' ' }],
+        );
+      },
+      leaveFolder:
+        directoryChip && query.length === 0
+          ? () => {
+              const parentLabel = directoryChip.label ? parentPath(directoryChip.label) : null;
+              const parentDirectory = parentPath(directoryChip.path);
+              replaceToken(
+                parentLabel && parentDirectory
+                  ? [pathChipContent(parentDirectory, 'directory', parentLabel)]
+                  : [],
+              );
+            }
+          : null,
+    });
+  };
+  return () => {
+    const publishProps = (props: ReferenceSuggestionProps): void =>
+      publish(props.editor, props.range, props.query);
     return {
-      onStart: publish,
-      onUpdate: publish,
+      onStart: publishProps,
+      onUpdate: publishProps,
       onExit: () => onPathSuggestionChange(null),
     };
   };
@@ -212,29 +249,21 @@ interface DirectoryChipContext {
   label: string | null;
 }
 
-/** The folder chip immediately before a completion token, if any. */
-function directoryChipBefore(doc: ProseMirrorNode, range: Range): DirectoryChipContext | null {
-  const $to = doc.resolve(range.to);
-  const tokenNode = $to.nodeBefore;
-  if (!tokenNode?.isText) return null;
-
-  const textStart = range.to - tokenNode.nodeSize;
-  // A token after a space starts a new path, not a continuation of the chip.
-  if (range.from !== textStart) return null;
-
-  const preceding = doc.resolve(textStart).nodeBefore;
+/** The folder chip ending at `position`, if any. */
+function directoryChipBefore(doc: ProseMirrorNode, position: number): DirectoryChipContext | null {
+  const chip = doc.resolve(position).nodeBefore;
   if (
-    preceding?.type.name !== PATH_REFERENCE_NODE_NAME ||
-    preceding.attrs.pathKind !== 'directory' ||
-    typeof preceding.attrs.id !== 'string'
+    chip?.type.name !== PATH_REFERENCE_NODE_NAME ||
+    chip.attrs.pathKind !== 'directory' ||
+    typeof chip.attrs.id !== 'string'
   ) {
     return null;
   }
 
   return {
-    from: textStart - preceding.nodeSize,
-    path: preceding.attrs.id,
-    label: typeof preceding.attrs.label === 'string' ? preceding.attrs.label : null,
+    from: position - chip.nodeSize,
+    path: chip.attrs.id,
+    label: typeof chip.attrs.label === 'string' && chip.attrs.label ? chip.attrs.label : null,
   };
 }
 
@@ -307,7 +336,11 @@ export function createComposerExtensions({
     }),
     PathMention.configure({
       deleteTriggerWithBackspace: true,
-      renderText: ({ node }) => (typeof node.attrs.id === 'string' ? node.attrs.id : ''),
+      renderText: ({ node }) => {
+        const path = typeof node.attrs.id === 'string' ? node.attrs.id : '';
+        // A trailing slash keeps text typed after a folder chip a separate segment.
+        return node.attrs.pathKind === 'directory' && !path.endsWith('/') ? `${path}/` : path;
+      },
       suggestions: [
         {
           char: PATH_TRIGGER,
