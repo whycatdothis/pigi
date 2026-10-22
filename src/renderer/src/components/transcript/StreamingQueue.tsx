@@ -113,7 +113,11 @@ export default function StreamingQueue({
     node: (
       <QueueBar
         icon={
-          <IconStarFilled className="size-4 animate-[spin_2.2s_linear_infinite] text-[var(--system-accent)] will-change-transform" />
+          // The span rotates, not the svg: Chromium cannot run a rotation of an
+          // svg element on the compositor, so it would stall with the main thread.
+          <span className="inline-flex size-4 animate-[spin_2.2s_linear_infinite] will-change-transform">
+            <IconStarFilled className="size-4 text-[var(--system-accent)]" />
+          </span>
         }
       >
         <span>{busyLabel ?? 'Working...'}</span>
