@@ -84,7 +84,7 @@ function SessionTrailing({
   if (isRunning) {
     return (
       <SpinningIcon className="ml-2 animate-[spin_1.8s_linear_infinite]">
-        <IconLoader2 className="size-3.5 text-green-500" />
+        <IconLoader2 className="size-3.5 text-sidebar-accent-foreground" />
       </SpinningIcon>
     );
   }
