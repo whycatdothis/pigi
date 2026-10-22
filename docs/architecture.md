@@ -356,12 +356,14 @@ survives merging.
 Chromium matches `:focus-visible` after any keypress without Cmd/Ctrl/Alt
 (Shift, Escape, typing) until a mouse click moves focus to another element,
 and for script focus after such a key (Radix returning focus to a menu
-trigger). `lib/focusModality.ts` treats only Tab, arrows and Home/End as
-keyboard navigation and sets `data-pointer-focus` on elements focused any other
-way. `main.css` redefines the Tailwind `focus-visible` variant to skip marked
-elements and drops the UA outline on them, so every `focus-visible:` utility
-follows this rule. Arbitrary selectors such as `has-[...:focus-visible]` do
-not go through the variant and need `:not([data-pointer-focus])` themselves.
+trigger). `lib/focusModality.ts` counts a Tab, arrow or Home/End press as
+keyboard navigation only when focus moves before its keyup, so caret moves and
+Tab-accepted completions do not count, and sets `data-pointer-focus` on
+elements focused any other way. Text fields are never marked: they keep
+Chromium's always-visible focus, like native text fields. `main.css` redefines
+the Tailwind `focus-visible` variant to skip marked elements and drops the UA
+outline on them, so every `focus-visible:` utility follows this rule. Raw CSS
+and arbitrary selectors (`has-[...:focus-visible]`) bypass the variant.
 
 ## Credentials
 
