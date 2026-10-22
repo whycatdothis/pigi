@@ -22,7 +22,7 @@ function Toaster({ ...props }: ToasterProps): React.JSX.Element {
         warning: <IconAlertTriangle className="size-4" />,
         error: <IconAlertOctagon className="size-4" />,
         loading: (
-          <SpinningIcon className="animate-spin">
+          <SpinningIcon>
             <IconLoader className="size-4" />
           </SpinningIcon>
         ),

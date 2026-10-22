@@ -276,7 +276,7 @@ export default function LoginDialog({
               onClick={handleApiKeySubmit}
             >
               {loadingProvider === apiKeyProvider.trim() ? (
-                <SpinningIcon className="animate-spin">
+                <SpinningIcon>
                   <IconLoader2 className="size-4" />
                 </SpinningIcon>
               ) : (
