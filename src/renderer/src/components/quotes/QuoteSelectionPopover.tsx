@@ -203,7 +203,7 @@ export default function QuoteSelectionPopover({
         return;
       }
       selectingRef.current = false;
-      scheduleUpdate();
+      updatePosition();
     };
     const handleSelectionChange = (): void => {
       const selection = window.getSelection();
@@ -266,7 +266,7 @@ export default function QuoteSelectionPopover({
       <button
         type="button"
         data-testid="quote-selection-button"
-        className="absolute z-20 flex h-7 items-center gap-1.5 rounded-lg bg-popover/88 px-2.5 text-xs font-medium text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25 backdrop-blur-sm transition-colors hover:bg-muted/88 animate-in fade-in-0 duration-100"
+        className="absolute z-20 flex h-7 items-center gap-1.5 rounded-lg bg-popover/88 px-2.5 text-xs font-medium text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25 backdrop-blur-sm transition-colors hover:bg-muted/88"
         style={placementStyle(state.anchor, BUTTON_HALF_WIDTH_PX * 2, BUTTON_HEIGHT_PX)}
         // Keep the text selection alive through the click.
         onPointerDown={(event) => event.preventDefault()}
