@@ -7,6 +7,7 @@ import App from './App';
 import { Toaster } from './components/ui/sonner';
 import { applyThemeAccent, DEFAULT_THEME_ACCENT_ID } from './lib/themeAccents';
 import { installDebugHandle } from './lib/debugHandle';
+import { installFocusModality } from './lib/focusModality';
 
 if (import.meta.env.DEV) {
   installDebugHandle();
@@ -15,6 +16,7 @@ if (import.meta.env.DEV) {
 // Publish the app accent before first paint. Synchronous, so no color flash.
 // A future settings page will call applyThemeAccent with the user's choice.
 applyThemeAccent(DEFAULT_THEME_ACCENT_ID);
+installFocusModality();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

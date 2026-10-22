@@ -8,9 +8,17 @@
    invalidates every font and re-lays out the whole document on window resize. */
 @source not inline('container');
 
+/* Focus rings only for keyboard navigation; see lib/focusModality.ts. */
+@custom-variant focus-visible (&:focus-visible:not([data-pointer-focus]));
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+
+  /* The UA's default focus outline, for controls without their own ring. */
+  :focus-visible[data-pointer-focus] {
+    outline: none;
   }
 
   /* The app's icon weight. Only icons left at the library default (2) are
