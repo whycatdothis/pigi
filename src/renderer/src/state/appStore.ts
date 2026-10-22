@@ -8,6 +8,8 @@ import type {
   ThinkingLevel,
 } from '../../../shared/ipcContract';
 import type { Platform } from '../../../shared/platform';
+import type { MessageQuote } from '../lib/messageQuotes';
+import { RIGHT_SIDEBAR_TABS, type RightSidebarTab } from '../lib/rightSidebarTabs';
 import type { AgentStatus } from './transcriptController';
 
 export type { AgentStatus };
@@ -81,6 +83,20 @@ interface AppState {
   activeTerminalTabId: string | null;
   setTerminalTabs: (tabs: TerminalTabView[], activeTabId: string | null) => void;
 
+  // Quotes collected from the transcript, per session, waiting to be sent
+  // together. In memory only: they are a short-lived review draft.
+  quotesBySession: Map<string, MessageQuote[]>;
+  addQuote: (sessionPath: string, text: string, comment: string) => void;
+  updateQuoteComment: (sessionPath: string, quoteId: string, comment: string) => void;
+  removeQuote: (sessionPath: string, quoteId: string) => void;
+  setSessionQuotes: (sessionPath: string, quotes: MessageQuote[]) => void;
+
+  rightSidebarOpen: boolean;
+  rightSidebarTab: RightSidebarTab;
+  setRightSidebarOpen: (open: boolean) => void;
+  toggleRightSidebar: () => void;
+  setRightSidebarTab: (tab: RightSidebarTab) => void;
+
   // Tool block view mode: 'default' shows all cards, 'compact_read' collapses consecutive read-only tools, 'minimal' renders a minimal/codex-style activity view
   toolBlockViewMode: 'default' | 'compact_read' | 'minimal';
   setToolBlockViewMode: (mode: 'default' | 'compact_read' | 'minimal') => void;
@@ -128,6 +144,20 @@ function loadUnreadSessionPaths(): Set<string> {
   } catch {
     return new Set();
   }
+}
+
+function withSessionQuotes(
+  quotesBySession: Map<string, MessageQuote[]>,
+  sessionPath: string,
+  quotes: MessageQuote[],
+): Map<string, MessageQuote[]> {
+  const next = new Map(quotesBySession);
+  if (quotes.length > 0) {
+    next.set(sessionPath, quotes);
+  } else {
+    next.delete(sessionPath);
+  }
+  return next;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -244,6 +274,44 @@ export const useAppStore = create<AppState>((set) => ({
   activeTerminalTabId: null,
   setTerminalTabs: (terminalTabs, activeTerminalTabId) =>
     set({ terminalTabs, activeTerminalTabId }),
+
+  // Quotes
+  quotesBySession: new Map(),
+  addQuote: (sessionPath, text, comment) =>
+    set((state) => {
+      const quote: MessageQuote = { id: crypto.randomUUID(), text, comment };
+      const quotes = [...(state.quotesBySession.get(sessionPath) ?? []), quote];
+      return {
+        quotesBySession: withSessionQuotes(state.quotesBySession, sessionPath, quotes),
+        rightSidebarOpen: true,
+        rightSidebarTab: RIGHT_SIDEBAR_TABS.quotes,
+      };
+    }),
+  updateQuoteComment: (sessionPath, quoteId, comment) =>
+    set((state) => {
+      const quotes = (state.quotesBySession.get(sessionPath) ?? []).map((quote) =>
+        quote.id === quoteId ? { ...quote, comment } : quote,
+      );
+      return { quotesBySession: withSessionQuotes(state.quotesBySession, sessionPath, quotes) };
+    }),
+  removeQuote: (sessionPath, quoteId) =>
+    set((state) => {
+      const quotes = (state.quotesBySession.get(sessionPath) ?? []).filter(
+        (quote) => quote.id !== quoteId,
+      );
+      return { quotesBySession: withSessionQuotes(state.quotesBySession, sessionPath, quotes) };
+    }),
+  setSessionQuotes: (sessionPath, quotes) =>
+    set((state) => ({
+      quotesBySession: withSessionQuotes(state.quotesBySession, sessionPath, quotes),
+    })),
+
+  // Right sidebar
+  rightSidebarOpen: false,
+  rightSidebarTab: RIGHT_SIDEBAR_TABS.quotes,
+  setRightSidebarOpen: (open) => set({ rightSidebarOpen: open }),
+  toggleRightSidebar: () => set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
+  setRightSidebarTab: (tab) => set({ rightSidebarTab: tab }),
 
   // Tool block view mode
   toolBlockViewMode: 'compact_read',
