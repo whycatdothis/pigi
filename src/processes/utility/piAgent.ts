@@ -51,6 +51,7 @@ import {
   type PromptQueueName,
 } from './queuedPromptInputs';
 import { buildSessionTree, readEntryText, resolveForkTarget } from './sessionTree';
+import { promptInputFromUserMessage } from './userMessageInput';
 
 // =============================================================================
 // Port interface (compatible with Electron's MessagePortMain)
@@ -672,15 +673,26 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
       // Serializing navigation is the SDK's job: navigateTree returns
       // { cancelled } instead of moving when a response or compaction is in
       // flight, leaving the branch untouched.
+      const targetEntry = runtime.session.sessionManager.getEntry(command.targetId);
       const result = await runtime.session.navigateTree(command.targetId, {
         summarize: command.summarize,
         customInstructions: command.customInstructions,
       });
+      if (result.editorText === undefined) {
+        return { success: true, cancelled: result.cancelled, aborted: result.aborted };
+      }
+      // The SDK's editor text is the built prompt: attachment plumbing in, images
+      // out. A user message is rebuilt from its content instead.
+      const restored =
+        targetEntry?.type === 'message' && targetEntry.message.role === 'user'
+          ? promptInputFromUserMessage(targetEntry.message.content)
+          : { input: { message: result.editorText, attachments: [] }, droppedFileNames: [] };
       return {
         success: true,
         cancelled: result.cancelled,
         aborted: result.aborted,
-        editorText: result.editorText,
+        editorInput: restored.input,
+        droppedFileNames: restored.droppedFileNames,
       };
     }
 
@@ -973,11 +985,15 @@ function forkSession(entryId: string, position: 'before' | 'at'): ForkSessionRes
 
   const target = resolveForkTarget(sessionManager.getEntries(), entryId, position);
   if (!target) return { success: false, error: 'entry not found' };
+  const restored = {
+    editorInput: target.restored?.input,
+    droppedFileNames: target.restored?.droppedFileNames,
+  };
 
   // Forking the first message: there is nothing before it, so the caller starts
   // an empty session with this one as its parent instead.
   if (!target.leafId) {
-    return { success: true, needsNewSession: true, selectedText: target.selectedText };
+    return { success: true, needsNewSession: true, ...restored };
   }
 
   try {
@@ -986,9 +1002,9 @@ function forkSession(entryId: string, position: 'before' | 'at'): ForkSessionRes
     // A path without an assistant message is not written until the first
     // response, so there is no file to open: the new-session path takes over.
     if (!newPath || !existsSync(newPath)) {
-      return { success: true, needsNewSession: true, selectedText: target.selectedText };
+      return { success: true, needsNewSession: true, ...restored };
     }
-    return { success: true, sessionPath: newPath, selectedText: target.selectedText };
+    return { success: true, sessionPath: newPath, ...restored };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }

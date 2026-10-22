@@ -880,8 +880,8 @@ function App(): React.JSX.Element {
       session: PiSessionInfo,
       options?: {
         skipHistory?: boolean;
-        /** Text to put in the input box once this session is showing (a fork). */
-        prefillText?: string;
+        /** What to put in the input box once this session is showing (a fork). */
+        prefillInput?: PromptInput;
         /**
          * The session was created for this call: its process is already
          * attached and its file appears with the first response, so there is
@@ -969,8 +969,8 @@ function App(): React.JSX.Element {
       }
       setActiveSession(sessionPath);
       setPendingSelectedPath(null);
-      if (options?.prefillText) {
-        setRestoreInputs([{ message: options.prefillText, attachments: [] }]);
+      if (options?.prefillInput) {
+        setRestoreInputs([options.prefillInput]);
       }
 
       if (options?.freshSession) {
@@ -1051,7 +1051,7 @@ function App(): React.JSX.Element {
     isSessionStarting: (sessionPath) => pendingResumesRef.current.has(sessionPath),
     abortTurn: handleAbort,
     resumeSession: handleResumeSession,
-    setRestoreText: (text) => setRestoreInputs([{ message: text, attachments: [] }]),
+    setRestoreInput: (input) => setRestoreInputs([input]),
     refreshSessionState: (sessionPath) => {
       void refreshSessionState(sessionPath);
     },
@@ -1063,14 +1063,21 @@ function App(): React.JSX.Element {
 
   const messageActions = useMemo<MessageActions>(() => {
     if (!activeSessionPath) {
-      return { onTree: null, onFork: null, disabledReason: null };
+      return { onTree: null, onFork: null, onEdit: null, disabledReason: null };
     }
     return {
       onTree: tree.onTreeMessage,
       onFork: tree.onForkMessage,
+      onEdit: tree.onEditMessage,
       disabledReason: tree.disabledReason,
     };
-  }, [activeSessionPath, tree.disabledReason, tree.onForkMessage, tree.onTreeMessage]);
+  }, [
+    activeSessionPath,
+    tree.disabledReason,
+    tree.onEditMessage,
+    tree.onForkMessage,
+    tree.onTreeMessage,
+  ]);
 
   const handleOpenProject = useCallback(async () => {
     const result = await openProjectDirectory();

@@ -214,32 +214,23 @@ describe('resolveForkTarget', () => {
   ];
 
   it('keeps the entry itself when forking at it', () => {
-    expect(resolveForkTarget(entries, 'a1', 'at')).toEqual({
-      leafId: 'a1',
-      selectedText: undefined,
-    });
-    expect(resolveForkTarget(entries, 'u2', 'at')).toEqual({
-      leafId: 'u2',
-      selectedText: undefined,
-    });
+    expect(resolveForkTarget(entries, 'a1', 'at')).toEqual({ leafId: 'a1' });
+    expect(resolveForkTarget(entries, 'u2', 'at')).toEqual({ leafId: 'u2' });
   });
 
   it('ends before the entry and hands a user message back, when forking before it', () => {
     expect(resolveForkTarget(entries, 'u2', 'before')).toEqual({
       leafId: 'a1',
-      selectedText: 'second prompt',
+      restored: { input: { message: 'second prompt', attachments: [] }, droppedFileNames: [] },
     });
   });
 
   it('has nothing before the first message, and does not hand an assistant message back', () => {
     expect(resolveForkTarget(entries, 'u1', 'before')).toEqual({
       leafId: null,
-      selectedText: 'first prompt',
+      restored: { input: { message: 'first prompt', attachments: [] }, droppedFileNames: [] },
     });
-    expect(resolveForkTarget(entries, 'a1', 'before')).toEqual({
-      leafId: 'u1',
-      selectedText: undefined,
-    });
+    expect(resolveForkTarget(entries, 'a1', 'before')).toEqual({ leafId: 'u1' });
   });
 
   it('answers null for an entry that is not there', () => {

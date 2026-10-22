@@ -14,6 +14,8 @@ export interface MessageActions {
   onTree: ((node: TranscriptNode) => void) | null;
   /** Continue in a new session from this message. Null when unavailable. */
   onFork: ((node: TranscriptNode) => void) | null;
+  /** Take a user message back into the input box, dropping what followed it. */
+  onEdit: ((node: TranscriptNode) => void) | null;
   /** Non-null while the actions exist but cannot run (compacting, summarizing). */
   disabledReason: string | null;
 }
@@ -21,6 +23,7 @@ export interface MessageActions {
 export const MessageActionsContext = createContext<MessageActions>({
   onTree: null,
   onFork: null,
+  onEdit: null,
   disabledReason: null,
 });
 

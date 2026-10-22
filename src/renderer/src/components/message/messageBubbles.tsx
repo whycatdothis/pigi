@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { IconCheck, IconCopy, IconCube, IconTerminal2 } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconCube, IconPencil, IconTerminal2 } from '@tabler/icons-react';
 import {
   type SystemNode,
   type TranscriptNode,
@@ -68,7 +68,7 @@ const ACTION_BUTTON_CLASS_NAME =
 const ACTION_TOOLTIP_DELAY_MS = 500;
 
 interface MessageAction {
-  id: 'tree' | 'fork';
+  id: 'edit' | 'tree' | 'fork';
   label: string;
   hint?: string;
   icon: React.JSX.Element;
@@ -145,7 +145,7 @@ export function MessageToolbar({ node }: { node: TranscriptNode }): React.JSX.El
         ? node.text || node.thinking
         : node.text;
   const { copied, copy } = useCopyFeedback(text);
-  const { onTree, onFork, disabledReason } = useMessageActions();
+  const { onTree, onFork, onEdit, disabledReason } = useMessageActions();
   const showTreeActions = isNavigableNode(node) && !isInFlight(node);
   const disabled = disabledReason !== null;
 
@@ -153,6 +153,36 @@ export function MessageToolbar({ node }: { node: TranscriptNode }): React.JSX.El
   // so it is the only case that needs the extra line.
   const treeHint =
     !disabled && node.role === 'user' ? 'This message goes back to the input box' : undefined;
+
+  const actions: MessageAction[] = [];
+  // A user message only has a tree entry to move to once the SDK has it.
+  if (onEdit && node.role === 'user' && node.sdkTimestamp !== undefined) {
+    actions.push({
+      id: 'edit',
+      label: disabledReason ?? 'Edit message',
+      hint: disabled ? undefined : 'Leaves this branch without a summary',
+      icon: <IconPencil size={ACTION_ICON_SIZE} />,
+      run: () => onEdit(node),
+    });
+  }
+  if (showTreeActions && onTree) {
+    actions.push({
+      id: 'tree',
+      label: disabledReason ?? 'Move the session here',
+      hint: treeHint,
+      icon: <SessionTreeIcon size={ACTION_ICON_SIZE} />,
+      showHelp: true,
+      run: () => onTree(node),
+    });
+  }
+  if (showTreeActions && onFork) {
+    actions.push({
+      id: 'fork',
+      label: disabledReason ?? 'Fork this msg in new session',
+      icon: <SessionForkIcon size={ACTION_ICON_SIZE} />,
+      run: () => onFork(node),
+    });
+  }
 
   return (
     <TooltipProvider delayDuration={ACTION_TOOLTIP_DELAY_MS}>
@@ -167,35 +197,7 @@ export function MessageToolbar({ node }: { node: TranscriptNode }): React.JSX.El
         >
           {copied ? <IconCheck size={ACTION_ICON_SIZE} /> : <IconCopy size={ACTION_ICON_SIZE} />}
         </button>
-        {showTreeActions && (onTree || onFork) && (
-          <MessageActionTooltip
-            disabled={disabled}
-            actions={[
-              ...(onTree
-                ? [
-                    {
-                      id: 'tree' as const,
-                      label: disabledReason ?? 'Move the session here',
-                      hint: treeHint,
-                      icon: <SessionTreeIcon size={ACTION_ICON_SIZE} />,
-                      showHelp: true,
-                      run: () => onTree(node),
-                    },
-                  ]
-                : []),
-              ...(onFork
-                ? [
-                    {
-                      id: 'fork' as const,
-                      label: disabledReason ?? 'Fork this msg in new session',
-                      icon: <SessionForkIcon size={ACTION_ICON_SIZE} />,
-                      run: () => onFork(node),
-                    },
-                  ]
-                : []),
-            ]}
-          />
-        )}
+        {actions.length > 0 && <MessageActionTooltip disabled={disabled} actions={actions} />}
       </div>
     </TooltipProvider>
   );

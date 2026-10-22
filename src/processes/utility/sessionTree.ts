@@ -14,6 +14,7 @@
 import type { SessionEntry, SessionMessageEntry } from '@earendil-works/pi-coding-agent';
 import type { SessionTree, SessionTreeEntry } from '../../shared/ipcContract';
 import { clipText, extractMessageText, toSingleLine } from '../../shared/messageText';
+import { promptInputFromUserMessage, type RestoredUserInput } from './userMessageInput';
 
 /** An entry's message. Kept as a lookup so the agent-core package stays an
  *  implementation detail of the SDK. */
@@ -85,8 +86,8 @@ export function buildSessionTree(entries: SessionEntry[], leafId: string | null)
 export interface ForkTarget {
   /** Entry the forked path ends at; `null` means "before everything". */
   leafId: string | null;
-  /** Text to pre-fill in the new session (a user message forked `before`). */
-  selectedText?: string;
+  /** Input box content for the new session (a user message forked `before`). */
+  restored?: RestoredUserInput;
 }
 
 /**
@@ -103,11 +104,11 @@ export function resolveForkTarget(
   if (!entry) return null;
   if (position === 'at') return { leafId: entry.id };
 
-  const selectedText =
+  const restored =
     entry.type === 'message' && entry.message.role === 'user'
-      ? extractMessageText(entry.message.content)
-      : '';
-  return { leafId: entry.parentId, selectedText: selectedText || undefined };
+      ? promptInputFromUserMessage(entry.message.content)
+      : undefined;
+  return { leafId: entry.parentId, restored };
 }
 
 /**

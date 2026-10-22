@@ -50,11 +50,14 @@ describe('chatAttachments', () => {
     ).toBe('hi');
   });
 
-  it('returns inline file names for display chips', () => {
+  it('returns inline files with their content', () => {
     expect(splitInlineFileBlocks('hi\n<file name="notes.txt">\nbody\n</file>\n')).toEqual({
       text: 'hi',
-      fileNames: ['notes.txt'],
+      files: [{ name: 'notes.txt', content: 'body' }],
     });
+    expect(
+      splitInlineFileBlocks('<file name="x.bin">Binary file (12 bytes).</file>').files,
+    ).toEqual([{ name: 'x.bin', content: null }]);
     expect(sanitizeUserPromptForDisplay('<file name="a.bin">\nraw\n</file>')).toEqual({
       text: '',
       filePaths: [],
