@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { memo, useEffect, useState, useCallback, useRef } from 'react';
 import {
   IconFolderPlus,
   IconMessageCirclePlus,
@@ -31,7 +31,7 @@ import type { SidebarProps } from './types';
 import { ProjectList } from './projectList';
 import { getProjectSessions as getOrderedProjectSessions } from '../../lib/projectSessions';
 
-export default function Sidebar({
+export default memo(function Sidebar({
   sessions,
   selectedSessionPath,
   recentProjects,
@@ -310,4 +310,4 @@ export default function Sidebar({
       </ShadcnSidebar>
     </TooltipProvider>
   );
-}
+});

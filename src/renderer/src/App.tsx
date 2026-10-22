@@ -865,15 +865,18 @@ function App(): React.JSX.Element {
     // is tagged with that session's path.
   }, [isDraftChat, activeSessionPath, pushNavigationHistory, setActiveSession]);
 
-  function handleNewSessionForProject(path: string): void {
-    const result = setActiveProject(path);
-    void result.then((r) => {
-      if (r.success) {
-        useAppStore.getState().setProjects(r.recentProjects, r.activeProject);
-      }
-    });
-    handleNewSession();
-  }
+  const handleNewSessionForProject = useCallback(
+    (path: string): void => {
+      const result = setActiveProject(path);
+      void result.then((r) => {
+        if (r.success) {
+          useAppStore.getState().setProjects(r.recentProjects, r.activeProject);
+        }
+      });
+      handleNewSession();
+    },
+    [handleNewSession],
+  );
 
   const handleResumeSession = useCallback(
     async (
@@ -1443,6 +1446,8 @@ function App(): React.JSX.Element {
                 !sidebarExpanded && '-translate-x-full',
               )}
             >
+              {/* Sidebar is memoized and App re-renders on every streaming update:
+                  pass only stable props (store values, useCallback), no inline functions or objects. */}
               <Sidebar
                 sessions={sessions}
                 selectedSessionPath={selectedSessionPath}
