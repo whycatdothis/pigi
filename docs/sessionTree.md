@@ -211,8 +211,10 @@ what a query is matched against, which keeps `bash` able to find those rows.
   kind filters a tree can lose its root row and re-attach higher up, and its rows
   must still land under one header.
 - Trees that do not hold the current leaf start folded, so one long tree cannot
-  push the other versions out of sight; a filter or a search unfolds every tree,
-  because that is about rows, not versions. Folding is done by the dialog on the
+  push the other versions out of sight. Back before the first message the leaf
+  is in no tree, and the newest tree opens instead (this also keeps a lone tree,
+  which has no header to unfold it, from folding away); a filter or a search
+  unfolds every tree, because that is about rows, not versions. Folding is done by the dialog on the
   whole group (the tree's rows are left out of the list) rather than through a
   row item: folding one root row of a filtered tree would hide part of it, and
   the rows of a folded tree should cost nothing to render. Unfolding is one click

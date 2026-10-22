@@ -7,6 +7,7 @@
 - When an extension compacts the context right after a response finishes, the working bar stays visible and messages sent during compaction show in the queue, instead of disappearing until compaction ends
 - Editing a message whose response was stopped mid tool call goes back to before it, instead of reporting that the message has no reply to leave
 - Moving the session to the message it is already at no longer drops a model or thinking level change made after it
+- After going back to before the first message, the session tree opens the newest version instead of folding everything away, which left a single-version session with an empty list and no way to get back
 
 ## [0.4.14] - 2026-10-22
 
