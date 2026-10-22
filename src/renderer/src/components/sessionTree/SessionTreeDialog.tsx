@@ -223,7 +223,7 @@ export default function SessionTreeDialog({
               // every row the reader opened.
               key={`${sessionPath}\u0000${trimmedQuery}\u0000${[...kinds].sort().join(',')}`}
               data={data}
-              currentId={currentTree?.leafId ?? null}
+              currentId={currentTree?.visibleLeafId ?? null}
               ref={listRef}
               autoScroll={currentTree !== null && currentTree === firstTreeOfVisit}
               collapsedTreeIds={collapsedTreeIds}

@@ -125,7 +125,9 @@ describe('buildSessionTree', () => {
       assistantEntry('a1', 'u1', 'running', { id: 'c1', name: 'bash', arguments: {} }),
     ];
 
-    expect(buildSessionTree(entries, 'a1').leafId).toBe('u1');
+    const tree = buildSessionTree(entries, 'a1');
+    expect(tree.visibleLeafId).toBe('u1');
+    expect(tree.leafId).toBe('a1');
   });
 
   it('rewrites parents across entries that are not rows at all', () => {

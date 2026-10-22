@@ -39,7 +39,7 @@ function entry(
 }
 
 function tree(entries: SessionTreeEntry[], leafId: string | null): SessionTree {
-  return { entries, leafId };
+  return { entries, leafId, visibleLeafId: leafId };
 }
 
 /**

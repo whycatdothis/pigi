@@ -24,7 +24,7 @@ import {
 } from '../services/piAgentClient';
 import { useAppStore } from '../state/appStore';
 import { ensureTranscriptSession } from './useTranscript';
-import { countAbandonedEntries, resolveEntryId } from '../lib/sessionTreeLayout';
+import { countAbandonedEntries, isCurrentPosition, resolveEntryId } from '../lib/sessionTreeLayout';
 import type { MessageListHandle } from '../components/transcript/MessageList';
 import type { TranscriptNode } from '../state/transcriptController';
 import type { PiSessionInfo, PromptInput, SessionTree } from '../../../shared/ipcContract';
@@ -227,7 +227,7 @@ export function useSessionTreeNavigation(
    */
   const continueTreeNavigation = useCallback(
     (sessionPath: string, tree: SessionTree, entryId: string): Promise<void> | null => {
-      if (entryId === tree.leafId) return Promise.resolve();
+      if (isCurrentPosition(tree, entryId)) return Promise.resolve();
       const abandonedCount = countAbandonedEntries(tree, entryId);
       if (abandonedCount > 0) {
         setSummaryPrompt({ entryId, abandonedCount });
@@ -282,9 +282,8 @@ export function useSessionTreeNavigation(
       try {
         const target = await resolveNodeTarget(node);
         if (!target) return;
-        // The SDK treats a move to the current leaf as a no-op, so a message
-        // with nothing after it would silently stay put.
-        if (target.entryId === target.tree.leafId) {
+        // A message with nothing after it would silently stay put.
+        if (isCurrentPosition(target.tree, target.entryId)) {
           toast.error('This message has no reply to leave yet');
           return;
         }

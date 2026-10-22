@@ -117,7 +117,6 @@ export function createSessionTreeData(
   for (const entry of entries) {
     entryById.set(entry.id, entry);
   }
-  const effectiveLeafId = tree.leafId;
 
   const eligibleEntries = kinds ? entries.filter((entry) => kinds.has(entry.kind)) : entries;
 
@@ -171,7 +170,7 @@ export function createSessionTreeData(
     });
   }
 
-  const activePathIds = collectActivePathIds(effectiveLeafId, entryById);
+  const activePathIds = collectActivePathIds(tree.visibleLeafId, entryById);
   // Every entry in the session, filtered out or not, so the tree numbering is a
   // property of the session and not of the current search.
   const treeIds: string[] = [];
@@ -195,7 +194,7 @@ export function createSessionTreeData(
     treeIds,
     treeRootIdByItemId,
     isFiltered: normalizedQuery !== '' || kinds !== null,
-    currentRootId: findRootId(effectiveLeafId, entryById),
+    currentRootId: findRootId(tree.visibleLeafId, entryById),
     rootStatsById: collectRootStats(rootChildIds, itemById),
     itemCount: itemById.size,
     matchIndexesById,

@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionTree, SessionTreeEntry } from '../../../shared/ipcContract';
 import type { AssistantNode, ToolNode, UserNode } from '../state/transcriptController';
-import { isNavigableNode, resolveEntryId } from './sessionTreeLayout';
+import { isCurrentPosition, isNavigableNode, resolveEntryId } from './sessionTreeLayout';
 
 const TIMESTAMP = 1_767_000_000_000;
 
@@ -45,6 +45,7 @@ function toolNode(extra: Partial<ToolNode> = {}): ToolNode {
 
 const tree: SessionTree = {
   leafId: 'a1',
+  visibleLeafId: 'a1',
   entries: [
     entry('u1', 'user', { messageTimestamp: TIMESTAMP }),
     entry('a1', 'assistant', { messageTimestamp: TIMESTAMP + 500 }),
@@ -71,6 +72,29 @@ describe('resolveEntryId', () => {
     expect(resolveEntryId(tree, userNode())).toBe(null);
     expect(resolveEntryId(tree, assistantNode({ sdkTimestamp: TIMESTAMP + 1 }))).toBe(null);
     expect(resolveEntryId(tree, { id: 'n4', role: 'system', text: 'model changed' })).toBe(null);
+  });
+});
+
+describe('isCurrentPosition', () => {
+  const rows = [entry('u1', 'user'), entry('a1', 'assistant', { parentId: 'u1' })];
+
+  it('stays put on the leaf itself', () => {
+    const atLeaf: SessionTree = { leafId: 'a1', visibleLeafId: 'a1', entries: rows };
+    expect(isCurrentPosition(atLeaf, 'a1')).toBe(true);
+    expect(isCurrentPosition(atLeaf, 'u1')).toBe(false);
+  });
+
+  it('stays put on the row of a hidden leaf, so the hidden entries are kept', () => {
+    // `m1` (a model change) hangs from a1 and is not a row.
+    const hiddenLeaf: SessionTree = { leafId: 'm1', visibleLeafId: 'a1', entries: rows };
+    expect(isCurrentPosition(hiddenLeaf, 'a1')).toBe(true);
+  });
+
+  it('moves to a user row that stands for a hidden leaf', () => {
+    // An assistant cut off mid-tool-call is not a row; the user message before
+    // it still has a reply to leave.
+    const cutOff: SessionTree = { leafId: 'c1', visibleLeafId: 'u1', entries: rows };
+    expect(isCurrentPosition(cutOff, 'u1')).toBe(false);
   });
 });
 

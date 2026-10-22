@@ -205,7 +205,11 @@ export interface SessionTreeEntry {
 }
 
 export interface SessionTree {
+  /** The SDK's real leaf. It can be an entry that is not a row (a model
+   *  change, an assistant message cut off mid-tool-call). */
   leafId: string | null;
+  /** The row that stands for the leaf: `leafId` or its nearest row ancestor. */
+  visibleLeafId: string | null;
   entries: SessionTreeEntry[];
 }
 
