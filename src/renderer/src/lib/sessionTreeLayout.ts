@@ -9,6 +9,21 @@ import type { SessionTree, SessionTreeEntry } from '../../../shared/ipcContract'
 import type { TranscriptNode } from '../state/transcriptController';
 
 /**
+ * Whether moving to `entryId` leaves the session where it is.
+ *
+ * A move to a user row lands on its parent, so it only stays put when that row
+ * is the real leaf. Any other row stays put when it is the leaf's row: moving
+ * there would only drop the hidden entries after it (a model change, a label,
+ * an assistant message cut off mid-tool-call), which the user cannot see they
+ * are discarding.
+ */
+export function isCurrentPosition(tree: SessionTree, entryId: string): boolean {
+  if (entryId === tree.leafId) return true;
+  if (entryId !== tree.visibleLeafId) return false;
+  return tree.entries.find((entry) => entry.id === entryId)?.kind !== 'user';
+}
+
+/**
  * Entries that would be dropped from the active path by moving to `targetId`.
  *
  * The abandoned entries are the ones between the current leaf and the deepest
@@ -16,7 +31,10 @@ import type { TranscriptNode } from '../state/transcriptController';
  * current leaf abandons nothing.
  */
 export function countAbandonedEntries(tree: SessionTree, targetId: string): number {
-  if (!tree.leafId || tree.leafId === targetId) return 0;
+  // Walks rows, so it starts from the leaf's row; hidden entries past it are
+  // not counted.
+  const leafId = tree.visibleLeafId;
+  if (!leafId || leafId === targetId) return 0;
 
   const byId = new Map<string, SessionTreeEntry>();
   for (const entry of tree.entries) {
@@ -28,7 +46,7 @@ export function countAbandonedEntries(tree: SessionTree, targetId: string): numb
     targetPathIds.add(entry.id);
   }
 
-  const leafPath = pathToRoot(byId, tree.leafId);
+  const leafPath = pathToRoot(byId, leafId);
   const commonAncestorIndex = leafPath.findIndex((entry) => targetPathIds.has(entry.id));
   // No shared ancestor (the position and the target are on different root
   // trees, for example after returning to before the first message): the whole

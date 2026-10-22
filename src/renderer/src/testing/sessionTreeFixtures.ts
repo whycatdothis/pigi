@@ -40,5 +40,5 @@ export function sessionTreeEntry(
 }
 
 export function sessionTree(entries: SessionTreeEntry[], leafId: string | null): SessionTree {
-  return { entries, leafId };
+  return { entries, leafId, visibleLeafId: leafId };
 }

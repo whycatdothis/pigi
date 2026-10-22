@@ -74,7 +74,7 @@ export function buildSessionTree(entries: SessionEntry[], leafId: string | null)
   // When the real leaf is not a row (a model change, a label, an assistant
   // message mid-tool-call), the deepest visible entry on the active path is the
   // position the user is looking at.
-  return { leafId: findNearestVisibleId(leafId, visible, byId), entries: rows };
+  return { leafId, visibleLeafId: findNearestVisibleId(leafId, visible, byId), entries: rows };
 }
 
 /**
