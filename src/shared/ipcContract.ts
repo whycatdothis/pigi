@@ -221,8 +221,10 @@ export interface ForkSessionResult {
   success: boolean;
   /** The new session file. Absent when the SDK has nothing to fork yet. */
   sessionPath?: string;
-  /** Text for the new session's input box (forking before a user message). */
-  selectedText?: string;
+  /** Input box content for the new session (forking before a user message). */
+  editorInput?: PromptInput;
+  /** Attachments of that message that cannot come back (sent as a status line only). */
+  droppedFileNames?: string[];
   /** No file to fork: the caller creates an empty session with this one as its
    *  parent. */
   needsNewSession?: boolean;
@@ -234,8 +236,10 @@ export interface NavigateSessionTreeResult {
   /** The user aborted the branch summary (or the SDK refused the move). */
   cancelled: boolean;
   aborted?: boolean;
-  /** Text to put back in the input box (navigating to a user message). */
-  editorText?: string;
+  /** What goes back in the input box (navigating to a user message). */
+  editorInput?: PromptInput;
+  /** Attachments of that message that cannot come back (sent as a status line only). */
+  droppedFileNames?: string[];
   error?: string;
 }
 

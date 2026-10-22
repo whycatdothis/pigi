@@ -19,11 +19,14 @@ import {
   type PickedAttachment,
   type PickAttachmentsResult,
 } from '../../shared/ipcContract';
-import { imageMimeTypeForPath, isSupportedImageMimeType } from '../../shared/chatAttachments';
+import {
+  FILE_MIME_TYPE,
+  imageMimeTypeForPath,
+  isSupportedImageMimeType,
+} from '../../shared/chatAttachments';
 import { getMainWindow } from '../windows/createMainWindow';
 
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
-const FILE_MIME_TYPE = 'application/octet-stream';
 
 async function describeFile(path: string): Promise<PickedAttachment> {
   let size = 0;

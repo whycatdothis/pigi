@@ -5,14 +5,17 @@
 ### Added
 
 - A session that finishes while you are in another one shows an accent-colored dot in the sidebar in place of its time, until you open it. The dot is kept across restarts
+- Edit any message you sent from the toolbar under it: the conversation goes back to before that message, without a summary, and the message returns to the chat input. What came after stays reachable in the session tree
 
 ### Changed
 
+- The branch summary prompt's two answers are styled alike, with no highlighted default
 - The path completion list opens above the path you are typing instead of at the left edge of the chat input, and folders no longer end with `/`
 
 ### Fixed
 
 - Extension commands (such as `/plannotator-review`) show a terminal icon in the chat input, matching the sent message, instead of the skill icon
+- A message taken back to the chat input (editing it, moving the session to it, or continuing before it in a new chat) keeps its images and files, instead of showing the attached file list and pasted file contents as text and losing its images
 
 ## [0.4.13] - 2026-10-21
 

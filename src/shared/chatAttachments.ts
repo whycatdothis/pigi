@@ -15,6 +15,9 @@ export const MAX_INLINE_FILE_BYTES = 256 * 1024;
 /** Pasted images larger than this are rejected before they are read into base64. */
 export const MAX_PASTED_IMAGE_BYTES = 20 * 1024 * 1024;
 
+/** MIME type for a non-image attachment; the agent reads it by path, so the type is unused. */
+export const FILE_MIME_TYPE = 'application/octet-stream';
+
 /** Marker that introduces the list of attached file paths in a prompt. */
 export const ATTACHED_FILES_HEADER = '[Attached files]';
 
@@ -36,9 +39,10 @@ const SUPPORTED_IMAGE_EXTENSIONS: Record<string, string> = {
 // (`\nCONTENT\n`) or one of the generated status lines. Single-line
 // user-typed `<file>` markup is left alone; a user-typed block in the
 // multi-line shape cannot be told apart and is stripped too. The name is
-// captured so the renderer can show a chip for a clipboard file without a path.
+// captured so the renderer can show a chip for a clipboard file without a path,
+// and the content so an edited message can get the file back.
 const INLINE_FILE_BLOCK_RE =
-  /<file name="([^"\n]*)">(?:File too large to include \(\d+ bytes\)\.|Binary file \(\d+ bytes\)\.|File not found: [^\n<]*|Failed to attach: [^\n<]*|\n[\s\S]*?\n)<\/file>\n?/g;
+  /<file name="([^"\n]*)">(?:File too large to include \(\d+ bytes\)\.|Binary file \(\d+ bytes\)\.|File not found: [^\n<]*|Failed to attach: [^\n<]*|\n([\s\S]*?)\n)<\/file>\n?/g;
 
 export function baseMimeType(mimeType: string): string {
   return mimeType.split(';')[0]?.trim().toLowerCase() ?? '';
@@ -92,7 +96,10 @@ export function sanitizeUserPromptForDisplay(text: string): {
   inlineFileNames: string[];
 } {
   const inline = splitInlineFileBlocks(stripAttachmentSummary(text));
-  return { ...splitAttachedFilesBlock(inline.text), inlineFileNames: inline.fileNames };
+  return {
+    ...splitAttachedFilesBlock(inline.text),
+    inlineFileNames: inline.files.map((file) => file.name),
+  };
 }
 
 /** Title for an attachment-only message: "Image", "3 images", "notes.md" or "4 files". */
@@ -115,17 +122,26 @@ export function promptTitle(text: string): string {
   return attachmentOnlyTitle(imageCount, fileNames);
 }
 
+export interface InlineFileBlock {
+  name: string;
+  /** The file's text; null when only a status line was sent (binary, too large, failed). */
+  content: string | null;
+}
+
 /**
  * Split inline `<file>` blocks out of a prompt. The names are kept so the
  * renderer can show a chip for a clipboard attachment that has no path.
  */
-export function splitInlineFileBlocks(text: string): { text: string; fileNames: string[] } {
-  const fileNames: string[] = [];
-  const stripped = text.replace(INLINE_FILE_BLOCK_RE, (_match, name: string) => {
-    fileNames.push(name);
-    return '';
-  });
-  return { text: stripped.trimEnd(), fileNames };
+export function splitInlineFileBlocks(text: string): { text: string; files: InlineFileBlock[] } {
+  const files: InlineFileBlock[] = [];
+  const stripped = text.replace(
+    INLINE_FILE_BLOCK_RE,
+    (_match, name: string, content: string | undefined) => {
+      files.push({ name, content: content ?? null });
+      return '';
+    },
+  );
+  return { text: stripped.trimEnd(), files };
 }
 
 /**

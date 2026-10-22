@@ -27,7 +27,7 @@ import { ensureTranscriptSession } from './useTranscript';
 import { countAbandonedEntries, resolveEntryId } from '../lib/sessionTreeLayout';
 import type { MessageListHandle } from '../components/transcript/MessageList';
 import type { TranscriptNode } from '../state/transcriptController';
-import type { PiSessionInfo, SessionTree } from '../../../shared/ipcContract';
+import type { PiSessionInfo, PromptInput, SessionTree } from '../../../shared/ipcContract';
 
 interface SessionTreeNavigationOptions {
   /** The session the transcript shows; null in the draft chat. */
@@ -51,10 +51,10 @@ interface SessionTreeNavigationOptions {
   /** Shows a session this flow created (a fork) and gives it a process. */
   resumeSession: (
     session: PiSessionInfo,
-    options?: { skipHistory?: boolean; prefillText?: string; freshSession?: boolean },
+    options?: { skipHistory?: boolean; prefillInput?: PromptInput; freshSession?: boolean },
   ) => Promise<void>;
-  /** Puts text back into the input box (a branch summary, a forked message). */
-  setRestoreText: (text: string) => void;
+  /** Puts a message taken off the branch back into the input box. */
+  setRestoreInput: (input: PromptInput) => void;
   /** Re-reads model and context usage after a move. */
   refreshSessionState: (sessionPath: string) => void;
   messageListRef: React.RefObject<MessageListHandle | null>;
@@ -75,6 +75,7 @@ interface SessionTreeNavigation {
   disabledReason: string | null;
   onTreeMessage: (node: TranscriptNode) => Promise<void>;
   onForkMessage: (node: TranscriptNode) => Promise<void>;
+  onEditMessage: (node: TranscriptNode) => Promise<void>;
   onSelect: (entryId: string) => Promise<void>;
   onSummaryConfirm: (options: { summarize: boolean }) => void;
   onSummaryCancel: () => void;
@@ -101,6 +102,12 @@ function waitForTranscriptIdle(sessionPath: string, timeoutMs = 2000): Promise<v
       if (controller.state.status === 'idle') finish();
     });
   });
+}
+
+/** Attachments a restored message lost: they were sent as a status line only. */
+function warnDroppedFiles(fileNames: string[] | undefined): void {
+  if (!fileNames || fileNames.length === 0) return;
+  toast.warning(`Not restored (sent without content): ${fileNames.join(', ')}`);
 }
 
 export function useSessionTreeNavigation(
@@ -132,7 +139,7 @@ export function useSessionTreeNavigation(
     ): Promise<void> => {
       if (moveInFlightRef.current) return;
       moveInFlightRef.current = true;
-      const { messageListRef, refreshSessionState, setBranchSummaryBusy, setRestoreText } =
+      const { messageListRef, refreshSessionState, setBranchSummaryBusy, setRestoreInput } =
         optionsRef.current;
       if (options.summarize) setBranchSummaryBusy(true);
       const summarizingToast = options.summarize
@@ -167,9 +174,10 @@ export function useSessionTreeNavigation(
         const { messages, compactionCount } = await getMessages(sessionPath);
         controller.hydrate(messages, compactionCount);
         messageListRef.current?.scrollToBottom();
-        if (result.editorText) {
-          setRestoreText(result.editorText);
+        if (result.editorInput) {
+          setRestoreInput(result.editorInput);
         }
+        warnDroppedFiles(result.droppedFileNames);
         void refreshSessionState(sessionPath);
       } catch (error) {
         messageListRef.current?.restoreFollow();
@@ -230,24 +238,62 @@ export function useSessionTreeNavigation(
     [runTreeNavigation],
   );
 
+  /**
+   * Prepares the session and finds a transcript row's tree entry. Null when the
+   * move cannot go ahead; the reason has been shown.
+   */
+  const resolveNodeTarget = useCallback(
+    async (
+      node: TranscriptNode,
+    ): Promise<{ sessionPath: string; tree: SessionTree; entryId: string } | null> => {
+      const sessionPath = await prepareTreeNavigation();
+      if (!sessionPath) return null;
+      const tree = await getSessionTree(sessionPath);
+      const entryId = resolveEntryId(tree, node);
+      if (!entryId) {
+        toast.error('Could not find this message in the session tree');
+        return null;
+      }
+      return { sessionPath, tree, entryId };
+    },
+    [prepareTreeNavigation],
+  );
+
   /** `tree` on a transcript row. */
   const handleTreeMessage = useCallback(
     async (node: TranscriptNode): Promise<void> => {
-      const sessionPath = await prepareTreeNavigation();
-      if (!sessionPath) return;
       try {
-        const tree = await getSessionTree(sessionPath);
-        const entryId = resolveEntryId(tree, node);
-        if (!entryId) {
-          toast.error('Could not find this message in the session tree');
-          return;
-        }
-        await continueTreeNavigation(sessionPath, tree, entryId);
+        const target = await resolveNodeTarget(node);
+        if (!target) return;
+        await continueTreeNavigation(target.sessionPath, target.tree, target.entryId);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to read the session tree');
       }
     },
-    [continueTreeNavigation, prepareTreeNavigation],
+    [continueTreeNavigation, resolveNodeTarget],
+  );
+
+  /**
+   * `edit` on a user message: a tree move to it with the summary
+   * question answered "no". The message goes back to the input box.
+   */
+  const handleEditMessage = useCallback(
+    async (node: TranscriptNode): Promise<void> => {
+      try {
+        const target = await resolveNodeTarget(node);
+        if (!target) return;
+        // The SDK treats a move to the current leaf as a no-op, so a message
+        // with nothing after it would silently stay put.
+        if (target.entryId === target.tree.leafId) {
+          toast.error('This message has no reply to leave yet');
+          return;
+        }
+        await runTreeNavigation(target.sessionPath, target.entryId, { summarize: false });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to read the session tree');
+      }
+    },
+    [resolveNodeTarget, runTreeNavigation],
   );
 
   /** A pick in the tree dialog. The tree is re-read because the dialog's copy
@@ -280,18 +326,13 @@ export function useSessionTreeNavigation(
       // start a second fork.
       moveInFlightRef.current = true;
       try {
-        const sessionPath = await prepareTreeNavigation();
-        if (!sessionPath) return;
+        const target = await resolveNodeTarget(node);
+        if (!target) return;
+        const { sessionPath, entryId } = target;
         const { activeCwd, resumeSession } = optionsRef.current;
         const store = useAppStore.getState();
         const parent = store.sessions.get(sessionPath);
         const cwd = parent?.cwd ?? activeCwd;
-        const tree = await getSessionTree(sessionPath);
-        const entryId = resolveEntryId(tree, node);
-        if (!entryId) {
-          toast.error('Could not find this message in the session tree');
-          return;
-        }
         // A user message is left behind for the new chat to send again; an
         // answer or a tool result stays in the forked history.
         const position = node.role === 'user' ? 'before' : 'at';
@@ -326,8 +367,9 @@ export function useSessionTreeNavigation(
             firstMessage: parent?.title ?? 'New chat',
             allMessagesText: parent?.title ?? 'New chat',
           },
-          { prefillText: result.selectedText, freshSession: !result.sessionPath },
+          { prefillInput: result.editorInput, freshSession: !result.sessionPath },
         );
+        warnDroppedFiles(result.droppedFileNames);
         // The fork is a file the sidebar has not listed yet: refresh so it
         // appears under this session instead of as a loose "New chat".
         void listProjectSessions([cwd]);
@@ -337,7 +379,7 @@ export function useSessionTreeNavigation(
         moveInFlightRef.current = false;
       }
     },
-    [prepareTreeNavigation],
+    [resolveNodeTarget],
   );
 
   const handleSummaryPromptConfirm = useCallback(
@@ -378,6 +420,7 @@ export function useSessionTreeNavigation(
     disabledReason,
     onTreeMessage: handleTreeMessage,
     onForkMessage: handleForkMessage,
+    onEditMessage: handleEditMessage,
     onSelect: handleTreeSelect,
     onSummaryConfirm: handleSummaryPromptConfirm,
     onSummaryCancel: handleSummaryPromptCancel,
