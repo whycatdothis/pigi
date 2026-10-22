@@ -75,15 +75,15 @@ export default function SessionTreeDialog({
   // Several versions in one file: a long tree left open would push the others
   // out of sight, so the trees the leaf is not in start folded. A search or a
   // filter is about rows, not versions, so it keeps every tree open.
-  const currentRootId = data?.currentRootId;
+  // Back before the first message the leaf is in no tree, so the newest one
+  // opens. It also keeps a lone tree open, which has no header to unfold it with.
+  const openTreeId = data ? (data.currentRootId ?? data.treeIds.at(-1) ?? null) : null;
   const collapsedTreeIds = useMemo(() => {
     if (!data || data.isFiltered) return EMPTY_STRING_SET;
     return new Set(
-      data.treeIds.filter(
-        (treeId) => !isTreeExpanded(treeId, treeExpandedOverrides, currentRootId),
-      ),
+      data.treeIds.filter((treeId) => !isTreeExpanded(treeId, treeExpandedOverrides, openTreeId)),
     );
-  }, [data, treeExpandedOverrides, currentRootId]);
+  }, [data, treeExpandedOverrides, openTreeId]);
 
   const toggleTree = useCallback(
     (treeId: string): void => {
@@ -92,11 +92,11 @@ export default function SessionTreeDialog({
         // tree with no entry yet is still where the dialog started it, and the
         // first click on an open header has to fold it.
         const next = new Map(previous);
-        next.set(treeId, !isTreeExpanded(treeId, previous, currentRootId));
+        next.set(treeId, !isTreeExpanded(treeId, previous, openTreeId));
         return next;
       });
     },
-    [currentRootId],
+    [openTreeId],
   );
 
   // Read the tree on open and again whenever the session grows while the dialog
@@ -285,7 +285,7 @@ export default function SessionTreeDialog({
 function isTreeExpanded(
   treeId: string,
   overrides: ReadonlyMap<string, boolean>,
-  currentRootId: string | null | undefined,
+  openTreeId: string | null,
 ): boolean {
-  return overrides.get(treeId) ?? treeId === currentRootId;
+  return overrides.get(treeId) ?? treeId === openTreeId;
 }

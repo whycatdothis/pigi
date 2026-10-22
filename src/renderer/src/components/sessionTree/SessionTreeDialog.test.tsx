@@ -121,6 +121,22 @@ describe('SessionTreeDialog', () => {
     expect(screen.getByText('2 trees · 9 messages')).toBeInTheDocument();
   });
 
+  it('opens a lone tree when the session is back before the first message', async () => {
+    // A single tree has no header to unfold it with.
+    fake = installFakePiApi(sessionTree(singleTreeSession().entries, null));
+    await renderDialog({ onSelect: vi.fn(), onOpenChange: vi.fn() });
+
+    expect(rowIds()).toEqual(['u1', 'a1', 't1', 'u2', 'a2', 'c1', 'a3']);
+  });
+
+  it('opens the newest tree when the session is back before the first message', async () => {
+    fake = installFakePiApi(sessionTree(dialogTree().entries, null));
+    await renderDialog({ onSelect: vi.fn(), onOpenChange: vi.fn() });
+
+    expect(rowIds()).toEqual(['h2', 'b1']);
+    expect(screen.getByRole('button', { name: /^Tree 1/ })).toBeInTheDocument();
+  });
+
   it('folds a tree from the header the pinned band draws', async () => {
     await renderDialog({ onSelect: vi.fn(), onOpenChange: vi.fn() });
     const user = userEvent.setup();

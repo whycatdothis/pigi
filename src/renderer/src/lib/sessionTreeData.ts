@@ -58,7 +58,8 @@ export interface SessionTreeData {
   treeRootIdByItemId: Map<string, string>;
   /** Whether a query or a kind filter is narrowing the rows. */
   isFiltered: boolean;
-  /** The tree the current leaf belongs to; null only for an empty session. */
+  /** The tree the current leaf belongs to; null for an empty session or when
+   *  the session is back before the first message (no leaf). */
   currentRootId: string | null;
   rootStatsById: Map<string, SessionTreeRootStats>;
   /** Number of rows the tree can show (matches plus their ancestors). */
