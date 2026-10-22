@@ -20,6 +20,7 @@ import {
 import { SessionTreeHelpButton } from '../sessionTree/SessionTreeHelpDialog';
 import { SessionTreeIcon } from '../sessionTree/sessionTreeIcons';
 import { Kbd } from '../ui/kbd';
+import { PanelIcon } from '../panelIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 // 13px menu text (app's text-xs scale, keeps the theme line-height — an
@@ -71,6 +72,9 @@ export default React.memo(function SessionToolbar({
       ? undefined
       : sidebarToggleLeft(state.platform) + SIDEBAR_TOGGLE_CLEARANCE_PX,
   );
+  const hasQuotes = useAppStore((state) => state.quotesBySession.has(sessionPath));
+  const rightSidebarOpen = useAppStore((state) => state.rightSidebarOpen);
+  const toggleRightSidebar = useAppStore((state) => state.toggleRightSidebar);
   const toolBlockViewMode = useAppStore((state) => state.toolBlockViewMode);
   const setToolBlockViewMode = useAppStore((state) => state.setToolBlockViewMode);
 
@@ -256,6 +260,27 @@ export default React.memo(function SessionToolbar({
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <TooltipProvider delayDuration={400}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="Toggle right sidebar"
+              aria-pressed={rightSidebarOpen}
+              onClick={toggleRightSidebar}
+              className={`relative flex items-center justify-center rounded p-1 transition-colors size-7 hover:bg-muted [-webkit-app-region:no-drag] ${rightSidebarOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <PanelIcon side="right" />
+              {/* Pending quotes are otherwise invisible while the sidebar is closed. */}
+              {hasQuotes && !rightSidebarOpen && (
+                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-[var(--system-accent)]" />
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Toggle right sidebar</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 });

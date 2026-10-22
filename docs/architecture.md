@@ -34,6 +34,11 @@ projects survive. The toolbar title inset uses the same duration and easing
 edge. A width transition must sit under `data-panel-resizing:transition-none`.
 Otherwise dragging would lag behind the pointer.
 
+The right sidebar mirrors this: its wrapper animates between
+`--right-sidebar-width` and `0`, and the content stays anchored to the wrapper's
+left edge at full width, so it slides in from the window edge without a
+transform. Its resize handle uses `edge: 'left'`.
+
 The message column is capped at `MESSAGE_LIST_MAX_WIDTH` (860px). At the default
 window size the chat viewport is already wider than that cap, so hiding the
 sidebar only changes the margins: the rows keep their width and do not reflow.
@@ -339,6 +344,30 @@ offset rather than measured from the DOM — the rows it mirrors usually are not
 rendered. Both are covered by browser tests, which are the only layer that can
 measure any of it (see `docs/testing.md`).
 
+## Right Sidebar
+
+`components/rightSidebar/RightSidebar.tsx` is a tabbed panel toggled from the
+session toolbar. Tabs are listed in `lib/rightSidebarTabs.ts`; the open state
+and active tab live in the app store (`rightSidebarOpen`, `rightSidebarTab`).
+A new view adds a tab id there, a trigger and a `TabsContent` in the sidebar.
+
+## Quotes
+
+Selecting text in the message list shows a floating Quote button
+(`components/quotes/QuoteSelectionPopover.tsx`), placed at the selection's end:
+below it for a top-down selection, above it for a bottom-up one. It turns into
+a comment editor and saves the quote to `quotesBySession` in the app store,
+keyed by session and kept in memory only. While the editor has focus the quoted
+range stays marked with a CSS custom highlight. The right sidebar's Quotes tab
+(`QuotePanel`) lists, edits and deletes them, and Send
+turns them into one plain-text message (`formatQuotesMessage` in
+`lib/messageQuotes.ts`) that goes through the same path as Enter in the chat
+input, so it prompts, steers or buffers just like a typed message.
+
+The popover is positioned against the scroll container and only measures the
+selection after the gesture ends (pointerup, keyup) or when the container
+scrolls or resizes, never during a drag.
+
 ## Collapsible Blocks
 
 `OverflowClamp` clamps tool output, thinking, and user bubbles with pure CSS:
@@ -415,6 +444,8 @@ src/
         │   ├── app/              # theme provider, sign-in, menus
         │   ├── chatInput/        # composer: Tiptap editor, reference chips, pickers
         │   ├── message/          # one message: bubbles, markdown, tools, diff
+        │   ├── quotes/           # selection quote popover, quotes tab
+        │   ├── rightSidebar/     # tabbed right sidebar
         │   ├── session/          # sidebar entry, session toolbar, switcher
         │   ├── sessionTree/      # tree dialog, rows, branch lines, help
         │   ├── sidebar/          # project and session lists

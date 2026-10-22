@@ -82,6 +82,7 @@ import { SessionTreeHelpContext } from './components/sessionTree/sessionTreeHelp
 import SessionTreeHelpDialog from './components/sessionTree/SessionTreeHelpDialog';
 import TerminalPanel from './components/terminal/TerminalPanel';
 import ChatInput, { type ChatInputHandle } from './components/chatInput';
+import RightSidebar from './components/rightSidebar/RightSidebar';
 import StreamingQueue from './components/transcript/StreamingQueue';
 import LoginDialog from './components/app/LoginDialog';
 import SessionSwitcher from './components/session/SessionSwitcher';
@@ -99,6 +100,10 @@ import {
   SIDEBAR_MIN_WIDTH,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_WIDTH_PROPERTY,
+  RIGHT_SIDEBAR_DEFAULT_WIDTH,
+  RIGHT_SIDEBAR_MIN_WIDTH,
+  RIGHT_SIDEBAR_MAX_WIDTH,
+  RIGHT_SIDEBAR_WIDTH_PROPERTY,
   sidebarToggleLeft,
   SIDEBAR_TRANSITION_CLASS_NAME,
 } from './lib/layoutConstants';
@@ -116,6 +121,8 @@ function extractUserHistory(nodes: TranscriptNode[]): string[] {
 function App(): React.JSX.Element {
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(RIGHT_SIDEBAR_DEFAULT_WIDTH);
+  const rightSidebarRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   // Used only for immediate sidebar feedback while a persisted session is resuming.
   const [pendingSelectedPath, setPendingSelectedPath] = useState<string | null>(null);
@@ -139,6 +146,7 @@ function App(): React.JSX.Element {
     toggleTerminal,
     terminalHeight,
     sidebarExpanded,
+    rightSidebarOpen,
     platform,
   } = useAppStore(
     useShallow((state) => ({
@@ -161,6 +169,7 @@ function App(): React.JSX.Element {
       toggleTerminal: state.toggleTerminal,
       terminalHeight: state.terminalHeight,
       sidebarExpanded: state.sidebarExpanded,
+      rightSidebarOpen: state.rightSidebarOpen,
       platform: state.platform,
     })),
   );
@@ -392,6 +401,15 @@ function App(): React.JSX.Element {
     size: sidebarWidth,
     getBounds: () => ({ minimum: SIDEBAR_MIN_WIDTH, maximum: SIDEBAR_MAX_WIDTH }),
     onCommit: setSidebarWidth,
+  });
+
+  const handleRightSidebarResizeStart = usePanelResize({
+    containerRef: rightSidebarRef,
+    property: RIGHT_SIDEBAR_WIDTH_PROPERTY,
+    edge: 'left',
+    size: rightSidebarWidth,
+    getBounds: () => ({ minimum: RIGHT_SIDEBAR_MIN_WIDTH, maximum: RIGHT_SIDEBAR_MAX_WIDTH }),
+    onCommit: setRightSidebarWidth,
   });
 
   const refreshProjectSessions = useCallback(
@@ -702,6 +720,17 @@ function App(): React.JSX.Element {
     }
     void listProjectSessions([cwd]);
   }
+
+  // The right sidebar is memoized, so it gets a stable wrapper that always sends
+  // through the current handleSend (same path as pressing Enter in the input).
+  const handleSendRef = useRef(handleSend);
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  });
+  const handleSendQuotes = useCallback(
+    (message: string): Promise<void> => handleSendRef.current(message),
+    [],
+  );
 
   const handleFollowUp = useCallback(
     async (message: string, attachments: ChatAttachment[] = []): Promise<void> => {
@@ -1421,6 +1450,13 @@ function App(): React.JSX.Element {
   const sidebarLayoutStyle: React.CSSProperties & { [SIDEBAR_WIDTH_PROPERTY]: string } = {
     [SIDEBAR_WIDTH_PROPERTY]: `${sidebarWidth}px`,
   };
+  const rightSidebarLayoutStyle: React.CSSProperties & {
+    [RIGHT_SIDEBAR_WIDTH_PROPERTY]: string;
+  } = {
+    [RIGHT_SIDEBAR_WIDTH_PROPERTY]: `${rightSidebarWidth}px`,
+  };
+  // Its views belong to a session; drafts and empty states have none to show.
+  const rightSidebarVisible = rightSidebarOpen && activeSession !== null;
 
   return (
     <SessionTreeHelpContext.Provider value={tree.help}>
@@ -1641,6 +1677,35 @@ function App(): React.JSX.Element {
               />
             )}
           </main>
+
+          {/* Mirrors the left sidebar: the wrapper's width animates (reserving real
+              space), and the content, anchored to the wrapper's left edge at its
+              full width, slides in from the right without reflowing. */}
+          <div
+            ref={rightSidebarRef}
+            inert={!rightSidebarVisible}
+            className={cn(
+              'relative flex h-full shrink-0 overflow-hidden transition-[width] data-[panel-resizing]:transition-none',
+              SIDEBAR_TRANSITION_CLASS_NAME,
+              rightSidebarVisible ? 'w-(--right-sidebar-width)' : 'w-0',
+            )}
+            style={rightSidebarLayoutStyle}
+          >
+            <div className="flex h-full w-(--right-sidebar-width) shrink-0 border-l-[0.5px] border-foreground/27">
+              {activeSessionPath && (
+                <RightSidebar sessionPath={activeSessionPath} onSendQuotes={handleSendQuotes} />
+              )}
+            </div>
+            {rightSidebarVisible && (
+              <div
+                aria-label="Resize right sidebar"
+                role="separator"
+                aria-orientation="vertical"
+                className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize [-webkit-app-region:no-drag]"
+                onPointerDown={handleRightSidebarResizeStart}
+              />
+            )}
+          </div>
 
           {!sidebarExpanded && (
             // Beside the traffic lights while the sidebar (and its own toggle) is hidden.
