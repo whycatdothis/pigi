@@ -62,8 +62,7 @@ function PromptBody({
 
       {/*
         Two answers, nothing else: summarizing is a yes/no about this move, and a
-        cancel is the dialog's own close (Esc, or a click outside it). The accent
-        marks the plain move — leaving is the default, summarizing the extra step.
+        cancel is the dialog's own close (Esc, or a click outside it).
       */}
       <DialogFooter className="gap-2">
         <Button
@@ -75,11 +74,8 @@ function PromptBody({
           Summarize
         </Button>
         <Button
+          variant="outline"
           size="sm"
-          // The theme's accent, not the app's neutral primary. The accent is dark
-          // in light mode and light in dark mode, so the app's background colour
-          // is what stays readable on it.
-          className="bg-[var(--system-accent)] text-[var(--background)] hover:bg-[var(--system-accent)]/90"
           onClick={() => onConfirm({ summarize: false })}
           data-testid="branch-summary-skip"
         >
