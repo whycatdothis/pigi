@@ -766,6 +766,13 @@ export class TranscriptController {
 
       case 'agent_settled':
         this.finalizeCurrent();
+        // An extension can start a compaction from its agent_settled handler,
+        // so compaction_start may arrive first. Keep the compaction busy state
+        // and its queued messages until compaction_end.
+        if (this._state.isCompacting) {
+          this.setState({ activeAssistantId: null, activeToolCallId: null });
+          break;
+        }
         this.setState({
           status: 'idle',
           activeAssistantId: null,

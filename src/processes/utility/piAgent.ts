@@ -402,8 +402,9 @@ function subscribeToSession(rt: AgentSessionRuntime, port: Port, batch: StreamBa
         break;
       case 'agent_settled':
         // agent_end can be followed by post-run compaction and continuation;
-        // agent_settled is the SDK's authoritative process-idle boundary.
-        setSessionBusy(false);
+        // agent_settled is the SDK's authoritative process-idle boundary. An
+        // extension may already have started a compaction from this event.
+        setSessionBusy(session.isCompacting);
         break;
       case 'compaction_end':
       case 'auto_retry_end':

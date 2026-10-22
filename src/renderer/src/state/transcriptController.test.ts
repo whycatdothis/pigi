@@ -37,3 +37,17 @@ describe('TranscriptController user message echo', () => {
     expect(userNodeCount(controller)).toBe(2);
   });
 });
+
+describe('TranscriptController compaction started from agent_settled', () => {
+  it('stays busy and keeps queued messages when agent_settled follows compaction_start', () => {
+    const controller = new TranscriptController();
+    controller.processEvent({ type: 'agent_start' });
+    controller.processEvent({ type: 'agent_end' });
+    controller.processEvent({ type: 'compaction_start', reason: 'manual' });
+    controller.processEvent({ type: 'agent_settled' });
+    controller.addCompactionMessage('sent during', 'steer');
+
+    expect(controller.state.status).toBe('streaming');
+    expect(controller.state.queuedSteering).toEqual(['sent during']);
+  });
+});
