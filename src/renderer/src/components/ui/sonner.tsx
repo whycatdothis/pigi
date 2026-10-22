@@ -7,6 +7,7 @@ import {
   IconAlertOctagon,
   IconLoader,
 } from '@tabler/icons-react';
+import { SpinningIcon } from './spinningIcon';
 
 function Toaster({ ...props }: ToasterProps): React.JSX.Element {
   return (
@@ -20,7 +21,11 @@ function Toaster({ ...props }: ToasterProps): React.JSX.Element {
         info: <IconInfoCircle className="size-4" />,
         warning: <IconAlertTriangle className="size-4" />,
         error: <IconAlertOctagon className="size-4" />,
-        loading: <IconLoader className="size-4 animate-spin" />,
+        loading: (
+          <SpinningIcon className="animate-spin">
+            <IconLoader className="size-4" />
+          </SpinningIcon>
+        ),
       }}
       style={
         {

@@ -18,6 +18,7 @@ import ToolBlock from './ToolBlock';
 import ThinkingBlock, { ThinkingDuration } from './thinkingBlock';
 
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/collapsible';
+import { SpinningIcon } from '../ui/spinningIcon';
 import { useHighlightTextNodes } from '../../lib/highlightMatches';
 
 function getCommandLabel(node: ToolNode): string {
@@ -121,7 +122,9 @@ function ThinkingGroupRow({ node }: { node: AssistantNode }): React.JSX.Element 
         onClick={() => setExpanded(!expanded)}
       >
         {thinkingInProgress ? (
-          <IconLoader2 className="size-3.5 shrink-0 animate-[spin_1.8s_linear_infinite] text-muted-foreground [stroke-width:2]" />
+          <SpinningIcon className="animate-[spin_1.8s_linear_infinite]">
+            <IconLoader2 className="size-3.5 text-muted-foreground [stroke-width:2]" />
+          </SpinningIcon>
         ) : (
           <IconBrain className="size-3.5 shrink-0 text-muted-foreground [stroke-width:2]" />
         )}
@@ -274,7 +277,9 @@ export default function CollapsedReadGroup({
                   className={`flex items-center gap-1.5 ${node.status === 'running' ? 'text-foreground' : 'text-foreground/70'}`}
                 >
                   {node.status === 'running' ? (
-                    <IconLoader2 className="size-3.5 shrink-0 animate-[spin_1.8s_linear_infinite] text-muted-foreground" />
+                    <SpinningIcon className="animate-[spin_1.8s_linear_infinite]">
+                      <IconLoader2 className="size-3.5 text-muted-foreground" />
+                    </SpinningIcon>
                   ) : (
                     Icon && (
                       <Icon
