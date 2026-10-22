@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- When an extension compacts the context right after a response finishes, the working bar stays visible and messages sent during compaction show in the queue, instead of disappearing until compaction ends
+
 ## [0.4.14] - 2026-10-22
 
 ### Added
