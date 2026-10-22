@@ -15,6 +15,7 @@
 ### Fixed
 
 - Extension commands (such as `/plannotator-review`) show a terminal icon in the chat input, matching the sent message, instead of the skill icon
+- The spinning star in the working bar keeps turning while the app is busy (for example while a long tool output streams in) instead of freezing
 - A message taken back to the chat input (editing it, moving the session to it, or continuing before it in a new chat) keeps its images and files, instead of showing the attached file list and pasted file contents as text and losing its images
 
 ## [0.4.13] - 2026-10-21
