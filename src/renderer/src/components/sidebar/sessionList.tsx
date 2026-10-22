@@ -13,6 +13,7 @@ import {
   ContextMenuItem,
 } from '../ui/context-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
+import { SpinningIcon } from '../ui/spinningIcon';
 import { formatRelativeTime } from '../../lib/utils';
 import { formatDateTime, getSessionTitle, isSessionRunning } from './utils';
 
@@ -82,7 +83,9 @@ function SessionTrailing({
 }): React.JSX.Element {
   if (isRunning) {
     return (
-      <IconLoader2 className="ml-2 size-3.5 shrink-0 animate-[spin_1.8s_linear_infinite] text-green-500 will-change-transform" />
+      <SpinningIcon className="ml-2 animate-[spin_1.8s_linear_infinite]">
+        <IconLoader2 className="size-3.5 text-green-500" />
+      </SpinningIcon>
     );
   }
   if (isUnread) {

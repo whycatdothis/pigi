@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
+import { SpinningIcon } from '../ui/spinningIcon';
 import { IconLoader2 } from '@tabler/icons-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { NativeSelect, NativeSelectOption } from '../ui/native-select';
@@ -275,7 +276,9 @@ export default function LoginDialog({
               onClick={handleApiKeySubmit}
             >
               {loadingProvider === apiKeyProvider.trim() ? (
-                <IconLoader2 className="size-4 animate-spin" />
+                <SpinningIcon className="animate-spin">
+                  <IconLoader2 className="size-4" />
+                </SpinningIcon>
               ) : (
                 'Save'
               )}
