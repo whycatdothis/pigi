@@ -401,8 +401,9 @@ only while the list or nothing has focus) and saves the quote to
 `quotesBySession` in the app store,
 keyed by session and persisted (see Unsent Drafts). While the editor has focus the quoted
 range stays marked with a CSS custom highlight. The right sidebar's Quotes tab
-(`QuotePanel`) lists, edits and deletes them, and Send
-turns them into one plain-text message (`formatQuotesMessage` in
+(`QuotePanel`) lists, edits and deletes them; a plus under them adds one global
+comment per session (`globalCommentBySession`, persisted the same way). Send
+turns them, with the global comment last, into one plain-text message (`formatQuotesMessage` in
 `lib/messageQuotes.ts`) that goes through the same path as Enter in the chat
 input, so it prompts, steers or buffers just like a typed message. A comment
 editor only discards its text on Escape: a pointer press outside it, including

@@ -9,6 +9,7 @@ export interface MessageQuote {
 export const NO_QUOTES: readonly MessageQuote[] = [];
 
 const QUOTES_MESSAGE_HEADER = 'Comments on quoted passages:';
+const GLOBAL_COMMENT_HEADER = 'Global comment:';
 
 function isMessageQuote(value: unknown): value is MessageQuote {
   return (
@@ -54,12 +55,19 @@ export function normalizeQuoteText(text: string): string {
  *   the comment
  *   2.
  *   ...
+ *   Global comment:
+ *   the comment on all of them
+ *
+ * Without quotes, only the global comment section is sent, with no header.
  *
  * The `> ` prefix already separates the quoted text from the comment and the
  * numbers separate the quotes, so neither needs a label or a blank line; that
  * keeps the message short.
  */
-export function formatQuotesMessage(quotes: readonly MessageQuote[]): string {
+export function formatQuotesMessage(
+  quotes: readonly MessageQuote[],
+  globalComment: string,
+): string {
   const sections = quotes.map((quote, index) => {
     const quotedLines = quote.text.split('\n').map((line) => (line ? `> ${line}` : '>'));
     const comment = quote.comment.trim();
@@ -69,5 +77,9 @@ export function formatQuotesMessage(quotes: readonly MessageQuote[]): string {
     }
     return lines.join('\n');
   });
-  return [QUOTES_MESSAGE_HEADER, ...sections].join('\n');
+  const trimmedGlobalComment = globalComment.trim();
+  if (trimmedGlobalComment) {
+    sections.push(`${GLOBAL_COMMENT_HEADER}\n${trimmedGlobalComment}`);
+  }
+  return [...(quotes.length > 0 ? [QUOTES_MESSAGE_HEADER] : []), ...sections].join('\n');
 }

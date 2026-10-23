@@ -92,6 +92,10 @@ interface AppState {
   updateQuoteComment: (sessionPath: string, quoteId: string, comment: string) => void;
   removeQuote: (sessionPath: string, quoteId: string) => void;
   setSessionQuotes: (sessionPath: string, quotes: MessageQuote[]) => void;
+  /** One comment on all of a session's quotes, sent after them. */
+  globalCommentBySession: Map<string, string>;
+  /** An empty comment removes it. */
+  setGlobalComment: (sessionPath: string, comment: string) => void;
 
   // Sessions whose right sidebar is open (closed ones are absent), persisted.
   openRightSidebarSessions: Map<string, true>;
@@ -156,6 +160,14 @@ const storedQuotes = createPersistedSessionMap({
   // Quotes change on discrete actions (add, edit, delete, send).
   saveDelayMs: 300,
   parse: parseStoredQuotes,
+});
+
+export const GLOBAL_COMMENTS_STORAGE_KEY = 'pigi.globalCommentBySession';
+
+const storedGlobalComments = createPersistedSessionMap<string>({
+  storageKey: GLOBAL_COMMENTS_STORAGE_KEY,
+  saveDelayMs: 300,
+  parse: (value) => (typeof value === 'string' && value.trim() ? value : undefined),
 });
 
 export const RIGHT_SIDEBAR_OPEN_STORAGE_KEY = 'pigi.openRightSidebarSessions';
@@ -344,6 +356,17 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       quotesBySession: withSessionQuotes(state.quotesBySession, sessionPath, quotes),
     })),
+  globalCommentBySession: storedGlobalComments.load(),
+  setGlobalComment: (sessionPath, comment) =>
+    set((state) => {
+      const globalCommentBySession = new Map(state.globalCommentBySession);
+      if (comment) {
+        globalCommentBySession.set(sessionPath, comment);
+      } else {
+        globalCommentBySession.delete(sessionPath);
+      }
+      return { globalCommentBySession };
+    }),
 
   // Right sidebar
   openRightSidebarSessions: storedOpenRightSidebars.load(),
@@ -463,6 +486,9 @@ useAppStore.subscribe((state, previous) => {
   }
   if (state.quotesBySession !== previous.quotesBySession) {
     storedQuotes.save(state.quotesBySession);
+  }
+  if (state.globalCommentBySession !== previous.globalCommentBySession) {
+    storedGlobalComments.save(state.globalCommentBySession);
   }
   if (state.openRightSidebarSessions !== previous.openRightSidebarSessions) {
     storedOpenRightSidebars.save(state.openRightSidebarSessions);
