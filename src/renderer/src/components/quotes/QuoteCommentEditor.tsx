@@ -1,6 +1,7 @@
 import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
+import { Kbd } from '../ui/kbd';
 import { Textarea } from '../ui/textarea';
 
 interface QuoteCommentEditorProps {
@@ -58,10 +59,13 @@ export default function QuoteCommentEditor({
         onKeyDown={handleKeyDown}
         placeholder="Add a comment..."
         aria-label="Quote comment"
-        className="max-h-40 min-h-16 resize-none rounded-none border-0 bg-transparent px-1 py-0.5 text-[13px] leading-5 shadow-none focus-visible:ring-0 dark:bg-transparent"
+        className="max-h-40 min-h-16 resize-none rounded-none border-0 bg-transparent px-1 py-0.5 text-[15px] leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
       />
       <Button type="button" size="xs" className="self-end" onClick={() => onSave(comment.trim())}>
         Save
+        <Kbd className="h-4 min-w-4 bg-primary-foreground/15 text-[11px] text-primary-foreground/80">
+          ↵
+        </Kbd>
       </Button>
     </div>
   );

@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { IconQuote } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '../../state/appStore';
 import { normalizeQuoteText } from '../../lib/messageQuotes';
+import { isTextField } from '../../lib/focusModality';
 import { VIBRANCY_OVERLAY_CONTENT } from '../../lib/layoutConstants';
+import { Kbd } from '../ui/kbd';
 import QuoteCommentEditor from './QuoteCommentEditor';
 
 /** Styled in assets/searchHighlights.css. */
@@ -13,6 +14,8 @@ const SELECTION_GAP_PX = 6;
 /** Keeps the floating UI off the list's edges. */
 const EDGE_MARGIN_PX = 8;
 const BUTTON_HALF_WIDTH_PX = 40;
+/** Pressed while the Quote button shows, opens the comment editor. */
+const QUOTE_SHORTCUT_KEY = 'q';
 const BUTTON_HEIGHT_PX = 28;
 const EDITOR_WIDTH_PX = 320;
 /** Rough editor height, only used to decide whether it fits on the preferred side. */
@@ -232,6 +235,34 @@ export default function QuoteSelectionPopover({
     };
   }, [containerRef, updatePosition]);
 
+  const showingButton = state?.mode === 'button';
+  useEffect(() => {
+    if (!showingButton) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (
+        event.key.toLowerCase() !== QUOTE_SHORTCUT_KEY ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.repeat ||
+        event.isComposing ||
+        isTextField(event.target)
+      ) {
+        return;
+      }
+      // Also keeps the q from being typed into the editor that opens.
+      event.preventDefault();
+      event.stopPropagation();
+      setState((previous) =>
+        previous?.mode === 'button' ? { ...previous, mode: 'editing' } : previous,
+      );
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [showingButton]);
+
   // Keep the quoted text visibly marked while the comment box has focus.
   const editingRange = state?.mode === 'editing' ? state.range : null;
   useEffect(() => {
@@ -272,8 +303,8 @@ export default function QuoteSelectionPopover({
         onPointerDown={(event) => event.preventDefault()}
         onClick={() => setState({ ...state, mode: 'editing' })}
       >
-        <IconQuote className="size-3.5" />
         Quote
+        <Kbd className="h-4 min-w-4 text-[11px]">Q</Kbd>
       </button>
     );
   }
