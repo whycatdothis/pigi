@@ -25,13 +25,11 @@ describe('formatQuotesMessage', () => {
     expect(message).toBe(
       [
         'Comments on quoted passages:',
-        '',
         '1.',
         '> line one',
         '>',
         '> line two',
         'Why this?',
-        '',
         '2.',
         '> single',
         'Rename it.',
@@ -42,7 +40,7 @@ describe('formatQuotesMessage', () => {
 
   it('leaves out an empty comment', () => {
     expect(formatQuotesMessage([{ id: 'a', text: 'only text', comment: ' ' }])).toBe(
-      'Comments on quoted passages:\n\n1.\n> only text',
+      'Comments on quoted passages:\n1.\n> only text',
     );
   });
 });

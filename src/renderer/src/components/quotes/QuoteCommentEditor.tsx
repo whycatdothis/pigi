@@ -1,8 +1,8 @@
 import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { IconCornerDownLeft } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
+import { ShortcutKbd } from '../../shortcuts/shortcutKbd';
 import { Button } from '../ui/button';
-import { Kbd } from '../ui/kbd';
+import { PRIMARY_BUTTON_KBD_CLASS_NAME } from '../ui/kbd';
 import { Textarea } from '../ui/textarea';
 
 interface QuoteCommentEditorProps {
@@ -85,9 +85,7 @@ export default function QuoteCommentEditor({
         onClick={() => onSave(comment.trim())}
       >
         Save
-        <Kbd className="h-4 w-5 bg-primary-foreground/15 text-primary-foreground/80">
-          <IconCornerDownLeft className="size-2.5" stroke={2.25} aria-label="Enter" />
-        </Kbd>
+        <ShortcutKbd binding={{ key: 'Enter' }} className={PRIMARY_BUTTON_KBD_CLASS_NAME} />
       </Button>
     </div>
   );

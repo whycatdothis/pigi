@@ -13,6 +13,10 @@ function Kbd({ className, ...props }: React.ComponentProps<'kbd'>) {
   );
 }
 
+/** A compact shortcut hint inside a primary button, after its label. */
+const PRIMARY_BUTTON_KBD_CLASS_NAME =
+  'h-4 min-w-4 px-1 text-[10px] bg-primary-foreground/15 text-primary-foreground/80';
+
 function KbdGroup({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <kbd
@@ -23,4 +27,4 @@ function KbdGroup({ className, ...props }: React.ComponentProps<'div'>) {
   );
 }
 
-export { Kbd, KbdGroup };
+export { Kbd, KbdGroup, PRIMARY_BUTTON_KBD_CLASS_NAME };

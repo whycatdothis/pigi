@@ -1,5 +1,6 @@
 import React from 'react';
 import { IconQuote } from '@tabler/icons-react';
+import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { useAppStore } from '../../state/appStore';
 import { RIGHT_SIDEBAR_TABS, type RightSidebarTab } from '../../lib/rightSidebarTabs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
@@ -17,10 +18,12 @@ function isRightSidebarTab(value: string): value is RightSidebarTab {
 export default React.memo(function RightSidebar({
   sessionPath,
   onSendQuotes,
+  sendQuotesShortcut,
 }: {
   sessionPath: string;
   /** Stable callback that sends a message like the chat input does. */
   onSendQuotes: (message: string) => Promise<void>;
+  sendQuotesShortcut: ShortcutBinding | undefined;
 }): React.JSX.Element {
   const activeTab = useAppStore((state) => state.rightSidebarTab);
   const quoteCount = useAppStore((state) => state.quotesBySession.get(sessionPath)?.length ?? 0);
@@ -52,7 +55,11 @@ export default React.memo(function RightSidebar({
         </TabsList>
       </div>
       <TabsContent value={RIGHT_SIDEBAR_TABS.quotes} className="min-h-0">
-        <QuotePanel sessionPath={sessionPath} onSend={onSendQuotes} />
+        <QuotePanel
+          sessionPath={sessionPath}
+          onSend={onSendQuotes}
+          sendShortcut={sendQuotesShortcut}
+        />
       </TabsContent>
     </Tabs>
   );

@@ -1708,7 +1708,11 @@ function App(): React.JSX.Element {
           >
             <div className="flex h-full w-(--right-sidebar-width) min-w-full shrink-0 border-l-[0.5px] border-foreground/27">
               {activeSessionPath && (
-                <RightSidebar sessionPath={activeSessionPath} onSendQuotes={handleSendQuotes} />
+                <RightSidebar
+                  sessionPath={activeSessionPath}
+                  onSendQuotes={handleSendQuotes}
+                  sendQuotesShortcut={shortcutBindings?.get('quotes.send')}
+                />
               )}
             </div>
             {rightSidebarVisible && (

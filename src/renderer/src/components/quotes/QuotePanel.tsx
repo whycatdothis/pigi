@@ -1,9 +1,13 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import { IconPencil, IconQuote, IconTrash } from '@tabler/icons-react';
 import { toast } from 'sonner';
+import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { useAppStore } from '../../state/appStore';
+import { bindingMatches } from '../../hooks/useKeyboardShortcuts';
 import { formatQuotesMessage, NO_QUOTES, type MessageQuote } from '../../lib/messageQuotes';
+import { ShortcutKbd } from '../../shortcuts/shortcutKbd';
 import { Button } from '../ui/button';
+import { PRIMARY_BUTTON_KBD_CLASS_NAME } from '../ui/kbd';
 import OverflowClamp from '../message/overflowClamp';
 import QuoteCommentEditor from './QuoteCommentEditor';
 
@@ -89,10 +93,12 @@ const QuoteCard = React.memo(function QuoteCard({
 export default React.memo(function QuotePanel({
   sessionPath,
   onSend,
+  sendShortcut,
 }: {
   sessionPath: string;
   /** Stable callback that sends a message like the chat input does. */
   onSend: (message: string) => Promise<void>;
+  sendShortcut: ShortcutBinding | undefined;
 }): React.JSX.Element {
   const quotes = useAppStore((state) => state.quotesBySession.get(sessionPath) ?? NO_QUOTES);
   const [sending, setSending] = useState(false);
@@ -116,6 +122,20 @@ export default React.memo(function QuotePanel({
       setSending(false);
     }
   };
+  const canSend = quotes.length > 0 && !sending;
+
+  // The panel stays mounted while the sidebar is closed, so the shortcut only
+  // sends when the sidebar is open and the Send button can be seen.
+  const handleShortcut = useEffectEvent((event: KeyboardEvent) => {
+    if (!sendShortcut || event.isComposing || !bindingMatches(sendShortcut, event)) return;
+    if (!canSend || !useAppStore.getState().openRightSidebarSessions.has(sessionPath)) return;
+    event.preventDefault();
+    void handleSend();
+  });
+  useEffect(() => {
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, []);
 
   return (
     <div className="flex h-full w-full flex-col" data-testid="quote-panel">
@@ -138,11 +158,14 @@ export default React.memo(function QuotePanel({
       <div className="flex shrink-0 justify-center border-t-[0.5px] border-foreground/27 p-3">
         <Button
           type="button"
-          className="w-3/5 max-w-60"
-          disabled={quotes.length === 0 || sending}
+          className="w-3/5 max-w-60 gap-1.5"
+          disabled={!canSend}
           onClick={() => void handleSend()}
         >
           Send
+          {sendShortcut && (
+            <ShortcutKbd binding={sendShortcut} className={PRIMARY_BUTTON_KBD_CLASS_NAME} />
+          )}
         </Button>
       </div>
     </div>
