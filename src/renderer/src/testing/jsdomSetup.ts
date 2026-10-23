@@ -99,6 +99,13 @@ if (!('ResizeObserver' in globalThis)) {
   });
 }
 
+/** Elements the app asked to show as popovers. jsdom has no top layer to put them in. */
+export const shownPopovers: Element[] = [];
+
+HTMLElement.prototype.showPopover = function showPopover(): void {
+  shownPopovers.push(this);
+};
+
 // The tree brings the current row into view when the dialog opens; with no layout
 // there is nowhere to scroll to.
 Element.prototype.scrollIntoView = function scrollIntoView(): void {

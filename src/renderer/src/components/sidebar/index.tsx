@@ -207,7 +207,9 @@ export default memo(function Sidebar({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <ShadcnSidebar collapsible="none" data-testid="sidebar">
+      {/* Fill the App wrapper, which owns the width: its own --sidebar-width would
+          lag a wrapper still easing wider and expose the transparent window. */}
+      <ShadcnSidebar collapsible="none" data-testid="sidebar" className="w-full">
         {/* WebkitAppRegion is Electron-specific, not in React's CSSProperties */}
         <SidebarHeader style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
           <div className="flex h-10 items-start justify-end">

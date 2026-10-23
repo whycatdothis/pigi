@@ -1483,24 +1483,20 @@ function App(): React.JSX.Element {
         <SidebarProvider className="h-screen min-h-0" data-testid="app-shell">
           {/* Collapsed to zero width rather than unmounted, so scroll position and
               expanded projects survive. The width animates (reserving real space for
-              the chat); the content slides with it at its full width. */}
+              the chat); the content, anchored to its right edge at its full width,
+              slides with it without reflowing. min-w-full covers a wrapper still
+              easing wider than the content. */}
           <div
             ref={sidebarRef}
             inert={!sidebarExpanded}
             className={cn(
-              'relative flex h-full shrink-0 overflow-hidden transition-[width] data-[panel-resizing]:transition-none data-[panel-resizing]:*:transition-none',
+              'relative flex h-full shrink-0 justify-end overflow-hidden transition-[width] data-[panel-resizing]:transition-none',
               SIDEBAR_TRANSITION_CLASS_NAME,
               sidebarExpanded ? 'w-(--sidebar-width)' : 'w-0',
             )}
             style={sidebarLayoutStyle}
           >
-            <div
-              className={cn(
-                'flex h-full w-(--sidebar-width) shrink-0 transition-transform',
-                SIDEBAR_TRANSITION_CLASS_NAME,
-                !sidebarExpanded && '-translate-x-full',
-              )}
-            >
+            <div className="flex h-full w-(--sidebar-width) min-w-full shrink-0">
               {/* Sidebar is memoized and App re-renders on every streaming update:
                   pass only stable props (store values, useCallback), no inline functions or objects. */}
               <Sidebar
@@ -1710,7 +1706,7 @@ function App(): React.JSX.Element {
             )}
             style={rightSidebarLayoutStyle}
           >
-            <div className="flex h-full w-(--right-sidebar-width) shrink-0 border-l-[0.5px] border-foreground/27">
+            <div className="flex h-full w-(--right-sidebar-width) min-w-full shrink-0 border-l-[0.5px] border-foreground/27">
               {activeSessionPath && (
                 <RightSidebar sessionPath={activeSessionPath} onSendQuotes={handleSendQuotes} />
               )}
