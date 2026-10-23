@@ -356,17 +356,23 @@ A new view adds a tab id there, a trigger and a `TabsContent` in the sidebar.
 Selecting text in the message list shows a floating Quote button
 (`components/quotes/QuoteSelectionPopover.tsx`), placed at the selection's end:
 below it for a top-down selection, above it for a bottom-up one. It turns into
-a comment editor and saves the quote to `quotesBySession` in the app store,
+a comment editor (Q while the button shows; Escape dismisses the button) and
+saves the quote to `quotesBySession` in the app store,
 keyed by session and kept in memory only. While the editor has focus the quoted
 range stays marked with a CSS custom highlight. The right sidebar's Quotes tab
 (`QuotePanel`) lists, edits and deletes them, and Send
 turns them into one plain-text message (`formatQuotesMessage` in
 `lib/messageQuotes.ts`) that goes through the same path as Enter in the chat
-input, so it prompts, steers or buffers just like a typed message.
+input, so it prompts, steers or buffers just like a typed message. A comment
+editor only discards its text on Escape: a pointer press outside it, including
+on Send, saves a non-empty comment first.
 
 The popover is positioned against the scroll container and only measures the
-selection after the gesture ends (pointerup, keyup) or when the container
-scrolls or resizes, never during a drag.
+selection after the gesture ends (pointerup, pointercancel, keyup) or when the
+container scrolls or resizes, never during a drag. An unchanged position keeps
+the previous state, so scroll frames during streaming follow do not re-render
+it. While editing, a quoted range scrolled out of view pins the editor to the
+edge it left through.
 
 ## Collapsible Blocks
 

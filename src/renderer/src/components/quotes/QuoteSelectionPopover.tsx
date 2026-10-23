@@ -56,10 +56,16 @@ function focusCaretRect(range: Range, backward: boolean): DOMRect | null {
   return rect && rect.height > 0 ? rect : null;
 }
 
+/**
+ * With `pinToEdge`, a range scrolled out of view anchors to the edge it left
+ * through, so an open editor stays next to the list's top or bottom instead
+ * of floating over unrelated text.
+ */
 function measureAnchor(
   container: HTMLElement,
   range: Range,
   backward: boolean,
+  pinToEdge = false,
 ): SelectionAnchor | null {
   const containerRect = container.getBoundingClientRect();
   const rangeRect = range.getBoundingClientRect();
@@ -67,8 +73,23 @@ function measureAnchor(
   if (rangeRect.width === 0 && rangeRect.height === 0) {
     return null;
   }
-  if (rangeRect.bottom < containerRect.top || rangeRect.top > containerRect.bottom) {
-    return null;
+  const above = rangeRect.bottom < containerRect.top;
+  const below = rangeRect.top > containerRect.bottom;
+  if (above || below) {
+    if (!pinToEdge) {
+      return null;
+    }
+    const edge = above ? 0 : containerRect.height;
+    return {
+      x: (backward ? rangeRect.left : rangeRect.right) - containerRect.left,
+      lineTop: edge,
+      lineBottom: edge,
+      selectionTop: edge,
+      selectionBottom: edge,
+      backward,
+      containerWidth: containerRect.width,
+      containerHeight: containerRect.height,
+    };
   }
   const caret = focusCaretRect(range, backward);
   const x = caret?.left ?? (backward ? rangeRect.left : rangeRect.right);
@@ -84,6 +105,19 @@ function measureAnchor(
     containerWidth: containerRect.width,
     containerHeight: containerRect.height,
   };
+}
+
+function sameAnchor(first: SelectionAnchor, second: SelectionAnchor): boolean {
+  return (
+    first.x === second.x &&
+    first.lineTop === second.lineTop &&
+    first.lineBottom === second.lineBottom &&
+    first.selectionTop === second.selectionTop &&
+    first.selectionBottom === second.selectionBottom &&
+    first.backward === second.backward &&
+    first.containerWidth === second.containerWidth &&
+    first.containerHeight === second.containerHeight
+  );
 }
 
 /** The current selection when it lies inside the container and is at least partly in view. */
@@ -170,14 +204,22 @@ export default function QuoteSelectionPopover({
     if (!container || selectingRef.current) {
       return;
     }
+    // Runs on every scroll frame, including streaming follow, so an unchanged
+    // position keeps the previous state and skips the render.
     setState((previous) => {
       // Focusing the comment box moves the document selection away, so the
       // editor follows the range it saved instead.
       if (previous?.mode === 'editing') {
-        const anchor = measureAnchor(container, previous.range, previous.anchor.backward);
-        return anchor ? { ...previous, anchor } : previous;
+        const anchor = measureAnchor(container, previous.range, previous.anchor.backward, true);
+        return anchor && !sameAnchor(anchor, previous.anchor) ? { ...previous, anchor } : previous;
       }
-      return measureSelection(container);
+      const next = measureSelection(container);
+      return previous &&
+        next &&
+        next.text === previous.text &&
+        sameAnchor(next.anchor, previous.anchor)
+        ? previous
+        : next;
     });
   }, [containerRef]);
 
@@ -221,6 +263,8 @@ export default function QuoteSelectionPopover({
     container.addEventListener('keyup', scheduleUpdate);
     container.addEventListener('scroll', scheduleUpdate, { passive: true });
     window.addEventListener('pointerup', handlePointerUp);
+    // Dragging selected text starts a native drag, which ends in pointercancel.
+    window.addEventListener('pointercancel', handlePointerUp);
     document.addEventListener('selectionchange', handleSelectionChange);
     return () => {
       if (frame !== null) {
@@ -231,6 +275,7 @@ export default function QuoteSelectionPopover({
       container.removeEventListener('keyup', scheduleUpdate);
       container.removeEventListener('scroll', scheduleUpdate);
       window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
       document.removeEventListener('selectionchange', handleSelectionChange);
     };
   }, [containerRef, updatePosition]);
@@ -242,22 +287,27 @@ export default function QuoteSelectionPopover({
     }
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (
-        event.key.toLowerCase() !== QUOTE_SHORTCUT_KEY ||
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
-        event.repeat ||
         event.isComposing ||
         isTextField(event.target)
       ) {
         return;
       }
-      // Also keeps the q from being typed into the editor that opens.
-      event.preventDefault();
-      event.stopPropagation();
-      setState((previous) =>
-        previous?.mode === 'button' ? { ...previous, mode: 'editing' } : previous,
-      );
+      if (event.key === 'Escape') {
+        // Dismisses the button before Escape reaches the window handlers (abort).
+        event.preventDefault();
+        event.stopPropagation();
+        window.getSelection()?.removeAllRanges();
+      } else if (event.key.toLowerCase() === QUOTE_SHORTCUT_KEY && !event.repeat) {
+        // Also keeps the q from being typed into the editor that opens.
+        event.preventDefault();
+        event.stopPropagation();
+        setState((previous) =>
+          previous?.mode === 'button' ? { ...previous, mode: 'editing' } : previous,
+        );
+      }
     };
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
