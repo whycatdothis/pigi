@@ -9,7 +9,7 @@ import {
   type DragEvent,
   type Ref,
 } from 'react';
-import { EditorContent, useEditor, type EditorOptions } from '@tiptap/react';
+import { EditorContent, useEditor, type EditorEvents, type EditorOptions } from '@tiptap/react';
 import { toast } from 'sonner';
 import { IconArrowUp, IconGitBranch, IconSquare } from '@tabler/icons-react';
 import type {
@@ -585,6 +585,24 @@ export default function ChatInput({
     },
     [getHistoryDraft],
   );
+
+  // Keep the stored draft current so it survives quitting the app. Every
+  // document change counts, including programmatic ones (send, restore) that
+  // skip onUpdate. The microtask lets a history recall finish updating its
+  // index first, so getHistoryDraft returns the typed draft, not the recalled entry.
+  useEffect(() => {
+    const handleTransaction = ({ transaction }: EditorEvents['transaction']): void => {
+      if (!transaction.docChanged) return;
+      queueMicrotask(() => {
+        const key = activeDraftKeyRef.current;
+        if (key !== null && !editor.isDestroyed) writeChatDraft(key, getHistoryDraft());
+      });
+    };
+    editor.on('transaction', handleTransaction);
+    return () => {
+      editor.off('transaction', handleTransaction);
+    };
+  }, [editor, getHistoryDraft]);
 
   // Restore messages from abort/dequeue
   useEffect(() => {

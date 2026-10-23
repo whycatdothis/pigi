@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { formatQuotesMessage, normalizeQuoteText } from './messageQuotes';
+import { formatQuotesMessage, normalizeQuoteText, parseStoredQuotes } from './messageQuotes';
+
+describe('parseStoredQuotes', () => {
+  it('keeps well-formed quotes and rejects a session with none left', () => {
+    const quote = { id: 'a', text: 'quoted', comment: '' };
+    expect(parseStoredQuotes([quote, { id: 'b', text: 'no comment' }, null])).toEqual([quote]);
+    expect(parseStoredQuotes([{ id: 3 }])).toBeUndefined();
+    expect(parseStoredQuotes('not an array')).toBeUndefined();
+  });
+});
 
 describe('normalizeQuoteText', () => {
   it('trims line ends and collapses runs of blank lines', () => {

@@ -10,6 +10,25 @@ export const NO_QUOTES: readonly MessageQuote[] = [];
 
 const QUOTES_MESSAGE_HEADER = 'Comments on quoted passages:';
 
+function isMessageQuote(value: unknown): value is MessageQuote {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    typeof value.id === 'string' &&
+    'text' in value &&
+    typeof value.text === 'string' &&
+    'comment' in value &&
+    typeof value.comment === 'string'
+  );
+}
+
+/** One session's stored quotes without malformed entries, or undefined when none remain. */
+export function parseStoredQuotes(value: unknown): MessageQuote[] | undefined {
+  const quotes = Array.isArray(value) ? value.filter(isMessageQuote) : [];
+  return quotes.length > 0 ? quotes : undefined;
+}
+
 /**
  * Text selected across rendered markdown carries the layout's spacing: padded
  * lines and runs of blank lines between blocks. Keep single blank lines, which
