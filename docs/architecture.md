@@ -366,9 +366,8 @@ turns them into one plain-text message (`formatQuotesMessage` in
 `lib/messageQuotes.ts`) that goes through the same path as Enter in the chat
 input, so it prompts, steers or buffers just like a typed message. A comment
 editor only discards its text on Escape: a pointer press outside it, including
-on Send, saves a changed comment first. Saving with Enter or the Save button
-opens the Quotes tab; saving by clicking away leaves the layout alone, so
-nothing shifts under that click.
+on Send, saves a changed comment first. Adding a quote, however it is saved,
+opens the Quotes tab.
 
 The popover is positioned against the scroll container and only measures the
 selection after the gesture ends (pointerup, pointercancel, keyup) or when the
