@@ -187,6 +187,8 @@ function App(): React.JSX.Element {
   const pendingUpdateVersion = useAppStore((state) =>
     state.updateStatus.phase === 'downloaded' ? state.updateStatus.version : null,
   );
+  /** Set when the user asked to install, so a failure can be reported. */
+  const installRequestedRef = useRef(false);
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [switcherAutoPreselect, setSwitcherAutoPreselect] = useState(false);
@@ -413,7 +415,17 @@ function App(): React.JSX.Element {
     void getUpdateStatus()
       .then(setUpdateStatus)
       .catch((error) => console.error('Failed to read update status:', error));
-    return onUpdateStatus(setUpdateStatus);
+    return onUpdateStatus((status) => {
+      setUpdateStatus(status);
+      // An install the user asked for has no caller left to report to: the
+      // window is quit out from under it on success, and on failure the dot
+      // simply disappears. Say why, once, for that case only — a background
+      // check that fails (offline, GitHub down) stays silent.
+      if (status.phase === 'error' && installRequestedRef.current) {
+        installRequestedRef.current = false;
+        toast.error('Update failed', { description: status.message });
+      }
+    });
   }, []);
 
   // A manual check reports its own outcome. A found update opens the progress
@@ -433,6 +445,7 @@ function App(): React.JSX.Element {
   }, []);
 
   const handleInstallUpdate = useCallback(() => {
+    installRequestedRef.current = true;
     quitAndInstallUpdate();
   }, []);
 
