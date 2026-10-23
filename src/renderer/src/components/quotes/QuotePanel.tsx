@@ -140,7 +140,7 @@ export default React.memo(function QuotePanel({
       <div className="flex shrink-0 justify-center border-t-[0.5px] border-foreground/27 p-3">
         <Button
           type="button"
-          className="w-1/2"
+          className="w-3/5"
           disabled={quotes.length === 0 || sending}
           onClick={() => void handleSend()}
         >
