@@ -4,6 +4,7 @@ import { useAppStore } from '../../state/appStore';
 import { normalizeQuoteText } from '../../lib/messageQuotes';
 import { isTextField } from '../../lib/focusModality';
 import { VIBRANCY_OVERLAY_CONTENT } from '../../lib/layoutConstants';
+import { RIGHT_SIDEBAR_TABS } from '../../lib/rightSidebarTabs';
 import { Kbd } from '../ui/kbd';
 import QuoteCommentEditor from './QuoteCommentEditor';
 
@@ -286,12 +287,19 @@ export default function QuoteSelectionPopover({
       return;
     }
     const handleKeyDown = (event: KeyboardEvent): void => {
+      // Only while the list (focused by the selecting drag) or nothing has
+      // focus, so keys in a dialog or another panel are left alone.
+      const target = event.target;
+      const inScope =
+        target === document.body ||
+        (target instanceof Node && containerRef.current?.contains(target) === true);
       if (
+        !inScope ||
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
         event.isComposing ||
-        isTextField(event.target)
+        isTextField(target)
       ) {
         return;
       }
@@ -311,7 +319,7 @@ export default function QuoteSelectionPopover({
     };
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, [showingButton]);
+  }, [showingButton, containerRef]);
 
   // Keep the quoted text visibly marked while the comment box has focus.
   const editingRange = state?.mode === 'editing' ? state.range : null;
@@ -325,7 +333,7 @@ export default function QuoteSelectionPopover({
     };
   }, [editingRange]);
 
-  const handleSave = useCallback(
+  const saveQuote = useCallback(
     (comment: string) => {
       if (state) {
         useAppStore.getState().addQuote(sessionPath, state.text, comment);
@@ -334,6 +342,19 @@ export default function QuoteSelectionPopover({
       setState(null);
     },
     [sessionPath, state],
+  );
+
+  // An explicit save shows where the quote went. A save by clicking away does
+  // not: the layout would shift under that click (and a click on the sidebar
+  // toggle would open the sidebar only to toggle it closed again).
+  const handleSave = useCallback(
+    (comment: string) => {
+      saveQuote(comment);
+      const store = useAppStore.getState();
+      store.setRightSidebarTab(RIGHT_SIDEBAR_TABS.quotes);
+      store.setRightSidebarOpen(true);
+    },
+    [saveQuote],
   );
 
   const handleCancel = useCallback(() => setState(null), []);
@@ -363,6 +384,7 @@ export default function QuoteSelectionPopover({
     <QuoteCommentEditor
       initialComment=""
       onSave={handleSave}
+      onSaveOnOutsidePress={saveQuote}
       onCancel={handleCancel}
       className={cn(VIBRANCY_OVERLAY_CONTENT, 'absolute z-20 p-2 animate-in fade-in-0 zoom-in-95')}
       style={{

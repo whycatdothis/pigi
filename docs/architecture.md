@@ -356,8 +356,9 @@ A new view adds a tab id there, a trigger and a `TabsContent` in the sidebar.
 Selecting text in the message list shows a floating Quote button
 (`components/quotes/QuoteSelectionPopover.tsx`), placed at the selection's end:
 below it for a top-down selection, above it for a bottom-up one. It turns into
-a comment editor (Q while the button shows; Escape dismisses the button) and
-saves the quote to `quotesBySession` in the app store,
+a comment editor (Q while the button shows; Escape dismisses the button; both
+only while the list or nothing has focus) and saves the quote to
+`quotesBySession` in the app store,
 keyed by session and persisted (see Unsent Drafts). While the editor has focus the quoted
 range stays marked with a CSS custom highlight. The right sidebar's Quotes tab
 (`QuotePanel`) lists, edits and deletes them, and Send
@@ -365,7 +366,9 @@ turns them into one plain-text message (`formatQuotesMessage` in
 `lib/messageQuotes.ts`) that goes through the same path as Enter in the chat
 input, so it prompts, steers or buffers just like a typed message. A comment
 editor only discards its text on Escape: a pointer press outside it, including
-on Send, saves a non-empty comment first.
+on Send, saves a changed comment first. Saving with Enter or the Save button
+opens the Quotes tab; saving by clicking away leaves the layout alone, so
+nothing shifts under that click.
 
 The popover is positioned against the scroll container and only measures the
 selection after the gesture ends (pointerup, pointercancel, keyup) or when the
@@ -386,6 +389,8 @@ which stores `{ [sessionPath]: { savedAt, value } }`:
 
 - localStorage writes block the renderer's main thread, so saves are debounced
   (drafts 800 ms, quotes 300 ms) and a pending save is flushed on `beforeunload`.
+- A failed write (over quota) removes the key instead of leaving the previous
+  value, which would later restore deleted entries and lose newer ones.
 - `savedAt` moves only when that session's value changes. Loading drops entries
   older than 60 days and rewrites the key without them, which also clears
   sessions that were deleted, with no link to the session list.

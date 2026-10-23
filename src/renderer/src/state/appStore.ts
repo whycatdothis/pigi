@@ -291,11 +291,7 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => {
       const quote: MessageQuote = { id: crypto.randomUUID(), text, comment };
       const quotes = [...(state.quotesBySession.get(sessionPath) ?? []), quote];
-      return {
-        quotesBySession: withSessionQuotes(state.quotesBySession, sessionPath, quotes),
-        rightSidebarOpen: true,
-        rightSidebarTab: RIGHT_SIDEBAR_TABS.quotes,
-      };
+      return { quotesBySession: withSessionQuotes(state.quotesBySession, sessionPath, quotes) };
     }),
   updateQuoteComment: (sessionPath, quoteId, comment) =>
     set((state) => {

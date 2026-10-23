@@ -7,8 +7,11 @@ import { Textarea } from '../ui/textarea';
 
 interface QuoteCommentEditorProps {
   initialComment: string;
+  /** Enter or the Save button. */
   onSave: (comment: string) => void;
-  /** Escape, or a pointer press outside the editor while the comment is empty. */
+  /** A pointer press outside the editor after the comment changed; defaults to onSave. */
+  onSaveOnOutsidePress?: (comment: string) => void;
+  /** Escape, or a pointer press outside the editor with the comment unchanged. */
   onCancel: () => void;
   className?: string;
   style?: React.CSSProperties;
@@ -18,6 +21,7 @@ interface QuoteCommentEditorProps {
 export default function QuoteCommentEditor({
   initialComment,
   onSave,
+  onSaveOnOutsidePress = onSave,
   onCancel,
   className,
   style,
@@ -33,14 +37,15 @@ export default function QuoteCommentEditor({
     textarea?.setSelectionRange(textarea.value.length, textarea.value.length);
   }, []);
 
-  // Clicking away (or on Send) keeps what was typed; only Escape discards it.
+  // Clicking away (or on Send) keeps any change, including a cleared comment;
+  // only Escape discards it.
   const handlePointerDownOutside = useEffectEvent((event: PointerEvent) => {
     if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
       const trimmed = comment.trim();
-      if (trimmed) {
-        onSave(trimmed);
-      } else {
+      if (trimmed === initialComment.trim()) {
         onCancel();
+      } else {
+        onSaveOnOutsidePress(trimmed);
       }
     }
   });

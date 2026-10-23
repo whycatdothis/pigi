@@ -85,6 +85,24 @@ describe('createPersistedSessionMap', () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
+  it('removes the stored value when a write fails, so stale entries cannot come back', () => {
+    const map = createMap();
+    map.save(new Map([['/a', 'old']]));
+    vi.runAllTimers();
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError');
+    });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      map.save(new Map([['/b', 'too big']]));
+      vi.runAllTimers();
+      expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    } finally {
+      setItem.mockRestore();
+      consoleError.mockRestore();
+    }
+  });
+
   it('loads nothing from missing or malformed JSON', () => {
     expect(createMap().load().size).toBe(0);
     localStorage.setItem(STORAGE_KEY, '{not json');
