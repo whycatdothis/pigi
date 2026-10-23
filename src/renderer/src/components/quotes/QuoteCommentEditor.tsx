@@ -7,10 +7,8 @@ import { Textarea } from '../ui/textarea';
 
 interface QuoteCommentEditorProps {
   initialComment: string;
-  /** Enter or the Save button. */
+  /** Enter, the Save button, or a pointer press outside the editor after the comment changed. */
   onSave: (comment: string) => void;
-  /** A pointer press outside the editor after the comment changed; defaults to onSave. */
-  onSaveOnOutsidePress?: (comment: string) => void;
   /** Escape, or a pointer press outside the editor with the comment unchanged. */
   onCancel: () => void;
   className?: string;
@@ -21,7 +19,6 @@ interface QuoteCommentEditorProps {
 export default function QuoteCommentEditor({
   initialComment,
   onSave,
-  onSaveOnOutsidePress = onSave,
   onCancel,
   className,
   style,
@@ -45,7 +42,7 @@ export default function QuoteCommentEditor({
       if (trimmed === initialComment.trim()) {
         onCancel();
       } else {
-        onSaveOnOutsidePress(trimmed);
+        onSave(trimmed);
       }
     }
   });

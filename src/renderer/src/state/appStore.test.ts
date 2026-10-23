@@ -72,14 +72,14 @@ describe('quotes', () => {
     useAppStore.setState({ quotesBySession: new Map(), rightSidebarOpen: false });
   });
 
-  it('adds quotes per session without touching the sidebar', () => {
+  it('adds quotes per session and opens the sidebar on the quotes tab', () => {
     const store = useAppStore.getState();
     store.addQuote(activePath, 'first', 'a');
     store.addQuote(activePath, 'second', '');
     store.addQuote(backgroundPath, 'other', 'b');
     expect(quotesOf(activePath)).toEqual(['first|a', 'second|']);
     expect(quotesOf(backgroundPath)).toEqual(['other|b']);
-    expect(useAppStore.getState().rightSidebarOpen).toBe(false);
+    expect(useAppStore.getState().rightSidebarOpen).toBe(true);
   });
 
   it('updates and removes a quote by id', () => {

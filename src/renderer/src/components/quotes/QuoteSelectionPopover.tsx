@@ -4,7 +4,6 @@ import { useAppStore } from '../../state/appStore';
 import { normalizeQuoteText } from '../../lib/messageQuotes';
 import { isTextField } from '../../lib/focusModality';
 import { VIBRANCY_OVERLAY_CONTENT } from '../../lib/layoutConstants';
-import { RIGHT_SIDEBAR_TABS } from '../../lib/rightSidebarTabs';
 import { Kbd } from '../ui/kbd';
 import QuoteCommentEditor from './QuoteCommentEditor';
 
@@ -333,7 +332,7 @@ export default function QuoteSelectionPopover({
     };
   }, [editingRange]);
 
-  const saveQuote = useCallback(
+  const handleSave = useCallback(
     (comment: string) => {
       if (state) {
         useAppStore.getState().addQuote(sessionPath, state.text, comment);
@@ -342,19 +341,6 @@ export default function QuoteSelectionPopover({
       setState(null);
     },
     [sessionPath, state],
-  );
-
-  // An explicit save shows where the quote went. A save by clicking away does
-  // not: the layout would shift under that click (and a click on the sidebar
-  // toggle would open the sidebar only to toggle it closed again).
-  const handleSave = useCallback(
-    (comment: string) => {
-      saveQuote(comment);
-      const store = useAppStore.getState();
-      store.setRightSidebarTab(RIGHT_SIDEBAR_TABS.quotes);
-      store.setRightSidebarOpen(true);
-    },
-    [saveQuote],
   );
 
   const handleCancel = useCallback(() => setState(null), []);
@@ -384,7 +370,6 @@ export default function QuoteSelectionPopover({
     <QuoteCommentEditor
       initialComment=""
       onSave={handleSave}
-      onSaveOnOutsidePress={saveQuote}
       onCancel={handleCancel}
       className={cn(VIBRANCY_OVERLAY_CONTENT, 'absolute z-20 p-2 animate-in fade-in-0 zoom-in-95')}
       style={{
