@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useEffectEvent, useState } from 'react';
-import { IconPencil, IconQuote, IconTrash } from '@tabler/icons-react';
+import { IconPencil, IconPlus, IconQuote, IconTrash } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { useAppStore } from '../../state/appStore';
@@ -13,6 +13,55 @@ import QuoteCommentEditor from './QuoteCommentEditor';
 
 /** Four lines of quoted text before Show more. */
 const QUOTE_TEXT_MAX_HEIGHT_PX = 88;
+
+const CARD_CLASS_NAME =
+  'group relative flex flex-col gap-2 rounded-lg bg-muted/50 p-2.5 ring-[0.5px] ring-foreground/10';
+
+function DeleteCardButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className="absolute -top-2 -right-2 z-10 flex size-6 items-center justify-center rounded-full bg-background text-muted-foreground opacity-0 shadow-sm ring-[0.5px] ring-foreground/15 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-destructive [-webkit-app-region:no-drag]"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+    >
+      <IconTrash className="size-3.5" />
+    </button>
+  );
+}
+
+function CommentText({
+  comment,
+  onEdit,
+}: {
+  comment: string;
+  onEdit: () => void;
+}): React.JSX.Element {
+  return (
+    <p
+      className="whitespace-pre-wrap break-words text-[15px] leading-6 text-foreground [overflow-wrap:anywhere]"
+      onDoubleClick={onEdit}
+    >
+      {comment}
+      <button
+        type="button"
+        className="ml-0.5 inline-flex size-6 items-center justify-center rounded-md align-top text-muted-foreground hover:bg-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-foreground [-webkit-app-region:no-drag]"
+        onClick={onEdit}
+        aria-label="Edit comment"
+        title="Edit comment"
+      >
+        <IconPencil className="size-[18px]" />
+      </button>
+    </p>
+  );
+}
 
 const QuoteCard = React.memo(function QuoteCard({
   quote,
@@ -32,16 +81,11 @@ const QuoteCard = React.memo(function QuoteCard({
   );
 
   return (
-    <li className="group relative flex flex-col gap-2 rounded-lg bg-muted/50 p-2.5 ring-[0.5px] ring-foreground/10">
-      <button
-        type="button"
-        className="absolute -top-2 -right-2 z-10 flex size-6 items-center justify-center rounded-full bg-background text-muted-foreground opacity-0 shadow-sm ring-[0.5px] ring-foreground/15 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-destructive [-webkit-app-region:no-drag]"
+    <li className={CARD_CLASS_NAME}>
+      <DeleteCardButton
+        label="Delete quote"
         onClick={() => useAppStore.getState().removeQuote(sessionPath, quote.id)}
-        aria-label="Delete quote"
-        title="Delete quote"
-      >
-        <IconTrash className="size-3.5" />
-      </button>
+      />
       <blockquote className="flex flex-col">
         <OverflowClamp
           maxHeight={QUOTE_TEXT_MAX_HEIGHT_PX}
@@ -57,21 +101,7 @@ const QuoteCard = React.memo(function QuoteCard({
           onCancel={() => setEditing(false)}
         />
       ) : quote.comment ? (
-        <p
-          className="whitespace-pre-wrap break-words text-[15px] leading-6 text-foreground [overflow-wrap:anywhere]"
-          onDoubleClick={() => setEditing(true)}
-        >
-          {quote.comment}
-          <button
-            type="button"
-            className="ml-0.5 inline-flex size-6 items-center justify-center rounded-md align-top text-muted-foreground hover:bg-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-foreground [-webkit-app-region:no-drag]"
-            onClick={() => setEditing(true)}
-            aria-label="Edit comment"
-            title="Edit comment"
-          >
-            <IconPencil className="size-[18px]" />
-          </button>
-        </p>
+        <CommentText comment={quote.comment} onEdit={() => setEditing(true)} />
       ) : (
         <button
           type="button"
@@ -85,10 +115,62 @@ const QuoteCard = React.memo(function QuoteCard({
   );
 });
 
+/** A plus under the quotes that opens straight into a comment on all of them. */
+const GlobalCommentCard = React.memo(function GlobalCommentCard({
+  sessionPath,
+}: {
+  sessionPath: string;
+}): React.JSX.Element {
+  const comment = useAppStore((state) => state.globalCommentBySession.get(sessionPath) ?? '');
+  const [editing, setEditing] = useState(false);
+
+  const handleSave = useCallback(
+    (text: string) => {
+      useAppStore.getState().setGlobalComment(sessionPath, text);
+      setEditing(false);
+    },
+    [sessionPath],
+  );
+
+  if (!comment && !editing) {
+    return (
+      <button
+        type="button"
+        className="flex h-8 items-center justify-center gap-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+        onClick={() => setEditing(true)}
+      >
+        <IconPlus className="size-4" />
+        Add global comment
+      </button>
+    );
+  }
+
+  return (
+    <div className={CARD_CLASS_NAME}>
+      {!editing && (
+        <DeleteCardButton
+          label="Delete global comment"
+          onClick={() => useAppStore.getState().setGlobalComment(sessionPath, '')}
+        />
+      )}
+      <span className="text-xs leading-5 text-muted-foreground">Global comment</span>
+      {editing ? (
+        <QuoteCommentEditor
+          initialComment={comment}
+          onSave={handleSave}
+          onCancel={() => setEditing(false)}
+        />
+      ) : (
+        <CommentText comment={comment} onEdit={() => setEditing(true)} />
+      )}
+    </div>
+  );
+});
+
 /**
  * The right sidebar's quotes tab: the session's collected quotes. Sending
- * turns them into one plain-text message (see formatQuotesMessage) and clears
- * the list.
+ * turns them, and the global comment after them, into one plain-text message
+ * (see formatQuotesMessage) and clears both.
  */
 export default React.memo(function QuotePanel({
   sessionPath,
@@ -101,6 +183,7 @@ export default React.memo(function QuotePanel({
   sendShortcut: ShortcutBinding | undefined;
 }): React.JSX.Element {
   const quotes = useAppStore((state) => state.quotesBySession.get(sessionPath) ?? NO_QUOTES);
+  const hasGlobalComment = useAppStore((state) => state.globalCommentBySession.has(sessionPath));
   const [sending, setSending] = useState(false);
 
   const handleSend = async (): Promise<void> => {
@@ -108,21 +191,26 @@ export default React.memo(function QuotePanel({
     // From the store, not the render: a comment being edited is saved by the
     // pointerdown that precedes this click.
     const sentQuotes = store.quotesBySession.get(sessionPath) ?? [];
+    const sentGlobalComment = store.globalCommentBySession.get(sessionPath) ?? '';
     setSending(true);
     store.setSessionQuotes(sessionPath, []);
+    store.setGlobalComment(sessionPath, '');
     try {
-      await onSend(formatQuotesMessage(sentQuotes));
+      await onSend(formatQuotesMessage(sentQuotes, sentGlobalComment));
       store.setRightSidebarOpen(sessionPath, false);
     } catch (error) {
       console.error('Failed to send quotes:', error);
       const addedWhileSending = useAppStore.getState().quotesBySession.get(sessionPath) ?? [];
       store.setSessionQuotes(sessionPath, [...sentQuotes, ...addedWhileSending]);
+      if (!useAppStore.getState().globalCommentBySession.has(sessionPath)) {
+        store.setGlobalComment(sessionPath, sentGlobalComment);
+      }
       toast.error('Failed to send quotes. Please try again.');
     } finally {
       setSending(false);
     }
   };
-  const canSend = quotes.length > 0 && !sending;
+  const canSend = (quotes.length > 0 || hasGlobalComment) && !sending;
 
   // The panel stays mounted while the sidebar is closed, so the shortcut only
   // sends when the sidebar is open and the Send button can be seen.
@@ -140,18 +228,23 @@ export default React.memo(function QuotePanel({
   return (
     <div className="flex h-full w-full flex-col" data-testid="quote-panel">
       <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-width:thin]">
-        {quotes.length === 0 ? (
+        {quotes.length === 0 && !hasGlobalComment ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center text-xs leading-5 text-muted-foreground">
             <IconQuote className="size-5" />
             Select text in a message, then choose Quote to comment on it.
           </div>
         ) : (
           // A reading column, so a wide sidebar does not stretch quotes into long lines.
-          <ol className="mx-auto flex max-w-160 flex-col gap-2">
-            {quotes.map((quote) => (
-              <QuoteCard key={quote.id} quote={quote} sessionPath={sessionPath} />
-            ))}
-          </ol>
+          <div className="mx-auto flex max-w-160 flex-col gap-2">
+            {quotes.length > 0 && (
+              <ol className="flex flex-col gap-2">
+                {quotes.map((quote) => (
+                  <QuoteCard key={quote.id} quote={quote} sessionPath={sessionPath} />
+                ))}
+              </ol>
+            )}
+            <GlobalCommentCard sessionPath={sessionPath} />
+          </div>
         )}
       </div>
 

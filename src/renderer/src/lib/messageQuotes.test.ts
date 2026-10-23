@@ -18,10 +18,13 @@ describe('normalizeQuoteText', () => {
 
 describe('formatQuotesMessage', () => {
   it('numbers each quote, blockquotes its lines and appends the comment', () => {
-    const message = formatQuotesMessage([
-      { id: 'a', text: 'line one\n\nline two', comment: '  Why this?  ' },
-      { id: 'b', text: 'single', comment: 'Rename it.\nAlso add a test.' },
-    ]);
+    const message = formatQuotesMessage(
+      [
+        { id: 'a', text: 'line one\n\nline two', comment: '  Why this?  ' },
+        { id: 'b', text: 'single', comment: 'Rename it.\nAlso add a test.' },
+      ],
+      '',
+    );
     expect(message).toBe(
       [
         'Comments on quoted passages:',
@@ -39,8 +42,18 @@ describe('formatQuotesMessage', () => {
   });
 
   it('leaves out an empty comment', () => {
-    expect(formatQuotesMessage([{ id: 'a', text: 'only text', comment: ' ' }])).toBe(
+    expect(formatQuotesMessage([{ id: 'a', text: 'only text', comment: ' ' }], ' ')).toBe(
       'Comments on quoted passages:\n1.\n> only text',
+    );
+  });
+
+  it('sends a global comment alone without the quotes header', () => {
+    expect(formatQuotesMessage([], 'Overall fine.')).toBe('Global comment:\nOverall fine.');
+  });
+
+  it('puts the global comment last, under its own label', () => {
+    expect(formatQuotesMessage([{ id: 'a', text: 'quoted', comment: '' }], ' Overall fine. ')).toBe(
+      'Comments on quoted passages:\n1.\n> quoted\nGlobal comment:\nOverall fine.',
     );
   });
 });

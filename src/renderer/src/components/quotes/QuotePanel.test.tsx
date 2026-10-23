@@ -19,6 +19,7 @@ describe('QuotePanel send shortcut', () => {
     useAppStore.setState({
       quotesBySession: new Map([[SESSION_PATH, [{ id: 'a', text: 'quoted', comment: '' }]]]),
       openRightSidebarSessions: new Map([[SESSION_PATH, true]]),
+      globalCommentBySession: new Map(),
     });
   });
 
@@ -34,6 +35,30 @@ describe('QuotePanel send shortcut', () => {
     expect(within(sendButton).getByLabelText('Enter')).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
     expect(onSend).toHaveBeenCalledWith('Comments on quoted passages:\n1.\n> quoted');
+  });
+
+  it('adds a global comment from the plus and sends it after the quotes', () => {
+    const onSend = renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Add global comment' }));
+    const editor = screen.getByRole('textbox', { name: 'Quote comment' });
+    fireEvent.change(editor, { target: { value: 'Overall fine.' } });
+    fireEvent.keyDown(editor, { key: 'Enter' });
+    expect(screen.getByText('Overall fine.')).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
+    expect(onSend).toHaveBeenCalledWith(
+      'Comments on quoted passages:\n1.\n> quoted\nGlobal comment:\nOverall fine.',
+    );
+    expect(useAppStore.getState().globalCommentBySession.has(SESSION_PATH)).toBe(false);
+  });
+
+  it('keeps the global comment sendable after the last quote is deleted', () => {
+    useAppStore.setState({ globalCommentBySession: new Map([[SESSION_PATH, 'Overall fine.']]) });
+    const onSend = renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete quote' }));
+    expect(screen.getByText('Overall fine.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Send/ }));
+    expect(onSend).toHaveBeenCalledWith('Global comment:\nOverall fine.');
   });
 
   it('ignores the shortcut while the sidebar is closed or on a plain Enter', () => {

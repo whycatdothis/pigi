@@ -5,6 +5,7 @@
 ### Added
 
 - Dragging either sidebar past its minimum width collapses it, with the same animation as the toggle; dragging back out reopens it, and the resize cursor stays for the whole drag
+- A plus under the quotes adds a global comment on all of them, sent after the quotes and labeled as such
 - Cmd+Enter sends the quotes while the right sidebar is open; the shortcut is shown on the Send button and can be changed in settings
 
 ### Changed
