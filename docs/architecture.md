@@ -499,7 +499,8 @@ src/
 │   ├── processes/
 │   │   └── createPiAgentProcess.ts  # Utility process spawner
 │   └── windows/
-│       └── createMainWindow.ts
+│       ├── createMainWindow.ts
+│       └── createUpdateProgressWindow.ts  # frameless update sheet (see auto-update.md)
 ├── preload/
 │   ├── index.ts                # Port management + piApi exposure
 │   └── index.d.ts              # Type declarations for window.piApi
@@ -521,6 +522,7 @@ src/
         │   ├── sidebar/          # project and session lists
         │   ├── terminal/         # terminal panel, controller, theme
         │   ├── transcript/       # message list, its rows, search, mini-map
+        │   ├── update/           # the standalone update progress window (see auto-update.md)
         │   └── ui/               # shadcn primitives
         ├── services/
         │   └── piAgentClient.ts  # Typed wrappers over piApi

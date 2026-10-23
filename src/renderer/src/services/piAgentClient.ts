@@ -23,6 +23,7 @@ import type {
   SessionTree,
   StreamBatch,
   ThinkingLevel,
+  UpdateStatus,
 } from '../../../shared/ipcContract';
 
 type CommandResult<T = unknown> = { success: boolean; error?: string } & T;
@@ -377,4 +378,29 @@ export function onModelCatalogUpdated(
   callback: (snapshot: ModelCatalogSnapshot) => void,
 ): () => void {
   return window.piApi.onModelCatalogUpdated(callback);
+}
+
+/** Current auto-update status, for a window that opened after it changed. */
+export async function getUpdateStatus(): Promise<UpdateStatus> {
+  return window.piApi.update.getStatus();
+}
+
+/** Check for updates now. A found update downloads and shows the progress window. */
+export async function checkForUpdates(): Promise<UpdateStatus> {
+  return window.piApi.update.check();
+}
+
+/** Abort an in-flight update download. */
+export function cancelUpdateDownload(): void {
+  window.piApi.update.cancelDownload();
+}
+
+/** Quit and install the downloaded update. */
+export function quitAndInstallUpdate(): void {
+  window.piApi.update.quitAndInstall();
+}
+
+/** Subscribe to auto-update status changes pushed from main. */
+export function onUpdateStatus(callback: (status: UpdateStatus) => void): () => void {
+  return window.piApi.update.onStatus(callback);
 }

@@ -50,6 +50,10 @@ import {
   getModelCatalog,
   refreshModelCatalog,
   onModelCatalogUpdated,
+  getUpdateStatus,
+  checkForUpdates,
+  onUpdateStatus,
+  quitAndInstallUpdate,
   abortBranchSummary,
 } from './services/piAgentClient';
 import type {
@@ -176,6 +180,12 @@ function App(): React.JSX.Element {
         state.openRightSidebarSessions.has(state.activeSessionPath),
       platform: state.platform,
     })),
+  );
+
+  // Only the installable version, not the whole status: download progress
+  // pushes on every tick, and re-rendering App for each one is waste.
+  const pendingUpdateVersion = useAppStore((state) =>
+    state.updateStatus.phase === 'downloaded' ? state.updateStatus.version : null,
   );
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -395,6 +405,36 @@ function App(): React.JSX.Element {
       .then(applyCatalogSnapshot)
       .catch((err) => console.error('Failed to refresh model catalog:', err));
   }, [applyCatalogSnapshot]);
+
+  // Auto-update: read the current status on mount (a window can open while a
+  // download is already running), then follow the pushes from main.
+  useEffect(() => {
+    const { setUpdateStatus } = useAppStore.getState();
+    void getUpdateStatus()
+      .then(setUpdateStatus)
+      .catch((error) => console.error('Failed to read update status:', error));
+    return onUpdateStatus(setUpdateStatus);
+  }, []);
+
+  // A manual check reports its own outcome. A found update opens the progress
+  // window in the main process, so only the no-op outcomes toast here.
+  const handleCheckForUpdates = useCallback(() => {
+    void checkForUpdates()
+      .then((status) => {
+        if (status.phase === 'up_to_date') {
+          toast('pigi is up to date');
+        } else if (status.phase === 'unsupported') {
+          toast('Only the packaged app can check for updates');
+        } else if (status.phase === 'error') {
+          toast.error('Could not check for updates', { description: status.message });
+        }
+      })
+      .catch((error) => console.error('Failed to check for updates:', error));
+  }, []);
+
+  const handleInstallUpdate = useCallback(() => {
+    quitAndInstallUpdate();
+  }, []);
 
   const thinkingLevelOptions = activeSessionPath ? sessionThinkingLevels : draftThinkingLevels;
 
@@ -1514,6 +1554,9 @@ function App(): React.JSX.Element {
                 onReorderProjects={handleReorderProjects}
                 onRenameSession={handleRenameSession}
                 onLogin={handleLogin}
+                pendingUpdateVersion={pendingUpdateVersion}
+                onCheckForUpdates={handleCheckForUpdates}
+                onInstallUpdate={handleInstallUpdate}
               />
             </div>
           </div>

@@ -391,6 +391,33 @@ export function isPiPush(message: DataPortMessage): message is PiPush {
 }
 
 // =============================================================================
+// Auto-update
+// =============================================================================
+
+/**
+ * Where the auto-updater stands, as every renderer sees it.
+ *
+ * `unsupported` covers builds electron-updater cannot replace: a dev run, or a
+ * platform with no publish target. Settings still offers the check and reports
+ * the refusal, rather than hiding a menu entry that silently does nothing.
+ */
+export type UpdateStatus =
+  | { phase: 'unsupported' }
+  | { phase: 'idle' }
+  | { phase: 'checking' }
+  | { phase: 'up_to_date' }
+  | {
+      phase: 'downloading';
+      version: string;
+      percent: number;
+      transferredBytes: number;
+      totalBytes: number;
+      bytesPerSecond: number;
+    }
+  | { phase: 'downloaded'; version: string }
+  | { phase: 'error'; message: string };
+
+// =============================================================================
 // IPC Channels (only used for lifecycle via main process)
 // =============================================================================
 
@@ -457,6 +484,16 @@ export enum PiChannel {
   TerminalPort = 'pi:terminal_port',
   /** main → renderer: a terminal process exited (payload carries its id) */
   TerminalExit = 'pi:terminal_exit',
+  /** renderer → main: the current auto-update status (also for a late subscriber, e.g. a reopened window) */
+  GetUpdateStatus = 'pi:get_update_status',
+  /** renderer → main: check for updates now; a found update downloads and shows the progress window */
+  CheckForUpdates = 'pi:check_for_updates',
+  /** renderer → main: abort an in-flight update download */
+  CancelUpdateDownload = 'pi:cancel_update_download',
+  /** renderer → main: quit and install the downloaded update */
+  QuitAndInstallUpdate = 'pi:quit_and_install_update',
+  /** main → renderer: the auto-update status changed */
+  UpdateStatusChanged = 'pi:update_status_changed',
 }
 
 // =============================================================================
