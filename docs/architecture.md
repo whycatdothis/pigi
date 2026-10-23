@@ -358,7 +358,7 @@ Selecting text in the message list shows a floating Quote button
 below it for a top-down selection, above it for a bottom-up one. It turns into
 a comment editor (Q while the button shows; Escape dismisses the button) and
 saves the quote to `quotesBySession` in the app store,
-keyed by session and kept in memory only. While the editor has focus the quoted
+keyed by session and persisted (see Unsent Drafts). While the editor has focus the quoted
 range stays marked with a CSS custom highlight. The right sidebar's Quotes tab
 (`QuotePanel`) lists, edits and deletes them, and Send
 turns them into one plain-text message (`formatQuotesMessage` in
@@ -373,6 +373,25 @@ container scrolls or resizes, never during a drag. An unchanged position keeps
 the previous state, so scroll frames during streaming follow do not re-render
 it. While editing, a quoted range scrolled out of view pins the editor to the
 edge it left through.
+
+## Unsent Drafts
+
+Chat input drafts (`lib/chatDrafts.ts`, keyed by session path, with
+`NEW_CHAT_DRAFT_KEY` for the new-chat screen) and quotes (`quotesBySession`)
+survive quitting the app. Each lives under its own localStorage key
+(`pigi.chatDrafts`, `pigi.quotesBySession`), so a keystroke does not
+re-serialize the quotes and one malformed value cannot take the other down.
+Both go through `createPersistedSessionMap` (`lib/persistedSessionMap.ts`),
+which stores `{ [sessionPath]: { savedAt, value } }`:
+
+- localStorage writes block the renderer's main thread, so saves are debounced
+  (drafts 800 ms, quotes 300 ms) and a pending save is flushed on `beforeunload`.
+- `savedAt` moves only when that session's value changes. Loading drops entries
+  older than 60 days and rewrites the key without them, which also clears
+  sessions that were deleted, with no link to the session list.
+
+The in-memory Map stays the source of truth; the composer updates its draft on
+every document transaction, including programmatic ones such as clearing on send.
 
 ## Collapsible Blocks
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest';
-import { useAppStore } from './appStore';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QUOTES_STORAGE_KEY, useAppStore } from './appStore';
 
 const backgroundPath = '/sessions/background.jsonl';
 const activePath = '/sessions/active.jsonl';
@@ -90,6 +90,24 @@ describe('quotes', () => {
     store.updateQuoteComment(activePath, second.id, 'changed');
     store.removeQuote(activePath, first.id);
     expect(quotesOf(activePath)).toEqual(['second|changed']);
+  });
+
+  it('saves quotes to localStorage after a short delay', () => {
+    vi.useFakeTimers();
+    try {
+      useAppStore.getState().addQuote(activePath, 'kept', 'note');
+      vi.runAllTimers();
+      const stored: unknown = JSON.parse(localStorage.getItem(QUOTES_STORAGE_KEY) ?? '{}');
+      expect(stored).toMatchObject({
+        [activePath]: { value: [{ text: 'kept', comment: 'note' }] },
+      });
+
+      useAppStore.getState().setSessionQuotes(activePath, []);
+      vi.runAllTimers();
+      expect(localStorage.getItem(QUOTES_STORAGE_KEY)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('drops a session entry once its last quote is gone', () => {

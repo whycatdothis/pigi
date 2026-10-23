@@ -8,7 +8,8 @@ import type {
   ThinkingLevel,
 } from '../../../shared/ipcContract';
 import type { Platform } from '../../../shared/platform';
-import type { MessageQuote } from '../lib/messageQuotes';
+import { createPersistedSessionMap } from '../lib/persistedSessionMap';
+import { parseStoredQuotes, type MessageQuote } from '../lib/messageQuotes';
 import { RIGHT_SIDEBAR_TABS, type RightSidebarTab } from '../lib/rightSidebarTabs';
 import type { AgentStatus } from './transcriptController';
 
@@ -84,7 +85,7 @@ interface AppState {
   setTerminalTabs: (tabs: TerminalTabView[], activeTabId: string | null) => void;
 
   // Quotes collected from the transcript, per session, waiting to be sent
-  // together. In memory only: they are a short-lived review draft.
+  // together. Persisted in localStorage, like the chat input drafts.
   quotesBySession: Map<string, MessageQuote[]>;
   addQuote: (sessionPath: string, text: string, comment: string) => void;
   updateQuoteComment: (sessionPath: string, quoteId: string, comment: string) => void;
@@ -145,6 +146,15 @@ function loadUnreadSessionPaths(): Set<string> {
     return new Set();
   }
 }
+
+export const QUOTES_STORAGE_KEY = 'pigi.quotesBySession';
+
+const storedQuotes = createPersistedSessionMap({
+  storageKey: QUOTES_STORAGE_KEY,
+  // Quotes change on discrete actions (add, edit, delete, send).
+  saveDelayMs: 300,
+  parse: parseStoredQuotes,
+});
 
 function withSessionQuotes(
   quotesBySession: Map<string, MessageQuote[]>,
@@ -276,7 +286,7 @@ export const useAppStore = create<AppState>((set) => ({
     set({ terminalTabs, activeTerminalTabId }),
 
   // Quotes
-  quotesBySession: new Map(),
+  quotesBySession: storedQuotes.load(),
   addQuote: (sessionPath, text, comment) =>
     set((state) => {
       const quote: MessageQuote = { id: crypto.randomUUID(), text, comment };
@@ -407,5 +417,8 @@ useAppStore.subscribe((state, previous) => {
       UNREAD_SESSIONS_STORAGE_KEY,
       JSON.stringify([...state.unreadSessionPaths]),
     );
+  }
+  if (state.quotesBySession !== previous.quotesBySession) {
+    storedQuotes.save(state.quotesBySession);
   }
 });
