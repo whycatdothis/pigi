@@ -92,10 +92,11 @@ interface AppState {
   removeQuote: (sessionPath: string, quoteId: string) => void;
   setSessionQuotes: (sessionPath: string, quotes: MessageQuote[]) => void;
 
-  rightSidebarOpen: boolean;
+  // Sessions whose right sidebar is open (closed ones are absent), persisted.
+  openRightSidebarSessions: Map<string, true>;
   rightSidebarTab: RightSidebarTab;
-  setRightSidebarOpen: (open: boolean) => void;
-  toggleRightSidebar: () => void;
+  setRightSidebarOpen: (sessionPath: string, open: boolean) => void;
+  toggleRightSidebar: (sessionPath: string) => void;
   setRightSidebarTab: (tab: RightSidebarTab) => void;
 
   // Tool block view mode: 'default' shows all cards, 'compact_read' collapses consecutive read-only tools, 'minimal' renders a minimal/codex-style activity view
@@ -155,6 +156,28 @@ const storedQuotes = createPersistedSessionMap({
   saveDelayMs: 300,
   parse: parseStoredQuotes,
 });
+
+export const RIGHT_SIDEBAR_OPEN_STORAGE_KEY = 'pigi.openRightSidebarSessions';
+
+const storedOpenRightSidebars = createPersistedSessionMap<true>({
+  storageKey: RIGHT_SIDEBAR_OPEN_STORAGE_KEY,
+  saveDelayMs: 300,
+  parse: (value) => (value === true ? true : undefined),
+});
+
+function withRightSidebarOpen(
+  openRightSidebarSessions: Map<string, true>,
+  sessionPath: string,
+  open: boolean,
+): Map<string, true> {
+  const next = new Map(openRightSidebarSessions);
+  if (open) {
+    next.set(sessionPath, true);
+  } else {
+    next.delete(sessionPath);
+  }
+  return next;
+}
 
 function withSessionQuotes(
   quotesBySession: Map<string, MessageQuote[]>,
@@ -293,7 +316,11 @@ export const useAppStore = create<AppState>((set) => ({
       const quotes = [...(state.quotesBySession.get(sessionPath) ?? []), quote];
       return {
         quotesBySession: withSessionQuotes(state.quotesBySession, sessionPath, quotes),
-        rightSidebarOpen: true,
+        openRightSidebarSessions: withRightSidebarOpen(
+          state.openRightSidebarSessions,
+          sessionPath,
+          true,
+        ),
         rightSidebarTab: RIGHT_SIDEBAR_TABS.quotes,
       };
     }),
@@ -317,10 +344,24 @@ export const useAppStore = create<AppState>((set) => ({
     })),
 
   // Right sidebar
-  rightSidebarOpen: false,
+  openRightSidebarSessions: storedOpenRightSidebars.load(),
   rightSidebarTab: RIGHT_SIDEBAR_TABS.quotes,
-  setRightSidebarOpen: (open) => set({ rightSidebarOpen: open }),
-  toggleRightSidebar: () => set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
+  setRightSidebarOpen: (sessionPath, open) =>
+    set((state) => ({
+      openRightSidebarSessions: withRightSidebarOpen(
+        state.openRightSidebarSessions,
+        sessionPath,
+        open,
+      ),
+    })),
+  toggleRightSidebar: (sessionPath) =>
+    set((state) => ({
+      openRightSidebarSessions: withRightSidebarOpen(
+        state.openRightSidebarSessions,
+        sessionPath,
+        !state.openRightSidebarSessions.has(sessionPath),
+      ),
+    })),
   setRightSidebarTab: (tab) => set({ rightSidebarTab: tab }),
 
   // Tool block view mode
@@ -420,5 +461,8 @@ useAppStore.subscribe((state, previous) => {
   }
   if (state.quotesBySession !== previous.quotesBySession) {
     storedQuotes.save(state.quotesBySession);
+  }
+  if (state.openRightSidebarSessions !== previous.openRightSidebarSessions) {
+    storedOpenRightSidebars.save(state.openRightSidebarSessions);
   }
 });

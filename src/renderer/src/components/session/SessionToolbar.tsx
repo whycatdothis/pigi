@@ -73,7 +73,7 @@ export default React.memo(function SessionToolbar({
       : sidebarToggleLeft(state.platform) + SIDEBAR_TOGGLE_CLEARANCE_PX,
   );
   const hasQuotes = useAppStore((state) => state.quotesBySession.has(sessionPath));
-  const rightSidebarOpen = useAppStore((state) => state.rightSidebarOpen);
+  const rightSidebarOpen = useAppStore((state) => state.openRightSidebarSessions.has(sessionPath));
   const toggleRightSidebar = useAppStore((state) => state.toggleRightSidebar);
   const toolBlockViewMode = useAppStore((state) => state.toolBlockViewMode);
   const setToolBlockViewMode = useAppStore((state) => state.setToolBlockViewMode);
@@ -268,7 +268,7 @@ export default React.memo(function SessionToolbar({
               type="button"
               aria-label="Toggle right sidebar"
               aria-pressed={rightSidebarOpen}
-              onClick={toggleRightSidebar}
+              onClick={() => toggleRightSidebar(sessionPath)}
               className={`relative flex items-center justify-center rounded p-1 transition-colors size-7 hover:bg-muted [-webkit-app-region:no-drag] ${rightSidebarOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               <PanelIcon side="right" />

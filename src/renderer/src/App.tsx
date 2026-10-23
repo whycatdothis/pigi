@@ -171,7 +171,9 @@ function App(): React.JSX.Element {
       toggleTerminal: state.toggleTerminal,
       terminalHeight: state.terminalHeight,
       sidebarExpanded: state.sidebarExpanded,
-      rightSidebarOpen: state.rightSidebarOpen,
+      rightSidebarOpen:
+        state.activeSessionPath !== null &&
+        state.openRightSidebarSessions.has(state.activeSessionPath),
       platform: state.platform,
     })),
   );

@@ -6,6 +6,10 @@
 
 - The right sidebar can be dragged much wider on a large window, and narrows again when the window does. Quotes stay in a readable column however wide it gets
 
+### Fixed
+
+- Sending the first message of a new session no longer opens the right sidebar just because another session had it open. Each session remembers whether its sidebar is open, across restarts
+
 ## [0.4.15] - 2026-10-23
 
 ### Added
