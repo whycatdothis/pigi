@@ -64,6 +64,7 @@ interface AppState {
 
   // Sidebar
   sidebarExpanded: boolean;
+  setSidebarExpanded: (expanded: boolean) => void;
   toggleSidebar: () => void;
 
   // Bottom terminal panel. `terminalMounted` stays true after first open so the
@@ -287,6 +288,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   // Sidebar
   sidebarExpanded: true,
+  setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
   toggleSidebar: () => set((s) => ({ sidebarExpanded: !s.sidebarExpanded })),
 
   // Bottom terminal panel
