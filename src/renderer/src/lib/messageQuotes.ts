@@ -48,17 +48,16 @@ export function normalizeQuoteText(text: string): string {
  * The plain-text message that sends every quote in one turn:
  *
  *   Comments on quoted passages:
- *
  *   1.
  *   > first quoted line
  *   > second quoted line
  *   the comment
- *
  *   2.
  *   ...
  *
- * The `> ` prefix already separates the quoted text from the comment, so the
- * comment needs no label; that keeps the message short.
+ * The `> ` prefix already separates the quoted text from the comment and the
+ * numbers separate the quotes, so neither needs a label or a blank line; that
+ * keeps the message short.
  */
 export function formatQuotesMessage(quotes: readonly MessageQuote[]): string {
   const sections = quotes.map((quote, index) => {
@@ -70,5 +69,5 @@ export function formatQuotesMessage(quotes: readonly MessageQuote[]): string {
     }
     return lines.join('\n');
   });
-  return [QUOTES_MESSAGE_HEADER, ...sections].join('\n\n');
+  return [QUOTES_MESSAGE_HEADER, ...sections].join('\n');
 }

@@ -57,6 +57,11 @@ export const SHORTCUT_DEFAULTS: ShortcutEntry[] = [
     defaultBinding: { key: ']', meta: true, shift: true },
   },
   {
+    id: 'quotes.send',
+    label: 'Send quotes',
+    defaultBinding: { key: 'Enter', meta: true },
+  },
+  {
     id: 'terminal.toggle',
     label: 'Toggle terminal',
     defaultBinding: { key: 'j', meta: true },

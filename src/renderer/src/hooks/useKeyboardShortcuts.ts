@@ -4,7 +4,7 @@ import { resolveShortcutBindings } from '../shortcuts/shortcutRegistry';
 
 const SHIFTED_BRACKET_KEYS: Record<string, string> = { '{': '[', '}': ']' };
 
-function bindingMatches(binding: ShortcutBinding, event: KeyboardEvent): boolean {
+export function bindingMatches(binding: ShortcutBinding, event: KeyboardEvent): boolean {
   // Shift produces braces on bracket keys; bindings retain their unshifted labels.
   const key = event.shiftKey ? (SHIFTED_BRACKET_KEYS[event.key] ?? event.key) : event.key;
   if (

@@ -5,10 +5,12 @@
 ### Added
 
 - Dragging either sidebar past its minimum width collapses it, with the same animation as the toggle; dragging back out reopens it, and the resize cursor stays for the whole drag
+- Cmd+Enter sends the quotes while the right sidebar is open; the shortcut is shown on the Send button and can be changed in settings
 
 ### Changed
 
 - The right sidebar can be dragged much wider on a large window, and narrows again when the window does. Quotes stay in a readable column however wide it gets
+- Sent quotes form a more compact message, without blank lines between the quotes
 
 ### Fixed
 
