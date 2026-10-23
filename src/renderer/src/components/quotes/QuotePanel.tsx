@@ -126,7 +126,8 @@ export default React.memo(function QuotePanel({
             Select text in a message, then choose Quote to comment on it.
           </div>
         ) : (
-          <ol className="flex flex-col gap-2">
+          // A reading column, so a wide sidebar does not stretch quotes into long lines.
+          <ol className="mx-auto flex max-w-160 flex-col gap-2">
             {quotes.map((quote) => (
               <QuoteCard key={quote.id} quote={quote} sessionPath={sessionPath} />
             ))}
@@ -137,7 +138,7 @@ export default React.memo(function QuotePanel({
       <div className="flex shrink-0 justify-center border-t-[0.5px] border-foreground/27 p-3">
         <Button
           type="button"
-          className="w-3/5"
+          className="w-3/5 max-w-60"
           disabled={quotes.length === 0 || sending}
           onClick={() => void handleSend()}
         >

@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The right sidebar can be dragged much wider on a large window, and narrows again when the window does. Quotes stay in a readable column however wide it gets
+
 ## [0.4.15] - 2026-10-23
 
 ### Added

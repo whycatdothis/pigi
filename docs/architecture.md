@@ -13,7 +13,9 @@ once per animation frame. Both a panel and its adjacent content consume that
 same property, so their actual layout stays aligned. React/store state receives
 the final dimension on release, cancellation, window blur, or unmount. Pending
 frames and event listeners are cleaned up. Bounds are evaluated during movement
-so they can follow the current window size.
+so they can follow the current window size, and a committed size outside the
+current bounds is clamped when the drag starts, so a window that shrank since
+the last drag leaves no dead zone.
 
 The hook marks the owning container with `data-panel-resizing` during the gesture.
 Disable geometry transitions beneath this marker; dragging should follow the
@@ -37,7 +39,18 @@ Otherwise dragging would lag behind the pointer.
 The right sidebar mirrors this: its wrapper animates between
 `--right-sidebar-width` and `0`, and the content stays anchored to the wrapper's
 left edge at full width, so it slides in from the window edge without a
-transform. Its resize handle uses `edge: 'left'`.
+transform. Its resize handle uses `edge: 'left'`. It may always grow to
+`RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH` (520px), and on a wide window until the
+rest is `RIGHT_SIDEBAR_RESERVED_WIDTH` (the widest left sidebar plus a 480px
+transcript). The drag writes `--right-sidebar-preferred-width`, and
+`--right-sidebar-width` applies the same cap in CSS,
+`min(var(--right-sidebar-preferred-width), max(520px, 100vw - <reserved>))`, so
+making the window narrower shrinks a wide sidebar without a resize listener or
+a store write. Keep the two apart: if the drag wrote the capped property, a
+commit of an unchanged width would not re-render, and the plain pixel value it
+left behind would drop the cap. The Quotes
+tab keeps its cards in a 640px column, so a wide sidebar does not stretch quotes
+into long lines.
 
 The message column is capped at `MESSAGE_LIST_MAX_WIDTH` (860px). At the default
 window size the chat viewport is already wider than that cap, so hiding the
