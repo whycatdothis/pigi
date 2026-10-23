@@ -6,6 +6,7 @@ import type {
   PiSessionInfo,
   ProjectDirectory,
   ThinkingLevel,
+  UpdateStatus,
 } from '../../../shared/ipcContract';
 import type { Platform } from '../../../shared/platform';
 import { createPersistedSessionMap } from '../lib/persistedSessionMap';
@@ -111,6 +112,11 @@ interface AppState {
   // Platform
   platform: Platform;
   setPlatform: (platform: Platform) => void;
+
+  // Auto-update status, pushed from main. Only 'downloaded' shows UI (the
+  // Settings blue dot and its install entry); every other phase is transient.
+  updateStatus: UpdateStatus;
+  setUpdateStatus: (status: UpdateStatus) => void;
 
   // Navigation history (sessionPath[] stacks for back/forward)
   navigationBackStack: string[];
@@ -397,6 +403,10 @@ export const useAppStore = create<AppState>((set) => ({
   // Platform
   platform: 'unknown',
   setPlatform: (platform) => set({ platform }),
+
+  // Auto-update
+  updateStatus: { phase: 'idle' },
+  setUpdateStatus: (status) => set({ updateStatus: status }),
 
   // Navigation history
   navigationBackStack: [],

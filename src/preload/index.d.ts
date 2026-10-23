@@ -14,6 +14,7 @@ import type {
   ShortcutBinding,
   ShortcutDefinition,
   StreamBatch,
+  UpdateStatus,
 } from '../shared/ipcContract';
 
 interface PiApi {
@@ -79,6 +80,15 @@ interface PiApi {
     binding: ShortcutBinding,
   ) => Promise<{ success: boolean; error?: string }>;
   getAccentColor: () => Promise<string | null>;
+
+  // Auto-update
+  update: {
+    getStatus: () => Promise<UpdateStatus>;
+    check: () => Promise<UpdateStatus>;
+    cancelDownload: () => void;
+    quitAndInstall: () => void;
+    onStatus: (callback: (status: UpdateStatus) => void) => () => void;
+  };
 
   // Bottom-panel terminals (one PTY per tab, keyed by id, I/O over a MessagePort each)
   terminal: {

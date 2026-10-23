@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- pigi updates itself: a downloaded update lights a blue dot on Settings, which offers "Update to <version>" and restarts into it
+- "Check for Updates" in the Settings menu, with a progress window that shows the download and can cancel it
+
 ## [0.4.17] - 2026-10-23
 
 ### Fixed

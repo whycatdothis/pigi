@@ -30,6 +30,7 @@ import {
   type StreamBatch,
   type TerminalInboundMessage,
   type TerminalOutboundMessage,
+  type UpdateStatus,
 } from '../shared/ipcContract';
 
 // =============================================================================
@@ -478,6 +479,30 @@ const piApi = {
 
   /** Get the system accent color as a hex string (e.g. '#007aff'). Returns null on unsupported platforms. */
   getAccentColor: (): Promise<string | null> => ipcRenderer.invoke(PiChannel.GetAccentColor),
+
+  /** Auto-update. Every renderer gets the status pushed on change. */
+  update: {
+    /** Current status, for a window that opened after the change. */
+    getStatus: (): Promise<UpdateStatus> => ipcRenderer.invoke(PiChannel.GetUpdateStatus),
+    /** Check now; a found update downloads and shows the progress window. */
+    check: (): Promise<UpdateStatus> => ipcRenderer.invoke(PiChannel.CheckForUpdates),
+    /** Abort an in-flight download and close the progress window. */
+    cancelDownload: (): void => {
+      ipcRenderer.send(PiChannel.CancelUpdateDownload);
+    },
+    /** Quit and install the downloaded update. */
+    quitAndInstall: (): void => {
+      ipcRenderer.send(PiChannel.QuitAndInstallUpdate);
+    },
+    /** Subscribe to status changes (main → renderer push). */
+    onStatus: (callback: (status: UpdateStatus) => void): (() => void) => {
+      const handler = (_: Electron.IpcRendererEvent, status: UpdateStatus): void => {
+        callback(status);
+      };
+      ipcRenderer.on(PiChannel.UpdateStatusChanged, handler);
+      return () => ipcRenderer.removeListener(PiChannel.UpdateStatusChanged, handler);
+    },
+  },
 
   /** Bottom-panel terminals. One PTY per tab (keyed by id); I/O over a MessagePort. */
   terminal: {

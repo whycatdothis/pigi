@@ -2,14 +2,22 @@
 
 ## Overview
 
-Add auto-update to pigi (Electron app), powered by `electron-updater` with GitHub Releases. Two flows: silent background check with blue-dot notification, and manual check from macOS menu with progress window.
+pigi updates itself through `electron-updater` against GitHub Releases. Every
+entry point lives in Settings: a silent background check that only lights a blue
+dot when a download lands, and a manual check that shows a small progress window.
 
 ## Decisions
 
 ### Library: electron-updater
 
-- Chosen because the project already uses electron-builder with GitHub publish configured in `electron-builder.yml`. electron-updater reads that config directly, zero additional setup.
-- `electron-log` for file-based logging (no existing logging).
+`electron-builder.yml` already publishes to GitHub (`publish.provider: github`),
+and electron-builder already writes `app-update.yml` plus `latest-mac.yml`,
+`pigi-<version>-arm64-mac.zip` and its `.blockmap` into each release.
+electron-updater reads all of that, so the build and release pipeline needs no
+change.
+
+No `electron-log`: electron-updater logs to the console by default, and the app
+has no file logging anywhere else.
 
 ### Channel: stable only
 
@@ -17,116 +25,157 @@ Single `latest` channel. No beta/alpha.
 
 ### autoDownload: false
 
-Set globally to `false`. Both auto-check and manual check call `downloadUpdate(cancellationToken)` explicitly. This gives us control over cancellation (progress window cancel button calls `cancellationToken.cancel()`).
+Both flows call `downloadUpdate(cancellationToken)` explicitly, which is what
+gives the progress window a token to cancel.
 
 ### autoInstallOnAppQuit: false
 
-User must explicitly trigger install. Two install paths:
+Installing is a user action:
 
-1. Blue-dot menu: "Update to new version" in Settings popover → `quitAndInstall()`
-2. Progress window: "Install and Restart" button → `quitAndInstall()`
+1. Settings popover: "Update to <version>" → `quitAndInstall()`
+2. Progress window: "Install and Restart" → `quitAndInstall()`
 
-### Flow 1: Automatic Background Check
+A quitter never picks up a half-decided update.
+
+### Platform: macOS only
+
+`isSupported()` is `app.isPackaged && process.platform === 'darwin'`. A dev run
+has no signed bundle to swap, and no Windows or Linux target is published, so
+both report `unsupported` and the manual check answers with a toast.
+
+### One status, pushed
+
+Rather than one channel per event, main owns a single `UpdateStatus` value:
+
+```ts
+type UpdateStatus =
+  | { phase: 'unsupported' }
+  | { phase: 'idle' }
+  | { phase: 'checking' }
+  | { phase: 'up_to_date' }
+  | { phase: 'downloading'; version; percent; transferredBytes; totalBytes; bytesPerSecond }
+  | { phase: 'downloaded'; version }
+  | { phase: 'error'; message };
+```
+
+It is broadcast on every change and readable on demand (`GetUpdateStatus`), so a
+window that opens mid-download — or after the main window was closed and
+reopened — shows the same state as main. Event-per-channel would need a replay
+path for each one.
+
+### Flow 1: Silent Background Check
 
 ```
-App launch / every 2 hours
+Launch (+15s) / every 2 hours
   → autoUpdater.checkForUpdates()
-    → update-available? Yes
-      → autoUpdater.downloadUpdate()
-        → download-progress events (logged only)
-        → update-downloaded
-          → IPC main→renderer: pi:update_downloaded
-          → AppStore.updateDownloaded = true
-          → Blue dot appears on Settings sidebar button
+    → update-not-available: status 'up_to_date', nothing visible
+    → update-available
+      → autoUpdater.downloadUpdate()   (no window)
+        → download-progress → status 'downloading' (log only, no UI)
+        → update-downloaded → status 'downloaded'
+          → blue dot on the Settings sidebar button
 ```
 
-Blue dot: small blue circle on the far right of the Settings `SidebarMenuButton`. Clicking Settings opens the existing Popover, now with a third item: "Update to new version" (only visible when `updateDownloaded` is true). Clicking it calls `quitAndInstall()`.
+The delay exists so the main window is up before the first push; users also
+notice a launch that immediately starts downloading.
 
-### Flow 2: Manual Check (macOS App Menu)
+### Flow 2: Manual Check (Settings)
 
 ```
-User clicks "Check for Updates" in app menu
-  → main process: autoUpdater.checkForUpdates()
-    → update-available? Yes
-      → Open UpdateProgressWindow (BrowserWindow, ~400x180, centered, modal, borderless)
-      → autoUpdater.downloadUpdate(cancellationToken)
-        → IPC main→progressWindow: pi:update_download_progress { percent, bytesPerSecond }
-        → progressWindow shows progress bar + Cancel button
-        → Cancel → cancellationToken.cancel() → close window
-        → update-downloaded
-          → IPC main→progressWindow: pi:update_downloaded
-          → progressWindow shows "Install and Restart" button
-          → Click → pi:quit_and_install → main calls quitAndInstall()
-    → update-not-available? Yes
-      → Show brief toast/notification: "You're up to date"
-    → error? Just log it
+Settings sidebar button → popover → "Check for Updates"
+  → CheckForUpdates
+    → update-available
+      → open UpdateProgressWindow (BrowserWindow 420x200, frameless, centered)
+      → downloadUpdate(token)
+        → progress: bar + percentage + speed + Cancel
+        → Cancel → token.cancel(), close window, status 'idle'
+        → update-downloaded → "Install and Restart" / "Later"
+    → update-not-available → toast "pigi is up to date"
+    → error → toast with the message
+    → unsupported → toast "Only the packaged app can check for updates"
 ```
+
+Checking while a download is already running (or finished) reopens the progress
+window instead of starting a second download.
+
+The Settings popover's item swaps from "Check for Updates" to
+"Update to <version>" once a download lands.
 
 ### Progress Window
 
-- Created by main process via `createUpdateProgressWindow.ts` in `src/main/windows/` (following existing project convention).
-- Loads the same renderer at `#/update-progress`. In `main.tsx`, check `window.location.hash` to render `<UpdateProgress />` instead of `<App />`.
-- UI: progress bar, percentage text, cancel button (during download), "Install and Restart" button (on completion).
-- No need for electron-vite multi-entry config.
+- `src/main/windows/createUpdateProgressWindow.ts`, following the existing
+  `createMainWindow.ts` convention.
+- Loads the same renderer bundle at `#/update-progress`; `renderer/src/main.tsx`
+  picks `<UpdateProgress />` over `<App />` from `window.location.hash`
+  (`shared/routes.ts`). No second vite entry, no second preload.
+- Frameless with vibrancy, so it reads as a sheet rather than a document window.
+  Parent-linked to the main window, which keeps it above it.
+- The renderer only displays the pushed status; Cancel and Install send an IPC
+  message and wait for the next status, so the window cannot disagree with the
+  updater.
 
 ### IPC Channels
 
-| Channel | Direction | Purpose |
-|---------|-----------|---------|
-| `pi:update_downloaded` | main → all renderers | Notify download complete (blue dot + progress window) |
-| `pi:update_download_progress` | main → progress window | Download progress updates |
-| `pi:quit_and_install` | renderer → main | User triggers install |
+| Channel                      | Direction            | Purpose                                 |
+| ---------------------------- | -------------------- | --------------------------------------- |
+| `pi:get_update_status`       | renderer → main      | Current status (late subscriber)        |
+| `pi:check_for_updates`       | renderer → main      | Check now; returns the resulting status |
+| `pi:cancel_update_download`  | renderer → main      | Abort the download, close the window    |
+| `pi:quit_and_install_update` | renderer → main      | Restart into the downloaded version     |
+| `pi:update_status_changed`   | main → all renderers | Status changed                          |
 
-### Preload API (extends window.piApi)
+### Preload API (`window.piApi.update`)
 
 ```ts
-onUpdateDownloaded: (callback: (info: UpdateDownloadedEvent) => void) => () => void
-onUpdateProgress: (callback: (info: ProgressInfo) => void) => () => void
-onUpdateNotAvailable: (callback: () => void) => () => void
-quitAndInstall: () => void
+getStatus: () => Promise<UpdateStatus>
+check: () => Promise<UpdateStatus>
 cancelDownload: () => void
+quitAndInstall: () => void
+onStatus: (callback: (status: UpdateStatus) => void) => () => void
 ```
 
 ### Zustand Store
 
 ```ts
-updateDownloaded: boolean  // true when download complete, drives blue dot
-setUpdateDownloaded: (v: boolean) => void
+updateStatus: UpdateStatus        // pushed from main, read on mount
+setUpdateStatus: (status: UpdateStatus) => void
 ```
+
+`App` mirrors the status into the store and derives `pendingUpdateVersion`
+(`downloaded` only), which it passes to the memoized sidebar.
 
 ### File Structure
 
 ```
 src/main/
-├── ipc/
-│   ├── updateManager.ts          # autoUpdater init, events, IPC handlers, timer
-│   └── piAgentBridge.ts          # existing
-├── windows/
-│   ├── createUpdateProgressWindow.ts  # progress window factory
-│   └── createMainWindow.ts       # existing
-└── index.ts                      # + app menu item, updateManager init
+├── ipc/updateManager.ts              # autoUpdater wiring, status, IPC, timers
+├── windows/createUpdateProgressWindow.ts
+└── index.ts                          # + initializeUpdateManager, scheduleBackgroundUpdateChecks
 
 src/renderer/src/
-├── main.tsx                      # + hash route fork for #/update-progress
-└── components/
-    └── UpdateProgress.tsx        # progress window UI
+├── main.tsx                          # + hash fork for #/update-progress
+├── App.tsx                           # + status subscription, check/install handlers
+├── services/piAgentClient.ts         # + update API wrappers
+├── state/appStore.ts                 # + updateStatus
+└── components/update/UpdateProgress.tsx
 
-src/preload/index.ts              # + auto-update API methods
+src/shared/
+├── ipcContract.ts                    # + UpdateStatus, PiChannel entries
+└── routes.ts                         # + UPDATE_PROGRESS_HASH
 
-src/shared/ipcContract.ts         # + PiChannel enum entries
+src/preload/index.ts                  # + window.piApi.update
 ```
 
-### Dev Testing
+## Verification
 
-- `dev-app-update.yml` at project root, mirrors `electron-builder.yml` publish config
-- In dev mode: `autoUpdater.forceDevUpdateConfig = true`
-- Need a GitHub release with higher version to trigger update detection
+Needs two published versions and a signed build, so it cannot be exercised in a
+dev run:
 
-### Dependencies to Add
-
-- `electron-updater` (runtime)
-- `electron-log` (runtime)
-
-### Platform Scope
-
-macOS only for now. Windows deferred.
+1. Install a released version (0.4.17 or later) from `~/Applications/pigi.app`.
+2. Bump, release the next version as usual.
+3. Launch the installed build: the blue dot appears within a couple of hours at
+   the latest (the launch check runs 15s in), then Settings → "Update to …" →
+   "Install and Restart" swaps the bundle in place.
+4. Manual path: Settings → "Check for Updates" on an up-to-date build toasts
+   "pigi is up to date"; on an outdated one it shows the progress window, and
+   Cancel must leave the app running and installable later.

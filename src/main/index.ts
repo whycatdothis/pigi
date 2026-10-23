@@ -26,6 +26,7 @@ import { registerProjectHandlers } from './ipc/projectHandlers';
 import { registerAttachmentHandlers } from './ipc/attachmentHandlers';
 import { registerShortcutHandlers } from './ipc/shortcutHandlers';
 import { registerTerminalHandlers, stopTerminalProcess } from './terminal/terminalManager';
+import { initializeUpdateManager, scheduleBackgroundUpdateChecks } from './ipc/updateManager';
 import { stopProjectFileSearch } from './projects/projectFileSearch';
 import { PiChannel } from '../shared/ipcContract';
 import { configureDebugPanel, installMainDebugHandle } from './debugConfig';
@@ -120,6 +121,7 @@ app.whenReady().then(() => {
   registerAttachmentHandlers();
   registerShortcutHandlers();
   registerTerminalHandlers();
+  initializeUpdateManager();
 
   ipcMain.on(PiChannel.OpenExternal, (_event, url: string) => {
     if (typeof url !== 'string') return;
@@ -135,6 +137,7 @@ app.whenReady().then(() => {
   });
 
   openMainWindow();
+  scheduleBackgroundUpdateChecks();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -17,4 +17,8 @@ export interface SidebarProps {
   onReorderProjects: (paths: string[]) => void;
   onRenameSession: (sessionPath: string, name: string) => void;
   onLogin: () => void;
+  /** Version ready to install, or null when there is nothing to install. */
+  pendingUpdateVersion: string | null;
+  onCheckForUpdates: () => void;
+  onInstallUpdate: () => void;
 }

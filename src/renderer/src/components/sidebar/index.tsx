@@ -4,6 +4,8 @@ import {
   IconMessageCirclePlus,
   IconSettings,
   IconLogin2,
+  IconRefresh,
+  IconDownload,
 } from '@tabler/icons-react';
 import { SidebarToggle } from './sidebarToggle';
 import type { PiSessionInfo } from '../../../../shared/ipcContract';
@@ -46,6 +48,9 @@ export default memo(function Sidebar({
   onReorderProjects,
   onRenameSession,
   onLogin,
+  pendingUpdateVersion,
+  onCheckForUpdates,
+  onInstallUpdate,
 }: SidebarProps): React.JSX.Element {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [visibleWhenCollapsedSessionIds, setVisibleWhenCollapsedSessionIds] = useState<
@@ -287,7 +292,12 @@ export default memo(function Sidebar({
                 <PopoverTrigger asChild>
                   <SidebarMenuButton className="hover:bg-foreground/5 hover:text-popover-foreground">
                     <IconSettings data-icon="inline-start" />
-                    <span>Settings</span>
+                    <span className="truncate">Settings</span>
+                    {/* An update that downloaded itself while the user was
+                        elsewhere. The dot is the whole announcement. */}
+                    {pendingUpdateVersion !== null && (
+                      <span className="ml-auto size-1.5 shrink-0 rounded-full bg-blue-500" />
+                    )}
                   </SidebarMenuButton>
                 </PopoverTrigger>
                 <PopoverContent
@@ -300,6 +310,17 @@ export default memo(function Sidebar({
                     <IconSettings />
                     <span>Settings</span>
                   </MenuItem>
+                  {pendingUpdateVersion === null ? (
+                    <MenuItem onClick={onCheckForUpdates}>
+                      <IconRefresh />
+                      <span>Check for Updates</span>
+                    </MenuItem>
+                  ) : (
+                    <MenuItem onClick={onInstallUpdate}>
+                      <IconDownload />
+                      <span>Update to {pendingUpdateVersion}</span>
+                    </MenuItem>
+                  )}
                   <MenuItem onClick={onLogin}>
                     <IconLogin2 />
                     <span>Login</span>
