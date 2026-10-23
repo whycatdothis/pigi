@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 
 export const PANEL_RESIZING_ATTRIBUTE = 'data-panel-resizing';
-/** Set on the root during a drag; main.css shows the resize cursor everywhere. */
-const RESIZE_CURSOR_ATTRIBUTE = 'data-panel-resize-cursor';
 /** Dragging below this fraction of the minimum collapses a collapsible panel. */
 const COLLAPSE_FRACTION_OF_MINIMUM = 0.5;
+/** Reopening needs this much more, so a hand resting on the threshold does not
+ *  flip the panel back and forth. */
+const COLLAPSE_HYSTERESIS_PX = 8;
 
 interface PanelResizeOptions {
   containerRef: RefObject<HTMLElement | null>;
@@ -74,7 +75,9 @@ export function usePanelResize({
         const { minimum, maximum } = getBounds();
         const draggedSize = startSize + direction * (position - startPosition);
         if (onCollapsedChange) {
-          const shouldCollapse = draggedSize < minimum * COLLAPSE_FRACTION_OF_MINIMUM;
+          const threshold =
+            minimum * COLLAPSE_FRACTION_OF_MINIMUM + (collapsed ? COLLAPSE_HYSTERESIS_PX : 0);
+          const shouldCollapse = draggedSize < threshold;
           if (shouldCollapse !== collapsed) {
             collapsed = shouldCollapse;
             container.removeAttribute(PANEL_RESIZING_ATTRIBUTE);
@@ -95,7 +98,7 @@ export function usePanelResize({
         }
         onDraggingChange?.(false);
         container.removeAttribute(PANEL_RESIZING_ATTRIBUTE);
-        document.documentElement.removeAttribute(RESIZE_CURSOR_ATTRIBUTE);
+        cursorOverlay.remove();
         container.removeEventListener('transitionend', handleTransitionEnd);
         window.removeEventListener('pointermove', handlePointerMove);
         window.removeEventListener('pointerup', handlePointerEnd);
@@ -107,13 +110,23 @@ export function usePanelResize({
         if (endEvent.pointerId === pointerId) finish();
       };
 
+      // Covers the window for the drag: the resize cursor holds once the pointer
+      // outruns the handle or a collapse unmounts it, and what the pointer
+      // passes over gets no hover or tooltips. The listeners are on window.
+      // A manual popover sits in the top layer, above every z-index, without
+      // taking focus; its UA style is already fixed at inset 0.
+      const cursorOverlay = document.createElement('div');
+      cursorOverlay.popover = 'manual';
+      cursorOverlay.className = horizontal
+        ? 'size-full bg-transparent cursor-col-resize'
+        : 'size-full bg-transparent cursor-row-resize';
+
       cleanupRef.current = finish;
       container.setAttribute(PANEL_RESIZING_ATTRIBUTE, '');
-      document.documentElement.setAttribute(RESIZE_CURSOR_ATTRIBUTE, horizontal ? 'col' : 'row');
+      document.body.append(cursorOverlay);
+      cursorOverlay.showPopover();
       onDraggingChange?.(true);
-      if (onCollapsedChange) {
-        container.addEventListener('transitionend', handleTransitionEnd);
-      }
+      container.addEventListener('transitionend', handleTransitionEnd);
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerEnd);
       window.addEventListener('pointercancel', handlePointerEnd);

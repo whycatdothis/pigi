@@ -19,16 +19,19 @@ the last drag leaves no dead zone.
 
 A panel that passes `onCollapsedChange` is collapsible: dragging it below half
 its minimum collapses it live, and dragging back out reopens it at the minimum
-within the same gesture, as in a native split view. Crossing the threshold
-unmarks the container, so the panel's own show/hide transitions animate the
+within the same gesture, as in a native split view. Reopening needs 8px more
+than collapsing, so a hand resting on the threshold does not flip it back and
+forth. Crossing the threshold unmarks the container, so the panel's own show/hide transitions animate the
 collapse and the reopen; it tracks the pointer exactly again on the container's
 `transitionend`. A drag that ends collapsed does not commit a size, so reopening
 restores the width from before the drag. Both sidebars use it; the terminal
 does not.
 
-During the gesture the hook also sets `data-panel-resize-cursor` on the root,
-and an unlayered rule in `main.css` shows the resize cursor on every element,
-so it holds when the pointer outruns the handle or a collapse unmounts it.
+During the gesture the hook also shows a transparent full-window overlay with
+the resize cursor as a manual popover (the top layer, above every z-index), so the cursor holds when the pointer outruns the
+handle or a collapse unmounts it, and what the pointer passes over gets no
+hover styles or tooltips. An overlay rather than a root attribute matched by
+`:root[...] *`: toggling that would restyle the whole document twice per drag.
 
 The hook marks the owning container with `data-panel-resizing` during the gesture.
 Disable geometry transitions beneath this marker; dragging should follow the
@@ -42,19 +45,23 @@ terminal height lives on the common chat/terminal container because both consume
 
 Showing and hiding the sidebar animates the wrapper between `--sidebar-width`
 and `0`, so the chat keeps real reserved space while it grows. The content keeps
-its full width and slides out with a transform, so it does not reflow. The
-collapsed wrapper is `inert` and stays mounted, so scroll position and expanded
+its full width and is anchored to the wrapper's right edge (`justify-end`), so it
+slides out with the width and does not reflow. Do not slide it with its own
+transform transition: two transitions drift apart when a drag retargets them
+differently (a reversed transform runs shortened, a width restarted every frame
+does not) and expose the transparent window between them. `min-w-full` covers
+the wrapper while it eases wider than the content; whatever paints the
+background inside must fill that element (`w-full`), not size itself from
+`--sidebar-width` again. The collapsed wrapper is `inert` and stays mounted, so scroll position and expanded
 projects survive. The toolbar title inset uses the same duration and easing
 (`SIDEBAR_TRANSITION_CLASS_NAME`), so the title moves in step with the sidebar
 edge. A width transition must sit under `data-panel-resizing:transition-none`.
-Otherwise dragging would lag behind the pointer. The content's slide transition
-is switched off the same way (`data-[panel-resizing]:*:transition-none`), and
-comes back with the width transition when a drag collapses the sidebar.
+Otherwise dragging would lag behind the pointer.
 
 The right sidebar mirrors this: its wrapper animates between
 `--right-sidebar-width` and `0`, and the content stays anchored to the wrapper's
-left edge at full width, so it slides in from the window edge without a
-transform. Its resize handle uses `edge: 'left'`. It may always grow to
+left edge at full width (`min-w-full` likewise), so it slides in from the
+window edge without a transform. Its resize handle uses `edge: 'left'`. It may always grow to
 `RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH` (520px), and on a wide window until the
 rest is `RIGHT_SIDEBAR_RESERVED_WIDTH` (the widest left sidebar plus a 480px
 transcript). The drag writes `--right-sidebar-preferred-width`, and
