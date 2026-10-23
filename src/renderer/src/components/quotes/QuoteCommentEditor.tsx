@@ -1,4 +1,5 @@
 import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { IconCornerDownLeft } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Kbd } from '../ui/kbd';
@@ -7,7 +8,7 @@ import { Textarea } from '../ui/textarea';
 interface QuoteCommentEditorProps {
   initialComment: string;
   onSave: (comment: string) => void;
-  /** Escape or a pointer press outside the editor. */
+  /** Escape, or a pointer press outside the editor while the comment is empty. */
   onCancel: () => void;
   className?: string;
   style?: React.CSSProperties;
@@ -23,10 +24,24 @@ export default function QuoteCommentEditor({
 }: QuoteCommentEditorProps): React.JSX.Element {
   const [comment, setComment] = useState(initialComment);
   const rootRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Continue an existing comment instead of typing in front of it.
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    textarea?.focus();
+    textarea?.setSelectionRange(textarea.value.length, textarea.value.length);
+  }, []);
+
+  // Clicking away (or on Send) keeps what was typed; only Escape discards it.
   const handlePointerDownOutside = useEffectEvent((event: PointerEvent) => {
     if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
-      onCancel();
+      const trimmed = comment.trim();
+      if (trimmed) {
+        onSave(trimmed);
+      } else {
+        onCancel();
+      }
     }
   });
 
@@ -53,7 +68,7 @@ export default function QuoteCommentEditor({
   return (
     <div ref={rootRef} className={cn('flex flex-col gap-2', className)} style={style}>
       <Textarea
-        autoFocus
+        ref={textareaRef}
         value={comment}
         onChange={(event) => setComment(event.target.value)}
         onKeyDown={handleKeyDown}
@@ -61,10 +76,15 @@ export default function QuoteCommentEditor({
         aria-label="Quote comment"
         className="max-h-40 min-h-16 resize-none rounded-none border-0 bg-transparent px-1 py-0.5 text-[15px] leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
       />
-      <Button type="button" size="xs" className="self-end" onClick={() => onSave(comment.trim())}>
+      <Button
+        type="button"
+        size="xs"
+        className="gap-1.5 self-end pr-1"
+        onClick={() => onSave(comment.trim())}
+      >
         Save
-        <Kbd className="h-4 min-w-4 bg-primary-foreground/15 text-[11px] text-primary-foreground/80">
-          ↵
+        <Kbd className="h-4 w-5 bg-primary-foreground/15 text-primary-foreground/80">
+          <IconCornerDownLeft className="size-2.5" stroke={2.25} aria-label="Enter" />
         </Kbd>
       </Button>
     </div>

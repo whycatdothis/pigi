@@ -3,9 +3,12 @@ import { IconPencil, IconQuote, IconTrash } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { useAppStore } from '../../state/appStore';
 import { formatQuotesMessage, NO_QUOTES, type MessageQuote } from '../../lib/messageQuotes';
-import { cn } from '../../lib/utils';
 import { Button } from '../ui/button';
+import OverflowClamp from '../message/overflowClamp';
 import QuoteCommentEditor from './QuoteCommentEditor';
+
+/** Four lines of quoted text before Show more. */
+const QUOTE_TEXT_MAX_HEIGHT_PX = 88;
 
 const QuoteCard = React.memo(function QuoteCard({
   quote,
@@ -15,7 +18,6 @@ const QuoteCard = React.memo(function QuoteCard({
   sessionPath: string;
 }): React.JSX.Element {
   const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
 
   const handleSave = useCallback(
     (comment: string) => {
@@ -36,22 +38,14 @@ const QuoteCard = React.memo(function QuoteCard({
       >
         <IconTrash className="size-3.5" />
       </button>
-      <button
-        type="button"
-        className="text-left"
-        onClick={() => setExpanded((value) => !value)}
-        aria-expanded={expanded}
-        title={expanded ? 'Collapse' : 'Expand'}
-      >
-        <blockquote
-          className={cn(
-            'whitespace-pre-wrap break-words text-[14px] leading-[22px] text-muted-foreground [overflow-wrap:anywhere]',
-            !expanded && 'line-clamp-4',
-          )}
+      <blockquote className="flex flex-col">
+        <OverflowClamp
+          maxHeight={QUOTE_TEXT_MAX_HEIGHT_PX}
+          className="select-text whitespace-pre-wrap break-words text-[14px] leading-[22px] text-muted-foreground [overflow-wrap:anywhere]"
         >
           {quote.text}
-        </blockquote>
-      </button>
+        </OverflowClamp>
+      </blockquote>
       {editing ? (
         <QuoteCommentEditor
           initialComment={quote.comment}
@@ -104,8 +98,10 @@ export default React.memo(function QuotePanel({
   const [sending, setSending] = useState(false);
 
   const handleSend = async (): Promise<void> => {
-    const sentQuotes = [...quotes];
     const store = useAppStore.getState();
+    // From the store, not the render: a comment being edited is saved by the
+    // pointerdown that precedes this click.
+    const sentQuotes = store.quotesBySession.get(sessionPath) ?? [];
     setSending(true);
     store.setSessionQuotes(sessionPath, []);
     try {
@@ -113,7 +109,8 @@ export default React.memo(function QuotePanel({
       store.setRightSidebarOpen(false);
     } catch (error) {
       console.error('Failed to send quotes:', error);
-      store.setSessionQuotes(sessionPath, sentQuotes);
+      const addedWhileSending = useAppStore.getState().quotesBySession.get(sessionPath) ?? [];
+      store.setSessionQuotes(sessionPath, [...sentQuotes, ...addedWhileSending]);
       toast.error('Failed to send quotes. Please try again.');
     } finally {
       setSending(false);
