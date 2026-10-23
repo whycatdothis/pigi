@@ -1,5 +1,8 @@
+import { createPersistedSessionMap } from './persistedSessionMap';
+
 /**
- * In-memory draft text for the chat input, keyed by session path.
+ * Draft text for the chat input, keyed by session path, persisted in
+ * localStorage so it survives quitting the app (see persistedSessionMap).
  *
  * Drafts live outside the ChatInput component because the new-chat screen and
  * the session view are different branches of the app tree: swapping them
@@ -11,7 +14,16 @@
 
 export const NEW_CHAT_DRAFT_KEY = '';
 
-const drafts = new Map<string, string>();
+const CHAT_DRAFTS_STORAGE_KEY = 'pigi.chatDrafts';
+
+const storedDrafts = createPersistedSessionMap({
+  storageKey: CHAT_DRAFTS_STORAGE_KEY,
+  // Drafts change on every keystroke.
+  saveDelayMs: 800,
+  parse: (value) => (typeof value === 'string' && value.trim() !== '' ? value : undefined),
+});
+
+const drafts = storedDrafts.load();
 
 export function readChatDraft(key: string): string {
   return drafts.get(key) ?? '';
@@ -19,9 +31,14 @@ export function readChatDraft(key: string): string {
 
 /** Stores `text` as the draft for `key`; whitespace-only text clears it. */
 export function writeChatDraft(key: string, text: string): void {
-  if (text.trim().length === 0) {
-    drafts.delete(key);
+  const empty = text.trim().length === 0;
+  if (empty ? !drafts.has(key) : drafts.get(key) === text) {
     return;
   }
-  drafts.set(key, text);
+  if (empty) {
+    drafts.delete(key);
+  } else {
+    drafts.set(key, text);
+  }
+  storedDrafts.save(drafts);
 }

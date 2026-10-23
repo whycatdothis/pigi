@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest';
-import { useAppStore } from './appStore';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QUOTES_STORAGE_KEY, useAppStore } from './appStore';
 
 const backgroundPath = '/sessions/background.jsonl';
 const activePath = '/sessions/active.jsonl';
@@ -59,5 +59,66 @@ describe('unread sessions', () => {
     store.updateSession(backgroundPath, { status: 'error' });
     store.updateSession(backgroundPath, { status: 'idle' });
     expect(useAppStore.getState().unreadSessionPaths.size).toBe(0);
+  });
+});
+
+describe('quotes', () => {
+  const quotesOf = (sessionPath: string): string[] =>
+    (useAppStore.getState().quotesBySession.get(sessionPath) ?? []).map(
+      (quote) => `${quote.text}|${quote.comment}`,
+    );
+
+  beforeEach(() => {
+    useAppStore.setState({ quotesBySession: new Map(), rightSidebarOpen: false });
+  });
+
+  it('adds quotes per session and opens the sidebar on the quotes tab', () => {
+    const store = useAppStore.getState();
+    store.addQuote(activePath, 'first', 'a');
+    store.addQuote(activePath, 'second', '');
+    store.addQuote(backgroundPath, 'other', 'b');
+    expect(quotesOf(activePath)).toEqual(['first|a', 'second|']);
+    expect(quotesOf(backgroundPath)).toEqual(['other|b']);
+    expect(useAppStore.getState().rightSidebarOpen).toBe(true);
+  });
+
+  it('updates and removes a quote by id', () => {
+    const store = useAppStore.getState();
+    store.addQuote(activePath, 'first', 'a');
+    store.addQuote(activePath, 'second', 'b');
+    const [first, second] = useAppStore.getState().quotesBySession.get(activePath) ?? [];
+    store.updateQuoteComment(activePath, second.id, 'changed');
+    store.removeQuote(activePath, first.id);
+    expect(quotesOf(activePath)).toEqual(['second|changed']);
+  });
+
+  it('saves quotes to localStorage after a short delay', () => {
+    vi.useFakeTimers();
+    try {
+      useAppStore.getState().addQuote(activePath, 'kept', 'note');
+      vi.runAllTimers();
+      const stored: unknown = JSON.parse(localStorage.getItem(QUOTES_STORAGE_KEY) ?? '{}');
+      expect(stored).toMatchObject({
+        [activePath]: { value: [{ text: 'kept', comment: 'note' }] },
+      });
+
+      useAppStore.getState().setSessionQuotes(activePath, []);
+      vi.runAllTimers();
+      expect(localStorage.getItem(QUOTES_STORAGE_KEY)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('drops a session entry once its last quote is gone', () => {
+    const store = useAppStore.getState();
+    store.addQuote(activePath, 'only', '');
+    const [only] = useAppStore.getState().quotesBySession.get(activePath) ?? [];
+    store.removeQuote(activePath, only.id);
+    expect(useAppStore.getState().quotesBySession.has(activePath)).toBe(false);
+
+    store.addQuote(activePath, 'again', '');
+    store.setSessionQuotes(activePath, []);
+    expect(useAppStore.getState().quotesBySession.has(activePath)).toBe(false);
   });
 });

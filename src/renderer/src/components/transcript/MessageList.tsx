@@ -19,6 +19,7 @@ import { useMessageListScrollController } from '../../hooks/useMessageListScroll
 import { useActiveUserMessageIndex } from '../../hooks/useActiveUserMessageIndex';
 import { useMessageSearchController } from '../../hooks/useMessageSearchController';
 import UserMessageMiniMap from './UserMessageMiniMap';
+import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import MinimalView from './minimalView';
 import { analyzeTurn, buildTurns } from '../../lib/minimalTurns';
 
@@ -385,6 +386,10 @@ export default React.memo(function MessageList({
           targets={searchTargets}
           onJump={handleSearchJump}
         />
+      )}
+      {/* A draft has no session to keep quotes for yet. */}
+      {sessionPath && (
+        <QuoteSelectionPopover containerRef={containerRef} sessionPath={sessionPath} />
       )}
       <UserMessageMiniMap
         nodes={displayNodes}
