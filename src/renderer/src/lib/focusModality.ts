@@ -34,7 +34,7 @@ const NON_TEXT_INPUT_TYPES = new Set([
   'submit',
 ]);
 
-function isTextField(target: EventTarget | null): boolean {
+export function isTextField(target: EventTarget | null): boolean {
   if (target instanceof HTMLTextAreaElement) {
     return true;
   }

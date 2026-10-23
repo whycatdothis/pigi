@@ -7,9 +7,6 @@ import { cn } from '../../lib/utils';
 import { Button } from '../ui/button';
 import QuoteCommentEditor from './QuoteCommentEditor';
 
-const ICON_BUTTON_CLASS_NAME =
-  'flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground [-webkit-app-region:no-drag]';
-
 const QuoteCard = React.memo(function QuoteCard({
   quote,
   sessionPath,
@@ -30,26 +27,15 @@ const QuoteCard = React.memo(function QuoteCard({
 
   return (
     <li className="group relative flex flex-col gap-2 rounded-lg bg-muted/50 p-2.5 ring-[0.5px] ring-foreground/10">
-      <div className="absolute top-1.5 right-1.5 z-10 flex items-center rounded-md bg-muted/88 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-        <button
-          type="button"
-          className={ICON_BUTTON_CLASS_NAME}
-          onClick={() => setEditing(true)}
-          aria-label="Edit comment"
-          title="Edit comment"
-        >
-          <IconPencil className="size-3.5" />
-        </button>
-        <button
-          type="button"
-          className={cn(ICON_BUTTON_CLASS_NAME, 'hover:text-destructive')}
-          onClick={() => useAppStore.getState().removeQuote(sessionPath, quote.id)}
-          aria-label="Delete quote"
-          title="Delete quote"
-        >
-          <IconTrash className="size-3.5" />
-        </button>
-      </div>
+      <button
+        type="button"
+        className="absolute -top-2 -right-2 z-10 flex size-6 items-center justify-center rounded-full bg-background text-muted-foreground opacity-0 shadow-sm ring-[0.5px] ring-foreground/15 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-destructive [-webkit-app-region:no-drag]"
+        onClick={() => useAppStore.getState().removeQuote(sessionPath, quote.id)}
+        aria-label="Delete quote"
+        title="Delete quote"
+      >
+        <IconTrash className="size-3.5" />
+      </button>
       <button
         type="button"
         className="text-left"
@@ -59,7 +45,7 @@ const QuoteCard = React.memo(function QuoteCard({
       >
         <blockquote
           className={cn(
-            'whitespace-pre-wrap break-words border-l-2 border-[var(--system-accent)] pl-2 text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]',
+            'whitespace-pre-wrap break-words text-[14px] leading-[22px] text-muted-foreground [overflow-wrap:anywhere]',
             !expanded && 'line-clamp-4',
           )}
         >
@@ -73,13 +59,25 @@ const QuoteCard = React.memo(function QuoteCard({
           onCancel={() => setEditing(false)}
         />
       ) : quote.comment ? (
-        <p className="whitespace-pre-wrap break-words text-[13px] leading-5 text-foreground [overflow-wrap:anywhere]">
+        <p
+          className="whitespace-pre-wrap break-words text-[15px] leading-6 text-foreground [overflow-wrap:anywhere]"
+          onDoubleClick={() => setEditing(true)}
+        >
           {quote.comment}
+          <button
+            type="button"
+            className="ml-0.5 inline-flex size-6 items-center justify-center rounded-md align-top text-muted-foreground hover:bg-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-foreground [-webkit-app-region:no-drag]"
+            onClick={() => setEditing(true)}
+            aria-label="Edit comment"
+            title="Edit comment"
+          >
+            <IconPencil className="size-[18px]" />
+          </button>
         </p>
       ) : (
         <button
           type="button"
-          className="text-left text-[13px] leading-5 text-muted-foreground italic hover:text-foreground"
+          className="text-left text-[15px] leading-6 text-muted-foreground italic hover:text-foreground"
           onClick={() => setEditing(true)}
         >
           Add a comment...
@@ -139,10 +137,10 @@ export default React.memo(function QuotePanel({
         )}
       </div>
 
-      <div className="shrink-0 border-t-[0.5px] border-foreground/27 p-3">
+      <div className="flex shrink-0 justify-center border-t-[0.5px] border-foreground/27 p-3">
         <Button
           type="button"
-          className="w-full"
+          className="w-1/2"
           disabled={quotes.length === 0 || sending}
           onClick={() => void handleSend()}
         >

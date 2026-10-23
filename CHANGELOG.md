@@ -4,7 +4,7 @@
 
 ### Added
 
-- Quote passages from the conversation: select text in a message and a Quote button appears next to where the selection ends; add a comment, and the quote is collected in a new right sidebar where comments can be edited or deleted. Send turns all quotes into one message
+- Quote passages from the conversation: select text in a message and a Quote button appears next to where the selection ends (or press Q); add a comment, and the quote is collected in a new right sidebar where comments can be edited or deleted. Send turns all quotes into one message
 - A right sidebar with tabs, toggled from the button at the right end of the session toolbar. Quotes is its first tab
 
 ### Fixed
