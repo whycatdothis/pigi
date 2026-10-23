@@ -405,6 +405,7 @@ function App(): React.JSX.Element {
     size: sidebarWidth,
     getBounds: () => ({ minimum: SIDEBAR_MIN_WIDTH, maximum: SIDEBAR_MAX_WIDTH }),
     onCommit: setSidebarWidth,
+    onCollapsedChange: (collapsed) => useAppStore.getState().setSidebarExpanded(!collapsed),
   });
 
   // Mirrors the CSS cap on the sidebar's width (rightSidebarLayoutStyle).
@@ -417,6 +418,12 @@ function App(): React.JSX.Element {
     size: rightSidebarWidth,
     getBounds: () => ({ minimum: RIGHT_SIDEBAR_MIN_WIDTH, maximum: rightSidebarMaxWidth() }),
     onCommit: setRightSidebarWidth,
+    onCollapsedChange: (collapsed) => {
+      const { activeSessionPath: sessionPath, setRightSidebarOpen } = useAppStore.getState();
+      if (sessionPath) {
+        setRightSidebarOpen(sessionPath, !collapsed);
+      }
+    },
   });
 
   const refreshProjectSessions = useCallback(
@@ -1481,7 +1488,7 @@ function App(): React.JSX.Element {
             ref={sidebarRef}
             inert={!sidebarExpanded}
             className={cn(
-              'relative flex h-full shrink-0 overflow-hidden transition-[width] data-[panel-resizing]:transition-none',
+              'relative flex h-full shrink-0 overflow-hidden transition-[width] data-[panel-resizing]:transition-none data-[panel-resizing]:*:transition-none',
               SIDEBAR_TRANSITION_CLASS_NAME,
               sidebarExpanded ? 'w-(--sidebar-width)' : 'w-0',
             )}

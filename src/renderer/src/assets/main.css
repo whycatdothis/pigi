@@ -386,6 +386,18 @@
   }
 }
 
+/* usePanelResize keeps the resize cursor for the whole drag: over other
+   elements once the pointer outruns the handle, and after a collapse unmounts
+   it. Unlayered, so it wins over cursor utilities without !important. */
+:root[data-panel-resize-cursor='col'],
+:root[data-panel-resize-cursor='col'] * {
+  cursor: col-resize;
+}
+:root[data-panel-resize-cursor='row'],
+:root[data-panel-resize-cursor='row'] * {
+  cursor: row-resize;
+}
+
 @keyframes shimmer {
   from {
     transform: translateX(calc(-1 * var(--shimmer-band-width)));

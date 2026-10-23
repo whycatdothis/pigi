@@ -17,6 +17,19 @@ so they can follow the current window size, and a committed size outside the
 current bounds is clamped when the drag starts, so a window that shrank since
 the last drag leaves no dead zone.
 
+A panel that passes `onCollapsedChange` is collapsible: dragging it below half
+its minimum collapses it live, and dragging back out reopens it at the minimum
+within the same gesture, as in a native split view. Crossing the threshold
+unmarks the container, so the panel's own show/hide transitions animate the
+collapse and the reopen; it tracks the pointer exactly again on the container's
+`transitionend`. A drag that ends collapsed does not commit a size, so reopening
+restores the width from before the drag. Both sidebars use it; the terminal
+does not.
+
+During the gesture the hook also sets `data-panel-resize-cursor` on the root,
+and an unlayered rule in `main.css` shows the resize cursor on every element,
+so it holds when the pointer outruns the handle or a collapse unmounts it.
+
 The hook marks the owning container with `data-panel-resizing` during the gesture.
 Disable geometry transitions beneath this marker; dragging should follow the
 pointer immediately. Reserve space with flex/grid or insets rather than moving
@@ -34,7 +47,9 @@ collapsed wrapper is `inert` and stays mounted, so scroll position and expanded
 projects survive. The toolbar title inset uses the same duration and easing
 (`SIDEBAR_TRANSITION_CLASS_NAME`), so the title moves in step with the sidebar
 edge. A width transition must sit under `data-panel-resizing:transition-none`.
-Otherwise dragging would lag behind the pointer.
+Otherwise dragging would lag behind the pointer. The content's slide transition
+is switched off the same way (`data-[panel-resizing]:*:transition-none`), and
+comes back with the width transition when a drag collapses the sidebar.
 
 The right sidebar mirrors this: its wrapper animates between
 `--right-sidebar-width` and `0`, and the content stays anchored to the wrapper's
