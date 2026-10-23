@@ -34,6 +34,11 @@ projects survive. The toolbar title inset uses the same duration and easing
 edge. A width transition must sit under `data-panel-resizing:transition-none`.
 Otherwise dragging would lag behind the pointer.
 
+The right sidebar mirrors this: its wrapper animates between
+`--right-sidebar-width` and `0`, and the content stays anchored to the wrapper's
+left edge at full width, so it slides in from the window edge without a
+transform. Its resize handle uses `edge: 'left'`.
+
 The message column is capped at `MESSAGE_LIST_MAX_WIDTH` (860px). At the default
 window size the chat viewport is already wider than that cap, so hiding the
 sidebar only changes the margins: the rows keep their width and do not reflow.
@@ -339,6 +344,59 @@ offset rather than measured from the DOM — the rows it mirrors usually are not
 rendered. Both are covered by browser tests, which are the only layer that can
 measure any of it (see `docs/testing.md`).
 
+## Right Sidebar
+
+`components/rightSidebar/RightSidebar.tsx` is a tabbed panel toggled from the
+session toolbar. Tabs are listed in `lib/rightSidebarTabs.ts`; the open state
+and active tab live in the app store (`rightSidebarOpen`, `rightSidebarTab`).
+A new view adds a tab id there, a trigger and a `TabsContent` in the sidebar.
+
+## Quotes
+
+Selecting text in the message list shows a floating Quote button
+(`components/quotes/QuoteSelectionPopover.tsx`), placed at the selection's end:
+below it for a top-down selection, above it for a bottom-up one. It turns into
+a comment editor (Q while the button shows; Escape dismisses the button; both
+only while the list or nothing has focus) and saves the quote to
+`quotesBySession` in the app store,
+keyed by session and persisted (see Unsent Drafts). While the editor has focus the quoted
+range stays marked with a CSS custom highlight. The right sidebar's Quotes tab
+(`QuotePanel`) lists, edits and deletes them, and Send
+turns them into one plain-text message (`formatQuotesMessage` in
+`lib/messageQuotes.ts`) that goes through the same path as Enter in the chat
+input, so it prompts, steers or buffers just like a typed message. A comment
+editor only discards its text on Escape: a pointer press outside it, including
+on Send, saves a changed comment first. Adding a quote, however it is saved,
+opens the Quotes tab.
+
+The popover is positioned against the scroll container and only measures the
+selection after the gesture ends (pointerup, pointercancel, keyup) or when the
+container scrolls or resizes, never during a drag. An unchanged position keeps
+the previous state, so scroll frames during streaming follow do not re-render
+it. While editing, a quoted range scrolled out of view pins the editor to the
+edge it left through.
+
+## Unsent Drafts
+
+Chat input drafts (`lib/chatDrafts.ts`, keyed by session path, with
+`NEW_CHAT_DRAFT_KEY` for the new-chat screen) and quotes (`quotesBySession`)
+survive quitting the app. Each lives under its own localStorage key
+(`pigi.chatDrafts`, `pigi.quotesBySession`), so a keystroke does not
+re-serialize the quotes and one malformed value cannot take the other down.
+Both go through `createPersistedSessionMap` (`lib/persistedSessionMap.ts`),
+which stores `{ [sessionPath]: { savedAt, value } }`:
+
+- localStorage writes block the renderer's main thread, so saves are debounced
+  (drafts 800 ms, quotes 300 ms) and a pending save is flushed on `beforeunload`.
+- A failed write (over quota) removes the key instead of leaving the previous
+  value, which would later restore deleted entries and lose newer ones.
+- `savedAt` moves only when that session's value changes. Loading drops entries
+  older than 60 days and rewrites the key without them, which also clears
+  sessions that were deleted, with no link to the session list.
+
+The in-memory Map stays the source of truth; the composer updates its draft on
+every document transaction, including programmatic ones such as clearing on send.
+
 ## Collapsible Blocks
 
 `OverflowClamp` clamps tool output, thinking, and user bubbles with pure CSS:
@@ -415,6 +473,8 @@ src/
         │   ├── app/              # theme provider, sign-in, menus
         │   ├── chatInput/        # composer: Tiptap editor, reference chips, pickers
         │   ├── message/          # one message: bubbles, markdown, tools, diff
+        │   ├── quotes/           # selection quote popover, quotes tab
+        │   ├── rightSidebar/     # tabbed right sidebar
         │   ├── session/          # sidebar entry, session toolbar, switcher
         │   ├── sessionTree/      # tree dialog, rows, branch lines, help
         │   ├── sidebar/          # project and session lists

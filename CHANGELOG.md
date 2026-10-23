@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- Quote passages from the conversation: select text in a message and a Quote button appears next to where the selection ends (or press Q); add a comment, and the quote is collected in a new right sidebar where comments can be edited or deleted. Send turns all quotes into one message. Unsent quotes are kept across restarts
+- A right sidebar with tabs, toggled from the button at the right end of the session toolbar. Quotes is its first tab
+
+### Changed
+
+- Unsent text in the chat input is kept across restarts, for each session and for the new-chat screen
+
 ### Fixed
 
 - When an extension compacts the context right after a response finishes, the working bar stays visible and messages sent during compaction show in the queue, instead of disappearing until compaction ends

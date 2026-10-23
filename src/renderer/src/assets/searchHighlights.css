@@ -1,5 +1,5 @@
 /*
- * CSS Custom Highlight API styles for in-page search.
+ * CSS Custom Highlight API styles (in-page search, quote selection).
  * Kept in a separate file (no Tailwind directives) because LightningCSS,
  * which processes main.css via the Tailwind Vite plugin, does not recognize
  * the ::highlight() pseudo-element and warns during build.
@@ -13,4 +13,9 @@
 ::highlight(pi-search-active) {
   background-color: color-mix(in srgb, var(--system-accent) 70%, transparent);
   color: var(--foreground);
+}
+
+/* Text being quoted, kept marked while the quote comment box has focus. */
+::highlight(pi-quote-selection) {
+  background-color: Highlight;
 }

@@ -62,6 +62,12 @@ export const SIDEBAR_MIN_WIDTH = 220;
 export const SIDEBAR_MAX_WIDTH = 360;
 export const SIDEBAR_WIDTH_PROPERTY = '--sidebar-width';
 
+/** Tabbed right sidebar (see components/rightSidebar). */
+export const RIGHT_SIDEBAR_DEFAULT_WIDTH = 320;
+export const RIGHT_SIDEBAR_MIN_WIDTH = 260;
+export const RIGHT_SIDEBAR_MAX_WIDTH = 520;
+export const RIGHT_SIDEBAR_WIDTH_PROPERTY = '--right-sidebar-width';
+
 /** The sidebar toggle sits right of the macOS traffic lights (main window
  *  `trafficLightPosition` x 16, three 12px lights with 8px gaps). */
 export const SIDEBAR_TOGGLE_LEFT_MAC_PX = 76;
