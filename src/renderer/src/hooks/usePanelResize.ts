@@ -37,7 +37,11 @@ export function usePanelResize({
       const horizontal = edge === 'left' || edge === 'right';
       const direction = edge === 'left' || edge === 'top' ? -1 : 1;
       const startPosition = horizontal ? event.clientX : event.clientY;
-      let pendingSize = size;
+      // A stored size can exceed bounds that shrank with the window (and that
+      // CSS already caps); start from what is shown so there is no dead zone.
+      const startBounds = getBounds();
+      const startSize = Math.min(Math.max(size, startBounds.minimum), startBounds.maximum);
+      let pendingSize = startSize;
       let frame: number | null = null;
 
       const applySize = (): void => {
@@ -49,7 +53,7 @@ export function usePanelResize({
         const position = horizontal ? moveEvent.clientX : moveEvent.clientY;
         const { minimum, maximum } = getBounds();
         pendingSize = Math.min(
-          Math.max(size + direction * (position - startPosition), minimum),
+          Math.max(startSize + direction * (position - startPosition), minimum),
           maximum,
         );
         if (frame === null) frame = requestAnimationFrame(applySize);

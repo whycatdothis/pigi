@@ -65,7 +65,13 @@ export const SIDEBAR_WIDTH_PROPERTY = '--sidebar-width';
 /** Tabbed right sidebar (see components/rightSidebar). */
 export const RIGHT_SIDEBAR_DEFAULT_WIDTH = 320;
 export const RIGHT_SIDEBAR_MIN_WIDTH = 260;
-export const RIGHT_SIDEBAR_MAX_WIDTH = 520;
+/** The right sidebar may always grow this wide, as on a small window. */
+export const RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH = 520;
+/** Beyond that it stops where the rest of the window would get narrower than
+ *  the widest left sidebar plus a 480px transcript. */
+export const RIGHT_SIDEBAR_RESERVED_WIDTH = SIDEBAR_MAX_WIDTH + 480;
+/** The dragged width; CSS caps it by the window into --right-sidebar-width. */
+export const RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY = '--right-sidebar-preferred-width';
 export const RIGHT_SIDEBAR_WIDTH_PROPERTY = '--right-sidebar-width';
 
 /** The sidebar toggle sits right of the macOS traffic lights (main window

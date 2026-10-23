@@ -102,7 +102,9 @@ import {
   SIDEBAR_WIDTH_PROPERTY,
   RIGHT_SIDEBAR_DEFAULT_WIDTH,
   RIGHT_SIDEBAR_MIN_WIDTH,
-  RIGHT_SIDEBAR_MAX_WIDTH,
+  RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH,
+  RIGHT_SIDEBAR_RESERVED_WIDTH,
+  RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY,
   RIGHT_SIDEBAR_WIDTH_PROPERTY,
   sidebarToggleLeft,
   SIDEBAR_TRANSITION_CLASS_NAME,
@@ -403,12 +405,15 @@ function App(): React.JSX.Element {
     onCommit: setSidebarWidth,
   });
 
+  // Mirrors the CSS cap on the sidebar's width (rightSidebarLayoutStyle).
+  const rightSidebarMaxWidth = (): number =>
+    Math.max(RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH, window.innerWidth - RIGHT_SIDEBAR_RESERVED_WIDTH);
   const handleRightSidebarResizeStart = usePanelResize({
     containerRef: rightSidebarRef,
-    property: RIGHT_SIDEBAR_WIDTH_PROPERTY,
+    property: RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY,
     edge: 'left',
     size: rightSidebarWidth,
-    getBounds: () => ({ minimum: RIGHT_SIDEBAR_MIN_WIDTH, maximum: RIGHT_SIDEBAR_MAX_WIDTH }),
+    getBounds: () => ({ minimum: RIGHT_SIDEBAR_MIN_WIDTH, maximum: rightSidebarMaxWidth() }),
     onCommit: setRightSidebarWidth,
   });
 
@@ -1451,9 +1456,14 @@ function App(): React.JSX.Element {
     [SIDEBAR_WIDTH_PROPERTY]: `${sidebarWidth}px`,
   };
   const rightSidebarLayoutStyle: React.CSSProperties & {
+    [RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY]: string;
     [RIGHT_SIDEBAR_WIDTH_PROPERTY]: string;
   } = {
-    [RIGHT_SIDEBAR_WIDTH_PROPERTY]: `${rightSidebarWidth}px`,
+    // The drag writes only the preferred width. The shown width caps it by the
+    // window in CSS, so a window made narrower after a wide drag keeps the
+    // transcript visible without a resize listener.
+    [RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY]: `${rightSidebarWidth}px`,
+    [RIGHT_SIDEBAR_WIDTH_PROPERTY]: `min(var(${RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY}), max(${RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH}px, 100vw - ${RIGHT_SIDEBAR_RESERVED_WIDTH}px))`,
   };
   // Its views belong to a session; drafts and empty states have none to show.
   const rightSidebarVisible = rightSidebarOpen && activeSession !== null;
