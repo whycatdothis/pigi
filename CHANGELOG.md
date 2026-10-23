@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Cmd+Enter sends the quotes again. After quoting a passage in a session whose quotes panel was already open, the shortcut did nothing until the session was reopened
+
 ## [0.4.16] - 2026-10-23
 
 ### Added

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '../../testing/jsdomSetup';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { useAppStore } from '../../state/appStore';
 import QuotePanel from './QuotePanel';
 
@@ -59,6 +59,21 @@ describe('QuotePanel send shortcut', () => {
     expect(screen.getByText('Overall fine.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Send/ }));
     expect(onSend).toHaveBeenCalledWith('Global comment:\nOverall fine.');
+  });
+
+  it('sends quotes added after the panel mounted', () => {
+    // The shortcut handler is registered once, so it must read the current
+    // quotes rather than the empty list the panel mounted with.
+    useAppStore.setState({ quotesBySession: new Map(), openRightSidebarSessions: new Map() });
+    const onSend = renderPanel();
+    act(() => {
+      useAppStore.setState({
+        quotesBySession: new Map([[SESSION_PATH, [{ id: 'a', text: 'quoted', comment: '' }]]]),
+        openRightSidebarSessions: new Map([[SESSION_PATH, true]]),
+      });
+    });
+    fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
+    expect(onSend).toHaveBeenCalledWith('Comments on quoted passages:\n1.\n> quoted');
   });
 
   it('ignores the shortcut while the sidebar is closed or on a plain Enter', () => {
