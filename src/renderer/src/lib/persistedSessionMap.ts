@@ -77,7 +77,10 @@ export function createPersistedSessionMap<T>({
         localStorage.removeItem(storageKey);
       }
     } catch (error) {
+      // Typically over quota. Drop the last good value rather than keep it:
+      // restoring it later would bring back deleted entries and lose new ones.
       console.error(`Failed to save ${storageKey}:`, error);
+      localStorage.removeItem(storageKey);
     }
   };
 
