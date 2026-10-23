@@ -106,7 +106,7 @@ export default React.memo(function QuotePanel({
     store.setSessionQuotes(sessionPath, []);
     try {
       await onSend(formatQuotesMessage(sentQuotes));
-      store.setRightSidebarOpen(false);
+      store.setRightSidebarOpen(sessionPath, false);
     } catch (error) {
       console.error('Failed to send quotes:', error);
       const addedWhileSending = useAppStore.getState().quotesBySession.get(sessionPath) ?? [];
