@@ -17,6 +17,7 @@
 
 ### Changed
 
+- Settings pages share one type and surface scale: solid cards with a real 1px edge, a single radius scale, 13px control text with tabular numerals, and a narrower column
 - Keyboard shortcuts are editable from the settings page, with duplicate-binding detection and per-shortcut reset
 - Appearance settings apply immediately and cover typography: separate UI, content, and code font sizes and families, reduce motion, a translucent-sidebar switch, font smoothing, and separate light and dark palettes
 
