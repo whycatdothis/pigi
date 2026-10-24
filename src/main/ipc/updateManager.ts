@@ -26,6 +26,7 @@ import {
   registerUpdateProgressWindowIpc,
   scheduleUpdateProgressWindowClose,
 } from '../windows/createUpdateProgressWindow';
+import { updateWindowAction } from './updateWindowPolicy';
 
 // electron-updater's `autoUpdater` is defined with an arrow-function getter,
 // which Node's CJS→ESM interop skips, so a named import would be undefined at
@@ -96,22 +97,19 @@ function publish(next: UpdateStatus): void {
  * Keeping it here rather than at the end of `runCheck` covers both sources: a
  * background check can leave the window open (the user opened it mid-check), and
  * a check that starts again cancels the previous answer's timer instead of
- * having the window pulled out from under it.
+ * having the window pulled out from under it. The decision itself is a pure
+ * function (`updateWindowPolicy.ts`) so it can be tested without Electron.
  */
 function applyWindowPolicy(next: UpdateStatus): void {
-  if (next.phase === 'up_to_date') {
+  const action = updateWindowAction(next, { manualCheck });
+  if (action === 'schedule-close') {
     scheduleUpdateProgressWindowClose(UP_TO_DATE_LINGER_MS);
     return;
   }
-  if (next.phase === 'error') {
-    // A check the user asked for is answered by a toast in the main window, so
-    // it does not need the window too. A background one has no toast: leave the
-    // message where it is and let the red button dismiss it.
-    if (manualCheck) closeUpdateProgressWindow();
-    return;
-  }
-  // Anything else is progress: a pending "answer read, closing" no longer holds.
+  // A status that is not the answer to the previous one takes the countdown
+  // with it: the window is about to show something else.
   cancelScheduledUpdateProgressWindowClose();
+  if (action === 'close') closeUpdateProgressWindow();
 }
 
 async function startDownload(version: string): Promise<void> {

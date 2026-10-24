@@ -6,9 +6,9 @@
 
 - Checking again during the two-second "pigi is up to date" countdown no longer has the old timer pull the window away mid-check
 - An update window opened while a background check runs now closes itself when that check finds nothing, instead of sitting on "auto closing in 1s"
-- An install Squirrel never finishes returns to "ready to install" after a few seconds, so updates can be checked again
+- An install Squirrel never finishes returns to "ready to install" after 20 seconds, so updates can be checked again
 - A status that arrives while a window is still reading the current one is no longer overwritten by the older answer
-- The update window ignores View-menu zoom, which used to clip its own buttons, and only that window can resize it
+- The update window resets its zoom whenever it appears, so View-menu zoom can no longer clip its own buttons, and only that window can resize it
 
 ## [0.4.22] - 2026-10-24
 
