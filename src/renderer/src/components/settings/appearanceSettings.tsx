@@ -89,7 +89,7 @@ export function AppearanceSettings(): React.JSX.Element {
   return (
     <>
       <SettingsGroup>
-        <SettingsRow label="Mode" className="py-3">
+        <SettingsRow label="Mode" className="py-1.5">
           <ModePreviewPicker
             value={appearance.mode}
             appearance={appearance}
