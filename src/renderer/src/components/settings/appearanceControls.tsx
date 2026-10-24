@@ -415,28 +415,24 @@ export function ModePreviewPicker({
                   data-testid={`theme-option-${option.value}`}
                   onClick={() => onChange(option.value)}
                   className={cn(
-                    // The ring hugs the preview with the same radius, so the
-                    // two curves coincide instead of leaving a corner gap.
-                    'rounded-[14px] [corner-shape:squircle] transition-colors',
-                    selected ? 'ring-2 ring-ring' : 'hover:ring-1 hover:ring-foreground/20',
+                    // The preview carries the selection in its own border, so
+                    // there is no second outline around a rounded shape.
+                    'rounded-[16px] border-2 transition-colors',
+                    selected
+                      ? 'border-[var(--app-system-accent)]'
+                      : 'border-foreground/20 hover:border-foreground/35',
                   )}
                 >
                   <span
-                    className={cn(
-                      'flex h-12 w-16 overflow-hidden rounded-[14px] [corner-shape:squircle]',
-                      // A hairline keeps the light preview readable on a
-                      // white row; the selection ring replaces it once the
-                      // preview is chosen.
-                      !selected && 'outline-1 -outline-offset-1 outline-foreground/20',
-                    )}
-                    // Painted on this element: corner-shape only shapes its own
-                    // background, not the panes drawn on top of it.
+                    className="flex h-12 w-16 overflow-hidden rounded-[14px]"
+                    // Painted on this element so the border and the inner
+                    // radius share one corner.
                     style={{ background: previewBackground(option.value, previews) }}
                   >
                     {option.value === 'system' ? (
                       <>
                         <PreviewPane tokens={previews.light} />
-                        <PreviewPane tokens={previews.dark} />
+                        <PreviewPane tokens={previews.dark} sidebar={false} />
                       </>
                     ) : (
                       <PreviewPane tokens={previews[option.value]} />
@@ -465,21 +461,55 @@ function previewBackground(
   return previews[mode]['--app-background'];
 }
 
-function PreviewPane({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
+/**
+ * One half of a preview: a window with an optional sidebar, two text lines, and
+ * the composer at the bottom. The system preview draws the sidebar once, on the
+ * light half, so the split reads as one window instead of two.
+ */
+function PreviewPane({
+  tokens,
+  sidebar = true,
+}: {
+  tokens: Record<string, string>;
+  sidebar?: boolean;
+}): React.JSX.Element {
   return (
-    <span className="flex h-full flex-1 flex-col justify-center gap-[3px] px-1.5">
-      <span
-        className="h-[2px] w-4/5 rounded-full"
-        style={{ backgroundColor: tokens['--app-foreground'] }}
-      />
-      <span
-        className="h-[2px] w-3/5 rounded-full"
-        style={{ backgroundColor: tokens['--app-muted-foreground'] }}
-      />
-      <span
-        className="h-[2px] w-1/3 rounded-full"
-        style={{ backgroundColor: tokens['--app-system-accent'] }}
-      />
+    <span
+      className="flex h-full min-w-0 flex-1"
+      style={{ backgroundColor: tokens['--app-background'] }}
+    >
+      {sidebar && (
+        <span
+          className="flex w-[24%] flex-col gap-[2px] p-[3px]"
+          style={{ backgroundColor: tokens['--app-sidebar'] }}
+        >
+          <span
+            className="h-[2px] w-3/4 rounded-full"
+            style={{ backgroundColor: tokens['--app-muted-foreground'] }}
+          />
+          <span
+            className="h-[2px] w-1/2 rounded-full"
+            style={{ backgroundColor: tokens['--app-muted-foreground'] }}
+          />
+        </span>
+      )}
+      <span className="flex min-w-0 flex-1 flex-col gap-[3px] p-[4px]">
+        <span
+          className="h-[2.5px] w-full rounded-full"
+          style={{ backgroundColor: tokens['--app-foreground'] }}
+        />
+        <span
+          className="h-[2.5px] w-3/5 rounded-full"
+          style={{ backgroundColor: tokens['--app-muted-foreground'] }}
+        />
+        <span
+          className="mt-auto h-[10px] w-full rounded-[4px] border"
+          style={{
+            backgroundColor: tokens['--app-card'],
+            borderColor: tokens['--app-system-accent'],
+          }}
+        />
+      </span>
     </span>
   );
 }
