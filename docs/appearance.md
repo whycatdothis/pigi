@@ -539,7 +539,7 @@ Reset appearance                            (footer row, right)
 
 - Rows share one card; the divider between rows is inset by the row's own
   padding (`before:inset-x-5`) instead of running edge to edge, so it lines up
-  with the labels. Group titles use the same inset.
+  with the labels. Group titles sit flush with the card's left edge.
 
 - Edits always apply to the resolved slot: `light` or `dark` when separate
   modes are on (chosen with the `Editing` control, default = current mode),

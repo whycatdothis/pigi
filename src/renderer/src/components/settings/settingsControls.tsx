@@ -34,7 +34,7 @@ export function SettingsGroup({
   return (
     <section className="flex flex-col gap-2">
       {(title || description) && (
-        <div className="flex flex-col gap-0.5 px-5">
+        <div className="flex flex-col gap-0.5">
           {title && <h2 className="text-sm text-muted-foreground">{title}</h2>}
           {description && <p className="text-xs text-muted-foreground">{description}</p>}
         </div>

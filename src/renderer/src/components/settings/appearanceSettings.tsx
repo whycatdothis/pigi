@@ -85,7 +85,7 @@ export function AppearanceSettings(): React.JSX.Element {
 
   return (
     <>
-      <SettingsGroup title="Theme" description="Applies immediately.">
+      <SettingsGroup title="Theme">
         <SettingsRow label="Mode">
           <ModePreviewPicker
             value={appearance.mode}
