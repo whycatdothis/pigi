@@ -40,6 +40,14 @@ function seed(): void {
   });
 }
 
+/** Radix opens on pointer down, not click. */
+function openThemeMenu(): void {
+  fireEvent.pointerDown(screen.getByRole('button', { name: 'Theme' }), {
+    button: 0,
+    ctrlKey: false,
+  });
+}
+
 beforeEach(() => {
   cleanup();
   seed();
@@ -80,15 +88,17 @@ describe('AppearanceSettings', () => {
     expect(screen.getByText('100 · 7.0:1')).toBeInTheDocument();
   });
 
-  it('steps the UI font size within bounds', () => {
+  it('types a UI font size and clamps it to the range', () => {
     render(<AppearanceSettings />);
-    const increase = screen.getByLabelText('Increase UI font size');
-    fireEvent.click(increase);
-    expect(storedAppearance().light.fonts.uiSize).toBe(DEFAULT_APPEARANCE.light.fonts.uiSize + 1);
-    for (let step = 0; step < UI_FONT_SIZE_MAX; step += 1) {
-      fireEvent.click(increase);
-    }
+    const input = screen.getByLabelText('UI font size');
+    fireEvent.change(input, { target: { value: '17' } });
+    fireEvent.blur(input);
+    expect(storedAppearance().light.fonts.uiSize).toBe(17);
+
+    fireEvent.change(input, { target: { value: '400' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
     expect(storedAppearance().light.fonts.uiSize).toBe(UI_FONT_SIZE_MAX);
+    expect(screen.getByLabelText('UI font size')).toHaveValue(String(UI_FONT_SIZE_MAX));
   });
 
   it('edits only the selected slot when modes are separate', () => {
@@ -112,7 +122,10 @@ describe('AppearanceSettings', () => {
     });
     render(<AppearanceSettings />);
     fireEvent.click(screen.getByRole('button', { name: 'Copy theme' }));
-    expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy theme' })).toHaveAttribute(
+      'data-copied',
+      'true',
+    );
     const raw: unknown = JSON.parse(written[0]);
     expect(raw).toMatchObject({ kind: 'pigi-theme', version: 1 });
   });
@@ -148,6 +161,30 @@ describe('AppearanceSettings', () => {
     expect(appearance.light.accent).toEqual({ presetId: 'amber' });
     expect(appearance.light.contrast).toBe(55);
     expect(screen.queryByLabelText('Theme file contents')).not.toBeInTheDocument();
+  });
+
+  it('applies a theme preset to both mode slots', () => {
+    render(<AppearanceSettings />);
+    openThemeMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /Nord/ }));
+    const appearance = storedAppearance();
+    expect(appearance.light.background).toBe('#eceff4');
+    expect(appearance.dark.background).toBe('#2e3440');
+    expect(appearance.light.accent).toEqual({ hex: '#5e81ac' });
+    expect(appearance.dark.accent).toEqual({ hex: '#88c0d0' });
+    // The theme ships a dark palette, so it also turns separate modes on.
+    expect(appearance.separateModes).toBe(true);
+    expect(screen.getByRole('button', { name: 'Theme' })).toHaveTextContent('Nord');
+  });
+
+  it('shows Custom once a theme color is edited', () => {
+    render(<AppearanceSettings />);
+    openThemeMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: /GitHub/ }));
+    const input = screen.getByLabelText('Background hex value');
+    fireEvent.change(input, { target: { value: '#101010' } });
+    fireEvent.blur(input);
+    expect(screen.getByRole('button', { name: 'Theme' })).toHaveTextContent('Custom');
   });
 
   it('resets every appearance value', () => {

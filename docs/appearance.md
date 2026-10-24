@@ -495,13 +495,18 @@ JS resolves `system` against `matchMedia` so CSS has one boolean to read.
 existing `SettingsGroup` / `SettingsRow` primitives plus
 `components/settings/appearanceControls.tsx`:
 
-- `ColorField` — a swatch that opens the native picker plus a hex field that
-  commits on blur/Enter. Used for background and foreground.
+- `ColorField` — a round swatch that opens the native picker plus a plain hex
+  field that commits on blur/Enter. Used for background and foreground; the
+  value reads as a dot and its hex, with no input chrome.
 - `AccentField` — one button per preset (the stored value is the preset id, so
   the tuned per-mode colors survive) plus a rainbow ring for a custom hex.
 - `SliderField` — range input with the resolved value and contrast ratio on the
   right, e.g. `73 · 5.0:1`.
-- `NumberStepper` — px stepper with the unit suffix (font sizes).
+- `NumberInput` — a small bordered field with the unit outside it, committed on
+  blur/Enter and clamped to the range (font sizes).
+- `ThemePresetField` — the named theme menu: `Aa` tile tinted with the theme's
+  accent, the name, and a chevron. Selecting one applies both mode slots; the
+  label reads `Custom` as soon as a color no longer matches a preset.
 - `FontPicker` — native select over the whitelist with an `Aa` preview in the
   chosen stack; the code role's empty option reads "System mono".
 - `ModePreviewPicker` — three icon-only miniature previews (System / Light /
@@ -520,19 +525,20 @@ is, how text is set, then the details.
 Appearance                                  (page title, text-xl)
 Mode                                        (its own card, no title)
   Mode              [▤] [▤] [▤]             (ModePreviewPicker, icons only)
-Theme                                       (SettingsGroup title)
+Visual style                                (SettingsGroup title)
+  Theme             ⤓ ⧉ [Aa Nord ▾]         (icons: import, copy)
   Accent            ●●●●●●●● + custom       (AccentField)
-  Background        [swatch] [#FFFFFF]      (ColorField)
-  Foreground        [swatch] [#0D0D0D]      (ColorField)
+  Background        ● #FFFFFF               (ColorField)
+  Foreground        ● #0D0D0D               (ColorField)
   Contrast          [——●——] 73 · 5.0:1
   Separate light and dark modes  [switch]
   Editing           [Light | Dark]          (only when separate modes are on)
 Typography
   Font              Aa [System ▾]           (content role)
   UI font           Aa [System ▾]
-  UI font size      [- 15 +] px
+  UI font size      [15] px
   Code font         Aa [System mono ▾]
-  Code font size    [- 14 +] px
+  Code font size    [14] px
 Details
   Translucent sidebar  [switch]
   Font smoothing    [switch]
@@ -554,6 +560,22 @@ Reset appearance                            (footer row, right)
 - Rows share one card; the divider between rows is inset by the row's own
   padding (`before:inset-x-5`) instead of running edge to edge, so it lines up
   with the labels. Group titles sit flush with the card's left edge.
+
+### Named themes
+
+`src/shared/themePresets.ts` holds the shipped palettes: `pigi` (the built-in
+look), GitHub, Catppuccin, Nord, Gruvbox, Everforest, Notion, Linear. Each one
+is a pair of color-only slots (`background`, `foreground`, `accent`); fonts,
+contrast, and translucency stay whatever the user picked.
+
+- Selecting a theme writes **both** slots, so the light and dark sides match.
+  When the two slots differ the theme also turns separate modes on; sharing one
+  palette across modes would hide half of it.
+- Nothing extra is persisted: the active theme is derived by matching the
+  slot's colors against the list, so editing any color falls back to `Custom`
+  on its own and an imported theme file is matched the same way.
+- The download and copy buttons in the Theme row are the same clipboard
+  actions described under [Theme portability](#phase-4--theme-portability-copy-and-import-shipped).
 
 - Edits always apply to the resolved slot: `light` or `dark` when separate
   modes are on (chosen with the `Editing` control, default = current mode),
@@ -690,7 +712,7 @@ as text (`src/shared/themeFile.ts`):
   and the payload is parsed by the same tolerant `parseAppearance`, so a file
   from an older build still imports. A newer `version` is refused with a
   readable message instead of applying half a theme.
-- Not done yet: a named theme library, file drag-and-drop, and exported
+- Not done yet: user-saved named themes, file drag-and-drop, and exported
   preview thumbnails on the Mode picker.
 
 ## Decisions

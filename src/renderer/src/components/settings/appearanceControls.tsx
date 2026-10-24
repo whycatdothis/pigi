@@ -5,8 +5,14 @@
  * the store writes, so a control never has to know which mode slot it edits.
  */
 import { useId, useMemo, useState } from 'react';
-import { IconCheck, IconMinus, IconPlus } from '@tabler/icons-react';
+import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { NativeSelect } from '../ui/native-select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import { Switch } from '../ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -22,6 +28,7 @@ import { deriveTokens, resolveAppearance } from '../../../../shared/appearanceTo
 import type { AppearanceSettings } from '../../../../shared/appearance';
 import { formatHex, normalizeHexColor, parseCssColor } from '../../../../shared/colorMath';
 import type { ThemeAccent } from '../../../../shared/appearance';
+import { THEME_PRESETS, accentSwatchHex } from '../../../../shared/themePresets';
 
 /** Any CSS color from the engine, as a `#rrggbb` the color input accepts. */
 function toHex(value: string | null, fallback: string): string {
@@ -67,7 +74,7 @@ export function ColorField({
       <label
         htmlFor={inputId}
         aria-label={`${label} color picker`}
-        className="relative size-6 shrink-0 cursor-pointer rounded-md ring-1 ring-foreground/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+        className="relative size-4 shrink-0 cursor-pointer rounded-full ring-1 ring-foreground/15 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
         style={{ backgroundColor: hex }}
       >
         <input
@@ -93,7 +100,7 @@ export function ColorField({
         }}
         spellCheck={false}
         aria-label={`${label} hex value`}
-        className="h-7 w-20 rounded-md border border-transparent bg-transparent px-1.5 font-mono text-caption uppercase tabular-nums text-foreground outline-none transition-colors hover:bg-muted focus-visible:bg-muted"
+        className="w-[4.75rem] bg-transparent p-0 font-mono text-caption uppercase tabular-nums text-foreground outline-none"
       />
     </div>
   );
@@ -204,7 +211,12 @@ export function SliderField({
   );
 }
 
-export function NumberStepper({
+/**
+ * A single editable number, the way the rest of the page shows values: a small
+ * bordered field plus the unit outside it. The draft is local so a half-typed
+ * number never reaches the store; blur or Enter clamps and commits.
+ */
+export function NumberInput({
   value,
   min,
   max,
@@ -219,29 +231,44 @@ export function NumberStepper({
   suffix: string;
   onChange: (value: number) => void;
 }): React.JSX.Element {
+  const [draft, setDraft] = useState(String(value));
+  const [lastValue, setLastValue] = useState(value);
+
+  if (value !== lastValue) {
+    setLastValue(value);
+    setDraft(String(value));
+  }
+
+  function commit(): void {
+    const parsed = Number.parseInt(draft, 10);
+    if (Number.isNaN(parsed)) {
+      setDraft(String(value));
+      return;
+    }
+    const clamped = Math.min(max, Math.max(min, parsed));
+    setDraft(String(clamped));
+    if (clamped !== value) onChange(clamped);
+  }
+
   return (
-    <div className="flex items-center gap-1">
-      <button
-        type="button"
-        aria-label={`Decrease ${label}`}
-        disabled={value <= min}
-        onClick={() => onChange(Math.max(min, value - 1))}
-        className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-      >
-        <IconMinus size={13} stroke={2.5} />
-      </button>
-      <span className="w-9 text-center font-mono text-caption tabular-nums text-foreground">
-        {value}
-      </span>
-      <button
-        type="button"
-        aria-label={`Increase ${label}`}
-        disabled={value >= max}
-        onClick={() => onChange(Math.min(max, value + 1))}
-        className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-      >
-        <IconPlus size={13} stroke={2.5} />
-      </button>
+    <div className="flex items-center gap-2">
+      <input
+        value={draft}
+        onChange={(event) => setDraft(event.target.value.replace(/[^0-9]/g, ''))}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            commit();
+          } else if (event.key === 'Escape') {
+            event.stopPropagation();
+            setDraft(String(value));
+          }
+        }}
+        inputMode="numeric"
+        aria-label={label}
+        className="h-7 w-12 rounded-lg border border-input bg-transparent text-center text-caption tabular-nums outline-none transition-colors focus-visible:border-ring dark:bg-input/30"
+      />
       <span className="text-caption text-muted-foreground">{suffix}</span>
     </div>
   );
@@ -272,7 +299,7 @@ export function FontPicker({
         aria-label={label}
         value={value ?? ''}
         onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
-        className="w-32 [&_select]:text-caption [&_select]:text-right [&_select]:border-transparent [&_select]:bg-transparent dark:[&_select]:bg-transparent [&_select]:hover:bg-muted"
+        className="w-36 [&_select]:text-caption [&_select]:text-right [&_select]:dark:bg-transparent"
       >
         <option value="">{role === 'code' ? 'System mono' : 'System'}</option>
         {FONT_FAMILIES.map((family) => (
@@ -282,6 +309,70 @@ export function FontPicker({
         ))}
       </NativeSelect>
     </div>
+  );
+}
+
+/** Small `Aa` tile tinted with a theme's accent, as in the theme menu. */
+function ThemeBadge({ accent }: { accent: AccentChoice }): React.JSX.Element {
+  const hex = accentSwatchHex(accent);
+  return (
+    <span
+      aria-hidden="true"
+      className="flex size-6 shrink-0 items-center justify-center rounded-md text-[11px] font-medium"
+      style={{ color: hex, backgroundColor: `${hex}1f` }}
+    >
+      Aa
+    </span>
+  );
+}
+
+/**
+ * Named theme menu. A theme sets both mode slots' colors at once; the current
+ * one is matched from the stored colors, so it reads "Custom" as soon as any
+ * color is edited.
+ */
+export function ThemePresetField({
+  presetId,
+  accent,
+  onChange,
+}: {
+  presetId: string;
+  /** The slot's accent, used for the badge when the look is custom. */
+  accent: AccentChoice;
+  onChange: (id: string) => void;
+}): React.JSX.Element {
+  const preset = THEME_PRESETS.find((candidate) => candidate.id === presetId) ?? THEME_PRESETS[0];
+  const isCustom = preset.id !== presetId;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Theme"
+          className="flex h-8 w-52 items-center gap-2 rounded-lg border border-input px-2 text-left outline-none transition-colors hover:bg-muted data-[state=open]:bg-muted dark:bg-input/30"
+        >
+          <ThemeBadge accent={isCustom ? accent : preset.light.accent} />
+          <span className="flex-1 truncate text-caption text-foreground">
+            {isCustom ? 'Custom' : preset.name}
+          </span>
+          <IconChevronDown size={14} className="shrink-0 text-muted-foreground" stroke={1.75} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        {THEME_PRESETS.map((option) => (
+          <DropdownMenuItem
+            key={option.id}
+            onSelect={() => onChange(option.id)}
+            className="gap-2.5 text-caption"
+          >
+            <ThemeBadge accent={option.light.accent} />
+            <span className="flex-1">{option.name}</span>
+            {option.id === presetId && <IconCheck size={14} stroke={2} />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

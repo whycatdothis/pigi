@@ -32,10 +32,12 @@ import {
   ColorField,
   FontPicker,
   ModePreviewPicker,
-  NumberStepper,
+  NumberInput,
   SettingSwitch,
   SliderField,
+  ThemePresetField,
 } from './appearanceControls';
+import { THEME_PRESETS, applyThemePreset, matchThemePreset } from '../../../../shared/themePresets';
 
 const REDUCE_MOTION_LABELS: Record<ReduceMotion, string> = {
   system: 'System',
@@ -96,7 +98,21 @@ export function AppearanceSettings(): React.JSX.Element {
         </SettingsRow>
       </SettingsGroup>
 
-      <SettingsGroup title="Theme">
+      <SettingsGroup title="Visual style">
+        <SettingsRow label="Theme">
+          <div className="flex items-center gap-2">
+            <ThemeFileActions />
+            <ThemePresetField
+              presetId={matchThemePreset(slot, targetMode)?.id ?? 'custom'}
+              accent={slot.accent}
+              onChange={(id) => {
+                const preset = THEME_PRESETS.find((candidate) => candidate.id === id);
+                if (preset === undefined) return;
+                updateAppearance((current) => applyThemePreset(current, preset));
+              }}
+            />
+          </div>
+        </SettingsRow>
         <SettingsRow label="Accent">
           <AccentField accent={slot.accent} presets={ACCENT_PRESETS} onChange={changeAccent} />
         </SettingsRow>
@@ -158,7 +174,7 @@ export function AppearanceSettings(): React.JSX.Element {
           />
         </SettingsRow>
         <SettingsRow label="UI font size">
-          <NumberStepper
+          <NumberInput
             label="UI font size"
             suffix="px"
             value={slot.fonts.uiSize}
@@ -176,7 +192,7 @@ export function AppearanceSettings(): React.JSX.Element {
           />
         </SettingsRow>
         <SettingsRow label="Code font size">
-          <NumberStepper
+          <NumberInput
             label="Code font size"
             suffix="px"
             value={slot.fonts.codeSize}
@@ -211,8 +227,7 @@ export function AppearanceSettings(): React.JSX.Element {
         </SettingsRow>
       </SettingsGroup>
 
-      <div className="flex items-center justify-between gap-3 px-1">
-        <ThemeFileActions />
+      <div className="flex items-center justify-end gap-3 px-1">
         <button
           type="button"
           onClick={resetAppearance}
