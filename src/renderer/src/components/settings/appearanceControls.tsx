@@ -445,7 +445,10 @@ export function ModePreviewPicker({
  * window reads as a raised card instead of filling the selection border.
  */
 function previewRing(mode: ThemeMode, previews: Record<ColorMode, Record<string, string>>): string {
-  return previews[mode === 'dark' ? 'dark' : 'light']['--app-card'];
+  const tokens = previews[mode === 'dark' ? 'dark' : 'light'];
+  // Mixed from the window color, not the background: several themes paint
+  // `--app-card` exactly like `--app-background`, which would flatten the tray.
+  return `color-mix(in oklab, ${tokens['--app-card']}, ${tokens['--app-foreground']} 8%)`;
 }
 
 /** Sidebar of a miniature window: one full-height tinted bar. */
@@ -503,8 +506,11 @@ function PreviewContent({
     <span className="flex min-w-0 flex-1 flex-col gap-[3px] p-[6px]">
       <span className={line} style={{ width: '44%', backgroundColor: muted }} />
       <span className={line} style={{ width: '72%', backgroundColor: muted, opacity: 0.75 }} />
-      <span className={line} style={{ width: '90%', backgroundColor: accent, opacity: 0.9 }} />
-      <span className={line} style={{ width: '66%', backgroundColor: accent }} />
+      <span
+        className={`${line} self-end`}
+        style={{ width: '78%', backgroundColor: accent, opacity: 0.9 }}
+      />
+      <span className={`${line} self-end`} style={{ width: '54%', backgroundColor: accent }} />
       <span
         className="mt-auto flex h-[13px] items-center justify-end rounded-[4px] border pr-[3px]"
         style={{
@@ -530,12 +536,12 @@ function PreviewWindow({
 }): React.JSX.Element {
   return (
     <span
-      className={cn(
-        'flex h-full min-w-0 overflow-hidden rounded-[8px] border border-foreground/15',
-        className,
-      )}
+      className={cn('flex h-full min-w-0 overflow-hidden rounded-[8px] border', className)}
       style={{
         backgroundColor: tokens['--app-card'],
+        // From the preview's own palette: the app foreground may be the other
+        // mode's color, which would hide the border on a dark window.
+        borderColor: `color-mix(in oklab, ${tokens['--app-card']}, ${tokens['--app-foreground']} 22%)`,
         boxShadow: `0 1px 3px color-mix(in oklab, ${tokens['--app-foreground']}, transparent 86%)`,
       }}
     >
@@ -551,9 +557,10 @@ function PreviewPane({ tokens }: { tokens: Record<string, string> }): React.JSX.
 }
 
 /**
- * System: the light window at the back with the dark one fanned over its right
- * side. Both keep a sidebar and their own content, so the overlap reads as two
- * windows instead of a single split one.
+ * System: two screenshots cropped at the same point and stitched, the light one
+ * on the left and the dark one on the right. Each half renders a full window
+ * twice as wide as the slot, clipped at the seam, so both sides keep their own
+ * sidebar and the start of their content.
  */
 function SystemPreview({
   light,
@@ -563,9 +570,30 @@ function SystemPreview({
   dark: Record<string, string>;
 }): React.JSX.Element {
   return (
-    <span className="relative flex h-full w-full">
-      <PreviewWindow tokens={light} className="absolute inset-0" />
-      <PreviewWindow tokens={dark} compact className="absolute inset-y-0 right-0 w-[58%]" />
+    <span
+      className="flex h-full w-full overflow-hidden rounded-[8px] border"
+      style={{
+        backgroundColor: light['--app-card'],
+        borderColor: `color-mix(in oklab, ${light['--app-card']}, ${light['--app-foreground']} 22%)`,
+      }}
+    >
+      <PreviewHalf tokens={light} />
+      <PreviewHalf tokens={dark} />
+    </span>
+  );
+}
+
+/** Left half of a miniature window, cropped at the seam. */
+function PreviewHalf({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
+  return (
+    <span className="relative min-w-0 flex-1 overflow-hidden">
+      <span
+        className="absolute inset-y-0 left-0 flex w-[200%]"
+        style={{ backgroundColor: tokens['--app-card'] }}
+      >
+        <PreviewSidebar tokens={tokens} width="w-[14px]" />
+        <PreviewContent tokens={tokens} />
+      </span>
     </span>
   );
 }

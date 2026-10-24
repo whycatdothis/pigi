@@ -43,7 +43,7 @@ export function SettingsGroup({
         className={cn(
           // Solid surface and a real 1px edge: a translucent card over a
           // sub-pixel border reads as washed out.
-          'overflow-hidden rounded-[12px] border border-border bg-card',
+          'overflow-hidden rounded-[15px] border border-border bg-card',
           // Dividers are inset to the row text instead of running edge to edge.
           '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-x-5',
           "[&>*+*]:before:top-0 [&>*+*]:before:h-px [&>*+*]:before:bg-border [&>*+*]:before:content-['']",

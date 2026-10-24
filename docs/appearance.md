@@ -513,14 +513,16 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
   Dark), 100x70, drawn from the _derived_ tokens of each mode, so a custom
   palette or a named theme shows up in them immediately. Three layers: the
   selection border, a 5px tray ring painted with the mode's own background, and
-  the window itself (card color, hairline border, soft shadow, 8px radius) so it
-  reads as a raised card rather than a filled swatch. The window keeps 6px of
-  padding around its content: a full-height sidebar bar clipped by the window
-  corner, two muted and two accent text lines, then the composer with a send
-  dot. The sidebar bar is mixed from the window color rather than
-  `--app-sidebar`, which is nearly white on the light side. The system preview
-  draws the light window at the back with the dark one fanned over its right
-  side, each with its own sidebar and content. Selection is
+  the window itself (card color, hairline border mixed from the preview's own
+  foreground, soft shadow, 8px radius) so it reads as a raised card rather than
+  a filled swatch. The window keeps 6px of padding around its content: a
+  full-height sidebar bar clipped by the window corner, two muted lines from the
+  left and two accent lines from the right (assistant, then user), then the
+  composer with a send dot. The sidebar bar is mixed from the window color
+  rather than `--app-sidebar`, which is nearly white on the light side. The
+  system preview crops the light and the dark window at the same point and
+  stitches the two halves, so each side keeps its own sidebar and the start of
+  its content. Selection is
   stacked on the drawing; the name is an `aria-label`, shown on hover.
 - `SettingSwitch` — row plus switch for the boolean preferences.
 
@@ -555,12 +557,12 @@ Reset appearance                            (footer row, right)
 
 - Rows are label plus control, one line each; nothing on this page needs a
   caption under the label, so every row is 48px high. The Mode row uses the
-  same padding with a 64x48 preview, which makes it 72px tall.
+  same padding with a 100x70 preview, which makes it 80px tall.
 - Type carries the hierarchy by weight, not size: page title 16/600, group
   title 13/600 muted, row label 14/500, control text 13/400 with tabular
   numerals. Every control is 28px tall so the right column lines up.
-- One radius scale: card 12, control 8, small chip 6, mode preview 8 (12 for the
-  selection border).
+- One radius scale: card 15, control 8, small chip 6, mode preview window 8
+  inside a 12 tray and a 13 selection border.
 - Surfaces are solid (`bg-card` with a 1px `--border`); the dividers use the
   same solid border color and stay inset to the row padding.
 - The settings column is 660px wide (`SETTINGS_CONTENT_MAX_WIDTH`); the
