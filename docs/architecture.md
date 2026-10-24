@@ -502,7 +502,7 @@ src/
 │   │   └── createPiAgentProcess.ts  # Utility process spawner
 │   └── windows/
 │       ├── createMainWindow.ts
-│       └── createUpdateProgressWindow.ts  # frameless update sheet (see auto-update.md)
+│       └── createUpdateProgressWindow.ts  # titled, content-sized update window (see auto-update.md)
 ├── preload/
 │   ├── index.ts                # Port management + piApi exposure
 │   └── index.d.ts              # Type declarations for window.piApi

@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- The update window really does size itself to its content now. Until this fix a download's Cancel and Install buttons were clipped off the bottom of the window, and "pigi is up to date" left the window at its opening height.
+- "Check for Updates" opens the window when a background check is already running, instead of appearing to do nothing.
+- "Install and Restart" says "Restarting to install…" while the bundle is being swapped in, so the click has an answer.
+- "Later" only closes the window - it was going through the cancel path - and Escape closes it the same way.
+
 ## [0.4.21] - 2026-10-24
 
 ### Changed

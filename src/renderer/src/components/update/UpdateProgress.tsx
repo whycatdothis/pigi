@@ -23,10 +23,11 @@ import { SpinningIcon } from '../ui/spinningIcon';
 import appIconUrl from '../../assets/appIcon.png';
 import {
   cancelUpdateDownload,
+  dismissUpdateWindow,
   getUpdateStatus,
   onUpdateStatus,
   quitAndInstallUpdate,
-  setUpdateProgressWindowHeight,
+  setUpdateProgressContentHeight,
 } from '../../services/piAgentClient';
 
 function statusTitle(status: UpdateStatus): string {
@@ -37,6 +38,8 @@ function statusTitle(status: UpdateStatus): string {
       return `Downloading pigi ${status.version}…`;
     case 'downloaded':
       return `pigi ${status.version} is ready`;
+    case 'installing':
+      return `Restarting to install pigi ${status.version}…`;
     case 'up_to_date':
       return 'pigi is up to date';
     case 'error':
@@ -52,6 +55,8 @@ function statusDetail(status: UpdateStatus): string | null {
   switch (status.phase) {
     case 'downloaded':
       return 'Restart pigi to finish installing.';
+    case 'installing':
+      return 'pigi quits and reopens when the install is done.';
     case 'error':
       return status.message;
     case 'unsupported':
@@ -72,7 +77,7 @@ function transferredLabel(status: UpdateStatus): string | null {
 /** What the bar shows: the download's progress, or full once it has landed. */
 function barPercent(status: UpdateStatus): number | null {
   if (status.phase === 'downloading') return status.percent / 100;
-  if (status.phase === 'downloaded') return 1;
+  if (status.phase === 'downloaded' || status.phase === 'installing') return 1;
   return null;
 }
 
@@ -107,6 +112,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
   // for updates" would read as a flicker.
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasStatus = status !== null;
 
   useEffect(() => {
     let active = true;
@@ -122,19 +128,40 @@ export default function UpdateProgress(): React.JSX.Element | null {
     };
   }, []);
 
+  // Escape closes the window without touching the download, the same as "Later".
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      dismissUpdateWindow();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   // Reporting the measured height on every change keeps the window the same
   // size as its content as the status moves from one line to a bar and buttons.
+  // Keyed on whether there is a status at all: the first paint has no ref to
+  // measure, and a status that keeps ticking it download progress must not
+  // rebuild the observer.
   useLayoutEffect(() => {
+    if (!hasStatus) return undefined;
     const container = containerRef.current;
     if (container === null) return undefined;
-    const report = (): void => {
-      setUpdateProgressWindowHeight(container.getBoundingClientRect().height);
-    };
-    report();
-    const observer = new ResizeObserver(report);
+
+    setUpdateProgressContentHeight(container.getBoundingClientRect().height);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry === undefined) return;
+      // The entry's own measurement, rather than reading layout again on every
+      // frame: this runs while a download pushes progress several times a
+      // second.
+      const blockSize = entry.borderBoxSize[0]?.blockSize;
+      setUpdateProgressContentHeight(blockSize ?? entry.contentRect.height);
+    });
     observer.observe(container);
     return () => observer.disconnect();
-  }, []);
+  }, [hasStatus]);
 
   if (status === null) return null;
 
@@ -179,7 +206,14 @@ export default function UpdateProgress(): React.JSX.Element | null {
         )}
 
         {percent !== null && (
-          <div className="h-[5px] w-full overflow-hidden rounded-full bg-foreground/10">
+          <div
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(percent * 100)}
+            aria-label="Update download"
+            className="h-[5px] w-full overflow-hidden rounded-full bg-foreground/10"
+          >
             <div
               className="h-full origin-left rounded-full bg-[var(--system-accent)] transition-transform duration-200 ease-out"
               // A transform, not a width: the bar repaints on the compositor
@@ -211,7 +245,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
                     size="sm"
                     variant="ghost"
                     className={SECONDARY_BUTTON}
-                    onClick={cancelUpdateDownload}
+                    onClick={dismissUpdateWindow}
                   >
                     Later
                   </Button>

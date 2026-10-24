@@ -395,14 +395,19 @@ export function cancelUpdateDownload(): void {
   window.piApi.update.cancelDownload();
 }
 
+/** Close the progress window, leaving a finished download in place. */
+export function dismissUpdateWindow(): void {
+  window.piApi.update.dismissWindow();
+}
+
 /** Quit and install the downloaded update. */
 export function quitAndInstallUpdate(): void {
   window.piApi.update.quitAndInstall();
 }
 
 /** Tell main how tall the progress window content is; only that window calls this. */
-export function setUpdateProgressWindowHeight(height: number): void {
-  window.piApi.update.setProgressWindowHeight(height);
+export function setUpdateProgressContentHeight(height: number): void {
+  window.piApi.update.setProgressWindowContentHeight(height);
 }
 
 /** Subscribe to auto-update status changes pushed from main. */

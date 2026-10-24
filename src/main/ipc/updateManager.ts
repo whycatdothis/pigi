@@ -72,7 +72,9 @@ function describeError(error: unknown): string {
  * not the narrowed value this function started with.
  */
 function hasDownloadToShow(): boolean {
-  return status.phase === 'downloading' || status.phase === 'downloaded';
+  return (
+    status.phase === 'downloading' || status.phase === 'downloaded' || status.phase === 'installing'
+  );
 }
 
 function publish(next: UpdateStatus): void {
@@ -121,10 +123,11 @@ async function startDownload(version: string): Promise<void> {
 async function runCheck(interactive: boolean): Promise<UpdateStatus> {
   if (!isSupported()) return status;
 
-  // Nothing to check: a download is running or finished, so the caller (the
-  // progress window's opener, or Settings) gets the state it should show.
+  // Nothing to check: a download is running or finished, or the background
+  // check is already asking. Either way the click still has to answer, so the
+  // window opens on whatever the status says instead of doing nothing.
   if (downloadToken !== null || checkInFlight || status.phase === 'downloaded') {
-    if (interactive && downloadToken !== null) {
+    if (interactive) {
       openUpdateProgressWindow();
     }
     return status;
@@ -176,8 +179,17 @@ function cancelUpdateDownload(): void {
   closeUpdateProgressWindow();
 }
 
+/** Hides the window without touching a download: "Later", or Escape. */
+function dismissUpdateWindow(): void {
+  closeUpdateProgressWindow();
+}
+
 function installDownloadedUpdate(): void {
   if (status.phase !== 'downloaded') return;
+  // Squirrel on macOS re-fetches the bundle from the updater's local proxy
+  // before it can replace anything, which takes seconds. Saying so keeps the
+  // window from looking like the click did nothing.
+  publish({ phase: 'installing', version: status.version });
   autoUpdater.quitAndInstall();
 }
 
@@ -197,6 +209,8 @@ export function getUpdateMenuItemState(): UpdateMenuItemState {
       return { label: `Downloading pigi ${status.version}…`, enabled: true };
     case 'downloaded':
       return { label: `Update to ${status.version}…`, enabled: true };
+    case 'installing':
+      return { label: 'Installing Update…', enabled: false };
     case 'idle':
     case 'up_to_date':
     case 'error':
@@ -211,7 +225,11 @@ export function getUpdateMenuItemState(): UpdateMenuItemState {
  * install-requested toast); main never installs on its own.
  */
 export function runUpdateMenuItemAction(): void {
-  if (status.phase === 'downloading' || status.phase === 'downloaded') {
+  if (
+    status.phase === 'downloading' ||
+    status.phase === 'downloaded' ||
+    status.phase === 'installing'
+  ) {
     openUpdateProgressWindow();
     return;
   }
@@ -230,6 +248,7 @@ export function initializeUpdateManager(): void {
   ipcMain.handle(PiChannel.GetUpdateStatus, () => status);
   ipcMain.handle(PiChannel.CheckForUpdates, () => runCheck(true));
   ipcMain.on(PiChannel.CancelUpdateDownload, () => cancelUpdateDownload());
+  ipcMain.on(PiChannel.DismissUpdateWindow, () => dismissUpdateWindow());
   ipcMain.on(PiChannel.QuitAndInstallUpdate, () => installDownloadedUpdate());
   registerUpdateProgressWindowIpc();
 

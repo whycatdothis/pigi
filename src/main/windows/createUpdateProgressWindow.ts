@@ -15,8 +15,8 @@ import { UPDATE_PROGRESS_HASH } from '../../shared/routes';
 import { getMainWindow } from './createMainWindow';
 
 const WIDTH = 400;
-/** First paint's height, before the renderer has measured anything. */
-const INITIAL_HEIGHT = 98;
+/** First paint's content height, before the renderer has measured anything. */
+const INITIAL_HEIGHT = 72;
 /** Keeps a bad measurement from producing a window nobody can use. */
 const MIN_HEIGHT = 72;
 const MAX_HEIGHT = 260;
@@ -108,6 +108,10 @@ export function openUpdateProgressWindow(): BrowserWindow {
     // dialog rather than a floating panel, and the red button is the way out.
     title: WINDOW_TITLE,
     show: false,
+    // Content-sized, so `height` here and `setContentSize` below mean the same
+    // thing. Without it the initial height would carry the title bar and the
+    // first frame would clip the bottom.
+    useContentSize: true,
     ...(liveParent !== null ? { parent: liveParent } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
@@ -174,7 +178,7 @@ export function closeUpdateProgressWindowAfter(delayMs: number): void {
 
 /** Wires the renderer's measurement to the window. Called once at startup. */
 export function registerUpdateProgressWindowIpc(): void {
-  ipcMain.on(PiChannel.UpdateProgressHeight, (_event, height: number) => {
+  ipcMain.on(PiChannel.UpdateProgressContentHeight, (_event, height: number) => {
     if (typeof height !== 'number' || !Number.isFinite(height)) return;
     setUpdateProgressContentHeight(height);
   });
