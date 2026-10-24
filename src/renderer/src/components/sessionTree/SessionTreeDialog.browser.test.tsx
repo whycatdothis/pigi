@@ -315,8 +315,10 @@ test('draws a window of rows, and a scrollbar as long as the whole session', asy
   expect(rows.length).toBeGreaterThan(8);
   expect(rows.length).toBeLessThanOrEqual(Math.ceil(listRect.height / ROW_HEIGHT_PX) + 20);
 
-  // What is drawn is the window around the current row, not the start of the session.
-  expect(rowIdsInDom()).toContain('e1999');
+  // What is drawn is the window around the current row, not the start of the
+  // session. Polled: the dialog scrolls there after its first paint, so the rows
+  // on the very first frame are still the top of the session.
+  await expect.poll(rowIdsInDom).toContain('e1999');
   expect(rowIdsInDom()).not.toContain('e0');
 });
 
