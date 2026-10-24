@@ -127,7 +127,8 @@ export const DEFAULT_THEME_ACCENT_ID = 'indigo';
 
 export const CONTRAST_MIN = 0;
 export const CONTRAST_MAX = 100;
-export const DEFAULT_CONTRAST = 73;
+/** Softer than the original palette; the slider can push it back to 73. */
+export const DEFAULT_CONTRAST = 30;
 
 export const UI_FONT_SIZE_MIN = 12;
 export const UI_FONT_SIZE_MAX = 20;

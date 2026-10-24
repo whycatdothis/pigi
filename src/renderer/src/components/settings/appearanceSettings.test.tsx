@@ -10,6 +10,7 @@ import { AppearanceSettings } from './appearanceSettings';
 import { useSettingsStore } from '../../state/settingsStore';
 import {
   DEFAULT_APPEARANCE,
+  DEFAULT_CONTRAST,
   UI_FONT_SIZE_MAX,
   parseAppearance,
   type AppearanceSettings as Appearance,
@@ -82,7 +83,7 @@ describe('AppearanceSettings', () => {
   it('shows the resolved contrast next to the slider and stores the target', () => {
     render(<AppearanceSettings />);
     const slider = screen.getByLabelText('Contrast');
-    expect(screen.getByText('73 · 5.0:1')).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`^${DEFAULT_CONTRAST} · \\d\\.\\d:1$`))).toBeInTheDocument();
     fireEvent.change(slider, { target: { value: '100' } });
     expect(storedAppearance().light.contrast).toBe(100);
     expect(screen.getByText('100 · 7.0:1')).toBeInTheDocument();

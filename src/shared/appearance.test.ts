@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ACCENT_PRESETS,
   DEFAULT_APPEARANCE,
+  DEFAULT_CONTRAST,
   DEFAULT_MODE_APPEARANCE,
   parseAppearance,
   type AppearanceSettings,
@@ -126,10 +127,13 @@ describe('deriveTokens', () => {
 
       expect(contrastRatio(foreground, background)).toBeGreaterThan(7);
       expect(contrastRatio(muted, background)).toBeCloseTo(
-        contrastTargets(73, mode).secondaryText,
+        contrastTargets(DEFAULT_CONTRAST, mode).secondaryText,
         1,
       );
-      expect(contrastRatio(border, background)).toBeCloseTo(contrastTargets(73, mode).border, 1);
+      expect(contrastRatio(border, background)).toBeCloseTo(
+        contrastTargets(DEFAULT_CONTRAST, mode).border,
+        1,
+      );
     }
   });
 

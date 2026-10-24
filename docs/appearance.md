@@ -24,7 +24,7 @@ settings page; the capability list is the target for our data model.
 |              | Separate light and dark modes                        | Switch; when on, background, foreground, contrast, and fonts are edited per mode. The accent stays shared. |
 |              | UI / Content / Code font + style                     | Family + weight per role, per mode.                                                                        |
 |              | Translucent sidebar                                  | Per mode.                                                                                                  |
-|              | Contrast                                             | Slider 0–100 with the numeric value; default 73.                                                           |
+|              | Contrast                                             | Slider 0–100 with the numeric value; default 30.                                                           |
 |              | Diff markers                                         | Color vs `+`/`-` markers.                                                                                  |
 |              | Use pointer cursors, Dock icon, Font smoothing       | Desktop-app details.                                                                                       |
 | Footer       | Advanced disclosure (left), Reset to default (right) | Reset is page-level.                                                                                       |
@@ -74,7 +74,7 @@ export interface ModeAppearance {
   background: string | null;
   foreground: string | null;
   accent: AccentChoice;
-  /** 0-100. 73 reproduces today's palette. */
+  /** 0-100. 30 is the shipped default; 73 reproduces the original palette. */
   contrast: number;
   translucentSidebar: boolean;
   fonts: FontAppearance;
@@ -115,7 +115,7 @@ export const DEFAULT_MODE_APPEARANCE: { light: ModeAppearance; dark: ModeAppeara
     background: null, // white
     foreground: null, // #1a1c1f
     accent: { presetId: 'indigo' },
-    contrast: 73,
+    contrast: 30,
     translucentSidebar: true,
     fonts: { ui: null, content: null, code: null, uiSize: 15, codeSize: 14 },
   },
@@ -123,7 +123,7 @@ export const DEFAULT_MODE_APPEARANCE: { light: ModeAppearance; dark: ModeAppeara
     background: null, // oklch(0.145 0 0)
     foreground: null, // oklch(0.985 0 0)
     accent: { presetId: 'indigo' },
-    contrast: 73,
+    contrast: 30,
     translucentSidebar: true,
     fonts: { ui: null, content: null, code: null, uiSize: 15, codeSize: 14 },
   },
@@ -197,11 +197,11 @@ into color values.
    hand-tuned ramp; it selects how much separation the theme must guarantee.
    Targets are floors: a stronger user foreground is never lowered.
 
-   | Slider       | Secondary text            | Border / divider           |
-   | ------------ | ------------------------- | -------------------------- |
-   | 0            | 4.5:1 light / 5.5:1 dark  | 1.15:1 light / 1.25:1 dark |
-   | 73 (default) | 5.0:1 light / 7.0:1 dark  | 1.3:1 light / 1.45:1 dark  |
-   | 100          | 7.0:1 light / 10.0:1 dark | 3.0:1                      |
+   | Slider        | Secondary text            | Border / divider           |
+   | ------------- | ------------------------- | -------------------------- |
+   | 0             | 4.5:1 light / 5.5:1 dark  | 1.15:1 light / 1.25:1 dark |
+   | 73 (original) | 5.0:1 light / 7.0:1 dark  | 1.3:1 light / 1.45:1 dark  |
+   | 100           | 7.0:1 light / 10.0:1 dark | 3.0:1                      |
 
    Intermediate positions interpolate linearly. Dark mode asks for a higher
    physical ratio at the same slider position because the same ratio reads
@@ -312,7 +312,7 @@ CSS that reference the tokens, so they follow automatically.
 ### Invariants (unit-tested)
 
 `deriveTokens` must satisfy these for every preset, both modes, contrast
-`0 / 73 / 100`, and a set of sample custom backgrounds (white, beige, navy,
+`0 / 30 / 73 / 100`, and a set of sample custom backgrounds (white, beige, navy,
 mid-grey):
 
 - `contrast(fg, bg) >= 7`
@@ -501,7 +501,7 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
 - `AccentField` — one button per preset (the stored value is the preset id, so
   the tuned per-mode colors survive) plus a rainbow ring for a custom hex.
 - `SliderField` — range input with the resolved value and contrast ratio on the
-  right, e.g. `73 · 5.0:1`.
+  right, e.g. `30 · 4.7:1`.
 - `NumberInput` — a small bordered field with the unit outside it, committed on
   blur/Enter and clamped to the range (font sizes).
 - `ThemePresetField` — the named theme menu: `Aa` tile tinted with the theme's
@@ -539,7 +539,7 @@ Visual style                                (SettingsGroup title)
   Accent            ●●●●●●●● + custom       (AccentField)
   Background        [● #FFFFFF]            (ColorField)
   Foreground        [● #0D0D0D]            (ColorField)
-  Contrast          [——●——] 73 · 5.0:1
+  Contrast          [——●——] 30 · 4.7:1
   Separate light and dark modes  [switch]
   Editing           [Light | Dark]          (only when separate modes are on)
 Typography
