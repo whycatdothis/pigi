@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 export function SettingsContent({ children }: { children: ReactNode }): React.JSX.Element {
   return (
     <div
-      className="mx-auto flex w-full flex-col gap-9 px-5 py-7"
+      className="mx-auto flex w-full flex-col gap-9 px-5 pt-12 pb-7"
       style={{ maxWidth: `${SETTINGS_CONTENT_MAX_WIDTH}px` }}
     >
       {children}
