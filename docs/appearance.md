@@ -13,7 +13,7 @@ settings page; the capability list is the target for our data model.
 
 | Area         | Control                                              | Behavior                                                                                                   |
 | ------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Visual style | Mode                                                 | Three preview cards (System / Light / Dark). The card is a miniature of the app, not an icon.              |
+| Visual style | Mode                                                 | Three preview cards (System / Light / Dark), first row of the group. The card is a miniature of the app.   |
 |              | Theme                                                | Import, copy, and a dropdown with a `Aa` swatch preview.                                                   |
 |              | Accent                                               | Preset dropdown + custom swatch + hex field.                                                               |
 |              | Background                                           | Swatch + hex field.                                                                                        |
@@ -531,10 +531,9 @@ section, and the groups are ordered the way the page is read — what the theme
 is, how text is set, then the details.
 
 ```
-Appearance                                  (page title, text-xl)
-Mode                                        (its own card, no title)
-  Mode              [▤] [▤] [▤]             (ModePreviewPicker, icons only)
+Appearance                                  (page title, text-lg)
 Visual style                                (SettingsGroup title)
+  Mode              [▤] [▤] [▤]             (ModePreviewPicker, icons only)
   Theme             ⤓ ⧉ [Aa Nord ▾]         (icons: import, copy)
   Accent            ●●●●●●●● + custom       (AccentField)
   Background        [● #FFFFFF]            (ColorField)

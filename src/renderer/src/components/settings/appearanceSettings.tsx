@@ -101,7 +101,7 @@ export function AppearanceSettings(): React.JSX.Element {
 
   return (
     <>
-      <SettingsGroup>
+      <SettingsGroup title="Visual style">
         <SettingsRow label="Mode" className="py-1.5">
           <ModePreviewPicker
             value={appearance.mode}
@@ -109,9 +109,6 @@ export function AppearanceSettings(): React.JSX.Element {
             onChange={(mode: ThemeMode) => updateAppearance((current) => ({ ...current, mode }))}
           />
         </SettingsRow>
-      </SettingsGroup>
-
-      <SettingsGroup title="Visual style">
         <SettingsRow label="Theme">
           <div className="flex items-center gap-2">
             <ThemeFileActions />
