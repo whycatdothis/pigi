@@ -26,7 +26,7 @@ export default function BranchSummaryCard({ text }: { text: string }): React.JSX
           <span>Branch summary</span>
         </button>
         {open && (
-          <div className="max-h-80 overflow-y-auto px-3 pb-2 text-[13px] text-foreground/80">
+          <div className="max-h-80 overflow-y-auto px-3 pb-2 text-caption text-foreground/80">
             <MarkdownMessage text={text} />
           </div>
         )}

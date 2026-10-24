@@ -89,8 +89,8 @@ export default function SessionTreeHelpDialog({
                 <Icon size={14} />
               </span>
               <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="text-[13px] font-medium text-foreground">{title}</span>
-                <span className="text-[13px] leading-relaxed text-muted-foreground">{body}</span>
+                <span className="text-caption font-medium text-foreground">{title}</span>
+                <span className="text-caption leading-relaxed text-muted-foreground">{body}</span>
               </span>
             </div>
           ))}

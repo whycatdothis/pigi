@@ -496,6 +496,11 @@ const piApi = {
   /** Get the system accent color as a hex string (e.g. '#007aff'). Returns null on unsupported platforms. */
   getAccentColor: (): Promise<string | null> => ipcRenderer.invoke(PiChannel.GetAccentColor),
 
+  /** Tell the main process which theme is applied, so window materials match. */
+  setAppearanceTheme: (theme: 'system' | 'light' | 'dark'): void => {
+    ipcRenderer.send(PiChannel.SetAppearanceTheme, theme);
+  },
+
   /** Auto-update. Every renderer gets the status pushed on change. */
   update: {
     /** Current status, for a window that opened after the change. */

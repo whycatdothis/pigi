@@ -5,10 +5,19 @@
  * - Sessions are created on-demand from renderer
  * - Each session gets control/data MessagePorts for commands and streaming
  */
-import { app, BrowserWindow, ipcMain, net, protocol, shell, systemPreferences } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  nativeTheme,
+  net,
+  protocol,
+  shell,
+  systemPreferences,
+} from 'electron';
 import { electronApp } from '@electron-toolkit/utils';
 import { refreshApplicationMenu, setupApplicationMenu } from './menus/applicationMenu';
-import { createMainWindow } from './windows/createMainWindow';
+import { createMainWindow, getMainWindow } from './windows/createMainWindow';
 import {
   stopAllProcesses,
   registerIpcHandlers,
@@ -57,6 +66,22 @@ app.whenReady().then(() => {
     if (typeof url !== 'string') return;
     if (url.startsWith('https://') || url.startsWith('http://')) {
       shell.openExternal(url);
+    }
+  });
+
+  ipcMain.on(PiChannel.SetAppearanceTheme, (_event, theme: string) => {
+    if (theme !== 'light' && theme !== 'dark' && theme !== 'system') {
+      return;
+    }
+    // Drives the macOS vibrancy material, native menus, and the renderer's own
+    // prefers-color-scheme, which the appearance engine sets to match.
+    nativeTheme.themeSource = theme;
+    const window = getMainWindow();
+    if (process.platform === 'darwin' && window) {
+      // An existing vibrant window does not repaint when the app appearance
+      // changes; re-applying the material is what makes it follow.
+      window.setVibrancy(null);
+      window.setVibrancy('menu');
     }
   });
 

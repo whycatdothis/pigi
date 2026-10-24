@@ -10,6 +10,9 @@
 
 ### Fixed
 
+- Tool status, diff, toast, and warning colors come from the theme's success, warning, danger, and info pairs, so they stay readable in dark mode instead of using fixed light-mode hex values
+- The terminal follows the code font and code size settings
+- Native window chrome and menus follow the chosen appearance instead of only the system setting
 - Code blocks follow the app theme: dark mode highlights with a dark palette instead of the light one, and every token color keeps at least 3:1 contrast against the code background in both modes
 
 ### Changed

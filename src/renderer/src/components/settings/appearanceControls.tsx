@@ -343,7 +343,7 @@ export function ModePreviewPicker({
             </span>
             <span
               className={cn(
-                'text-[10px] leading-none',
+                'text-3xs leading-none',
                 selected ? 'text-foreground' : 'text-muted-foreground',
               )}
             >

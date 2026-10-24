@@ -469,6 +469,8 @@ export enum PiChannel {
   CompletePath = 'pi:complete_path',
   /** renderer → main: get system accent color */
   GetAccentColor = 'pi:get_accent_color',
+  /** renderer → main: the app theme, so window materials follow it */
+  SetAppearanceTheme = 'pi:set_appearance_theme',
   /** renderer → main: get all keyboard shortcut definitions with current bindings */
   GetShortcuts = 'pi:get_shortcuts',
   /** renderer → main: update a keyboard shortcut binding */

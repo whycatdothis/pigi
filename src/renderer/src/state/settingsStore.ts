@@ -109,7 +109,22 @@ export function initializePigiSettings(): void {
   const apply = (): void => {
     applyAppearance(useSettingsStore.getState().appearance);
   };
+  let lastMode = useSettingsStore.getState().appearance.mode;
+  const syncNativeTheme = (): void => {
+    window.piApi.setAppearanceTheme(lastMode);
+  };
+
   apply();
+  syncNativeTheme();
+
+  // The window material, native menus, and the renderer's own
+  // prefers-color-scheme follow the chosen mode, not only the OS.
+  useSettingsStore.subscribe((state) => {
+    if (state.appearance.mode !== lastMode) {
+      lastMode = state.appearance.mode;
+      syncNativeTheme();
+    }
+  });
 
   window.matchMedia(SYSTEM_DARK_QUERY).addEventListener('change', () => {
     if (useSettingsStore.getState().appearance.mode === 'system') {

@@ -417,7 +417,9 @@ One UI scale plus one code scale, both anchored on today's values:
 | --------------------- | ------- | ----- |
 | `--text-3xs`          | 10px    | ui    |
 | `--text-2xs`          | 11px    | ui    |
+| `--text-caption`      | 13px    | ui    |
 | `--text-ui`           | 14px    | ui    |
+| `--text-body`         | 15px    | ui    |
 | `--text-xs`           | 13px    | ui    |
 | `--text-sm`           | 15px    | ui    |
 | `--text-base`         | 17px    | ui    |
@@ -436,24 +438,28 @@ their line-height ratios stay put.
 **Consolidation.** The renderer has 54 arbitrary sizes (`text-[10px]`…`text-
 [15px]`) across five values. Each maps to the closest token:
 
-| Arbitrary     | Token                           | Typical use             |
-| ------------- | ------------------------------- | ----------------------- |
-| `text-[10px]` | `text-3xs`                      | badges, counts          |
-| `text-[11px]` | `text-2xs`                      | metadata                |
-| `text-[13px]` | `text-xs` / `text-code-compact` | secondary UI, mono rows |
-| `text-[14px]` | `text-code`                     | tool output, code       |
-| `text-[15px]` | `text-sm`                       | message content         |
+| Arbitrary     | Token                                | Typical use             |
+| ------------- | ------------------------------------ | ----------------------- |
+| `text-[10px]` | `text-3xs`                           | badges, counts          |
+| `text-[11px]` | `text-2xs`                           | metadata                |
+| `text-[13px]` | `text-caption` / `text-code-compact` | secondary UI, mono rows |
+| `text-[14px]` | `text-ui` / `text-code`              | plain text, tool output |
+| `text-[15px]` | `text-body`                          | message content         |
 
-The tokens exist now (`--text-3xs`, `--text-2xs`, `--text-ui`, `--text-code`,
-`--text-code-compact`); phase 3 does the sweep. After it,
-`rg 'text-\[[0-9]+px\]'` must return nothing in `src/renderer/src`.
+The sweep is done: `rg 'text-\[[0-9]+px\]'` returns nothing in
+`src/renderer/src`. The new tokens carry no line-height, so replacing an
+arbitrary size kept the inherited leading exactly as it was; `text-xs` /
+`text-sm` / `text-base` were left alone for the places that want Tailwind's
+line-height.
 
 ### Terminal
 
-`terminalController.ts` stops hardcoding `FONT_FAMILY` / `FONT_SIZE = 15` and
-reads the resolved font role + code size. On `subscribeAppearance` it updates
-`terminal.options.fontFamily`, `terminal.options.fontSize`, re-reads the theme
-(`readTerminalTheme()` already pulls `--background`), and calls `fit()`.
+`terminalController.ts` reads `--app-font-code` and scales its shipped 15px by
+`--app-font-code-scale` (the code size, anchored at 14px), so the default stays
+15px and a size change moves the terminal proportionally. `TerminalPanel`
+subscribes to `subscribeAppearance` (replacing the old class MutationObserver)
+and `applyAppearance()` updates the palette, family, and size of every cached
+terminal, then refits the active one.
 
 ## Motion
 
@@ -543,25 +549,27 @@ Reset appearance                            (footer row, right)
 
 These are defects found in the current code and are in scope for phase 3:
 
-| File                                                                             | Problem                                                                 |
-| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `components/message/ToolBlock.tsx:104-119`                                       | Status hexes `#854d0e`, `#166534`, `#991b1b`, `#3f3f46` are light-only. |
-| `components/message/CollapsedReadGroup.tsx:68-70`                                | Same three hexes.                                                       |
-| `components/ui/sonner.tsx:35-39`                                                 | `--success-text` / `--error-text` light-only hex.                       |
-| `components/sidebar/sessionList.tsx:369`                                         | `hover:bg-[#e5e5e5]` light-only.                                        |
-| `components/transcript/StreamingQueue.tsx:90,104`                                | `text-yellow-600`, `text-blue-500` with no dark variant.                |
-| `components/transcript/MessageSearch.tsx:196`                                    | `text-red-500` ≈ 3.9:1 on white.                                        |
-| `components/message/syntaxHighlightedCode.tsx:35`                                | Shiki theme is hardcoded `one-light` in dark mode.                      |
-| `components/chatInput/index.tsx:114`, `components/update/UpdateProgress.tsx:107` | `text-white` on the accent; 3.2–4.0:1 for light accents.                |
-| `src/main/windows/createMainWindow.ts:27`                                        | macOS vibrancy material follows the OS appearance, not the app theme.   |
+| File                                                                             | Problem                                                                                   |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `components/message/ToolBlock.tsx:104-119`                                       | Status hexes `#854d0e`, `#166534`, `#991b1b`, `#3f3f46` are light-only.                   |
+| `components/message/CollapsedReadGroup.tsx:68-70`                                | Same three hexes.                                                                         |
+| `components/ui/sonner.tsx:35-39`                                                 | `--success-text` / `--error-text` light-only hex.                                         |
+| `components/sidebar/sessionList.tsx:369`                                         | `hover:bg-[#e5e5e5]` light-only.                                                          |
+| `components/transcript/StreamingQueue.tsx:90,104`                                | `text-yellow-600`, `text-blue-500` with no dark variant.                                  |
+| `components/transcript/MessageSearch.tsx:196`                                    | `text-red-500` ≈ 3.9:1 on white.                                                          |
+| `components/message/syntaxHighlightedCode.tsx:35`                                | Shiki theme is hardcoded `one-light` in dark mode.                                        |
+| `components/chatInput/index.tsx:114`, `components/update/UpdateProgress.tsx:107` | `text-white` on the accent; 3.2–4.0:1 for light accents.                                  |
+| `src/main/index.ts` (appearance IPC)                                             | Native window chrome, menus, and `prefers-color-scheme` follow the OS, not the app theme. |
 
 Fixes: status tokens for the first six; Shiki base theme from background
 luminance plus the 3:1 token pass (re-tokenize when the background changes;
 cache keyed by base theme); `--app-accent-foreground` for accent-on-accent
-text. The vibrancy row needs the renderer to tell the main process which mode
-is applied (`nativeTheme.themeSource`), otherwise a dark app on a light system
-shows a light sidebar material — a pre-existing defect, visible in the phase-1
-screenshot.
+text. The last row is an IPC message (`pi:set_appearance_theme`) that sets
+`nativeTheme.themeSource`, re-applies the window's vibrancy material, and lets
+native menus follow the chosen mode. It does not change what a translucent
+sidebar looks like: the material is meant to show the desktop behind the
+window, so a light wallpaper still reads light — turning translucency off
+gives an opaque sidebar that follows the palette exactly.
 
 ## Dependent surfaces
 
@@ -636,12 +644,14 @@ defaults render the same computed colors as before (within 3%).
 Acceptance: every control writes through the store; previews match applied
 tokens; keyboard and screen-reader labels on the new controls; `npm run check`.
 
-### Phase 3 — Audit fixes and consolidation
+### Phase 3 — Audit fixes and consolidation · shipped
 
-- Status tokens replace the eight defect sites; Shiki follows the background
-  (3:1 token pass).
+- Status tokens replace the eight defect sites, including `DiffView` and the
+  settings-page warning, which now use the success/danger/warning pairs.
 - 54 arbitrary font sizes → tokens.
 - Terminal follows code font/size live.
+- Native window material and menus follow the chosen mode
+  (`nativeTheme.themeSource`), not only the OS.
 
 Acceptance: `rg 'text-\[[0-9]+px\]'` clean; dark-mode pass over transcript,
 sidebar, settings, dialogs, terminal; no `#` hexes in components outside

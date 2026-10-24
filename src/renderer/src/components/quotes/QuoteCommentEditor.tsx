@@ -76,7 +76,7 @@ export default function QuoteCommentEditor({
         onKeyDown={handleKeyDown}
         placeholder="Add a comment..."
         aria-label="Quote comment"
-        className="max-h-40 min-h-16 resize-none rounded-none border-0 bg-transparent px-1 py-0.5 text-[15px] leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
+        className="max-h-40 min-h-16 resize-none rounded-none border-0 bg-transparent px-1 py-0.5 text-body leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent"
       />
       <Button
         type="button"

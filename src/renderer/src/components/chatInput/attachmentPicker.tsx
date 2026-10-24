@@ -122,7 +122,7 @@ function AttachmentChip({
       <div className="min-w-0">
         <div className="truncate text-xs text-foreground">{displayFileName(attachment.name)}</div>
         {attachment.size > 0 && (
-          <div className="text-[10px] leading-3 text-muted-foreground">
+          <div className="text-3xs leading-3 text-muted-foreground">
             {formatFileSize(attachment.size)}
           </div>
         )}

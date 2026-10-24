@@ -111,7 +111,7 @@ const EMPTY_PATH_ENTRIES: PathCompletionEntry[] = [];
 const TEXT_BLOCK_SEPARATOR = '\n';
 /** Send and stop share one look so the button does not change colour mid-run. */
 const PRIMARY_ACTION_CLASS_NAME =
-  'rounded-full bg-[var(--system-accent)] text-white hover:bg-[var(--system-accent)]';
+  'rounded-full bg-[var(--system-accent)] text-system-accent-foreground hover:bg-[var(--system-accent)]';
 
 /** Editor callbacks that need the latest render's state. */
 interface ComposerHandlers {

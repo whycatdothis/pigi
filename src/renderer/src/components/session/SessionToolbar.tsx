@@ -26,7 +26,7 @@ import { PanelIcon } from '../panelIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 // 13px menu text (app's text-xs scale, keeps the theme line-height — an
-// arbitrary text-[13px] would drop it and inherit body's 1.6 line-height).
+// arbitrary text-caption would drop it and inherit body's 1.6 line-height).
 // The check icon renders inline right after the label (showCheckIcon={false}
 // disables the component's far-right absolute indicator), so the menu hugs
 // its content instead of reserving pr-8 + min-w-32 for a distant checkmark.

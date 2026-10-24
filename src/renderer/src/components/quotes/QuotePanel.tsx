@@ -46,7 +46,7 @@ function CommentText({
 }): React.JSX.Element {
   return (
     <p
-      className="whitespace-pre-wrap break-words text-[15px] leading-6 text-foreground [overflow-wrap:anywhere]"
+      className="whitespace-pre-wrap break-words text-body leading-6 text-foreground [overflow-wrap:anywhere]"
       onDoubleClick={onEdit}
     >
       {comment}
@@ -89,7 +89,7 @@ const QuoteCard = React.memo(function QuoteCard({
       <blockquote className="flex flex-col">
         <OverflowClamp
           maxHeight={QUOTE_TEXT_MAX_HEIGHT_PX}
-          className="select-text whitespace-pre-wrap break-words text-[14px] leading-[22px] text-muted-foreground [overflow-wrap:anywhere]"
+          className="select-text whitespace-pre-wrap break-words text-ui leading-[22px] text-muted-foreground [overflow-wrap:anywhere]"
         >
           {quote.text}
         </OverflowClamp>
@@ -105,7 +105,7 @@ const QuoteCard = React.memo(function QuoteCard({
       ) : (
         <button
           type="button"
-          className="text-left text-[15px] leading-6 text-muted-foreground italic hover:text-foreground"
+          className="text-left text-body leading-6 text-muted-foreground italic hover:text-foreground"
           onClick={() => setEditing(true)}
         >
           Add a comment...

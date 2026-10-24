@@ -91,6 +91,7 @@ interface PiApi {
     binding: ShortcutBinding,
   ) => Promise<{ success: boolean; error?: string }>;
   getAccentColor: () => Promise<string | null>;
+  setAppearanceTheme: (theme: 'system' | 'light' | 'dark') => void;
 
   // Auto-update
   update: {

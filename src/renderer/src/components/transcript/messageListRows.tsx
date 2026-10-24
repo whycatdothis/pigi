@@ -143,7 +143,7 @@ function AssistantBubble({
     <div className="group flex justify-start" data-testid="assistant-message">
       <div
         ref={contentRef}
-        className="w-full min-w-0 text-[15px] text-foreground"
+        className="w-full min-w-0 text-body text-foreground"
         style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       >
         {showThinking && (
@@ -162,7 +162,7 @@ function AssistantBubble({
         )}
 
         {node.errorMessage && (
-          <div className="mt-3 w-fit rounded-lg bg-destructive/10 px-3 py-2 text-[14px] text-destructive">
+          <div className="mt-3 w-fit rounded-lg bg-destructive/10 px-3 py-2 text-ui text-destructive">
             {node.errorMessage}
           </div>
         )}

@@ -193,7 +193,7 @@ export default function MessageSearch({
               </>
             )}
             {hasQuery && totalMatches === 0 && (
-              <span className="shrink-0 text-[10px] whitespace-nowrap text-red-500">NOT FOUND</span>
+              <span className="shrink-0 text-2xs whitespace-nowrap text-danger-fg">NOT FOUND</span>
             )}
             <button
               type="button"

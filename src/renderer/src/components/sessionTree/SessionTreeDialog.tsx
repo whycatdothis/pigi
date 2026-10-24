@@ -253,7 +253,7 @@ export default function SessionTreeDialog({
             onMouseLeave={scheduleCardHide}
           >
             <div
-              className="mr-3 overflow-y-auto rounded-lg border border-border bg-popover p-3 text-[13px] leading-6 whitespace-pre-wrap text-foreground/85 shadow-lg"
+              className="mr-3 overflow-y-auto rounded-lg border border-border bg-popover p-3 text-caption leading-6 whitespace-pre-wrap text-foreground/85 shadow-lg"
               style={
                 card.top !== undefined
                   ? { marginTop: CARD_GAP_PX, maxHeight: CARD_MAX_HEIGHT_PX }

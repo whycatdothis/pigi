@@ -25,8 +25,14 @@ import '@xterm/xterm/css/xterm.css';
 import './terminalTheme.css';
 import { useAppStore, type TerminalTabView } from '../../state/appStore';
 
-const FONT_FAMILY = "ui-monospace, SFMono-Regular, Menlo, Monaco, 'Courier New', monospace";
-const FONT_SIZE = 15;
+/**
+ * The terminal keeps its shipped size as the anchor and scales with the code
+ * size setting (14px default), so changing the code font size moves the
+ * terminal proportionally instead of jumping to the body size.
+ */
+const TERMINAL_BASE_FONT_SIZE = 15;
+const FALLBACK_FONT_FAMILY =
+  "ui-monospace, SFMono-Regular, Menlo, Monaco, 'Courier New', monospace";
 /** Max number of project groups kept alive; opening a further project evicts the LRU. */
 const PROJECT_LRU_MAX = 5;
 /** A cached (off-screen) group is killed after this long with no terminal I/O. */
@@ -63,6 +69,18 @@ function cssColorToRgb(color: string): string {
  * The palette lives entirely in CSS (per light/dark), so reskinning the terminal
  * is a CSS-only change; `background` tracks --background so the panel blends in.
  */
+function readTerminalFont(): { fontFamily: string; fontSize: number } {
+  const styles = getComputedStyle(document.documentElement);
+  const family = styles.getPropertyValue('--app-font-code').trim();
+  const scale = Number.parseFloat(styles.getPropertyValue('--app-font-code-scale'));
+  return {
+    fontFamily: family || FALLBACK_FONT_FAMILY,
+    fontSize: Number.isFinite(scale)
+      ? Math.max(8, Math.round(TERMINAL_BASE_FONT_SIZE * scale))
+      : TERMINAL_BASE_FONT_SIZE,
+  };
+}
+
 function readTerminalTheme(): TerminalTheme {
   const styles = getComputedStyle(document.documentElement);
   const color = (name: string): string => cssColorToRgb(styles.getPropertyValue(name).trim());
@@ -152,6 +170,7 @@ class TerminalController {
     host.style.width = '100%';
     host.style.height = '100%';
 
+    const { fontFamily, fontSize } = readTerminalFont();
     const terminal = new Terminal({
       cursorBlink: true,
       // Thin vertical beam instead of the default solid block.
@@ -160,8 +179,8 @@ class TerminalController {
       // ESC-prefixed sequence shells expect (M-b, M-d, M-f, M-Backspace, ...).
       // Trade-off: Option can no longer type accented characters in the terminal.
       macOptionIsMeta: true,
-      fontSize: FONT_SIZE,
-      fontFamily: FONT_FAMILY,
+      fontSize,
+      fontFamily,
       allowProposedApi: true,
       theme: readTerminalTheme(),
     });
@@ -495,11 +514,25 @@ class TerminalController {
     requestAnimationFrame(() => this.focus());
   }
 
-  /** Sync every cached terminal's colors to the current app theme. */
-  applyTheme(): void {
+  /**
+   * Sync every cached terminal to the current appearance: palette, code font,
+   * and code size. The active tab is refitted because cell metrics change with
+   * the font.
+   */
+  applyAppearance(): void {
     const theme = readTerminalTheme();
+    const { fontFamily, fontSize } = readTerminalFont();
     for (const group of this.groups.values()) {
-      for (const tab of group.tabs) tab.terminal.options.theme = theme;
+      for (const tab of group.tabs) {
+        tab.terminal.options.theme = theme;
+        tab.terminal.options.fontFamily = fontFamily;
+        tab.terminal.options.fontSize = fontSize;
+      }
+    }
+    const active = this.activeTab;
+    if (active) {
+      active.fitAddon.fit();
+      window.piApi.terminal.resize(active.id, active.terminal.cols, active.terminal.rows);
     }
   }
 }

@@ -157,7 +157,7 @@ export default function SettingsPage({
         <div className="flex-1" />
         {projectUntrusted && (
           <span
-            className="max-w-72 truncate text-xs text-amber-600 dark:text-amber-400"
+            className="max-w-72 truncate text-xs text-warning-fg"
             title="pi ignores project settings and resources until the project is trusted (see /trust in the TUI)."
           >
             Project is not trusted — these settings are ignored

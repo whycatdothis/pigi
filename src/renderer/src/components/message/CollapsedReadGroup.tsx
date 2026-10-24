@@ -53,11 +53,11 @@ const COMMAND_LABEL_TAIL_CHARS = 20;
  *  reconstruct the original string seamlessly. */
 function MiddleTruncatedLabel({ text }: { text: string }): React.JSX.Element {
   if (text.length <= COMMAND_LABEL_TAIL_CHARS) {
-    return <span className="truncate font-mono text-[14px]">{text}</span>;
+    return <span className="truncate font-mono text-code">{text}</span>;
   }
   const splitAt = text.length - COMMAND_LABEL_TAIL_CHARS;
   return (
-    <span className="flex min-w-0 flex-1 font-mono text-[14px]">
+    <span className="flex min-w-0 flex-1 font-mono text-code">
       <span className="truncate">{text.slice(0, splitAt)}</span>
       <span className="shrink-0 whitespace-pre">{text.slice(splitAt)}</span>
     </span>
@@ -65,9 +65,9 @@ function MiddleTruncatedLabel({ text }: { text: string }): React.JSX.Element {
 }
 
 const ENTRY_STATUS_ICON = {
-  success: { Icon: IconCheck, className: 'text-[#166534]' },
-  error: { Icon: IconX, className: 'text-[#991b1b]' },
-  cancelled: { Icon: IconMinus, className: 'text-[#3f3f46]' },
+  success: { Icon: IconCheck, className: 'text-success-fg' },
+  error: { Icon: IconX, className: 'text-danger-fg' },
+  cancelled: { Icon: IconMinus, className: 'text-muted-foreground' },
 } as const;
 
 interface CollapsedReadGroupProps {
@@ -129,7 +129,7 @@ function ThinkingGroupRow({ node }: { node: AssistantNode }): React.JSX.Element 
           <IconBrain className="size-3.5 shrink-0 text-muted-foreground [stroke-width:2]" />
         )}
         <span
-          className={`text-[14px] ${thinkingInProgress ? 'text-foreground' : 'text-foreground/70'}`}
+          className={`text-ui ${thinkingInProgress ? 'text-foreground' : 'text-foreground/70'}`}
         >
           Thinking
         </span>
@@ -234,7 +234,7 @@ export default function CollapsedReadGroup({
     <Collapsible className="group/collapsible mb-[22px]" open={open} onOpenChange={onOpenChange}>
       <div className="rounded-md border border-border/65 bg-muted/25">
         <div className="rounded-t-md px-3 py-1.5">
-          <CollapsibleTrigger className="inline-flex items-center gap-1 text-[15px] leading-6 text-foreground hover:text-foreground cursor-pointer transition-colors [&[data-state=open]>svg.chevron-right]:hidden [&[data-state=closed]>svg.chevron-down]:hidden">
+          <CollapsibleTrigger className="inline-flex items-center gap-1 text-body leading-6 text-foreground hover:text-foreground cursor-pointer transition-colors [&[data-state=open]>svg.chevron-right]:hidden [&[data-state=closed]>svg.chevron-down]:hidden">
             <span>{label}</span>
             <IconChevronRight className="chevron-right size-3.5 shrink-0" />
             <IconChevronDown className="chevron-down size-3.5 shrink-0" />

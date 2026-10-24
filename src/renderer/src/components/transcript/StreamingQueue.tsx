@@ -87,7 +87,7 @@ export default function StreamingQueue({
       node: (
         <QueuedMessageBar
           label="Steer"
-          labelClassName="text-yellow-600"
+          labelClassName="text-warning-fg"
           message={message}
           onEdit={() => onEditQueuedMessage('steer', i)}
         />
@@ -101,7 +101,7 @@ export default function StreamingQueue({
       node: (
         <QueuedMessageBar
           label="Follow-up"
-          labelClassName="text-blue-500"
+          labelClassName="text-info-fg"
           message={message}
           onEdit={() => onEditQueuedMessage('followUp', i)}
         />

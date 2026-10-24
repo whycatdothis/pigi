@@ -368,7 +368,7 @@ const TurnSection = React.memo(function TurnSection({
     feedRow = (
       <div
         key={feedNode.id}
-        className="relative w-fit overflow-hidden text-[15px] text-muted-foreground"
+        className="relative w-fit overflow-hidden text-body text-muted-foreground"
         data-testid="minimal-thinking"
       >
         Thinking...
@@ -452,13 +452,13 @@ function AssistantText({
 }): React.JSX.Element {
   return (
     <div
-      className={cn('w-full min-w-0 text-[15px] text-foreground', className)}
+      className={cn('w-full min-w-0 text-body text-foreground', className)}
       style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       data-testid={testId}
     >
       {node.text.length > 0 && <MarkdownMessage text={node.text} />}
       {node.errorMessage && (
-        <div className="mt-3 w-fit rounded-lg bg-destructive/10 px-3 py-2 text-[14px] text-destructive">
+        <div className="mt-3 w-fit rounded-lg bg-destructive/10 px-3 py-2 text-ui text-destructive">
           {node.errorMessage}
         </div>
       )}
@@ -575,7 +575,7 @@ function WorkingTimer({
 
   return (
     <span
-      className="text-[15px] text-muted-foreground tabular-nums"
+      className="text-body text-muted-foreground tabular-nums"
       data-testid="minimal-working-timer"
       data-active={active ? 'true' : undefined}
     >
@@ -618,7 +618,7 @@ function ToolLine({ node }: { node: ToolNode }): React.JSX.Element {
 
   return (
     <div
-      className="relative w-fit max-w-full overflow-hidden py-0.5 font-mono text-[15px] text-muted-foreground"
+      className="relative w-fit max-w-full overflow-hidden py-0.5 font-mono text-body text-muted-foreground"
       style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       data-testid="minimal-running-tool"
     >

@@ -361,7 +361,7 @@ export default function QuoteSelectionPopover({
         onClick={() => setState({ ...state, mode: 'editing' })}
       >
         Quote
-        <Kbd className="h-4 min-w-4 text-[11px]">Q</Kbd>
+        <Kbd className="h-4 min-w-4 text-2xs">Q</Kbd>
       </button>
     );
   }

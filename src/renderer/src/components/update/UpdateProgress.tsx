@@ -95,9 +95,7 @@ function ClosingHint(): React.JSX.Element {
     return () => clearInterval(timer);
   }, []);
   return (
-    <span className="shrink-0 text-[11px] text-muted-foreground/70">
-      auto closing in {seconds}s
-    </span>
+    <span className="shrink-0 text-2xs text-muted-foreground/70">auto closing in {seconds}s</span>
   );
 }
 
@@ -187,7 +185,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
               <IconLoader className="size-3.5 text-foreground/45" />
             </SpinningIcon>
           )}
-          <span className="truncate text-[13px] leading-5 font-semibold">
+          <span className="truncate text-caption leading-5 font-semibold">
             {statusTitle(status)}
           </span>
           {status.phase === 'up_to_date' && (
@@ -226,7 +224,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
         {hasFooter && (
           <div className="flex items-center gap-1.5">
             {bytes !== null && (
-              <span className="text-[11px] tabular-nums text-muted-foreground">{bytes}</span>
+              <span className="text-2xs tabular-nums text-muted-foreground">{bytes}</span>
             )}
             <div className="ml-auto flex items-center gap-1.5">
               {status.phase === 'downloading' && (
