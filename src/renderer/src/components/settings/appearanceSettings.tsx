@@ -26,7 +26,7 @@ import {
   resolveAppearance,
   resolvedSecondaryContrast,
 } from '../../../../shared/appearanceTokens';
-import { SettingsGroup, SettingsRow, SegmentedControl } from './settingsControls';
+import { SettingsCard, SettingsGroup, SettingsRow, SegmentedControl } from './settingsControls';
 import { ThemeFileActions } from './themeFileActions';
 import {
   AccentField,
@@ -101,69 +101,77 @@ export function AppearanceSettings(): React.JSX.Element {
 
   return (
     <>
-      <SettingsGroup title="Visual style">
-        <SettingsRow label="Mode" className="py-1.5">
-          <ModePreviewPicker
-            value={appearance.mode}
-            appearance={appearance}
-            onChange={(mode: ThemeMode) => updateAppearance((current) => ({ ...current, mode }))}
-          />
-        </SettingsRow>
-        <SettingsRow label="Theme">
-          <div className="flex items-center gap-2">
-            <ThemeFileActions />
-            <ThemePresetField
-              presetId={matchThemePreset(slot, targetMode)?.id ?? 'custom'}
-              accent={slot.accent}
-              onChange={(id) => {
-                const preset = THEME_PRESETS.find((candidate) => candidate.id === id);
-                if (preset === undefined) return;
-                updateAppearance((current) => applyThemePreset(current, preset));
-              }}
+      <SettingsGroup title="Visual style" separateCards>
+        <SettingsCard>
+          <SettingsRow label="Mode" className="py-1.5">
+            <ModePreviewPicker
+              value={appearance.mode}
+              appearance={appearance}
+              onChange={(mode: ThemeMode) => updateAppearance((current) => ({ ...current, mode }))}
             />
-          </div>
-        </SettingsRow>
-        <SettingsRow label="Accent">
-          <AccentField accent={slot.accent} presets={ACCENT_PRESETS} onChange={changeAccent} />
-        </SettingsRow>
-        <SettingsRow label="Background">
-          <ColorField
-            label="Background"
-            value={slot.background}
-            fallback={defaults.background}
-            onChange={(background) => patchSlot({ background })}
-          />
-        </SettingsRow>
-        <SettingsRow label="Foreground">
-          <ColorField
-            label="Foreground"
-            value={slot.foreground}
-            fallback={defaults.foreground}
-            onChange={(foreground) => patchSlot({ foreground })}
-          />
-        </SettingsRow>
-        <SettingsRow label="Contrast">
-          <SliderField
-            label="Contrast"
-            value={slot.contrast}
-            min={0}
-            max={100}
-            display={`${slot.contrast} · ${contrastTarget.toFixed(1)}:1`}
-            onChange={(contrast) => patchSlot({ contrast })}
-          />
-        </SettingsRow>
-        <SettingSwitch
-          label="Separate light and dark modes"
-          checked={appearance.separateModes}
-          onChange={(separateModes) =>
-            updateAppearance((current) => ({ ...current, separateModes }))
-          }
-        />
-        {appearance.separateModes && (
-          <SettingsRow label="Editing">
-            <SegmentedControl value={targetMode} options={MODE_OPTIONS} onChange={setEditingMode} />
           </SettingsRow>
-        )}
+        </SettingsCard>
+        <SettingsCard>
+          <SettingsRow label="Theme">
+            <div className="flex items-center gap-2">
+              <ThemeFileActions />
+              <ThemePresetField
+                presetId={matchThemePreset(slot, targetMode)?.id ?? 'custom'}
+                accent={slot.accent}
+                onChange={(id) => {
+                  const preset = THEME_PRESETS.find((candidate) => candidate.id === id);
+                  if (preset === undefined) return;
+                  updateAppearance((current) => applyThemePreset(current, preset));
+                }}
+              />
+            </div>
+          </SettingsRow>
+          <SettingsRow label="Accent">
+            <AccentField accent={slot.accent} presets={ACCENT_PRESETS} onChange={changeAccent} />
+          </SettingsRow>
+          <SettingsRow label="Background">
+            <ColorField
+              label="Background"
+              value={slot.background}
+              fallback={defaults.background}
+              onChange={(background) => patchSlot({ background })}
+            />
+          </SettingsRow>
+          <SettingsRow label="Foreground">
+            <ColorField
+              label="Foreground"
+              value={slot.foreground}
+              fallback={defaults.foreground}
+              onChange={(foreground) => patchSlot({ foreground })}
+            />
+          </SettingsRow>
+          <SettingsRow label="Contrast">
+            <SliderField
+              label="Contrast"
+              value={slot.contrast}
+              min={0}
+              max={100}
+              display={`${slot.contrast} · ${contrastTarget.toFixed(1)}:1`}
+              onChange={(contrast) => patchSlot({ contrast })}
+            />
+          </SettingsRow>
+          <SettingSwitch
+            label="Separate light and dark modes"
+            checked={appearance.separateModes}
+            onChange={(separateModes) =>
+              updateAppearance((current) => ({ ...current, separateModes }))
+            }
+          />
+          {appearance.separateModes && (
+            <SettingsRow label="Editing">
+              <SegmentedControl
+                value={targetMode}
+                options={MODE_OPTIONS}
+                onChange={setEditingMode}
+              />
+            </SettingsRow>
+          )}
+        </SettingsCard>
       </SettingsGroup>
 
       <SettingsGroup title="Typography">

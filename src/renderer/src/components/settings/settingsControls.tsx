@@ -22,13 +22,30 @@ export function SettingsContent({ children }: { children: ReactNode }): React.JS
   );
 }
 
+const CARD_CLASS_NAME = cn(
+  // Solid surface and a real 1px edge: a translucent card over a sub-pixel
+  // border reads as washed out.
+  'overflow-hidden rounded-[15px] border border-border bg-card',
+  // Dividers are inset to the row text instead of running edge to edge.
+  '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-x-5',
+  "[&>*+*]:before:top-0 [&>*+*]:before:h-px [&>*+*]:before:bg-border [&>*+*]:before:content-['']",
+);
+
+/** One card of rows, for a group that splits its rows into several blocks. */
+export function SettingsCard({ children }: { children: ReactNode }): React.JSX.Element {
+  return <div className={CARD_CLASS_NAME}>{children}</div>;
+}
+
 export function SettingsGroup({
   title,
   description,
+  separateCards = false,
   children,
 }: {
   title?: string;
   description?: string;
+  /** Children are `SettingsCard`s instead of plain rows. */
+  separateCards?: boolean;
   children: ReactNode;
 }): React.JSX.Element {
   return (
@@ -39,18 +56,11 @@ export function SettingsGroup({
           {description && <p className="text-caption text-muted-foreground">{description}</p>}
         </div>
       )}
-      <div
-        className={cn(
-          // Solid surface and a real 1px edge: a translucent card over a
-          // sub-pixel border reads as washed out.
-          'overflow-hidden rounded-[15px] border border-border bg-card',
-          // Dividers are inset to the row text instead of running edge to edge.
-          '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-x-5',
-          "[&>*+*]:before:top-0 [&>*+*]:before:h-px [&>*+*]:before:bg-border [&>*+*]:before:content-['']",
-        )}
-      >
-        {children}
-      </div>
+      {separateCards ? (
+        <div className="flex flex-col gap-3">{children}</div>
+      ) : (
+        <div className={CARD_CLASS_NAME}>{children}</div>
+      )}
     </section>
   );
 }

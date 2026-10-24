@@ -417,7 +417,7 @@ export function ModePreviewPicker({
                   className={cn(
                     // Only the selection border: the miniature carries its own
                     // padding, so a crop keeps the margin around the app.
-                    'h-[72px] w-[104px] overflow-hidden rounded-[12px] border-2 transition-colors',
+                    'h-[72px] w-[92px] overflow-hidden rounded-[12px] border-2 transition-colors',
                     selected
                       ? 'border-[var(--app-system-accent)]'
                       : 'border-foreground/12 hover:border-foreground/25',
