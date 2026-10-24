@@ -152,45 +152,39 @@ export default function SettingsPage({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex h-11 shrink-0 items-center gap-3 border-b border-border pr-3 pl-4 [-webkit-app-region:drag]">
-        <h1 className="text-base font-semibold tracking-[-0.01em] text-foreground">
-          {sectionMeta.label}
-        </h1>
-        <div className="flex-1" />
-        {projectUntrusted && (
-          <span
-            className="max-w-72 truncate text-xs text-warning-fg"
-            title="pi ignores project settings and resources until the project is trusted (see /trust in the TUI)."
-          >
-            Project is not trusted — these settings are ignored
-          </span>
-        )}
-        {isPiSection && !globalOnlySection && (
-          <SegmentedControl
-            value={scope}
-            options={SCOPE_OPTIONS}
-            onChange={setScope}
-            className="[-webkit-app-region:no-drag]"
-          />
-        )}
-        {isPiSection && (loading || saving) && (
-          <IconLoader2 size={14} className="animate-spin text-muted-foreground" />
-        )}
-        {isPiSection && !loading && (
-          <button
-            type="button"
-            onClick={reload}
-            title="Reload from disk"
-            aria-label="Reload settings from disk"
-            className="flex size-7 items-center justify-center rounded text-muted-foreground transition-colors [-webkit-app-region:no-drag] hover:bg-muted hover:text-foreground"
-          >
-            <IconRefresh size={14} />
-          </button>
-        )}
-      </header>
-
       <div className="min-h-0 flex-1 overflow-y-auto">
         <SettingsContent>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-lg font-semibold tracking-[-0.01em] text-foreground">
+              {sectionMeta.label}
+            </h1>
+            <div className="flex-1" />
+            {projectUntrusted && (
+              <span
+                className="max-w-72 truncate text-xs text-warning-fg"
+                title="pi ignores project settings and resources until the project is trusted (see /trust in the TUI)."
+              >
+                Project is not trusted — these settings are ignored
+              </span>
+            )}
+            {isPiSection && !globalOnlySection && (
+              <SegmentedControl value={scope} options={SCOPE_OPTIONS} onChange={setScope} />
+            )}
+            {isPiSection && (loading || saving) && (
+              <IconLoader2 size={14} className="animate-spin text-muted-foreground" />
+            )}
+            {isPiSection && !loading && (
+              <button
+                type="button"
+                onClick={reload}
+                title="Reload from disk"
+                aria-label="Reload settings from disk"
+                className="flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <IconRefresh size={14} />
+              </button>
+            )}
+          </div>
           {piContentUnavailable ? (
             <SettingsHint>
               Could not read pi settings. Check the session worker logs, then reload.

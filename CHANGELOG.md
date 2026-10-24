@@ -19,6 +19,7 @@
 
 ### Changed
 
+- Settings pages drop the top bar: the section name is a page heading in the content column, and the scope switch and reload button sit beside it
 - Default contrast drops from 73 to 30, so the shipped palette is softer; the slider still goes back up to the original steps
 - Picking an accent applies it to both modes, while background, foreground, contrast, and fonts stay per mode
 - Settings pages share one type and surface scale: solid cards with a real 1px edge, a single radius scale, 13px control text with tabular numerals, and a narrower column
