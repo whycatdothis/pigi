@@ -319,6 +319,9 @@ export default memo(function Sidebar({
                     <MenuItem onClick={onInstallUpdate}>
                       <IconDownload />
                       <span>Update to {pendingUpdateVersion}</span>
+                      {/* Same dot as the row above, so the row itself carries
+                          the announcement once the menu is open. */}
+                      <span className="ml-auto size-1.5 shrink-0 rounded-full bg-[var(--system-accent)]" />
                     </MenuItem>
                   )}
                   <MenuItem onClick={onLogin}>

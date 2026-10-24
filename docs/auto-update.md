@@ -90,16 +90,24 @@ user base stay clumped together instead of spreading out.
 ```
 Settings sidebar button → popover → "Check for Updates"
   → CheckForUpdates
+    → status 'checking' + UpdateProgressWindow opens at once
     → update-available
-      → open UpdateProgressWindow (BrowserWindow 420x200, frameless, centered)
+      → same window becomes the download UI
       → downloadUpdate(token)
         → progress: bar + percentage + speed + Cancel
         → Cancel → token.cancel(), close window, status 'idle'
         → update-downloaded → "Install and Restart" / "Later"
-    → update-not-available → toast "pigi is up to date"
-    → error → toast with the message
+    → update-not-available → window shows "pigi is up to date", closes after 1s
+    → error → window closes, toast with the message
     → unsupported → toast "Only the packaged app can check for updates"
 ```
+
+The window opens at the start of the check rather than when a download begins:
+a check takes a few seconds over the network, and without it the click looks
+ignored. A found update keeps the same window as the download UI; "up to date"
+is answered by the window itself and closes after a second, so it does not leave
+a sheet behind and the main window stays out of it. Errors still toast in the
+main window, since the message can be longer than a sheet should hold.
 
 Checking while a download is already running (or finished) reopens the progress
 window instead of starting a second download.
@@ -203,6 +211,7 @@ dev run:
 3. Launch the installed build: the accent dot appears within a couple of hours
    at the latest (the launch check runs 15s in), then Settings → "Update to …" →
    "Install and Restart" swaps the bundle in place.
-4. Manual path: Settings → "Check for Updates" on an up-to-date build toasts
-   "pigi is up to date"; on an outdated one it shows the progress window, and
-   Cancel must leave the app running and installable later.
+4. Manual path: Settings → "Check for Updates" on an up-to-date build shows
+   "pigi is up to date" in the sheet for a second and then closes it, with no
+   toast in the main window; on an outdated one the same sheet becomes the
+   download, and Cancel must leave the app running and installable later.
