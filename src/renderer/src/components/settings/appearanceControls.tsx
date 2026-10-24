@@ -415,14 +415,13 @@ export function ModePreviewPicker({
                   data-testid={`theme-option-${option.value}`}
                   onClick={() => onChange(option.value)}
                   className={cn(
-                    // Tray: the selection border, with the window floating
-                    // inside on its own surface and shadow.
+                    // Tray: the selection border plus a transparent ring, so
+                    // the miniature window floats on the row surface.
                     'h-[70px] w-[100px] overflow-hidden rounded-[12px] border-2 p-[5px] transition-colors',
                     selected
                       ? 'border-[var(--app-system-accent)]'
                       : 'border-foreground/12 hover:border-foreground/25',
                   )}
-                  style={{ backgroundColor: previewRing(option.value, previews) }}
                 >
                   {option.value === 'system' ? (
                     <SystemPreview light={previews.light} dark={previews.dark} />
@@ -444,13 +443,6 @@ export function ModePreviewPicker({
  * Surface the miniature window floats on. One step off the window color, so the
  * window reads as a raised card instead of filling the selection border.
  */
-function previewRing(mode: ThemeMode, previews: Record<ColorMode, Record<string, string>>): string {
-  const tokens = previews[mode === 'dark' ? 'dark' : 'light'];
-  // Mixed from the window color, not the background: several themes paint
-  // `--app-card` exactly like `--app-background`, which would flatten the tray.
-  return `color-mix(in oklab, ${tokens['--app-card']}, ${tokens['--app-foreground']} 8%)`;
-}
-
 /** Sidebar of a miniature window: one full-height tinted bar. */
 function PreviewSidebar({
   tokens,
@@ -524,7 +516,7 @@ function PreviewContent({
   );
 }
 
-/** One miniature window: its own border, radius, and sidebar. */
+/** One miniature window: sidebar on the app background, content on a card. */
 function PreviewWindow({
   tokens,
   compact = false,
@@ -538,15 +530,20 @@ function PreviewWindow({
     <span
       className={cn('flex h-full min-w-0 overflow-hidden rounded-[8px] border', className)}
       style={{
-        backgroundColor: tokens['--app-card'],
+        // One step off the card, so the content reads as a panel inside the app.
+        backgroundColor: `color-mix(in oklab, ${tokens['--app-background']}, ${tokens['--app-foreground']} 3%)`,
         // From the preview's own palette: the app foreground may be the other
         // mode's color, which would hide the border on a dark window.
         borderColor: `color-mix(in oklab, ${tokens['--app-card']}, ${tokens['--app-foreground']} 22%)`,
-        boxShadow: `0 1px 3px color-mix(in oklab, ${tokens['--app-foreground']}, transparent 86%)`,
       }}
     >
       <PreviewSidebar tokens={tokens} width={compact ? 'w-[9px]' : 'w-[14px]'} />
-      <PreviewContent tokens={tokens} compact={compact} />
+      <span
+        className="my-[4px] mr-[4px] flex min-w-0 flex-1 overflow-hidden rounded-[5px]"
+        style={{ backgroundColor: tokens['--app-card'] }}
+      >
+        <PreviewContent tokens={tokens} compact={compact} />
+      </span>
     </span>
   );
 }
@@ -587,12 +584,8 @@ function SystemPreview({
 function PreviewHalf({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
   return (
     <span className="relative min-w-0 flex-1 overflow-hidden">
-      <span
-        className="absolute inset-y-0 left-0 flex w-[200%]"
-        style={{ backgroundColor: tokens['--app-card'] }}
-      >
-        <PreviewSidebar tokens={tokens} width="w-[14px]" />
-        <PreviewContent tokens={tokens} />
+      <span className="absolute inset-y-0 left-0 flex w-[200%]">
+        <PreviewWindow tokens={tokens} className="w-full rounded-none border-0" />
       </span>
     </span>
   );

@@ -512,17 +512,17 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
 - `ModePreviewPicker` — three icon-only miniature windows (System / Light /
   Dark), 100x70, drawn from the _derived_ tokens of each mode, so a custom
   palette or a named theme shows up in them immediately. Three layers: the
-  selection border, a 5px tray ring painted with the mode's own background, and
-  the window itself (card color, hairline border mixed from the preview's own
-  foreground, soft shadow, 8px radius) so it reads as a raised card rather than
-  a filled swatch. The window keeps 6px of padding around its content: a
-  full-height sidebar bar clipped by the window corner, two muted lines from the
-  left and two accent lines from the right (assistant, then user), then the
-  composer with a send dot. The sidebar bar is mixed from the window color
-  rather than `--app-sidebar`, which is nearly white on the light side. The
-  system preview crops the light and the dark window at the same point and
-  stitches the two halves, so each side keeps its own sidebar and the start of
-  its content. Selection is
+  selection border, a 5px transparent ring that lets the row surface show
+  through, and the window itself — background mixed 3% toward the foreground,
+  hairline border mixed from the preview's own palette, 8px radius — holding a
+  full-height sidebar bar and an inset content card, so the drawing reads as an
+  app rather than a filled swatch. The card keeps 6px of padding: two muted
+  lines from the left and two accent lines from the right (assistant, then
+  user), then the composer with a send dot. The sidebar bar is mixed from the
+  window color rather than `--app-sidebar`, which is nearly white on the light
+  side. The system preview crops the light and the dark window at the same
+  point and stitches the halves, dropping the border at the seam so each side
+  keeps its own sidebar, card, and the start of its content. Selection is
   stacked on the drawing; the name is an `aria-label`, shown on hover.
 - `SettingSwitch` — row plus switch for the boolean preferences.
 
