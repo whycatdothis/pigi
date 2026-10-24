@@ -329,13 +329,20 @@ export function ModePreviewPicker({
             data-testid={`theme-option-${option.value}`}
             onClick={() => onChange(option.value)}
             className={cn(
-              // The ring wraps the preview: 2px of padding plus the preview's
-              // own 4px radius, so the two curves stay concentric.
-              'rounded-md p-0.5 transition-colors',
+              // The ring hugs the preview with the same radius, so the two
+              // curves coincide instead of leaving an uneven corner gap.
+              'rounded-md transition-colors',
               selected ? 'ring-2 ring-ring' : 'hover:ring-1 hover:ring-foreground/20',
             )}
           >
-            <span className="flex h-12 w-20 overflow-hidden rounded-[4px] ring-1 ring-foreground/10">
+            <span
+              className={cn(
+                'flex h-12 w-20 overflow-hidden rounded-md',
+                // A hairline keeps the light preview readable on a white row;
+                // the selection ring replaces it when the preview is chosen.
+                !selected && 'outline-1 -outline-offset-1 outline-foreground/20',
+              )}
+            >
               {option.value === 'system' ? (
                 <>
                   <PreviewPane tokens={previews.light} />
