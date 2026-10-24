@@ -8,6 +8,7 @@ import { useId, useMemo, useState } from 'react';
 import { IconCheck, IconMinus, IconPlus } from '@tabler/icons-react';
 import { NativeSelect } from '../ui/native-select';
 import { Switch } from '../ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { cn } from '@/lib/utils';
 import {
   FONT_FAMILIES,
@@ -315,47 +316,53 @@ export function ModePreviewPicker({
   }, [appearance]);
 
   return (
-    <div role="radiogroup" aria-label="Theme" className="flex items-center gap-4">
-      {PREVIEW_MODES.map((option) => {
-        const selected = option.value === value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            aria-label={option.label}
-            title={option.label}
-            data-testid={`theme-option-${option.value}`}
-            onClick={() => onChange(option.value)}
-            className={cn(
-              // The ring hugs the preview with the same radius, so the two
-              // curves coincide instead of leaving an uneven corner gap.
-              'rounded-md transition-colors',
-              selected ? 'ring-2 ring-ring' : 'hover:ring-1 hover:ring-foreground/20',
-            )}
-          >
-            <span
-              className={cn(
-                'flex h-12 w-16 overflow-hidden rounded-md',
-                // A hairline keeps the light preview readable on a white row;
-                // the selection ring replaces it when the preview is chosen.
-                !selected && 'outline-1 -outline-offset-1 outline-foreground/20',
-              )}
-            >
-              {option.value === 'system' ? (
-                <>
-                  <PreviewPane tokens={previews.light} />
-                  <PreviewPane tokens={previews.dark} />
-                </>
-              ) : (
-                <PreviewPane tokens={previews[option.value]} />
-              )}
-            </span>
-          </button>
-        );
-      })}
-    </div>
+    <TooltipProvider delayDuration={200}>
+      <div role="radiogroup" aria-label="Theme" className="flex items-center gap-4">
+        {PREVIEW_MODES.map((option) => {
+          const selected = option.value === value;
+          return (
+            <Tooltip key={option.value}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  aria-label={option.label}
+                  data-testid={`theme-option-${option.value}`}
+                  onClick={() => onChange(option.value)}
+                  className={cn(
+                    // The ring hugs the preview with the same radius, so the
+                    // two curves coincide instead of leaving a corner gap.
+                    'rounded-lg transition-colors',
+                    selected ? 'ring-2 ring-ring' : 'hover:ring-1 hover:ring-foreground/20',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'flex h-12 w-16 overflow-hidden rounded-lg',
+                      // A hairline keeps the light preview readable on a
+                      // white row; the selection ring replaces it once the
+                      // preview is chosen.
+                      !selected && 'outline-1 -outline-offset-1 outline-foreground/20',
+                    )}
+                  >
+                    {option.value === 'system' ? (
+                      <>
+                        <PreviewPane tokens={previews.light} />
+                        <PreviewPane tokens={previews.dark} />
+                      </>
+                    ) : (
+                      <PreviewPane tokens={previews[option.value]} />
+                    )}
+                  </span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">{option.label}</TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </TooltipProvider>
   );
 }
 
