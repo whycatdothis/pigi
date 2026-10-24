@@ -417,7 +417,7 @@ export function ModePreviewPicker({
                   className={cn(
                     // Only the selection border: the miniature carries its own
                     // padding, so a crop keeps the margin around the app.
-                    'h-[72px] w-[92px] overflow-hidden rounded-[12px] border-2 transition-colors',
+                    'h-[66px] w-[92px] overflow-hidden rounded-[12px] border-2 transition-colors',
                     selected
                       ? 'border-[var(--app-system-accent)]'
                       : 'border-foreground/12 hover:border-foreground/25',
@@ -469,7 +469,7 @@ function PreviewContent({ tokens }: { tokens: Record<string, string> }): React.J
   const line = 'h-[3px] rounded-full';
 
   return (
-    <span className="flex min-w-0 flex-1 flex-col gap-[2.5px] p-[5px]">
+    <span className="flex min-w-0 flex-1 flex-col gap-[2px] p-[4px]">
       <span className={line} style={{ width: '46%', backgroundColor: muted }} />
       <span className={line} style={{ width: '72%', backgroundColor: muted, opacity: 0.75 }} />
       <span
