@@ -337,7 +337,7 @@ export function ModePreviewPicker({
           >
             <span
               className={cn(
-                'flex h-12 w-20 overflow-hidden rounded-md',
+                'flex h-12 w-16 overflow-hidden rounded-md',
                 // A hairline keeps the light preview readable on a white row;
                 // the selection ring replaces it when the preview is chosen.
                 !selected && 'outline-1 -outline-offset-1 outline-foreground/20',

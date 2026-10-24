@@ -542,7 +542,7 @@ Reset appearance                            (footer row, right)
 
 - Rows are label plus control, one line each; nothing on this page needs a
   caption under the label, so every row is 48px high. The Mode row uses the
-  same padding with an 80x48 preview, which makes it 72px tall.
+  same padding with a 64x48 preview, which makes it 72px tall.
 - Rows share one card; the divider between rows is inset by the row's own
   padding (`before:inset-x-5`) instead of running edge to edge, so it lines up
   with the labels. Group titles sit flush with the card's left edge.
