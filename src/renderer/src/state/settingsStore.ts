@@ -126,14 +126,21 @@ export function initializePigiSettings(): void {
     }
   });
 
-  window.matchMedia(SYSTEM_DARK_QUERY).addEventListener('change', () => {
+  // Keep the lists referenced: a listener attached to an unreferenced
+  // MediaQueryList can be collected, and then the change never arrives.
+  const darkQuery = window.matchMedia(SYSTEM_DARK_QUERY);
+  const reducedMotionQuery = window.matchMedia(SYSTEM_REDUCED_MOTION_QUERY);
+
+  // The main process flips `nativeTheme` in response to a mode change, so the
+  // query updates a moment after the store did; re-apply on the next frame.
+  darkQuery.addEventListener('change', () => {
     if (useSettingsStore.getState().appearance.mode === 'system') {
-      apply();
+      window.requestAnimationFrame(apply);
     }
   });
-  window.matchMedia(SYSTEM_REDUCED_MOTION_QUERY).addEventListener('change', () => {
+  reducedMotionQuery.addEventListener('change', () => {
     if (useSettingsStore.getState().appearance.reduceMotion === 'system') {
-      apply();
+      window.requestAnimationFrame(apply);
     }
   });
 
