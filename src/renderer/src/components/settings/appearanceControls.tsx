@@ -330,12 +330,12 @@ export function ModePreviewPicker({
             onClick={() => onChange(option.value)}
             className={cn(
               // The ring wraps the preview: 2px of padding plus the preview's
-              // own 6px radius, so the two curves stay concentric.
-              'rounded-lg p-0.5 transition-colors',
+              // own 4px radius, so the two curves stay concentric.
+              'rounded-md p-0.5 transition-colors',
               selected ? 'ring-2 ring-ring' : 'hover:ring-1 hover:ring-foreground/20',
             )}
           >
-            <span className="flex h-10 w-16 overflow-hidden rounded-md ring-1 ring-foreground/10">
+            <span className="flex h-12 w-20 overflow-hidden rounded-[4px] ring-1 ring-foreground/10">
               {option.value === 'system' ? (
                 <>
                   <PreviewPane tokens={previews.light} />

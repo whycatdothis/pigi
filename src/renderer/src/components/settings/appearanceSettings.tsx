@@ -86,7 +86,7 @@ export function AppearanceSettings(): React.JSX.Element {
   return (
     <>
       <SettingsGroup>
-        <SettingsRow label="Mode" className="min-h-16">
+        <SettingsRow label="Mode" className="py-3">
           <ModePreviewPicker
             value={appearance.mode}
             appearance={appearance}
