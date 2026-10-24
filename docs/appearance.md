@@ -394,20 +394,20 @@ no longer sets them.
 
 ## Typography
 
-Three roles, three families:
+Three roles, three families, one runtime knob each:
 
-```ts
---font-ui:      var(--app-font-ui, <system stack>)
---font-content: var(--app-font-content, var(--font-ui))
---font-code:    var(--app-font-code, <mono stack>)
-```
+| Role    | Cascade property        | Fallback when unset      |
+| ------- | ----------------------- | ------------------------ |
+| UI      | `--font-ui` on `<html>` | System stack             |
+| Content | `--font-sans` (theme)   | System stack             |
+| Code    | `--font-mono` (theme)   | SF Mono + `ui-monospace` |
 
-`@theme inline` maps `--font-sans: var(--font-ui)` and `--font-mono:
-var(--font-code)`, so existing `font-sans` / `font-mono` utilities follow.
-
-The mono stack currently appears three times in `assets/main.css`; all three
-become `var(--font-mono)`. `.markdown-body` and message content switch from
-`font-sans` to `var(--font-content)`.
+`deriveTokens` writes `--app-font-ui`, `--app-font-content`, and
+`--app-font-code`; the shared stylesheet keeps the literal stacks as
+fallbacks, so the marketing site never depends on the renderer. `--font-ui`
+lives in `:root` (chrome), `--font-sans` is consumed by `.user-content` and the
+`font-sans` utility (message text), and `--font-mono` replaced the three copies
+of the mono stack in `assets/main.css` plus the `font-mono` utility.
 
 ### Sizes
 
@@ -427,8 +427,11 @@ One UI scale plus one code scale, both anchored on today's values:
 | `--text-code`         | 14px    | code  |
 
 `--font-ui-scale = uiSize / 15`, `--font-code-scale = codeSize / 14`, and each
-token is `calc(<default>px * var(--font-*-scale))`. Root font size is **not**
-touched: spacing (`--spacing`) is rem-based and must not scale with text.
+token is `calc(<default>px * var(--app-font-*-scale))`. Root font size is
+**not** touched: spacing is rem-based and must not scale with text. `body`
+(14px), the type scale above, and the code sizes all use the scales;
+`--text-xs` / `--text-sm` / `--text-base` keep their existing rem anchors so
+their line-height ratios stay put.
 
 **Consolidation.** The renderer has 54 arbitrary sizes (`text-[10px]`…`text-
 [15px]`) across five values. Each maps to the closest token:
@@ -441,8 +444,9 @@ touched: spacing (`--spacing`) is rem-based and must not scale with text.
 | `text-[14px]` | `text-code`                     | tool output, code       |
 | `text-[15px]` | `text-sm`                       | message content         |
 
-After the sweep, `rg 'text-\[[0-9]+px\]'` must return nothing in
-`src/renderer/src`.
+The tokens exist now (`--text-3xs`, `--text-2xs`, `--text-ui`, `--text-code`,
+`--text-code-compact`); phase 3 does the sweep. After it,
+`rg 'text-\[[0-9]+px\]'` must return nothing in `src/renderer/src`.
 
 ### Terminal
 
@@ -461,7 +465,9 @@ becomes a single attribute selector plus one variant:
 @custom-variant reduce-motion (&:where([data-reduce-motion='true'] *));
 ```
 
-and the global kill switch becomes:
+The attribute is set from the resolved `reduceMotion` (system preference or an
+explicit on/off), and the six `motion-reduce:` utilities in the renderer are
+now `reduce-motion:`. The global kill switch becomes:
 
 ```css
 [data-reduce-motion='true'] *,
@@ -479,19 +485,24 @@ JS resolves `system` against `matchMedia` so CSS has one boolean to read.
 
 ## Settings page
 
-`appearanceSettings.tsx` is rewritten to the reference layout. It keeps using
-`SettingsContent` / `SettingsGroup` / `SettingsRow`, with these additions to
-`settingsControls.tsx`:
+`appearanceSettings.tsx` is rewritten to the reference layout and uses the
+existing `SettingsGroup` / `SettingsRow` primitives plus
+`components/settings/appearanceControls.tsx`:
 
-- `ColorField` — swatch button (popover with presets + "Custom") and a hex
-  input. Reused for background, foreground, and accent.
-- `SliderField` — range input with the numeric value on the right.
+- `ColorField` — a swatch that opens the native picker plus a hex field that
+  commits on blur/Enter. Used for background and foreground.
+- `AccentField` — one button per preset (the stored value is the preset id, so
+  the tuned per-mode colors survive) plus a rainbow ring for a custom hex.
+- `SliderField` — range input with the resolved value and contrast ratio on the
+  right, e.g. `73 · 5.0:1`.
 - `NumberStepper` — px stepper with the unit suffix (font sizes).
-- `FontPicker` — dropdown of whitelisted stacks with an `Aa` preview.
+- `FontPicker` — native select over the whitelist with an `Aa` preview in the
+  chosen stack; the code role's empty option reads "System mono".
 - `ModePreviewPicker` — three miniature previews (System / Light / Dark) drawn
   from the _derived_ tokens of each mode, so previews reflect custom colors.
 - `SettingsDisclosure` — collapsible group for Advanced (default collapsed,
   local state only).
+- `SettingSwitch` — row plus switch for the boolean preferences.
 
 Structure:
 
@@ -499,23 +510,24 @@ Structure:
 Appearance                                  (page title, text-xl)
 Visual style                                (SettingsGroup title)
   Mode            [System | Light | Dark]   (ModePreviewPicker)
-  Theme           [Aa ChatGPT ▾] [import] [copy]     (phase 4)
-  Accent          [preset ▾] [#0169CC]      (ColorField)
-  Background      [#FFFFFF]
-  Foreground      [#0D0D0D]
-  Font            [System ▾]                (FontPicker, ui)
+  Accent          ●●●●●●●● + custom         (AccentField)
+  Background      [swatch] [#FFFFFF]        (ColorField)
+  Foreground      [swatch] [#0D0D0D]        (ColorField)
+  Font            Aa [System ▾]             (FontPicker, content)
 Advanced                                      (SettingsDisclosure)
   Typography
-    UI font size      [14] px
-    Code font size    [12] px
-    Content font      [System ▾]
-    Code font         [JetBrains Mono ▾]
+    UI font size      [- 15 +] px
+    Code font size    [- 14 +] px
+    UI font           Aa [System ▾]
+    Code font         Aa [System mono ▾]
   Rendering
-    Contrast          [——●——] 73
+    Contrast          [——●——] 73 · 5.0:1
     Reduce motion     [System | On | Off]
     Translucent sidebar  [switch]
     Font smoothing    [switch]
-  [Editing: Light | Dark]   (only when "Separate light and dark modes" is on)
+  Modes
+    Separate light and dark modes  [switch]
+    Editing           [Light | Dark]   (only when separate modes are on)
 Reset appearance                            (footer row, right)
 ```
 
@@ -603,7 +615,7 @@ Tests (vitest, jsdom project):
 
 Each phase is independently shippable and leaves the app working.
 
-### Phase 1 — Model and pipeline (no visual change)
+### Phase 1 — Model and pipeline (no visual change) · shipped
 
 - `colorMath.ts`, `appearance.ts` (types, presets, parse/migrate), `appearanceTokens.ts`.
 - `designTokens.css` `--app-*` indirection; `applyAppearance` writes tokens.
@@ -613,11 +625,13 @@ Each phase is independently shippable and leaves the app working.
 Acceptance: `npm run check`, the new unit tests, and a scripted comparison that
 defaults render the same computed colors as before (within 3%).
 
-### Phase 2 — Settings page
+### Phase 2 — Settings page · shipped
 
 - New controls, ChatGPT-like layout, Advanced disclosure, reset.
 - Per-mode editor (`Separate light and dark modes` + `Editing`).
 - Font sizes and families wired through tokens.
+- `reduce-motion` variant replaces `motion-reduce:` and the media query, so the
+  setting works even when the OS preference is off.
 
 Acceptance: every control writes through the store; previews match applied
 tokens; keyboard and screen-reader labels on the new controls; `npm run check`.
@@ -626,8 +640,7 @@ tokens; keyboard and screen-reader labels on the new controls; `npm run check`.
 
 - Status tokens replace the eight defect sites; Shiki follows the background
   (3:1 token pass).
-- 54 arbitrary font sizes → tokens; mono fallback chain → `--font-mono`.
-- `reduce-motion` variant replaces the five `motion-reduce:` usages.
+- 54 arbitrary font sizes → tokens.
 - Terminal follows code font/size live.
 
 Acceptance: `rg 'text-\[[0-9]+px\]'` clean; dark-mode pass over transcript,

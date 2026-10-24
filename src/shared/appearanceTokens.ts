@@ -12,8 +12,11 @@
  * touches the DOM.
  */
 import {
+  DEFAULT_CODE_FONT_SIZE,
   DEFAULT_THEME_ACCENT_ID,
+  DEFAULT_UI_FONT_SIZE,
   findAccentPreset,
+  fontStackFor,
   type AccentChoice,
   type AppearanceSettings,
   type ColorMode,
@@ -292,6 +295,13 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
     tokens[`--app-${name}-bg`] = formatOklch(palette.bg);
     tokens[`--app-${name}-border`] = formatOklch(palette.border);
   }
+
+  const { fonts } = slot;
+  tokens['--app-font-ui'] = fontStackFor('ui', fonts.ui);
+  tokens['--app-font-content'] = fontStackFor('content', fonts.content);
+  tokens['--app-font-code'] = fontStackFor('code', fonts.code);
+  tokens['--app-font-ui-scale'] = String(fonts.uiSize / DEFAULT_UI_FONT_SIZE);
+  tokens['--app-font-code-scale'] = String(fonts.codeSize / DEFAULT_CODE_FONT_SIZE);
 
   return tokens;
 }

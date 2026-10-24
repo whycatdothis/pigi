@@ -83,7 +83,7 @@ export const SIDEBAR_TOGGLE_CLEARANCE_PX = 36;
 
 /** Shared by the sidebar width and the toolbar title inset so both move in step. */
 export const SIDEBAR_TRANSITION_CLASS_NAME =
-  'duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none';
+  'duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] reduce-motion:transition-none';
 
 export function sidebarToggleLeft(platform: Platform): number {
   return platform === 'mac' ? SIDEBAR_TOGGLE_LEFT_MAC_PX : SIDEBAR_TOGGLE_LEFT_PX;

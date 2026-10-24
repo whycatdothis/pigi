@@ -152,7 +152,7 @@ export default function TerminalPanel({
         dragging
           ? 'transition-none'
           : cn(
-              'transition-transform motion-reduce:transition-none',
+              'transition-transform reduce-motion:transition-none',
               slidIn ? OPEN_TRANSITION : CLOSE_TRANSITION,
             ),
       )}

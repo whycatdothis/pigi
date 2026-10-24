@@ -23,20 +23,54 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Motion follows the appearance setting, not only the OS: the root carries
+   data-reduce-motion after every applied appearance. */
+@custom-variant reduce-motion (&:where([data-reduce-motion='true'] *));
+
 @theme inline {
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
   --font-heading: var(--font-sans);
-  --font-sans:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
-  --text-xs: 0.8125rem;
+  /* Content text follows the content family; the UI family is applied to the
+     root in main.css, and code uses --font-mono. The literals keep the
+     marketing site working without the renderer. */
+  --font-sans: var(
+    --app-font-content,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI Variable',
+    'Segoe UI',
+    system-ui,
+    sans-serif
+  );
+  --font-mono: var(
+    --app-font-code,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    'Courier New',
+    monospace
+  );
+  /* The UI size setting scales the type scale instead of the root font size,
+     so rem-based spacing keeps its proportions. */
+  --text-xs: calc(0.8125rem * var(--app-font-ui-scale, 1));
   --text-xs--line-height: calc(1.0625 / 0.8125);
-  --text-sm: 0.9375rem;
+  --text-sm: calc(0.9375rem * var(--app-font-ui-scale, 1));
   --text-sm--line-height: calc(1.375 / 0.9375);
-  --text-base: 1.0625rem;
+  --text-base: calc(1.0625rem * var(--app-font-ui-scale, 1));
   --text-base--line-height: calc(1.625 / 1.0625);
+  --text-3xs: calc(10px * var(--app-font-ui-scale, 1));
+  --text-2xs: calc(11px * var(--app-font-ui-scale, 1));
+  --text-ui: calc(14px * var(--app-font-ui-scale, 1));
+  --text-lg: calc(20px * var(--app-font-ui-scale, 1));
+  --text-xl: calc(24px * var(--app-font-ui-scale, 1));
+  --text-code-compact: calc(13px * var(--app-font-code-scale, 1));
+  --text-code: calc(14px * var(--app-font-code-scale, 1));
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -94,6 +128,17 @@
   /* App accent (links, highlights, mini-map, focus rings). The appearance
      engine writes --app-system-accent; --accent-light stays as the fallback
      the site and themeAccents.ts used before the engine existed. */
+  /* Chrome text follows the UI family; content and code have their own
+     tokens in @theme inline. */
+  --font-ui: var(
+    --app-font-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI Variable',
+    'Segoe UI',
+    system-ui,
+    sans-serif
+  );
   --system-accent: var(--app-system-accent, var(--accent-light, oklch(0.55 0.2 277.1)));
   --system-accent-foreground: var(--app-system-accent-foreground, oklch(0.985 0 0));
   --search-highlight-bg: color-mix(in srgb, var(--system-accent) 40%, transparent);

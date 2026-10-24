@@ -1558,7 +1558,7 @@ function App(): React.JSX.Element {
   // actual scroll viewport ends above the input. Match the drawer timing,
   // and resize immediately during dragging. No transform on the input means
   // its fixed-position menus retain the window as their containing block.
-  const chatLayoutClassName = `absolute inset-x-0 top-0 flex flex-col transition-[bottom] motion-reduce:transition-none group-data-[panel-resizing]/terminal-layout:transition-none ${
+  const chatLayoutClassName = `absolute inset-x-0 top-0 flex flex-col transition-[bottom] reduce-motion:transition-none group-data-[panel-resizing]/terminal-layout:transition-none ${
     terminalOpen
       ? 'duration-[340ms] ease-[cubic-bezier(0.32,0.72,0,1)]'
       : 'duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)]'
@@ -1681,7 +1681,7 @@ function App(): React.JSX.Element {
                       The queue's -mb-14 lets ChatInput (DOM-later, z-10) overlap
                       its bottom padding — the "grow out from behind" effect. */}
                       <div
-                        className="relative z-10 shrink-0 transition-[height] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+                        className="relative z-10 shrink-0 transition-[height] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] reduce-motion:transition-none"
                         style={{ height: queueBarCount * STREAMING_QUEUE_BAR_STEP_PX }}
                       >
                         <div className="absolute inset-x-0 bottom-0">

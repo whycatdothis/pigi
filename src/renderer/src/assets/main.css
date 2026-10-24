@@ -28,7 +28,7 @@
   }
 
   html {
-    @apply font-sans;
+    font-family: var(--font-ui);
     height: 100%;
   }
 
@@ -37,7 +37,7 @@
     background: transparent;
     height: 100%;
     overflow: hidden;
-    font-size: 14px;
+    font-size: calc(14px * var(--app-font-ui-scale, 1));
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -57,6 +57,24 @@
   .user-content {
     user-select: text;
     -webkit-user-select: text;
+    font-family: var(--font-sans);
+  }
+
+  /* The contrast slider: a flat track whose thumb follows the accent. */
+  .appearance-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: var(--system-accent);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+  }
+
+  /* macOS subpixel antialiasing is the default; the setting opts into the
+     lighter grayscale smoothing instead. */
+  html[data-font-smoothing='on'] {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   #root {
@@ -68,15 +86,13 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+[data-reduce-motion='true'] *,
+[data-reduce-motion='true'] *::before,
+[data-reduce-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 @layer components {
@@ -193,18 +209,8 @@
     border-radius: calc(var(--radius) * 0.8);
     background: var(--muted);
     padding: 10px 14px;
-    font-family: var(
-      --font-mono,
-      ui-monospace,
-      SFMono-Regular,
-      Menlo,
-      Monaco,
-      Consolas,
-      'Liberation Mono',
-      'Courier New',
-      monospace
-    );
-    font-size: 14px;
+    font-family: var(--font-mono);
+    font-size: calc(14px * var(--app-font-code-scale, 1));
     line-height: 1.6;
     color: var(--foreground);
   }
@@ -223,17 +229,7 @@
     padding: 8px 14px 0;
     border-radius: calc(var(--radius) * 0.8) calc(var(--radius) * 0.8) 0 0;
     background: var(--muted);
-    font-family: var(
-      --font-mono,
-      ui-monospace,
-      SFMono-Regular,
-      Menlo,
-      Monaco,
-      Consolas,
-      'Liberation Mono',
-      'Courier New',
-      monospace
-    );
+    font-family: var(--font-mono);
   }
 
   .markdown-code-header + pre {
@@ -269,17 +265,7 @@
     border-radius: 0.25rem;
     background: var(--muted);
     padding: 2px 4px;
-    font-family: var(
-      --font-mono,
-      ui-monospace,
-      SFMono-Regular,
-      Menlo,
-      Monaco,
-      Consolas,
-      'Liberation Mono',
-      'Courier New',
-      monospace
-    );
+    font-family: var(--font-mono);
     font-size: 0.875em;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;

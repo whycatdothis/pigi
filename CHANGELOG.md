@@ -6,11 +6,12 @@
 
 - Settings page: the sidebar footer's Settings menu (or ⌘ ,) swaps the sidebar and the main area for a full-page settings view that closes with the top bar or Esc
 - Pi settings in the app: models and thinking, message delivery, compaction, retries, resource paths, and shell/network/security, with a Global / This project switch that writes to pi's `settings.json`
-- pigi settings: appearance (theme and accent color), the default tool view, an about section with versions and paths
+- pigi settings: appearance (mode, accent, background and foreground colors, fonts, contrast), the default tool view, an about section with versions and paths
 
 ### Changed
 
 - Keyboard shortcuts are editable from the settings page, with duplicate-binding detection and per-shortcut reset
+- Appearance settings apply immediately and cover typography: separate UI, content, and code font sizes and families, reduce motion, a translucent-sidebar switch, font smoothing, and separate light and dark palettes
 
 ## [0.4.22] - 2026-10-24
 

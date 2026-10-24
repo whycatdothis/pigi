@@ -155,6 +155,42 @@ export const FONT_FAMILIES = [
 
 export type FontFamilyName = (typeof FONT_FAMILIES)[number];
 
+export function isFontFamilyName(value: unknown): value is FontFamilyName {
+  // Cast required: TS Array.includes() does not accept unknown.
+  return typeof value === 'string' && (FONT_FAMILIES as readonly string[]).includes(value);
+}
+
+/**
+ * CSS stacks for the whitelist. Only families that ship with macOS or that the
+ * app can reasonably expect are listed; a missing family falls through to the
+ * role's default stack instead of leaving the browser to guess.
+ */
+export const FONT_STACKS: Record<FontFamilyName, string> = {
+  System:
+    "-apple-system, BlinkMacSystemFont, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif",
+  'SF Pro': "'SF Pro Text', 'SF Pro Display', -apple-system, sans-serif",
+  'SF Mono': "'SF Mono', ui-monospace, monospace",
+  'Helvetica Neue': "'Helvetica Neue', Helvetica, sans-serif",
+  Inter: 'Inter, -apple-system, sans-serif',
+  'JetBrains Mono': "'JetBrains Mono', ui-monospace, monospace",
+  Menlo: 'Menlo, ui-monospace, monospace',
+  Georgia: "Georgia, 'Times New Roman', serif",
+  'Iowan Old Style': "'Iowan Old Style', Georgia, serif",
+};
+
+export type FontRole = 'ui' | 'content' | 'code';
+
+const DEFAULT_FONT_STACKS: Record<FontRole, string> = {
+  ui: FONT_STACKS.System,
+  content: FONT_STACKS.System,
+  code: FONT_STACKS['SF Mono'],
+};
+
+/** Resolves a stored family name to a CSS stack, with the role default. */
+export function fontStackFor(role: FontRole, name: string | null): string {
+  return isFontFamilyName(name) ? FONT_STACKS[name] : DEFAULT_FONT_STACKS[role];
+}
+
 const DEFAULT_FONTS: FontAppearance = {
   ui: null,
   content: null,
@@ -238,10 +274,7 @@ function parseFonts(raw: unknown, fallback: FontAppearance): FontAppearance {
   if (!isRecord(raw)) {
     return { ...fallback };
   }
-  const family = (value: unknown): string | null =>
-    typeof value === 'string' && (FONT_FAMILIES as readonly string[]).includes(value)
-      ? value
-      : null;
+  const family = (value: unknown): string | null => (isFontFamilyName(value) ? value : null);
   return {
     ui: family(raw.ui),
     content: family(raw.content),
