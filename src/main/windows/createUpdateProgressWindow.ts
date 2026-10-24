@@ -24,11 +24,11 @@ const MAX_HEIGHT = 260;
 const WINDOW_TITLE = 'Updating pigi';
 /**
  * Where the window sits over the main window: centred horizontally, and a
- * fifth of the way down. High enough to read without covering the middle of the
+ * tenth of the way down. High enough to read without covering the middle of the
  * conversation, and paired with a top-anchored resize so the status line never
  * moves as the content grows.
  */
-const TOP_FRACTION = 0.15;
+const TOP_FRACTION = 0.1;
 /**
  * How long to wait for the first measurement before showing the window at its
  * initial size. The report normally arrives first; this only covers a renderer

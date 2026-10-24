@@ -18,6 +18,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import electronUpdater from 'electron-updater';
 import type { ProgressInfo } from 'electron-updater';
 import { PiChannel, type UpdateStatus } from '../../shared/ipcContract';
+import { UP_TO_DATE_CLOSE_SECONDS } from '../../shared/updateWindow';
 import {
   closeUpdateProgressWindow,
   closeUpdateProgressWindowAfter,
@@ -39,8 +40,8 @@ const BACKGROUND_CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000;
  * lockstep forever, which turns a steady trickle into one synchronized spike.
  */
 const BACKGROUND_CHECK_JITTER_MS = 10 * 60 * 1000;
-/** How long "pigi is up to date" stays on screen before the window closes. */
-const UP_TO_DATE_LINGER_MS = 1000;
+/** How long "pigi is up to date" stays on screen; the window counts it down. */
+const UP_TO_DATE_LINGER_MS = UP_TO_DATE_CLOSE_SECONDS * 1000;
 
 let status: UpdateStatus = { phase: 'idle' };
 /** Set while a download runs; doubles as the guard against a second one. */

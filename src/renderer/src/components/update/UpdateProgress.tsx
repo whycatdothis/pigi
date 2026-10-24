@@ -16,6 +16,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { IconCheck, IconLoader } from '@tabler/icons-react';
 import type { UpdateStatus } from '../../../../shared/ipcContract';
+import { UP_TO_DATE_CLOSE_SECONDS } from '../../../../shared/updateWindow';
 import { formatFileSize } from '../../lib/chatAttachments';
 import { Button } from '../ui/button';
 import { SpinningIcon } from '../ui/spinningIcon';
@@ -75,6 +76,26 @@ function barPercent(status: UpdateStatus): number | null {
   return null;
 }
 
+/**
+ * Counts down the seconds until the window closes itself, so it leaving is
+ * something the user was told about rather than a surprise. Mounted only while
+ * "up to date" is on screen, so it starts from the top each time.
+ */
+function ClosingHint(): React.JSX.Element {
+  const [seconds, setSeconds] = useState(UP_TO_DATE_CLOSE_SECONDS);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSeconds((current) => (current > 1 ? current - 1 : current));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return (
+    <span className="shrink-0 text-[11px] text-muted-foreground/70">
+      auto closing in {seconds}s
+    </span>
+  );
+}
+
 const SECONDARY_BUTTON =
   'rounded-full bg-foreground/6 hover:bg-foreground/10 dark:hover:bg-foreground/12';
 const ACCENT_BUTTON =
@@ -120,10 +141,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
   const percent = barPercent(status);
   const detail = statusDetail(status);
   const bytes = transferredLabel(status);
-  const hasFooter =
-    status.phase === 'downloading' ||
-    status.phase === 'downloaded' ||
-    status.phase === 'up_to_date';
+  const hasFooter = status.phase === 'downloading' || status.phase === 'downloaded';
 
   return (
     <div
@@ -151,7 +169,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
                 className="size-4 shrink-0 text-[var(--system-accent)]"
                 strokeWidth={2.5}
               />
-              <span className="shrink-0 text-[11px] text-muted-foreground/70">auto closing…</span>
+              <ClosingHint />
             </>
           )}
         </div>
