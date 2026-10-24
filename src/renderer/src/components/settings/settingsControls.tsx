@@ -79,19 +79,24 @@ export function SettingsRow({
   description,
   hint,
   disabled,
+  className,
   children,
 }: {
   label: string;
   description?: string;
   hint?: ReactNode;
   disabled?: boolean;
+  className?: string;
   children: ReactNode;
 }): React.JSX.Element {
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-6 px-5 py-4',
+        // Every label-only row is the same height, whatever control it holds.
+        'flex items-center justify-between gap-6 px-5',
+        description ? 'py-3' : 'min-h-12',
         disabled && 'pointer-events-none opacity-50',
+        className,
       )}
     >
       <RowLabel label={label} description={description} hint={hint} />

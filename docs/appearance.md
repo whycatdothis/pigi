@@ -516,8 +516,9 @@ is, how text is set, then the details.
 
 ```
 Appearance                                  (page title, text-xl)
-Theme                                       (SettingsGroup title)
+Mode                                        (its own card, no title)
   Mode              [▤] [▤] [▤]             (ModePreviewPicker, icons only)
+Theme                                       (SettingsGroup title)
   Accent            ●●●●●●●● + custom       (AccentField)
   Background        [swatch] [#FFFFFF]      (ColorField)
   Foreground        [swatch] [#0D0D0D]      (ColorField)
@@ -538,7 +539,8 @@ Reset appearance                            (footer row, right)
 ```
 
 - Rows are label plus control, one line each; nothing on this page needs a
-  caption under the label, so rows stay the same height.
+  caption under the label, so every row is 48px high (the Mode card keeps its
+  own taller row for the previews).
 - Rows share one card; the divider between rows is inset by the row's own
   padding (`before:inset-x-5`) instead of running edge to edge, so it lines up
   with the labels. Group titles sit flush with the card's left edge.

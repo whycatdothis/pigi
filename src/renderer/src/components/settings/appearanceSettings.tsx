@@ -85,14 +85,17 @@ export function AppearanceSettings(): React.JSX.Element {
 
   return (
     <>
-      <SettingsGroup title="Theme">
-        <SettingsRow label="Mode">
+      <SettingsGroup>
+        <SettingsRow label="Mode" className="min-h-16">
           <ModePreviewPicker
             value={appearance.mode}
             appearance={appearance}
             onChange={(mode: ThemeMode) => updateAppearance((current) => ({ ...current, mode }))}
           />
         </SettingsRow>
+      </SettingsGroup>
+
+      <SettingsGroup title="Theme">
         <SettingsRow label="Accent">
           <AccentField accent={slot.accent} presets={ACCENT_PRESETS} onChange={changeAccent} />
         </SettingsRow>

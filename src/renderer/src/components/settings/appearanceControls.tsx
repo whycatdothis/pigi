@@ -330,12 +330,12 @@ export function ModePreviewPicker({
             onClick={() => onChange(option.value)}
             className={cn(
               // The ring wraps the preview: 2px of padding plus the preview's
-              // own 3px radius, so the two curves stay concentric.
-              'rounded-[5px] p-0.5 transition-colors',
+              // own 6px radius, so the two curves stay concentric.
+              'rounded-lg p-0.5 transition-colors',
               selected ? 'ring-2 ring-ring' : 'hover:ring-1 hover:ring-foreground/20',
             )}
           >
-            <span className="flex h-9 w-14 overflow-hidden rounded-[3px] ring-1 ring-foreground/10">
+            <span className="flex h-10 w-16 overflow-hidden rounded-md ring-1 ring-foreground/10">
               {option.value === 'system' ? (
                 <>
                   <PreviewPane tokens={previews.light} />
@@ -384,7 +384,7 @@ export function SettingSwitch({
   onChange: (checked: boolean) => void;
 }): React.JSX.Element {
   return (
-    <div className="flex items-center justify-between gap-6 px-5 py-4">
+    <div className="flex min-h-12 items-center justify-between gap-6 px-5">
       <span className="min-w-0 truncate text-sm text-foreground">{label}</span>
       <Switch aria-label={label} checked={checked} onCheckedChange={onChange} />
     </div>
