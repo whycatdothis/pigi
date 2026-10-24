@@ -39,8 +39,6 @@
     overflow: hidden;
     font-size: calc(14px * var(--app-font-ui-scale, 1));
     line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     user-select: none;
     -webkit-user-select: none;
   }
@@ -70,8 +68,9 @@
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
   }
 
-  /* macOS subpixel antialiasing is the default; the setting opts into the
-     lighter grayscale smoothing instead. */
+  /* Antialiased is the app's shipped rendering; turning the setting off falls
+     back to the platform default (subpixel on macOS). Inherited, so html is
+     enough. */
   html[data-font-smoothing='on'] {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
