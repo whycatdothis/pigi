@@ -333,13 +333,13 @@ export function ModePreviewPicker({
                   className={cn(
                     // The ring hugs the preview with the same radius, so the
                     // two curves coincide instead of leaving a corner gap.
-                    'rounded-xl transition-colors',
+                    'rounded-[10px] transition-colors',
                     selected ? 'ring-2 ring-ring' : 'hover:ring-1 hover:ring-foreground/20',
                   )}
                 >
                   <span
                     className={cn(
-                      'flex h-12 w-16 overflow-hidden rounded-xl',
+                      'flex h-12 w-16 overflow-hidden rounded-[10px]',
                       // A hairline keeps the light preview readable on a
                       // white row; the selection ring replaces it once the
                       // preview is chosen.
