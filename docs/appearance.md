@@ -546,7 +546,7 @@ Reset appearance                            (footer row, right)
 - Type carries the hierarchy by weight, not size: page title 16/600, group
   title 13/600 muted, row label 14/500, control text 13/400 with tabular
   numerals. Every control is 28px tall so the right column lines up.
-- One radius scale: card 12, control 8, small chip 6, mode preview 10.
+- One radius scale: card 12, control 8, small chip 6, mode preview 14.
 - Surfaces are solid (`bg-card` with a 1px `--border`); the dividers use the
   same solid border color and stay inset to the row padding.
 - The settings column is 660px wide (`SETTINGS_CONTENT_MAX_WIDTH`); the
