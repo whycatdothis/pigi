@@ -412,10 +412,12 @@ function App(): React.JSX.Element {
   // download is already running), then follow the pushes from main.
   useEffect(() => {
     const { setUpdateStatus } = useAppStore.getState();
-    void getUpdateStatus()
-      .then(setUpdateStatus)
-      .catch((error) => console.error('Failed to read update status:', error));
-    return onUpdateStatus((status) => {
+    // Subscribe first, and let a push win over the read: a download that starts
+    // while `getStatus` is in flight would otherwise leave the dot dark until
+    // the next push, up to two hours away.
+    let sawPush = false;
+    const unsubscribe = onUpdateStatus((status) => {
+      sawPush = true;
       setUpdateStatus(status);
       // An install the user asked for has no caller left to report to: the
       // window is quit out from under it on success, and on failure the dot
@@ -434,6 +436,12 @@ function App(): React.JSX.Element {
         installRequestedRef.current = false;
       }
     });
+    void getUpdateStatus()
+      .then((status) => {
+        if (!sawPush) setUpdateStatus(status);
+      })
+      .catch((error) => console.error('Failed to read update status:', error));
+    return unsubscribe;
   }, []);
 
   // A manual check reports its own outcome. The main process opens the progress
