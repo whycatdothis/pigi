@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The update window sits higher over the main window, and "pigi is up to date" counts down the two seconds it stays on screen
+
 ## [0.4.20] - 2026-10-24
 
 ### Changed
