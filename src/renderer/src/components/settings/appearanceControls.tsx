@@ -376,21 +376,16 @@ function PreviewPane({ tokens }: { tokens: Record<string, string> }): React.JSX.
 
 export function SettingSwitch({
   label,
-  description,
   checked,
   onChange,
 }: {
   label: string;
-  description?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }): React.JSX.Element {
   return (
     <div className="flex items-center justify-between gap-6 px-5 py-4">
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-sm text-foreground">{label}</span>
-        {description && <span className="text-xs text-muted-foreground">{description}</span>}
-      </div>
+      <span className="min-w-0 truncate text-sm text-foreground">{label}</span>
       <Switch aria-label={label} checked={checked} onCheckedChange={onChange} />
     </div>
   );

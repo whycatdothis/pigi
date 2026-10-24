@@ -96,10 +96,7 @@ export function AppearanceSettings(): React.JSX.Element {
         <SettingsRow label="Accent">
           <AccentField accent={slot.accent} presets={ACCENT_PRESETS} onChange={changeAccent} />
         </SettingsRow>
-        <SettingsRow
-          label="Background"
-          description={slot.background ? undefined : 'Default for this mode'}
-        >
+        <SettingsRow label="Background">
           <ColorField
             label="Background"
             value={slot.background}
@@ -107,10 +104,7 @@ export function AppearanceSettings(): React.JSX.Element {
             onChange={(background) => patchSlot({ background })}
           />
         </SettingsRow>
-        <SettingsRow
-          label="Foreground"
-          description={slot.foreground ? undefined : 'Default for this mode'}
-        >
+        <SettingsRow label="Foreground">
           <ColorField
             label="Foreground"
             value={slot.foreground}
@@ -118,7 +112,7 @@ export function AppearanceSettings(): React.JSX.Element {
             onChange={(foreground) => patchSlot({ foreground })}
           />
         </SettingsRow>
-        <SettingsRow label="Contrast" description="Text contrast against the backgrounds.">
+        <SettingsRow label="Contrast">
           <SliderField
             label="Contrast"
             value={slot.contrast}
@@ -130,7 +124,6 @@ export function AppearanceSettings(): React.JSX.Element {
         </SettingsRow>
         <SettingSwitch
           label="Separate light and dark modes"
-          description="Configure each mode independently."
           checked={appearance.separateModes}
           onChange={(separateModes) =>
             updateAppearance((current) => ({ ...current, separateModes }))
@@ -144,7 +137,7 @@ export function AppearanceSettings(): React.JSX.Element {
       </SettingsGroup>
 
       <SettingsGroup title="Typography">
-        <SettingsRow label="Font" description="Chat text.">
+        <SettingsRow label="Font">
           <FontPicker
             role="content"
             label="Content font"
@@ -152,7 +145,7 @@ export function AppearanceSettings(): React.JSX.Element {
             onChange={(content) => patchFonts({ content })}
           />
         </SettingsRow>
-        <SettingsRow label="UI font" description="Sidebar, settings, and controls.">
+        <SettingsRow label="UI font">
           <FontPicker
             role="ui"
             label="UI font"
@@ -170,7 +163,7 @@ export function AppearanceSettings(): React.JSX.Element {
             onChange={(uiSize) => patchFonts({ uiSize })}
           />
         </SettingsRow>
-        <SettingsRow label="Code font" description="Code blocks and the terminal.">
+        <SettingsRow label="Code font">
           <FontPicker
             role="code"
             label="Code font"
@@ -193,19 +186,17 @@ export function AppearanceSettings(): React.JSX.Element {
       <SettingsGroup title="Details">
         <SettingSwitch
           label="Translucent sidebar"
-          description="Let the window material show through the sidebar."
           checked={slot.translucentSidebar}
           onChange={(translucentSidebar) => patchSlot({ translucentSidebar })}
         />
         <SettingSwitch
           label="Font smoothing"
-          description="Use grayscale antialiasing for lighter text."
           checked={appearance.fontSmoothing}
           onChange={(fontSmoothing) =>
             updateAppearance((current) => ({ ...current, fontSmoothing }))
           }
         />
-        <SettingsRow label="Reduce motion" description="Follow the system setting or force it.">
+        <SettingsRow label="Reduce motion">
           <SegmentedControl
             value={appearance.reduceMotion}
             options={REDUCE_MOTION_OPTIONS}
