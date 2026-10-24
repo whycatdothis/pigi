@@ -71,6 +71,9 @@ function statusDetail(status: UpdateStatus): string | null {
 /** The byte count under the bar while a download runs. */
 function transferredLabel(status: UpdateStatus): string | null {
   if (status.phase !== 'downloading') return null;
+  // The first frame of a download knows the version but not the size yet;
+  // "0 B of 0 B" is worse than no line for the moment it takes to arrive.
+  if (status.totalBytes === 0) return null;
   return `${formatFileSize(status.transferredBytes)} of ${formatFileSize(status.totalBytes)}`;
 }
 

@@ -74,14 +74,17 @@ function positionOverParent(progressWindow: BrowserWindow, parent: BrowserWindow
   );
 }
 
+function clearShowFallback(): void {
+  if (showFallbackTimer === null) return;
+  clearTimeout(showFallbackTimer);
+  showFallbackTimer = null;
+}
+
 function showProgressWindow(): void {
   const progressWindow = updateProgressWindow;
   if (shown || progressWindow === null || progressWindow.isDestroyed()) return;
   shown = true;
-  if (showFallbackTimer !== null) {
-    clearTimeout(showFallbackTimer);
-    showFallbackTimer = null;
-  }
+  clearShowFallback();
   progressWindow.show();
 }
 
@@ -94,6 +97,9 @@ export function openUpdateProgressWindow(): BrowserWindow {
   // Anything the window was waiting to do no longer applies: it is about to
   // show the status the caller just published.
   cancelScheduledUpdateProgressWindowClose();
+  // A timer left over from a window closed within the last few hundred ms would
+  // otherwise pop this one up unpainted.
+  clearShowFallback();
 
   const existing = updateProgressWindow;
   if (existing !== null && !existing.isDestroyed()) {
@@ -133,6 +139,7 @@ export function openUpdateProgressWindow(): BrowserWindow {
   positionOverParent(progressWindow, liveParent);
 
   progressWindow.on('closed', () => {
+    clearShowFallback();
     if (updateProgressWindow === progressWindow) {
       updateProgressWindow = null;
     }

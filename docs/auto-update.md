@@ -111,12 +111,18 @@ The window opens at the start of the check rather than when a download begins:
 a check takes a few seconds over the network, and without it the click looks
 ignored. A found update keeps the same window as the download UI; "up to date"
 is answered by the window itself, which counts down two seconds and closes, so
-it does not leave a window behind and the main window stays out of it. Errors
-still toast in the main window, since the message can be longer than a window
-this size should hold.
+it does not leave a window behind and the main window stays out of it. A check
+that fails closes the window and toasts the reason in the main window, which has
+room for a long message; a download that fails is different — the window is
+already open and uploads the error itself, wrapped to two lines.
 
 Checking while a download is already running (or finished) reopens the progress
 window instead of starting a second download.
+
+If Squirrel never finishes an install — it neither replaces the bundle nor
+reports an error — the status falls back to "downloaded" after 20 seconds, so
+the window offers "Install and Restart" again instead of leaving the session
+unable to check for updates.
 
 The Settings popover's item swaps from "Check for Updates" to
 "Update to <version>" once a download lands, and the sidebar button grows a dot
@@ -162,6 +168,16 @@ changes; `refreshApplicationMenu` compares the rendered string first, because
   to 72–260px, 400px wide). A one-line "up to date" is a short window; a
   download grows to fit the bar and its buttons; a long error message wraps
   instead of being clipped.
+- How long it lives is decided by the status, in one place
+  (`updateWindowAction` in `src/main/ipc/updateWindowPolicy.ts`): `up_to_date`
+  arms the two-second countdown, an `error` the user asked for closes it (the
+  toast says why), an error in the background keeps it (nothing else reports
+  it), and any other status cancels a pending countdown — so a check started
+  during the countdown owns the window instead of being closed by the old
+  timer.
+- Zoom is held at 1 on purpose: the window is a 400px box with a status bar,
+  and the View menu zooms whatever has focus. It resets on every show and
+  focus, which is enough for a window that is open for seconds.
 - The content follows the shape of a system update dialog: app icon, bold
   status, progress bar, byte count on the left and actions on the right. Only
   `checking` carries a spinner, and the bar plus buttons are drawn in the theme
@@ -203,13 +219,16 @@ setUpdateStatus: (status: UpdateStatus) => void
 ```
 
 `App` mirrors the status into the store and derives `pendingUpdateVersion`
-(`downloaded` only), which it passes to the memoized sidebar.
+(`downloaded` or `installing`), which it passes to the memoized sidebar.
 
 ### File Structure
 
 ```
 src/main/
 ├── ipc/updateManager.ts              # autoUpdater wiring, status, IPC, timers
+├── ipc/updateWindowPolicy.ts         # when the progress window lingers or closes
+├── ipc/updateWindowPolicy.test.ts
+├── menus/applicationMenu.ts          # + the update item and its state
 ├── windows/createUpdateProgressWindow.ts
 └── index.ts                          # + initializeUpdateManager, scheduleBackgroundUpdateChecks
 
@@ -218,11 +237,15 @@ src/renderer/src/
 ├── App.tsx                           # + status subscription, check/install handlers
 ├── services/piAgentClient.ts         # + update API wrappers
 ├── state/appStore.ts                 # + updateStatus
-└── components/update/UpdateProgress.tsx
+├── assets/appIcon.png                # the icon the window shows
+└── components/update/
+    ├── UpdateProgress.tsx
+    └── UpdateProgress.test.tsx
 
 src/shared/
 ├── ipcContract.ts                    # + UpdateStatus, PiChannel entries
-└── routes.ts                         # + UPDATE_PROGRESS_HASH
+├── routes.ts                         # + UPDATE_PROGRESS_HASH
+└── updateWindow.ts                   # + UP_TO_DATE_CLOSE_SECONDS
 
 src/preload/index.ts                  # + window.piApi.update
 ```
