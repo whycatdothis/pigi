@@ -5,8 +5,9 @@
  * (`autoInstallOnAppQuit` is off, `autoDownload` too). Two paths share one
  * status:
  *
- *   silent  — on launch and every two hours. A found update downloads with no
- *             UI; the blue dot in Settings is the only announcement.
+ *   silent  — on launch and every two hours (spread by a few minutes of
+ *             jitter). A found update downloads with no UI; the blue dot in
+ *             Settings is the only announcement.
  *   manual  — from Settings. A found update shows the progress window, which
  *             carries the progress bar, Cancel, and Install and Restart.
  *
@@ -30,6 +31,12 @@ const { autoUpdater, CancellationToken } = electronUpdater;
 /** A launch check waits for the app to settle first; users notice a spinner. */
 const FIRST_BACKGROUND_CHECK_DELAY_MS = 15 * 1000;
 const BACKGROUND_CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000;
+/**
+ * Each interval is nudged by up to this much either way. Instances that start
+ * at the same time would otherwise poll — and on release day download — in
+ * lockstep forever, which turns a steady trickle into one synchronized spike.
+ */
+const BACKGROUND_CHECK_JITTER_MS = 10 * 60 * 1000;
 
 let status: UpdateStatus = { phase: 'idle' };
 /** Set while a download runs; doubles as the guard against a second one. */
@@ -38,6 +45,8 @@ let downloadVersion: string | null = null;
 let checkInFlight = false;
 /** Whether the current check came from Settings (opens the progress window). */
 let manualCheck = false;
+/** Rebuilds the app menu after a status change; set once during startup. */
+let statusObserver: (() => void) | null = null;
 
 /**
  * electron-updater swaps a packaged, signed bundle, and the publish config only
@@ -58,6 +67,9 @@ function publish(next: UpdateStatus): void {
     if (window.isDestroyed()) continue;
     window.webContents.send(PiChannel.UpdateStatusChanged, next);
   }
+  // The app menu renders the same status; it ignores pushes that leave its one
+  // update item unchanged, which is every progress tick.
+  statusObserver?.();
 }
 
 async function startDownload(version: string): Promise<void> {
@@ -138,6 +150,49 @@ function installDownloadedUpdate(): void {
   autoUpdater.quitAndInstall();
 }
 
+/** What the app menu's single update item should say right now. */
+export interface UpdateMenuItemState {
+  label: string;
+  enabled: boolean;
+}
+
+export function getUpdateMenuItemState(): UpdateMenuItemState {
+  switch (status.phase) {
+    case 'unsupported':
+      return { label: 'Check for Updates…', enabled: false };
+    case 'checking':
+      return { label: 'Checking for Updates…', enabled: false };
+    case 'downloading':
+      return { label: `Downloading pigi ${status.version}…`, enabled: true };
+    case 'downloaded':
+      return { label: `Update to ${status.version}…`, enabled: true };
+    case 'idle':
+    case 'up_to_date':
+    case 'error':
+      return { label: 'Check for Updates…', enabled: true };
+  }
+}
+
+/**
+ * The menu mirrors the Settings entry: check now, or bring the progress window
+ * forward when a download is running or waiting. Installing stays a click in
+ * that window so the failure path keeps its single reporter (the renderer's
+ * install-requested toast); main never installs on its own.
+ */
+export function runUpdateMenuItemAction(): void {
+  if (status.phase === 'downloading' || status.phase === 'downloaded') {
+    openUpdateProgressWindow();
+    return;
+  }
+  void runCheck(true);
+}
+
+/** Registers the menu rebuild hook and applies it to the current status. */
+export function setUpdateStatusObserver(observer: (() => void) | null): void {
+  statusObserver = observer;
+  observer?.();
+}
+
 export function initializeUpdateManager(): void {
   status = isSupported() ? { phase: 'idle' } : { phase: 'unsupported' };
 
@@ -184,7 +239,13 @@ export function initializeUpdateManager(): void {
   });
 }
 
-/** Launch check, then one every two hours. Silent: no window, no toasts. */
+/**
+ * Launch check, then one roughly every two hours. Silent: no window, no toasts.
+ *
+ * A self-rescheduling timeout rather than `setInterval`, because each round gets
+ * its own delay; a fixed interval would keep every instance on the same phase
+ * relative to its launch time.
+ */
 export function scheduleBackgroundUpdateChecks(): void {
   if (!isSupported()) return;
 
@@ -192,7 +253,12 @@ export function scheduleBackgroundUpdateChecks(): void {
     void runCheck(false);
   }, FIRST_BACKGROUND_CHECK_DELAY_MS);
 
-  setInterval(() => {
-    void runCheck(false);
-  }, BACKGROUND_CHECK_INTERVAL_MS);
+  const scheduleNext = (): void => {
+    const jitter = (Math.random() * 2 - 1) * BACKGROUND_CHECK_JITTER_MS;
+    setTimeout(() => {
+      void runCheck(false);
+      scheduleNext();
+    }, BACKGROUND_CHECK_INTERVAL_MS + jitter);
+  };
+  scheduleNext();
 }

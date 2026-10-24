@@ -2,9 +2,10 @@
 
 ## Overview
 
-pigi updates itself through `electron-updater` against GitHub Releases. Every
-entry point lives in Settings: a silent background check that only lights a blue
-dot when a download lands, and a manual check that shows a small progress window.
+pigi updates itself through `electron-updater` against GitHub Releases. Two
+entry points: the macOS app menu and Settings. Both run the same manual check —
+silent background checks only light the theme-coloured dot in Settings when a
+download lands.
 
 ## Decisions
 
@@ -66,18 +67,23 @@ path for each one.
 ### Flow 1: Silent Background Check
 
 ```
-Launch (+15s) / every 2 hours
+Launch (+15s) / every 2 hours, jittered by ±10 min
   → autoUpdater.checkForUpdates()
     → update-not-available: status 'up_to_date', nothing visible
     → update-available
       → autoUpdater.downloadUpdate()   (no window)
         → download-progress → status 'downloading' (log only, no UI)
         → update-downloaded → status 'downloaded'
-          → blue dot on the Settings sidebar button
+          → accent dot on the Settings sidebar button
 ```
 
 The delay exists so the main window is up before the first push; users also
 notice a launch that immediately starts downloading.
+
+The interval between later checks is jittered by ±10 minutes. A fixed two-hour
+period keeps every instance at a constant phase relative to its launch, so
+the checks — and, once a version appears, the 160 MB downloads — of a large
+user base stay clumped together instead of spreading out.
 
 ### Flow 2: Manual Check (Settings)
 
@@ -99,7 +105,28 @@ Checking while a download is already running (or finished) reopens the progress
 window instead of starting a second download.
 
 The Settings popover's item swaps from "Check for Updates" to
-"Update to <version>" once a download lands.
+"Update to <version>" once a download lands, and the sidebar button grows a dot
+in the theme accent colour.
+
+### Flow 3: The App Menu Item
+
+The macOS app menu carries one update item, directly under "About":
+
+```
+idle / up_to_date / error    Check for Updates…          → manual check
+checking                     Checking for Updates…       → disabled
+downloading                  Downloading pigi <version>… → opens progress window
+downloaded                   Update to <version>…        → opens progress window
+unsupported (dev)            Check for Updates…          → disabled
+```
+
+It opens the progress window rather than installing, so every install stays a
+click inside that window — the failure toast is reported from the renderer,
+which would not know about an install started by main.
+
+The menu is rebuilt (not mutated) when the item's label or enabled state
+changes; `refreshApplicationMenu` compares the rendered string first, because
+`download-progress` pushes status many times a second.
 
 ### Progress Window
 
@@ -173,8 +200,8 @@ dev run:
 
 1. Install a released version (0.4.17 or later) from `~/Applications/pigi.app`.
 2. Bump, release the next version as usual.
-3. Launch the installed build: the blue dot appears within a couple of hours at
-   the latest (the launch check runs 15s in), then Settings → "Update to …" →
+3. Launch the installed build: the accent dot appears within a couple of hours
+   at the latest (the launch check runs 15s in), then Settings → "Update to …" →
    "Install and Restart" swaps the bundle in place.
 4. Manual path: Settings → "Check for Updates" on an up-to-date build toasts
    "pigi is up to date"; on an outdated one it shows the progress window, and

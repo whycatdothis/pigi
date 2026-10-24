@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- "Check for Updates…" in the macOS app menu; it follows the update status (checking, downloading, ready to install)
+
+### Fixed
+
+- The update dot and the download progress bar use the theme accent colour instead of a hard-coded blue
+- Background update checks are spread by ±10 minutes instead of landing on a fixed two-hour cadence
+
 ## [0.4.18] - 2026-10-23
 
 ### Added
