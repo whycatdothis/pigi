@@ -126,7 +126,12 @@ async function runCheck(interactive: boolean): Promise<UpdateStatus> {
   // Nothing to check: a download is running or finished, or the background
   // check is already asking. Either way the click still has to answer, so the
   // window opens on whatever the status says instead of doing nothing.
-  if (downloadToken !== null || checkInFlight || status.phase === 'downloaded') {
+  if (
+    downloadToken !== null ||
+    checkInFlight ||
+    status.phase === 'downloaded' ||
+    status.phase === 'installing'
+  ) {
     if (interactive) {
       openUpdateProgressWindow();
     }
