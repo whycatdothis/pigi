@@ -315,7 +315,7 @@ export function ModePreviewPicker({
   }, [appearance]);
 
   return (
-    <div role="radiogroup" aria-label="Theme" className="flex items-center gap-2">
+    <div role="radiogroup" aria-label="Theme" className="flex items-center gap-4">
       {PREVIEW_MODES.map((option) => {
         const selected = option.value === value;
         return (
