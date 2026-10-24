@@ -114,7 +114,7 @@ export const DEFAULT_MODE_APPEARANCE: { light: ModeAppearance; dark: ModeAppeara
   light: {
     background: null, // white
     foreground: null, // #1a1c1f
-    accent: { presetId: 'indigo' },
+    accent: { presetId: 'blue' },
     contrast: 30,
     translucentSidebar: true,
     fonts: { ui: null, content: null, code: null, uiSize: 15, codeSize: 14 },
@@ -122,7 +122,7 @@ export const DEFAULT_MODE_APPEARANCE: { light: ModeAppearance; dark: ModeAppeara
   dark: {
     background: null, // oklch(0.145 0 0)
     foreground: null, // oklch(0.985 0 0)
-    accent: { presetId: 'indigo' },
+    accent: { presetId: 'blue' },
     contrast: 30,
     translucentSidebar: true,
     fonts: { ui: null, content: null, code: null, uiSize: 15, codeSize: 14 },

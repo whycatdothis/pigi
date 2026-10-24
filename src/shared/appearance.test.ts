@@ -3,6 +3,7 @@ import {
   ACCENT_PRESETS,
   DEFAULT_APPEARANCE,
   DEFAULT_CONTRAST,
+  DEFAULT_THEME_ACCENT_ID,
   DEFAULT_MODE_APPEARANCE,
   parseAppearance,
   type AppearanceSettings,
@@ -75,7 +76,7 @@ describe('parseAppearance', () => {
     expect(parsed.mode).toBe('dark');
     expect(parsed.separateModes).toBe(true);
     expect(parsed.light.contrast).toBe(100);
-    expect(parsed.light.accent).toEqual({ presetId: 'indigo' });
+    expect(parsed.light.accent).toEqual({ presetId: DEFAULT_THEME_ACCENT_ID });
     expect(parsed.dark.background).toBe('#101010');
     expect(parsed.dark.fonts.uiSize).toBe(12);
     expect(parsed.reduceMotion).toBe('system');
@@ -258,6 +259,6 @@ describe('parsePigiSettings', () => {
   it('falls back per field when v1 values are invalid', () => {
     const migrated = parsePigiSettings({ theme: 'chartreuse', accentId: 42 });
     expect(migrated.appearance.mode).toBe(DEFAULT_APPEARANCE.mode);
-    expect(migrated.appearance.light.accent).toEqual({ presetId: 'indigo' });
+    expect(migrated.appearance.light.accent).toEqual({ presetId: DEFAULT_THEME_ACCENT_ID });
   });
 });

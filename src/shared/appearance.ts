@@ -123,7 +123,7 @@ export const ACCENT_PRESETS: readonly ThemeAccent[] = [
   },
 ];
 
-export const DEFAULT_THEME_ACCENT_ID = 'indigo';
+export const DEFAULT_THEME_ACCENT_ID = 'blue';
 
 export const CONTRAST_MIN = 0;
 export const CONTRAST_MAX = 100;

@@ -9,6 +9,7 @@
  */
 import {
   ACCENT_PRESETS,
+  DEFAULT_THEME_ACCENT_ID,
   type AccentChoice,
   type AppearanceSettings,
   type ColorMode,
@@ -32,11 +33,11 @@ export interface ThemePreset {
 
 export const DEFAULT_THEME_PRESET_ID = 'default';
 
-/** Indigo is the built-in accent, so the default theme stores no colors. */
+/** The default preset stores no colors; blue is the built-in accent. */
 const DEFAULT_SLOT: ThemePresetSlot = {
   background: null,
   foreground: null,
-  accent: { presetId: 'indigo' },
+  accent: { presetId: DEFAULT_THEME_ACCENT_ID },
 };
 
 export const THEME_PRESETS: readonly ThemePreset[] = [

@@ -11,6 +11,7 @@ import { useSettingsStore } from '../../state/settingsStore';
 import {
   DEFAULT_APPEARANCE,
   DEFAULT_CONTRAST,
+  DEFAULT_THEME_ACCENT_ID,
   UI_FONT_SIZE_MAX,
   parseAppearance,
   type AppearanceSettings as Appearance,
@@ -60,7 +61,10 @@ describe('AppearanceSettings', () => {
     const group = screen.getByRole('radiogroup', { name: 'Theme' });
     expect(within(group).getAllByRole('radio')).toHaveLength(3);
     expect(screen.getByTestId('theme-option-system')).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('accent-option-indigo')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId(`accent-option-${DEFAULT_THEME_ACCENT_ID}`)).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
   it('stores an accent preset and applies it to the document', () => {
