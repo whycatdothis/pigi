@@ -531,7 +531,7 @@ section, and the groups are ordered the way the page is read — what the theme
 is, how text is set, then the details.
 
 ```
-Appearance                                  (page title, text-lg)
+Appearance                                  (page title, text-2xl)
 Visual style                                (SettingsGroup title)
   Mode              [▤] [▤] [▤]             (ModePreviewPicker, icons only)
   Theme             ⤓ ⧉ [Aa Nord ▾]         (icons: import, copy)

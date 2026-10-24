@@ -71,6 +71,7 @@
   --text-body: calc(15px * var(--app-font-ui-scale, 1));
   --text-lg: calc(20px * var(--app-font-ui-scale, 1));
   --text-xl: calc(24px * var(--app-font-ui-scale, 1));
+  --text-2xl: calc(28px * var(--app-font-ui-scale, 1));
   --text-code-compact: calc(13px * var(--app-font-code-scale, 1));
   --text-code: calc(14px * var(--app-font-code-scale, 1));
   --color-system-accent: var(--system-accent);
