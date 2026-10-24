@@ -466,7 +466,7 @@ function PreviewSidebar({
 function PreviewContent({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
   const muted = tokens['--app-muted-foreground'];
   const accent = tokens['--app-system-accent'];
-  const line = 'h-[3px] rounded-full';
+  const line = 'h-[2.5px] rounded-full';
 
   return (
     <span className="flex min-w-0 flex-1 flex-col gap-[2px] p-[4px]">
@@ -478,13 +478,13 @@ function PreviewContent({ tokens }: { tokens: Record<string, string> }): React.J
       />
       <span className={line} style={{ width: '54%', backgroundColor: muted }} />
       <span
-        className="mt-auto flex h-[11px] items-center justify-end rounded-[3px] border pr-[2.5px]"
+        className="mt-auto flex h-[10px] items-center justify-end rounded-[3px] border pr-[2px]"
         style={{
           backgroundColor: tokens['--app-background'],
           borderColor: tokens['--app-border'],
         }}
       >
-        <span className="size-[3px] rounded-full" style={{ backgroundColor: accent }} />
+        <span className="size-[2.5px] rounded-full" style={{ backgroundColor: accent }} />
       </span>
     </span>
   );
@@ -503,7 +503,7 @@ function PreviewWindow({ tokens }: { tokens: Record<string, string> }): React.JS
         borderColor: `color-mix(in oklab, ${tokens['--app-card']}, ${tokens['--app-foreground']} 22%)`,
       }}
     >
-      <PreviewSidebar tokens={tokens} width="w-[13px]" />
+      <PreviewSidebar tokens={tokens} width="w-[12px]" />
       <span
         className="my-[3px] mr-[3px] flex min-w-0 flex-1 overflow-hidden rounded-[4px]"
         style={{ backgroundColor: tokens['--app-card'] }}
@@ -521,7 +521,7 @@ function PreviewWindow({ tokens }: { tokens: Record<string, string> }): React.JS
 function PreviewUnit({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
   return (
     <span
-      className="flex h-full w-full p-[7px]"
+      className="flex h-full w-full p-[8px]"
       style={{ backgroundColor: tokens['--app-background'] }}
     >
       <PreviewWindow tokens={tokens} />
