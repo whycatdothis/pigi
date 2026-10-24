@@ -18,7 +18,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 import { cn } from '@/lib/utils';
 import {
   FONT_FAMILIES,
-  fontStackFor,
   type AccentChoice,
   type ColorMode,
   type FontRole,
@@ -70,11 +69,12 @@ export function ColorField({
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <label
-        htmlFor={inputId}
-        aria-label={`${label} color picker`}
-        className="relative size-4 shrink-0 cursor-pointer rounded-full ring-1 ring-foreground/15 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+    <label
+      className="flex h-7 items-center gap-2 rounded-lg border border-input pr-2 pl-1.5 transition-colors focus-within:border-ring hover:bg-muted/60 dark:bg-input/30"
+      htmlFor={inputId}
+    >
+      <span
+        className="relative size-3.5 shrink-0 cursor-pointer rounded-full ring-1 ring-foreground/15 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
         style={{ backgroundColor: hex }}
       >
         <input
@@ -82,9 +82,10 @@ export function ColorField({
           type="color"
           value={hex}
           onChange={(event) => onChange(event.target.value)}
+          aria-label={`${label} color picker`}
           className="absolute inset-0 size-full cursor-pointer opacity-0"
         />
-      </label>
+      </span>
       <input
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
@@ -100,9 +101,9 @@ export function ColorField({
         }}
         spellCheck={false}
         aria-label={`${label} hex value`}
-        className="w-[4.75rem] bg-transparent p-0 font-mono text-caption uppercase tabular-nums text-foreground outline-none"
+        className="w-[4.25rem] bg-transparent p-0 font-mono text-caption uppercase tabular-nums text-foreground outline-none"
       />
-    </div>
+    </label>
   );
 }
 
@@ -286,29 +287,21 @@ export function FontPicker({
   onChange: (value: string | null) => void;
 }): React.JSX.Element {
   return (
-    <div className="flex items-center gap-2">
-      <span
-        aria-hidden="true"
-        className="w-6 shrink-0 text-center text-caption text-foreground"
-        style={{ fontFamily: fontStackFor(role, value) }}
-      >
-        Aa
-      </span>
-      <NativeSelect
-        size="sm"
-        aria-label={label}
-        value={value ?? ''}
-        onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
-        className="w-36 [&_select]:text-caption [&_select]:text-right [&_select]:dark:bg-transparent"
-      >
-        <option value="">{role === 'code' ? 'System mono' : 'System'}</option>
-        {FONT_FAMILIES.map((family) => (
-          <option key={family} value={family}>
-            {family}
-          </option>
-        ))}
-      </NativeSelect>
-    </div>
+    <NativeSelect
+      size="sm"
+      aria-label={label}
+      value={value ?? ''}
+      onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
+      icon={<IconChevronDown size={14} stroke={1.75} />}
+      className="w-[8.5rem] [&_select]:pr-7 [&_select]:text-caption [&_select]:text-right [&_select]:dark:bg-transparent"
+    >
+      <option value="">{role === 'code' ? 'System mono' : 'System'}</option>
+      {FONT_FAMILIES.map((family) => (
+        <option key={family} value={family}>
+          {family}
+        </option>
+      ))}
+    </NativeSelect>
   );
 }
 

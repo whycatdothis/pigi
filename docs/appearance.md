@@ -495,9 +495,9 @@ JS resolves `system` against `matchMedia` so CSS has one boolean to read.
 existing `SettingsGroup` / `SettingsRow` primitives plus
 `components/settings/appearanceControls.tsx`:
 
-- `ColorField` — a round swatch that opens the native picker plus a plain hex
-  field that commits on blur/Enter. Used for background and foreground; the
-  value reads as a dot and its hex, with no input chrome.
+- `ColorField` — one bordered field holding a round swatch and the hex value;
+  the swatch opens the native picker, the hex commits on blur/Enter, and the
+  field grows a ring on focus. Used for background and foreground.
 - `AccentField` — one button per preset (the stored value is the preset id, so
   the tuned per-mode colors survive) plus a rainbow ring for a custom hex.
 - `SliderField` — range input with the resolved value and contrast ratio on the
@@ -507,8 +507,8 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
 - `ThemePresetField` — the named theme menu: `Aa` tile tinted with the theme's
   accent, the name, and a chevron. Selecting one applies both mode slots; the
   label reads `Custom` as soon as a color no longer matches a preset.
-- `FontPicker` — native select over the whitelist with an `Aa` preview in the
-  chosen stack; the code role's empty option reads "System mono".
+- `FontPicker` — a compact native select over the whitelist (no preview glyph,
+  single chevron); the code role's empty option reads "System mono".
 - `ModePreviewPicker` — three icon-only miniature previews (System / Light /
   Dark) drawn from the _derived_ tokens of each mode, so previews reflect
   custom colors. No captions: the ring hugs the 7px preview radius with no
@@ -528,16 +528,16 @@ Mode                                        (its own card, no title)
 Visual style                                (SettingsGroup title)
   Theme             ⤓ ⧉ [Aa Nord ▾]         (icons: import, copy)
   Accent            ●●●●●●●● + custom       (AccentField)
-  Background        ● #FFFFFF               (ColorField)
-  Foreground        ● #0D0D0D               (ColorField)
+  Background        [● #FFFFFF]            (ColorField)
+  Foreground        [● #0D0D0D]            (ColorField)
   Contrast          [——●——] 73 · 5.0:1
   Separate light and dark modes  [switch]
   Editing           [Light | Dark]          (only when separate modes are on)
 Typography
-  Font              Aa [System ▾]           (content role)
-  UI font           Aa [System ▾]
+  Font              [System ▾]              (content role)
+  UI font           [System ▾]
   UI font size      [15] px
-  Code font         Aa [System mono ▾]
+  Code font         [System mono ▾]
   Code font size    [14] px
 Details
   Translucent sidebar  [switch]
