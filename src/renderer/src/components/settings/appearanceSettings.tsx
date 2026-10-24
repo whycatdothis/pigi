@@ -17,6 +17,7 @@ import {
   ACCENT_PRESETS,
   type AccentChoice,
   type ColorMode,
+  type ModeAppearance,
   type ReduceMotion,
   type ThemeMode,
 } from '../../../../shared/appearance';
@@ -72,10 +73,15 @@ export function AppearanceSettings(): React.JSX.Element {
   const contrastTarget = resolvedSecondaryContrast(resolved);
 
   function patchSlot(patch: Partial<typeof slot>): void {
-    updateAppearance((current) => ({
-      ...current,
-      [targetMode]: { ...current[targetMode], ...patch },
-    }));
+    updateAppearance((current) => {
+      const next = (mode: ColorMode): ModeAppearance => ({ ...current[mode], ...patch });
+      if (current.separateModes) {
+        return { ...current, [targetMode]: next(targetMode) };
+      }
+      // One palette: keep the dormant slot in sync, otherwise the Dark preview
+      // and the app's dark derivation would keep the previous colors.
+      return { ...current, light: next('light'), dark: next('dark') };
+    });
   }
 
   function patchFonts(patch: Partial<typeof slot.fonts>): void {

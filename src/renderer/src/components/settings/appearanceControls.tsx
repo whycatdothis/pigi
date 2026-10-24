@@ -417,7 +417,7 @@ export function ModePreviewPicker({
                   className={cn(
                     // Only the selection border: the miniature carries its own
                     // padding, so a crop keeps the margin around the app.
-                    'h-[70px] w-[100px] overflow-hidden rounded-[12px] border-2 transition-colors',
+                    'h-[72px] w-[104px] overflow-hidden rounded-[12px] border-2 transition-colors',
                     selected
                       ? 'border-[var(--app-system-accent)]'
                       : 'border-foreground/12 hover:border-foreground/25',
@@ -460,8 +460,8 @@ function PreviewSidebar({
 }
 
 /**
- * Body of a miniature window: two muted lines, two accent lines for the user
- * message, then the composer with a send dot.
+ * Body of a miniature window: two assistant lines on the left, the user's line
+ * on the right, then one more assistant line, so it reads as a conversation.
  */
 function PreviewContent({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
   const muted = tokens['--app-muted-foreground'];
@@ -469,22 +469,22 @@ function PreviewContent({ tokens }: { tokens: Record<string, string> }): React.J
   const line = 'h-[3px] rounded-full';
 
   return (
-    <span className="flex min-w-0 flex-1 flex-col gap-[3px] p-[6px]">
-      <span className={line} style={{ width: '44%', backgroundColor: muted }} />
+    <span className="flex min-w-0 flex-1 flex-col gap-[2.5px] p-[5px]">
+      <span className={line} style={{ width: '46%', backgroundColor: muted }} />
       <span className={line} style={{ width: '72%', backgroundColor: muted, opacity: 0.75 }} />
       <span
         className={`${line} self-end`}
-        style={{ width: '78%', backgroundColor: accent, opacity: 0.9 }}
+        style={{ width: '74%', backgroundColor: accent, opacity: 0.9 }}
       />
-      <span className={`${line} self-end`} style={{ width: '54%', backgroundColor: accent }} />
+      <span className={line} style={{ width: '54%', backgroundColor: muted }} />
       <span
-        className="mt-auto flex h-[13px] items-center justify-end rounded-[4px] border pr-[3px]"
+        className="mt-auto flex h-[11px] items-center justify-end rounded-[3px] border pr-[2.5px]"
         style={{
           backgroundColor: tokens['--app-background'],
           borderColor: tokens['--app-border'],
         }}
       >
-        <span className="size-[3.5px] rounded-full" style={{ backgroundColor: accent }} />
+        <span className="size-[3px] rounded-full" style={{ backgroundColor: accent }} />
       </span>
     </span>
   );
@@ -503,9 +503,9 @@ function PreviewWindow({ tokens }: { tokens: Record<string, string> }): React.JS
         borderColor: `color-mix(in oklab, ${tokens['--app-card']}, ${tokens['--app-foreground']} 22%)`,
       }}
     >
-      <PreviewSidebar tokens={tokens} width="w-[14px]" />
+      <PreviewSidebar tokens={tokens} width="w-[13px]" />
       <span
-        className="my-[4px] mr-[4px] flex min-w-0 flex-1 overflow-hidden rounded-[5px]"
+        className="my-[3px] mr-[3px] flex min-w-0 flex-1 overflow-hidden rounded-[4px]"
         style={{ backgroundColor: tokens['--app-card'] }}
       >
         <PreviewContent tokens={tokens} />
@@ -521,7 +521,7 @@ function PreviewWindow({ tokens }: { tokens: Record<string, string> }): React.JS
 function PreviewUnit({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
   return (
     <span
-      className="flex h-full w-full p-[5px]"
+      className="flex h-full w-full p-[7px]"
       style={{ backgroundColor: tokens['--app-background'] }}
     >
       <PreviewWindow tokens={tokens} />
