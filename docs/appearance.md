@@ -510,15 +510,17 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
 - `FontPicker` — a compact native select over the whitelist (no preview glyph,
   single chevron); the code role's empty option reads "System mono".
 - `ModePreviewPicker` — three icon-only miniature windows (System / Light /
-  Dark), 92x64, drawn from the _derived_ tokens of each mode, so a custom
-  palette or a named theme shows up in them immediately. Each window keeps 8px
+  Dark), 120x80, drawn from the _derived_ tokens of each mode, so a custom
+  palette or a named theme shows up in them immediately. Each window keeps 16px
   of padding on every side so the rounded corners never clip the drawing: a
-  sidebar with its icon and rows, four text lines (one in the accent), and the
-  composer with a send dot. The system preview splits the window in half —
-  light on the left, dark on the right — with both halves painting their
-  background to the window edge. Selection is the preview's own 2px accent
-  border separated by a 4px gap, never a ring stacked on the drawing; the name
-  is an `aria-label`, shown on hover.
+  sidebar block, two muted and two accent text lines, and the composer with a
+  send dot. The sidebar is one tinted block, mixed from the window color rather
+  than `--app-sidebar`, which is nearly white on the light side. The system
+  preview shares the sidebar and splits only the content area: light on the
+  left, dark on the right, with the dark half bleeding to the window edge so
+  only the seam shows. Selection is
+  the preview's own 2px accent border separated by a 4px gap, never a ring
+  stacked on the drawing; the name is an `aria-label`, shown on hover.
 - `SettingSwitch` — row plus switch for the boolean preferences.
 
 Structure. Everything is visible at once: there is no collapsed advanced
