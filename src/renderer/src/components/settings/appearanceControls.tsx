@@ -311,7 +311,9 @@ function ThemeBadge({ accent }: { accent: AccentChoice }): React.JSX.Element {
   return (
     <span
       aria-hidden="true"
-      className="flex size-6 shrink-0 items-center justify-center rounded-md text-[11px] font-medium"
+      // The badge sits 4px inside the 8px trigger, so its radius is the outer
+      // one minus that inset; anything rounder stops looking concentric.
+      className="flex size-6 shrink-0 items-center justify-center rounded text-[11px] font-medium"
       style={{ color: hex, backgroundColor: `${hex}1f` }}
     >
       Aa
@@ -343,7 +345,7 @@ export function ThemePresetField({
         <button
           type="button"
           aria-label="Theme"
-          className="flex h-8 w-52 items-center gap-2 rounded-lg border border-input px-2 text-left outline-none transition-colors hover:bg-muted data-[state=open]:bg-muted dark:bg-input/30"
+          className="flex h-8 w-52 items-center gap-2 rounded-lg border border-input py-[3px] pl-[3px] pr-2 text-left outline-none transition-colors hover:bg-muted data-[state=open]:bg-muted dark:bg-input/30"
         >
           <ThemeBadge accent={isCustom ? accent : preset.light.accent} />
           <span className="flex-1 truncate text-caption text-foreground">
