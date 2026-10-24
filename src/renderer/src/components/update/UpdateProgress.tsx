@@ -116,12 +116,18 @@ export default function UpdateProgress(): React.JSX.Element | null {
 
   useEffect(() => {
     let active = true;
+    // A push that lands before the read comes back is the newer truth; the
+    // answer to `getStatus` would only put the window back where it was.
+    let sawPush = false;
+    const unsubscribe = onUpdateStatus((next) => {
+      sawPush = true;
+      setStatus(next);
+    });
     void getUpdateStatus()
       .then((current) => {
-        if (active) setStatus(current);
+        if (active && !sawPush) setStatus(current);
       })
       .catch((error) => console.error('Failed to read update status:', error));
-    const unsubscribe = onUpdateStatus(setStatus);
     return () => {
       active = false;
       unsubscribe();

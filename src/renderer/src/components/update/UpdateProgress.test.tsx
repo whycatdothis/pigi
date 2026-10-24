@@ -13,32 +13,67 @@ import UpdateProgress from './UpdateProgress';
 
 const CONTENT_HEIGHT = 97;
 
-function installUpdateApi(initialStatus: UpdateStatus): {
+interface UpdateApi {
   setContentHeight: ReturnType<typeof vi.fn<(height: number) => void>>;
   dismissWindow: ReturnType<typeof vi.fn<() => void>>;
   cancelDownload: ReturnType<typeof vi.fn<() => void>>;
-} {
+  /** Push a status the way main does. */
+  pushStatus: (status: UpdateStatus) => void;
+  /** Let `getStatus` answer with the status the test started with. */
+  answerStatus: () => Promise<void>;
+}
+
+function installUpdateApi(initialStatus: UpdateStatus): UpdateApi {
   const setContentHeight = vi.fn<(height: number) => void>();
   const dismissWindow = vi.fn<() => void>();
   const cancelDownload = vi.fn<() => void>();
+  let subscriber: ((status: UpdateStatus) => void) | null = null;
+  // The read is held open on purpose: a test needs to be able to land a push
+  // before it, which is the case that used to lose the newer status.
+  let answer: (status: UpdateStatus) => void = () => undefined;
+  const pendingStatus = new Promise<UpdateStatus>((resolve) => {
+    answer = resolve;
+  });
   vi.stubGlobal('piApi', {
     update: {
-      getStatus: vi.fn().mockResolvedValue(initialStatus),
+      getStatus: vi.fn().mockReturnValue(pendingStatus),
       check: vi.fn(),
       cancelDownload,
       dismissWindow,
       quitAndInstall: vi.fn(),
       setProgressWindowContentHeight: setContentHeight,
-      onStatus: () => () => {},
+      onStatus: (callback: (status: UpdateStatus) => void) => {
+        subscriber = callback;
+        return () => {
+          subscriber = null;
+        };
+      },
     },
   });
-  return { setContentHeight, dismissWindow, cancelDownload };
+  return {
+    setContentHeight,
+    dismissWindow,
+    cancelDownload,
+    pushStatus: (status) => subscriber?.(status),
+    answerStatus: async () => {
+      answer(initialStatus);
+      await flush();
+    },
+  };
 }
 
-/** Let the status promise resolve and React re-render. */
+/** Let pending promises resolve and React re-render. */
 async function flush(): Promise<void> {
   await act(async () => {});
 }
+
+const DOWNLOADING: UpdateStatus = {
+  phase: 'downloading',
+  version: '0.4.23',
+  percent: 36,
+  transferredBytes: 60_000_000,
+  totalBytes: 167_000_000,
+};
 
 describe('UpdateProgress', () => {
   beforeEach(() => {
@@ -54,37 +89,43 @@ describe('UpdateProgress', () => {
   it('reports the height of its content once a status arrives', async () => {
     // The window has no height of its own: without this report it opens at its
     // first guess and clips the buttons off a download.
-    const { setContentHeight } = installUpdateApi({
-      phase: 'downloading',
-      version: '0.4.22',
-      percent: 36,
-      transferredBytes: 60_000_000,
-      totalBytes: 167_000_000,
-      bytesPerSecond: 10_000_000,
-    });
+    const api = installUpdateApi(DOWNLOADING);
 
     render(<UpdateProgress />);
-    await flush();
+    await api.answerStatus();
 
-    expect(setContentHeight).toHaveBeenCalledWith(CONTENT_HEIGHT);
+    expect(api.setContentHeight).toHaveBeenCalledWith(CONTENT_HEIGHT);
   });
 
   it('reports nothing before the first status, so the window keeps its default', async () => {
-    const { setContentHeight } = installUpdateApi({ phase: 'checking' });
+    const api = installUpdateApi({ phase: 'checking' });
 
     render(<UpdateProgress />);
-
-    expect(setContentHeight).not.toHaveBeenCalled();
     await flush();
-    expect(setContentHeight).toHaveBeenCalledWith(CONTENT_HEIGHT);
+
+    expect(api.setContentHeight).not.toHaveBeenCalled();
+    await api.answerStatus();
+    expect(api.setContentHeight).toHaveBeenCalledWith(CONTENT_HEIGHT);
+  });
+
+  it('keeps a pushed status when the read answers with an older one', async () => {
+    const api = installUpdateApi({ phase: 'checking' });
+
+    render(<UpdateProgress />);
+    act(() => {
+      api.pushStatus({ phase: 'downloaded', version: '0.9.9' });
+    });
+    await api.answerStatus();
+
+    expect(screen.getByText('pigi 0.9.9 is ready')).toBeInTheDocument();
   });
 
   it('counts down the seconds before it closes itself', async () => {
     vi.useFakeTimers();
-    installUpdateApi({ phase: 'up_to_date' });
+    const api = installUpdateApi({ phase: 'up_to_date' });
 
     render(<UpdateProgress />);
-    await flush();
+    await api.answerStatus();
     expect(screen.getByText('auto closing in 2s')).toBeInTheDocument();
 
     act(() => {
@@ -95,34 +136,35 @@ describe('UpdateProgress', () => {
   });
 
   it('closes on "Later" without cancelling the finished download', async () => {
-    const { dismissWindow, cancelDownload } = installUpdateApi({
-      phase: 'downloaded',
-      version: '0.4.22',
-    });
+    const api = installUpdateApi({ phase: 'downloaded', version: '0.4.23' });
 
     render(<UpdateProgress />);
-    await flush();
+    await api.answerStatus();
     fireEvent.click(screen.getByRole('button', { name: 'Later' }));
 
-    expect(dismissWindow).toHaveBeenCalledTimes(1);
-    expect(cancelDownload).not.toHaveBeenCalled();
+    expect(api.dismissWindow).toHaveBeenCalledTimes(1);
+    expect(api.cancelDownload).not.toHaveBeenCalled();
   });
 
   it('cancels an in-flight download from its own button', async () => {
-    const { cancelDownload, dismissWindow } = installUpdateApi({
-      phase: 'downloading',
-      version: '0.4.22',
-      percent: 10,
-      transferredBytes: 16_700_000,
-      totalBytes: 167_000_000,
-      bytesPerSecond: 10_000_000,
-    });
+    const api = installUpdateApi(DOWNLOADING);
 
     render(<UpdateProgress />);
-    await flush();
+    await api.answerStatus();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
-    expect(cancelDownload).toHaveBeenCalledTimes(1);
-    expect(dismissWindow).not.toHaveBeenCalled();
+    expect(api.cancelDownload).toHaveBeenCalledTimes(1);
+    expect(api.dismissWindow).not.toHaveBeenCalled();
+  });
+
+  it('closes on Escape without cancelling the download', async () => {
+    const api = installUpdateApi(DOWNLOADING);
+
+    render(<UpdateProgress />);
+    await api.answerStatus();
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(api.dismissWindow).toHaveBeenCalledTimes(1);
+    expect(api.cancelDownload).not.toHaveBeenCalled();
   });
 });

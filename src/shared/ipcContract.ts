@@ -412,7 +412,6 @@ export type UpdateStatus =
       percent: number;
       transferredBytes: number;
       totalBytes: number;
-      bytesPerSecond: number;
     }
   | { phase: 'downloaded'; version: string }
   /** The user asked to install; Squirrel is re-fetching before it replaces the app. */

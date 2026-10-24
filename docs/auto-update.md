@@ -54,8 +54,9 @@ type UpdateStatus =
   | { phase: 'idle' }
   | { phase: 'checking' }
   | { phase: 'up_to_date' }
-  | { phase: 'downloading'; version; percent; transferredBytes; totalBytes; bytesPerSecond }
+  | { phase: 'downloading'; version; percent; transferredBytes; totalBytes }
   | { phase: 'downloaded'; version }
+  | { phase: 'installing'; version }
   | { phase: 'error'; message };
 ```
 
@@ -94,7 +95,7 @@ Settings sidebar button → popover → "Check for Updates"
     → update-available
       → same window becomes the download UI
       → downloadUpdate(token)
-        → progress: bar + percentage + speed + Cancel
+        → progress: bar + transferred/total + Cancel
         → Cancel → token.cancel(), close window, status 'idle'
         → update-downloaded → "Install and Restart" / "Later"
       → Install and Restart → status 'installing' ("Restarting to install…")
