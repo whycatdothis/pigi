@@ -8,6 +8,10 @@
 - Pi settings in the app: models and thinking, message delivery, compaction, retries, resource paths, and shell/network/security, with a Global / This project switch that writes to pi's `settings.json`
 - pigi settings: appearance (mode, accent, background and foreground colors, fonts, contrast), the default tool view, an about section with versions and paths
 
+### Fixed
+
+- Code blocks follow the app theme: dark mode highlights with a dark palette instead of the light one, and every token color keeps at least 3:1 contrast against the code background in both modes
+
 ### Changed
 
 - Keyboard shortcuts are editable from the settings page, with duplicate-binding detection and per-shortcut reset

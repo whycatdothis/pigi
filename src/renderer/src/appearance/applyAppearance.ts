@@ -6,7 +6,7 @@
  * and font-smoothing data attributes. Surfaces that cannot read CSS variables
  * (xterm, Shiki, the mini-map canvas) subscribe instead.
  */
-import type { AppearanceSettings } from '../../../shared/appearance';
+import { DEFAULT_APPEARANCE, type AppearanceSettings } from '../../../shared/appearance';
 import {
   deriveTokens,
   resolveAppearance,
@@ -17,6 +17,7 @@ import {
 type AppearanceListener = (resolved: ResolvedAppearance) => void;
 
 const listeners = new Set<AppearanceListener>();
+let lastResolved: ResolvedAppearance | null = null;
 
 /** Notifies non-CSS consumers after every applied appearance. */
 export function subscribeAppearance(listener: AppearanceListener): () => void {
@@ -52,11 +53,20 @@ export function applyAppearance(
   root.classList.toggle('light', resolved.mode === 'light');
   root.dataset.reduceMotion = resolved.reduceMotion ? 'true' : 'false';
   root.dataset.fontSmoothing = resolved.fontSmoothing ? 'on' : 'off';
+  lastResolved = resolved;
 
   for (const listener of listeners) {
     listener(resolved);
   }
   return resolved;
+}
+
+/** The last applied appearance, for components that need tokens in JS. */
+export function readResolvedAppearance(): ResolvedAppearance {
+  if (lastResolved === null) {
+    lastResolved = applyAppearance(DEFAULT_APPEARANCE);
+  }
+  return lastResolved;
 }
 
 /** Current resolved mode, for UI that edits the active slot. */
