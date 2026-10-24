@@ -311,9 +311,9 @@ function ThemeBadge({ accent }: { accent: AccentChoice }): React.JSX.Element {
   return (
     <span
       aria-hidden="true"
-      // The badge sits 5px inside the 8px trigger, so its radius is the outer
-      // one minus that inset; anything rounder stops looking concentric.
-      className="flex size-[22px] shrink-0 items-center justify-center rounded-[3px] text-[10px] font-medium"
+      // Concentric with the trigger: --radius-lg is 10px and the badge sits
+      // 5px inside it, so its own radius is 5px.
+      className="flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-[10px] font-medium"
       style={{ color: hex, backgroundColor: `${hex}1f` }}
     >
       Aa
