@@ -106,8 +106,8 @@ The window opens at the start of the check rather than when a download begins:
 a check takes a few seconds over the network, and without it the click looks
 ignored. A found update keeps the same window as the download UI; "up to date"
 is answered by the window itself and closes after a second, so it does not leave
-a sheet behind and the main window stays out of it. Errors still toast in the
-main window, since the message can be longer than a sheet should hold.
+a window behind and the main window stays out of it. Errors still toast in the
+main window, since the message can be longer than a window this size should hold.
 
 Checking while a download is already running (or finished) reopens the progress
 window instead of starting a second download.
@@ -143,8 +143,23 @@ changes; `refreshApplicationMenu` compares the rendered string first, because
 - Loads the same renderer bundle at `#/update-progress`; `renderer/src/main.tsx`
   picks `<UpdateProgress />` over `<App />` from `window.location.hash`
   (`shared/routes.ts`). No second vite entry, no second preload.
-- Frameless with vibrancy, so it reads as a sheet rather than a document window.
-  Parent-linked to the main window, which keeps it above it.
+- A normal titled window (`Updating pigi`) rather than a frameless sheet: it
+  replaces the app, so it should read as a system dialog, and the red button is
+  the way out. Closing it does not cancel the download. Parent-linked to the
+  main window, which keeps it above it, and placed over it: centred
+  horizontally, a quarter of the way down. The top edge stays put when the
+  content grows, so the status line never jumps.
+- The window hugs its content. It has no fixed height: the renderer measures
+  what the current status needs and reports it over
+  `PiChannel.UpdateProgressHeight`, and main resizes with that number (clamped
+  to 72–260px, 400px wide). A one-line "up to date" is a short window; a
+  download grows to fit the bar and its buttons; a long error message wraps
+  instead of being clipped.
+- The content follows the shape of a system update dialog: app icon, bold
+  status, progress bar, byte count on the left and actions on the right. Only
+  `checking` carries a spinner, and the bar plus buttons are drawn in the theme
+  accent. A single-line status ("up to date") is one centred row instead of a
+  block with an empty bottom half.
 - The renderer only displays the pushed status; Cancel and Install send an IPC
   message and wait for the next status, so the window cannot disagree with the
   updater.
@@ -212,6 +227,6 @@ dev run:
    at the latest (the launch check runs 15s in), then Settings → "Update to …" →
    "Install and Restart" swaps the bundle in place.
 4. Manual path: Settings → "Check for Updates" on an up-to-date build shows
-   "pigi is up to date" in the sheet for a second and then closes it, with no
-   toast in the main window; on an outdated one the same sheet becomes the
+   "pigi is up to date" in the window for a second and then closes it, with no
+   toast in the main window; on an outdated one the same window becomes the
    download, and Cancel must leave the app running and installable later.
