@@ -490,6 +490,10 @@ const piApi = {
     cancelDownload: (): void => {
       ipcRenderer.send(PiChannel.CancelUpdateDownload);
     },
+    /** Close the progress window, leaving any finished download in place. */
+    dismissWindow: (): void => {
+      ipcRenderer.send(PiChannel.DismissUpdateWindow);
+    },
     /** Quit and install the downloaded update. */
     quitAndInstall: (): void => {
       ipcRenderer.send(PiChannel.QuitAndInstallUpdate);
@@ -498,8 +502,8 @@ const piApi = {
      * Tell main how tall the content is, from the progress window only. Main
      * sizes the window to it; the main window never calls this.
      */
-    setProgressWindowHeight: (height: number): void => {
-      ipcRenderer.send(PiChannel.UpdateProgressHeight, height);
+    setProgressWindowContentHeight: (height: number): void => {
+      ipcRenderer.send(PiChannel.UpdateProgressContentHeight, height);
     },
     /** Subscribe to status changes (main → renderer push). */
     onStatus: (callback: (status: UpdateStatus) => void): (() => void) => {

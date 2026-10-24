@@ -424,6 +424,14 @@ function App(): React.JSX.Element {
       if (status.phase === 'error' && installRequestedRef.current) {
         installRequestedRef.current = false;
         toast.error('Update failed', { description: status.message });
+      } else if (
+        installRequestedRef.current &&
+        status.phase !== 'installing' &&
+        status.phase !== 'downloaded'
+      ) {
+        // An install that went nowhere (Squirrel gave up without an error) must
+        // not make the next unrelated failure look like the install's.
+        installRequestedRef.current = false;
       }
     });
   }, []);

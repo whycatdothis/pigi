@@ -97,6 +97,9 @@ Settings sidebar button → popover → "Check for Updates"
         → progress: bar + percentage + speed + Cancel
         → Cancel → token.cancel(), close window, status 'idle'
         → update-downloaded → "Install and Restart" / "Later"
+      → Install and Restart → status 'installing' ("Restarting to install…")
+      → Squirrel re-fetches the bundle from the updater's local proxy
+      → the app quits and reopens on the new version
     → update-not-available → window shows "pigi is up to date" and counts
                              down 2s before closing itself
     → error → window closes, toast with the message
@@ -127,6 +130,7 @@ idle / up_to_date / error    Check for Updates…          → manual check
 checking                     Checking for Updates…       → disabled
 downloading                  Downloading pigi <version>… → opens progress window
 downloaded                   Update to <version>…        → opens progress window
+installing                   Installing Update…          → disabled
 unsupported (dev)            Check for Updates…          → disabled
 ```
 
@@ -153,7 +157,7 @@ changes; `refreshApplicationMenu` compares the rendered string first, because
   content grows, so the status line never jumps.
 - The window hugs its content. It has no fixed height: the renderer measures
   what the current status needs and reports it over
-  `PiChannel.UpdateProgressHeight`, and main resizes with that number (clamped
+  `PiChannel.UpdateProgressContentHeight`, and main resizes with that number (clamped
   to 72–260px, 400px wide). A one-line "up to date" is a short window; a
   download grows to fit the bar and its buttons; a long error message wraps
   instead of being clipped.
@@ -168,13 +172,15 @@ changes; `refreshApplicationMenu` compares the rendered string first, because
 
 ### IPC Channels
 
-| Channel                      | Direction            | Purpose                                 |
-| ---------------------------- | -------------------- | --------------------------------------- |
-| `pi:get_update_status`       | renderer → main      | Current status (late subscriber)        |
-| `pi:check_for_updates`       | renderer → main      | Check now; returns the resulting status |
-| `pi:cancel_update_download`  | renderer → main      | Abort the download, close the window    |
-| `pi:quit_and_install_update` | renderer → main      | Restart into the downloaded version     |
-| `pi:update_status_changed`   | main → all renderers | Status changed                          |
+| Channel                             | Direction            | Purpose                                 |
+| ----------------------------------- | -------------------- | --------------------------------------- |
+| `pi:get_update_status`              | renderer → main      | Current status (late subscriber)        |
+| `pi:check_for_updates`              | renderer → main      | Check now; returns the resulting status |
+| `pi:cancel_update_download`         | renderer → main      | Abort the download, close the window    |
+| `pi:dismiss_update_window`          | renderer → main      | Close the window, keep the download     |
+| `pi:quit_and_install_update`        | renderer → main      | Restart into the downloaded version     |
+| `pi:update_progress_content_height` | renderer → main      | How tall the progress window content is |
+| `pi:update_status_changed`          | main → all renderers | Status changed                          |
 
 ### Preload API (`window.piApi.update`)
 
@@ -182,7 +188,9 @@ changes; `refreshApplicationMenu` compares the rendered string first, because
 getStatus: () => Promise<UpdateStatus>
 check: () => Promise<UpdateStatus>
 cancelDownload: () => void
+dismissWindow: () => void
 quitAndInstall: () => void
+setProgressWindowContentHeight: (height: number) => void
 onStatus: (callback: (status: UpdateStatus) => void) => () => void
 ```
 

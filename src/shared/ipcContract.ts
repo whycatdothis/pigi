@@ -415,6 +415,8 @@ export type UpdateStatus =
       bytesPerSecond: number;
     }
   | { phase: 'downloaded'; version: string }
+  /** The user asked to install; Squirrel is re-fetching before it replaces the app. */
+  | { phase: 'installing'; version: string }
   | { phase: 'error'; message: string };
 
 // =============================================================================
@@ -490,6 +492,11 @@ export enum PiChannel {
   CheckForUpdates = 'pi:check_for_updates',
   /** renderer → main: abort an in-flight update download */
   CancelUpdateDownload = 'pi:cancel_update_download',
+  /**
+   * renderer → main: close the progress window without touching the download.
+   * "Later" on a finished download, and the window's own Escape key.
+   */
+  DismissUpdateWindow = 'pi:dismiss_update_window',
   /** renderer → main: quit and install the downloaded update */
   QuitAndInstallUpdate = 'pi:quit_and_install_update',
   /** main → renderer: the auto-update status changed */
@@ -498,7 +505,7 @@ export enum PiChannel {
    * renderer → main: how tall the progress window's content needs to be, so the
    * window can hug it instead of reserving a fixed box.
    */
-  UpdateProgressHeight = 'pi:update_progress_height',
+  UpdateProgressContentHeight = 'pi:update_progress_content_height',
 }
 
 // =============================================================================
