@@ -428,14 +428,13 @@ function App(): React.JSX.Element {
     });
   }, []);
 
-  // A manual check reports its own outcome. A found update opens the progress
-  // window in the main process, so only the no-op outcomes toast here.
+  // A manual check reports its own outcome. The main process opens the progress
+  // window for it, and "up to date" is announced there, so only the outcomes
+  // that have no window toast here.
   const handleCheckForUpdates = useCallback(() => {
     void checkForUpdates()
       .then((status) => {
-        if (status.phase === 'up_to_date') {
-          toast('pigi is up to date');
-        } else if (status.phase === 'unsupported') {
+        if (status.phase === 'unsupported') {
           toast('Only the packaged app can check for updates');
         } else if (status.phase === 'error') {
           toast.error('Could not check for updates', { description: status.message });

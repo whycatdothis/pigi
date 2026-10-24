@@ -41,8 +41,11 @@ function statusTitle(status: UpdateStatus): string {
   }
 }
 
-export default function UpdateProgress(): React.JSX.Element {
-  const [status, setStatus] = useState<UpdateStatus>({ phase: 'idle' });
+export default function UpdateProgress(): React.JSX.Element | null {
+  // Null until the first status arrives: a manual check opens this window at the
+  // start of the check, and a frame of "Nothing to download" before "Checking
+  // for updates" would read as a flicker.
+  const [status, setStatus] = useState<UpdateStatus | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -57,6 +60,8 @@ export default function UpdateProgress(): React.JSX.Element {
       unsubscribe();
     };
   }, []);
+
+  if (status === null) return null;
 
   return (
     <div className="flex h-screen flex-col gap-4 rounded-xl bg-popover/88 p-5 text-popover-foreground backdrop-blur-sm">
@@ -79,7 +84,6 @@ export default function UpdateProgress(): React.JSX.Element {
             )}
             {status.phase === 'downloaded' && 'Restart to finish installing.'}
             {status.phase === 'error' && status.message}
-            {status.phase === 'checking' && 'Talking to the release server.'}
             {status.phase === 'up_to_date' && 'No newer release is published.'}
             {status.phase === 'unsupported' && 'Only a packaged, signed build can replace itself.'}
             {status.phase === 'idle' && 'Nothing is downloading right now.'}
@@ -114,8 +118,7 @@ export default function UpdateProgress(): React.JSX.Element {
             </Button>
           </>
         )}
-        {(status.phase === 'up_to_date' ||
-          status.phase === 'error' ||
+        {(status.phase === 'error' ||
           status.phase === 'unsupported' ||
           status.phase === 'idle') && (
           <Button size="sm" variant="ghost" onClick={cancelUpdateDownload}>

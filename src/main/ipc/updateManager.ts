@@ -20,6 +20,7 @@ import type { ProgressInfo } from 'electron-updater';
 import { PiChannel, type UpdateStatus } from '../../shared/ipcContract';
 import {
   closeUpdateProgressWindow,
+  closeUpdateProgressWindowAfter,
   openUpdateProgressWindow,
 } from '../windows/createUpdateProgressWindow';
 
@@ -37,6 +38,8 @@ const BACKGROUND_CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000;
  * lockstep forever, which turns a steady trickle into one synchronized spike.
  */
 const BACKGROUND_CHECK_JITTER_MS = 10 * 60 * 1000;
+/** How long "pigi is up to date" stays on screen before the window closes. */
+const UP_TO_DATE_LINGER_MS = 1000;
 
 let status: UpdateStatus = { phase: 'idle' };
 /** Set while a download runs; doubles as the guard against a second one. */
@@ -59,6 +62,15 @@ function isSupported(): boolean {
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Whether the progress window still has something to show after a check. Read
+ * through a function so it sees the status the event listeners just published,
+ * not the narrowed value this function started with.
+ */
+function hasDownloadToShow(): boolean {
+  return status.phase === 'downloading' || status.phase === 'downloaded';
 }
 
 function publish(next: UpdateStatus): void {
@@ -118,6 +130,12 @@ async function runCheck(interactive: boolean): Promise<UpdateStatus> {
 
   checkInFlight = true;
   manualCheck = interactive;
+  if (interactive) {
+    // The window is the feedback for a manual check: it opens on "Checking for
+    // updates" instead of appearing seconds later, once a download starts.
+    publish({ phase: 'checking' });
+    openUpdateProgressWindow();
+  }
   try {
     await autoUpdater.checkForUpdates();
   } catch (error) {
@@ -129,6 +147,17 @@ async function runCheck(interactive: boolean): Promise<UpdateStatus> {
   } finally {
     checkInFlight = false;
     manualCheck = false;
+  }
+
+  // A check that found nothing has no download to show. "Up to date" is
+  // reported by the window itself, so it stays put long enough to be read; an
+  // error closes it at once and explains itself as a toast in the main window.
+  if (interactive) {
+    if (status.phase === 'up_to_date') {
+      closeUpdateProgressWindowAfter(UP_TO_DATE_LINGER_MS);
+    } else if (!hasDownloadToShow()) {
+      closeUpdateProgressWindow();
+    }
   }
 
   return status;

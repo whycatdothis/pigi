@@ -78,3 +78,16 @@ export function closeUpdateProgressWindow(): void {
     progressWindow.close();
   }
 }
+
+/**
+ * Close the current window after a delay, unless another one replaced it in the
+ * meantime — the answer to a check is only worth holding on screen briefly.
+ */
+export function closeUpdateProgressWindowAfter(delayMs: number): void {
+  const target = updateProgressWindow;
+  if (target === null) return;
+  setTimeout(() => {
+    if (updateProgressWindow !== target) return;
+    closeUpdateProgressWindow();
+  }, delayMs);
+}

@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- "Check for Updates" opens its window immediately, so the click answers at once instead of after the check
+- "pigi is up to date" is shown in that window and closes itself after a second, instead of a notification in the main window
+- The Settings menu rows match the size of the sidebar row they belong to, and the "Update to <version>" row carries the same dot as the Settings button
+
 ## [0.4.19] - 2026-10-24
 
 ### Added
