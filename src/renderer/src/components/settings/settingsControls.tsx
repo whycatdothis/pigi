@@ -34,12 +34,19 @@ export function SettingsGroup({
   return (
     <section className="flex flex-col gap-2">
       {(title || description) && (
-        <div className="flex flex-col gap-0.5 px-1">
+        <div className="flex flex-col gap-0.5 px-5">
           {title && <h2 className="text-sm text-muted-foreground">{title}</h2>}
           {description && <p className="text-xs text-muted-foreground">{description}</p>}
         </div>
       )}
-      <div className="divide-y divide-border/60 overflow-hidden rounded-lg border-[0.5px] border-foreground/15 bg-card/50">
+      <div
+        className={cn(
+          'overflow-hidden rounded-xl border-[0.5px] border-foreground/15 bg-card/50',
+          // Dividers are inset to the row text instead of running edge to edge.
+          '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-x-5',
+          "[&>*+*]:before:top-0 [&>*+*]:before:h-px [&>*+*]:before:bg-border/60 [&>*+*]:before:content-['']",
+        )}
+      >
         {children}
       </div>
     </section>
@@ -83,7 +90,7 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-6 px-3 py-2',
+        'flex items-center justify-between gap-6 px-5 py-4',
         disabled && 'pointer-events-none opacity-50',
       )}
     >
@@ -109,7 +116,7 @@ export function SettingsStackRow({
 }): React.JSX.Element {
   return (
     <div
-      className={cn('flex flex-col gap-2 px-3 py-3', disabled && 'pointer-events-none opacity-50')}
+      className={cn('flex flex-col gap-2 px-5 py-5', disabled && 'pointer-events-none opacity-50')}
     >
       <RowLabel label={label} description={description} hint={hint} />
       {children}

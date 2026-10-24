@@ -33,7 +33,6 @@ import {
   ModePreviewPicker,
   NumberStepper,
   SettingSwitch,
-  SettingsDisclosure,
   SliderField,
 } from './appearanceControls';
 
@@ -86,7 +85,7 @@ export function AppearanceSettings(): React.JSX.Element {
 
   return (
     <>
-      <SettingsGroup title="Visual style" description="Applies immediately.">
+      <SettingsGroup title="Theme" description="Applies immediately.">
         <SettingsRow label="Mode">
           <ModePreviewPicker
             value={appearance.mode}
@@ -119,7 +118,33 @@ export function AppearanceSettings(): React.JSX.Element {
             onChange={(foreground) => patchSlot({ foreground })}
           />
         </SettingsRow>
-        <SettingsRow label="Font">
+        <SettingsRow label="Contrast" description="Text contrast against the backgrounds.">
+          <SliderField
+            label="Contrast"
+            value={slot.contrast}
+            min={0}
+            max={100}
+            display={`${slot.contrast} · ${contrastTarget.toFixed(1)}:1`}
+            onChange={(contrast) => patchSlot({ contrast })}
+          />
+        </SettingsRow>
+        <SettingSwitch
+          label="Separate light and dark modes"
+          description="Configure each mode independently."
+          checked={appearance.separateModes}
+          onChange={(separateModes) =>
+            updateAppearance((current) => ({ ...current, separateModes }))
+          }
+        />
+        {appearance.separateModes && (
+          <SettingsRow label="Editing">
+            <SegmentedControl value={targetMode} options={MODE_OPTIONS} onChange={setEditingMode} />
+          </SettingsRow>
+        )}
+      </SettingsGroup>
+
+      <SettingsGroup title="Typography">
+        <SettingsRow label="Font" description="Chat text.">
           <FontPicker
             role="content"
             label="Content font"
@@ -127,104 +152,69 @@ export function AppearanceSettings(): React.JSX.Element {
             onChange={(content) => patchFonts({ content })}
           />
         </SettingsRow>
+        <SettingsRow label="UI font" description="Sidebar, settings, and controls.">
+          <FontPicker
+            role="ui"
+            label="UI font"
+            value={slot.fonts.ui}
+            onChange={(ui) => patchFonts({ ui })}
+          />
+        </SettingsRow>
+        <SettingsRow label="UI font size">
+          <NumberStepper
+            label="UI font size"
+            suffix="px"
+            value={slot.fonts.uiSize}
+            min={UI_FONT_SIZE_MIN}
+            max={UI_FONT_SIZE_MAX}
+            onChange={(uiSize) => patchFonts({ uiSize })}
+          />
+        </SettingsRow>
+        <SettingsRow label="Code font" description="Code blocks and the terminal.">
+          <FontPicker
+            role="code"
+            label="Code font"
+            value={slot.fonts.code}
+            onChange={(code) => patchFonts({ code })}
+          />
+        </SettingsRow>
+        <SettingsRow label="Code font size">
+          <NumberStepper
+            label="Code font size"
+            suffix="px"
+            value={slot.fonts.codeSize}
+            min={CODE_FONT_SIZE_MIN}
+            max={CODE_FONT_SIZE_MAX}
+            onChange={(codeSize) => patchFonts({ codeSize })}
+          />
+        </SettingsRow>
       </SettingsGroup>
 
-      <SettingsDisclosure title="Advanced">
-        <SettingsGroup title="Typography">
-          <SettingsRow label="UI font size">
-            <NumberStepper
-              label="UI font size"
-              suffix="px"
-              value={slot.fonts.uiSize}
-              min={UI_FONT_SIZE_MIN}
-              max={UI_FONT_SIZE_MAX}
-              onChange={(uiSize) => patchFonts({ uiSize })}
-            />
-          </SettingsRow>
-          <SettingsRow label="Code font size">
-            <NumberStepper
-              label="Code font size"
-              suffix="px"
-              value={slot.fonts.codeSize}
-              min={CODE_FONT_SIZE_MIN}
-              max={CODE_FONT_SIZE_MAX}
-              onChange={(codeSize) => patchFonts({ codeSize })}
-            />
-          </SettingsRow>
-          <SettingsRow label="UI font">
-            <FontPicker
-              role="ui"
-              label="UI font"
-              value={slot.fonts.ui}
-              onChange={(ui) => patchFonts({ ui })}
-            />
-          </SettingsRow>
-          <SettingsRow label="Code font">
-            <FontPicker
-              role="code"
-              label="Code font"
-              value={slot.fonts.code}
-              onChange={(code) => patchFonts({ code })}
-            />
-          </SettingsRow>
-        </SettingsGroup>
-
-        <SettingsGroup title="Rendering">
-          <SettingsRow label="Contrast">
-            <SliderField
-              label="Contrast"
-              value={slot.contrast}
-              min={0}
-              max={100}
-              display={`${slot.contrast} · ${contrastTarget.toFixed(1)}:1`}
-              onChange={(contrast) => patchSlot({ contrast })}
-            />
-          </SettingsRow>
-          <SettingsRow label="Reduce motion">
-            <SegmentedControl
-              value={appearance.reduceMotion}
-              options={REDUCE_MOTION_OPTIONS}
-              onChange={(reduceMotion) =>
-                updateAppearance((current) => ({ ...current, reduceMotion }))
-              }
-            />
-          </SettingsRow>
-          <SettingSwitch
-            label="Translucent sidebar"
-            description="Let the window material show through the sidebar."
-            checked={slot.translucentSidebar}
-            onChange={(translucentSidebar) => patchSlot({ translucentSidebar })}
-          />
-          <SettingSwitch
-            label="Font smoothing"
-            description="Use grayscale antialiasing for lighter text."
-            checked={appearance.fontSmoothing}
-            onChange={(fontSmoothing) =>
-              updateAppearance((current) => ({ ...current, fontSmoothing }))
+      <SettingsGroup title="Details">
+        <SettingSwitch
+          label="Translucent sidebar"
+          description="Let the window material show through the sidebar."
+          checked={slot.translucentSidebar}
+          onChange={(translucentSidebar) => patchSlot({ translucentSidebar })}
+        />
+        <SettingSwitch
+          label="Font smoothing"
+          description="Use grayscale antialiasing for lighter text."
+          checked={appearance.fontSmoothing}
+          onChange={(fontSmoothing) =>
+            updateAppearance((current) => ({ ...current, fontSmoothing }))
+          }
+        />
+        <SettingsRow label="Reduce motion" description="Follow the system setting or force it.">
+          <SegmentedControl
+            value={appearance.reduceMotion}
+            options={REDUCE_MOTION_OPTIONS}
+            onChange={(reduceMotion) =>
+              updateAppearance((current) => ({ ...current, reduceMotion }))
             }
           />
-        </SettingsGroup>
-
-        <SettingsGroup title="Modes">
-          <SettingSwitch
-            label="Separate light and dark modes"
-            description="Configure each mode independently."
-            checked={appearance.separateModes}
-            onChange={(separateModes) =>
-              updateAppearance((current) => ({ ...current, separateModes }))
-            }
-          />
-          {appearance.separateModes && (
-            <SettingsRow label="Editing">
-              <SegmentedControl
-                value={targetMode}
-                options={MODE_OPTIONS}
-                onChange={setEditingMode}
-              />
-            </SettingsRow>
-          )}
-        </SettingsGroup>
-      </SettingsDisclosure>
+        </SettingsRow>
+      </SettingsGroup>
 
       <div className="flex items-center justify-end gap-3 px-1">
         <button

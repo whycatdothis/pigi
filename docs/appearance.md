@@ -504,38 +504,42 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
 - `NumberStepper` — px stepper with the unit suffix (font sizes).
 - `FontPicker` — native select over the whitelist with an `Aa` preview in the
   chosen stack; the code role's empty option reads "System mono".
-- `ModePreviewPicker` — three miniature previews (System / Light / Dark) drawn
-  from the _derived_ tokens of each mode, so previews reflect custom colors.
-- `SettingsDisclosure` — collapsible group for Advanced (default collapsed,
-  local state only).
+- `ModePreviewPicker` — three icon-only miniature previews (System / Light /
+  Dark) drawn from the _derived_ tokens of each mode, so previews reflect
+  custom colors. No captions: the ring wraps the preview with the padding and
+  radius that keep the two curves concentric, and the name is an `aria-label`.
 - `SettingSwitch` — row plus switch for the boolean preferences.
 
-Structure:
+Structure. Everything is visible at once: there is no collapsed advanced
+section, and the groups are ordered the way the page is read — what the theme
+is, how text is set, then the details.
 
 ```
 Appearance                                  (page title, text-xl)
-Visual style                                (SettingsGroup title)
-  Mode            [System | Light | Dark]   (ModePreviewPicker)
-  Accent          ●●●●●●●● + custom         (AccentField)
-  Background      [swatch] [#FFFFFF]        (ColorField)
-  Foreground      [swatch] [#0D0D0D]        (ColorField)
-  Font            Aa [System ▾]             (FontPicker, content)
-Advanced                                      (SettingsDisclosure)
-  Typography
-    UI font size      [- 15 +] px
-    Code font size    [- 14 +] px
-    UI font           Aa [System ▾]
-    Code font         Aa [System mono ▾]
-  Rendering
-    Contrast          [——●——] 73 · 5.0:1
-    Reduce motion     [System | On | Off]
-    Translucent sidebar  [switch]
-    Font smoothing    [switch]
-  Modes
-    Separate light and dark modes  [switch]
-    Editing           [Light | Dark]   (only when separate modes are on)
+Theme                                       (SettingsGroup title)
+  Mode              [▤] [▤] [▤]             (ModePreviewPicker, icons only)
+  Accent            ●●●●●●●● + custom       (AccentField)
+  Background        [swatch] [#FFFFFF]      (ColorField)
+  Foreground        [swatch] [#0D0D0D]      (ColorField)
+  Contrast          [——●——] 73 · 5.0:1
+  Separate light and dark modes  [switch]
+  Editing           [Light | Dark]          (only when separate modes are on)
+Typography
+  Font              Aa [System ▾]           (content role)
+  UI font           Aa [System ▾]
+  UI font size      [- 15 +] px
+  Code font         Aa [System mono ▾]
+  Code font size    [- 14 +] px
+Details
+  Translucent sidebar  [switch]
+  Font smoothing    [switch]
+  Reduce motion     [System | On | Off]
 Reset appearance                            (footer row, right)
 ```
+
+- Rows share one card; the divider between rows is inset by the row's own
+  padding (`before:inset-x-4`) instead of running edge to edge, so it lines up
+  with the labels. Group titles use the same inset.
 
 - Edits always apply to the resolved slot: `light` or `dark` when separate
   modes are on (chosen with the `Editing` control, default = current mode),

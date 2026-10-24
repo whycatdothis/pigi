@@ -72,7 +72,6 @@ describe('AppearanceSettings', () => {
 
   it('shows the resolved contrast next to the slider and stores the target', () => {
     render(<AppearanceSettings />);
-    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }));
     const slider = screen.getByLabelText('Contrast');
     expect(screen.getByText('73 · 5.0:1')).toBeInTheDocument();
     fireEvent.change(slider, { target: { value: '100' } });
@@ -82,7 +81,6 @@ describe('AppearanceSettings', () => {
 
   it('steps the UI font size within bounds', () => {
     render(<AppearanceSettings />);
-    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }));
     const increase = screen.getByLabelText('Increase UI font size');
     fireEvent.click(increase);
     expect(storedAppearance().light.fonts.uiSize).toBe(DEFAULT_APPEARANCE.light.fonts.uiSize + 1);
@@ -94,7 +92,6 @@ describe('AppearanceSettings', () => {
 
   it('edits only the selected slot when modes are separate', () => {
     render(<AppearanceSettings />);
-    fireEvent.click(screen.getByRole('button', { name: 'Advanced' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Separate light and dark modes' }));
     fireEvent.click(screen.getByRole('button', { name: 'Dark' }));
     const input = screen.getByLabelText('Foreground hex value');

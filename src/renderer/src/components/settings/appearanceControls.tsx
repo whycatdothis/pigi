@@ -4,8 +4,8 @@
  * Everything here is presentational: values in, callbacks out. The page owns
  * the store writes, so a control never has to know which mode slot it edits.
  */
-import { useId, useMemo, useState, type ReactNode } from 'react';
-import { IconChevronRight, IconCheck, IconMinus, IconPlus } from '@tabler/icons-react';
+import { useId, useMemo, useState } from 'react';
+import { IconCheck, IconMinus, IconPlus } from '@tabler/icons-react';
 import { NativeSelect } from '../ui/native-select';
 import { Switch } from '../ui/switch';
 import { cn } from '@/lib/utils';
@@ -324,10 +324,14 @@ export function ModePreviewPicker({
             type="button"
             role="radio"
             aria-checked={selected}
+            aria-label={option.label}
+            title={option.label}
             data-testid={`theme-option-${option.value}`}
             onClick={() => onChange(option.value)}
             className={cn(
-              'flex flex-col items-center gap-1 rounded-md p-0.5 transition-colors',
+              // The ring wraps the preview: 2px of padding plus the preview's
+              // own 3px radius, so the two curves stay concentric.
+              'rounded-[5px] p-0.5 transition-colors',
               selected ? 'ring-2 ring-ring' : 'hover:ring-1 hover:ring-foreground/20',
             )}
           >
@@ -340,14 +344,6 @@ export function ModePreviewPicker({
               ) : (
                 <PreviewPane tokens={previews[option.value]} />
               )}
-            </span>
-            <span
-              className={cn(
-                'text-3xs leading-none',
-                selected ? 'text-foreground' : 'text-muted-foreground',
-              )}
-            >
-              {option.label}
             </span>
           </button>
         );
@@ -378,40 +374,6 @@ function PreviewPane({ tokens }: { tokens: Record<string, string> }): React.JSX.
   );
 }
 
-export function SettingsDisclosure({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}): React.JSX.Element {
-  const [open, setOpen] = useState(false);
-  const contentId = useId();
-
-  return (
-    <section className="flex flex-col gap-2">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={contentId}
-        onClick={() => setOpen((current) => !current)}
-        className="flex items-center gap-1.5 self-start rounded-md px-1 py-0.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <IconChevronRight
-          size={14}
-          className={cn('transition-transform duration-150', open && 'rotate-90')}
-        />
-        {title}
-      </button>
-      {open && (
-        <div id={contentId} className="flex flex-col gap-4">
-          {children}
-        </div>
-      )}
-    </section>
-  );
-}
-
 export function SettingSwitch({
   label,
   description,
@@ -424,7 +386,7 @@ export function SettingSwitch({
   onChange: (checked: boolean) => void;
 }): React.JSX.Element {
   return (
-    <div className="flex items-center justify-between gap-6 px-3 py-2">
+    <div className="flex items-center justify-between gap-6 px-5 py-4">
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="text-sm text-foreground">{label}</span>
         {description && <span className="text-xs text-muted-foreground">{description}</span>}

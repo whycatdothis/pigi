@@ -38,7 +38,7 @@ export function ChatSettings(): React.JSX.Element {
             aria-pressed={active}
             onClick={() => setToolBlockViewMode(mode)}
             className={cn(
-              'flex w-full items-center justify-between gap-6 px-3 py-2.5 text-left transition-colors',
+              'flex w-full items-center justify-between gap-6 px-5 py-4 text-left transition-colors',
               active ? 'bg-[var(--system-accent)]/5' : 'hover:bg-muted/40',
             )}
           >
