@@ -494,6 +494,13 @@ const piApi = {
     quitAndInstall: (): void => {
       ipcRenderer.send(PiChannel.QuitAndInstallUpdate);
     },
+    /**
+     * Tell main how tall the content is, from the progress window only. Main
+     * sizes the window to it; the main window never calls this.
+     */
+    setProgressWindowHeight: (height: number): void => {
+      ipcRenderer.send(PiChannel.UpdateProgressHeight, height);
+    },
     /** Subscribe to status changes (main → renderer push). */
     onStatus: (callback: (status: UpdateStatus) => void): (() => void) => {
       const handler = (_: Electron.IpcRendererEvent, status: UpdateStatus): void => {

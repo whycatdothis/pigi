@@ -494,6 +494,11 @@ export enum PiChannel {
   QuitAndInstallUpdate = 'pi:quit_and_install_update',
   /** main → renderer: the auto-update status changed */
   UpdateStatusChanged = 'pi:update_status_changed',
+  /**
+   * renderer → main: how tall the progress window's content needs to be, so the
+   * window can hug it instead of reserving a fixed box.
+   */
+  UpdateProgressHeight = 'pi:update_progress_height',
 }
 
 // =============================================================================

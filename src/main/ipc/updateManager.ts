@@ -22,6 +22,7 @@ import {
   closeUpdateProgressWindow,
   closeUpdateProgressWindowAfter,
   openUpdateProgressWindow,
+  registerUpdateProgressWindowIpc,
 } from '../windows/createUpdateProgressWindow';
 
 // electron-updater's `autoUpdater` is defined with an arrow-function getter,
@@ -229,6 +230,7 @@ export function initializeUpdateManager(): void {
   ipcMain.handle(PiChannel.CheckForUpdates, () => runCheck(true));
   ipcMain.on(PiChannel.CancelUpdateDownload, () => cancelUpdateDownload());
   ipcMain.on(PiChannel.QuitAndInstallUpdate, () => installDownloadedUpdate());
+  registerUpdateProgressWindowIpc();
 
   if (!isSupported()) return;
 

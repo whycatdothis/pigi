@@ -87,6 +87,7 @@ interface PiApi {
     check: () => Promise<UpdateStatus>;
     cancelDownload: () => void;
     quitAndInstall: () => void;
+    setProgressWindowHeight: (height: number) => void;
     onStatus: (callback: (status: UpdateStatus) => void) => () => void;
   };
 

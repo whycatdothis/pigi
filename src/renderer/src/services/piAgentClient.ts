@@ -400,6 +400,11 @@ export function quitAndInstallUpdate(): void {
   window.piApi.update.quitAndInstall();
 }
 
+/** Tell main how tall the progress window content is; only that window calls this. */
+export function setUpdateProgressWindowHeight(height: number): void {
+  window.piApi.update.setProgressWindowHeight(height);
+}
+
 /** Subscribe to auto-update status changes pushed from main. */
 export function onUpdateStatus(callback: (status: UpdateStatus) => void): () => void {
   return window.piApi.update.onStatus(callback);

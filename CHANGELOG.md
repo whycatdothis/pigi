@@ -4,8 +4,10 @@
 
 ### Changed
 
+- The update window is a normal titled window that sizes itself to what it has to show, instead of a fixed frameless box: one line for a check, a progress bar and its buttons while a download runs
+- It reads like a system update dialog - app icon, bold status, progress bar, byte count - and its buttons use the theme accent
 - "Check for Updates" opens its window immediately, so the click answers at once instead of after the check
-- "pigi is up to date" is shown in that window and closes itself after a second, instead of a notification in the main window
+- "pigi is up to date" is shown in that window, marked as closing itself after a second, instead of a notification in the main window
 - The Settings menu rows match the size of the sidebar row they belong to, and the "Update to <version>" row carries the same dot as the Settings button
 
 ## [0.4.19] - 2026-10-24
