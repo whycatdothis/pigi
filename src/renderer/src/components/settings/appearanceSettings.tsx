@@ -26,6 +26,7 @@ import {
   resolvedSecondaryContrast,
 } from '../../../../shared/appearanceTokens';
 import { SettingsGroup, SettingsRow, SegmentedControl } from './settingsControls';
+import { ThemeFileActions } from './themeFileActions';
 import {
   AccentField,
   ColorField,
@@ -210,11 +211,12 @@ export function AppearanceSettings(): React.JSX.Element {
         </SettingsRow>
       </SettingsGroup>
 
-      <div className="flex items-center justify-end gap-3 px-1">
+      <div className="flex items-center justify-between gap-3 px-1">
+        <ThemeFileActions />
         <button
           type="button"
           onClick={resetAppearance}
-          className="text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+          className="text-caption text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
         >
           Reset appearance
         </button>

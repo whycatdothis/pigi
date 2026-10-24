@@ -7,6 +7,7 @@
 - Settings page: the sidebar footer's Settings menu (or ⌘ ,) swaps the sidebar and the main area for a full-page settings view that closes with the top bar or Esc
 - Pi settings in the app: models and thinking, message delivery, compaction, retries, resource paths, and shell/network/security, with a Global / This project switch that writes to pi's `settings.json`
 - pigi settings: appearance (mode, accent, background and foreground colors, fonts, contrast), the default tool view, an about section with versions and paths
+- Copy the current look as a theme and paste one back in from the Appearance page
 
 ### Fixed
 

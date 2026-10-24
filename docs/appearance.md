@@ -675,10 +675,23 @@ Acceptance: `rg 'text-\[[0-9]+px\]'` clean; dark-mode pass over transcript,
 sidebar, settings, dialogs, terminal; no `#` hexes in components outside
 `designTokens.css` / `terminalTheme.css`.
 
-### Phase 4 — Theme portability
+### Phase 4 — Theme portability (copy and import shipped)
 
-- Import/export/copy of the appearance JSON.
-- Optional per-mode preview thumbnails on the Mode picker for imported themes.
+A theme is the whole appearance object in a small envelope, so a look travels
+as text (`src/shared/themeFile.ts`):
+
+```json
+{ "kind": "pigi-theme", "version": 1, "appearance": { ... } }
+```
+
+- `Copy theme` writes that JSON to the clipboard; `Import theme` opens a dialog
+  with a textarea and replaces the appearance on success.
+- The envelope is strict (`kind`, numeric `version`, an `appearance` object)
+  and the payload is parsed by the same tolerant `parseAppearance`, so a file
+  from an older build still imports. A newer `version` is refused with a
+  readable message instead of applying half a theme.
+- Not done yet: a named theme library, file drag-and-drop, and exported
+  preview thumbnails on the Mode picker.
 
 ## Decisions
 

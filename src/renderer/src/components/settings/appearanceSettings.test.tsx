@@ -16,6 +16,7 @@ import {
 } from '../../../../shared/appearance';
 import { PIGI_SETTINGS_STORAGE_KEY } from '../../../../shared/pigiSettings';
 import { installSystemAppearance } from '../../testing/jsdomSetup';
+import { serializeTheme } from '../../../../shared/themeFile';
 
 function storedAppearance(): Appearance {
   const raw = localStorage.getItem(PIGI_SETTINGS_STORAGE_KEY);
@@ -101,6 +102,52 @@ describe('AppearanceSettings', () => {
     expect(appearance.separateModes).toBe(true);
     expect(appearance.dark.foreground).toBe('#d0d0d0');
     expect(appearance.light.foreground).toBeNull();
+  });
+
+  it('copies the current appearance as a theme file', () => {
+    const written: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: (text: string) => written.push(text) },
+    });
+    render(<AppearanceSettings />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy theme' }));
+    expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+    const raw: unknown = JSON.parse(written[0]);
+    expect(raw).toMatchObject({ kind: 'pigi-theme', version: 1 });
+  });
+
+  it('imports a theme and reports a bad one', () => {
+    render(<AppearanceSettings />);
+    fireEvent.click(screen.getByRole('button', { name: 'Import theme' }));
+    const textarea = screen.getByLabelText('Theme file contents');
+
+    fireEvent.change(textarea, { target: { value: '{"theme":"dark"}' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    expect(screen.getByText('That is not a pigi theme.')).toBeInTheDocument();
+    expect(useSettingsStore.getState().appearance.mode).toBe(DEFAULT_APPEARANCE.mode);
+    expect(localStorage.getItem(PIGI_SETTINGS_STORAGE_KEY)).toBeNull();
+
+    const theme = serializeTheme({
+      ...DEFAULT_APPEARANCE,
+      mode: 'dark',
+      separateModes: true,
+      light: {
+        ...DEFAULT_APPEARANCE.light,
+        background: '#f6f1e8',
+        accent: { presetId: 'amber' },
+        contrast: 55,
+      },
+    });
+    fireEvent.change(textarea, { target: { value: theme } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    const appearance = storedAppearance();
+    expect(appearance.mode).toBe('dark');
+    expect(appearance.separateModes).toBe(true);
+    expect(appearance.light.background).toBe('#f6f1e8');
+    expect(appearance.light.accent).toEqual({ presetId: 'amber' });
+    expect(appearance.light.contrast).toBe(55);
+    expect(screen.queryByLabelText('Theme file contents')).not.toBeInTheDocument();
   });
 
   it('resets every appearance value', () => {
