@@ -89,7 +89,14 @@ export function AppearanceSettings(): React.JSX.Element {
   }
 
   function changeAccent(accent: AccentChoice): void {
-    patchSlot({ accent });
+    // The accent is one brand choice, not a per-mode color: it applies to both
+    // slots so the mode previews always move together. Each mode still clamps
+    // the same choice into its own legible lightness range when deriving.
+    updateAppearance((current) => ({
+      ...current,
+      light: { ...current.light, accent },
+      dark: { ...current.dark, accent },
+    }));
   }
 
   return (

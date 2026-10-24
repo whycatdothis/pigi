@@ -11,23 +11,23 @@ Status: plan. Implemented in phases (see [Phases](#phases)).
 Observed from the app itself (macOS, 2026). The layout is the target for our
 settings page; the capability list is the target for our data model.
 
-| Area         | Control                                              | Behavior                                                                                      |
-| ------------ | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Visual style | Mode                                                 | Three preview cards (System / Light / Dark). The card is a miniature of the app, not an icon. |
-|              | Theme                                                | Import, copy, and a dropdown with a `Aa` swatch preview.                                      |
-|              | Accent                                               | Preset dropdown + custom swatch + hex field.                                                  |
-|              | Background                                           | Swatch + hex field.                                                                           |
-|              | Foreground                                           | Swatch + hex field.                                                                           |
-|              | Font                                                 | Family dropdown.                                                                              |
-| Advanced     | UI font size / Code font size                        | Numeric stepper in `px`, with a one-line description.                                         |
-|              | Reduce motion                                        | `System` / `On` / `Off`.                                                                      |
-|              | Separate light and dark modes                        | Switch; when on, every color and font setting below is edited per mode.                       |
-|              | UI / Content / Code font + style                     | Family + weight per role, per mode.                                                           |
-|              | Translucent sidebar                                  | Per mode.                                                                                     |
-|              | Contrast                                             | Slider 0–100 with the numeric value; default 73.                                              |
-|              | Diff markers                                         | Color vs `+`/`-` markers.                                                                     |
-|              | Use pointer cursors, Dock icon, Font smoothing       | Desktop-app details.                                                                          |
-| Footer       | Advanced disclosure (left), Reset to default (right) | Reset is page-level.                                                                          |
+| Area         | Control                                              | Behavior                                                                                                   |
+| ------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Visual style | Mode                                                 | Three preview cards (System / Light / Dark). The card is a miniature of the app, not an icon.              |
+|              | Theme                                                | Import, copy, and a dropdown with a `Aa` swatch preview.                                                   |
+|              | Accent                                               | Preset dropdown + custom swatch + hex field.                                                               |
+|              | Background                                           | Swatch + hex field.                                                                                        |
+|              | Foreground                                           | Swatch + hex field.                                                                                        |
+|              | Font                                                 | Family dropdown.                                                                                           |
+| Advanced     | UI font size / Code font size                        | Numeric stepper in `px`, with a one-line description.                                                      |
+|              | Reduce motion                                        | `System` / `On` / `Off`.                                                                                   |
+|              | Separate light and dark modes                        | Switch; when on, background, foreground, contrast, and fonts are edited per mode. The accent stays shared. |
+|              | UI / Content / Code font + style                     | Family + weight per role, per mode.                                                                        |
+|              | Translucent sidebar                                  | Per mode.                                                                                                  |
+|              | Contrast                                             | Slider 0–100 with the numeric value; default 73.                                                           |
+|              | Diff markers                                         | Color vs `+`/`-` markers.                                                                                  |
+|              | Use pointer cursors, Dock icon, Font smoothing       | Desktop-app details.                                                                                       |
+| Footer       | Advanced disclosure (left), Reset to default (right) | Reset is page-level.                                                                                       |
 
 Everything applies instantly; there is no save button.
 
@@ -587,9 +587,13 @@ contrast, and translucency stay whatever the user picked.
 - The download and copy buttons in the Theme row are the same clipboard
   actions described under [Theme portability](#phase-4--theme-portability-copy-and-import-shipped).
 
-- Edits always apply to the resolved slot: `light` or `dark` when separate
+- Color edits apply to the resolved slot: `light` or `dark` when separate
   modes are on (chosen with the `Editing` control, default = current mode),
   otherwise the shared `light` slot.
+- The accent is the exception: it is one brand choice, so picking an accent
+  writes both slots and each mode clamps it into its own legible lightness
+  range while deriving. Otherwise the dark preview would keep an old accent
+  after a theme change.
 - The page shows the mode it is editing in the `Editing` control; it never
   flips the app theme just to preview. The preview cards are the preview.
 - `Reset appearance` restores `DEFAULT_MODE_APPEARANCE` for the whole
