@@ -296,7 +296,7 @@ export default memo(function Sidebar({
                     {/* An update that downloaded itself while the user was
                         elsewhere. The dot is the whole announcement. */}
                     {pendingUpdateVersion !== null && (
-                      <span className="ml-auto size-1.5 shrink-0 rounded-full bg-blue-500" />
+                      <span className="ml-auto size-1.5 shrink-0 rounded-full bg-[var(--system-accent)]" />
                     )}
                   </SidebarMenuButton>
                 </PopoverTrigger>

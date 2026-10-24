@@ -89,7 +89,7 @@ export default function UpdateProgress(): React.JSX.Element {
 
       <div className="h-1 w-full overflow-hidden rounded-full bg-foreground/10">
         <div
-          className="h-full origin-left rounded-full bg-blue-500 transition-transform duration-200 ease-out"
+          className="h-full origin-left rounded-full bg-[var(--system-accent)] transition-transform duration-200 ease-out"
           // A transform, not a width: the bar repaints on the compositor while
           // the main thread is busy downloading.
           style={{
