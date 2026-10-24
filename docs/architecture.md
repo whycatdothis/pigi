@@ -495,6 +495,9 @@ Two data paths:
   the first paint (`initializePigiSettings` in `main.tsx`) — no IPC round trip,
   no theme flash. Keyboard shortcut definitions live in a second renderer store
   so edits on the settings page update the live bindings immediately.
+  Appearance (colors, fonts, sizes, per-mode slots) is derived from one settings
+  object through `src/shared/appearanceTokens.ts`; see
+  [appearance.md](appearance.md) for the model and derivation rules.
 - **Pi settings** are JSON files (`~/.pi/agent/settings.json`, project
   `<cwd>/.pi/settings.json`) owned by the session worker, which already runs
   the SDK. `src/shared/piSettings.ts` is the field registry that is the

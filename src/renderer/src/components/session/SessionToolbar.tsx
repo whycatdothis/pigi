@@ -77,7 +77,7 @@ export default React.memo(function SessionToolbar({
   const hasQuotes = useAppStore((state) => state.quotesBySession.has(sessionPath));
   const rightSidebarOpen = useAppStore((state) => state.openRightSidebarSessions.has(sessionPath));
   const toggleRightSidebar = useAppStore((state) => state.toggleRightSidebar);
-  const toolBlockViewMode = useSettingsStore((state) => state.toolBlockViewMode);
+  const toolBlockViewMode = useSettingsStore((state) => state.chat.toolBlockViewMode);
   const setToolBlockViewMode = useSettingsStore((state) => state.setToolBlockViewMode);
 
   const [displayTitle, skipNextAnimation] = useTypewriter(title);

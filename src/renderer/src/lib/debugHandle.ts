@@ -47,7 +47,7 @@ function snapshot(): Record<string, unknown> {
     terminalOpen: state.terminalOpen,
     settingsOpen: state.settingsOpen,
     settingsSection: state.settingsSection,
-    toolBlockViewMode: settings.toolBlockViewMode,
+    toolBlockViewMode: settings.chat.toolBlockViewMode,
     transcript: transcriptState
       ? {
           status: transcriptState.status,

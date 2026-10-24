@@ -1,9 +1,13 @@
 /**
- * pigi's own settings store (theme, accent, default view).
+ * pigi's own settings store (appearance and chat preferences).
  *
  * Loaded synchronously from localStorage at module init and applied to the
  * document before the first paint, so there is no theme flash. The main
  * process is not involved: these are renderer-local preferences.
+ *
+ * The store holds the persisted shape and exposes narrow setters. Every
+ * mutation goes through `commit`, which persists the full settings object and
+ * re-applies appearance once.
  */
 import { create } from 'zustand';
 import {
@@ -11,24 +15,28 @@ import {
   PIGI_SETTINGS_STORAGE_KEY,
   parsePigiSettings,
   type PigiSettings,
-  type PigiTheme,
   type ToolBlockViewMode,
 } from '../../../shared/pigiSettings';
-import { applyThemeAccent } from '../lib/themeAccents';
+import {
+  DEFAULT_APPEARANCE,
+  type AccentChoice,
+  type AppearanceSettings,
+  type ColorMode,
+  type ModeAppearance,
+  type ThemeMode,
+} from '../../../shared/appearance';
+import { applyAppearance, currentColorMode } from '../appearance/applyAppearance';
 
 const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)';
-
-function isSystemDark(): boolean {
-  return window.matchMedia(SYSTEM_DARK_QUERY).matches;
-}
+const SYSTEM_REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 function readStoredSettings(): PigiSettings {
   try {
     const raw = localStorage.getItem(PIGI_SETTINGS_STORAGE_KEY);
-    return raw ? parsePigiSettings(JSON.parse(raw)) : { ...DEFAULT_PIGI_SETTINGS };
+    return raw ? parsePigiSettings(JSON.parse(raw)) : DEFAULT_PIGI_SETTINGS;
   } catch (error) {
     console.error('Failed to read pigi settings; using defaults:', error);
-    return { ...DEFAULT_PIGI_SETTINGS };
+    return DEFAULT_PIGI_SETTINGS;
   }
 }
 
@@ -40,61 +48,85 @@ function persistSettings(settings: PigiSettings): void {
   }
 }
 
-function resolveTheme(theme: PigiTheme): 'light' | 'dark' {
-  return theme === 'system' ? (isSystemDark() ? 'dark' : 'light') : theme;
-}
-
-/** Publish theme and accent to the document root. */
-export function applyPigiAppearance(settings: PigiSettings): void {
-  const root = document.documentElement;
-  const resolved = resolveTheme(settings.theme);
-  root.classList.toggle('dark', resolved === 'dark');
-  root.classList.toggle('light', resolved === 'light');
-  applyThemeAccent(settings.accentId);
-}
-
 interface SettingsState extends PigiSettings {
-  setTheme: (theme: PigiTheme) => void;
-  setAccentId: (accentId: string) => void;
+  setMode: (mode: ThemeMode) => void;
+  /** Edits the active mode's slot unless `mode` is given. */
+  setAccent: (accent: AccentChoice, mode?: ColorMode) => void;
   setToolBlockViewMode: (mode: ToolBlockViewMode) => void;
-}
-
-function settingsFromState(state: PigiSettings): PigiSettings {
-  return {
-    theme: state.theme,
-    accentId: state.accentId,
-    toolBlockViewMode: state.toolBlockViewMode,
-  };
+  updateAppearance: (updater: (appearance: AppearanceSettings) => AppearanceSettings) => void;
+  resetAppearance: () => void;
 }
 
 const initialSettings = readStoredSettings();
 
 export const useSettingsStore = create<SettingsState>((set, get) => {
   function commit(partial: Partial<PigiSettings>): void {
-    const next = { ...settingsFromState(get()), ...partial };
+    const current = get();
+    const next: PigiSettings = {
+      version: 2,
+      appearance: partial.appearance ?? current.appearance,
+      chat: partial.chat ?? current.chat,
+    };
     persistSettings(next);
-    applyPigiAppearance(next);
-    set(partial);
+    applyAppearance(next.appearance);
+    set(next);
+  }
+
+  function updateSlot(
+    mode: ColorMode | undefined,
+    updater: (slot: ModeAppearance) => ModeAppearance,
+  ): void {
+    const appearance = get().appearance;
+    const targetMode = mode ?? (appearance.separateModes ? currentColorMode(appearance) : 'light');
+    const nextAppearance: AppearanceSettings = {
+      ...appearance,
+      [targetMode]: updater(appearance[targetMode]),
+    };
+    commit({ appearance: nextAppearance });
   }
 
   return {
     ...initialSettings,
-    setTheme: (theme) => commit({ theme }),
-    setAccentId: (accentId) => commit({ accentId }),
-    setToolBlockViewMode: (toolBlockViewMode) => commit({ toolBlockViewMode }),
+    setMode: (mode) => commit({ appearance: { ...get().appearance, mode } }),
+    setAccent: (accent, mode) => updateSlot(mode, (slot) => ({ ...slot, accent })),
+    setToolBlockViewMode: (toolBlockViewMode) => commit({ chat: { toolBlockViewMode } }),
+    updateAppearance: (updater) => commit({ appearance: updater(get().appearance) }),
+    resetAppearance: () => commit({ appearance: DEFAULT_APPEARANCE }),
   };
 });
 
+/** Current mode whose slot the settings page edits. */
+export function activeAppearanceMode(): ColorMode {
+  const appearance = useSettingsStore.getState().appearance;
+  return appearance.separateModes ? currentColorMode(appearance) : 'light';
+}
+
 /**
- * Apply persisted settings before render and keep the `system` theme in sync
- * with OS changes while it is selected.
+ * Apply persisted settings before render and keep `system` choices in sync
+ * with the OS while they are selected.
  */
 export function initializePigiSettings(): void {
-  applyPigiAppearance(initialSettings);
+  const apply = (): void => {
+    applyAppearance(useSettingsStore.getState().appearance);
+  };
+  apply();
+
   window.matchMedia(SYSTEM_DARK_QUERY).addEventListener('change', () => {
-    const state = useSettingsStore.getState();
-    if (state.theme === 'system') {
-      applyPigiAppearance(settingsFromState(state));
+    if (useSettingsStore.getState().appearance.mode === 'system') {
+      apply();
+    }
+  });
+  window.matchMedia(SYSTEM_REDUCED_MOTION_QUERY).addEventListener('change', () => {
+    if (useSettingsStore.getState().appearance.reduceMotion === 'system') {
+      apply();
+    }
+  });
+
+  // Re-apply once the environment is known to be stable (the first call can
+  // run before the window reports its final appearance).
+  window.requestAnimationFrame(() => {
+    if (useSettingsStore.getState().appearance.mode === 'system') {
+      apply();
     }
   });
 }

@@ -10,6 +10,12 @@
  * plus the `dark` variant the utilities resolve off. Keep it that way — the site
  * cannot import anything that needs Electron or React.
  *
+ * App-facing colors read `var(--app-<token>, <default>)`. The renderer's
+ * appearance engine writes `--app-*` inline on `<html>` (see
+ * `docs/appearance.md`), so it wins over both `:root` and `.dark`; the literals
+ * below remain the defaults for the marketing site and for anything that runs
+ * without the engine.
+ *
  * The terminal palette is the one exception, and lives beside the terminal it
  * belongs to (`components/terminal/terminalTheme.css`); the site imports that
  * file directly for the same reason.
@@ -63,6 +69,18 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --color-success-fg: var(--success-fg);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+  --color-warning-fg: var(--warning-fg);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-danger-fg: var(--danger-fg);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
+  --color-info-fg: var(--info-fg);
+  --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -73,16 +91,18 @@
 }
 
 :root {
-  /* App accent (links, highlights, mini-map, focus rings). Set at runtime from
-     themeAccents.ts via --accent-light; fallback mirrors the Indigo default. */
-  --system-accent: var(--accent-light, oklch(0.55 0.2 277.1));
+  /* App accent (links, highlights, mini-map, focus rings). The appearance
+     engine writes --app-system-accent; --accent-light stays as the fallback
+     the site and themeAccents.ts used before the engine existed. */
+  --system-accent: var(--app-system-accent, var(--accent-light, oklch(0.55 0.2 277.1)));
+  --system-accent-foreground: var(--app-system-accent-foreground, oklch(0.985 0 0));
   --search-highlight-bg: color-mix(in srgb, var(--system-accent) 40%, transparent);
-  --background: oklch(1 0 0);
-  --foreground: #1a1c1f;
-  --card: oklch(1 0 0);
-  --card-foreground: #1a1c1f;
-  --popover: oklch(1 0 0);
-  --popover-foreground: #1a1c1f;
+  --background: var(--app-background, oklch(1 0 0));
+  --foreground: var(--app-foreground, #1a1c1f);
+  --card: var(--app-card, oklch(1 0 0));
+  --card-foreground: var(--app-card-foreground, #1a1c1f);
+  --popover: var(--app-popover, oklch(1 0 0));
+  --popover-foreground: var(--app-popover-foreground, #1a1c1f);
   /* Opaque stand-in for the dialog surface (`VIBRANCY_OVERLAY_CONTENT` in
      layoutConstants.ts: popover at 88% over the `bg-black/20` overlay). A
      pinned header inside a dialog cannot use the translucent material — it
@@ -92,46 +112,62 @@
     var(--popover) 88%,
     color-mix(in srgb, var(--background) 80%, black)
   );
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: var(--system-accent);
+  --primary: var(--app-primary, oklch(0.205 0 0));
+  --primary-foreground: var(--app-primary-foreground, oklch(0.985 0 0));
+  --secondary: var(--app-secondary, oklch(0.97 0 0));
+  --secondary-foreground: var(--app-secondary-foreground, oklch(0.205 0 0));
+  --muted: var(--app-muted, oklch(0.97 0 0));
+  --muted-foreground: var(--app-muted-foreground, oklch(0.556 0 0));
+  --accent: var(--app-accent, oklch(0.97 0 0));
+  --accent-foreground: var(--app-accent-foreground, oklch(0.205 0 0));
+  --destructive: var(--app-destructive, oklch(0.577 0.245 27.325));
+  --border: var(--app-border, oklch(0.922 0 0));
+  --input: var(--app-input, oklch(0.922 0 0));
+  --ring: var(--app-ring, var(--system-accent));
   --chart-1: oklch(0.785 0.115 274.713);
   --chart-2: oklch(0.585 0.233 277.117);
   --chart-3: oklch(0.511 0.262 276.966);
   --chart-4: oklch(0.457 0.24 277.023);
   --chart-5: oklch(0.398 0.195 277.366);
   --radius: 0.625rem;
-  --sidebar: color-mix(in srgb, white 55%, transparent);
+  --sidebar: var(--app-sidebar, color-mix(in srgb, white 55%, transparent));
   /* Opaque approximation of the sidebar surface (sidebar composited over background) */
-  --sidebar-solid: color-mix(in oklch, var(--background) 45%, white 55%);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.5 0 0 / 10%);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: var(--system-accent);
+  --sidebar-solid: var(--app-sidebar-solid, color-mix(in oklch, var(--background) 45%, white 55%));
+  --sidebar-foreground: var(--app-sidebar-foreground, oklch(0.145 0 0));
+  --sidebar-primary: var(--app-sidebar-primary, oklch(0.205 0 0));
+  --sidebar-primary-foreground: var(--app-sidebar-primary-foreground, oklch(0.985 0 0));
+  --sidebar-accent: var(--app-sidebar-accent, oklch(0.5 0 0 / 10%));
+  --sidebar-accent-foreground: var(--app-sidebar-accent-foreground, oklch(0.205 0 0));
+  --sidebar-border: var(--app-sidebar-border, oklch(0.922 0 0));
+  --sidebar-ring: var(--app-sidebar-ring, var(--system-accent));
+
+  /* Status colors: fg is solved to 4.5:1 against the background; the tinted
+     bg/border follow it, so a custom background stays consistent. */
+  --success-fg: var(--app-success-fg, oklch(0.45 0.13 145));
+  --success-bg: var(--app-success-bg, color-mix(in oklab, var(--success-fg) 12%, white));
+  --success-border: var(--app-success-border, color-mix(in oklab, var(--success-fg) 30%, white));
+  --warning-fg: var(--app-warning-fg, oklch(0.47 0.12 75));
+  --warning-bg: var(--app-warning-bg, color-mix(in oklab, var(--warning-fg) 12%, white));
+  --warning-border: var(--app-warning-border, color-mix(in oklab, var(--warning-fg) 30%, white));
+  --danger-fg: var(--app-danger-fg, oklch(0.47 0.17 27));
+  --danger-bg: var(--app-danger-bg, color-mix(in oklab, var(--danger-fg) 12%, white));
+  --danger-border: var(--app-danger-border, color-mix(in oklab, var(--danger-fg) 30%, white));
+  --info-fg: var(--app-info-fg, oklch(0.48 0.14 250));
+  --info-bg: var(--app-info-bg, color-mix(in oklab, var(--info-fg) 12%, white));
+  --info-border: var(--app-info-border, color-mix(in oklab, var(--info-fg) 30%, white));
 }
 
 .dark {
   /* Dark-mode accent; brighter than light so it stays legible on dark bg. */
-  --system-accent: var(--accent-dark, oklch(0.7 0.17 277.1));
+  --system-accent: var(--app-system-accent, var(--accent-dark, oklch(0.7 0.17 277.1)));
+  --system-accent-foreground: var(--app-system-accent-foreground, oklch(0.145 0 0));
   --search-highlight-bg: color-mix(in srgb, var(--system-accent) 40%, transparent);
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  --background: var(--app-background, oklch(0.145 0 0));
+  --foreground: var(--app-foreground, oklch(0.985 0 0));
+  --card: var(--app-card, oklch(0.205 0 0));
+  --card-foreground: var(--app-card-foreground, oklch(0.985 0 0));
+  --popover: var(--app-popover, oklch(0.205 0 0));
+  --popover-foreground: var(--app-popover-foreground, oklch(0.985 0 0));
   /* Opaque stand-in for the dialog surface (`VIBRANCY_OVERLAY_CONTENT` in
      layoutConstants.ts: popover at 88% over the `bg-black/20` overlay). A
      pinned header inside a dialog cannot use the translucent material — it
@@ -141,31 +177,56 @@
     var(--popover) 88%,
     color-mix(in srgb, var(--background) 80%, black)
   );
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: var(--system-accent);
+  --primary: var(--app-primary, oklch(0.922 0 0));
+  --primary-foreground: var(--app-primary-foreground, oklch(0.205 0 0));
+  --secondary: var(--app-secondary, oklch(0.269 0 0));
+  --secondary-foreground: var(--app-secondary-foreground, oklch(0.985 0 0));
+  --muted: var(--app-muted, oklch(0.269 0 0));
+  --muted-foreground: var(--app-muted-foreground, oklch(0.708 0 0));
+  --accent: var(--app-accent, oklch(0.269 0 0));
+  --accent-foreground: var(--app-accent-foreground, oklch(0.985 0 0));
+  --destructive: var(--app-destructive, oklch(0.704 0.191 22.216));
+  --border: var(--app-border, oklch(1 0 0 / 10%));
+  --input: var(--app-input, oklch(1 0 0 / 15%));
+  --ring: var(--app-ring, var(--system-accent));
   --chart-1: oklch(0.785 0.115 274.713);
   --chart-2: oklch(0.585 0.233 277.117);
   --chart-3: oklch(0.511 0.262 276.966);
   --chart-4: oklch(0.457 0.24 277.023);
   --chart-5: oklch(0.398 0.195 277.366);
-  --sidebar: oklch(0.269 0 0 / 55%);
+  --sidebar: var(--app-sidebar, oklch(0.269 0 0 / 55%));
   /* Opaque approximation of the sidebar surface (sidebar composited over background) */
-  --sidebar-solid: color-mix(in oklch, var(--background) 45%, oklch(0.269 0 0) 55%);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.5 0 0 / 10%);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: var(--system-accent);
+  --sidebar-solid: var(
+    --app-sidebar-solid,
+    color-mix(in oklch, var(--background) 45%, oklch(0.269 0 0) 55%)
+  );
+  --sidebar-foreground: var(--app-sidebar-foreground, oklch(0.985 0 0));
+  --sidebar-primary: var(--app-sidebar-primary, oklch(0.488 0.243 264.376));
+  --sidebar-primary-foreground: var(--app-sidebar-primary-foreground, oklch(0.985 0 0));
+  --sidebar-accent: var(--app-sidebar-accent, oklch(0.5 0 0 / 10%));
+  --sidebar-accent-foreground: var(--app-sidebar-accent-foreground, oklch(0.985 0 0));
+  --sidebar-border: var(--app-sidebar-border, oklch(1 0 0 / 10%));
+  --sidebar-ring: var(--app-sidebar-ring, var(--system-accent));
+
+  --success-fg: var(--app-success-fg, oklch(0.78 0.13 145));
+  --success-bg: var(--app-success-bg, color-mix(in oklab, var(--success-fg) 16%, oklch(0.145 0 0)));
+  --success-border: var(
+    --app-success-border,
+    color-mix(in oklab, var(--success-fg) 35%, oklch(0.145 0 0))
+  );
+  --warning-fg: var(--app-warning-fg, oklch(0.8 0.12 75));
+  --warning-bg: var(--app-warning-bg, color-mix(in oklab, var(--warning-fg) 16%, oklch(0.145 0 0)));
+  --warning-border: var(
+    --app-warning-border,
+    color-mix(in oklab, var(--warning-fg) 35%, oklch(0.145 0 0))
+  );
+  --danger-fg: var(--app-danger-fg, oklch(0.73 0.16 27));
+  --danger-bg: var(--app-danger-bg, color-mix(in oklab, var(--danger-fg) 16%, oklch(0.145 0 0)));
+  --danger-border: var(
+    --app-danger-border,
+    color-mix(in oklab, var(--danger-fg) 35%, oklch(0.145 0 0))
+  );
+  --info-fg: var(--app-info-fg, oklch(0.76 0.13 250));
+  --info-bg: var(--app-info-bg, color-mix(in oklab, var(--info-fg) 16%, oklch(0.145 0 0)));
+  --info-border: var(--app-info-border, color-mix(in oklab, var(--info-fg) 35%, oklch(0.145 0 0)));
 }

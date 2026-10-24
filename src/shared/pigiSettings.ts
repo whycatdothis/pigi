@@ -1,23 +1,40 @@
 /**
  * pigi's own preferences (not pi settings).
  *
- * These are renderer-local and persisted to localStorage so they are available
- * synchronously before the first paint (theme flash) — see settingsStore.ts.
+ * Renderer-local, persisted to localStorage so they are available
+ * synchronously before the first paint (no theme flash) — see
+ * `state/settingsStore.ts`.
+ *
+ * Storage is versioned: v1 was a flat `{ theme, accentId, toolBlockViewMode }`
+ * record, v2 nests appearance under its own object and adds per-mode slots.
+ * `parsePigiSettings` migrates v1 in place, field by field.
  */
-
-export type PigiTheme = 'system' | 'light' | 'dark';
+import {
+  DEFAULT_APPEARANCE,
+  DEFAULT_THEME_ACCENT_ID,
+  THEME_MODES,
+  isAccentPresetId,
+  parseAppearance,
+  type AppearanceSettings,
+  type ThemeMode,
+} from './appearance';
 
 export type ToolBlockViewMode = 'default' | 'compact_read' | 'minimal';
 
-export interface PigiSettings {
-  theme: PigiTheme;
-  accentId: string;
+export interface ChatSettings {
   toolBlockViewMode: ToolBlockViewMode;
+}
+
+export interface PigiSettings {
+  version: 2;
+  appearance: AppearanceSettings;
+  chat: ChatSettings;
 }
 
 export const PIGI_SETTINGS_STORAGE_KEY = 'pigi.settings';
 
-export const PIGI_THEMES: readonly PigiTheme[] = ['system', 'light', 'dark'];
+/** Re-exported for the appearance UI, which labels the mode control. */
+export const PIGI_THEMES: readonly ThemeMode[] = THEME_MODES;
 
 export const TOOL_BLOCK_VIEW_MODES: readonly ToolBlockViewMode[] = [
   'default',
@@ -25,14 +42,15 @@ export const TOOL_BLOCK_VIEW_MODES: readonly ToolBlockViewMode[] = [
   'minimal',
 ];
 
-/** Accent applied when the user has not chosen one (see themeAccents.ts). */
-export const DEFAULT_THEME_ACCENT_ID = 'indigo';
-
 export const DEFAULT_PIGI_SETTINGS: PigiSettings = {
-  theme: 'system',
-  accentId: DEFAULT_THEME_ACCENT_ID,
-  toolBlockViewMode: 'compact_read',
+  version: 2,
+  appearance: DEFAULT_APPEARANCE,
+  chat: { toolBlockViewMode: 'compact_read' },
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 function includes<T extends string>(values: readonly T[], value: unknown): value is T {
   // Cast required: TS Array.includes() signature doesn't accept unknown
@@ -43,23 +61,46 @@ export function isToolBlockViewMode(value: unknown): value is ToolBlockViewMode 
   return includes(TOOL_BLOCK_VIEW_MODES, value);
 }
 
+function parseChat(raw: unknown): ChatSettings {
+  const record = isRecord(raw) ? raw : {};
+  return {
+    toolBlockViewMode: isToolBlockViewMode(record.toolBlockViewMode)
+      ? record.toolBlockViewMode
+      : DEFAULT_PIGI_SETTINGS.chat.toolBlockViewMode,
+  };
+}
+
+/** v1 had one theme and one accent for the whole app. */
+function migrateFromV1(raw: unknown): PigiSettings {
+  const record = isRecord(raw) ? raw : {};
+  const appearance = parseAppearance(record.appearance);
+  const mode = includes(PIGI_THEMES, record.theme) ? record.theme : appearance.mode;
+  const accentId = isAccentPresetId(record.accentId) ? record.accentId : DEFAULT_THEME_ACCENT_ID;
+
+  return {
+    version: 2,
+    appearance: {
+      ...appearance,
+      mode,
+      separateModes: false,
+      light: { ...appearance.light, accent: { presetId: accentId } },
+      dark: { ...appearance.dark, accent: { presetId: accentId } },
+    },
+    chat: parseChat(record),
+  };
+}
+
 /**
- * Parse a persisted blob, falling back to defaults field by field. Never
- * throws: a corrupt store must not prevent the app from starting.
+ * Parse a persisted blob, falling back field by field. Never throws: a corrupt
+ * store must not prevent the app from starting.
  */
 export function parsePigiSettings(raw: unknown): PigiSettings {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    return { ...DEFAULT_PIGI_SETTINGS };
+  if (isRecord(raw) && raw.version === 2) {
+    return {
+      version: 2,
+      appearance: parseAppearance(raw.appearance),
+      chat: parseChat(raw.chat),
+    };
   }
-  const record = raw as Record<string, unknown>;
-  return {
-    theme: includes(PIGI_THEMES, record.theme) ? record.theme : DEFAULT_PIGI_SETTINGS.theme,
-    accentId:
-      typeof record.accentId === 'string' && record.accentId.length > 0
-        ? record.accentId
-        : DEFAULT_PIGI_SETTINGS.accentId,
-    toolBlockViewMode: includes(TOOL_BLOCK_VIEW_MODES, record.toolBlockViewMode)
-      ? record.toolBlockViewMode
-      : DEFAULT_PIGI_SETTINGS.toolBlockViewMode,
-  };
+  return migrateFromV1(raw);
 }

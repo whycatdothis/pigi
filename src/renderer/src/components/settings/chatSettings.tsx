@@ -20,7 +20,7 @@ const VIEW_MODE_LABELS: Record<ToolBlockViewMode, { label: string; description: 
 };
 
 export function ChatSettings(): React.JSX.Element {
-  const toolBlockViewMode = useSettingsStore((state) => state.toolBlockViewMode);
+  const toolBlockViewMode = useSettingsStore((state) => state.chat.toolBlockViewMode);
   const setToolBlockViewMode = useSettingsStore((state) => state.setToolBlockViewMode);
 
   return (

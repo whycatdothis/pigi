@@ -61,7 +61,7 @@ export default React.memo(function MessageList({
 
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(() => new Set());
 
-  const toolBlockViewMode = useSettingsStore((state) => state.toolBlockViewMode);
+  const toolBlockViewMode = useSettingsStore((state) => state.chat.toolBlockViewMode);
   // Minimal mode renders plain (non-virtualized) turn content inside the same
   // scroll container, sharing auto-scroll / restore / minimap with other modes.
   const isMinimal = toolBlockViewMode === 'minimal';
