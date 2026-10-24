@@ -511,19 +511,19 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
   single chevron); the code role's empty option reads "System mono".
 - `ModePreviewPicker` — three icon-only miniature windows (System / Light /
   Dark), 100x70, drawn from the _derived_ tokens of each mode, so a custom
-  palette or a named theme shows up in them immediately. Three layers: the
-  selection border, a 5px transparent ring that lets the row surface show
-  through, and the window itself — background mixed 3% toward the foreground,
-  hairline border mixed from the preview's own palette, 8px radius — holding a
-  full-height sidebar bar and an inset content card, so the drawing reads as an
-  app rather than a filled swatch. The card keeps 6px of padding: two muted
-  lines from the left and two accent lines from the right (assistant, then
-  user), then the composer with a send dot. The sidebar bar is mixed from the
-  window color rather than `--app-sidebar`, which is nearly white on the light
-  side. The system preview crops the light and the dark window at the same
-  point and stitches the halves, dropping the border at the seam so each side
-  keeps its own sidebar, card, and the start of its content. Selection is
-  stacked on the drawing; the name is an `aria-label`, shown on hover.
+  palette or a named theme shows up in them immediately. The captured object is
+  a unit: the app's own background, a 5px margin, then the window (background
+  mixed 4% toward the foreground, hairline border mixed from the preview's own
+  palette, 8px radius) holding a full-height sidebar bar next to an inset
+  content card. The card keeps 6px of padding: two muted lines from the left and
+  two accent lines from the right (assistant, then user), then the composer with
+  a send dot. The sidebar bar is mixed from the window color rather than
+  `--app-sidebar`, which is nearly white on the light side. The system preview
+  renders two units at full size, crops both at the same point from the left,
+  and stitches the halves, so the seam carries the dark unit's own background
+  margin instead of gluing the two drawings together. Selection is the picker's
+  own 2px accent border, never a ring stacked on the drawing; the name is an
+  `aria-label`, shown on hover.
 - `SettingSwitch` — row plus switch for the boolean preferences.
 
 Structure. Everything is visible at once: there is no collapsed advanced
