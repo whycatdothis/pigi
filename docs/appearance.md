@@ -543,6 +543,14 @@ Reset appearance                            (footer row, right)
 - Rows are label plus control, one line each; nothing on this page needs a
   caption under the label, so every row is 48px high. The Mode row uses the
   same padding with a 64x48 preview, which makes it 72px tall.
+- Type carries the hierarchy by weight, not size: page title 16/600, group
+  title 13/600 muted, row label 14/500, control text 13/400 with tabular
+  numerals. Every control is 28px tall so the right column lines up.
+- One radius scale: card 12, control 8, small chip 6, mode preview 10.
+- Surfaces are solid (`bg-card` with a 1px `--border`); the dividers use the
+  same solid border color and stay inset to the row padding.
+- The settings column is 660px wide (`SETTINGS_CONTENT_MAX_WIDTH`); the
+  transcript column is wider, but label/control rows read badly when stretched.
 - Rows share one card; the divider between rows is inset by the row's own
   padding (`before:inset-x-5`) instead of running edge to edge, so it lines up
   with the labels. Group titles sit flush with the card's left edge.

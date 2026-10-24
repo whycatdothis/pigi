@@ -152,8 +152,10 @@ export default function SettingsPage({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex h-11 shrink-0 items-center gap-3 border-b-[0.5px] border-foreground/27 pr-3 pl-4 [-webkit-app-region:drag]">
-        <h1 className="text-sm font-medium text-foreground">{sectionMeta.label}</h1>
+      <header className="flex h-11 shrink-0 items-center gap-3 border-b border-border pr-3 pl-4 [-webkit-app-region:drag]">
+        <h1 className="text-base font-semibold tracking-[-0.01em] text-foreground">
+          {sectionMeta.label}
+        </h1>
         <div className="flex-1" />
         {projectUntrusted && (
           <span

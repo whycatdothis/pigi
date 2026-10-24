@@ -45,13 +45,13 @@ export function ChatSettings(): React.JSX.Element {
             <span className="flex min-w-0 flex-col gap-0.5">
               <span
                 className={cn(
-                  'text-sm',
+                  'text-ui font-medium',
                   active ? 'text-[var(--system-accent)]' : 'text-foreground',
                 )}
               >
                 {label}
               </span>
-              <span className="text-xs text-muted-foreground">{description}</span>
+              <span className="text-caption text-muted-foreground">{description}</span>
             </span>
             {active && <IconCheck size={16} className="shrink-0 text-[var(--system-accent)]" />}
           </button>

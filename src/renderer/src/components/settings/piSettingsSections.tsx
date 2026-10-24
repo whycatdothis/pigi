@@ -318,7 +318,7 @@ export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
           <NativeSelect
             value={selectedKey}
             disabled={saving || models.length === 0}
-            className="w-72"
+            className="w-72 [&_select]:text-caption [&_select]:border-transparent [&_select]:bg-transparent dark:[&_select]:bg-transparent [&_select]:hover:bg-muted"
             onChange={(event) => {
               const nextKey = event.target.value;
               if (!nextKey) {

@@ -7,15 +7,15 @@ import { useState, type ReactNode } from 'react';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
-import { MESSAGE_LIST_MAX_WIDTH } from '../../lib/layoutConstants';
+import { SETTINGS_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
 import { cn } from '@/lib/utils';
 
 /** Page-level content column shared by every section. */
 export function SettingsContent({ children }: { children: ReactNode }): React.JSX.Element {
   return (
     <div
-      className="mx-auto flex w-full flex-col gap-7 px-5 py-7"
-      style={{ maxWidth: `${MESSAGE_LIST_MAX_WIDTH}px` }}
+      className="mx-auto flex w-full flex-col gap-9 px-5 py-7"
+      style={{ maxWidth: `${SETTINGS_CONTENT_MAX_WIDTH}px` }}
     >
       {children}
     </div>
@@ -32,19 +32,21 @@ export function SettingsGroup({
   children: ReactNode;
 }): React.JSX.Element {
   return (
-    <section className="flex flex-col gap-2">
+    <section className="flex flex-col gap-3">
       {(title || description) && (
         <div className="flex flex-col gap-0.5">
-          {title && <h2 className="text-sm text-muted-foreground">{title}</h2>}
-          {description && <p className="text-xs text-muted-foreground">{description}</p>}
+          {title && <h2 className="text-caption font-semibold text-muted-foreground">{title}</h2>}
+          {description && <p className="text-caption text-muted-foreground">{description}</p>}
         </div>
       )}
       <div
         className={cn(
-          'overflow-hidden rounded-xl border-[0.5px] border-foreground/15 bg-card/50',
+          // Solid surface and a real 1px edge: a translucent card over a
+          // sub-pixel border reads as washed out.
+          'overflow-hidden rounded-[12px] border border-border bg-card',
           // Dividers are inset to the row text instead of running edge to edge.
           '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-x-5',
-          "[&>*+*]:before:top-0 [&>*+*]:before:h-px [&>*+*]:before:bg-border/60 [&>*+*]:before:content-['']",
+          "[&>*+*]:before:top-0 [&>*+*]:before:h-px [&>*+*]:before:bg-border [&>*+*]:before:content-['']",
         )}
       >
         {children}
@@ -65,10 +67,10 @@ function RowLabel({
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
       <div className="flex items-center gap-2">
-        <span className="text-sm text-foreground">{label}</span>
+        <span className="text-ui font-medium text-foreground">{label}</span>
         {hint}
       </div>
-      {description && <span className="text-xs text-muted-foreground">{description}</span>}
+      {description && <span className="text-caption text-muted-foreground">{description}</span>}
     </div>
   );
 }
@@ -147,14 +149,14 @@ export function SettingSourceTag({
       <button
         type="button"
         onClick={onReset}
-        className="text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+        className="text-caption text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
       >
         Reset
       </button>
     );
   }
   return (
-    <span className="text-xs text-muted-foreground/70">
+    <span className="text-caption text-muted-foreground/70">
       {scope === 'project' ? 'Using global' : 'Default'}
     </span>
   );
@@ -176,7 +178,9 @@ export function SegmentedControl<T extends string>({
   return (
     <div
       className={cn(
-        'inline-flex h-6 items-center gap-0.5 rounded-md border-[0.5px] border-foreground/15 bg-muted/50 p-0.5',
+        // Filled track, no outline: the segmented control should not mix a
+        // second chrome language with the selects in the same column.
+        'inline-flex h-7 items-center gap-0.5 rounded-lg bg-muted p-0.5',
         disabled && 'pointer-events-none opacity-50',
         className,
       )}
@@ -188,7 +192,7 @@ export function SegmentedControl<T extends string>({
           aria-pressed={option.value === value}
           onClick={() => onChange(option.value)}
           className={cn(
-            'rounded-sm px-2.5 py-0.5 text-sm leading-none transition-colors',
+            'h-6 rounded-md px-2.5 text-caption leading-none transition-colors',
             option.value === value
               ? 'bg-background text-foreground shadow-xs'
               : 'text-muted-foreground hover:text-foreground',
@@ -266,7 +270,7 @@ export function NumberField({
         inputMode="decimal"
         placeholder={placeholder}
         disabled={disabled}
-        className="h-7 w-28 rounded-md text-right font-mono text-xs"
+        className="h-7 w-28 rounded-md text-right font-mono text-caption tabular-nums"
       />
       {suffix && <span className="text-xs text-muted-foreground">{suffix}</span>}
     </div>

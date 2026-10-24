@@ -18,6 +18,9 @@ export const MESSAGE_LIST_HORIZONTAL_PADDING = 20;
 export const MESSAGE_CONTENT_MAX_WIDTH =
   MESSAGE_LIST_MAX_WIDTH - MESSAGE_LIST_HORIZONTAL_PADDING * 2;
 export const CHAT_INPUT_MAX_WIDTH = MESSAGE_CONTENT_MAX_WIDTH;
+/** Settings rows carry a label and a control, so they read better in a
+ *  narrower column than the transcript. */
+export const SETTINGS_CONTENT_MAX_WIDTH = 660;
 export const MESSAGE_ROW_GAP = 4;
 
 /** Max entries a collapsed read group previews before its "Show more" toggle. */

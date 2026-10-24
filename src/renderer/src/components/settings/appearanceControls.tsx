@@ -67,7 +67,7 @@ export function ColorField({
       <label
         htmlFor={inputId}
         aria-label={`${label} color picker`}
-        className="relative size-6 shrink-0 cursor-pointer rounded-md ring-1 ring-foreground/15 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+        className="relative size-6 shrink-0 cursor-pointer rounded-md ring-1 ring-foreground/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
         style={{ backgroundColor: hex }}
       >
         <input
@@ -93,7 +93,7 @@ export function ColorField({
         }}
         spellCheck={false}
         aria-label={`${label} hex value`}
-        className="h-6 w-20 rounded-md border-[0.5px] border-foreground/15 bg-transparent px-1.5 font-mono text-xs text-foreground uppercase outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+        className="h-7 w-20 rounded-md border border-transparent bg-transparent px-1.5 font-mono text-caption uppercase tabular-nums text-foreground outline-none transition-colors hover:bg-muted focus-visible:bg-muted"
       />
     </div>
   );
@@ -132,12 +132,12 @@ export function AccentField({
             data-testid={`accent-option-${preset.id}`}
             onClick={() => onChange({ presetId: preset.id })}
             className={cn(
-              'flex size-6 items-center justify-center rounded-full transition-transform hover:scale-110',
-              selected && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
+              'flex size-5 items-center justify-center rounded-full transition-transform hover:scale-110',
+              selected && 'ring-2 ring-ring ring-offset-2 ring-offset-card',
             )}
             style={{ backgroundColor: preset.swatchHex }}
           >
-            {selected && <IconCheck size={13} stroke={3} className="text-white" />}
+            {selected && <IconCheck size={11} stroke={3} className="text-white" />}
           </button>
         );
       })}
@@ -146,8 +146,8 @@ export function AccentField({
         title="Custom color"
         aria-label="Custom accent color"
         className={cn(
-          'relative flex size-6 cursor-pointer items-center justify-center rounded-full has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
-          selectedId === null && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
+          'relative flex size-5 cursor-pointer items-center justify-center rounded-full has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+          selectedId === null && 'ring-2 ring-ring ring-offset-2 ring-offset-card',
         )}
         style={{
           background:
@@ -162,7 +162,7 @@ export function AccentField({
           className="absolute inset-0 size-full cursor-pointer opacity-0"
         />
         <span
-          className="pointer-events-none size-3 rounded-full ring-1 ring-black/20"
+          className="pointer-events-none size-2.5 rounded-full ring-1 ring-black/20"
           style={{ backgroundColor: customHex ?? 'transparent' }}
         />
       </label>
@@ -197,7 +197,7 @@ export function SliderField({
         onChange={(event) => onChange(Number(event.target.value))}
         className="appearance-slider h-1.5 w-40 cursor-pointer appearance-none rounded-full bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       />
-      <span className="w-24 shrink-0 text-right font-mono text-xs whitespace-nowrap tabular-nums text-muted-foreground">
+      <span className="w-24 shrink-0 text-right font-mono text-caption whitespace-nowrap tabular-nums text-muted-foreground">
         {display}
       </span>
     </div>
@@ -226,11 +226,11 @@ export function NumberStepper({
         aria-label={`Decrease ${label}`}
         disabled={value <= min}
         onClick={() => onChange(Math.max(min, value - 1))}
-        className="flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+        className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
       >
-        <IconMinus size={12} stroke={2.5} />
+        <IconMinus size={13} stroke={2.5} />
       </button>
-      <span className="w-10 text-center font-mono text-xs tabular-nums text-foreground">
+      <span className="w-9 text-center font-mono text-caption tabular-nums text-foreground">
         {value}
       </span>
       <button
@@ -238,11 +238,11 @@ export function NumberStepper({
         aria-label={`Increase ${label}`}
         disabled={value >= max}
         onClick={() => onChange(Math.min(max, value + 1))}
-        className="flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+        className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
       >
-        <IconPlus size={12} stroke={2.5} />
+        <IconPlus size={13} stroke={2.5} />
       </button>
-      <span className="text-xs text-muted-foreground">{suffix}</span>
+      <span className="text-caption text-muted-foreground">{suffix}</span>
     </div>
   );
 }
@@ -262,7 +262,7 @@ export function FontPicker({
     <div className="flex items-center gap-2">
       <span
         aria-hidden="true"
-        className="w-6 shrink-0 text-center text-sm text-foreground"
+        className="w-6 shrink-0 text-center text-caption text-foreground"
         style={{ fontFamily: fontStackFor(role, value) }}
       >
         Aa
@@ -272,7 +272,7 @@ export function FontPicker({
         aria-label={label}
         value={value ?? ''}
         onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
-        className="w-40"
+        className="w-32 [&_select]:text-caption [&_select]:text-right [&_select]:border-transparent [&_select]:bg-transparent dark:[&_select]:bg-transparent [&_select]:hover:bg-muted"
       >
         <option value="">{role === 'code' ? 'System mono' : 'System'}</option>
         {FONT_FAMILIES.map((family) => (
@@ -333,18 +333,21 @@ export function ModePreviewPicker({
                   className={cn(
                     // The ring hugs the preview with the same radius, so the
                     // two curves coincide instead of leaving a corner gap.
-                    'rounded-[7px] transition-colors',
+                    'rounded-[10px] [corner-shape:squircle] transition-colors',
                     selected ? 'ring-2 ring-ring' : 'hover:ring-1 hover:ring-foreground/20',
                   )}
                 >
                   <span
                     className={cn(
-                      'flex h-12 w-16 overflow-hidden rounded-[7px]',
+                      'flex h-12 w-16 overflow-hidden rounded-[10px] [corner-shape:squircle]',
                       // A hairline keeps the light preview readable on a
                       // white row; the selection ring replaces it once the
                       // preview is chosen.
                       !selected && 'outline-1 -outline-offset-1 outline-foreground/20',
                     )}
+                    // Painted on this element: corner-shape only shapes its own
+                    // background, not the panes drawn on top of it.
+                    style={{ background: previewBackground(option.value, previews) }}
                   >
                     {option.value === 'system' ? (
                       <>
@@ -366,12 +369,21 @@ export function ModePreviewPicker({
   );
 }
 
+function previewBackground(
+  mode: ThemeMode,
+  previews: Record<ColorMode, Record<string, string>>,
+): string {
+  if (mode === 'system') {
+    const light = previews.light['--app-background'];
+    const dark = previews.dark['--app-background'];
+    return `linear-gradient(90deg, ${light} 0 50%, ${dark} 50% 100%)`;
+  }
+  return previews[mode]['--app-background'];
+}
+
 function PreviewPane({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
   return (
-    <span
-      className="flex h-full flex-1 flex-col justify-center gap-[3px] px-1.5"
-      style={{ backgroundColor: tokens['--app-background'] }}
-    >
+    <span className="flex h-full flex-1 flex-col justify-center gap-[3px] px-1.5">
       <span
         className="h-[2px] w-4/5 rounded-full"
         style={{ backgroundColor: tokens['--app-foreground'] }}
@@ -399,7 +411,7 @@ export function SettingSwitch({
 }): React.JSX.Element {
   return (
     <div className="flex min-h-12 items-center justify-between gap-6 px-5">
-      <span className="min-w-0 truncate text-sm text-foreground">{label}</span>
+      <span className="min-w-0 truncate text-ui font-medium text-foreground">{label}</span>
       <Switch aria-label={label} checked={checked} onCheckedChange={onChange} />
     </div>
   );
