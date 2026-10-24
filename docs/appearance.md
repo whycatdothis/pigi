@@ -509,13 +509,15 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
   label reads `Custom` as soon as a color no longer matches a preset.
 - `FontPicker` — a compact native select over the whitelist (no preview glyph,
   single chevron); the code role's empty option reads "System mono".
-- `ModePreviewPicker` — three icon-only miniature previews (System / Light /
-  Dark) drawn from the _derived_ tokens of each mode, so a custom palette or a
-  named theme immediately shows in them. Each preview is a small window: a
-  sidebar strip, two text lines, and the composer with an accent border at the
-  bottom; the system preview draws the sidebar once and splits the window in
-  half instead of showing two windows. The selection is the preview's own
-  border turning accent-colored (no second ring, no inset hairline); the name
+- `ModePreviewPicker` — three icon-only miniature windows (System / Light /
+  Dark), 92x64, drawn from the _derived_ tokens of each mode, so a custom
+  palette or a named theme shows up in them immediately. Each window keeps 8px
+  of padding on every side so the rounded corners never clip the drawing: a
+  sidebar with its icon and rows, four text lines (one in the accent), and the
+  composer with a send dot. The system preview splits the window in half —
+  light on the left, dark on the right — with both halves painting their
+  background to the window edge. Selection is the preview's own 2px accent
+  border separated by a 4px gap, never a ring stacked on the drawing; the name
   is an `aria-label`, shown on hover.
 - `SettingSwitch` — row plus switch for the boolean preferences.
 
@@ -554,7 +556,8 @@ Reset appearance                            (footer row, right)
 - Type carries the hierarchy by weight, not size: page title 16/600, group
   title 13/600 muted, row label 14/500, control text 13/400 with tabular
   numerals. Every control is 28px tall so the right column lines up.
-- One radius scale: card 12, control 8, small chip 6, mode preview 14.
+- One radius scale: card 12, control 8, small chip 6, mode preview 8 (12 for the
+  selection border).
 - Surfaces are solid (`bg-card` with a 1px `--border`); the dividers use the
   same solid border color and stay inset to the row padding.
 - The settings column is 660px wide (`SETTINGS_CONTENT_MAX_WIDTH`); the

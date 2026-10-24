@@ -415,25 +415,22 @@ export function ModePreviewPicker({
                   data-testid={`theme-option-${option.value}`}
                   onClick={() => onChange(option.value)}
                   className={cn(
-                    // The preview carries the selection in its own border, so
-                    // there is no second outline around a rounded shape.
-                    'rounded-[16px] border-2 transition-colors',
+                    // Selection is the preview's own border plus a 2px gap, so
+                    // the ring never sits on top of the drawing.
+                    'rounded-[12px] border-2 p-[4px] transition-colors',
                     selected
                       ? 'border-[var(--app-system-accent)]'
-                      : 'border-foreground/20 hover:border-foreground/35',
+                      : 'border-transparent hover:border-foreground/20',
                   )}
                 >
                   <span
-                    className="flex h-12 w-16 overflow-hidden rounded-[14px]"
+                    className="flex h-[64px] w-[92px] gap-[6px] overflow-hidden rounded-[8px] border border-foreground/10"
                     // Painted on this element so the border and the inner
                     // radius share one corner.
                     style={{ background: previewBackground(option.value, previews) }}
                   >
                     {option.value === 'system' ? (
-                      <>
-                        <PreviewPane tokens={previews.light} />
-                        <PreviewPane tokens={previews.dark} sidebar={false} />
-                      </>
+                      <SystemPreview light={previews.light} dark={previews.dark} />
                     ) : (
                       <PreviewPane tokens={previews[option.value]} />
                     )}
@@ -449,66 +446,123 @@ export function ModePreviewPicker({
   );
 }
 
+/**
+ * Base color of the preview box. The panels paint their own background on top,
+ * so this only shows in the padding ring — keep it the light side so the system
+ * preview does not read as half dark edges.
+ */
 function previewBackground(
   mode: ThemeMode,
   previews: Record<ColorMode, Record<string, string>>,
 ): string {
-  if (mode === 'system') {
-    const light = previews.light['--app-background'];
-    const dark = previews.dark['--app-background'];
-    return `linear-gradient(90deg, ${light} 0 50%, ${dark} 50% 100%)`;
-  }
-  return previews[mode]['--app-background'];
+  return previews[mode === 'dark' ? 'dark' : 'light']['--app-background'];
+}
+
+/** Sidebar of a miniature window: an app tile and two row hints. */
+function PreviewSidebar({
+  tokens,
+  wide = false,
+}: {
+  tokens: Record<string, string>;
+  wide?: boolean;
+}): React.JSX.Element {
+  const muted = tokens['--app-muted-foreground'];
+  return (
+    <span
+      className={cn(
+        'flex shrink-0 flex-col gap-[3px] rounded-[4px] p-[3px]',
+        wide ? 'w-6' : 'w-[18px]',
+      )}
+      style={{ backgroundColor: tokens['--app-sidebar'] }}
+    >
+      <span
+        className="mb-0.5 size-[6px] rounded-[2px]"
+        style={{ backgroundColor: muted, opacity: 0.6 }}
+      />
+      <span
+        className="h-[2px] w-full rounded-full"
+        style={{ backgroundColor: muted, opacity: 0.7 }}
+      />
+      {wide && (
+        <span
+          className="h-[2px] w-3/4 rounded-full"
+          style={{ backgroundColor: muted, opacity: 0.7 }}
+        />
+      )}
+    </span>
+  );
+}
+
+/** Two text lines with one in the accent, then the composer. */
+function PreviewContent({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
+  const muted = tokens['--app-muted-foreground'];
+  const accent = tokens['--app-system-accent'];
+  return (
+    <span className="flex min-w-0 flex-1 flex-col gap-[4px]">
+      <span className="h-[2px] w-3/4 rounded-full" style={{ backgroundColor: muted }} />
+      <span
+        className="h-[2px] w-full rounded-full"
+        style={{ backgroundColor: tokens['--app-foreground'], opacity: 0.8 }}
+      />
+      <span className="h-[2px] w-1/2 rounded-full" style={{ backgroundColor: accent }} />
+      <span
+        className="h-[2px] w-2/3 rounded-full"
+        style={{ backgroundColor: muted, opacity: 0.7 }}
+      />
+      <span
+        className="mt-auto flex h-[14px] items-center justify-end rounded-[3px] border px-[3px]"
+        style={{
+          backgroundColor: tokens['--app-card'],
+          borderColor: tokens['--app-border'],
+        }}
+      >
+        <span className="size-[4px] rounded-full" style={{ backgroundColor: accent }} />
+      </span>
+    </span>
+  );
 }
 
 /**
- * One half of a preview: a window with an optional sidebar, two text lines, and
- * the composer at the bottom. The system preview draws the sidebar once, on the
- * light half, so the split reads as one window instead of two.
+ * One mode: an inset miniature window. Everything keeps a margin from the
+ * preview edge, so the rounded corners never clip the drawing.
  */
-function PreviewPane({
-  tokens,
-  sidebar = true,
-}: {
-  tokens: Record<string, string>;
-  sidebar?: boolean;
-}): React.JSX.Element {
+function PreviewPane({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
   return (
     <span
-      className="flex h-full min-w-0 flex-1"
+      className="flex h-full w-full gap-[5px] rounded-[6px] p-[5px]"
       style={{ backgroundColor: tokens['--app-background'] }}
     >
-      {sidebar && (
-        <span
-          className="flex w-[24%] flex-col gap-[2px] p-[3px]"
-          style={{ backgroundColor: tokens['--app-sidebar'] }}
-        >
-          <span
-            className="h-[2px] w-3/4 rounded-full"
-            style={{ backgroundColor: tokens['--app-muted-foreground'] }}
-          />
-          <span
-            className="h-[2px] w-1/2 rounded-full"
-            style={{ backgroundColor: tokens['--app-muted-foreground'] }}
-          />
-        </span>
-      )}
-      <span className="flex min-w-0 flex-1 flex-col gap-[3px] p-[4px]">
-        <span
-          className="h-[2.5px] w-full rounded-full"
-          style={{ backgroundColor: tokens['--app-foreground'] }}
-        />
-        <span
-          className="h-[2.5px] w-3/5 rounded-full"
-          style={{ backgroundColor: tokens['--app-muted-foreground'] }}
-        />
-        <span
-          className="mt-auto h-[10px] w-full rounded-[4px] border"
-          style={{
-            backgroundColor: tokens['--app-card'],
-            borderColor: tokens['--app-system-accent'],
-          }}
-        />
+      <PreviewSidebar tokens={tokens} wide />
+      <PreviewContent tokens={tokens} />
+    </span>
+  );
+}
+
+/**
+ * System: the window split in half, light on the left and dark on the right.
+ * Both halves paint their own background right up to the window edge, while the
+ * lines keep their padding so the rounded corners never clip them.
+ */
+function SystemPreview({
+  light,
+  dark,
+}: {
+  light: Record<string, string>;
+  dark: Record<string, string>;
+}): React.JSX.Element {
+  return (
+    <span className="flex h-full w-full">
+      <span
+        className="flex min-w-0 flex-1 p-[8px]"
+        style={{ backgroundColor: light['--app-background'] }}
+      >
+        <PreviewContent tokens={light} />
+      </span>
+      <span
+        className="flex min-w-0 flex-1 p-[8px]"
+        style={{ backgroundColor: dark['--app-background'] }}
+      >
+        <PreviewContent tokens={dark} />
       </span>
     </span>
   );
