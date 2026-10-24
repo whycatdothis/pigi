@@ -506,7 +506,7 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
   chosen stack; the code role's empty option reads "System mono".
 - `ModePreviewPicker` — three icon-only miniature previews (System / Light /
   Dark) drawn from the _derived_ tokens of each mode, so previews reflect
-  custom colors. No captions: the ring hugs the 6px preview radius with no
+  custom colors. No captions: the ring hugs the 7px preview radius with no
   inset, so the two curves coincide, and the name is an `aria-label`. An
   unselected preview gets a 1px inset hairline so the light one stays visible
   on a white row.
