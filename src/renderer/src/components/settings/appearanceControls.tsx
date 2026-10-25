@@ -500,9 +500,10 @@ function PreviewWindow({ tokens }: { tokens: Record<string, string> }): React.JS
       style={{
         // One step off the card, so the content reads as a panel inside the app.
         backgroundColor: `color-mix(in oklab, ${tokens['--app-background']}, ${tokens['--app-foreground']} 4%)`,
-        // From the preview's own palette: the app foreground may be the other
-        // mode's color, which would hide the border on a dark window.
-        borderColor: `color-mix(in oklab, ${tokens['--app-card']}, ${tokens['--app-foreground']} 22%)`,
+        // Darkened card, not a foreground mix: mixing toward the foreground turns
+        // the edge gray on a dark window. Toward black it stays a hairline that
+        // is light on light cards and nearly black on dark ones.
+        borderColor: `color-mix(in oklab, ${tokens['--app-card']}, #000 20%)`,
       }}
     >
       <PreviewSidebar tokens={tokens} width="w-[11px]" />
