@@ -7,7 +7,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { AppearanceSettings } from './appearanceSettings';
-import { useSettingsStore } from '../../state/settingsStore';
+import { flushPigiSettingsWrites, useSettingsStore } from '../../state/settingsStore';
 import {
   DEFAULT_APPEARANCE,
   DEFAULT_CONTRAST,
@@ -19,22 +19,27 @@ import {
 import { PIGI_SETTINGS_STORAGE_KEY } from '../../../../shared/pigiSettings';
 import { installSystemAppearance } from '../../testing/jsdomSetup';
 import { serializeTheme } from '../../../../shared/themeFile';
+import {
+  installPigiSettingsBridge,
+  type PigiSettingsBridge,
+} from '../../testing/pigiSettingsBridge';
 
+let bridge: PigiSettingsBridge;
+
+/** What the settings file holds now: the store debounces, so ask it to write. */
 function storedAppearance(): Appearance {
-  const raw = localStorage.getItem(PIGI_SETTINGS_STORAGE_KEY);
-  if (raw === null) {
+  flushPigiSettingsWrites();
+  const written = bridge.writes.at(-1);
+  if (!written) {
     throw new Error('Nothing persisted');
   }
-  const parsed: unknown = JSON.parse(raw);
-  if (typeof parsed !== 'object' || parsed === null || !('appearance' in parsed)) {
-    throw new Error('Missing appearance');
-  }
-  return parseAppearance(parsed.appearance);
+  return parseAppearance(written.appearance);
 }
 
 function seed(): void {
   installSystemAppearance({ dark: false });
   localStorage.clear();
+  bridge = installPigiSettingsBridge();
   useSettingsStore.setState({
     version: 2,
     appearance: DEFAULT_APPEARANCE,

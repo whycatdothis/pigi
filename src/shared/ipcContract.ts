@@ -471,6 +471,8 @@ export enum PiChannel {
   GetAccentColor = 'pi:get_accent_color',
   /** renderer → main: the app theme, so window materials follow it */
   SetAppearanceTheme = 'pi:set_appearance_theme',
+  /** renderer → main: replace pigi's settings file (appearance and chat) */
+  WritePigiSettings = 'pi:write_pigi_settings',
   /** renderer → main: get all keyboard shortcut definitions with current bindings */
   GetShortcuts = 'pi:get_shortcuts',
   /** renderer → main: update a keyboard shortcut binding */

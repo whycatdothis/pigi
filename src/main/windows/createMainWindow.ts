@@ -3,6 +3,7 @@
  */
 import { BrowserWindow, shell } from 'electron';
 import { join } from 'path';
+import { PIGI_SETTINGS_PATH_ARGUMENT } from '../../shared/pigiSettings';
 import { is } from '@electron-toolkit/utils';
 import icon from '../../../resources/icon.png?asset';
 import { openDebugPanel } from '../debugConfig';
@@ -13,7 +14,13 @@ export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
 }
 
-export function createMainWindow(): BrowserWindow {
+export function createMainWindow({
+  settingsPath,
+  backgroundColor,
+}: {
+  settingsPath: string;
+  backgroundColor: string;
+}): BrowserWindow {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -25,12 +32,16 @@ export function createMainWindow(): BrowserWindow {
     trafficLightPosition: { x: 16, y: 15 },
     ...(process.platform === 'darwin'
       ? { vibrancy: 'menu', backgroundColor: '#00000000' }
-      : { backgroundColor: '#ffffff' }),
+      : { backgroundColor }),
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       scrollBounce: process.platform === 'darwin',
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
+      // A path, not the settings themselves: argv is fixed at window creation,
+      // so passing the values would go stale on the first renderer reload. The
+      // preload reads the file itself, synchronously.
+      additionalArguments: [`${PIGI_SETTINGS_PATH_ARGUMENT}${settingsPath}`],
     },
   });
 

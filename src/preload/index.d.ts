@@ -92,6 +92,10 @@ interface PiApi {
   ) => Promise<{ success: boolean; error?: string }>;
   getAccentColor: () => Promise<string | null>;
   setAppearanceTheme: (theme: 'system' | 'light' | 'dark') => void;
+  /** pigi's own settings, read synchronously so the first paint can use them. */
+  readPigiSettings: () => unknown;
+  /** Replace pigi's settings file; resolves false when the write failed. */
+  writePigiSettings: (settings: unknown) => Promise<boolean>;
 
   // Auto-update
   update: {

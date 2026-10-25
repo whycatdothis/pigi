@@ -24,6 +24,8 @@
 
 ### Changed
 
+- pigi's own settings moved from `localStorage` to `settings.json` in the app data folder (`~/Library/Application Support/pigi/settings.json`), so they can be backed up and edited by hand; the existing value is migrated on first launch and the localStorage key is removed
+- The main process reads that file before it creates the window, so the native theme and the window background are correct from the first frame instead of waiting for the renderer to say so; writes are atomic and debounced 150 ms, flushed on window close, and a failed write now shows an error instead of being swallowed
 - Solid buttons, the checked switch and the sidebar's primary action use the theme accent: `primary` finally means the brand colour instead of a neutral fill, and the composer's send button and the updater's button no longer override it by hand
 - The accent splits into two values, as GitHub's `accent.emphasis` / `accent.fg` do: a fill that stays dark enough for a white label in both modes, and a text accent that is lifted above it in dark mode so links, icons and rails clear 4.5:1 against the page. Filled buttons keep one weight across modes instead of flipping to black labels
 - Accents are clamped to bands (lightness 0.45-0.58 light, 0.50-0.60 dark for the fill, 0.66-0.80 dark for the text accent, chroma 0.06-0.22), and the fill walks down until its white label clears 4.6:1

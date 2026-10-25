@@ -1,9 +1,11 @@
 /**
  * pigi's own preferences (not pi settings).
  *
- * Renderer-local, persisted to localStorage so they are available
- * synchronously before the first paint (no theme flash) — see
- * `state/settingsStore.ts`.
+ * Persisted to `settings.json` in the app's user data directory. The main
+ * process reads it before creating the window (native theme, window
+ * background) and the preload reads it for the renderer, so the value is
+ * available synchronously before the first paint (no theme flash) — see
+ * `main/pigiSettingsFile.ts` and `state/settingsStore.ts`.
  *
  * Storage is versioned: v1 was a flat `{ theme, accentId, toolBlockViewMode }`
  * record, v2 nests appearance under its own object and adds per-mode slots.
@@ -31,7 +33,18 @@ export interface PigiSettings {
   chat: ChatSettings;
 }
 
+/**
+ * Where the pre-file versions kept the value. Reads once, to migrate, and never
+ * written again.
+ */
 export const PIGI_SETTINGS_STORAGE_KEY = 'pigi.settings';
+
+/**
+ * Passed to the renderer through `webPreferences.additionalArguments` so the
+ * preload can read the file itself. A path, not the contents: argv is a
+ * snapshot of window creation, so the value would go stale on every reload.
+ */
+export const PIGI_SETTINGS_PATH_ARGUMENT = '--pigi-settings-path=';
 
 /** Re-exported for the appearance UI, which labels the mode control. */
 export const PIGI_THEMES: readonly ThemeMode[] = THEME_MODES;

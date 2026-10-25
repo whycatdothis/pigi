@@ -1,14 +1,16 @@
 /**
  * pigi's own settings store (appearance and chat preferences).
  *
- * Loaded synchronously from localStorage at module init and applied to the
- * document before the first paint, so there is no theme flash. The main
- * process is not involved: these are renderer-local preferences.
+ * Persisted to `settings.json` in the app's user data directory, read
+ * synchronously through the preload at module init and applied to the document
+ * before the first paint, so there is no theme flash. The preload reads the
+ * file itself instead of an async round trip for exactly that reason.
  *
  * The store holds the persisted shape and exposes narrow setters. Every
- * mutation goes through `commit`, which persists the full settings object and
- * re-applies appearance once.
+ * mutation goes through `commit`, which queues the full settings object for the
+ * file and re-applies appearance once.
  */
+import { toast } from 'sonner';
 import { create } from 'zustand';
 import {
   DEFAULT_PIGI_SETTINGS,
@@ -30,23 +32,78 @@ import { applyAppearance, currentColorMode } from '../appearance/applyAppearance
 const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)';
 const SYSTEM_REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
-function readStoredSettings(): PigiSettings {
+/** The value stored before settings moved to a file, read once to migrate. */
+function readLegacySettings(): PigiSettings | null {
   try {
     const raw = localStorage.getItem(PIGI_SETTINGS_STORAGE_KEY);
-    return raw ? parsePigiSettings(JSON.parse(raw)) : DEFAULT_PIGI_SETTINGS;
+    return raw ? parsePigiSettings(JSON.parse(raw)) : null;
   } catch (error) {
-    console.error('Failed to read pigi settings; using defaults:', error);
-    return DEFAULT_PIGI_SETTINGS;
+    console.error('Failed to read the old localStorage settings:', error);
+    return null;
   }
 }
 
-function persistSettings(settings: PigiSettings): void {
-  try {
-    localStorage.setItem(PIGI_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  } catch (error) {
-    console.error('Failed to persist pigi settings:', error);
+function readStoredSettings(): PigiSettings {
+  const stored = window.piApi.readPigiSettings();
+  if (stored !== null) {
+    return parsePigiSettings(stored);
   }
+  const legacy = readLegacySettings();
+  if (legacy) {
+    // First launch after the switch to a file: keep what the user had, and
+    // write it out so the next launch reads it from disk. The old key is only
+    // dropped once the file is there, so a failed write cannot lose the value.
+    void window.piApi.writePigiSettings(legacy).then((written) => {
+      if (written) {
+        localStorage.removeItem(PIGI_SETTINGS_STORAGE_KEY);
+      }
+    });
+    return legacy;
+  }
+  return DEFAULT_PIGI_SETTINGS;
 }
+
+/** Dragging the contrast slider commits per frame; the file does not need that. */
+const PERSIST_DEBOUNCE_MS = 150;
+
+let queuedSettings: PigiSettings | null = null;
+let persistTimer: number | null = null;
+
+/** Writes the queued settings now. Called on page hide, and by tests. */
+export function flushPigiSettingsWrites(): void {
+  if (persistTimer !== null) {
+    window.clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  const settings = queuedSettings;
+  queuedSettings = null;
+  if (!settings) {
+    return;
+  }
+  void window.piApi
+    .writePigiSettings(settings)
+    .then((written) => {
+      if (!written) {
+        toast.error('Could not save settings. Check the app data folder for errors.');
+      }
+    })
+    .catch((error) => {
+      console.error('Failed to persist pigi settings:', error);
+      toast.error('Could not save settings.');
+    });
+}
+
+function persistSettings(settings: PigiSettings): void {
+  queuedSettings = settings;
+  if (persistTimer !== null) {
+    window.clearTimeout(persistTimer);
+  }
+  persistTimer = window.setTimeout(flushPigiSettingsWrites, PERSIST_DEBOUNCE_MS);
+}
+
+// Quitting right after a change must not drop it: the debounce window is short,
+// but the last 150ms would still be lost.
+window.addEventListener('pagehide', flushPigiSettingsWrites);
 
 interface SettingsState extends PigiSettings {
   setMode: (mode: ThemeMode) => void;

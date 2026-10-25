@@ -6,6 +6,7 @@
  */
 import { electronAPI } from '@electron-toolkit/preload';
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import { readFileSync } from 'node:fs';
 import {
   PiChannel,
   isPiPush,
@@ -34,6 +35,22 @@ import {
   type UpdateStatus,
 } from '../shared/ipcContract';
 import type { PiSettingsResult, PiSettingsScope, PiSettingUpdate } from '../shared/piSettings';
+import { PIGI_SETTINGS_PATH_ARGUMENT } from '../shared/pigiSettings';
+
+// =============================================================================
+// pigi settings path (main passes it through `additionalArguments`)
+// =============================================================================
+
+const settingsPathArgument = process.argv.find((argument) =>
+  argument.startsWith(PIGI_SETTINGS_PATH_ARGUMENT),
+);
+const pigiSettingsPath = settingsPathArgument
+  ? settingsPathArgument.slice(PIGI_SETTINGS_PATH_ARGUMENT.length)
+  : null;
+
+function isMissingFileError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
+}
 
 // =============================================================================
 // Per-session port management (keyed by sessionPath)
@@ -500,6 +517,31 @@ const piApi = {
   setAppearanceTheme: (theme: 'system' | 'light' | 'dark'): void => {
     ipcRenderer.send(PiChannel.SetAppearanceTheme, theme);
   },
+
+  /**
+   * pigi's own settings, read from disk synchronously.
+   *
+   * The renderer applies appearance before its first paint, so an async round
+   * trip would paint one frame with the fallback palette. Null means there is
+   * no file yet; the renderer then migrates its old localStorage value.
+   */
+  readPigiSettings: (): unknown => {
+    if (!pigiSettingsPath) {
+      return null;
+    }
+    try {
+      return JSON.parse(readFileSync(pigiSettingsPath, 'utf8'));
+    } catch (error) {
+      if (!isMissingFileError(error)) {
+        console.error('Failed to read pigi settings:', error);
+      }
+      return null;
+    }
+  },
+
+  /** Replace pigi's settings file. Resolves false when the write failed. */
+  writePigiSettings: (settings: unknown): Promise<boolean> =>
+    ipcRenderer.invoke(PiChannel.WritePigiSettings, settings),
 
   /** Auto-update. Every renderer gets the status pushed on change. */
   update: {

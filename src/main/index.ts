@@ -36,6 +36,14 @@ import { stopProjectFileSearch } from './projects/projectFileSearch';
 import { PiChannel, type AppInfo } from '../shared/ipcContract';
 import { configureDebugPanel, installMainDebugHandle } from './debugConfig';
 import { initializeShellEnv } from './processes/shellEnvResolver';
+import {
+  PIGI_SETTINGS_FILE_NAME,
+  readPigiSettingsFile,
+  windowBackgroundFor,
+  writePigiSettingsFile,
+} from './pigiSettingsFile';
+import { parsePigiSettings } from '../shared/pigiSettings';
+import { join } from 'node:path';
 
 configureDebugPanel();
 installMainDebugHandle({ piAgent: getPiAgentDebugSnapshot });
@@ -46,6 +54,28 @@ protocol.registerSchemesAsPrivileged([
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.pigi');
+
+  // Read before the window exists: the native theme decides the window
+  // material, and the background decides the frame painted before the renderer
+  // has any pixels. Both used to wait for the renderer to say so.
+  const settingsPath = join(app.getPath('userData'), PIGI_SETTINGS_FILE_NAME);
+  const initialSettings = readPigiSettingsFile(settingsPath).settings;
+  nativeTheme.themeSource = initialSettings.appearance.mode;
+
+  ipcMain.handle(PiChannel.WritePigiSettings, (_event, value: unknown) => {
+    if (typeof value !== 'object' || value === null) {
+      return false;
+    }
+    try {
+      // Normalizing here is the validation: the renderer gets its settings back
+      // through the same parser, so anything that survives it round-trips.
+      writePigiSettingsFile(settingsPath, parsePigiSettings(value));
+      return true;
+    } catch (error) {
+      console.error('Failed to write pigi settings:', error);
+      return false;
+    }
+  });
 
   protocol.handle('local-file', (request) =>
     net.fetch('file://' + decodeURIComponent(request.url.slice('local-file://'.length))),
@@ -100,12 +130,16 @@ app.whenReady().then(() => {
     };
   });
 
-  openMainWindow();
+  openMainWindow(
+    settingsPath,
+    windowBackgroundFor(initialSettings, nativeTheme.shouldUseDarkColors),
+  );
   scheduleBackgroundUpdateChecks();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      openMainWindow();
+      const current = readPigiSettingsFile(settingsPath).settings;
+      openMainWindow(settingsPath, windowBackgroundFor(current, nativeTheme.shouldUseDarkColors));
     }
   });
 });
@@ -128,8 +162,8 @@ app.on('before-quit', () => {
  * app keeps running with no window — so kill them. This also prevents a fresh
  * renderer from colliding with stale terminal ids after a reopen.
  */
-function openMainWindow(): void {
-  const win = createMainWindow();
+function openMainWindow(settingsPath: string, backgroundColor: string): void {
+  const win = createMainWindow({ settingsPath, backgroundColor });
   win.on('closed', () => {
     stopTerminalProcess();
   });

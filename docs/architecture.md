@@ -491,10 +491,16 @@ close settings first, so nothing acts invisibly underneath the page.
 Two data paths:
 
 - **pigi settings** (theme, accent, default tool view) live in a renderer
-  zustand store persisted to localStorage and applied to the document before
-  the first paint (`initializePigiSettings` in `main.tsx`) — no IPC round trip,
-  no theme flash. Keyboard shortcut definitions live in a second renderer store
-  so edits on the settings page update the live bindings immediately.
+  zustand store persisted to `settings.json` in the app's user data directory
+  (`main/pigiSettingsFile.ts`) and applied to the document before the first
+  paint (`initializePigiSettings` in `main.tsx`) — no theme flash. The main
+  process reads the same file before it creates the window, so the native theme
+  and the window background are right from the first frame; the renderer reads
+  it synchronously through the preload (`readPigiSettings`), not with an async
+  round trip that would land after the first paint. Writes are debounced 150 ms,
+  flushed on `pagehide`, and atomic in the main process (temp file + rename).
+  Keyboard shortcut definitions live in a second renderer store so edits on the
+  settings page update the live bindings immediately.
   Appearance (colors, fonts, sizes, per-mode slots) is derived from one settings
   object through `src/shared/appearanceTokens.ts`; see
   [appearance.md](appearance.md) for the model and derivation rules.
