@@ -18,17 +18,17 @@ One tier per kind of surface. The number is not the point — the ratio between
 radius and the element's **short side** is. A corner reads round at roughly a
 third of the height; below a tenth it reads square.
 
-| Token                 | Value  | Applied to                                      | Typical height | Ratio  |
-| --------------------- | ------ | ----------------------------------------------- | -------------- | ------ |
-| `--radius-inline`     | 6px    | inline code, kbd                                | 18–22          | 30%    |
-| `--radius-chip`       | 8px    | chips, badges, thumbnails, preview mini windows | 20–24          | 35%    |
-| `--radius-control-sm` | 10px   | `size-6` icon buttons, xs controls              | 24             | 42%    |
-| `--radius-control`    | 12px   | buttons, inputs, menu items, sidebar rows       | 28–32          | 40%    |
-| `--radius-surface-sm` | 16px   | code blocks, markdown tables, preview trays     | 100–240        | 7–16%  |
-| `--radius-surface`    | 20px   | thinking blocks, read groups, menus, dialogs    | 60–170         | 12–33% |
-| `--radius-surface-lg` | 24px   | tool blocks, message bubbles                    | 40–135         | 18–60% |
-| `--radius-container`  | 36px   | composer, settings cards, page panels           | 80–290         | 12–45% |
-| `--radius-full`       | 9999px | circles, and pills whose height is unknown      | —              | —      |
+| Token                 | Value  | Applied to                                       | Typical height | Ratio  |
+| --------------------- | ------ | ------------------------------------------------ | -------------- | ------ |
+| `--radius-inline`     | 6px    | inline code, kbd                                 | 18–22          | 30%    |
+| `--radius-chip`       | 8px    | chips, badges, thumbnails, preview mini windows  | 20–24          | 35%    |
+| `--radius-control-sm` | 10px   | `size-6` icon buttons, xs controls               | 24             | 42%    |
+| `--radius-control`    | 12px   | buttons, inputs, menu items, sidebar rows        | 28–32          | 40%    |
+| `--radius-surface-sm` | 16px   | code blocks, markdown tables, preview trays      | 100–240        | 7–16%  |
+| `--radius-surface`    | 20px   | tool blocks, thinking blocks, read groups, menus | 75–170         | 12–27% |
+| `--radius-surface-lg` | 24px   | message bubbles, cards                           | 40–135         | 18–60% |
+| `--radius-container`  | 36px   | composer, settings cards, page panels            | 80–290         | 12–45% |
+| `--radius-full`       | 9999px | circles, and pills whose height is unknown       | —              | —      |
 
 Rules that come up every time:
 
