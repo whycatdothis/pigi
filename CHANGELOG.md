@@ -24,6 +24,7 @@
 
 ### Changed
 
+- The Chat settings page is one row: a "Default view" segmented control instead of three described option blocks that filled the page to say the same thing
 - pigi's own settings moved from `localStorage` to `settings.json` in the app data folder (`~/Library/Application Support/pigi/settings.json`), so they can be backed up and edited by hand; the existing value is migrated on first launch and the localStorage key is removed
 - The main process reads that file before it creates the window, so the native theme and the window background are correct from the first frame instead of waiting for the renderer to say so; writes are atomic and debounced 150 ms, flushed on window close, and a failed write now shows an error instead of being swallowed
 - Solid buttons, the checked switch and the sidebar's primary action use the theme accent: `primary` finally means the brand colour instead of a neutral fill, and the composer's send button and the updater's button no longer override it by hand
