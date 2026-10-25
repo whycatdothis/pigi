@@ -510,7 +510,7 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
 - `FontPicker` — a compact native select over the whitelist (no preview glyph,
   single chevron); the code role's empty option reads "System mono".
 - `ModePreviewPicker` — three icon-only miniature windows (System / Light /
-  Dark), 92x66, drawn from the _derived_ tokens of each mode, so a custom
+  Dark), 78x66, drawn from the _derived_ tokens of each mode, so a custom
   palette or a named theme shows up in them immediately. The captured object is
   a unit: the app's own background, a 5px margin, then the window (background
   mixed 4% toward the foreground, hairline border mixed from the preview's own

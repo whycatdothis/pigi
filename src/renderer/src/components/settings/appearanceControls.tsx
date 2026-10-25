@@ -419,7 +419,7 @@ export function ModePreviewPicker({
                   className={cn(
                     // Only the selection border: the miniature carries its own
                     // padding, so a crop keeps the margin around the app.
-                    'h-[66px] w-[92px] overflow-hidden rounded-[12px] border-2 transition-colors',
+                    'h-[66px] w-[78px] overflow-hidden rounded-[12px] border-2 transition-colors',
                     selected
                       ? 'border-[var(--app-system-accent)]'
                       : 'border-foreground/12 hover:border-foreground/25',
@@ -505,7 +505,7 @@ function PreviewWindow({ tokens }: { tokens: Record<string, string> }): React.JS
         borderColor: `color-mix(in oklab, ${tokens['--app-card']}, ${tokens['--app-foreground']} 22%)`,
       }}
     >
-      <PreviewSidebar tokens={tokens} width="w-[12px]" />
+      <PreviewSidebar tokens={tokens} width="w-[11px]" />
       <span
         className="my-[3px] mr-[3px] flex min-w-0 flex-1 overflow-hidden rounded-[4px]"
         style={{ backgroundColor: tokens['--app-card'] }}
