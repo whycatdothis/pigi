@@ -4,6 +4,8 @@
 
 ### Added
 
+- A semantic design-token layer (`semanticTokens.css`): radius, spacing, elevation and motion are named by role, `scripts/checkDesignTokens.mjs` rejects hard-coded values in `npm run check`, and `docs/design-system.md` documents the scale
+- `__designTokens()` in dev builds renders every token against the live theme
 - Settings page: the sidebar footer's Settings menu (or ⌘ ,) swaps the sidebar and the main area for a full-page settings view that closes with the top bar or Esc
 - Pi settings in the app: models and thinking, message delivery, compaction, retries, resource paths, and shell/network/security, with a Global / This project switch that writes to pi's `settings.json`
 - pigi settings: appearance (mode, accent, background and foreground colors, fonts, contrast), the default tool view, an about section with versions and paths

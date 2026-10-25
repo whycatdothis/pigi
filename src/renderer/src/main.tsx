@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import UpdateProgress from './components/update/UpdateProgress';
 import { Toaster } from './components/ui/sonner';
+import { installDesignTokenSheet } from './dev/designTokenSheet';
 import { installDebugHandle } from './lib/debugHandle';
 import { installFocusModality } from './lib/focusModality';
 import { UPDATE_PROGRESS_HASH } from '../../shared/routes';
@@ -13,6 +14,7 @@ import { initializePigiSettings } from './state/settingsStore';
 
 if (import.meta.env.DEV) {
   installDebugHandle();
+  installDesignTokenSheet();
 }
 
 // Apply the persisted theme and accent before first paint. Synchronous, so

@@ -69,7 +69,7 @@ export default function ThinkingBlock({
   text: string;
 } & ThinkingTimingProps): React.JSX.Element {
   return (
-    <div className="rounded-[20px] bg-muted/70 px-3 py-1.5 text-muted-foreground">
+    <div className="rounded-surface bg-muted/70 px-3 py-1.5 text-muted-foreground">
       <div className="flex items-center justify-between gap-2 text-caption font-medium">
         <span data-search-ignore>Thinking</span>
         <ThinkingDuration

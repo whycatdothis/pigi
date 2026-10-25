@@ -25,7 +25,7 @@ export function SettingsContent({ children }: { children: ReactNode }): React.JS
 const CARD_CLASS_NAME = cn(
   // Solid surface and a real 1px edge: a translucent card over a sub-pixel
   // border reads as washed out.
-  'overflow-hidden rounded-[38px] border border-border bg-card',
+  'overflow-hidden rounded-container border border-border bg-card',
   // Dividers are inset to the row text instead of running edge to edge.
   '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-x-5',
   "[&>*+*]:before:top-0 [&>*+*]:before:h-px [&>*+*]:before:bg-border [&>*+*]:before:content-['']",

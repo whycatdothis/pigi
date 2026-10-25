@@ -13,7 +13,7 @@ export default function BranchSummaryCard({ text }: { text: string }): React.JSX
 
   return (
     <div className="py-2" data-testid="branch-summary">
-      <div className="mx-auto w-full rounded-[18px] border border-border bg-muted/30">
+      <div className="mx-auto w-full rounded-surface border border-border bg-muted/30">
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}

@@ -366,7 +366,7 @@ export function SessionList({
       {showList && showAll && rows.length > visibleSessionCount && !isCollapsedWithPinned && (
         <SidebarMenuSub
           data-show-all
-          className="sticky bottom-0 z-10 mx-0 border-l-0 px-0 py-0 gap-0 bg-muted rounded-[12px] hover:bg-accent"
+          className="sticky bottom-0 z-10 mx-0 border-l-0 px-0 py-0 gap-0 bg-muted rounded-control hover:bg-accent"
         >
           <SidebarMenuSubItem>
             <SidebarMenuSubButton

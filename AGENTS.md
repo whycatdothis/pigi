@@ -44,6 +44,12 @@ For DeepSeek model: do not overthink, think less and act more.
 - Looping or long-running animations (spinners, shimmer) must run on the compositor so they keep moving while the main thread is busy (streaming, long tool output): animate only `transform` and `opacity`, and never animate a `transform` on an `<svg>` element. Short click-triggered transitions (a chevron rotating) are exempt. Chromium cannot composite it (the transform depends on the svg's box size), so it freezes with the main thread. Rotate a wrapper instead: use `SpinningIcon` (`src/renderer/src/components/ui/spinningIcon.tsx`) for any spinning icon. To check an animation, record a trace with the `blink.animations` category and look for `compositeFailed: 0` on its `Animation` event.
 - Validate resize changes with long conversations: panel dragging, native window resizing, bottom follow, history reading, and interrupted gestures. Document the reusable behavior in `docs/architecture.md`.
 
+## Design System
+
+- Radius, spacing, elevation, motion and the type ramp are named in `src/renderer/src/assets/semanticTokens.css` by role. Read `docs/design-system.md` before styling a new component.
+- No pixel values for radius, font size or shadow in `className`; `npm run check` runs `scripts/checkDesignTokens.mjs` and rejects them.
+- `__designTokens()` in a dev build renders the whole token set against the live theme.
+
 ## Naming Conventions
 
 - All source file names use camelCase (e.g. `piAgent.ts`, `appStore.ts`, `ipcChannels.ts`)

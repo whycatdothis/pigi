@@ -65,5 +65,5 @@
  * leaving the corners square. Pill it to match the app; leave the width alone.
  */
 .xterm .xterm-scrollable-element > .scrollbar > .slider {
-  border-radius: 7px;
+  border-radius: var(--radius-chip);
 }

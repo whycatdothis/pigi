@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import '../../../shared/designTokens.css';
+@import './semanticTokens.css';
 
 /* The scanner emits `.container` (with five width media queries) because the
    word appears in identifiers and comments; nothing uses the class. Crossing a
@@ -63,7 +64,7 @@
     appearance: none;
     width: 14px;
     height: 14px;
-    border-radius: 9999px;
+    border-radius: var(--radius-full);
     background: var(--system-accent);
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
   }
@@ -205,7 +206,7 @@
     max-width: 100%;
     overflow-x: auto;
     overscroll-behavior-x: none;
-    border-radius: calc(var(--radius) * 1.5);
+    border-radius: var(--radius-surface-sm);
     background: var(--muted);
     padding: 10px 14px;
     font-family: var(--font-mono);
@@ -226,13 +227,13 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 14px 0;
-    border-radius: calc(var(--radius) * 1.5) calc(var(--radius) * 1.5) 0 0;
+    border-radius: var(--radius-surface-sm) var(--radius-surface-sm) 0 0;
     background: var(--muted);
     font-family: var(--font-mono);
   }
 
   .markdown-code-header + pre {
-    border-radius: 0 0 calc(var(--radius) * 1.5) calc(var(--radius) * 1.5);
+    border-radius: 0 0 var(--radius-surface-sm) var(--radius-surface-sm);
   }
 
   .markdown-code-label {
@@ -261,7 +262,7 @@
   /* Inline code: em-relative size scales with surrounding text;
      box-decoration-break keeps the pill intact across line wraps. */
   .markdown-body code {
-    border-radius: 0.25rem;
+    border-radius: var(--radius-inline);
     background: var(--muted);
     padding: 2px 4px;
     font-family: var(--font-mono);
@@ -307,7 +308,7 @@
        arc and the table reads as a rounded rect with square corners. */
     corner-shape: round;
     border: 1px solid var(--border);
-    border-radius: calc(var(--radius) * 1.4);
+    border-radius: var(--radius-surface-sm);
     text-align: left;
     font-size: 14px;
   }

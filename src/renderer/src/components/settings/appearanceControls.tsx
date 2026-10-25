@@ -313,7 +313,7 @@ function ThemeBadge({ accent }: { accent: AccentChoice }): React.JSX.Element {
       aria-hidden="true"
       // Concentric with the trigger: --radius-lg is 10px and the badge sits
       // 5px inside it, so its own radius is 5px.
-      className="flex size-[22px] shrink-0 items-center justify-center rounded-[7px] text-[10px] font-medium"
+      className="flex size-[22px] shrink-0 items-center justify-center rounded-chip text-3xs font-medium"
       style={{ color: hex, backgroundColor: `${hex}1f` }}
     >
       Aa
@@ -418,14 +418,14 @@ export function ModePreviewPicker({
                   aria-label={option.label}
                   data-testid={`theme-option-${option.value}`}
                   onClick={() => onChange(option.value)}
-                  className="relative h-[66px] w-[84px] overflow-hidden rounded-[16px] [corner-shape:round]"
+                  className="relative h-[66px] w-[84px] overflow-hidden rounded-surface-sm [corner-shape:round]"
                 >
                   {option.value === 'system' ? (
                     <SystemPreview light={previews.light} dark={previews.dark} />
                   ) : (
                     <PreviewUnit
                       tokens={previews[option.value]}
-                      radius="rounded-[16px]"
+                      radius="rounded-surface-sm"
                       dark={option.value === 'dark'}
                     />
                   )}
@@ -464,7 +464,7 @@ function PreviewRing({
     return (
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 rounded-[16px] [corner-shape:round]"
+        className="pointer-events-none absolute inset-0 rounded-surface-sm [corner-shape:round]"
         style={{ boxShadow: 'inset 0 0 0 2px var(--app-system-accent)' }}
       />
     );
@@ -477,7 +477,7 @@ function PreviewRing({
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 rounded-[16px] [corner-shape:round]"
+      className="pointer-events-none absolute inset-0 rounded-surface-sm [corner-shape:round]"
       style={{
         padding: 2,
         background: split ? `linear-gradient(to right, ${edge} 0 50%, transparent 50% 100%)` : edge,
@@ -537,7 +537,7 @@ function PreviewContent({ tokens }: { tokens: Record<string, string> }): React.J
       <span className={line} style={{ width: '46%', backgroundColor: muted, opacity: 0.8 }} />
       <span className={line} style={{ width: '26%', backgroundColor: muted, opacity: 0.7 }} />
       <span
-        className="mt-auto flex h-[8px] items-center justify-end rounded-[4px] border pr-[2px]"
+        className="mt-auto flex h-[8px] items-center justify-end rounded-[2px] border pr-[2px]"
         style={{
           backgroundColor: tokens['--app-background'],
           borderColor: tokens['--app-border'],
@@ -563,7 +563,7 @@ function PreviewWindow({
 }): React.JSX.Element {
   return (
     <span
-      className="flex h-full w-full min-w-0 overflow-hidden rounded-[9px] border-[0.5px]"
+      className="flex h-full w-full min-w-0 overflow-hidden rounded-chip border-[0.5px]"
       style={{
         // One step off the card, so the content reads as a panel inside the app.
         backgroundColor: `color-mix(in oklab, ${tokens['--app-background']}, ${tokens['--app-foreground']} 4%)`,

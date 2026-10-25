@@ -1,0 +1,38 @@
+/*
+ * Semantic tokens: what a surface is for, not how big it happens to be.
+ * Components reference these names; raw pixels in className are the thing
+ * this file exists to remove. Primitives (--radius-sm/md/lg, --text-*,
+ * colours) stay in shared/designTokens.css, which the marketing site shares.
+ *
+ * Sizes follow the element's height, not its width: a corner reads round when
+ * its radius is roughly a third of the short side. The comments record the
+ * height each tier was tuned against.
+ */
+@theme static {
+  /* Radius ------------------------------------------------------------- */
+  --radius-inline: 6px; /* inline code, kbd: padding-box ornaments */
+  --radius-chip: 8px; /* chips, badges, thumbnails, mini windows */
+  --radius-control-sm: 10px; /* 24px icon buttons and xs controls */
+  --radius-control: 12px; /* 28-32px buttons, inputs, menu items, rows */
+  --radius-surface-sm: 16px; /* code blocks, tables, preview trays */
+  --radius-surface: 20px; /* thinking blocks, read groups, menus, dialogs */
+  --radius-surface-lg: 24px; /* tool blocks, message bubbles, cards */
+  --radius-container: 36px; /* composer, page cards, large panels */
+  --radius-full: 9999px; /* circles and pills, when height is unknown */
+
+  /* Spacing ------------------------------------------------------------ */
+  --spacing-row: 12px; /* label and control inside one row */
+  --spacing-group: 16px; /* gap between controls in a card */
+  --spacing-section: 36px; /* gap between settings groups */
+
+  /* Elevation ---------------------------------------------------------- */
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.12);
+  --shadow-popover: 0 6px 20px rgb(0 0 0 / 0.14);
+  --shadow-composer: 0 10px 34px rgb(0 0 0 / 0.075);
+
+  /* Motion ------------------------------------------------------------- */
+  --duration-fast: 100ms; /* hover, focus */
+  --duration-base: 150ms; /* colour, opacity */
+  --duration-slow: 200ms; /* enter and exit */
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+}

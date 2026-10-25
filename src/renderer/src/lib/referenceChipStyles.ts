@@ -5,7 +5,7 @@
  * places must read from these constants instead of copying the class list.
  */
 const REFERENCE_CHIP_BASE_CLASS =
-  'mx-px mt-px inline-flex h-5.5 items-center gap-1 rounded-[7.5px] bg-[var(--system-accent)]/10 px-1.5 align-top text-[0.875rem] text-[var(--system-accent)]';
+  'mx-px mt-px inline-flex h-5.5 items-center gap-1 rounded-chip bg-[var(--system-accent)]/10 px-1.5 align-top text-[0.875rem] text-[var(--system-accent)]';
 
 export const REFERENCE_CHIP_CLASS = `${REFERENCE_CHIP_BASE_CLASS} max-w-60`;
 
