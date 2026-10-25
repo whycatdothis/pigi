@@ -17,6 +17,7 @@ import { Switch } from '../ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { cn } from '@/lib/utils';
 import {
+  DEFAULT_FONT_FAMILY,
   FONT_FAMILIES,
   type AccentChoice,
   type ColorMode,
@@ -290,12 +291,15 @@ export function FontPicker({
     <NativeSelect
       size="sm"
       aria-label={label}
-      value={value ?? ''}
-      onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
+      // The default is one of the families in the list, so the picker selects it
+      // directly instead of prepending a second entry with the same name.
+      value={value ?? DEFAULT_FONT_FAMILY[role]}
+      onChange={(event) =>
+        onChange(event.target.value === DEFAULT_FONT_FAMILY[role] ? null : event.target.value)
+      }
       icon={<IconChevronDown size={14} stroke={1.75} />}
-      className="w-[8.5rem] [&_select]:pr-7 [&_select]:text-caption [&_select]:text-right [&_select]:dark:bg-transparent"
+      className="w-[8.5rem] [&_select]:pr-7 [&_select]:text-caption [&_select]:dark:bg-transparent"
     >
-      <option value="">{role === 'code' ? 'System mono' : 'System'}</option>
       {FONT_FAMILIES.map((family) => (
         <option key={family} value={family}>
           {family}

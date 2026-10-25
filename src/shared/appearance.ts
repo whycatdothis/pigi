@@ -181,10 +181,21 @@ export const FONT_STACKS: Record<FontFamilyName, string> = {
 
 export type FontRole = 'ui' | 'content' | 'code';
 
+/**
+ * The family each role falls back to when the slot stores null. The picker uses
+ * it as the stored value's stand-in, so a role only ever shows one entry for
+ * its own default and no family appears twice in the list.
+ */
+export const DEFAULT_FONT_FAMILY: Record<FontRole, FontFamilyName> = {
+  ui: 'System',
+  content: 'System',
+  code: 'SF Mono',
+};
+
 const DEFAULT_FONT_STACKS: Record<FontRole, string> = {
-  ui: FONT_STACKS.System,
-  content: FONT_STACKS.System,
-  code: FONT_STACKS['SF Mono'],
+  ui: FONT_STACKS[DEFAULT_FONT_FAMILY.ui],
+  content: FONT_STACKS[DEFAULT_FONT_FAMILY.content],
+  code: FONT_STACKS[DEFAULT_FONT_FAMILY.code],
 };
 
 /** Resolves a stored family name to a CSS stack, with the role default. */
