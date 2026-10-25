@@ -10,7 +10,11 @@ import {
 } from '../../../../shared/piSettings';
 import { usePiSettings } from '../../hooks/usePiSettings';
 import { SegmentedControl, SettingsContent, SettingsHint } from './settingsControls';
-import { findSettingsSection, type SettingsSectionId } from './settingsSections';
+import {
+  DEFAULT_SETTINGS_SECTION,
+  findSettingsSection,
+  type SettingsSectionId,
+} from './settingsSections';
 import type { PiSectionProps } from './piSectionProps';
 import {
   AdvancedSettings,
@@ -23,7 +27,6 @@ import {
 import { AppearanceSettings } from './appearanceSettings';
 import { ChatSettings } from './chatSettings';
 import { ShortcutsSettings } from './shortcutsSettings';
-import { AboutSettings } from './aboutSettings';
 
 interface SettingsPageProps {
   section: SettingsSectionId;
@@ -43,7 +46,10 @@ export default function SettingsPage({
   cwd,
   models,
 }: SettingsPageProps): React.JSX.Element {
-  const sectionMeta = findSettingsSection(section);
+  // A section id can outlive the section it names (this page keeps its
+  // selection in the store), so an unknown id falls back to the default rather
+  // than stranding the view on an error message.
+  const sectionMeta = findSettingsSection(section) ?? findSettingsSection(DEFAULT_SETTINGS_SECTION);
   const { snapshot, loading, saving, reload, setUpdates } = usePiSettings(cwd);
   const [scope, setScope] = useState<PiSettingsScope>('global');
   // Sections that only touch global fields pin the scope, so values and
@@ -142,9 +148,6 @@ export default function SettingsPage({
       break;
     case 'shortcuts':
       content = <ShortcutsSettings />;
-      break;
-    case 'about':
-      content = <AboutSettings snapshot={snapshot} cwd={cwd} />;
       break;
   }
 
