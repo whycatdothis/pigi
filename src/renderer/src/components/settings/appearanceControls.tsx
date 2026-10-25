@@ -70,7 +70,7 @@ export function ColorField({
 
   return (
     <label
-      className="flex h-7 items-center gap-2 rounded-lg border border-input pr-2 pl-1.5 transition-colors focus-within:border-ring hover:bg-muted/60 dark:bg-input/30"
+      className="flex h-7 items-center gap-2 rounded-control border border-input pr-2 pl-1.5 transition-colors focus-within:border-ring hover:bg-muted/60 dark:bg-input/30"
       htmlFor={inputId}
     >
       <span
@@ -268,7 +268,7 @@ export function NumberInput({
         }}
         inputMode="numeric"
         aria-label={label}
-        className="h-7 w-12 rounded-lg border border-input bg-transparent text-center text-caption tabular-nums outline-none transition-colors focus-visible:border-ring dark:bg-input/30"
+        className="h-7 w-12 rounded-control border border-input bg-transparent text-center text-caption tabular-nums outline-none transition-colors focus-visible:border-ring dark:bg-input/30"
       />
       <span className="text-caption text-muted-foreground">{suffix}</span>
     </div>
@@ -345,7 +345,7 @@ export function ThemePresetField({
         <button
           type="button"
           aria-label="Theme"
-          className="flex h-8 w-52 items-center gap-2 rounded-lg border border-input py-[3px] pl-1 pr-2 text-left outline-none transition-colors hover:bg-muted data-[state=open]:bg-muted dark:bg-input/30"
+          className="flex h-8 w-52 items-center gap-2 rounded-control border border-input py-[3px] pl-1 pr-2 text-left outline-none transition-colors hover:bg-muted data-[state=open]:bg-muted dark:bg-input/30"
         >
           <ThemeBadge accent={isCustom ? accent : preset.light.accent} />
           <span className="flex-1 truncate text-caption text-foreground">

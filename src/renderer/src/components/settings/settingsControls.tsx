@@ -190,7 +190,7 @@ export function SegmentedControl<T extends string>({
       className={cn(
         // Filled track, no outline: the segmented control should not mix a
         // second chrome language with the selects in the same column.
-        'inline-flex h-7 items-center gap-0.5 rounded-lg bg-muted p-0.5',
+        'inline-flex h-7 items-center gap-0.5 rounded-control bg-muted p-0.5',
         disabled && 'pointer-events-none opacity-50',
         className,
       )}

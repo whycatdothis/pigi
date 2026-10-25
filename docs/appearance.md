@@ -567,7 +567,7 @@ Reset appearance                            (footer row, right)
 - Type carries the hierarchy by weight, not size: page title 28/600, group
   title 13/600 muted, row label 14/500, control text 13/400 with tabular
   numerals. Every control is 28px tall so the right column lines up.
-- One radius scale, by role: card 36, control 12, theme badge 8, preview frame
+- One radius scale, by role: card 36, control 14, theme badge 8, preview frame
   16 with a 12 mini window inside it. The selection ring, the edge ring and the
   drawing's own background all share the frame's 16, so the ring hugs the
   picture instead of cutting across its corners. Content blocks

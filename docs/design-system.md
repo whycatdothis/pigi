@@ -23,7 +23,7 @@ third of the height; below a tenth it reads square.
 | `--radius-inline`     | 6px    | inline code, kbd                                                       | 18–22          | 30%    |
 | `--radius-chip`       | 8px    | chips, badges, thumbnails                                              | 20–24          | 35%    |
 | `--radius-control-sm` | 10px   | `size-6` icon buttons, xs controls                                     | 24             | 42%    |
-| `--radius-control`    | 12px   | buttons, inputs, menu items, sidebar rows, preview mini windows        | 28–32          | 40%    |
+| `--radius-control`    | 14px   | buttons, inputs, menu items, sidebar rows, preview mini windows        | 28–32          | 44–50% |
 | `--radius-surface-sm` | 16px   | code blocks, markdown tables, preview frames and rings                 | 50–240         | 7–32%  |
 | `--radius-surface`    | 20px   | cards: tool, thinking, read group, branch summary, error notice, menus | 38–170         | 12–27% |
 | `--radius-surface-lg` | 24px   | message bubbles, composer, cards                                       | 40–135         | 18–60% |
@@ -37,7 +37,7 @@ Rules that come up every time:
   pill no matter what the class says — a 36px bubble is already fully round at
   18px. Raising the number past that changes nothing.
 - **Concentric insets.** A child inset by `d` inside a parent with radius `r`
-  needs `r − d`. The theme badge (inset 5px in a 12px control) uses `chip`.
+  needs `r − d`. The theme badge (inset 5px in a 14px control) uses `chip`.
 - **Children inherit.** A header or footer that sits flush against its parent's
   edge declares no radius at all: the parent clips it. Declaring `rounded-t-md`
   inside a 20px card leaves a notch where the tighter corner pulls away.
