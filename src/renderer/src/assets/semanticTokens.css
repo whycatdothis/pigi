@@ -15,8 +15,8 @@
   --radius-control-sm: 10px; /* 24px icon buttons and xs controls */
   --radius-control: 12px; /* 28-32px buttons, inputs, menu items, rows */
   --radius-surface-sm: 16px; /* code blocks, tables, preview trays */
-  --radius-surface: 20px; /* thinking blocks, read groups, menus, dialogs */
-  --radius-surface-lg: 24px; /* tool blocks, message bubbles, cards */
+  --radius-surface: 20px; /* tool blocks, thinking blocks, read groups, menus */
+  --radius-surface-lg: 24px; /* message bubbles, cards */
   --radius-container: 36px; /* composer, page cards, large panels */
   --radius-full: 9999px; /* circles and pills, when height is unknown */
 
