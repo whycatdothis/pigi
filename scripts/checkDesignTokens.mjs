@@ -21,7 +21,7 @@ const SEMANTIC_TOKEN_FILE = 'assets/semanticTokens.css';
 const RULES = [
   {
     name: 'arbitrary radius',
-    pattern: /rounded-\[[^\]]*(?:\d+(?:px|rem|em)|calc\(var\(--radius\))[^\]]*\]/g,
+    pattern: /rounded(?:-[a-z]+)*\[[^\]]*(?:\d+(?:px|rem|em)|calc\(var\(--radius\))[^\]]*\]/g,
     hint: 'use rounded-inline / chip / control / surface / container',
   },
   {

@@ -567,20 +567,22 @@ Reset appearance                            (footer row, right)
 - Type carries the hierarchy by weight, not size: page title 28/600, group
   title 13/600 muted, row label 14/500, control text 13/400 with tabular
   numerals. Every control is 28px tall so the right column lines up.
-- One radius scale: card 38, control 12 (`--radius-lg`), theme badge 7, mini
-  window 9 inside a 16 tray; the selection ring sits on the tray's edge. Content
-  blocks carry their own sizes because they are far taller than a control:
-  tool block 24, thinking block and collapsed read group 20, code block 18,
-  markdown table 16.8, message bubble 21.6 (`--radius-2xl`), composer 40.
+- One radius scale, by role: card 36, control 12, theme badge 8, mini window 8
+  inside a 12 tray; the selection ring sits on the tray's edge. Content blocks
+  carry their own tiers because they are far taller than a control: message
+  bubbles and the composer 24, tool block, thinking block, collapsed read group
+  and error notice 20, code block and markdown table 16, inline code 6. See
+  `docs/design-system.md`.
 - Corners are superellipses, not quarter circles: `designTokens.css` declares
   `corner-shape: superellipse(1.5)` for every rounded element except
   `.rounded-full`. The argument is half the classic exponent, so 1.5 is
   `x^3 + y^3 = r^3`; the curve leaves the straight edge with zero curvature,
   which is what reads as a continuous corner. It is declared inside
-  `@layer base` so app rules can opt out — unlayered CSS outranks every layer,
-  and the markdown table needs `round` because `overflow: hidden` clips its
-  opaque cells with a circular radius. The mode preview trays opt out too: their
-  drawing fills the button, so its silhouette comes from that circular clip.
+  `@layer base` so app rules can opt out — unlayered CSS outranks every layer.
+  The markdown table still opts back into `round`, because its cells paint over
+  the border arc. Chrome clips `overflow: hidden` children with the same shape,
+  so the mode previews keep their squircle corners even though the drawing fills
+  the button.
 - Surfaces are solid (`bg-card` with a 1px `--border`); the dividers use the
   same solid border color and stay inset to the row padding.
 - The settings column is 660px wide (`SETTINGS_CONTENT_MAX_WIDTH`); the

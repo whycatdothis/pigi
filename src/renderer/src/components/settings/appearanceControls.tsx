@@ -418,14 +418,14 @@ export function ModePreviewPicker({
                   aria-label={option.label}
                   data-testid={`theme-option-${option.value}`}
                   onClick={() => onChange(option.value)}
-                  className="relative h-[66px] w-[84px] overflow-hidden rounded-surface-sm [corner-shape:round]"
+                  className="relative h-[66px] w-[84px] overflow-hidden rounded-control"
                 >
                   {option.value === 'system' ? (
                     <SystemPreview light={previews.light} dark={previews.dark} />
                   ) : (
                     <PreviewUnit
                       tokens={previews[option.value]}
-                      radius="rounded-surface-sm"
+                      radius="rounded-control"
                       dark={option.value === 'dark'}
                     />
                   )}
@@ -464,7 +464,7 @@ function PreviewRing({
     return (
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 rounded-surface-sm [corner-shape:round]"
+        className="pointer-events-none absolute inset-0 rounded-control"
         style={{ boxShadow: 'inset 0 0 0 2px var(--app-system-accent)' }}
       />
     );
@@ -477,7 +477,7 @@ function PreviewRing({
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 rounded-surface-sm [corner-shape:round]"
+      className="pointer-events-none absolute inset-0 rounded-control"
       style={{
         padding: 2,
         background: split ? `linear-gradient(to right, ${edge} 0 50%, transparent 50% 100%)` : edge,
@@ -648,7 +648,7 @@ function SystemPreview({
   return (
     <span className="flex h-full w-full">
       {/* The halves stay square at the seam so the crop is a straight line. */}
-      <PreviewHalf tokens={light} radius="rounded-l-[10px]" dark={false} />
+      <PreviewHalf tokens={light} radius="rounded-l-control" dark={false} />
       <PreviewHalf tokens={dark} dark />
     </span>
   );

@@ -21,11 +21,12 @@
 
 ### Changed
 
+- The theme previews are squarer and smaller: an 84x66 tray at 12px, a mini window at 8px, both continuous-corner squircles like the rest of the app
 - Transcript surfaces use one tier per role: 24 for message bubbles, 20 for cards (tool, thinking, read group, branch summary, error notices, menus), 16 for blocks embedded in prose (code, tables, images), 6 for inline code
 - The composer and the queue bar above it drop from 36px to 24px, matching the bubble tier; a 112px-tall composer was reading as more round than anything next to it
 - Headers and footers inside a card inherit its radius instead of declaring a smaller one, which left a notch in the tool block status bar
 
-- Corners are continuous: every rounded surface uses `corner-shape: superellipse(1.5)`, which leaves the straight edge with zero curvature instead of jumping to a quarter circle; markdown tables and the mode previews opt back into `round` where a circular clip decides their silhouette
+- Corners are continuous: every rounded surface uses `corner-shape: superellipse(1.5)`, which leaves the straight edge with zero curvature instead of jumping to a quarter circle; markdown tables opt back into `round` where their cells paint over the border arc
 - Radii grow with the surfaces they belong to: settings cards 38, the composer 40, tool blocks 24, message bubbles 21.6, thinking blocks and collapsed read groups 20, code blocks 18, and controls 12 (`--radius` moves from 10 to 12)
 - Blue replaces indigo as the default accent
 - Settings pages drop the top bar: the section name is a page heading in the content column, and the scope switch and reload button sit beside it
