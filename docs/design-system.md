@@ -21,10 +21,10 @@ third of the height; below a tenth it reads square.
 | Token                 | Value  | Applied to                                                             | Typical height | Ratio  |
 | --------------------- | ------ | ---------------------------------------------------------------------- | -------------- | ------ |
 | `--radius-inline`     | 6px    | inline code, kbd                                                       | 18–22          | 30%    |
-| `--radius-chip`       | 8px    | chips, badges, thumbnails, preview mini windows                        | 20–24          | 35%    |
+| `--radius-chip`       | 8px    | chips, badges, thumbnails                                              | 20–24          | 35%    |
 | `--radius-control-sm` | 10px   | `size-6` icon buttons, xs controls                                     | 24             | 42%    |
 | `--radius-control`    | 12px   | buttons, inputs, menu items, sidebar rows                              | 28–32          | 40%    |
-| `--radius-surface-sm` | 16px   | code blocks, markdown tables, preview trays                            | 100–240        | 7–16%  |
+| `--radius-surface-sm` | 16px   | code blocks, markdown tables, preview mini windows                     | 50–240         | 7–32%  |
 | `--radius-surface`    | 20px   | cards: tool, thinking, read group, branch summary, error notice, menus | 38–170         | 12–27% |
 | `--radius-surface-lg` | 24px   | message bubbles, composer, cards                                       | 40–135         | 18–60% |
 | `--radius-container`  | 36px   | settings cards, page panels                                            | 80–290         | 12–45% |
@@ -43,10 +43,11 @@ Rules that come up every time:
   inside a 20px card leaves a notch where the tighter corner pulls away.
 - **Pills stay circles.** `border-radius: 50%` plus a superellipse is a
   squircle, not a circle, which is why `corner-shape` skips `.rounded-full`.
-- **Clipping is still circular.** `overflow: hidden` clips children with the
-  circular radius; the parent's own background follows `corner-shape`. When a
-  child paints an opaque fill across the whole box, the container must opt back
-  into `corner-shape: round` — see markdown tables and the mode previews.
+- **Clipping follows the shape.** Chrome clips `overflow: hidden` children with
+  the same `corner-shape` the box declares, so a drawing that fills its frame
+  still keeps the corner. Markdown tables are the one opt-out, and for a
+  different reason: their cells paint over the border arc, so the container
+  needs `round` to keep the arc and the fill agreeing.
 
 ## Type
 

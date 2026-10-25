@@ -418,14 +418,14 @@ export function ModePreviewPicker({
                   aria-label={option.label}
                   data-testid={`theme-option-${option.value}`}
                   onClick={() => onChange(option.value)}
-                  className="relative h-[66px] w-[84px] overflow-hidden rounded-control"
+                  className="relative h-[66px] w-[84px] overflow-hidden rounded-inline"
                 >
                   {option.value === 'system' ? (
                     <SystemPreview light={previews.light} dark={previews.dark} />
                   ) : (
                     <PreviewUnit
                       tokens={previews[option.value]}
-                      radius="rounded-control"
+                      radius="rounded-inline"
                       dark={option.value === 'dark'}
                     />
                   )}
@@ -464,7 +464,7 @@ function PreviewRing({
     return (
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 rounded-control"
+        className="pointer-events-none absolute inset-0 rounded-inline"
         style={{ boxShadow: 'inset 0 0 0 2px var(--app-system-accent)' }}
       />
     );
@@ -477,7 +477,7 @@ function PreviewRing({
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 rounded-control"
+      className="pointer-events-none absolute inset-0 rounded-inline"
       style={{
         padding: 2,
         background: split ? `linear-gradient(to right, ${edge} 0 50%, transparent 50% 100%)` : edge,
@@ -563,7 +563,7 @@ function PreviewWindow({
 }): React.JSX.Element {
   return (
     <span
-      className="flex h-full w-full min-w-0 overflow-hidden rounded-chip border-[0.5px]"
+      className="flex h-full w-full min-w-0 overflow-hidden rounded-surface-sm border-[0.5px]"
       style={{
         // One step off the card, so the content reads as a panel inside the app.
         backgroundColor: `color-mix(in oklab, ${tokens['--app-background']}, ${tokens['--app-foreground']} 4%)`,
@@ -648,7 +648,7 @@ function SystemPreview({
   return (
     <span className="flex h-full w-full">
       {/* The halves stay square at the seam so the crop is a straight line. */}
-      <PreviewHalf tokens={light} radius="rounded-l-control" dark={false} />
+      <PreviewHalf tokens={light} radius="rounded-l-inline" dark={false} />
       <PreviewHalf tokens={dark} dark />
     </span>
   );

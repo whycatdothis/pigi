@@ -567,8 +567,9 @@ Reset appearance                            (footer row, right)
 - Type carries the hierarchy by weight, not size: page title 28/600, group
   title 13/600 muted, row label 14/500, control text 13/400 with tabular
   numerals. Every control is 28px tall so the right column lines up.
-- One radius scale, by role: card 36, control 12, theme badge 8, mini window 8
-  inside a 12 tray; the selection ring sits on the tray's edge. Content blocks
+- One radius scale, by role: card 36, control 12, theme badge 8, mini window 16
+  inside a 6 tray — the frame stays square so the drawing reads round; the
+  selection ring sits on the tray's edge. Content blocks
   carry their own tiers because they are far taller than a control: message
   bubbles and the composer 24, tool block, thinking block, collapsed read group
   and error notice 20, code block and markdown table 16, inline code 6. See

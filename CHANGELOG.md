@@ -21,7 +21,7 @@
 
 ### Changed
 
-- The theme previews are squarer and smaller: an 84x66 tray at 12px, a mini window at 8px, both continuous-corner squircles like the rest of the app
+- The theme previews separate the frame from the drawing: a nearly square 6px tray around a 16px mini window; both are continuous-corner squircles like the rest of the app
 - Transcript surfaces use one tier per role: 24 for message bubbles, 20 for cards (tool, thinking, read group, branch summary, error notices, menus), 16 for blocks embedded in prose (code, tables, images), 6 for inline code
 - The composer and the queue bar above it drop from 36px to 24px, matching the bubble tier; a 112px-tall composer was reading as more round than anything next to it
 - Headers and footers inside a card inherit its radius instead of declaring a smaller one, which left a notch in the tool block status bar
