@@ -333,7 +333,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
         <div
           data-search-ignore
           className={cn(
-            '-mx-3 -mb-2 flex items-center justify-between gap-1.5 px-3 py-1.5 text-xs font-medium rounded-b-md',
+            '-mx-3 -mb-2 flex items-center justify-between gap-1.5 px-3 py-1.5 text-xs font-medium',
             statusClassName,
           )}
         >

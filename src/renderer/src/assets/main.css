@@ -247,7 +247,7 @@
     justify-content: center;
     margin-left: auto;
     padding: 2px;
-    border-radius: 0.25rem;
+    border-radius: var(--radius-chip);
     color: var(--muted-foreground);
     transition:
       color 0.15s ease,
@@ -284,7 +284,7 @@
   .markdown-body img {
     margin: var(--markdown-block-spacing) 0;
     max-width: 100%;
-    border-radius: calc(var(--radius) * 0.8);
+    border-radius: var(--radius-surface-sm);
   }
 
   .markdown-table-wrapper {
@@ -371,7 +371,7 @@
 
   /* Frosted menu content: hairline ring + blur shadow */
   .menu-content {
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-surface);
     padding: 0.25rem;
   }
 }

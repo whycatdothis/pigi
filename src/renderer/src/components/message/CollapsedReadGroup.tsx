@@ -233,7 +233,7 @@ export default function CollapsedReadGroup({
   return (
     <Collapsible className="group/collapsible mb-[22px]" open={open} onOpenChange={onOpenChange}>
       <div className="rounded-surface border border-border/65 bg-muted/25">
-        <div className="rounded-t-md px-3 py-1.5">
+        <div className="px-3 py-1.5">
           <CollapsibleTrigger className="inline-flex items-center gap-1 text-body leading-6 text-foreground hover:text-foreground cursor-pointer transition-colors [&[data-state=open]>svg.chevron-right]:hidden [&[data-state=closed]>svg.chevron-down]:hidden">
             <span>{label}</span>
             <IconChevronRight className="chevron-right size-3.5 shrink-0" />

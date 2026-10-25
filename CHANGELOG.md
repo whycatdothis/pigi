@@ -21,6 +21,9 @@
 
 ### Changed
 
+- Transcript surfaces use one tier per role: 24 for message bubbles, 20 for cards (tool, thinking, read group, branch summary, error notices, menus), 16 for blocks embedded in prose (code, tables, images), 6 for inline code
+- Headers and footers inside a card inherit its radius instead of declaring a smaller one, which left a notch in the tool block status bar
+
 - Corners are continuous: every rounded surface uses `corner-shape: superellipse(1.5)`, which leaves the straight edge with zero curvature instead of jumping to a quarter circle; markdown tables and the mode previews opt back into `round` where a circular clip decides their silhouette
 - Radii grow with the surfaces they belong to: settings cards 38, the composer 40, tool blocks 24, message bubbles 21.6, thinking blocks and collapsed read groups 20, code blocks 18, and controls 12 (`--radius` moves from 10 to 12)
 - Blue replaces indigo as the default accent

@@ -458,7 +458,7 @@ function AssistantText({
     >
       {node.text.length > 0 && <MarkdownMessage text={node.text} />}
       {node.errorMessage && (
-        <div className="mt-3 w-fit rounded-lg bg-destructive/10 px-3 py-2 text-ui text-destructive">
+        <div className="mt-3 w-fit rounded-surface bg-destructive/10 px-3 py-2 text-ui text-destructive">
           {node.errorMessage}
         </div>
       )}

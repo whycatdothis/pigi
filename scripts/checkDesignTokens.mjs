@@ -21,7 +21,7 @@ const SEMANTIC_TOKEN_FILE = 'assets/semanticTokens.css';
 const RULES = [
   {
     name: 'arbitrary radius',
-    pattern: /rounded-\[[^\]]*\d+px[^\]]*\]/g,
+    pattern: /rounded-\[[^\]]*(?:\d+(?:px|rem|em)|calc\(var\(--radius\))[^\]]*\]/g,
     hint: 'use rounded-inline / chip / control / surface / container',
   },
   {
@@ -37,10 +37,12 @@ const RULES = [
     skip: (match) => match.includes('var('),
   },
   {
-    name: 'arbitrary border radius in CSS',
-    pattern: /border-radius:\s*\d+(?:\.\d+)?px/g,
+    name: 'hard-coded border radius in CSS',
+    pattern: /border-radius:\s*([^;]+);/g,
     hint: 'use var(--radius-*)',
     extensions: ['.css'],
+    // A shorthand like `0 0 var(--radius-surface-sm)` is fine; a literal is not.
+    skip: (match) => match.includes('var(--radius'),
   },
 ];
 
