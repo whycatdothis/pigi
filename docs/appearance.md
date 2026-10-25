@@ -521,12 +521,14 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
   `--app-sidebar`, which is nearly white on the light side. The system preview
   renders two units at full size, crops both at the same point from the left,
   and stitches the halves, so the seam carries the dark unit's own background
-  margin instead of gluing the two drawings together. Selection is a 2px accent
-  ring painted over the drawing, never around it; the name is an `aria-label`,
-  shown on hover. Only the light preview needs a hairline of its own: it is
-  drawn from its background mixed 12% toward black, so a dark preview gets a
-  black edge that reads as no edge, and the system preview rings only its light
-  half.
+  margin instead of gluing the two drawings together, and the halves stay square
+  at the seam so the crop is a straight line. Selection is a 2px accent ring
+  painted over the drawing's own edge, never a frame around it; the name is an
+  `aria-label`, shown on hover. Unselected previews carry a 2px hairline in the
+  same place, mixed from their background 12% toward black: gray on a light
+  preview, black on a dark one, which reads as no edge at all. A dark preview
+  therefore gets no edge, and the system preview rings only its light half
+  (a masked gradient, so the two halves still share one outline).
 - `SettingSwitch` — row plus switch for the boolean preferences.
 
 Structure. Everything is visible at once: there is no collapsed advanced
@@ -565,7 +567,7 @@ Reset appearance                            (footer row, right)
   title 13/600 muted, row label 14/500, control text 13/400 with tabular
   numerals. Every control is 28px tall so the right column lines up.
 - One radius scale: card 15, control 10 (`--radius-lg`), theme badge 5, mini
-  window 8 inside a 10 tray; the selection ring sits on the tray's edge.
+  window 8 inside a 12 tray; the selection ring sits on the tray's edge.
 - Surfaces are solid (`bg-card` with a 1px `--border`); the dividers use the
   same solid border color and stay inset to the row padding.
 - The settings column is 660px wide (`SETTINGS_CONTENT_MAX_WIDTH`); the
