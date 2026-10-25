@@ -417,18 +417,29 @@ export function ModePreviewPicker({
                   data-testid={`theme-option-${option.value}`}
                   onClick={() => onChange(option.value)}
                   className={cn(
-                    // Only the selection border: the miniature carries its own
-                    // padding, so a crop keeps the margin around the app.
-                    'h-[66px] w-[78px] overflow-hidden rounded-[12px] border-2 transition-colors',
-                    selected
-                      ? 'border-[var(--app-system-accent)]'
-                      : 'border-foreground/12 hover:border-foreground/25',
+                    // Only the selection ring: the miniature carries its own
+                    // padding, so a crop keeps the margin around the app. The
+                    // border is transparent and always present, so the drawing
+                    // does not move when the ring appears.
+                    'relative h-[66px] w-[78px] overflow-hidden rounded-[12px] border-2 border-transparent',
+                    !selected && 'hover:border-foreground/20',
                   )}
                 >
                   {option.value === 'system' ? (
-                    <SystemPreview light={previews.light} dark={previews.dark} />
+                    <SystemPreview light={previews.light} dark={previews.dark} edge={!selected} />
                   ) : (
-                    <PreviewUnit tokens={previews[option.value]} />
+                    <PreviewUnit tokens={previews[option.value]} edge={!selected} />
+                  )}
+                  {/* Painted above the miniature: a border would be covered by
+                      the dark preview inside the corner curve. */}
+                  {selected && (
+                    <span
+                      aria-hidden="true"
+                      // `inset-0` is the padding box, which is also where the
+                      // miniature is clipped; 10 = 12 - the 2px border.
+                      className="pointer-events-none absolute inset-0 rounded-[10px]"
+                      style={{ boxShadow: 'inset 0 0 0 2px var(--app-system-accent)' }}
+                    />
                   )}
                 </button>
               </TooltipTrigger>
@@ -496,7 +507,7 @@ function PreviewContent({ tokens }: { tokens: Record<string, string> }): React.J
 function PreviewWindow({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
   return (
     <span
-      className="flex h-full w-full min-w-0 overflow-hidden rounded-[8px] border"
+      className="flex h-full w-full min-w-0 overflow-hidden rounded-[8px] border-[0.5px]"
       style={{
         // One step off the card, so the content reads as a panel inside the app.
         backgroundColor: `color-mix(in oklab, ${tokens['--app-background']}, ${tokens['--app-foreground']} 4%)`,
@@ -521,11 +532,28 @@ function PreviewWindow({ tokens }: { tokens: Record<string, string> }): React.JS
  * The captured object: the app on its own background with a margin around it.
  * Cropping this (not the window) is what carries the whitespace into the halves.
  */
-function PreviewUnit({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
+function PreviewUnit({
+  tokens,
+  edge = false,
+}: {
+  tokens: Record<string, string>;
+  /** Draw a hairline at the unit's own edge, taken from its palette. */
+  edge?: boolean;
+}): React.JSX.Element {
   return (
     <span
-      className="flex h-full w-full p-[8px]"
-      style={{ backgroundColor: tokens['--app-background'] }}
+      // 10 = the button's 12 minus its 2px selection border, so the miniature
+      // stays concentric with the frame around it.
+      className="flex h-full w-full rounded-[10px] p-[8px]"
+      style={{
+        backgroundColor: tokens['--app-background'],
+        // Darkening the app background gives a light edge on a light preview and
+        // a black one on a dark preview, which is what a black card needs.
+        outline: edge
+          ? `2px solid color-mix(in oklab, ${tokens['--app-background']}, #000 12%)`
+          : undefined,
+        outlineOffset: -2,
+      }}
     >
       <PreviewWindow tokens={tokens} />
     </span>
@@ -533,11 +561,17 @@ function PreviewUnit({ tokens }: { tokens: Record<string, string> }): React.JSX.
 }
 
 /** One half of a unit, rendered full size and cropped at the seam. */
-function PreviewHalf({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
+function PreviewHalf({
+  tokens,
+  edge,
+}: {
+  tokens: Record<string, string>;
+  edge: boolean;
+}): React.JSX.Element {
   return (
     <span className="relative min-w-0 flex-1 overflow-hidden">
       <span className="absolute inset-y-0 left-0 flex w-[200%]">
-        <PreviewUnit tokens={tokens} />
+        <PreviewUnit tokens={tokens} edge={edge} />
       </span>
     </span>
   );
@@ -551,14 +585,17 @@ function PreviewHalf({ tokens }: { tokens: Record<string, string> }): React.JSX.
 function SystemPreview({
   light,
   dark,
+  edge,
 }: {
   light: Record<string, string>;
   dark: Record<string, string>;
+  edge: boolean;
 }): React.JSX.Element {
   return (
     <span className="flex h-full w-full">
-      <PreviewHalf tokens={light} />
-      <PreviewHalf tokens={dark} />
+      {/* Only the light half needs an edge: the dark one already reads as a card. */}
+      <PreviewHalf tokens={light} edge={edge} />
+      <PreviewHalf tokens={dark} edge={false} />
     </span>
   );
 }

@@ -512,18 +512,21 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
 - `ModePreviewPicker` — three icon-only miniature windows (System / Light /
   Dark), 78x66, drawn from the _derived_ tokens of each mode, so a custom
   palette or a named theme shows up in them immediately. The captured object is
-  a unit: the app's own background, a 5px margin, then the window (background
-  mixed 4% toward the foreground, hairline border mixed from the preview's own
-  palette, 8px radius) holding a full-height sidebar bar next to an inset
-  content card. The card keeps 6px of padding: two muted lines from the left and
-  two accent lines from the right (assistant, then user), then the composer with
-  a send dot. The sidebar bar is mixed from the window color rather than
+  a unit: the app's own background, an 8px margin, then the window (background
+  mixed 4% toward the foreground, 0.5px hairline border mixed 20% toward black
+  so it stays dark on a dark card, 8px radius) holding a full-height sidebar bar
+  next to an inset content card. The card keeps 4px of padding: two muted lines
+  from the left and two accent lines from the right (assistant, then user), then
+  the composer with a send dot. The sidebar bar is mixed from the window color rather than
   `--app-sidebar`, which is nearly white on the light side. The system preview
   renders two units at full size, crops both at the same point from the left,
   and stitches the halves, so the seam carries the dark unit's own background
-  margin instead of gluing the two drawings together. Selection is the picker's
-  own 2px accent border, never a ring stacked on the drawing; the name is an
-  `aria-label`, shown on hover.
+  margin instead of gluing the two drawings together. Selection is a 2px accent
+  ring painted over the drawing, never around it; the name is an `aria-label`,
+  shown on hover. Only the light preview needs a hairline of its own: it is
+  drawn from its background mixed 12% toward black, so a dark preview gets a
+  black edge that reads as no edge, and the system preview rings only its light
+  half.
 - `SettingSwitch` — row plus switch for the boolean preferences.
 
 Structure. Everything is visible at once: there is no collapsed advanced
@@ -555,13 +558,14 @@ Reset appearance                            (footer row, right)
 ```
 
 - Rows are label plus control, one line each; nothing on this page needs a
-  caption under the label, so every row is 48px high. The Mode row uses the
-  same padding with a 100x70 preview, which makes it 80px tall.
-- Type carries the hierarchy by weight, not size: page title 16/600, group
+  caption under the label, so every row is 48px high. The Mode row is a card of
+  its own, above the color card and still under the "Visual style" title, with a
+  78x66 preview, which makes it 80px tall.
+- Type carries the hierarchy by weight, not size: page title 28/600, group
   title 13/600 muted, row label 14/500, control text 13/400 with tabular
   numerals. Every control is 28px tall so the right column lines up.
-- One radius scale: card 15, control 8, small chip 6, mode preview window 8
-  inside a 12 tray and a 13 selection border.
+- One radius scale: card 15, control 10 (`--radius-lg`), theme badge 5, mini
+  window 8 inside a 10 tray; the selection ring sits on the tray's edge.
 - Surfaces are solid (`bg-card` with a 1px `--border`); the dividers use the
   same solid border color and stay inset to the row padding.
 - The settings column is 660px wide (`SETTINGS_CONTENT_MAX_WIDTH`); the
