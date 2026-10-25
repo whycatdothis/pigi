@@ -33,7 +33,7 @@ function QueueBar({
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <div className="rounded-t-container bg-muted px-4 pb-15 pt-2 text-xs text-muted-foreground">
+    <div className="rounded-t-surface-lg bg-muted px-4 pb-15 pt-2 text-xs text-muted-foreground">
       <div className="flex items-center gap-1">
         {icon}
         {children}

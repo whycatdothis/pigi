@@ -26,8 +26,8 @@ third of the height; below a tenth it reads square.
 | `--radius-control`    | 12px   | buttons, inputs, menu items, sidebar rows                              | 28–32          | 40%    |
 | `--radius-surface-sm` | 16px   | code blocks, markdown tables, preview trays                            | 100–240        | 7–16%  |
 | `--radius-surface`    | 20px   | cards: tool, thinking, read group, branch summary, error notice, menus | 38–170         | 12–27% |
-| `--radius-surface-lg` | 24px   | message bubbles, cards                                                 | 40–135         | 18–60% |
-| `--radius-container`  | 36px   | composer, settings cards, page panels                                  | 80–290         | 12–45% |
+| `--radius-surface-lg` | 24px   | message bubbles, composer, cards                                       | 40–135         | 18–60% |
+| `--radius-container`  | 36px   | settings cards, page panels                                            | 80–290         | 12–45% |
 | `--radius-full`       | 9999px | circles, and pills whose height is unknown                             | —              | —      |
 
 Rules that come up every time:

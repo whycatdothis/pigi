@@ -882,7 +882,7 @@ export default function ChatInput({
             )}
             <InputGroup
               className={cn(
-                'relative h-auto flex-col [--input-group-radius:var(--radius-container)] border bg-background shadow-composer',
+                'relative h-auto flex-col [--input-group-radius:var(--radius-surface-lg)] border bg-background shadow-composer',
                 !isNewSession && 'min-h-28',
               )}
               data-has-attachments={attachments.length > 0 || undefined}
@@ -935,7 +935,7 @@ export default function ChatInput({
               </InputGroupAddon>
             </InputGroup>
             {isNewSession ? (
-              <div className="-mt-15 rounded-b-2xl bg-muted/60 px-4 pt-17 pb-2 text-sm text-muted-foreground">
+              <div className="-mt-15 rounded-b-surface-lg bg-muted/60 px-4 pt-17 pb-2 text-sm text-muted-foreground">
                 <div className="flex items-center">
                   <span
                     className="flex min-w-0 items-center gap-1.5"
@@ -965,7 +965,7 @@ export default function ChatInput({
           </div>
         </SlashCommandPopover>
         {isDragOver && (
-          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-container border-2 border-dashed border-ring bg-background/85 text-sm font-medium text-foreground">
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-surface-lg border-2 border-dashed border-ring bg-background/85 text-sm font-medium text-foreground">
             Drop files to attach
           </div>
         )}
