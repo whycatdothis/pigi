@@ -176,7 +176,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
       <img
         src={appIconUrl}
         alt=""
-        className="size-11 shrink-0 rounded-[10px] shadow-sm ring-1 ring-black/5"
+        className="size-11 shrink-0 rounded-[12.5px] shadow-sm ring-1 ring-black/5"
       />
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
         <div className="flex items-center gap-1.5">

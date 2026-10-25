@@ -882,7 +882,7 @@ export default function ChatInput({
             )}
             <InputGroup
               className={cn(
-                'relative h-auto flex-col rounded-3xl border bg-background shadow-[0_10px_34px_rgb(0_0_0_/_0.075)]',
+                'relative h-auto flex-col rounded-[40px] border bg-background shadow-[0_10px_34px_rgb(0_0_0_/_0.075)]',
                 !isNewSession && 'min-h-28',
               )}
               data-has-attachments={attachments.length > 0 || undefined}
@@ -965,7 +965,7 @@ export default function ChatInput({
           </div>
         </SlashCommandPopover>
         {isDragOver && (
-          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-3xl border-2 border-dashed border-ring bg-background/85 text-sm font-medium text-foreground">
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-[40px] border-2 border-dashed border-ring bg-background/85 text-sm font-medium text-foreground">
             Drop files to attach
           </div>
         )}

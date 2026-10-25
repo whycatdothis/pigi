@@ -313,7 +313,7 @@ function ThemeBadge({ accent }: { accent: AccentChoice }): React.JSX.Element {
       aria-hidden="true"
       // Concentric with the trigger: --radius-lg is 10px and the badge sits
       // 5px inside it, so its own radius is 5px.
-      className="flex size-[22px] shrink-0 items-center justify-center rounded-[5px] text-[10px] font-medium"
+      className="flex size-[22px] shrink-0 items-center justify-center rounded-[7px] text-[10px] font-medium"
       style={{ color: hex, backgroundColor: `${hex}1f` }}
     >
       Aa
@@ -418,12 +418,16 @@ export function ModePreviewPicker({
                   aria-label={option.label}
                   data-testid={`theme-option-${option.value}`}
                   onClick={() => onChange(option.value)}
-                  className="relative h-[66px] w-[78px] overflow-hidden rounded-[12px]"
+                  className="relative h-[66px] w-[84px] overflow-hidden rounded-[16px] [corner-shape:round]"
                 >
                   {option.value === 'system' ? (
                     <SystemPreview light={previews.light} dark={previews.dark} />
                   ) : (
-                    <PreviewUnit tokens={previews[option.value]} radius="rounded-[12px]" />
+                    <PreviewUnit
+                      tokens={previews[option.value]}
+                      radius="rounded-[16px]"
+                      dark={option.value === 'dark'}
+                    />
                   )}
                   <PreviewRing
                     selected={selected}
@@ -460,7 +464,7 @@ function PreviewRing({
     return (
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 rounded-[12px]"
+        className="pointer-events-none absolute inset-0 rounded-[16px] [corner-shape:round]"
         style={{ boxShadow: 'inset 0 0 0 2px var(--app-system-accent)' }}
       />
     );
@@ -473,7 +477,7 @@ function PreviewRing({
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 rounded-[12px]"
+      className="pointer-events-none absolute inset-0 rounded-[16px] [corner-shape:round]"
       style={{
         padding: 2,
         background: split ? `linear-gradient(to right, ${edge} 0 50%, transparent 50% 100%)` : edge,
@@ -506,8 +510,8 @@ function PreviewSidebar({
 }
 
 /**
- * Body of a miniature window: two assistant lines on the left, the user's line
- * on the right, then one more assistant line, so it reads as a conversation.
+ * Body of a miniature window: one user line, two assistant lines, two more user
+ * lines, then two assistant lines. The composer stays at the bottom.
  */
 function PreviewContent({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
   const muted = tokens['--app-muted-foreground'];
@@ -516,45 +520,63 @@ function PreviewContent({ tokens }: { tokens: Record<string, string> }): React.J
 
   return (
     <span className="flex min-w-0 flex-1 flex-col gap-[2px] p-[4px]">
-      <span className={line} style={{ width: '46%', backgroundColor: muted }} />
-      <span className={line} style={{ width: '72%', backgroundColor: muted, opacity: 0.75 }} />
       <span
         className={`${line} self-end`}
-        style={{ width: '74%', backgroundColor: accent, opacity: 0.9 }}
+        style={{ width: '52%', backgroundColor: accent, opacity: 0.9 }}
       />
-      <span className={line} style={{ width: '54%', backgroundColor: muted }} />
+      <span className={line} style={{ width: '66%', backgroundColor: muted }} />
+      <span className={line} style={{ width: '44%', backgroundColor: muted, opacity: 0.8 }} />
       <span
-        className="mt-auto flex h-[10px] items-center justify-end rounded-[3px] border pr-[2px]"
+        className={`${line} self-end`}
+        style={{ width: '86%', backgroundColor: accent, opacity: 0.9 }}
+      />
+      <span
+        className={`${line} self-end`}
+        style={{ width: '70%', backgroundColor: accent, opacity: 0.8 }}
+      />
+      <span className={line} style={{ width: '46%', backgroundColor: muted, opacity: 0.8 }} />
+      <span className={line} style={{ width: '26%', backgroundColor: muted, opacity: 0.7 }} />
+      <span
+        className="mt-auto flex h-[8px] items-center justify-end rounded-[4px] border pr-[2px]"
         style={{
           backgroundColor: tokens['--app-background'],
           borderColor: tokens['--app-border'],
         }}
       >
-        <span className="size-[2.5px] rounded-full" style={{ backgroundColor: accent }} />
+        <span className="size-[2px] rounded-full" style={{ backgroundColor: accent }} />
       </span>
     </span>
   );
 }
 
+/** How far the window's hairline is mixed toward the foreground, per mode. */
+const WINDOW_EDGE_LIGHT = 22;
+const WINDOW_EDGE_DARK = 32;
+
 /** One miniature window: sidebar on the app background, content on a card. */
-function PreviewWindow({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
+function PreviewWindow({
+  tokens,
+  dark,
+}: {
+  tokens: Record<string, string>;
+  dark: boolean;
+}): React.JSX.Element {
   return (
     <span
-      className="flex h-full w-full min-w-0 overflow-hidden rounded-[8px] border-[0.5px]"
+      className="flex h-full w-full min-w-0 overflow-hidden rounded-[9px] border-[0.5px]"
       style={{
         // One step off the card, so the content reads as a panel inside the app.
         backgroundColor: `color-mix(in oklab, ${tokens['--app-background']}, ${tokens['--app-foreground']} 4%)`,
-        // Darkened card, not a foreground mix: mixing toward the foreground turns
-        // the edge gray on a dark window. Toward black it stays a hairline that
-        // is light on light cards and nearly black on dark ones.
-        borderColor: `color-mix(in oklab, ${tokens['--app-card']}, #000 20%)`,
+        // Same gray is far heavier on white than on black, so the mix is tuned per
+        // mode: a soft line on the light card, a visible one on the dark card.
+        borderColor: `color-mix(in oklab, ${tokens['--app-card']}, ${tokens['--app-foreground']} ${dark ? WINDOW_EDGE_DARK : WINDOW_EDGE_LIGHT}%)`,
         // Lifts the window off the app background it sits on.
-        boxShadow: '0 1px 2px rgb(0 0 0 / 0.12)',
+        boxShadow: '0 2px 4px rgb(0 0 0 / 0.18)',
       }}
     >
       <PreviewSidebar tokens={tokens} width="w-[11px]" />
       <span
-        className="my-[3px] mr-[3px] flex min-w-0 flex-1 overflow-hidden rounded-[4px]"
+        className="flex min-w-0 flex-1 overflow-hidden"
         style={{ backgroundColor: tokens['--app-card'] }}
       >
         <PreviewContent tokens={tokens} />
@@ -570,10 +592,12 @@ function PreviewWindow({ tokens }: { tokens: Record<string, string> }): React.JS
 function PreviewUnit({
   tokens,
   radius = '',
+  dark = false,
 }: {
   tokens: Record<string, string>;
-  /** 12 = the button's radius; halves only round their outer side. */
+  /** The button's radius; halves only round their outer side. */
   radius?: string;
+  dark?: boolean;
 }): React.JSX.Element {
   return (
     <span
@@ -585,7 +609,7 @@ function PreviewUnit({
         // black one on a dark preview, where the card already has its own edge.
       }}
     >
-      <PreviewWindow tokens={tokens} />
+      <PreviewWindow tokens={tokens} dark={dark} />
     </span>
   );
 }
@@ -594,14 +618,16 @@ function PreviewUnit({
 function PreviewHalf({
   tokens,
   radius,
+  dark,
 }: {
   tokens: Record<string, string>;
   radius?: string;
+  dark: boolean;
 }): React.JSX.Element {
   return (
     <span className="relative min-w-0 flex-1 overflow-hidden">
       <span className="absolute inset-y-0 left-0 flex w-[200%]">
-        <PreviewUnit tokens={tokens} radius={radius} />
+        <PreviewUnit tokens={tokens} radius={radius} dark={dark} />
       </span>
     </span>
   );
@@ -622,8 +648,8 @@ function SystemPreview({
   return (
     <span className="flex h-full w-full">
       {/* The halves stay square at the seam so the crop is a straight line. */}
-      <PreviewHalf tokens={light} radius="rounded-l-[12px]" />
-      <PreviewHalf tokens={dark} />
+      <PreviewHalf tokens={light} radius="rounded-l-[10px]" dark={false} />
+      <PreviewHalf tokens={dark} dark />
     </span>
   );
 }

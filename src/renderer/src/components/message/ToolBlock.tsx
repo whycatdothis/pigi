@@ -260,7 +260,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
   return (
     <>
       <div
-        className="overflow-clip rounded-md border border-border/65 bg-muted/25 px-3 pt-0 pb-1.5 text-sm text-muted-foreground"
+        className="overflow-clip rounded-[24px] border border-border/65 bg-muted/25 px-3 pt-0 pb-1.5 text-sm text-muted-foreground"
         style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
         data-testid={`tool-block-${node.toolCallId}`}
       >

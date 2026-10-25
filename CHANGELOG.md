@@ -19,6 +19,8 @@
 
 ### Changed
 
+- Corners are continuous: every rounded surface uses `corner-shape: superellipse(1.5)`, which leaves the straight edge with zero curvature instead of jumping to a quarter circle; markdown tables and the mode previews opt back into `round` where a circular clip decides their silhouette
+- Radii grow with the surfaces they belong to: settings cards 38, the composer 40, tool blocks 24, message bubbles 21.6, thinking blocks and collapsed read groups 20, code blocks 18, and controls 12 (`--radius` moves from 10 to 12)
 - Blue replaces indigo as the default accent
 - Settings pages drop the top bar: the section name is a page heading in the content column, and the scope switch and reload button sit beside it
 - Default contrast drops from 73 to 30, so the shipped palette is softer; the slider still goes back up to the original steps

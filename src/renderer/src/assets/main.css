@@ -205,7 +205,7 @@
     max-width: 100%;
     overflow-x: auto;
     overscroll-behavior-x: none;
-    border-radius: calc(var(--radius) * 0.8);
+    border-radius: calc(var(--radius) * 1.5);
     background: var(--muted);
     padding: 10px 14px;
     font-family: var(--font-mono);
@@ -226,13 +226,13 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 14px 0;
-    border-radius: calc(var(--radius) * 0.8) calc(var(--radius) * 0.8) 0 0;
+    border-radius: calc(var(--radius) * 1.5) calc(var(--radius) * 1.5) 0 0;
     background: var(--muted);
     font-family: var(--font-mono);
   }
 
   .markdown-code-header + pre {
-    border-radius: 0 0 calc(var(--radius) * 0.8) calc(var(--radius) * 0.8);
+    border-radius: 0 0 calc(var(--radius) * 1.5) calc(var(--radius) * 1.5);
   }
 
   .markdown-code-label {
@@ -302,8 +302,12 @@
     border-collapse: separate;
     border-spacing: 0;
     overflow: hidden;
+    /* Opt out of the global superellipse corners: cell backgrounds are opaque
+       and overflow clips them with a circular radius, so they cover the border
+       arc and the table reads as a rounded rect with square corners. */
+    corner-shape: round;
     border: 1px solid var(--border);
-    border-radius: calc(var(--radius) * 0.8);
+    border-radius: calc(var(--radius) * 1.4);
     text-align: left;
     font-size: 14px;
   }

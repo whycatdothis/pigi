@@ -27,6 +27,22 @@
    data-reduce-motion after every applied appearance. */
 @custom-variant reduce-motion (&:where([data-reduce-motion='true'] *));
 
+/* Continuous corners: a superellipse instead of a quarter circle. The argument
+   is half the classic exponent, so 1.5 is `x^3 + y^3 = r^3`; the curve leaves
+   the straight edge with zero curvature, which is what makes the corner read
+   smooth rather than pasted on. 2 (the `squircle` keyword) fills the corner
+   further and reads squarer. The ChatGPT app ships 1.5 for surfaces and 1.1 for
+   the composer. Circles and pills opt out: `border-radius: 50%` plus a
+   superellipse stops being a circle.
+
+   Declared in a layer so app rules can opt out: unlayered CSS outranks every
+   layer regardless of specificity, and markdown tables need `round`. */
+@layer base {
+  :where(:not(.rounded-full)) {
+    corner-shape: superellipse(1.5);
+  }
+}
+
 @theme inline {
   --font-weight-normal: 400;
   --font-weight-medium: 500;
@@ -179,7 +195,7 @@
   --chart-3: oklch(0.511 0.262 276.966);
   --chart-4: oklch(0.457 0.24 277.023);
   --chart-5: oklch(0.398 0.195 277.366);
-  --radius: 0.625rem;
+  --radius: 0.75rem;
   --sidebar: var(--app-sidebar, color-mix(in srgb, white 55%, transparent));
   /* Opaque approximation of the sidebar surface (sidebar composited over background) */
   --sidebar-solid: var(--app-sidebar-solid, color-mix(in oklch, var(--background) 45%, white 55%));

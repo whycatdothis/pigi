@@ -510,14 +510,15 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
 - `FontPicker` — a compact native select over the whitelist (no preview glyph,
   single chevron); the code role's empty option reads "System mono".
 - `ModePreviewPicker` — three icon-only miniature windows (System / Light /
-  Dark), 78x66, drawn from the _derived_ tokens of each mode, so a custom
+  Dark), 84x66, drawn from the _derived_ tokens of each mode, so a custom
   palette or a named theme shows up in them immediately. The captured object is
   a unit: the app's own background, an 8px margin, then the window (background
-  mixed 4% toward the foreground, 0.5px hairline border mixed 20% toward black
-  so it stays dark on a dark card, 8px radius) holding a full-height sidebar bar
-  next to an inset content card. The card keeps 4px of padding: two muted lines
-  from the left and two accent lines from the right (assistant, then user), then
-  the composer with a send dot. The sidebar bar is mixed from the window color rather than
+  mixed 4% toward the foreground, 0.5px hairline border mixed 22% toward black
+  on light and 32% on dark so it stays dark on a dark card, 9px radius) holding
+  a full-height 11px sidebar bar next to a content card that runs flush to the
+  window's own edge. The card is seven lines of 2px at 4px padding: one accent
+  line from the right, two muted from the left, two accent from the right, then
+  two shorter muted lines, followed by an 8px composer with a send dot. The sidebar bar is mixed from the window color rather than
   `--app-sidebar`, which is nearly white on the light side. The system preview
   renders two units at full size, crops both at the same point from the left,
   and stitches the halves, so the seam carries the dark unit's own background
@@ -566,8 +567,20 @@ Reset appearance                            (footer row, right)
 - Type carries the hierarchy by weight, not size: page title 28/600, group
   title 13/600 muted, row label 14/500, control text 13/400 with tabular
   numerals. Every control is 28px tall so the right column lines up.
-- One radius scale: card 15, control 10 (`--radius-lg`), theme badge 5, mini
-  window 8 inside a 12 tray; the selection ring sits on the tray's edge.
+- One radius scale: card 38, control 12 (`--radius-lg`), theme badge 7, mini
+  window 9 inside a 16 tray; the selection ring sits on the tray's edge. Content
+  blocks carry their own sizes because they are far taller than a control:
+  tool block 24, thinking block and collapsed read group 20, code block 18,
+  markdown table 16.8, message bubble 21.6 (`--radius-2xl`), composer 40.
+- Corners are superellipses, not quarter circles: `designTokens.css` declares
+  `corner-shape: superellipse(1.5)` for every rounded element except
+  `.rounded-full`. The argument is half the classic exponent, so 1.5 is
+  `x^3 + y^3 = r^3`; the curve leaves the straight edge with zero curvature,
+  which is what reads as a continuous corner. It is declared inside
+  `@layer base` so app rules can opt out — unlayered CSS outranks every layer,
+  and the markdown table needs `round` because `overflow: hidden` clips its
+  opaque cells with a circular radius. The mode preview trays opt out too: their
+  drawing fills the button, so its silhouette comes from that circular clip.
 - Surfaces are solid (`bg-card` with a 1px `--border`); the dividers use the
   same solid border color and stay inset to the row padding.
 - The settings column is 660px wide (`SETTINGS_CONTENT_MAX_WIDTH`); the
