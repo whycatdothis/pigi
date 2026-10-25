@@ -548,6 +548,8 @@ function PreviewWindow({ tokens }: { tokens: Record<string, string> }): React.JS
         // the edge gray on a dark window. Toward black it stays a hairline that
         // is light on light cards and nearly black on dark ones.
         borderColor: `color-mix(in oklab, ${tokens['--app-card']}, #000 20%)`,
+        // Lifts the window off the app background it sits on.
+        boxShadow: '0 1px 2px rgb(0 0 0 / 0.12)',
       }}
     >
       <PreviewSidebar tokens={tokens} width="w-[11px]" />
