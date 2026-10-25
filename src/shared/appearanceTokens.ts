@@ -130,61 +130,66 @@ function parseColor(value: string | null, fallback: string): OklchColor {
   return (value === null ? null : parseCssColor(value)) ?? requireColor(fallback);
 }
 
-/** Clamps a custom accent into a legible range for the mode. */
 /**
- * The band an accent may occupy. Bounds are not decoration: a solid button
- * filled with the accent sits next to text, so the accent has to stay in the
- * range where one foreground colour works. Light accents stay dark enough for
- * white text, dark accents light enough for near-black text, and chroma stays
- * below the point where a hue clips in sRGB.
+ * An accent does two different jobs, and one colour cannot do both in dark
+ * mode. Filled surfaces carry an inset label, so they have to stay dark enough
+ * for white text. Accent-coloured text, icons and rails sit on the page, so
+ * they have to stay light enough to read against a dark background. Those two
+ * constraints point in opposite directions once the background is near black,
+ * which is why GitHub ships `accent.emphasis` and `accent.fg` as separate
+ * values. We do the same: one band per role.
+ *
+ * Chroma stays below the point where a hue clips out of sRGB on either end.
  */
-const ACCENT_LIGHTNESS: Record<ColorMode, readonly [number, number]> = {
-  light: [0.45, 0.58],
-  dark: [0.66, 0.8],
+const WHITE = requireColor('#ffffff');
+const NEAR_BLACK = requireColor('#0b0b0b');
+
+type AccentRole = 'fill' | 'text';
+
+const ACCENT_BANDS: Record<ColorMode, Record<AccentRole, readonly [number, number]>> = {
+  light: { fill: [0.45, 0.58], text: [0.45, 0.58] },
+  dark: { fill: [0.5, 0.6], text: [0.66, 0.8] },
 };
 const ACCENT_CHROMA: readonly [number, number] = [0.06, 0.22];
 
-/** Clamps an accent into the band, then darkens or lifts it until the inset text clears 4.5:1. */
-function fitAccentToPalette(color: OklchColor, mode: ColorMode): OklchColor {
-  const [minLightness, maxLightness] = ACCENT_LIGHTNESS[mode];
-  const lightness = Math.min(maxLightness, Math.max(minLightness, color.lightness));
-  const chroma = Math.min(ACCENT_CHROMA[1], Math.max(ACCENT_CHROMA[0], color.chroma));
-  const fitted = { ...color, lightness, chroma };
-  const insetText = mode === 'dark' ? requireColor('#0b0b0b') : requireColor('#ffffff');
-  // 40 steps of 0.005 covers the whole band; the loop is a guarantee, not a
-  // tuning knob.
+/** Clamps an accent into its role's band, then steps it until the label clears 4.5:1. */
+function fitAccent(color: OklchColor, mode: ColorMode, role: AccentRole): OklchColor {
+  const [minLightness, maxLightness] = ACCENT_BANDS[mode][role];
+  const fitted = {
+    ...color,
+    lightness: Math.min(maxLightness, Math.max(minLightness, color.lightness)),
+    chroma: Math.min(ACCENT_CHROMA[1], Math.max(ACCENT_CHROMA[0], color.chroma)),
+  };
+  if (role === 'text') {
+    return fitted;
+  }
+  // A filled button always carries white text, so walk the lightness down until
+  // that holds. 40 steps of 0.005 spans the band; the loop is a guarantee, not
+  // a tuning knob. The target sits a hair above 4.5 so rounding never lands a
+  // theme exactly on the floor.
   for (let step = 0; step < 40; step += 1) {
-    if (contrastRatio(insetText, fitted) >= 4.5) {
+    if (contrastRatio(WHITE, fitted) >= 4.6) {
       return fitted;
     }
-    fitted.lightness += mode === 'dark' ? 0.005 : -0.005;
+    fitted.lightness -= 0.005;
   }
   return fitted;
 }
 
-function resolveAccent(accent: AccentChoice, mode: ColorMode, background: OklchColor): OklchColor {
+/** The accent the user picked, before any fitting. */
+function readAccent(accent: AccentChoice, mode: ColorMode): OklchColor {
   if ('presetId' in accent) {
     const preset = findAccentPreset(accent.presetId);
-    return ensureContrast(
-      fitAccentToPalette(
-        requireColor(mode === 'dark' ? preset.darkOklch : preset.lightOklch),
-        mode,
-      ),
-      background,
-      4.5,
-    );
+    return requireColor(mode === 'dark' ? preset.darkOklch : preset.lightOklch);
   }
   if ('hex' in accent) {
     const parsed = parseCssColor(accent.hex);
     if (parsed) {
-      return ensureContrast(fitAccentToPalette(parsed, mode), background, 4.5);
+      return parsed;
     }
   }
   const fallbackPreset = findAccentPreset(DEFAULT_THEME_ACCENT_ID);
-  const fallback = requireColor(
-    mode === 'dark' ? fallbackPreset.darkOklch : fallbackPreset.lightOklch,
-  );
-  return ensureContrast(fallback, background, 4.5);
+  return requireColor(mode === 'dark' ? fallbackPreset.darkOklch : fallbackPreset.lightOklch);
 }
 
 interface StatusPalette {
@@ -255,11 +260,20 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
     solveMaxMixAmount(foreground, background, background, targets.secondaryText),
   );
 
-  const accent = resolveAccent(slot.accent, mode, background);
-  const white = requireColor('#ffffff');
-  const nearBlack = requireColor('#0b0b0b');
-  const accentForeground =
-    contrastRatio(white, accent) >= contrastRatio(nearBlack, accent) ? white : nearBlack;
+  const accentBase = readAccent(slot.accent, mode);
+  // The fill only needs to separate from the page (3:1 is the non-text floor);
+  // its label is guaranteed by the band. The text accent needs the full 4.5:1,
+  // because it is read as a link, a rail or an icon.
+  const fillAccent = ensureContrast(fitAccent(accentBase, mode, 'fill'), background, 3);
+  const textAccent = ensureContrast(fitAccent(accentBase, mode, 'text'), background, 4.5);
+  // Hover moves away from the page in both modes: darker on light, lighter on
+  // dark. Fading the fill toward the background, the usual shortcut, would
+  // darken it in dark mode and read as pressed.
+  const hoverAccent = mixOklch(
+    fillAccent,
+    mode === 'dark' ? WHITE : NEAR_BLACK,
+    mode === 'dark' ? 0.12 : 0.1,
+  );
 
   const card = mixOklch(background, foreground, CARD_STEPS[mode]);
   const popover = card;
@@ -285,8 +299,9 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
     '--app-card-foreground': formatOklch(foreground),
     '--app-popover': formatOklch(popover),
     '--app-popover-foreground': formatOklch(foreground),
-    '--app-primary': formatOklch(accent),
-    '--app-primary-foreground': formatOklch(accentForeground),
+    '--app-primary': formatOklch(fillAccent),
+    '--app-primary-foreground': formatOklch(WHITE),
+    '--app-primary-hover': formatOklch(hoverAccent),
     '--app-secondary': formatOklch(muted),
     '--app-secondary-foreground': formatOklch(foreground),
     '--app-muted': formatOklch(muted),
@@ -296,18 +311,18 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
     '--app-destructive': formatOklch(status.danger.fg),
     '--app-border': formatOklch(mixOklch(background, foreground, borderAmount)),
     '--app-input': formatOklch(mixOklch(background, foreground, borderAmount)),
-    '--app-ring': formatOklch(accent),
+    '--app-ring': formatOklch(textAccent),
     '--app-sidebar': sidebarTint,
     '--app-sidebar-solid': formatOklch(sidebarSolid),
     '--app-sidebar-foreground': formatOklch(foreground),
-    '--app-sidebar-primary': formatOklch(accent),
-    '--app-sidebar-primary-foreground': formatOklch(accentForeground),
+    '--app-sidebar-primary': formatOklch(fillAccent),
+    '--app-sidebar-primary-foreground': formatOklch(WHITE),
     '--app-sidebar-accent': alphaMix(foreground, 0.1),
     '--app-sidebar-accent-foreground': formatOklch(foreground),
     '--app-sidebar-border': formatOklch(mixOklch(background, foreground, borderAmount)),
-    '--app-sidebar-ring': formatOklch(accent),
-    '--app-system-accent': formatOklch(accent),
-    '--app-system-accent-foreground': formatOklch(accentForeground),
+    '--app-sidebar-ring': formatOklch(textAccent),
+    '--app-system-accent': formatOklch(textAccent),
+    '--app-system-accent-foreground': formatOklch(WHITE),
   };
 
   for (const [name, palette] of Object.entries(status)) {

@@ -118,41 +118,56 @@ describe('resolveAppearance', () => {
 });
 
 describe('deriveTokens', () => {
-  it('fills the primary action with the accent, in text-sized contrast', () => {
+  it('keeps the fill white-labelled and the text accent legible in both modes', () => {
     for (const mode of ['light', 'dark'] as const) {
       for (const preset of ACCENT_PRESETS) {
         const tokens = tokensFor({ mode, accent: { presetId: preset.id } });
-        const primary = color(tokens['--app-primary']);
-        const inset = color(tokens['--app-primary-foreground']);
+        const fill = color(tokens['--app-primary']);
+        const label = color(tokens['--app-primary-foreground']);
+        const textAccent = color(tokens['--app-system-accent']);
+        const background = color(tokens['--app-background']);
 
-        // One token for the accent means a theme change repaints every solid
-        // button, the switch, and the sidebar's primary action.
-        expect(tokens['--app-primary']).toBe(tokens['--app-system-accent']);
-        expect(tokens['--app-sidebar-primary']).toBe(tokens['--app-system-accent']);
-        expect(contrastRatio(inset, primary)).toBeGreaterThanOrEqual(4.5);
-        // Same foreground side in every theme: white on light accents, near
-        // black on dark ones, so the button keeps one visual weight.
-        expect(inset.lightness > 0.8).toBe(mode === 'light');
+        // Solid buttons read the same in every theme: white label on the
+        // fill, never a flipped black label that would change their weight.
+        expect(label.lightness).toBeGreaterThan(0.95);
+        expect(contrastRatio(label, fill)).toBeGreaterThanOrEqual(4.5);
+        // The fill only has to separate from the page (non-text floor).
+        expect(contrastRatio(fill, background)).toBeGreaterThanOrEqual(3);
+        // Text, icons and rails use their own value, which clears AA.
+        expect(contrastRatio(textAccent, background)).toBeGreaterThanOrEqual(4.5);
+        expect(tokens['--app-sidebar-primary']).toBe(tokens['--app-primary']);
+        expect(tokens['--app-ring']).toBe(tokens['--app-system-accent']);
       }
     }
   });
 
-  it('clamps a hand-picked accent into the palette band', () => {
-    const light = tokensFor({ mode: 'light', accent: { hex: '#facc15' } });
-    const dark = tokensFor({ mode: 'dark', accent: { hex: '#facc15' } });
-    const lightPrimary = color(light['--app-primary']);
-    const darkPrimary = color(dark['--app-primary']);
+  it('lifts the text accent above the fill in dark mode', () => {
+    const tokens = tokensFor({ mode: 'dark' });
+    // The fill stays dark enough for a white label; only the text accent is
+    // lifted, which is the whole point of not sharing one value.
+    expect(color(tokens['--app-system-accent']).lightness).toBeGreaterThan(
+      color(tokens['--app-primary']).lightness,
+    );
+    expect(color(tokens['--app-primary']).lightness).toBeLessThanOrEqual(0.6);
+  });
 
-    expect(lightPrimary.lightness).toBeLessThanOrEqual(0.58);
-    expect(lightPrimary.chroma).toBeLessThanOrEqual(0.22);
-    expect(darkPrimary.lightness).toBeGreaterThanOrEqual(0.66);
-    expect(darkPrimary.chroma).toBeLessThanOrEqual(0.22);
-    expect(
-      contrastRatio(color(light['--app-primary-foreground']), lightPrimary),
-    ).toBeGreaterThanOrEqual(4.5);
-    expect(
-      contrastRatio(color(dark['--app-primary-foreground']), darkPrimary),
-    ).toBeGreaterThanOrEqual(4.5);
+  it('clamps a hand-picked accent into both bands', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      for (const hex of ['#facc15', '#7c3aed', '#ffffff', '#00ff00']) {
+        const tokens = tokensFor({ mode, accent: { hex } });
+        const fill = color(tokens['--app-primary']);
+        const textAccent = color(tokens['--app-system-accent']);
+        const background = color(tokens['--app-background']);
+
+        expect(fill.chroma).toBeLessThanOrEqual(0.22);
+        expect(textAccent.chroma).toBeLessThanOrEqual(0.22);
+        expect(
+          contrastRatio(color(tokens['--app-primary-foreground']), fill),
+        ).toBeGreaterThanOrEqual(4.5);
+        expect(contrastRatio(textAccent, background)).toBeGreaterThanOrEqual(4.5);
+        expect(color(tokens['--app-primary-hover']).lightness).not.toBeCloseTo(fill.lightness, 3);
+      }
+    }
   });
 
   it('keeps the documented default palette', () => {
@@ -192,8 +207,8 @@ describe('deriveTokens', () => {
           );
           expect(
             contrastRatio(
-              color(tokens['--app-system-accent-foreground']),
-              color(tokens['--app-system-accent']),
+              color(tokens['--app-primary-foreground']),
+              color(tokens['--app-primary']),
             ),
           ).toBeGreaterThan(4.4);
           expect(contrastRatio(color(tokens['--app-border']), background)).toBeGreaterThanOrEqual(

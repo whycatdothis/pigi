@@ -25,7 +25,9 @@
 ### Changed
 
 - Solid buttons, the checked switch and the sidebar's primary action use the theme accent: `primary` finally means the brand colour instead of a neutral fill, and the composer's send button and the updater's button no longer override it by hand
-- Accents are clamped to a palette band (lightness 0.45-0.58 light / 0.66-0.80 dark, chroma 0.06-0.22) so every theme keeps one inset text colour and a stable button weight
+- The accent splits into two values, as GitHub's `accent.emphasis` / `accent.fg` do: a fill that stays dark enough for a white label in both modes, and a text accent that is lifted above it in dark mode so links, icons and rails clear 4.5:1 against the page. Filled buttons keep one weight across modes instead of flipping to black labels
+- Accents are clamped to bands (lightness 0.45-0.58 light, 0.50-0.60 dark for the fill, 0.66-0.80 dark for the text accent, chroma 0.06-0.22), and the fill walks down until its white label clears 4.6:1
+- Primary buttons hover away from the page instead of fading toward it: darker on light, lighter on dark, where a 90% fill used to read as pressed
 
 - Every control shares one radius: inputs, selects, the theme picker, buttons and sidebar rows use the 14px control token instead of a mix of 9.6, 10 and 12
 - The theme previews use a 16px frame with a 12px mini window inside; the selection ring, the edge ring and the drawing's background all share the frame radius, so the ring hugs the picture

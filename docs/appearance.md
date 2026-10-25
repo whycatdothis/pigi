@@ -228,7 +228,7 @@ ratio)` binary searches the mix amount (16 iterations) to hit a floor
    secondary   = mix(bg, fg, 0.037 light / 0.146 dark)
    muted       = secondary
    accent      = secondary                (hover fill)
-   primary     = accent                     (solid buttons, switch, sidebar CTA)
+   primary     = accent fill                (solid buttons, switch, sidebar CTA)
    sidebar     = mix(bg, fg, 0 light / 0.148 dark)
    border      = mix(bg, fg, solved border amount)
    input       = border
@@ -268,11 +268,28 @@ below AA:
 
 The accent is a first-class token, not a highlight colour: `primary` fills solid
 buttons and the checked switch, because shadcn wires `primary` to
-"high-emphasis actions and brand surfaces". It is clamped into a band before it
-is used — lightness 0.45-0.58 in light mode and 0.66-0.80 in dark, chroma
-0.06-0.22 — so one inset text colour works for every theme (white on light
-accents, near-black on dark ones) and a hand-picked hex cannot produce a pale
-button that outranks the layout around it.
+"high-emphasis actions and brand surfaces".
+
+One accent value cannot do both of its jobs in dark mode, so there are two, the
+same way GitHub separates `accent.emphasis` from `accent.fg`:
+
+|                                                         | Light     | Dark      | Why                                                                      |
+| ------------------------------------------------------- | --------- | --------- | ------------------------------------------------------------------------ |
+| filled surfaces (`--primary`)                           | 0.45-0.58 | 0.50-0.60 | carries a white label, so it stays dark; needs only 3:1 against the page |
+| accent text, icons, rails (`--system-accent`, `--ring`) | 0.45-0.58 | 0.66-0.80 | is read on the page, so dark mode lifts it until it clears 4.5:1         |
+
+Contrast is symmetric: white text on the accent and accent text on white are the
+same number. In light mode the two roles therefore coincide. In dark mode they
+cannot — an accent light enough to read on near-black is too light for a white
+label (2.85:1 at 0.70) — which is why the fill stays put and the text accent
+lifts. Filled buttons keep a white label in both modes, so their weight does not
+change when the mode does.
+
+Both bands also clamp chroma to 0.06-0.22 and the fill is walked down until its
+label clears 4.6:1, so a hand-picked hex cannot produce a pale button that
+outranks the layout around it. Hover moves away from the page in both modes
+(`--primary-hover`: mixed toward black on light, toward white on dark); fading
+the fill toward the background would darken it in dark mode and read as pressed.
 
 Two token families are unified with the rest of the theme rather than kept as
 their old one-off values: `--primary` / `--secondary-foreground` /
@@ -301,7 +318,8 @@ verbatim):
 | `--app-secondary`, `--app-secondary-foreground`                    | surface(1.0) / fg                           |
 | `--app-muted`, `--app-muted-foreground`                            | surface(1.0) / mutedText                    |
 | `--app-accent`, `--app-accent-foreground`                          | surface(1.6) / fg                           |
-| `--app-primary`, `--app-primary-foreground`                        | accent / accent inset text                  |
+| `--app-primary`, `--app-primary-foreground`                        | accent fill / white                         |
+| `--app-primary-hover`                                              | fill stepped away from the page             |
 | `--app-destructive`                                                | status.danger.fg                            |
 | `--app-border`, `--app-input`, `--app-ring`                        | border / border / accent                    |
 | `--app-sidebar`, `--app-sidebar-solid`, `--app-sidebar-foreground` | sidebar ramp / opaque equivalent / fg       |

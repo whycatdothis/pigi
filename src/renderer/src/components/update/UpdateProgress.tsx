@@ -102,7 +102,7 @@ function ClosingHint(): React.JSX.Element {
 const SECONDARY_BUTTON =
   'rounded-full bg-foreground/6 hover:bg-foreground/10 dark:hover:bg-foreground/12';
 const ACCENT_BUTTON =
-  'rounded-full bg-primary font-medium text-primary-foreground hover:bg-primary/90';
+  'rounded-full bg-primary font-medium text-primary-foreground hover:bg-primary-hover';
 
 export default function UpdateProgress(): React.JSX.Element | null {
   // Null until the first status arrives: a manual check opens this window at the
