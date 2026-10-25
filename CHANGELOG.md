@@ -14,9 +14,9 @@
 
 ### Fixed
 
+- Switch tracks are 20px instead of 18.4px, so the thumb sits on whole pixels with a 2px gap above and below instead of a fractional 1.2px that rendered unevenly
 - The font pickers no longer list their default twice: the empty "System" / "System mono" entry is gone and the slot's null value maps onto the family it falls back to, so code font now reads "SF Mono"
 - Font picker values are left-aligned instead of pushed to the right edge of a 136px control
-
 - Tool status, diff, toast, and warning colors come from the theme's success, warning, danger, and info pairs, so they stay readable in dark mode instead of using fixed light-mode hex values
 - The terminal follows the code font and code size settings
 - Native window chrome and menus follow the chosen appearance instead of only the system setting
