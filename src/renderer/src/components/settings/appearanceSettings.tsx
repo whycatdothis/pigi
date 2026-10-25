@@ -175,20 +175,26 @@ export function AppearanceSettings(): React.JSX.Element {
       </SettingsGroup>
 
       <SettingsGroup title="Typography">
-        <SettingsRow label="Font">
-          <FontPicker
-            role="content"
-            label="Content font"
-            value={slot.fonts.content}
-            onChange={(content) => patchFonts({ content })}
-          />
-        </SettingsRow>
-        <SettingsRow label="UI font">
+        <SettingsRow
+          label="UI font"
+          description="App chrome: sidebar, settings, buttons and inputs."
+        >
           <FontPicker
             role="ui"
             label="UI font"
             value={slot.fonts.ui}
             onChange={(ui) => patchFonts({ ui })}
+          />
+        </SettingsRow>
+        <SettingsRow
+          label="Content font"
+          description="Messages and headings, including the text inside them."
+        >
+          <FontPicker
+            role="content"
+            label="Content font"
+            value={slot.fonts.content}
+            onChange={(content) => patchFonts({ content })}
           />
         </SettingsRow>
         <SettingsRow label="UI font size">
