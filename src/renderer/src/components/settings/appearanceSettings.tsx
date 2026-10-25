@@ -177,7 +177,7 @@ export function AppearanceSettings(): React.JSX.Element {
       <SettingsGroup title="Typography">
         <SettingsRow
           label="UI font"
-          description="App chrome: sidebar, settings, buttons and inputs."
+          description="The app itself: sidebar, settings, buttons and inputs."
         >
           <FontPicker
             role="ui"
