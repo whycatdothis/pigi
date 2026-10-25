@@ -31,7 +31,6 @@ import {
   parseCssColor,
   solveMaxMixAmount,
   solveMixAmount,
-  withLightness,
   type OklchColor,
 } from './colorMath';
 
@@ -84,9 +83,6 @@ const DEFAULT_CONTRAST_ANCHOR = 73;
 const SURFACE_STEPS: Record<ColorMode, number> = { light: 0.037, dark: 0.146 };
 const CARD_STEPS: Record<ColorMode, number> = { light: 0, dark: 0.0714 };
 const SIDEBAR_STEPS: Record<ColorMode, number> = { light: 0, dark: 0.148 };
-/** Primary is the "solid button" fill: the foreground in light, one step dimmer in dark. */
-const PRIMARY_STEPS: Record<ColorMode, number> = { light: 1, dark: 0.925 };
-const PRIMARY_FOREGROUND_STEPS: Record<ColorMode, number> = { light: 0, dark: 0.0714 };
 
 function interpolate(values: number[], contrast: number): number {
   const clamped = Math.min(100, Math.max(0, contrast));
@@ -135,11 +131,45 @@ function parseColor(value: string | null, fallback: string): OklchColor {
 }
 
 /** Clamps a custom accent into a legible range for the mode. */
+/**
+ * The band an accent may occupy. Bounds are not decoration: a solid button
+ * filled with the accent sits next to text, so the accent has to stay in the
+ * range where one foreground colour works. Light accents stay dark enough for
+ * white text, dark accents light enough for near-black text, and chroma stays
+ * below the point where a hue clips in sRGB.
+ */
+const ACCENT_LIGHTNESS: Record<ColorMode, readonly [number, number]> = {
+  light: [0.45, 0.58],
+  dark: [0.66, 0.8],
+};
+const ACCENT_CHROMA: readonly [number, number] = [0.06, 0.22];
+
+/** Clamps an accent into the band, then darkens or lifts it until the inset text clears 4.5:1. */
+function fitAccentToPalette(color: OklchColor, mode: ColorMode): OklchColor {
+  const [minLightness, maxLightness] = ACCENT_LIGHTNESS[mode];
+  const lightness = Math.min(maxLightness, Math.max(minLightness, color.lightness));
+  const chroma = Math.min(ACCENT_CHROMA[1], Math.max(ACCENT_CHROMA[0], color.chroma));
+  const fitted = { ...color, lightness, chroma };
+  const insetText = mode === 'dark' ? requireColor('#0b0b0b') : requireColor('#ffffff');
+  // 40 steps of 0.005 covers the whole band; the loop is a guarantee, not a
+  // tuning knob.
+  for (let step = 0; step < 40; step += 1) {
+    if (contrastRatio(insetText, fitted) >= 4.5) {
+      return fitted;
+    }
+    fitted.lightness += mode === 'dark' ? 0.005 : -0.005;
+  }
+  return fitted;
+}
+
 function resolveAccent(accent: AccentChoice, mode: ColorMode, background: OklchColor): OklchColor {
   if ('presetId' in accent) {
     const preset = findAccentPreset(accent.presetId);
     return ensureContrast(
-      requireColor(mode === 'dark' ? preset.darkOklch : preset.lightOklch),
+      fitAccentToPalette(
+        requireColor(mode === 'dark' ? preset.darkOklch : preset.lightOklch),
+        mode,
+      ),
       background,
       4.5,
     );
@@ -147,13 +177,7 @@ function resolveAccent(accent: AccentChoice, mode: ColorMode, background: OklchC
   if ('hex' in accent) {
     const parsed = parseCssColor(accent.hex);
     if (parsed) {
-      const lightnessRange = mode === 'dark' ? [0.68, 0.78] : [0.5, 0.62];
-      const lightness = Math.min(lightnessRange[1], Math.max(lightnessRange[0], parsed.lightness));
-      const clamped = withLightness(
-        { ...parsed, chroma: Math.min(0.22, Math.max(0.08, parsed.chroma)) },
-        lightness,
-      );
-      return ensureContrast(clamped, background, 4.5);
+      return ensureContrast(fitAccentToPalette(parsed, mode), background, 4.5);
     }
   }
   const fallbackPreset = findAccentPreset(DEFAULT_THEME_ACCENT_ID);
@@ -261,10 +285,8 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
     '--app-card-foreground': formatOklch(foreground),
     '--app-popover': formatOklch(popover),
     '--app-popover-foreground': formatOklch(foreground),
-    '--app-primary': formatOklch(mixOklch(background, foreground, PRIMARY_STEPS[mode])),
-    '--app-primary-foreground': formatOklch(
-      mixOklch(background, foreground, PRIMARY_FOREGROUND_STEPS[mode]),
-    ),
+    '--app-primary': formatOklch(accent),
+    '--app-primary-foreground': formatOklch(accentForeground),
     '--app-secondary': formatOklch(muted),
     '--app-secondary-foreground': formatOklch(foreground),
     '--app-muted': formatOklch(muted),
@@ -278,10 +300,8 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
     '--app-sidebar': sidebarTint,
     '--app-sidebar-solid': formatOklch(sidebarSolid),
     '--app-sidebar-foreground': formatOklch(foreground),
-    '--app-sidebar-primary': formatOklch(mixOklch(background, foreground, PRIMARY_STEPS[mode])),
-    '--app-sidebar-primary-foreground': formatOklch(
-      mixOklch(background, foreground, PRIMARY_FOREGROUND_STEPS[mode]),
-    ),
+    '--app-sidebar-primary': formatOklch(accent),
+    '--app-sidebar-primary-foreground': formatOklch(accentForeground),
     '--app-sidebar-accent': alphaMix(foreground, 0.1),
     '--app-sidebar-accent-foreground': formatOklch(foreground),
     '--app-sidebar-border': formatOklch(mixOklch(background, foreground, borderAmount)),

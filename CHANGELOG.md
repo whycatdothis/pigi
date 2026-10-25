@@ -24,6 +24,9 @@
 
 ### Changed
 
+- Solid buttons, the checked switch and the sidebar's primary action use the theme accent: `primary` finally means the brand colour instead of a neutral fill, and the composer's send button and the updater's button no longer override it by hand
+- Accents are clamped to a palette band (lightness 0.45-0.58 light / 0.66-0.80 dark, chroma 0.06-0.22) so every theme keeps one inset text colour and a stable button weight
+
 - Every control shares one radius: inputs, selects, the theme picker, buttons and sidebar rows use the 14px control token instead of a mix of 9.6, 10 and 12
 - The theme previews use a 16px frame with a 12px mini window inside; the selection ring, the edge ring and the drawing's background all share the frame radius, so the ring hugs the picture
 - Transcript surfaces use one tier per role: 24 for message bubbles, 20 for cards (tool, thinking, read group, branch summary, error notices, menus), 16 for blocks embedded in prose (code, tables, images), 6 for inline code

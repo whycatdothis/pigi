@@ -228,7 +228,7 @@ ratio)` binary searches the mix amount (16 iterations) to hit a floor
    secondary   = mix(bg, fg, 0.037 light / 0.146 dark)
    muted       = secondary
    accent      = secondary                (hover fill)
-   primary     = mix(bg, fg, 1 light / 0.925 dark)
+   primary     = accent                     (solid buttons, switch, sidebar CTA)
    sidebar     = mix(bg, fg, 0 light / 0.148 dark)
    border      = mix(bg, fg, solved border amount)
    input       = border
@@ -266,6 +266,14 @@ below AA:
 | Light border            | 1.26:1        | 1.3:1       | Hairlines were nearly invisible |
 | Foreground / background | 17.1 / 18.9:1 | unchanged   | Already above AAA               |
 
+The accent is a first-class token, not a highlight colour: `primary` fills solid
+buttons and the checked switch, because shadcn wires `primary` to
+"high-emphasis actions and brand surfaces". It is clamped into a band before it
+is used — lightness 0.45-0.58 in light mode and 0.66-0.80 in dark, chroma
+0.06-0.22 — so one inset text colour works for every theme (white on light
+accents, near-black on dark ones) and a hand-picked hex cannot produce a pale
+button that outranks the layout around it.
+
 Two token families are unified with the rest of the theme rather than kept as
 their old one-off values: `--primary` / `--secondary-foreground` /
 `--accent-foreground` / `--sidebar-*` now derive from the resolved foreground
@@ -293,7 +301,7 @@ verbatim):
 | `--app-secondary`, `--app-secondary-foreground`                    | surface(1.0) / fg                           |
 | `--app-muted`, `--app-muted-foreground`                            | surface(1.0) / mutedText                    |
 | `--app-accent`, `--app-accent-foreground`                          | surface(1.6) / fg                           |
-| `--app-primary`, `--app-primary-foreground`                        | fg / bg                                     |
+| `--app-primary`, `--app-primary-foreground`                        | accent / accent inset text                  |
 | `--app-destructive`                                                | status.danger.fg                            |
 | `--app-border`, `--app-input`, `--app-ring`                        | border / border / accent                    |
 | `--app-sidebar`, `--app-sidebar-solid`, `--app-sidebar-foreground` | sidebar ramp / opaque equivalent / fg       |

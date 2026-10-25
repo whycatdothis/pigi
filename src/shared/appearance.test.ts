@@ -118,6 +118,43 @@ describe('resolveAppearance', () => {
 });
 
 describe('deriveTokens', () => {
+  it('fills the primary action with the accent, in text-sized contrast', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      for (const preset of ACCENT_PRESETS) {
+        const tokens = tokensFor({ mode, accent: { presetId: preset.id } });
+        const primary = color(tokens['--app-primary']);
+        const inset = color(tokens['--app-primary-foreground']);
+
+        // One token for the accent means a theme change repaints every solid
+        // button, the switch, and the sidebar's primary action.
+        expect(tokens['--app-primary']).toBe(tokens['--app-system-accent']);
+        expect(tokens['--app-sidebar-primary']).toBe(tokens['--app-system-accent']);
+        expect(contrastRatio(inset, primary)).toBeGreaterThanOrEqual(4.5);
+        // Same foreground side in every theme: white on light accents, near
+        // black on dark ones, so the button keeps one visual weight.
+        expect(inset.lightness > 0.8).toBe(mode === 'light');
+      }
+    }
+  });
+
+  it('clamps a hand-picked accent into the palette band', () => {
+    const light = tokensFor({ mode: 'light', accent: { hex: '#facc15' } });
+    const dark = tokensFor({ mode: 'dark', accent: { hex: '#facc15' } });
+    const lightPrimary = color(light['--app-primary']);
+    const darkPrimary = color(dark['--app-primary']);
+
+    expect(lightPrimary.lightness).toBeLessThanOrEqual(0.58);
+    expect(lightPrimary.chroma).toBeLessThanOrEqual(0.22);
+    expect(darkPrimary.lightness).toBeGreaterThanOrEqual(0.66);
+    expect(darkPrimary.chroma).toBeLessThanOrEqual(0.22);
+    expect(
+      contrastRatio(color(light['--app-primary-foreground']), lightPrimary),
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrastRatio(color(dark['--app-primary-foreground']), darkPrimary),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('keeps the documented default palette', () => {
     for (const mode of ['light', 'dark'] as const) {
       const tokens = tokensFor({ mode });
