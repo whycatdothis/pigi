@@ -197,7 +197,10 @@ export function AppearanceSettings(): React.JSX.Element {
             onChange={(content) => patchFonts({ content })}
           />
         </SettingsRow>
-        <SettingsRow label="UI font size">
+        <SettingsRow
+          label="UI font size"
+          description="Scales the interface and the messages together. Code text keeps its own size."
+        >
           <NumberInput
             label="UI font size"
             suffix="px"
