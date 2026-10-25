@@ -197,6 +197,14 @@ export function AppearanceSettings(): React.JSX.Element {
             onChange={(content) => patchFonts({ content })}
           />
         </SettingsRow>
+        <SettingsRow label="Code font">
+          <FontPicker
+            role="code"
+            label="Code font"
+            value={slot.fonts.code}
+            onChange={(code) => patchFonts({ code })}
+          />
+        </SettingsRow>
         <SettingsRow
           label="UI font size"
           description="Scales the interface and the messages together. Code text keeps its own size."
@@ -208,14 +216,6 @@ export function AppearanceSettings(): React.JSX.Element {
             min={UI_FONT_SIZE_MIN}
             max={UI_FONT_SIZE_MAX}
             onChange={(uiSize) => patchFonts({ uiSize })}
-          />
-        </SettingsRow>
-        <SettingsRow label="Code font">
-          <FontPicker
-            role="code"
-            label="Code font"
-            value={slot.fonts.code}
-            onChange={(code) => patchFonts({ code })}
           />
         </SettingsRow>
         <SettingsRow label="Code font size">
