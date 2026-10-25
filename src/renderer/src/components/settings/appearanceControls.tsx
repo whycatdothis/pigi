@@ -418,14 +418,14 @@ export function ModePreviewPicker({
                   aria-label={option.label}
                   data-testid={`theme-option-${option.value}`}
                   onClick={() => onChange(option.value)}
-                  className="relative h-[66px] w-[84px] overflow-hidden rounded-inline"
+                  className="relative h-[66px] w-[84px] rounded-surface-sm"
                 >
                   {option.value === 'system' ? (
                     <SystemPreview light={previews.light} dark={previews.dark} />
                   ) : (
                     <PreviewUnit
                       tokens={previews[option.value]}
-                      radius="rounded-inline"
+                      radius="rounded-surface-sm"
                       dark={option.value === 'dark'}
                     />
                   )}
@@ -464,7 +464,7 @@ function PreviewRing({
     return (
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 rounded-inline"
+        className="pointer-events-none absolute inset-0 rounded-surface-sm"
         style={{ boxShadow: 'inset 0 0 0 2px var(--app-system-accent)' }}
       />
     );
@@ -477,7 +477,7 @@ function PreviewRing({
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 rounded-inline"
+      className="pointer-events-none absolute inset-0 rounded-surface-sm"
       style={{
         padding: 2,
         background: split ? `linear-gradient(to right, ${edge} 0 50%, transparent 50% 100%)` : edge,
@@ -563,7 +563,7 @@ function PreviewWindow({
 }): React.JSX.Element {
   return (
     <span
-      className="flex h-full w-full min-w-0 overflow-hidden rounded-surface-sm border-[0.5px]"
+      className="flex h-full w-full min-w-0 overflow-hidden rounded-control border-[0.5px]"
       style={{
         // One step off the card, so the content reads as a panel inside the app.
         backgroundColor: `color-mix(in oklab, ${tokens['--app-background']}, ${tokens['--app-foreground']} 4%)`,
@@ -618,14 +618,18 @@ function PreviewUnit({
 function PreviewHalf({
   tokens,
   radius,
+  clip,
   dark,
 }: {
   tokens: Record<string, string>;
+  /** Radius of the drawing's own background edge. */
   radius?: string;
+  /** Radius of the crop box, which is what the button's silhouette comes from. */
+  clip: string;
   dark: boolean;
 }): React.JSX.Element {
   return (
-    <span className="relative min-w-0 flex-1 overflow-hidden">
+    <span className={cn('relative min-w-0 flex-1 overflow-hidden', clip)}>
       <span className="absolute inset-y-0 left-0 flex w-[200%]">
         <PreviewUnit tokens={tokens} radius={radius} dark={dark} />
       </span>
@@ -648,8 +652,13 @@ function SystemPreview({
   return (
     <span className="flex h-full w-full">
       {/* The halves stay square at the seam so the crop is a straight line. */}
-      <PreviewHalf tokens={light} radius="rounded-l-inline" dark={false} />
-      <PreviewHalf tokens={dark} dark />
+      <PreviewHalf
+        tokens={light}
+        radius="rounded-l-surface-sm"
+        clip="rounded-l-surface-sm"
+        dark={false}
+      />
+      <PreviewHalf tokens={dark} clip="rounded-r-surface-sm" dark />
     </span>
   );
 }

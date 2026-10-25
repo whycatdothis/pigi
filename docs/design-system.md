@@ -23,8 +23,8 @@ third of the height; below a tenth it reads square.
 | `--radius-inline`     | 6px    | inline code, kbd                                                       | 18–22          | 30%    |
 | `--radius-chip`       | 8px    | chips, badges, thumbnails                                              | 20–24          | 35%    |
 | `--radius-control-sm` | 10px   | `size-6` icon buttons, xs controls                                     | 24             | 42%    |
-| `--radius-control`    | 12px   | buttons, inputs, menu items, sidebar rows                              | 28–32          | 40%    |
-| `--radius-surface-sm` | 16px   | code blocks, markdown tables, preview mini windows                     | 50–240         | 7–32%  |
+| `--radius-control`    | 12px   | buttons, inputs, menu items, sidebar rows, preview mini windows        | 28–32          | 40%    |
+| `--radius-surface-sm` | 16px   | code blocks, markdown tables, preview frames and rings                 | 50–240         | 7–32%  |
 | `--radius-surface`    | 20px   | cards: tool, thinking, read group, branch summary, error notice, menus | 38–170         | 12–27% |
 | `--radius-surface-lg` | 24px   | message bubbles, composer, cards                                       | 40–135         | 18–60% |
 | `--radius-container`  | 36px   | settings cards, page panels                                            | 80–290         | 12–45% |
