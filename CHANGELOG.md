@@ -31,7 +31,7 @@
 
 ### Changed
 
-- The composer moves up a tier to the 36px container radius, and the queue bar above it, the branch strip under it and the drag overlay follow, so the whole stack keeps one silhouette
+- The composer moves up to 28px on a new `--radius-surface-xl` tier between the bubble and container sizes; the queue bar above it, the branch strip under it and the drag overlay follow, so the whole stack keeps one silhouette
 - Transcript surfaces step down one radius tier: markdown code blocks 16 → 14, and tool blocks, thinking blocks and read groups 20 → 16
 - Markdown tables drop from 16px to a 10px corner: a 1px hairline grid reads heavier than the filled code block beside it at the same value
 - The Chat settings page is one row: a "Default view" segmented control instead of three described option blocks that filled the page to say the same thing
