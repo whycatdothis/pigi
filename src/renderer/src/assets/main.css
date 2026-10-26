@@ -127,25 +127,28 @@
 
   /* Headings: top margin ≥ 2× bottom margin so a heading binds to the
      section it introduces instead of floating between sections. */
+  /* Heading sizes are em against the body size, so raising the text size
+     scales the whole document instead of leaving headings behind at a fixed
+     pixel size. The ratios are the shipped 24/20/17 against a 15px body. */
   .markdown-body h1 {
     margin: 2rem 0 0.75rem;
-    font-size: 24px;
+    font-size: 1.6em;
     font-weight: 600;
-    line-height: 2rem;
+    line-height: 1.33;
   }
 
   .markdown-body h2 {
     margin: 1.75rem 0 0.625rem;
-    font-size: 20px;
+    font-size: 1.333em;
     font-weight: 600;
-    line-height: 1.75rem;
+    line-height: 1.4;
   }
 
   .markdown-body h3 {
     margin: 1.25rem 0 0.5rem;
-    font-size: 17px;
+    font-size: 1.133em;
     font-weight: 600;
-    line-height: 1.5rem;
+    line-height: 1.41;
   }
 
   .markdown-body ul,
@@ -379,7 +382,6 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-control-sm);
     text-align: left;
-    font-size: 14px;
   }
 
   .markdown-body th,
