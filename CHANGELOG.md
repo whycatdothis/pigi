@@ -31,6 +31,7 @@
 
 ### Changed
 
+- Transcript surfaces step down one radius tier: markdown code blocks 16 → 14, and tool blocks, thinking blocks and read groups 20 → 16
 - Markdown tables drop from 16px to a 10px corner: a 1px hairline grid reads heavier than the filled code block beside it at the same value
 - The Chat settings page is one row: a "Default view" segmented control instead of three described option blocks that filled the page to say the same thing
 - pigi's own settings moved from `localStorage` to `settings.json` in the app data folder (`~/Library/Application Support/pigi/settings.json`), so they can be backed up and edited by hand; the existing value is migrated on first launch and the localStorage key is removed

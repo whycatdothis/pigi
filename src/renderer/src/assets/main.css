@@ -206,7 +206,7 @@
     max-width: 100%;
     overflow-x: auto;
     overscroll-behavior-x: none;
-    border-radius: var(--radius-surface-sm);
+    border-radius: var(--radius-control);
     background: var(--muted);
     padding: 10px 14px;
     font-family: var(--font-mono);
@@ -227,13 +227,13 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 14px 0;
-    border-radius: var(--radius-surface-sm) var(--radius-surface-sm) 0 0;
+    border-radius: var(--radius-control) var(--radius-control) 0 0;
     background: var(--muted);
     font-family: var(--font-mono);
   }
 
   .markdown-code-header + pre {
-    border-radius: 0 0 var(--radius-surface-sm) var(--radius-surface-sm);
+    border-radius: 0 0 var(--radius-control) var(--radius-control);
   }
 
   .markdown-code-label {
@@ -295,7 +295,7 @@
     display: flex;
     justify-content: center;
     padding: 14px;
-    border-radius: 0 0 var(--radius-surface-sm) var(--radius-surface-sm);
+    border-radius: 0 0 var(--radius-control) var(--radius-control);
     background: var(--muted);
     overflow-x: auto;
     overscroll-behavior-x: none;
