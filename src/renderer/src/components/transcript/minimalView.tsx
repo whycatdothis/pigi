@@ -21,10 +21,10 @@ import ToolBlock from '../message/ToolBlock';
 import ThinkingBlock from '../message/thinkingBlock';
 import { MessageToolbar, SystemBubble, UserBubble } from '../message/messageBubbles';
 import { getToolCommandParts } from '../../lib/toolDisplay';
-import ShimmerOverlay, {
+import ShimmerText, {
   SHIMMER_BAND_WIDTH_PX,
   SHIMMER_SPEED_PX_PER_SECOND,
-} from '../message/shimmerOverlay';
+} from '../message/shimmerText';
 import { cn } from '../../lib/utils';
 
 /**
@@ -372,7 +372,7 @@ const TurnSection = React.memo(function TurnSection({
         data-testid="minimal-thinking"
       >
         Thinking...
-        <ShimmerOverlay />
+        <ShimmerText>Thinking...</ShimmerText>
       </div>
     );
   }
@@ -616,26 +616,32 @@ function ToolLine({ node }: { node: ToolNode }): React.JSX.Element {
     return () => resizeObserver.disconnect();
   }, []);
 
+  // The row is rendered twice: once as the layout, once inside the shimmer as
+  // the brighter copy the sweep reveals. Same markup, same truncation.
+  const row = (
+    <span className="flex items-baseline gap-1">
+      <span className="shrink-0 text-foreground/80">{prefix}</span>
+      <span ref={bodyRef} className="flex min-w-0 flex-1 items-baseline">
+        {showTail ? (
+          <>
+            <span className="truncate">{body.slice(0, -COMMAND_TAIL_CHARS)}</span>
+            <span className="shrink-0 whitespace-pre">{body.slice(-COMMAND_TAIL_CHARS)}</span>
+          </>
+        ) : (
+          <span className="truncate">{body}</span>
+        )}
+      </span>
+    </span>
+  );
+
   return (
     <div
       className="relative w-fit max-w-full overflow-hidden py-0.5 font-mono text-body text-muted-foreground"
       style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       data-testid="minimal-running-tool"
     >
-      <span className="flex items-baseline gap-1">
-        <span className="shrink-0 text-foreground/80">{prefix}</span>
-        <span ref={bodyRef} className="flex min-w-0 flex-1 items-baseline">
-          {showTail ? (
-            <>
-              <span className="truncate">{body.slice(0, -COMMAND_TAIL_CHARS)}</span>
-              <span className="shrink-0 whitespace-pre">{body.slice(-COMMAND_TAIL_CHARS)}</span>
-            </>
-          ) : (
-            <span className="truncate">{body}</span>
-          )}
-        </span>
-      </span>
-      <ShimmerOverlay durationMs={shimmerDurationMs} />
+      {row}
+      <ShimmerText durationMs={shimmerDurationMs}>{row}</ShimmerText>
     </div>
   );
 }

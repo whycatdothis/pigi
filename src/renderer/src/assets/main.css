@@ -127,28 +127,25 @@
 
   /* Headings: top margin ≥ 2× bottom margin so a heading binds to the
      section it introduces instead of floating between sections. */
-  /* Heading sizes are em against the body size, so raising the text size
-     scales the whole document instead of leaving headings behind at a fixed
-     pixel size. The ratios are the shipped 24/20/17 against a 15px body. */
   .markdown-body h1 {
     margin: 2rem 0 0.75rem;
-    font-size: 1.6em;
+    font-size: 24px;
     font-weight: 600;
-    line-height: 1.33;
+    line-height: 2rem;
   }
 
   .markdown-body h2 {
     margin: 1.75rem 0 0.625rem;
-    font-size: 1.333em;
+    font-size: 20px;
     font-weight: 600;
-    line-height: 1.4;
+    line-height: 1.75rem;
   }
 
   .markdown-body h3 {
     margin: 1.25rem 0 0.5rem;
-    font-size: 1.133em;
+    font-size: 17px;
     font-weight: 600;
-    line-height: 1.41;
+    line-height: 1.5rem;
   }
 
   .markdown-body ul,
@@ -382,6 +379,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-control-sm);
     text-align: left;
+    font-size: 14px;
   }
 
   .markdown-body th,
@@ -447,22 +445,28 @@
   }
 }
 
-@keyframes shimmer {
-  from {
-    transform: translateX(calc(-1 * var(--shimmer-band-width)));
-  }
-  to {
-    transform: translateX(var(--shimmer-scan-width));
-  }
+/* Shimmer sweep: a fixed-width window travels across the text it labels,
+   entering from the left and exiting on the right.
+   --shimmer-scan-width is the measured width of the row (set by the component),
+   so a long truncated command does not waste the sweep on its hidden tail.
+   The highlight is a brighter copy of the glyphs revealed by the window rather
+   than a gradient band: a band paints its own rectangle over the background,
+   which shows as a light smear as soon as the theme's background is not white.
+   clip-path is animatable on the compositor, so the sweep keeps moving while
+   the row is streaming. */
+.shimmer-overlay {
+  filter: brightness(1.6);
+  clip-path: inset(0 100% 0 calc(-1 * var(--shimmer-band-width)));
+  animation: shimmer-clip 2.5s linear infinite;
 }
 
-/* Shimmer sweep: the band is a fixed-width highlight that travels across the
-   text it labels — entering from the left and exiting on the right.
-   --shimmer-scan-width is the measured width of the text element (set by the
-   component), so a long truncated command does not waste the sweep on its
-   hidden tail. Transform-only, run on the compositor. */
-.shimmer-overlay {
-  animation: shimmer 2.5s linear infinite;
+@keyframes shimmer-clip {
+  from {
+    clip-path: inset(0 100% 0 calc(-1 * var(--shimmer-band-width)));
+  }
+  to {
+    clip-path: inset(0 calc(-1 * var(--shimmer-band-width)) 0 100%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

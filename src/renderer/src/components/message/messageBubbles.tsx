@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import MarkdownMessage from './markdownMessage';
 import OverflowClamp from './overflowClamp';
 import { highlightMatches } from '../../lib/highlightMatches';
-import ShimmerOverlay from './shimmerOverlay';
+import ShimmerText from './shimmerText';
 import { parseSkillBlock, type ParsedSkillBlock } from '../../lib/skillBlock';
 import {
   INTERACTIVE_REFERENCE_CHIP_CLASS,
@@ -397,12 +397,14 @@ export function SystemBubble({
     return <BranchSummaryCard text={node.detail} />;
   }
 
+  const label = highlightMatches(node.text, searchQuery, activeOccurrenceIndex);
+
   return (
     <div className="flex items-center gap-3 py-2" data-testid="system-message">
       <div className="h-px flex-1 bg-border" />
-      <span className="relative shrink-0 text-sm text-muted-foreground overflow-hidden">
-        {highlightMatches(node.text, searchQuery, activeOccurrenceIndex)}
-        {node.isLoading && <ShimmerOverlay />}
+      <span className="relative shrink-0 overflow-hidden text-sm text-muted-foreground">
+        {label}
+        {node.isLoading && <ShimmerText>{label}</ShimmerText>}
       </span>
       <div className="h-px flex-1 bg-border" />
     </div>
