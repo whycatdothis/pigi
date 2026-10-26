@@ -40,6 +40,10 @@ jobs:
 
       - run: npm run typecheck
 
+      # Every tarball must resolve from the public registry: a lockfile written
+      # against a private mirror hangs every later install on an unreachable host.
+      - run: node scripts/checkLockfileRegistry.mjs
+
       - run: npm run lint
 
       - run: npm run format:check
