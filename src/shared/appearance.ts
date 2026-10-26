@@ -18,7 +18,6 @@ export type AccentChoice = { presetId: string } | { hex: string };
 export interface FontAppearance {
   /** Family stack name from FONT_FAMILIES; null = the built-in stack. */
   ui: string | null;
-  content: string | null;
   code: string | null;
   /** UI text size in px. Anchors the whole UI type scale. */
   uiSize: number;
@@ -179,7 +178,13 @@ export const FONT_STACKS: Record<FontFamilyName, string> = {
   'Iowan Old Style': "'Iowan Old Style', Georgia, serif",
 };
 
-export type FontRole = 'ui' | 'content' | 'code';
+/**
+ * Two families, not three. Messages and the app around them are one reading
+ * surface, and the way two sans-serif stacks side by side differ is not
+ * something a reader can use; code is a different problem (a monospace grid, a
+ * fixed advance width) and keeps its own family and size.
+ */
+export type FontRole = 'ui' | 'code';
 
 /**
  * The family each role falls back to when the slot stores null. The picker uses
@@ -188,13 +193,11 @@ export type FontRole = 'ui' | 'content' | 'code';
  */
 export const DEFAULT_FONT_FAMILY: Record<FontRole, FontFamilyName> = {
   ui: 'System',
-  content: 'System',
   code: 'SF Mono',
 };
 
 const DEFAULT_FONT_STACKS: Record<FontRole, string> = {
   ui: FONT_STACKS[DEFAULT_FONT_FAMILY.ui],
-  content: FONT_STACKS[DEFAULT_FONT_FAMILY.content],
   code: FONT_STACKS[DEFAULT_FONT_FAMILY.code],
 };
 
@@ -205,7 +208,6 @@ export function fontStackFor(role: FontRole, name: string | null): string {
 
 const DEFAULT_FONTS: FontAppearance = {
   ui: null,
-  content: null,
   code: null,
   uiSize: DEFAULT_UI_FONT_SIZE,
   codeSize: DEFAULT_CODE_FONT_SIZE,
@@ -287,9 +289,11 @@ function parseFonts(raw: unknown, fallback: FontAppearance): FontAppearance {
     return { ...fallback };
   }
   const family = (value: unknown): string | null => (isFontFamilyName(value) ? value : null);
+  // A stored `content` family from the three-role version is adopted as the
+  // text family when the reader had not set one, so a deliberate reading font
+  // is not silently dropped.
   return {
-    ui: family(raw.ui),
-    content: family(raw.content),
+    ui: family(raw.ui) ?? family(raw.content),
     code: family(raw.code),
     uiSize: clampNumber(raw.uiSize, UI_FONT_SIZE_MIN, UI_FONT_SIZE_MAX, fallback.uiSize),
     codeSize: clampNumber(raw.codeSize, CODE_FONT_SIZE_MIN, CODE_FONT_SIZE_MAX, fallback.codeSize),

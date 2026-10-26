@@ -175,26 +175,12 @@ export function AppearanceSettings(): React.JSX.Element {
       </SettingsGroup>
 
       <SettingsGroup title="Typography">
-        <SettingsRow
-          label="UI font"
-          description="The app itself: sidebar, settings, buttons and inputs."
-        >
+        <SettingsRow label="Text font" description="Messages and the app itself, in one family.">
           <FontPicker
             role="ui"
-            label="UI font"
+            label="Text font"
             value={slot.fonts.ui}
             onChange={(ui) => patchFonts({ ui })}
-          />
-        </SettingsRow>
-        <SettingsRow
-          label="Content font"
-          description="Messages and headings, including the text inside them."
-        >
-          <FontPicker
-            role="content"
-            label="Content font"
-            value={slot.fonts.content}
-            onChange={(content) => patchFonts({ content })}
           />
         </SettingsRow>
         <SettingsRow label="Code font">
@@ -205,9 +191,9 @@ export function AppearanceSettings(): React.JSX.Element {
             onChange={(code) => patchFonts({ code })}
           />
         </SettingsRow>
-        <SettingsRow label="UI font size" description="Also scales the content font size.">
+        <SettingsRow label="Text size">
           <NumberInput
-            label="UI font size"
+            label="Text size"
             suffix="px"
             value={slot.fonts.uiSize}
             min={UI_FONT_SIZE_MIN}

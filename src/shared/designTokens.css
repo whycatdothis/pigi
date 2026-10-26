@@ -49,11 +49,11 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
   --font-heading: var(--font-sans);
-  /* Content text follows the content family; the UI family is applied to the
-     root in main.css, and code uses --font-mono. The literals keep the
-     marketing site working without the renderer. */
+  /* One text family for the app and for messages: --font-ui is applied to the
+     root in main.css, --font-sans is what prose and headings read. The literals
+     keep the marketing site working without the renderer. */
   --font-sans: var(
-    --app-font-content,
+    --app-font-ui,
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI Variable',

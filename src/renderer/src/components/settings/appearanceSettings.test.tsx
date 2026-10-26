@@ -98,9 +98,9 @@ describe('AppearanceSettings', () => {
     expect(screen.getByText('100 · 7.0:1')).toBeInTheDocument();
   });
 
-  it('types a UI font size and clamps it to the range', () => {
+  it('types a text size and clamps it to the range', () => {
     render(<AppearanceSettings />);
-    const input = screen.getByLabelText('UI font size');
+    const input = screen.getByLabelText('Text size');
     fireEvent.change(input, { target: { value: '17' } });
     fireEvent.blur(input);
     expect(storedAppearance().light.fonts.uiSize).toBe(17);
@@ -108,7 +108,7 @@ describe('AppearanceSettings', () => {
     fireEvent.change(input, { target: { value: '400' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(storedAppearance().light.fonts.uiSize).toBe(UI_FONT_SIZE_MAX);
-    expect(screen.getByLabelText('UI font size')).toHaveValue(String(UI_FONT_SIZE_MAX));
+    expect(screen.getByLabelText('Text size')).toHaveValue(String(UI_FONT_SIZE_MAX));
   });
 
   it('edits only the selected slot when modes are separate', () => {

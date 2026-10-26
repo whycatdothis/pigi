@@ -82,10 +82,9 @@ export interface ModeAppearance {
 
 export interface FontAppearance {
   /** Family stacks; null = the built-in stack for the role. */
-  ui: string | null;
-  content: string | null;
+  ui: string | null; // messages and the app itself
   code: string | null;
-  /** px values; the UI scale, anchored on the body text size. */
+  /** px values; uiSize anchors the whole type scale, code is independent. */
   uiSize: number; // default 15
   codeSize: number; // default 14
 }
@@ -117,7 +116,7 @@ export const DEFAULT_MODE_APPEARANCE: { light: ModeAppearance; dark: ModeAppeara
     accent: { presetId: 'blue' },
     contrast: 30,
     translucentSidebar: true,
-    fonts: { ui: null, content: null, code: null, uiSize: 15, codeSize: 14 },
+    fonts: { ui: null, code: null, uiSize: 15, codeSize: 14 },
   },
   dark: {
     background: null, // oklch(0.145 0 0)
@@ -125,7 +124,7 @@ export const DEFAULT_MODE_APPEARANCE: { light: ModeAppearance; dark: ModeAppeara
     accent: { presetId: 'blue' },
     contrast: 30,
     translucentSidebar: true,
-    fonts: { ui: null, content: null, code: null, uiSize: 15, codeSize: 14 },
+    fonts: { ui: null, code: null, uiSize: 15, codeSize: 14 },
   },
 };
 ```
@@ -181,6 +180,15 @@ what "one mode" means.
 Fonts are part of the slot, so `separateModes` also separates fonts (matching
 ChatGPT). The two sizes (`uiSize`, `codeSize`) are the exception only in the
 sense that they are numbers, not families.
+
+There are two families, not three: one text family for messages and the app
+around them, and one monospace family for code. A separate "content" family was
+removed — two sans-serif stacks side by side differ in a way a reader cannot
+use, and the settings page had three pickers to say it. Code keeps its own
+family and size because a monospace grid is a different problem: its advance
+width and the amount of it people read at once do not follow the prose size.
+A stored `content` family is adopted as the text family when the reader had not
+set one, so an existing choice survives the change.
 
 ## Token derivation
 
@@ -329,7 +337,7 @@ verbatim):
 | `--app-success-fg`, `--app-success-bg`, `--app-success-border`     | status ramp                                 |
 | `--app-warning-*`, `--app-danger-*`, `--app-info-*`                | status ramp                                 |
 | `--app-chart-1..5`                                                 | fixed (documented as not user-customizable) |
-| `--font-ui`, `--font-content`, `--font-code`                       | fonts                                       |
+| `--font-ui`, `--font-code`                                         | fonts (`--font-sans` reads `--font-ui`)     |
 | `--font-ui-scale`, `--font-code-scale`                             | sizes                                       |
 
 `--dialog-solid` and `--search-highlight-bg` stay as `color-mix()` rules in
@@ -574,10 +582,9 @@ Visual style                                (SettingsGroup title)
   Separate light and dark modes  [switch]
   Editing           [Light | Dark]          (only when separate modes are on)
 Typography
-  Font              [System ▾]              (content role)
-  UI font           [System ▾]
-  UI font size      [15] px
+  Text font         [System ▾]              (messages and the app itself)
   Code font         [System mono ▾]
+  Text size         [15] px
   Code font size    [14] px
 Details
   Translucent sidebar  [switch]

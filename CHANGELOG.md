@@ -31,6 +31,10 @@
 
 ### Changed
 
+- Typography has two families instead of three: one text family for messages and the app itself, and one monospace family for code. "Content font" is gone, and a stored content family becomes the text family so an existing choice survives
+- Markdown headings and tables follow the text size setting: heading sizes are em against the body (1.6/1.333/1.133) instead of fixed at 24/20/17px, so at 18px the structure scales with the prose
+- The minimal view's shimmer no longer paints a white band over the background: the sweep is a clip window over a brighter copy of the glyphs, so a tinted or dark background shows no smear
+- The panel toggle icon is drawn with a superellipse corner like every other rounded box
 - The composer moves up to 28px on a new `--radius-surface-xl` tier between the bubble and container sizes; the queue bar above it, the branch strip under it and the drag overlay follow, so the whole stack keeps one silhouette
 - Transcript surfaces step down one radius tier: markdown code blocks 16 → 14, and tool blocks, thinking blocks and read groups 20 → 16
 - Markdown tables drop from 16px to a 10px corner: a 1px hairline grid reads heavier than the filled code block beside it at the same value

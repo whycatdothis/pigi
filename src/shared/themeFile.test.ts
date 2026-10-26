@@ -13,7 +13,7 @@ const CUSTOM: AppearanceSettings = {
     accent: { hex: '#b4552d' },
     contrast: 61,
     translucentSidebar: false,
-    fonts: { ...DEFAULT_APPEARANCE.light.fonts, content: 'Georgia', uiSize: 16 },
+    fonts: { ...DEFAULT_APPEARANCE.light.fonts, ui: 'Georgia', uiSize: 16 },
   },
 };
 
