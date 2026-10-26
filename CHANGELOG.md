@@ -11,6 +11,7 @@
 - pigi settings: appearance (mode, accent, background and foreground colors, fonts, contrast) and the default tool view
 - Named themes in the Appearance page: pigi, GitHub, Catppuccin, Nord, Gruvbox, Everforest, Notion, Linear
 - Copy the current look as a theme and paste one back in from the Appearance page
+- Mermaid diagrams: a ` ```mermaid ` block in a message is drawn as a diagram, with a switch in its header to read or copy the source. Diagrams follow the app's theme, are drawn as they stream in once their closing fence arrives, and can be clicked to open a zoom overlay — in the overlay the wheel, a pinch or a trackpad zoom the drawing, dragging or two fingers pan it, and Escape or a click on the background closes it. The text inside a diagram can be selected and found with the transcript's search. A diagram that cannot be parsed keeps its source and says so
 
 ### Fixed
 
@@ -21,6 +22,12 @@
 - The terminal follows the code font and code size settings
 - Native window chrome and menus follow the chosen appearance instead of only the system setting
 - Code blocks follow the app theme: dark mode highlights with a dark palette instead of the light one, and every token color keeps at least 3:1 contrast against the code background in both modes
+- Messages: a code block in a reply that is still arriving is highlighted on a throttle instead of on every chunk, so streaming a long one no longer re-tokenizes the whole block dozens of times a second — tool output already did this, message text was left out
+- Checking again during the two-second "pigi is up to date" countdown no longer has the old timer pull the window away mid-check
+- An update window opened while a background check runs now closes itself when that check finds nothing, instead of sitting on "auto closing in 1s"
+- An install Squirrel never finishes returns to "ready to install" after 20 seconds, so updates can be checked again
+- A status that arrives while a window is still reading the current one is no longer overwritten by the older answer
+- The update window resets its zoom whenever it appears, so View-menu zoom can no longer clip its own buttons, and only that window can resize it
 
 ### Changed
 
@@ -47,6 +54,7 @@
 - Settings pages share one type and surface scale: solid cards with a real 1px edge, a single radius scale, 13px control text with tabular numerals, and a narrower column
 - Keyboard shortcuts are editable from the settings page, with duplicate-binding detection and per-shortcut reset
 - Appearance settings apply immediately and cover typography: separate UI, content, and code font sizes and families, reduce motion, a translucent-sidebar switch, font smoothing, and separate light and dark palettes
+- Messages and tool output: a code block that is still arriving rebuilds only the text that came in with the chunk, not every highlighted line above it — a file being written streams in chunk-sized work instead of milliseconds per chunk that grow with the file
 
 ## [0.4.22] - 2026-10-24
 

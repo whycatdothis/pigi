@@ -41,6 +41,8 @@ let contentHeight: number | null = null;
 let readyToShow = false;
 let shown = false;
 let showFallbackTimer: NodeJS.Timeout | null = null;
+/** A pending "close after the answer has been read" timer, if one is armed. */
+let closeTimer: NodeJS.Timeout | null = null;
 
 /**
  * Size the window to its content. Called with whatever the renderer measured,
@@ -72,18 +74,33 @@ function positionOverParent(progressWindow: BrowserWindow, parent: BrowserWindow
   );
 }
 
-function showWhenMeasured(): void {
+function clearShowFallback(): void {
+  if (showFallbackTimer === null) return;
+  clearTimeout(showFallbackTimer);
+  showFallbackTimer = null;
+}
+
+function showProgressWindow(): void {
   const progressWindow = updateProgressWindow;
-  if (shown || !readyToShow || progressWindow === null || progressWindow.isDestroyed()) return;
+  if (shown || progressWindow === null || progressWindow.isDestroyed()) return;
   shown = true;
-  if (showFallbackTimer !== null) {
-    clearTimeout(showFallbackTimer);
-    showFallbackTimer = null;
-  }
+  clearShowFallback();
   progressWindow.show();
 }
 
+/** Shows once the first paint is ready; the fallback timer covers one that is not. */
+function showWhenMeasured(): void {
+  if (readyToShow) showProgressWindow();
+}
+
 export function openUpdateProgressWindow(): BrowserWindow {
+  // Anything the window was waiting to do no longer applies: it is about to
+  // show the status the caller just published.
+  cancelScheduledUpdateProgressWindowClose();
+  // A timer left over from a window closed within the last few hundred ms would
+  // otherwise pop this one up unpainted.
+  clearShowFallback();
+
   const existing = updateProgressWindow;
   if (existing !== null && !existing.isDestroyed()) {
     existing.show();
@@ -122,6 +139,7 @@ export function openUpdateProgressWindow(): BrowserWindow {
   positionOverParent(progressWindow, liveParent);
 
   progressWindow.on('closed', () => {
+    clearShowFallback();
     if (updateProgressWindow === progressWindow) {
       updateProgressWindow = null;
     }
@@ -136,12 +154,21 @@ export function openUpdateProgressWindow(): BrowserWindow {
 
   progressWindow.once('ready-to-show', () => {
     readyToShow = true;
-    if (contentHeight !== null) {
-      showWhenMeasured();
-      return;
-    }
-    showFallbackTimer = setTimeout(showWhenMeasured, SHOW_WITHOUT_MEASUREMENT_MS);
+    showWhenMeasured();
   });
+
+  // Armed here rather than on "ready-to-show": a renderer that never finishes
+  // loading would otherwise leave no window and no explanation at all.
+  showFallbackTimer = setTimeout(showProgressWindow, SHOW_WITHOUT_MEASUREMENT_MS);
+
+  // The window is a fixed 400px box with a status bar, not a document: zooming
+  // it only clips the buttons, and the View menu zooms whatever has focus.
+  progressWindow.webContents.setVisualZoomLevelLimits(1, 1).catch(() => undefined);
+  const resetZoom = (): void => {
+    progressWindow.webContents.setZoomFactor(1);
+  };
+  progressWindow.on('show', resetZoom);
+  progressWindow.on('focus', resetZoom);
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     progressWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}${UPDATE_PROGRESS_HASH}`);
@@ -156,6 +183,7 @@ export function openUpdateProgressWindow(): BrowserWindow {
 }
 
 export function closeUpdateProgressWindow(): void {
+  cancelScheduledUpdateProgressWindowClose();
   const progressWindow = updateProgressWindow;
   updateProgressWindow = null;
   if (progressWindow !== null && !progressWindow.isDestroyed()) {
@@ -164,22 +192,36 @@ export function closeUpdateProgressWindow(): void {
 }
 
 /**
- * Close the current window after a delay, unless another one replaced it in the
- * meantime — the answer to a check is only worth holding on screen briefly.
+ * Close the window after a delay, unless the status moves on first: the answer
+ * to a check is only worth holding on screen briefly, and a check that starts
+ * again owns the window from then on.
  */
-export function closeUpdateProgressWindowAfter(delayMs: number): void {
+export function scheduleUpdateProgressWindowClose(delayMs: number): void {
+  if (updateProgressWindow === null) return;
+  cancelScheduledUpdateProgressWindowClose();
   const target = updateProgressWindow;
-  if (target === null) return;
-  setTimeout(() => {
+  closeTimer = setTimeout(() => {
+    closeTimer = null;
     if (updateProgressWindow !== target) return;
     closeUpdateProgressWindow();
   }, delayMs);
 }
 
+/** Drops a pending close, for a status that has something newer to show. */
+export function cancelScheduledUpdateProgressWindowClose(): void {
+  if (closeTimer === null) return;
+  clearTimeout(closeTimer);
+  closeTimer = null;
+}
+
 /** Wires the renderer's measurement to the window. Called once at startup. */
 export function registerUpdateProgressWindowIpc(): void {
-  ipcMain.on(PiChannel.UpdateProgressContentHeight, (_event, height: number) => {
+  ipcMain.on(PiChannel.UpdateProgressContentHeight, (event, height: number) => {
     if (typeof height !== 'number' || !Number.isFinite(height)) return;
+    // Only the progress window sizes itself; the main window's renderer shares
+    // this bundle but has no business moving this window.
+    const progressWindow = updateProgressWindow;
+    if (progressWindow === null || event.sender !== progressWindow.webContents) return;
     setUpdateProgressContentHeight(height);
   });
 }

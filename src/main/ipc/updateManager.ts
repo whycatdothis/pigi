@@ -20,11 +20,13 @@ import type { ProgressInfo } from 'electron-updater';
 import { PiChannel, type UpdateStatus } from '../../shared/ipcContract';
 import { UP_TO_DATE_CLOSE_SECONDS } from '../../shared/updateWindow';
 import {
+  cancelScheduledUpdateProgressWindowClose,
   closeUpdateProgressWindow,
-  closeUpdateProgressWindowAfter,
   openUpdateProgressWindow,
   registerUpdateProgressWindowIpc,
+  scheduleUpdateProgressWindowClose,
 } from '../windows/createUpdateProgressWindow';
+import { updateWindowAction } from './updateWindowPolicy';
 
 // electron-updater's `autoUpdater` is defined with an arrow-function getter,
 // which Node's CJS→ESM interop skips, so a named import would be undefined at
@@ -42,12 +44,19 @@ const BACKGROUND_CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000;
 const BACKGROUND_CHECK_JITTER_MS = 10 * 60 * 1000;
 /** How long "pigi is up to date" stays on screen; the window counts it down. */
 const UP_TO_DATE_LINGER_MS = UP_TO_DATE_CLOSE_SECONDS * 1000;
+/**
+ * Squirrel quits the app once it swaps the bundle in. Long enough not to fight
+ * a slow disk, short enough that a silent failure does not strand the session.
+ */
+const INSTALL_TIMEOUT_MS = 20 * 1000;
 
 let status: UpdateStatus = { phase: 'idle' };
 /** Set while a download runs; doubles as the guard against a second one. */
 let downloadToken: InstanceType<typeof CancellationToken> | null = null;
 let downloadVersion: string | null = null;
 let checkInFlight = false;
+/** Pending fallback for an install Squirrel never completed. */
+let installingTimeout: NodeJS.Timeout | null = null;
 /** Whether the current check came from Settings (opens the progress window). */
 let manualCheck = false;
 /** Rebuilds the app menu after a status change; set once during startup. */
@@ -66,19 +75,13 @@ function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/**
- * Whether the progress window still has something to show after a check. Read
- * through a function so it sees the status the event listeners just published,
- * not the narrowed value this function started with.
- */
-function hasDownloadToShow(): boolean {
-  return (
-    status.phase === 'downloading' || status.phase === 'downloaded' || status.phase === 'installing'
-  );
-}
-
 function publish(next: UpdateStatus): void {
   status = next;
+  if (installingTimeout !== null && next.phase !== 'installing') {
+    clearTimeout(installingTimeout);
+    installingTimeout = null;
+  }
+  applyWindowPolicy(next);
   for (const window of BrowserWindow.getAllWindows()) {
     if (window.isDestroyed()) continue;
     window.webContents.send(PiChannel.UpdateStatusChanged, next);
@@ -86,6 +89,27 @@ function publish(next: UpdateStatus): void {
   // The app menu renders the same status; it ignores pushes that leave its one
   // update item unchanged, which is every progress tick.
   statusObserver?.();
+}
+
+/**
+ * One place decides how long the progress window lives.
+ *
+ * Keeping it here rather than at the end of `runCheck` covers both sources: a
+ * background check can leave the window open (the user opened it mid-check), and
+ * a check that starts again cancels the previous answer's timer instead of
+ * having the window pulled out from under it. The decision itself is a pure
+ * function (`updateWindowPolicy.ts`) so it can be tested without Electron.
+ */
+function applyWindowPolicy(next: UpdateStatus): void {
+  const action = updateWindowAction(next, { manualCheck });
+  if (action === 'schedule-close') {
+    scheduleUpdateProgressWindowClose(UP_TO_DATE_LINGER_MS);
+    return;
+  }
+  // A status that is not the answer to the previous one takes the countdown
+  // with it: the window is about to show something else.
+  cancelScheduledUpdateProgressWindowClose();
+  if (action === 'close') closeUpdateProgressWindow();
 }
 
 async function startDownload(version: string): Promise<void> {
@@ -105,7 +129,6 @@ async function startDownload(version: string): Promise<void> {
     percent: 0,
     transferredBytes: 0,
     totalBytes: 0,
-    bytesPerSecond: 0,
   });
 
   try {
@@ -126,7 +149,12 @@ async function runCheck(interactive: boolean): Promise<UpdateStatus> {
   // Nothing to check: a download is running or finished, or the background
   // check is already asking. Either way the click still has to answer, so the
   // window opens on whatever the status says instead of doing nothing.
-  if (downloadToken !== null || checkInFlight || status.phase === 'downloaded') {
+  if (
+    downloadToken !== null ||
+    checkInFlight ||
+    status.phase === 'downloaded' ||
+    status.phase === 'installing'
+  ) {
     if (interactive) {
       openUpdateProgressWindow();
     }
@@ -154,17 +182,6 @@ async function runCheck(interactive: boolean): Promise<UpdateStatus> {
     manualCheck = false;
   }
 
-  // A check that found nothing has no download to show. "Up to date" is
-  // reported by the window itself, so it stays put long enough to be read; an
-  // error closes it at once and explains itself as a toast in the main window.
-  if (interactive) {
-    if (status.phase === 'up_to_date') {
-      closeUpdateProgressWindowAfter(UP_TO_DATE_LINGER_MS);
-    } else if (!hasDownloadToShow()) {
-      closeUpdateProgressWindow();
-    }
-  }
-
   return status;
 }
 
@@ -189,8 +206,20 @@ function installDownloadedUpdate(): void {
   // Squirrel on macOS re-fetches the bundle from the updater's local proxy
   // before it can replace anything, which takes seconds. Saying so keeps the
   // window from looking like the click did nothing.
-  publish({ phase: 'installing', version: status.version });
+  const version = status.version;
+  publish({ phase: 'installing', version });
   autoUpdater.quitAndInstall();
+
+  // Squirrel normally quits the app. If it neither replaces the bundle nor
+  // reports an error, "installing" would be a one-way door: no further checks,
+  // and a permanently disabled menu item. Fall back to the downloaded state so
+  // the click can be repeated.
+  installingTimeout = setTimeout(() => {
+    installingTimeout = null;
+    if (status.phase === 'installing') {
+      publish({ phase: 'downloaded', version });
+    }
+  }, INSTALL_TIMEOUT_MS);
 }
 
 /** What the app menu's single update item should say right now. */
@@ -273,7 +302,6 @@ export function initializeUpdateManager(): void {
       percent: progress.percent,
       transferredBytes: progress.transferred,
       totalBytes: progress.total,
-      bytesPerSecond: progress.bytesPerSecond,
     });
   });
 

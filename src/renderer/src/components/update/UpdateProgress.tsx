@@ -71,6 +71,9 @@ function statusDetail(status: UpdateStatus): string | null {
 /** The byte count under the bar while a download runs. */
 function transferredLabel(status: UpdateStatus): string | null {
   if (status.phase !== 'downloading') return null;
+  // The first frame of a download knows the version but not the size yet;
+  // "0 B of 0 B" is worse than no line for the moment it takes to arrive.
+  if (status.totalBytes === 0) return null;
   return `${formatFileSize(status.transferredBytes)} of ${formatFileSize(status.totalBytes)}`;
 }
 
@@ -114,12 +117,18 @@ export default function UpdateProgress(): React.JSX.Element | null {
 
   useEffect(() => {
     let active = true;
+    // A push that lands before the read comes back is the newer truth; the
+    // answer to `getStatus` would only put the window back where it was.
+    let sawPush = false;
+    const unsubscribe = onUpdateStatus((next) => {
+      sawPush = true;
+      setStatus(next);
+    });
     void getUpdateStatus()
       .then((current) => {
-        if (active) setStatus(current);
+        if (active && !sawPush) setStatus(current);
       })
       .catch((error) => console.error('Failed to read update status:', error));
-    const unsubscribe = onUpdateStatus(setStatus);
     return () => {
       active = false;
       unsubscribe();

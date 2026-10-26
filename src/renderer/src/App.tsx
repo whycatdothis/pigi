@@ -198,10 +198,14 @@ function App(): React.JSX.Element {
   // Only the installable version, not the whole status: download progress
   // pushes on every tick, and re-rendering App for each one is waste.
   const pendingUpdateVersion = useAppStore((state) =>
-    state.updateStatus.phase === 'downloaded' ? state.updateStatus.version : null,
+    state.updateStatus.phase === 'downloaded' || state.updateStatus.phase === 'installing'
+      ? state.updateStatus.version
+      : null,
   );
   /** Set when the user asked to install, so a failure can be reported. */
   const installRequestedRef = useRef(false);
+  /** Set between "installing" and the status that ends it. */
+  const installingRef = useRef(false);
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [switcherAutoPreselect, setSwitcherAutoPreselect] = useState(false);
@@ -425,28 +429,45 @@ function App(): React.JSX.Element {
   // download is already running), then follow the pushes from main.
   useEffect(() => {
     const { setUpdateStatus } = useAppStore.getState();
-    void getUpdateStatus()
-      .then(setUpdateStatus)
-      .catch((error) => console.error('Failed to read update status:', error));
-    return onUpdateStatus((status) => {
+    // Subscribe first, and let a push win over the read: a download that starts
+    // while `getStatus` is in flight would otherwise leave the dot dark until
+    // the next push, up to two hours away.
+    let sawPush = false;
+    const unsubscribe = onUpdateStatus((status) => {
+      sawPush = true;
       setUpdateStatus(status);
+      if (status.phase === 'installing') {
+        installingRef.current = true;
+        return;
+      }
+      if (status.phase === 'downloaded' && installingRef.current) {
+        // Main fell back from "installing" because Squirrel never finished. The
+        // click led nowhere, so it must not claim the next failure either.
+        installingRef.current = false;
+        installRequestedRef.current = false;
+        return;
+      }
       // An install the user asked for has no caller left to report to: the
       // window is quit out from under it on success, and on failure the dot
       // simply disappears. Say why, once, for that case only — a background
       // check that fails (offline, GitHub down) stays silent.
       if (status.phase === 'error' && installRequestedRef.current) {
         installRequestedRef.current = false;
+        installingRef.current = false;
         toast.error('Update failed', { description: status.message });
-      } else if (
-        installRequestedRef.current &&
-        status.phase !== 'installing' &&
-        status.phase !== 'downloaded'
-      ) {
-        // An install that went nowhere (Squirrel gave up without an error) must
-        // not make the next unrelated failure look like the install's.
+      } else if (installRequestedRef.current && status.phase !== 'downloaded') {
+        // An install that went nowhere must not make the next unrelated failure
+        // look like the install's.
         installRequestedRef.current = false;
+        installingRef.current = false;
       }
     });
+    void getUpdateStatus()
+      .then((status) => {
+        if (!sawPush) setUpdateStatus(status);
+      })
+      .catch((error) => console.error('Failed to read update status:', error));
+    return unsubscribe;
   }, []);
 
   // A manual check reports its own outcome. The main process opens the progress

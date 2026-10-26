@@ -464,6 +464,72 @@ the Tailwind `focus-visible` variant to skip marked elements and drops the UA
 outline on them, so every `focus-visible:` utility follows this rule. Raw CSS
 and arbitrary selectors (`has-[...:focus-visible]`) bypass the variant.
 
+## Mermaid Diagrams
+
+A ` ```mermaid ` block in a message is drawn as a diagram instead of shown as
+code: `markdownMessage.tsx` hands the block to `MermaidDiagram`
+(`components/message/`), which owns the switch between the drawing and its
+source. Everything that touches mermaid goes through `lib/mermaidRenderer.ts`,
+so the rest of the app never sees the library and tests can drive the drawing
+without it.
+
+Rules that the code depends on:
+
+- **Only a closed fence is drawn.** While a message streams, an unterminated
+  fence is still a code block to the parser and its text keeps changing. The
+  parser's own line numbers say whether the closing fence arrived
+  (`lib/markdownFence.ts`), which is the one thing the code text cannot show: a
+  half-written block is a valid prefix of the finished one. So a diagram appears
+  the moment its fence closes, mid-stream or not, and a half-written block is
+  never handed to mermaid.
+- **One render at a time, remembered by source and theme.** Mermaid keeps its
+  configuration and its working state on the module, so renders are serialized
+  through a queue, and two callers asking for the same diagram at the same time
+  share one render. Results are cached (bounded, oldest first) and the cache is
+  readable synchronously (`peekDiagram`) so a row scrolling back into the
+  virtualized window draws in its first frame instead of showing its source
+  again.
+- **The drawing is part of this document.** Mermaid's markup is mounted into the
+  row, so the text in the drawing is text the reader can select and the
+  transcript's search can find, and its colours come from the app's own rules.
+  What makes that safe is mermaid's `securityLevel: 'strict'`, which is what
+  leaves no script, no event handler and no `javascript:` link behind, with the
+  window's CSP as the second layer. `suppressErrorRendering` keeps a failed
+  diagram from appending mermaid's error graphic to the document, where it would
+  sit outside the transcript and never leave. A drawing is also named after its
+  diagram rather than after the render that produced it, so the same source in
+  the same theme is the same markup however often it is drawn — which is what
+  lets a caller mount it (and the zoom overlay, which looks its element up once,
+  when it mounts) without a later draw taking the drawing out from under it.
+- **The rules that style a drawing are shared.** Mermaid scopes its stylesheet to
+  the id it drew under, and that stylesheet depends only on the kind of diagram
+  and the theme: `lib/mermaidRenderer.ts` rewrites the scope, takes the rules out
+  of the markup, and `ensureDiagramStyles` puts one copy in the document for
+  every drawing that needs it (mounted in a layout effect, so the drawing is
+  never painted unstyled). `DiagramGraphic` is memoised for the same reason: a
+  re-render would otherwise replace the drawing's element, taking any selection
+  and the overlay's reference to it with it.
+- **The overlay zooms and pans the drawing.** `react-medium-image-zoom` owns the
+  dialog, and `react-zoom-pan-pinch` (inside `ZoomContent`) owns the gestures:
+  wheel, pinch, trackpad panning, dragging, arrow keys. The two gestures the
+  overlay performs on itself — wheel and touch move dismiss it — are stopped from
+  reaching it while they are the drawing's, and a click that ends a drag is not
+  the click that dismisses the overlay.
+- **A diagram is drawn in mermaid's own theme.** The light window gets mermaid's
+  `default` and the dark one its `dark`; no theme variable is overridden, so the
+  drawing looks like the diagram it is rather than like the app's chrome around
+  it. The only thing taken from the app is the font stack, so labels sit in the
+  same type as the text beside them. `lib/mermaidTheme.ts` holds the choices a
+  settings page will offer, and the reader's pick is kept in the app store and
+  in `localStorage` until that page exists. The app's theme lives in a class on
+  the document element, which `useResolvedTheme` observes — that class is the
+  single source of truth for which theme is drawn when following the app.
+- **The model is told that the UI draws them.** Every session is given
+  `src/processes/utility/systemPrompt.ts`, appended to pi's own system prompt
+  (`resourceLoaderOptions.appendSystemPrompt` in `piAgent.ts`), so a diagram is
+  something the model can reach for rather than something it has to guess at.
+  That file is where anything else the model should know about this window goes.
+
 ## Credentials
 
 Every utility process builds its `ModelRuntime` with `FileCredentialStore`
