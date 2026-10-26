@@ -10,8 +10,12 @@ import { createHighlighter } from 'shiki/bundle/full';
 import { codeThemeNameFor, loadCodeTheme } from './shikiThemes';
 import { contrastRatio, parseCssColor } from '../../../../shared/colorMath';
 
-async function paintedColors(background: string, surface: string): Promise<string[]> {
-  const theme = await loadCodeTheme(background, surface);
+async function paintedColors(
+  background: string,
+  surface: string,
+  themeId = 'one',
+): Promise<string[]> {
+  const theme = await loadCodeTheme(background, surface, themeId);
   const highlighter = await createHighlighter({
     themes: [theme.registration],
     langs: ['typescript'],
@@ -37,8 +41,8 @@ function ratioAgainst(color: string, surface: string): number {
 
 describe('codeThemeNameFor', () => {
   it('follows the background luminance', () => {
-    expect(codeThemeNameFor('#ffffff', '#f5f5f6')).toContain('one-light');
-    expect(codeThemeNameFor('#0b0b0b', '#262626')).toContain('one-dark-pro');
+    expect(codeThemeNameFor('#ffffff', '#f5f5f6', 'one')).toContain('one-light');
+    expect(codeThemeNameFor('#0b0b0b', '#262626', 'one')).toContain('one-dark-pro');
   });
 });
 

@@ -30,7 +30,6 @@ export type ToolBlockViewMode = 'default' | 'compact_read' | 'minimal';
 
 export interface ChatSettings {
   toolBlockViewMode: ToolBlockViewMode;
-  diagramTheme: DiagramThemeChoice;
 }
 
 export interface PigiSettings {
@@ -64,7 +63,7 @@ export const TOOL_BLOCK_VIEW_MODES: readonly ToolBlockViewMode[] = [
 export const DEFAULT_PIGI_SETTINGS: PigiSettings = {
   version: 2,
   appearance: DEFAULT_APPEARANCE,
-  chat: { toolBlockViewMode: 'compact_read', diagramTheme: DEFAULT_DIAGRAM_THEME },
+  chat: { toolBlockViewMode: 'compact_read' },
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -86,10 +85,17 @@ function parseChat(raw: unknown): ChatSettings {
     toolBlockViewMode: isToolBlockViewMode(record.toolBlockViewMode)
       ? record.toolBlockViewMode
       : DEFAULT_PIGI_SETTINGS.chat.toolBlockViewMode,
-    diagramTheme: isDiagramThemeChoice(record.diagramTheme)
-      ? record.diagramTheme
-      : DEFAULT_PIGI_SETTINGS.chat.diagramTheme,
   };
+}
+
+/**
+ * The diagram theme lived under `chat` for one version. Reading it as the
+ * appearance fallback keeps a reader's choice without keeping the field in two
+ * places.
+ */
+function legacyDiagramTheme(raw: unknown): DiagramThemeChoice | null {
+  const chat = isRecord(raw) && isRecord(raw.chat) ? raw.chat : null;
+  return chat && isDiagramThemeChoice(chat.diagramTheme) ? chat.diagramTheme : null;
 }
 
 /** v1 had one theme and one accent for the whole app. */
@@ -120,7 +126,7 @@ export function parsePigiSettings(raw: unknown): PigiSettings {
   if (isRecord(raw) && raw.version === 2) {
     return {
       version: 2,
-      appearance: parseAppearance(raw.appearance),
+      appearance: parseAppearance(raw.appearance, legacyDiagramTheme(raw) ?? DEFAULT_DIAGRAM_THEME),
       chat: parseChat(raw.chat),
     };
   }

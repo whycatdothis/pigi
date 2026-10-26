@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { codeThemeForBackground, retintTokenColors } from './codeTheme';
+import {
+  CODE_THEME_PRESETS,
+  DEFAULT_CODE_THEME_ID,
+  codeThemePresetFor,
+  codeThemeForBackground,
+  retintTokenColors,
+} from './codeTheme';
 import { contrastRatio, parseCssColor } from './colorMath';
 
 function ratio(foreground: string, background: string): number {
@@ -12,12 +18,25 @@ function ratio(foreground: string, background: string): number {
 }
 
 describe('codeThemeForBackground', () => {
-  it('picks the base theme by measured luminance', () => {
-    expect(codeThemeForBackground('#ffffff')).toBe('one-light');
-    expect(codeThemeForBackground('#f6f1e8')).toBe('one-light');
-    expect(codeThemeForBackground('#808080')).toBe('one-light');
-    expect(codeThemeForBackground('#1f2430')).toBe('one-dark-pro');
-    expect(codeThemeForBackground('#0b0b0b')).toBe('one-dark-pro');
+  it('picks the half of the preset that fits the surface luminance', () => {
+    expect(codeThemeForBackground('#ffffff', 'one')).toBe('one-light');
+    expect(codeThemeForBackground('#f6f1e8', 'one')).toBe('one-light');
+    expect(codeThemeForBackground('#808080', 'one')).toBe('one-light');
+    expect(codeThemeForBackground('#1f2430', 'one')).toBe('one-dark-pro');
+    expect(codeThemeForBackground('#0b0b0b', 'one')).toBe('one-dark-pro');
+  });
+
+  it('follows the chosen preset on both surfaces', () => {
+    for (const preset of CODE_THEME_PRESETS) {
+      expect(codeThemeForBackground('#ffffff', preset.id)).toBe(preset.light);
+      expect(codeThemeForBackground('#0b0b0b', preset.id)).toBe(preset.dark);
+    }
+  });
+
+  it('falls back to the default preset for an unknown id', () => {
+    expect(codeThemeForBackground('#ffffff', 'not-a-theme')).toBe(
+      codeThemePresetFor(DEFAULT_CODE_THEME_ID).light,
+    );
   });
 });
 

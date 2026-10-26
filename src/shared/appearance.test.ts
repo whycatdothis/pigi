@@ -306,14 +306,33 @@ describe('parsePigiSettings', () => {
     expect(parsed.appearance.light.background).toBe('#f6f1e8');
     expect(parsed.appearance.mode).toBe('light');
     expect(parsed.chat.toolBlockViewMode).toBe('default');
-    expect(parsed.chat.diagramTheme).toBe('auto');
+    expect(parsed.appearance.diagramTheme).toBe('auto');
   });
 
   it('keeps a known diagram theme and drops an unknown one', () => {
     const read = (diagramTheme: unknown): string =>
-      parsePigiSettings({ version: 2, chat: { diagramTheme } }).chat.diagramTheme;
+      parsePigiSettings({ version: 2, appearance: { diagramTheme } }).appearance.diagramTheme;
     expect(read('forest')).toBe('forest');
     expect(read('solarized')).toBe('auto');
+  });
+
+  it('adopts a diagram theme stored under chat', () => {
+    const parsed = parsePigiSettings({ version: 2, chat: { diagramTheme: 'neutral' } });
+    expect(parsed.appearance.diagramTheme).toBe('neutral');
+    // The appearance value wins once it exists.
+    const explicit = parsePigiSettings({
+      version: 2,
+      appearance: { diagramTheme: 'forest' },
+      chat: { diagramTheme: 'neutral' },
+    });
+    expect(explicit.appearance.diagramTheme).toBe('forest');
+  });
+
+  it('keeps a known code theme and drops an unknown one', () => {
+    const read = (codeTheme: unknown): string =>
+      parsePigiSettings({ version: 2, appearance: { codeTheme } }).appearance.codeTheme;
+    expect(read('nord')).toBe('nord');
+    expect(read('not-a-theme')).toBe('one');
   });
 
   it('falls back per field when v1 values are invalid', () => {

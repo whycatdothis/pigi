@@ -28,6 +28,7 @@ import {
 } from '../../../../shared/appearanceTokens';
 import { SettingsCard, SettingsGroup, SettingsRow, SegmentedControl } from './settingsControls';
 import { ThemeFileActions } from './themeFileActions';
+import { CodeStyleSettings } from './codeStyleSettings';
 import {
   AccentField,
   ColorField,
@@ -211,6 +212,10 @@ export function AppearanceSettings(): React.JSX.Element {
             onChange={(codeSize) => patchFonts({ codeSize })}
           />
         </SettingsRow>
+      </SettingsGroup>
+
+      <SettingsGroup title="Code & diagrams">
+        <CodeStyleSettings />
       </SettingsGroup>
 
       <SettingsGroup title="Details">

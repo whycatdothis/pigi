@@ -43,7 +43,7 @@ function seed(): void {
   useSettingsStore.setState({
     version: 2,
     appearance: DEFAULT_APPEARANCE,
-    chat: { toolBlockViewMode: 'compact_read', diagramTheme: 'auto' },
+    chat: { toolBlockViewMode: 'compact_read' },
   });
 }
 

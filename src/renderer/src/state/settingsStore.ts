@@ -111,6 +111,7 @@ interface SettingsState extends PigiSettings {
   /** Edits the active mode's slot unless `mode` is given. */
   setAccent: (accent: AccentChoice, mode?: ColorMode) => void;
   setToolBlockViewMode: (mode: ToolBlockViewMode) => void;
+  setCodeTheme: (codeTheme: string) => void;
   setDiagramTheme: (choice: DiagramThemeChoice) => void;
   updateAppearance: (updater: (appearance: AppearanceSettings) => AppearanceSettings) => void;
   resetAppearance: () => void;
@@ -150,7 +151,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     setAccent: (accent, mode) => updateSlot(mode, (slot) => ({ ...slot, accent })),
     setToolBlockViewMode: (toolBlockViewMode) =>
       commit({ chat: { ...get().chat, toolBlockViewMode } }),
-    setDiagramTheme: (diagramTheme) => commit({ chat: { ...get().chat, diagramTheme } }),
+    setCodeTheme: (codeTheme) => commit({ appearance: { ...get().appearance, codeTheme } }),
+    setDiagramTheme: (diagramTheme) =>
+      commit({ appearance: { ...get().appearance, diagramTheme } }),
     updateAppearance: (updater) => commit({ appearance: updater(get().appearance) }),
     resetAppearance: () => commit({ appearance: DEFAULT_APPEARANCE }),
   };

@@ -8,6 +8,7 @@ import {
 import { deriveTokens } from '../../../../shared/appearanceTokens';
 import { useResolvedAppearance } from '../../appearance/useResolvedAppearance';
 import { codeThemeNameFor, ensureThemeLoaded, loadCodeTheme } from './shikiThemes';
+import { useSettingsStore } from '../../state/settingsStore';
 
 interface SyntaxHighlightedCodeProps {
   code: string;
@@ -124,6 +125,7 @@ function cacheHighlightedCode(
   themeName: string,
   background: string,
   surface: string,
+  codeThemeId: string,
 ): Promise<HighlightedLine[] | null> {
   const key = cacheKey(code, language, themeName);
   const cached = highlightedCodeCache.get(key);
@@ -131,7 +133,7 @@ function cacheHighlightedCode(
     return cached;
   }
 
-  const highlighted = highlightCode(code, language, themeName, background, surface);
+  const highlighted = highlightCode(code, language, themeName, background, surface, codeThemeId);
   highlightedCodeCache.set(key, highlighted);
   if (highlightedCodeCache.size > MAX_HIGHLIGHT_CACHE_SIZE) {
     const oldestKey = highlightedCodeCache.keys().next().value;
@@ -148,13 +150,14 @@ async function highlightCode(
   themeName: string,
   background: string,
   surface: string,
+  codeThemeId: string,
 ): Promise<HighlightedLine[] | null> {
   if (code.length > MAX_HIGHLIGHTED_CODE_LENGTH) {
     return null;
   }
 
   const highlighter = await getHighlighter();
-  const theme = await loadCodeTheme(background, surface);
+  const theme = await loadCodeTheme(background, surface, codeThemeId);
   await ensureThemeLoaded(highlighter, theme, loadedThemes);
   if (!loadedLanguages.has(language)) {
     await highlighter.loadLanguage(language);
@@ -228,6 +231,7 @@ export default function SyntaxHighlightedCode({
   isStreaming = false,
 }: SyntaxHighlightedCodeProps): React.JSX.Element {
   const resolvedAppearance = useResolvedAppearance();
+  const codeThemeId = useSettingsStore((state) => state.appearance.codeTheme);
   // The code block sits on --muted, so that is the surface the tokens have to
   // clear; the app background decides which base theme fits.
   const codeTheme = useMemo(() => {
@@ -237,9 +241,9 @@ export default function SyntaxHighlightedCode({
     return {
       background,
       surface,
-      name: codeThemeNameFor(background, surface),
+      name: codeThemeNameFor(background, surface, codeThemeId),
     };
-  }, [resolvedAppearance]);
+  }, [resolvedAppearance, codeThemeId]);
   const normalizedLanguage = useMemo(() => normalizeLanguage(language), [language]);
   const highlightInput = useStreamingThrottledCode(
     code,
@@ -304,6 +308,7 @@ export default function SyntaxHighlightedCode({
       codeTheme.name,
       codeTheme.background,
       codeTheme.surface,
+      codeThemeId,
     )
       .then((lines) => {
         if (!cancelled) {
@@ -319,7 +324,7 @@ export default function SyntaxHighlightedCode({
     return () => {
       cancelled = true;
     };
-  }, [highlightInput, currentHighlightKey, normalizedLanguage, codeTheme]);
+  }, [highlightInput, currentHighlightKey, normalizedLanguage, codeTheme, codeThemeId]);
 
   if (!highlightedLines) {
     return (

@@ -149,7 +149,7 @@ const DiagramGraphic = memo(function DiagramGraphic({
  */
 export default function MermaidDiagram({ code }: { code: string }): React.JSX.Element {
   const appTheme = useResolvedAppearance().mode;
-  const themeChoice = useSettingsStore((state) => state.chat.diagramTheme);
+  const themeChoice = useSettingsStore((state) => state.appearance.diagramTheme);
   const theme = resolveDiagramTheme(themeChoice, appTheme);
   const diagram = useMermaidDiagram(code, theme);
   const [showingSource, setShowingSource] = useState(false);

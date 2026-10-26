@@ -4,6 +4,8 @@
 
 ### Added
 
+- Code theme picker on the Appearance page: One, GitHub, Catppuccin, Nord, Gruvbox, Solarized, Everforest, Rosé Pine, each with a light and a dark Shiki theme chosen by the code surface's luminance and retinted to the 3:1 token floor
+- The mermaid diagram theme moved from the Chat page to Appearance, into a "Code & diagrams" card with a live specimen: the real code block and diagram, redrawn as either picker changes
 - A semantic design-token layer (`semanticTokens.css`): radius, spacing, elevation and motion are named by role, `scripts/checkDesignTokens.mjs` rejects hard-coded values in `npm run check`, and `docs/design-system.md` documents the scale
 - `__designTokens()` in dev builds renders every token against the live theme
 - Settings page: the sidebar footer's Settings menu (or ⌘ ,) swaps the sidebar and the main area for a full-page settings view that closes with the top bar or Esc

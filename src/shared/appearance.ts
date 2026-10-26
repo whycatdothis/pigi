@@ -8,6 +8,13 @@
  * light slot is shared or light and dark are configured independently.
  */
 
+import {
+  DEFAULT_DIAGRAM_THEME,
+  isDiagramThemeChoice,
+  type DiagramThemeChoice,
+} from './diagramTheme';
+import { DEFAULT_CODE_THEME_ID, isCodeThemeId } from './codeTheme';
+
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type ColorMode = 'light' | 'dark';
 export type ReduceMotion = 'system' | 'on' | 'off';
@@ -44,6 +51,10 @@ export interface AppearanceSettings {
   dark: ModeAppearance;
   reduceMotion: ReduceMotion;
   fontSmoothing: boolean;
+  /** Code highlighting preset (`CODE_THEME_PRESETS`); one choice for both modes. */
+  codeTheme: string;
+  /** Which mermaid theme diagrams are drawn in. */
+  diagramTheme: DiagramThemeChoice;
 }
 
 export interface ThemeAccent {
@@ -239,6 +250,8 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   dark: { ...DEFAULT_MODE_APPEARANCE.dark },
   reduceMotion: 'system',
   fontSmoothing: true,
+  codeTheme: DEFAULT_CODE_THEME_ID,
+  diagramTheme: DEFAULT_DIAGRAM_THEME,
 };
 
 export const THEME_MODES: readonly ThemeMode[] = ['system', 'light', 'dark'];
@@ -318,7 +331,14 @@ function parseModeAppearance(raw: unknown, fallback: ModeAppearance): ModeAppear
 }
 
 /** Parses a persisted appearance blob, falling back field by field. */
-export function parseAppearance(raw: unknown): AppearanceSettings {
+/**
+ * Parses a stored appearance object. `diagramThemeFallback` carries the value
+ * from the version that kept the diagram theme under `chat`.
+ */
+export function parseAppearance(
+  raw: unknown,
+  diagramThemeFallback: DiagramThemeChoice = DEFAULT_DIAGRAM_THEME,
+): AppearanceSettings {
   const record = isRecord(raw) ? raw : {};
   return {
     mode: includes(THEME_MODES, record.mode) ? record.mode : DEFAULT_APPEARANCE.mode,
@@ -335,5 +355,9 @@ export function parseAppearance(raw: unknown): AppearanceSettings {
       typeof record.fontSmoothing === 'boolean'
         ? record.fontSmoothing
         : DEFAULT_APPEARANCE.fontSmoothing,
+    codeTheme: isCodeThemeId(record.codeTheme) ? record.codeTheme : DEFAULT_APPEARANCE.codeTheme,
+    diagramTheme: isDiagramThemeChoice(record.diagramTheme)
+      ? record.diagramTheme
+      : diagramThemeFallback,
   };
 }

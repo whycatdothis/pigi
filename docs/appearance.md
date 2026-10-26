@@ -97,6 +97,10 @@ export interface AppearanceSettings {
   dark: ModeAppearance;
   reduceMotion: ReduceMotion;
   fontSmoothing: boolean;
+  /** Code highlighting preset (CODE_THEME_PRESETS); one choice for both modes. */
+  codeTheme: string;
+  /** Which mermaid theme diagrams are drawn in. */
+  diagramTheme: DiagramThemeChoice;
 }
 
 export interface PigiSettings {
@@ -189,6 +193,24 @@ family and size because a monospace grid is a different problem: its advance
 width and the amount of it people read at once do not follow the prose size.
 A stored `content` family is adopted as the text family when the reader had not
 set one, so an existing choice survives the change.
+
+### Code and diagrams
+
+`codeTheme` and `diagramTheme` live on `AppearanceSettings`, not on a mode slot:
+a code theme preset carries its own light and dark Shiki theme, and which half
+is used follows the luminance of the code surface rather than the app's mode, so
+a custom light background in dark mode still gets the readable half. Each
+preset's tokens are retinted to the 3:1 code-token floor on that surface
+(`shared/codeTheme.ts`), which is what keeps a preset usable on backgrounds it
+was not designed for.
+
+The diagram theme used to be `chat.diagramTheme`; it moved here because both
+choices are about how content is drawn, not about chat behaviour. A stored
+`chat.diagramTheme` is read as the fallback, so an existing pick survives.
+
+Both controls sit in one card with a live specimen under them: the real
+`SyntaxHighlightedCode` and `MermaidDiagram` on a fixed snippet, so a change is
+visible as the code and the drawing it applies to rather than as a swatch.
 
 ## Token derivation
 
@@ -586,6 +608,10 @@ Typography
   Code font         [System mono ▾]
   Text size         [15] px
   Code font size    [14] px
+Code & diagrams
+  Code theme        [One ▾]                (CODE_THEME_PRESETS)
+  Diagram theme     [Follow the app ▾]     (DIAGRAM_THEME_CHOICES)
+  Preview                                 (a real code block and mermaid diagram)
 Details
   Translucent sidebar  [switch]
   Font smoothing    [switch]

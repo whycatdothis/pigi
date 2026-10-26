@@ -11,7 +11,6 @@ import {
   CODE_TOKEN_CONTRAST_TARGET,
   codeThemeForBackground,
   retintTokenColors,
-  type CodeThemeName,
 } from '../../../../shared/codeTheme';
 
 export interface CodeTheme {
@@ -30,15 +29,19 @@ function shortHash(value: string): string {
   return (hash >>> 0).toString(36);
 }
 
-/** The registered theme name for a background and code surface. */
-export function codeThemeNameFor(background: string, surface: string): string {
-  const base: CodeThemeName = codeThemeForBackground(background);
+/** The registered theme name for a preset, background and code surface. */
+export function codeThemeNameFor(background: string, surface: string, themeId: string): string {
+  const base = codeThemeForBackground(background, themeId);
   return `pigi-${base}-${shortHash(`${base}|${surface}`)}`;
 }
 
 /** Loads (and retints) the theme for a background and code surface. */
-export async function loadCodeTheme(background: string, surface: string): Promise<CodeTheme> {
-  const base: CodeThemeName = codeThemeForBackground(background);
+export async function loadCodeTheme(
+  background: string,
+  surface: string,
+  themeId: string,
+): Promise<CodeTheme> {
+  const base = codeThemeForBackground(background, themeId);
   const cacheKey = `${base}|${surface}`;
   const existing = themeCache.get(cacheKey);
   if (existing) {
@@ -48,7 +51,7 @@ export async function loadCodeTheme(background: string, surface: string): Promis
   const loading = (async (): Promise<CodeTheme> => {
     const themeModule = await bundledThemes[base]();
     const raw = themeModule.default;
-    const name = codeThemeNameFor(background, surface);
+    const name = codeThemeNameFor(background, surface, themeId);
     const registration: ThemeRegistration = {
       ...raw,
       name,
