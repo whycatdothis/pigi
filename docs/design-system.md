@@ -21,9 +21,8 @@ third of the height; below a tenth it reads square.
 | Token                 | Value  | Applied to                                                             | Typical height | Ratio  |
 | --------------------- | ------ | ---------------------------------------------------------------------- | -------------- | ------ |
 | `--radius-inline`     | 6px    | inline code, kbd                                                       | 18–22          | 30%    |
-| `--radius-chip`       | 8px    | chips, badges, thumbnails                                              | 20–24          | 35%    |
+| `--radius-chip`       | 8px    | chips, badges, thumbnails, markdown tables                             | 20–24          | 35%    |
 | `--radius-control-sm` | 10px   | `size-6` icon buttons, xs controls                                     | 24             | 42%    |
-| `--radius-table`      | 12px   | markdown tables                                                        | 40–240         | 3–30%  |
 | `--radius-control`    | 14px   | buttons, inputs, menu items, sidebar rows, preview mini windows        | 28–32          | 44–50% |
 | `--radius-surface-sm` | 16px   | code blocks, preview frames and rings                                  | 50–240         | 7–32%  |
 | `--radius-surface`    | 20px   | cards: tool, thinking, read group, branch summary, error notice, menus | 38–170         | 12–27% |

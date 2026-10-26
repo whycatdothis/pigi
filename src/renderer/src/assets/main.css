@@ -377,7 +377,7 @@
        arc and the table reads as a rounded rect with square corners. */
     corner-shape: round;
     border: 1px solid var(--border);
-    border-radius: var(--radius-table);
+    border-radius: var(--radius-chip);
     text-align: left;
     font-size: 14px;
   }
