@@ -1,5 +1,6 @@
 import mermaid, { type MermaidConfig } from 'mermaid';
-import { diagramFontFamily, type DiagramTheme } from './mermaidTheme';
+import { diagramFontFamily } from './mermaidTheme';
+import type { DiagramTheme } from '../../../shared/diagramTheme';
 
 export interface RenderedDiagram {
   /** Mermaid's own markup, which is what the drawing is made of. */

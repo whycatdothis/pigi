@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { peekDiagram, renderDiagram, type RenderedDiagram } from '../lib/mermaidRenderer';
-import type { DiagramTheme } from '../lib/mermaidTheme';
+import type { DiagramTheme } from '../../../shared/diagramTheme';
 
 export type MermaidDiagramState =
   | { status: 'loading' }

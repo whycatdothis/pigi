@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DIAGRAM_THEME, isDiagramThemeChoice, resolveDiagramTheme } from './mermaidTheme';
+import { DEFAULT_DIAGRAM_THEME, isDiagramThemeChoice, resolveDiagramTheme } from './diagramTheme';
 
 describe('resolveDiagramTheme', () => {
   it('draws in mermaid\u2019s own light and dark themes when following the app', () => {

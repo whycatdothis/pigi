@@ -306,6 +306,14 @@ describe('parsePigiSettings', () => {
     expect(parsed.appearance.light.background).toBe('#f6f1e8');
     expect(parsed.appearance.mode).toBe('light');
     expect(parsed.chat.toolBlockViewMode).toBe('default');
+    expect(parsed.chat.diagramTheme).toBe('auto');
+  });
+
+  it('keeps a known diagram theme and drops an unknown one', () => {
+    const read = (diagramTheme: unknown): string =>
+      parsePigiSettings({ version: 2, chat: { diagramTheme } }).chat.diagramTheme;
+    expect(read('forest')).toBe('forest');
+    expect(read('solarized')).toBe('auto');
   });
 
   it('falls back per field when v1 values are invalid', () => {

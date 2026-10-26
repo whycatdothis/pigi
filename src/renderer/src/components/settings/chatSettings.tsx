@@ -1,5 +1,8 @@
+import { IconChevronDown } from '@tabler/icons-react';
 import { useSettingsStore } from '../../state/settingsStore';
 import { TOOL_BLOCK_VIEW_MODES, type ToolBlockViewMode } from '../../../../shared/pigiSettings';
+import { DIAGRAM_THEME_CHOICES, isDiagramThemeChoice } from '../../../../shared/diagramTheme';
+import { NativeSelect } from '../ui/native-select';
 import { SegmentedControl, SettingsGroup, SettingsRow } from './settingsControls';
 
 /** Same labels as the session toolbar's view menu. */
@@ -9,13 +12,11 @@ const VIEW_MODE_LABELS: Record<ToolBlockViewMode, string> = {
   minimal: 'Minimal',
 };
 
-/**
- * The page has one setting, so it is one row: three described option blocks took
- * a full screen to say what the segmented control says in 28 pixels.
- */
 export function ChatSettings(): React.JSX.Element {
   const toolBlockViewMode = useSettingsStore((state) => state.chat.toolBlockViewMode);
   const setToolBlockViewMode = useSettingsStore((state) => state.setToolBlockViewMode);
+  const diagramTheme = useSettingsStore((state) => state.chat.diagramTheme);
+  const setDiagramTheme = useSettingsStore((state) => state.setDiagramTheme);
 
   return (
     <SettingsGroup>
@@ -31,6 +32,26 @@ export function ChatSettings(): React.JSX.Element {
           }))}
           onChange={setToolBlockViewMode}
         />
+      </SettingsRow>
+      <SettingsRow label="Diagram theme" description="The mermaid theme diagrams are drawn in.">
+        <NativeSelect
+          size="sm"
+          aria-label="Diagram theme"
+          value={diagramTheme}
+          onChange={(event) => {
+            if (isDiagramThemeChoice(event.target.value)) {
+              setDiagramTheme(event.target.value);
+            }
+          }}
+          icon={<IconChevronDown size={14} stroke={1.75} />}
+          className="w-[10rem] [&_select]:pr-7 [&_select]:text-caption [&_select]:dark:bg-transparent"
+        >
+          {DIAGRAM_THEME_CHOICES.map((choice) => (
+            <option key={choice.value} value={choice.value}>
+              {choice.label}
+            </option>
+          ))}
+        </NativeSelect>
       </SettingsRow>
     </SettingsGroup>
   );

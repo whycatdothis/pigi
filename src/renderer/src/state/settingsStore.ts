@@ -19,6 +19,7 @@ import {
   type PigiSettings,
   type ToolBlockViewMode,
 } from '../../../shared/pigiSettings';
+import type { DiagramThemeChoice } from '../../../shared/diagramTheme';
 import {
   DEFAULT_APPEARANCE,
   type AccentChoice,
@@ -110,6 +111,7 @@ interface SettingsState extends PigiSettings {
   /** Edits the active mode's slot unless `mode` is given. */
   setAccent: (accent: AccentChoice, mode?: ColorMode) => void;
   setToolBlockViewMode: (mode: ToolBlockViewMode) => void;
+  setDiagramTheme: (choice: DiagramThemeChoice) => void;
   updateAppearance: (updater: (appearance: AppearanceSettings) => AppearanceSettings) => void;
   resetAppearance: () => void;
 }
@@ -146,7 +148,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     ...initialSettings,
     setMode: (mode) => commit({ appearance: { ...get().appearance, mode } }),
     setAccent: (accent, mode) => updateSlot(mode, (slot) => ({ ...slot, accent })),
-    setToolBlockViewMode: (toolBlockViewMode) => commit({ chat: { toolBlockViewMode } }),
+    setToolBlockViewMode: (toolBlockViewMode) =>
+      commit({ chat: { ...get().chat, toolBlockViewMode } }),
+    setDiagramTheme: (diagramTheme) => commit({ chat: { ...get().chat, diagramTheme } }),
     updateAppearance: (updater) => commit({ appearance: updater(get().appearance) }),
     resetAppearance: () => commit({ appearance: DEFAULT_APPEARANCE }),
   };

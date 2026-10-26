@@ -1,8 +1,10 @@
-import { afterEach, expect, test } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { peekDiagram, renderDiagram } from '../../lib/mermaidRenderer';
-import { useAppStore } from '../../state/appStore';
+import { flushPigiSettingsWrites, useSettingsStore } from '../../state/settingsStore';
+import { applyAppearance } from '../../appearance/applyAppearance';
+import { DEFAULT_APPEARANCE } from '../../../../shared/appearance';
 import { findOccurrenceRanges } from '../../lib/highlightMatches';
 import MarkdownMessage from './markdownMessage';
 import MermaidDiagram from './mermaidDiagram';
@@ -27,8 +29,13 @@ const HOSTILE_LABEL = [
   '  B --> C["<script>window.__mermaidPwned=true</script>"]',
 ].join('\n');
 
-afterEach(() => {
-  document.documentElement.classList.remove('dark');
+/** Switch the app's own theme the way the settings page does. */
+function setAppMode(mode: 'light' | 'dark'): void {
+  applyAppearance({ ...DEFAULT_APPEARANCE, mode });
+}
+
+beforeEach(() => {
+  setAppMode('light');
 });
 
 /**
@@ -239,7 +246,7 @@ test('redraws the diagram in the other theme', async () => {
   await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
   const lightDrawing = graphicIn(screen.container).innerHTML;
 
-  document.documentElement.classList.add('dark');
+  setAppMode('dark');
   await waitFor(() => graphicIn(screen.container).innerHTML !== lightDrawing);
 });
 
@@ -418,24 +425,29 @@ test('draws in the theme the reader picks, whatever the app is doing', async () 
   await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
   const following = graphicIn(screen.container).innerHTML;
 
-  // What a settings page would write: a mermaid theme of the reader's own.
-  useAppStore.getState().setDiagramTheme('forest');
+  // What the settings page writes: a mermaid theme of the reader's own.
+  useSettingsStore.getState().setDiagramTheme('forest');
   await waitFor(() => graphicIn(screen.container).innerHTML !== following);
 
   // A picked theme is drawn whatever the window is doing, so switching the app's
   // own theme leaves the drawing alone.
-  document.documentElement.classList.add('dark');
+  setAppMode('dark');
   const forestInDark = graphicIn(screen.container).innerHTML;
   expect(forestInDark).not.toBe(following);
 
-  useAppStore.getState().setDiagramTheme('neutral');
+  useSettingsStore.getState().setDiagramTheme('neutral');
   await waitFor(() => graphicIn(screen.container).innerHTML !== forestInDark);
 
-  // The choice is remembered for the next window.
-  expect(localStorage.getItem('pigi:diagram-theme')).toBe('neutral');
+  // The choice is written to the settings file for the next window.
+  const write = vi.spyOn(window.piApi, 'writePigiSettings');
+  flushPigiSettingsWrites();
+  expect(write).toHaveBeenLastCalledWith(
+    expect.objectContaining({ chat: expect.objectContaining({ diagramTheme: 'neutral' }) }),
+  );
+  write.mockRestore();
 
   // Back to following the app, so the rest of this file starts where it did.
-  document.documentElement.classList.remove('dark');
-  useAppStore.getState().setDiagramTheme('auto');
+  setAppMode('light');
+  useSettingsStore.getState().setDiagramTheme('auto');
   await waitFor(() => graphicIn(screen.container).innerHTML === following);
 });

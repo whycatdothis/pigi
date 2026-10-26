@@ -20,11 +20,17 @@ import {
   type AppearanceSettings,
   type ThemeMode,
 } from './appearance';
+import {
+  DEFAULT_DIAGRAM_THEME,
+  isDiagramThemeChoice,
+  type DiagramThemeChoice,
+} from './diagramTheme';
 
 export type ToolBlockViewMode = 'default' | 'compact_read' | 'minimal';
 
 export interface ChatSettings {
   toolBlockViewMode: ToolBlockViewMode;
+  diagramTheme: DiagramThemeChoice;
 }
 
 export interface PigiSettings {
@@ -58,7 +64,7 @@ export const TOOL_BLOCK_VIEW_MODES: readonly ToolBlockViewMode[] = [
 export const DEFAULT_PIGI_SETTINGS: PigiSettings = {
   version: 2,
   appearance: DEFAULT_APPEARANCE,
-  chat: { toolBlockViewMode: 'compact_read' },
+  chat: { toolBlockViewMode: 'compact_read', diagramTheme: DEFAULT_DIAGRAM_THEME },
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -80,6 +86,9 @@ function parseChat(raw: unknown): ChatSettings {
     toolBlockViewMode: isToolBlockViewMode(record.toolBlockViewMode)
       ? record.toolBlockViewMode
       : DEFAULT_PIGI_SETTINGS.chat.toolBlockViewMode,
+    diagramTheme: isDiagramThemeChoice(record.diagramTheme)
+      ? record.diagramTheme
+      : DEFAULT_PIGI_SETTINGS.chat.diagramTheme,
   };
 }
 

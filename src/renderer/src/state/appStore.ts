@@ -14,11 +14,6 @@ import type { Platform } from '../../../shared/platform';
 import { createPersistedSessionMap } from '../lib/persistedSessionMap';
 import { parseStoredQuotes, type MessageQuote } from '../lib/messageQuotes';
 import { RIGHT_SIDEBAR_TABS, type RightSidebarTab } from '../lib/rightSidebarTabs';
-import type { DiagramThemeChoice } from '../lib/mermaidTheme';
-import {
-  readDiagramThemePreference,
-  writeDiagramThemePreference,
-} from '../lib/diagramThemePreference';
 import type { AgentStatus } from './transcriptController';
 
 export type { AgentStatus };
@@ -119,13 +114,8 @@ interface AppState {
   toggleRightSidebar: (sessionPath: string) => void;
   setRightSidebarTab: (tab: RightSidebarTab) => void;
 
-  // Tool block view mode lives in the settings store (persisted preference).
-
-  // Theme a diagram is drawn in: 'auto' follows the app's own theme, anything
-  // else is a mermaid theme name the reader picked. Kept here rather than in the
-  // diagram's own module so a settings page has one place to read and write it.
-  diagramTheme: DiagramThemeChoice;
-  setDiagramTheme: (choice: DiagramThemeChoice) => void;
+  // Tool block view mode and diagram theme live in the settings store
+  // (persisted preferences).
 
   // Platform
   platform: Platform;
@@ -419,12 +409,6 @@ export const useAppStore = create<AppState>((set) => ({
       ),
     })),
   setRightSidebarTab: (tab) => set({ rightSidebarTab: tab }),
-
-  diagramTheme: readDiagramThemePreference(),
-  setDiagramTheme: (choice) => {
-    writeDiagramThemePreference(choice);
-    set({ diagramTheme: choice });
-  },
 
   // Platform
   platform: 'unknown',

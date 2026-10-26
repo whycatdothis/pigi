@@ -8,7 +8,7 @@
 - `__designTokens()` in dev builds renders every token against the live theme
 - Settings page: the sidebar footer's Settings menu (or ⌘ ,) swaps the sidebar and the main area for a full-page settings view that closes with the top bar or Esc
 - Pi settings in the app: models and thinking, message delivery, compaction, retries, resource paths, and shell/network/security, with a Global / This project switch that writes to pi's `settings.json`
-- pigi settings: appearance (mode, accent, background and foreground colors, fonts, contrast) and the default tool view
+- pigi settings: appearance (mode, accent, background and foreground colors, fonts, contrast), the default tool view, and the mermaid theme diagrams are drawn in
 - Named themes in the Appearance page: pigi, GitHub, Catppuccin, Nord, Gruvbox, Everforest, Notion, Linear
 - Copy the current look as a theme and paste one back in from the Appearance page
 - Mermaid diagrams: a ` ```mermaid ` block in a message is drawn as a diagram, with a switch in its header to read or copy the source. Diagrams follow the app's theme, are drawn as they stream in once their closing fence arrives, and can be clicked to open a zoom overlay — in the overlay the wheel, a pinch or a trackpad zoom the drawing, dragging or two fingers pan it, and Escape or a click on the background closes it. The text inside a diagram can be selected and found with the transcript's search. A diagram that cannot be parsed keeps its source and says so

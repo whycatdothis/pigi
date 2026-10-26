@@ -519,11 +519,11 @@ Rules that the code depends on:
   `default` and the dark one its `dark`; no theme variable is overridden, so the
   drawing looks like the diagram it is rather than like the app's chrome around
   it. The only thing taken from the app is the font stack, so labels sit in the
-  same type as the text beside them. `lib/mermaidTheme.ts` holds the choices a
-  settings page will offer, and the reader's pick is kept in the app store and
-  in `localStorage` until that page exists. The app's theme lives in a class on
-  the document element, which `useResolvedTheme` observes — that class is the
-  single source of truth for which theme is drawn when following the app.
+  same type as the text beside them. `shared/diagramTheme.ts` holds the
+  choices; the reader's pick is `chat.diagramTheme` in pigi's settings file,
+  set from the Chat settings page. When following the app, the window's mode
+  comes from `useResolvedAppearance`, the same resolved appearance the code
+  blocks and the terminal read.
 - **The model is told that the UI draws them.** Every session is given
   `src/processes/utility/systemPrompt.ts`, appended to pi's own system prompt
   (`resourceLoaderOptions.appendSystemPrompt` in `piAgent.ts`), so a diagram is
