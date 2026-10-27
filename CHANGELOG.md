@@ -13,6 +13,12 @@
   longer moves when `--radius` moves, and `npm run check` rejects the scale
   steps and the primitive `--radius-*` variables the way it already rejected
   arbitrary values
+- The message minimap opens and closes with a `display`/`opacity` transition
+  (`allow-discrete` with `@starting-style`) instead of an exit animation that
+  unmounted the panel from its own `animationend`, with a timer under it in case
+  that event never arrived: one boolean describes the panel now, the exit cannot
+  desync from the state, and the closing fade still never paints a frame at full
+  opacity
 - pigi's settings have one writer: the main process owns the file and a settings
   change sends only the slice it edited, so a commit cannot overwrite a value it
   never touched. The write happens as the change arrives — no debounce to lose on

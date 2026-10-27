@@ -25,21 +25,10 @@ function formatTime(timestamp: number): string {
 
 const HOVER_OPEN_DELAY = 200;
 const HOVER_CLOSE_DELAY = 300;
-/** Slack on top of the exit animation before the fuse fires; see the effect. */
-const EXIT_FUSE_SLACK = 200;
 const EMPTY_MESSAGE_PREVIEW = 'Empty message';
 const LINE_WIDTH_MAX_CAP = 48;
 const LINE_WIDTH_RIGHT_MARGIN = 8;
 const LINE_WIDTH_MIN_CAP = 8;
-
-/** `animation-duration` lists one value per animation; the exit runs one. */
-function firstDurationMs(durations: string): number {
-  const [first = ''] = durations.split(',');
-  const value = first.trim();
-  const amount = Number.parseFloat(value);
-  if (Number.isNaN(amount)) return 0;
-  return value.endsWith('ms') ? amount : amount * 1000;
-}
 
 /** Returns a width based on message count and position. */
 function getLineWidth(index: number, total: number, maxWidth: number): number {
@@ -76,9 +65,10 @@ export default React.memo(function UserMessageMiniMap({
   onScrollToIndex,
 }: UserMessageMiniMapProps): React.JSX.Element | null {
   const [open, setOpen] = useState(false);
-  // The panel outlives `open` by one animation so closing is not a hard cut
-  // while the ticks fade back in.
-  const [present, setPresent] = useState(false);
+  // The panel mounts on the first open and stays mounted: `display` is what
+  // hides it (see `.message-minimap-panel`), and a list of a few hundred rows
+  // is cheaper to keep than to rebuild on every hover.
+  const [hasOpened, setHasOpened] = useState(false);
   const panelId = useId();
   const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -145,35 +135,16 @@ export default React.memo(function UserMessageMiniMap({
   }, [userMessages, activeUserMessageIndex]);
 
   const openPanel = useCallback((): void => {
-    setPresent(true);
+    setHasOpened(true);
     setOpen(true);
   }, []);
 
-  /** Closes the panel; the panel itself unmounts when its exit animation ends. */
+  /** Closes the panel. The element stays: its own `display`/`opacity`
+   *  transition is the whole exit. */
   const closePanel = useCallback((): void => {
     setOpen(false);
-  }, []);
-
-  /** Ends the panel's life. Two callers: the exit animation ending, and the
-   *  fuse under it; both mean the same thing, so they share one definition. */
-  const finishClose = useCallback((): void => {
-    setPresent(false);
     setHoveredIndex(null);
   }, []);
-
-  // A fuse under the exit animation. Unmounting on `animationend` is the
-  // mechanism, but it is the only one, and a panel that stays mounted is
-  // invisible and, without `inert` below, sits over the transcript's right edge
-  // swallowing clicks. The fuse length is read from the running exit rather than
-  // copied from a constant, so it cannot drift from the animation. Re-opening
-  // during the fade clears it through this effect's cleanup.
-  useEffect(() => {
-    if (open || !present) return;
-    const panel = panelRef.current;
-    const exitDuration = panel ? firstDurationMs(getComputedStyle(panel).animationDuration) : 0;
-    const fuse = setTimeout(finishClose, exitDuration + EXIT_FUSE_SLACK);
-    return () => clearTimeout(fuse);
-  }, [open, present, finishClose]);
 
   /** Activation from the trigger: open, then put focus on the first item.
    *  Returning focus to the trigger on close is only safe because focusing it
@@ -268,7 +239,7 @@ export default React.memo(function UserMessageMiniMap({
         ref={triggerRef}
         type="button"
         aria-expanded={open}
-        aria-controls={present ? panelId : undefined}
+        aria-controls={hasOpened ? panelId : undefined}
         aria-label="Jump to a message"
         onClick={handleTriggerClick}
         className={`flex flex-col items-end gap-[7px] rounded-l bg-transparent py-2 pl-1 outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring ${
@@ -296,37 +267,22 @@ export default React.memo(function UserMessageMiniMap({
           stays put and `scrollIntoView` below cannot drag the transcript.
           It follows the trigger in the DOM so Tab reaches the items, and it is
           positioned, so the visual order is unchanged. */}
-      {present && (
+      {hasOpened && (
         <div
           ref={panelRef}
           id={panelId}
           role="group"
           aria-label="Messages"
-          // While closing, the panel is still mounted but must not be reachable:
-          // `inert` keeps it out of hit testing, the tab order and the
-          // accessibility tree for the length of the fade.
+          data-open={open}
+          // Closed and fading both keep the panel out of hit testing, the tab
+          // order and the accessibility tree. `display: none` already does that
+          // once the exit is over; `inert` covers the fade itself.
           inert={!open}
-          onAnimationEnd={(event) => {
-            // The exit keyframes end at opacity 0, but `animate-out` does not
-            // fill: the moment they finish the panel snaps back to its own
-            // (opaque) style and paints one full frame before this handler's
-            // unmount commits. `fill-mode-forwards` below holds the final
-            // invisible values for that frame, so closing is a fade, not a
-            // flash. Unmounting here is still what ends the panel's life.
-            if (event.target !== event.currentTarget || open) return;
-            finishClose();
-          }}
           className={cn(
+            'message-minimap-panel',
             VIBRANCY_OVERLAY_CONTENT,
             OVERLAY_BG,
-            'absolute right-0 top-1/2 flex max-h-[50vh] w-64 origin-right -translate-y-1/2 flex-col overflow-hidden rounded-l-surface p-0 backdrop-blur-md',
-            // fill mode only on the exit: `forwards` holds the last keyframe,
-            // which is why closing is a fade instead of a flash. On the enter it
-            // would freeze a snapshot of the element's own style taken when the
-            // animation started, and keep a finished keyframe effect alive.
-            open
-              ? 'animate-in fade-in-0 zoom-in-95'
-              : 'animate-out fade-out-0 zoom-out-95 fill-mode-forwards',
+            'absolute right-0 top-1/2 max-h-[50vh] w-64 origin-right -translate-y-1/2 flex-col overflow-hidden rounded-l-surface p-0 backdrop-blur-md',
           )}
         >
           <div className="flex flex-col gap-0.5 overflow-y-auto p-1 scrollbar-none">
