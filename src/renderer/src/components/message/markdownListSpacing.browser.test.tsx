@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, test } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { applyAppearance } from '../../appearance/applyAppearance';
 import { DEFAULT_UI_FONT_SIZE } from '../../../../shared/appearance';
+import { requireElement } from '../../testing/domQuery';
 import MarkdownMessage from './markdownMessage';
 import { useSettingsStore } from '../../state/settingsStore';
 // The list gaps are the app's own CSS read off a real layout: jsdom cannot
@@ -35,12 +36,6 @@ const REPLY = [
   '  2. Write the assertion before the fix',
   '  3. Re-run the whole file once at the end',
 ].join('\n');
-
-function requireElement<T extends Element>(selector: string, scope: ParentNode): T {
-  const element = scope.querySelector<T>(selector);
-  if (!element) throw new Error(`nothing on the page matches ${selector}`);
-  return element;
-}
 
 /** The body text size the whole ladder multiplies, as the transcript reads it. */
 function bodySizeIn(container: HTMLElement): number {
