@@ -241,13 +241,40 @@ test('switches between the diagram and its source', async () => {
   await expect.element(screen.getByTestId('mermaid-diagram')).toBeVisible();
 });
 
-test('redraws the diagram in the other theme', async () => {
+test('leaves the drawing alone when the app switches to dark', async () => {
   const screen = await render(<MermaidDiagram code={FLOWCHART} />);
   await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
-  const lightDrawing = graphicIn(screen.container).innerHTML;
+  const inLight = graphicIn(screen.container).innerHTML;
 
   setAppMode('dark');
-  await waitFor(() => graphicIn(screen.container).innerHTML !== lightDrawing);
+
+  // A diagram is drawn in its own theme, not the window's: nothing about it
+  // depends on the mode, so the drawing is byte-for-byte the one from the light
+  // window (the diagram theme picked in the settings is what changes it).
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  expect(graphicIn(screen.container).innerHTML).toBe(inLight);
+});
+
+test('redraws the diagram when the text size changes', async () => {
+  const screen = await render(<MermaidDiagram code={FLOWCHART} />);
+  await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
+  const atDefaultSize = graphicIn(screen.container).innerHTML;
+
+  // Labels are measured with the app's font, so a size change is a different
+  // drawing — the layout inside it has to be made again.
+  useSettingsStore.getState().updateAppearance((appearance) => ({
+    ...appearance,
+    light: { ...appearance.light, fonts: { ...appearance.light.fonts, uiSize: 18 } },
+    dark: { ...appearance.dark, fonts: { ...appearance.dark.fonts, uiSize: 18 } },
+  }));
+
+  await waitFor(() => graphicIn(screen.container).innerHTML !== atDefaultSize);
+
+  useSettingsStore.getState().updateAppearance((appearance) => ({
+    ...appearance,
+    light: { ...appearance.light, fonts: { ...appearance.light.fonts, uiSize: 15 } },
+    dark: { ...appearance.dark, fonts: { ...appearance.dark.fonts, uiSize: 15 } },
+  }));
 });
 
 test('gives two diagrams drawn with the same rules one stylesheet between them', async () => {
@@ -442,7 +469,9 @@ test('draws in the theme the reader picks, whatever the app is doing', async () 
   const write = vi.spyOn(window.piApi, 'writePigiSettings');
   flushPigiSettingsWrites();
   expect(write).toHaveBeenLastCalledWith(
-    expect.objectContaining({ chat: expect.objectContaining({ diagramTheme: 'neutral' }) }),
+    expect.objectContaining({
+      appearance: expect.objectContaining({ diagramTheme: 'neutral' }),
+    }),
   );
   write.mockRestore();
 
