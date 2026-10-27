@@ -100,3 +100,18 @@ next to Tailwind's (`text-xs` 13, `text-sm` 14), so two names mean one size and
   `.appearance-slider::-webkit-slider-thumb` — it uses `var(--radius-full)`
   rather than the class, so it is a superellipse only because a pseudo-element
   is not matched by `:where(:not(.rounded-full))`.
+
+## Ordered list items need more room
+
+A numbered list reads cramped: `.markdown-body li + li` sits at
+`--message-item-spacing` (0.3 × `--text-body`, 4.5px at the default size), which
+was tuned for a bulleted list of short lines. An ordered list is usually steps —
+one or two lines each with real text in them — so at 4.5px the numbers run
+together and the list stops reading as separate items.
+
+Raise the gap for `ol` only, as a token of its own (something in the 0.8–1.0 ×
+`--text-body` range, i.e. the prose step or just under it) so `ul` keeps its
+tight rhythm, and check the nested case: an `ol` inside a `ul` inherits
+`--markdown-item-spacing` from `.markdown-body li > ol` too. Verify against a real
+reply with a 6-step list and a nested list, at 15px and at 18px text size, then
+update the ladder in `docs/design-system.md`.
