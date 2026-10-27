@@ -5,13 +5,17 @@ import { DEFAULT_UI_FONT_SIZE } from '../../../../shared/appearance';
 import { requireElement } from '../../testing/domQuery';
 import MarkdownMessage from './markdownMessage';
 import { useSettingsStore } from '../../state/settingsStore';
-// The list gaps are the app's own CSS read off a real layout: jsdom cannot
-// apply a stylesheet, so this layer measures the thing itself.
+// The gaps are the app's own CSS read off a real layout: jsdom cannot apply a
+// stylesheet, so this layer measures the thing itself.
 import '../../assets/main.css';
 
-/** Ordered items sit at the prose step; bulleted ones at the tight item step. */
+/** Ordered items sit at twice the prose step; bulleted ones at the item step. */
 const ORDERED_ITEM_STEP = 1.6;
 const BULLETED_ITEM_STEP = 0.3;
+/** The prose gap between blocks, and the wider break a heading that opens a
+ * section takes. */
+const PROSE_STEP = 0.8;
+const SECTION_BREAK_STEP = 2;
 /** The largest text size the appearance settings offer, as a second sample. */
 const LARGE_UI_FONT_SIZE = 18;
 
@@ -108,4 +112,71 @@ test('spaces ordered items wider than bulleted ones, at both text sizes', async 
   expectItemsAtStep(bulletedList, BULLETED_ITEM_STEP, LARGE_UI_FONT_SIZE);
   expectItemsAtStep(nestedOrderedList, ORDERED_ITEM_STEP, LARGE_UI_FONT_SIZE);
   expect(marginTopOf(nestedOrderedList)).toBeCloseTo(BULLETED_ITEM_STEP * LARGE_UI_FONT_SIZE, 1);
+});
+
+/** The first heading opens the message, the second is an outline step, and the
+ * rest each follow one of the block kinds a section can start after. */
+const HEADINGS = [
+  '## A message that opens on a heading',
+  '',
+  '### A heading straight after a heading',
+  '',
+  'A paragraph.',
+  '',
+  '## After prose',
+  '',
+  '- a bullet',
+  '',
+  '## After a list',
+  '',
+  '| a | b |',
+  '| - | - |',
+  '| 1 | 2 |',
+  '',
+  '## After a table',
+  '',
+  '```ts',
+  'const answer = 42;',
+  '```',
+  '',
+  '## After a code block',
+  '',
+  '> a quote',
+  '',
+  '## After a quote',
+].join('\n');
+
+/** Heading gaps in document order, which is the order the assertions read. */
+function headingGapsIn(container: HTMLElement): number[] {
+  const body = requireElement<HTMLElement>('.markdown-body', container);
+  return [...body.querySelectorAll('h2, h3')].map(marginTopOf);
+}
+
+function expectHeadingGaps(container: HTMLElement, bodySize: number): void {
+  const gaps = headingGapsIn(container);
+  expect(gaps.length).toBe(7);
+  // The first block of a message never carries a top margin.
+  expect(gaps[0]).toBeCloseTo(0, 1);
+  // Two headings in a row are an outline, not a section boundary.
+  expect(gaps[1]).toBeCloseTo(PROSE_STEP * bodySize, 1);
+  // Every block kind a section can follow opens with the wide break.
+  for (const gap of gaps.slice(2)) {
+    expect(gap).toBeCloseTo(SECTION_BREAK_STEP * bodySize, 1);
+  }
+}
+
+test('breaks wider before a heading that opens a section, at both text sizes', async () => {
+  const screen = await render(
+    <div className="text-body">
+      <MarkdownMessage text={HEADINGS} />
+    </div>,
+  );
+
+  expect(bodySizeIn(screen.container)).toBeCloseTo(DEFAULT_UI_FONT_SIZE, 1);
+  expectHeadingGaps(screen.container, DEFAULT_UI_FONT_SIZE);
+
+  setUiFontSize(LARGE_UI_FONT_SIZE);
+
+  expect(bodySizeIn(screen.container)).toBeCloseTo(LARGE_UI_FONT_SIZE, 1);
+  expectHeadingGaps(screen.container, LARGE_UI_FONT_SIZE);
 });
