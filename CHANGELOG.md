@@ -4,7 +4,8 @@
 
 ### Added
 
-- Code theme picker on the Appearance page: One, GitHub, Catppuccin, Nord, Gruvbox, Solarized, Everforest, Rosé Pine, each with a light and a dark Shiki theme chosen by the code surface's luminance and retinted to the 3:1 token floor
+- Code theme picker on the Appearance page: 18 themes (Ayu, Catppuccin, Everforest, GitHub, Gruvbox, Horizon, Kanagawa, Material, Min, Night Owl, Nord, One, Plus, Rosé Pine, Rosé Pine Moon, Slack, Solarized, Vitesse), each with a light and a dark Shiki theme chosen by the code surface's luminance and retinted to the 3:1 token floor
+- The code theme and the diagram theme each sit directly above a live specimen of what they draw, instead of sharing one preview at the bottom of the card
 - The mermaid diagram theme moved from the Chat page to Appearance, into a "Code & diagrams" card with a live specimen: the real code block and diagram, redrawn as either picker changes
 - A semantic design-token layer (`semanticTokens.css`): radius, spacing, elevation and motion are named by role, `scripts/checkDesignTokens.mjs` rejects hard-coded values in `npm run check`, and `docs/design-system.md` documents the scale
 - `__designTokens()` in dev builds renders every token against the live theme

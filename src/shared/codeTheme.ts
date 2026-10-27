@@ -24,14 +24,29 @@ export interface CodeThemePreset {
 }
 
 export const CODE_THEME_PRESETS: readonly CodeThemePreset[] = [
-  { id: 'one', name: 'One', light: 'one-light', dark: 'one-dark-pro' },
-  { id: 'github', name: 'GitHub', light: 'github-light', dark: 'github-dark' },
+  { id: 'ayu', name: 'Ayu', light: 'ayu-light', dark: 'ayu-dark' },
   { id: 'catppuccin', name: 'Catppuccin', light: 'catppuccin-latte', dark: 'catppuccin-mocha' },
-  { id: 'nord', name: 'Nord', light: 'nord', dark: 'nord' },
-  { id: 'gruvbox', name: 'Gruvbox', light: 'gruvbox-light-medium', dark: 'gruvbox-dark-medium' },
-  { id: 'solarized', name: 'Solarized', light: 'solarized-light', dark: 'solarized-dark' },
   { id: 'everforest', name: 'Everforest', light: 'everforest-light', dark: 'everforest-dark' },
+  { id: 'github', name: 'GitHub', light: 'github-light', dark: 'github-dark' },
+  { id: 'gruvbox', name: 'Gruvbox', light: 'gruvbox-light-medium', dark: 'gruvbox-dark-medium' },
+  { id: 'horizon', name: 'Horizon', light: 'horizon-bright', dark: 'horizon' },
+  { id: 'kanagawa', name: 'Kanagawa', light: 'kanagawa-lotus', dark: 'kanagawa-wave' },
+  {
+    id: 'material',
+    name: 'Material',
+    light: 'material-theme-lighter',
+    dark: 'material-theme-darker',
+  },
+  { id: 'min', name: 'Min', light: 'min-light', dark: 'min-dark' },
+  { id: 'night-owl', name: 'Night Owl', light: 'night-owl-light', dark: 'night-owl' },
+  { id: 'nord', name: 'Nord', light: 'nord', dark: 'nord' },
+  { id: 'one', name: 'One', light: 'one-light', dark: 'one-dark-pro' },
+  { id: 'plus', name: 'Plus', light: 'light-plus', dark: 'dark-plus' },
   { id: 'rose-pine', name: 'Rosé Pine', light: 'rose-pine-dawn', dark: 'rose-pine' },
+  { id: 'rose-pine-moon', name: 'Rosé Pine Moon', light: 'rose-pine-dawn', dark: 'rose-pine-moon' },
+  { id: 'slack', name: 'Slack', light: 'slack-ochin', dark: 'slack-dark' },
+  { id: 'solarized', name: 'Solarized', light: 'solarized-light', dark: 'solarized-dark' },
+  { id: 'vitesse', name: 'Vitesse', light: 'vitesse-light', dark: 'vitesse-dark' },
 ];
 
 export const DEFAULT_CODE_THEME_ID = 'one';
@@ -40,8 +55,11 @@ export function isCodeThemeId(value: unknown): value is string {
   return typeof value === 'string' && CODE_THEME_PRESETS.some((preset) => preset.id === value);
 }
 
+const FALLBACK_PRESET =
+  CODE_THEME_PRESETS.find((preset) => preset.id === DEFAULT_CODE_THEME_ID) ?? CODE_THEME_PRESETS[0];
+
 export function codeThemePresetFor(id: string): CodeThemePreset {
-  return CODE_THEME_PRESETS.find((preset) => preset.id === id) ?? CODE_THEME_PRESETS[0];
+  return CODE_THEME_PRESETS.find((preset) => preset.id === id) ?? FALLBACK_PRESET;
 }
 
 /** WCAG 1.4.11 rate for large text and graphics: what code tokens count as. */
