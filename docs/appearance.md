@@ -758,8 +758,13 @@ Tests (vitest, jsdom project):
 - `src/shared/appearance.test.ts` — parse/migrate/defaults, per-mode resolution.
 - `src/shared/appearanceTokens.test.ts` — the invariant list above, default
   parity with `designTokens.css`.
-- `src/renderer/src/state/settingsStore.test.ts` — commit → persist → apply
-  (with a jsdom `<html>`), reset, migration from v1.
+- `src/main/pigiSettingsOwner.test.ts` — merge, revision bumps, debounced write,
+  synchronous flush, and a file that moved ahead.
+- `src/main/pigiSettingsFile.test.ts` — atomic writes and the monotonic revision
+  (including an interleaved stale writer).
+- `src/renderer/src/state/settingsStore.test.ts` — commit → change sent →
+  snapshot adopted, appearance applied only when the look changed, stale
+  snapshots dropped, and a broadcast from the other window adopted.
 
 ## Phases
 

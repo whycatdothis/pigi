@@ -1,5 +1,9 @@
 import { ElectronAPI } from '@electron-toolkit/preload';
-import type { PigiSettingsReadResult } from '../shared/pigiSettings';
+import type {
+  PigiSettings,
+  PigiSettingsChange,
+  PigiSettingsReadResult,
+} from '../shared/pigiSettings';
 import type {
   PiCommand,
   PiPush,
@@ -92,8 +96,10 @@ interface PiApi {
   setAppearanceTheme: (theme: 'system' | 'light' | 'dark') => void;
   /** pigi's own settings, read synchronously so the first paint can use them. */
   readPigiSettings: () => PigiSettingsReadResult;
-  /** Replace pigi's settings file; resolves false when the write failed. */
-  writePigiSettings: (settings: unknown) => Promise<boolean>;
+  /** Apply appearance/chat slices; resolves with the merged snapshot. */
+  changePigiSettings: (change: PigiSettingsChange) => Promise<PigiSettings>;
+  /** Follow the merged snapshot of every change; returns an unsubscribe. */
+  onPigiSettingsChanged: (callback: (settings: PigiSettings) => void) => () => void;
 
   // Auto-update
   update: {

@@ -582,15 +582,23 @@ close settings first, so nothing acts invisibly underneath the page.
 
 Two data paths:
 
-- **pigi settings** (theme, accent, default tool view) live in a renderer
-  zustand store persisted to `settings.json` in the app's user data directory
-  (`main/pigiSettingsFile.ts`) and applied to the document before the first
-  paint (`initializePigiSettings` in `main.tsx`) — no theme flash. The main
-  process reads the same file before it creates the window, so the native theme
-  and the window background are right from the first frame; the renderer reads
-  it synchronously through the preload (`readPigiSettings`), not with an async
-  round trip that would land after the first paint. Writes are debounced 150 ms,
-  flushed on `pagehide`, and atomic in the main process (temp file + rename).
+- **pigi settings** (theme, accent, default tool view) live in `settings.json`
+  in the app's user data directory, and the main process owns that file
+  (`main/pigiSettingsOwner.ts`). It reads the file before it creates the window,
+  so the native theme and the window background are right from the first frame;
+  the renderer's copy comes from a synchronous preload read
+  (`readPigiSettings`), not an async round trip that would land after the first
+  paint, and a renderer store applies it to the document at startup (no theme
+  flash). After that the renderer is a client: a commit applies locally for
+  instant feedback and sends only the slice it changed
+  (`changePigiSettings`); main merges it onto its authoritative copy, bumps a
+  monotonic revision, writes on a 150 ms debounce (atomic: temp file + rename),
+  flushes synchronously on `before-quit`, and pushes the merged snapshot to
+  every window (`PigiSettingsChanged`). The update progress window loads the
+  same bundle, so the broadcast is what keeps two windows from disagreeing; a
+  snapshot with a lower revision than the window holds is dropped. The file's
+  own revision is the last word — a writer holding a stale copy bumps past it
+  rather than moving it backwards.
   Keyboard shortcut definitions live in a second renderer store so edits on the
   settings page update the live bindings immediately.
   Appearance (colors, fonts, sizes, per-mode slots) is derived from one settings

@@ -31,9 +31,9 @@ import {
   PIGI_SETTINGS_FILE_NAME,
   readPigiSettingsFile,
   windowBackgroundFor,
-  writePigiSettingsFile,
 } from './pigiSettingsFile';
-import { parsePigiSettings } from '../shared/pigiSettings';
+import { createPigiSettingsOwner, type PigiSettingsOwner } from './pigiSettingsOwner';
+import { parsePigiSettingsChange } from '../shared/pigiSettings';
 import { join } from 'node:path';
 
 configureDebugPanel();
@@ -42,6 +42,9 @@ installMainDebugHandle({ piAgent: getPiAgentDebugSnapshot });
 protocol.registerSchemesAsPrivileged([
   { scheme: 'local-file', privileges: { bypassCSP: true, supportFetchAPI: true } },
 ]);
+
+/** Set once the app is ready; `before-quit` flushes it. */
+let settingsOwner: PigiSettingsOwner | null = null;
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.pigi');
@@ -53,19 +56,26 @@ app.whenReady().then(() => {
   const initialSettings = readPigiSettingsFile(settingsPath).settings;
   nativeTheme.themeSource = initialSettings.appearance.mode;
 
-  ipcMain.handle(PiChannel.WritePigiSettings, (_event, value: unknown) => {
-    if (typeof value !== 'object' || value === null) {
-      return false;
-    }
-    try {
-      // Normalizing here is the validation: the renderer gets its settings back
-      // through the same parser, so anything that survives it round-trips.
-      writePigiSettingsFile(settingsPath, parsePigiSettings(value));
-      return true;
-    } catch (error) {
-      console.error('Failed to write pigi settings:', error);
-      return false;
-    }
+  // One owner: renderers send the slices they changed, main merges them onto
+  // its copy, and every window receives the same snapshot. Both the main window
+  // and the update progress window load this bundle, so the broadcast is what
+  // keeps them from disagreeing.
+  settingsOwner = createPigiSettingsOwner({
+    path: settingsPath,
+    onChanged: (settings) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) {
+          window.webContents.send(PiChannel.PigiSettingsChanged, settings);
+        }
+      }
+    },
+  });
+
+  const owner = settingsOwner;
+  ipcMain.handle(PiChannel.ChangePigiSettings, (_event, change: unknown) => {
+    // The change is parsed here, not trusted: it keeps only the slices the
+    // payload carries and normalizes them field by field.
+    return owner.applyChange(parsePigiSettingsChange(change));
   });
 
   protocol.handle('local-file', (request) =>
@@ -114,8 +124,10 @@ app.whenReady().then(() => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      const current = readPigiSettingsFile(settingsPath).settings;
-      openMainWindow(settingsPath, windowBackgroundFor(current, nativeTheme.shouldUseDarkColors));
+      openMainWindow(
+        settingsPath,
+        windowBackgroundFor(owner.current(), nativeTheme.shouldUseDarkColors),
+      );
     }
   });
 });
@@ -127,6 +139,9 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  // A renderer's pagehide invoke can lose this race, so the last change is
+  // written here, synchronously, by the process that owns the file.
+  settingsOwner?.flush();
   stopAllProcesses();
   stopTerminalProcess();
   stopProjectFileSearch();

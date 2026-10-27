@@ -1,11 +1,16 @@
 /**
  * pigi's own settings file: `settings.json` in the app's user data directory.
  *
- * The main process reads it before it creates the window, because the native
- * theme and the window background come from it, and the preload reads the same
- * file so the renderer gets a synchronous value for its first paint. Neither
- * step is allowed to depend on an async round trip happening before the first
- * frame, which is how the old localStorage read avoided a theme flash.
+ * The main process owns this file (see `main/pigiSettingsOwner.ts`): it reads it
+ * before it creates the window, because the native theme and the window
+ * background come from it, and the preload reads the same file so the renderer
+ * gets a synchronous value for its first paint. Neither step is allowed to
+ * depend on an async round trip happening before the first frame, which is how
+ * the old localStorage read avoided a theme flash.
+ *
+ * Every file carries a monotonic revision. Writes take the highest of the file's
+ * revision and the one the writer had in hand, then add one, so a writer holding
+ * a stale copy can never move the file backwards.
  *
  * Writes are atomic: a half-written file would drop every appearance setting,
  * and a temp file plus rename costs nothing at this size.
@@ -50,17 +55,27 @@ export function readPigiSettingsFile(path: string): { settings: PigiSettings; ex
   }
 }
 
-export function writePigiSettingsFile(path: string, settings: PigiSettings): void {
+export function writePigiSettingsFile(path: string, settings: PigiSettings): PigiSettings {
+  // A stale writer (a second window that never saw the last broadcast, or an
+  // older app instance) must not lower the revision, so the file's own value
+  // counts as much as the writer's. A writer that is ahead keeps its number:
+  // the owner has already told every window about it.
+  const fileRevision = readPigiSettingsFile(path).settings.revision;
+  const next: PigiSettings = {
+    ...parsePigiSettings(settings),
+    revision: settings.revision > fileRevision ? settings.revision : fileRevision + 1,
+  };
   mkdirSync(dirname(path), { recursive: true });
   const temporaryPath = `${path}.tmp`;
   try {
-    writeFileSync(temporaryPath, `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
+    writeFileSync(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, 'utf8');
     renameSync(temporaryPath, path);
   } catch (error) {
     // A failed write must not leave the half-written file next to the real one.
     rmSync(temporaryPath, { force: true });
     throw error;
   }
+  return next;
 }
 
 /**

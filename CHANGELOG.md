@@ -10,6 +10,14 @@
   steps and the primitive `--radius-*` variables the way it already rejected
   arbitrary values
 
+### Changed
+
+- pigi's settings have one writer: the main process owns the file, a settings
+  change sends only the slice it edited, and every window receives the merged
+  snapshot, so the main window and the update window can no longer overwrite
+  each other's writes. The file carries a monotonic revision, so a late write
+  cannot win, and the last change is flushed synchronously on quit
+
 ### Fixed
 
 - Closing the minimap list by moving the pointer away no longer flashes the whole list for one frame before it disappears: the exit animation holds its final invisible values until the list unmounts

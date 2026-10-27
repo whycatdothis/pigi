@@ -2,7 +2,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { peekDiagram, renderDiagram } from '../../lib/mermaidRenderer';
-import { flushPigiSettingsWrites, useSettingsStore } from '../../state/settingsStore';
+import { useSettingsStore } from '../../state/settingsStore';
 import { applyAppearance } from '../../appearance/applyAppearance';
 import { DEFAULT_APPEARANCE } from '../../../../shared/appearance';
 import { findOccurrenceRanges } from '../../lib/highlightMatches';
@@ -462,18 +462,18 @@ test('draws in the theme the reader picks, whatever the app is doing', async () 
   const forestInDark = graphicIn(screen.container).innerHTML;
   expect(forestInDark).not.toBe(asBundled);
 
+  // The choice is sent to the settings owner for the next window, at commit
+  // time: the spy has to be armed before the change, not after.
+  const change = vi.spyOn(window.piApi, 'changePigiSettings');
   useSettingsStore.getState().setDiagramTheme('neutral');
   await waitFor(() => graphicIn(screen.container).innerHTML !== forestInDark);
 
-  // The choice is written to the settings file for the next window.
-  const write = vi.spyOn(window.piApi, 'writePigiSettings');
-  flushPigiSettingsWrites();
-  expect(write).toHaveBeenLastCalledWith(
+  expect(change).toHaveBeenLastCalledWith(
     expect.objectContaining({
       appearance: expect.objectContaining({ diagramTheme: 'neutral' }),
     }),
   );
-  write.mockRestore();
+  change.mockRestore();
 
   // Back to the theme this file started on, so the rest of it sees the same.
   setAppMode('light');
