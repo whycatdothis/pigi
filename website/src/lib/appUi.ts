@@ -68,7 +68,7 @@ export const TOOLBAR_BUTTON_ON = {
  */
 export const TOOLTIP_KBD = {
   classes:
-    'inline-flex h-5 w-fit min-w-5 items-center justify-center gap-1 rounded-sm bg-muted px-1 font-sans text-xs font-normal text-muted-foreground select-none',
+    'pointer-events-none inline-flex h-5 w-fit min-w-5 items-center justify-center gap-1 rounded-inline border border-foreground/10 bg-muted px-1 font-sans text-caption font-normal text-muted-foreground select-none',
   source: `${UI}/kbd.tsx`,
 } satisfies CopiedClasses;
 
@@ -79,20 +79,20 @@ export const TOOLTIP_KBD = {
  * hero-sized button to copy — but everything that makes a button a button (the
  * radius, the weight, the focus ring, the icon sizing) is the app's.
  *
- * The base's `text-sm` is left to its call site: the app's `text-sm` is 15px on
+ * The base's `text-body` is left to its call site: the app's `text-body` is 15px on
  * its own scale, which is right in a window and too big in the site's header,
  * where the row is 13px. Both sizes are named below rather than left to whichever
  * of two font-size utilities the stylesheet happens to order last.
  */
 export const BUTTON_BASE = {
   classes:
-    "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding font-normal whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    "group/button inline-flex shrink-0 items-center justify-center rounded-control border border-transparent bg-clip-padding font-normal whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   source: `${UI}/button.tsx`,
 } satisfies CopiedClasses;
 
 /** `variant="default"`, the one filled button in the app. */
 export const BUTTON_FILLED = {
-  classes: 'bg-primary text-primary-foreground [a]:hover:bg-primary/80',
+  classes: 'bg-primary text-primary-foreground hover:bg-primary-hover',
   source: `${UI}/button.tsx`,
 } satisfies CopiedClasses;
 
@@ -123,7 +123,7 @@ export const BUTTON_BRAND_FILLED = {
  * button cannot disagree about it.
  */
 export const BUTTON_HERO_SIZE = {
-  classes: 'h-12 gap-2.5 px-5 text-sm',
+  classes: 'h-12 gap-2.5 px-5 text-body',
   source: `${UI}/button.tsx`,
   siteClasses: ['h-12', 'gap-2.5', 'px-5'],
 } satisfies CopiedClasses;
@@ -138,7 +138,7 @@ export const BUTTON_HERO_SIZE = {
  */
 export const TOOLTIP_CONTENT = {
   classes:
-    'z-50 inline-flex w-fit max-w-xs items-center gap-1.5 text-xs has-data-[slot=kbd]:pr-1.5 rounded-md bg-popover px-2.5 py-1.5 text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25',
+    'z-50 inline-flex w-fit max-w-xs items-center gap-1.5 text-caption has-data-[slot=kbd]:pr-1.5 rounded-control-sm bg-popover px-2.5 py-1.5 text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25',
   source: `${UI}/tooltip.tsx`,
 } satisfies CopiedClasses;
 
@@ -157,7 +157,7 @@ export const TOOLTIP_CONTENT = {
  */
 export const MENU_CONTENT = {
   classes:
-    'z-50 overflow-x-hidden overflow-y-auto text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 rounded-lg w-fit min-w-0 bg-popover/50 backdrop-blur-md',
+    'z-50 overflow-x-hidden overflow-y-auto text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 rounded-surface w-fit min-w-0 bg-popover/50 backdrop-blur-md',
   source: `${UI}/dropdown-menu.tsx`,
   alsoFrom: [`${RENDERER}/session/SessionToolbar.tsx`],
 } satisfies CopiedClasses;
@@ -175,7 +175,7 @@ export const MENU_CONTENT = {
  */
 export const MENU_ITEM = {
   classes:
-    "relative flex cursor-default items-center rounded-md text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 gap-1 pl-2 pr-2 py-1 text-xs transition-colors data-[state=checked]:bg-[var(--system-accent)]/10 data-[state=checked]:text-[var(--system-accent)] data-[state=checked]:focus:bg-[var(--system-accent)]/10 data-[state=checked]:focus:text-[var(--system-accent)]",
+    "relative flex cursor-default items-center rounded-control text-body outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 gap-1 pl-2 pr-2 py-1 text-caption transition-colors data-[state=checked]:bg-[var(--system-accent)]/10 data-[state=checked]:text-[var(--system-accent)] data-[state=checked]:focus:bg-[var(--system-accent)]/10 data-[state=checked]:focus:text-[var(--system-accent)]",
   source: `${UI}/dropdown-menu.tsx`,
   alsoFrom: [`${RENDERER}/session/SessionToolbar.tsx`],
 } satisfies CopiedClasses;
@@ -199,7 +199,7 @@ export const MENU_ITEM = {
  */
 export const DIALOG_SURFACE = {
   classes:
-    'rounded-xl text-sm text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25 outline-hidden bg-[var(--dialog-solid)]',
+    'rounded-surface text-body text-popover-foreground shadow-md outline-[0.5px] outline-foreground/25 bg-[var(--dialog-solid)]',
   source: 'src/renderer/src/lib/layoutConstants.ts',
   siteClasses: ['bg-[var(--dialog-solid)]'],
 } satisfies CopiedClasses;
@@ -216,13 +216,13 @@ export const DIALOG_SURFACE = {
  */
 export const TERMINAL_TABS = {
   classes:
-    'group/tabs-list inline-flex w-fit items-center justify-center rounded-lg gap-1 bg-transparent p-0 text-muted-foreground',
+    'group/tabs-list inline-flex w-fit items-center justify-center rounded-control gap-1 bg-transparent p-0 text-muted-foreground',
   source: `${UI}/tabs.tsx`,
 } satisfies CopiedClasses;
 
 export const TERMINAL_TAB = {
   classes:
-    'group/tab relative inline-flex items-center justify-center gap-1.5 border border-transparent whitespace-nowrap text-foreground/60 transition-all hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground group-data-[variant=chip]/tabs-list:rounded-lg group-data-[variant=chip]/tabs-list:data-[state=active]:bg-muted group-data-[variant=chip]/tabs-list:data-[state=active]:shadow-none data-[state=active]:text-foreground h-8 max-w-40 flex-none px-2.5 text-xs font-normal text-muted-foreground',
+    'group/tab relative inline-flex items-center justify-center gap-1.5 border border-transparent whitespace-nowrap text-foreground/60 transition-all hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground group-data-[variant=chip]/tabs-list:rounded-control-sm group-data-[variant=chip]/tabs-list:data-[state=active]:bg-muted group-data-[variant=chip]/tabs-list:data-[state=active]:shadow-none data-[state=active]:text-foreground h-8 max-w-40 flex-none px-2.5 text-caption font-normal text-muted-foreground',
   source: `${UI}/tabs.tsx`,
   alsoFrom: [`${RENDERER}/terminal/TerminalPanel.tsx`],
 } satisfies CopiedClasses;
@@ -256,7 +256,7 @@ export const OVERLAY_BG = {
  */
 export const ACTION_BUTTON = {
   classes:
-    'flex items-center justify-center rounded-sm p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
+    'flex items-center justify-center rounded-inline p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
   source: `${RENDERER}/message/messageBubbles.tsx`,
 } satisfies CopiedClasses;
 
@@ -265,12 +265,16 @@ export const ACTION_BUTTON = {
  *
  * The app's `InputGroup` in the composer, minus the `has-[[data-slot=…]]`
  * selectors that describe its real focus behaviour — what is left is the shape:
- * a 3xl radius, a hairline border, and that shadow.
+ * the composer's own radius, a hairline border, and its shadow. The radius is a
+ * two-part composition in the app: the call site sets `--input-group-radius` to
+ * the composer's tier and the input group rounds itself by that variable, so
+ * both halves are copied.
  */
 export const CHAT_CARD = {
   classes:
-    'relative h-auto flex-col rounded-3xl border bg-background shadow-[0_10px_34px_rgb(0_0_0_/_0.075)]',
+    'relative h-auto flex-col border bg-background dark:bg-background shadow-composer [--input-group-radius:var(--radius-surface-xl)] rounded-[var(--input-group-radius,var(--radius-control))]',
   source: `${RENDERER}/chatInput/index.tsx`,
+  alsoFrom: [`${UI}/input-group.tsx`],
 } satisfies CopiedClasses;
 
 /**

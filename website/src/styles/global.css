@@ -14,6 +14,12 @@
  * page rather than the app (`--page-*`, `--window-*`).
  */
 @import '../../../src/shared/designTokens.css';
+/* The app's role layer: `--radius-control`, `--radius-surface`, the composer's
+   shadow. The components above copy the app's class strings, and those strings
+   name roles, not sizes, now — without this file `rounded-control` would be a
+   class with no radius behind it. The file is pure tokens, so the same import
+   works in both places. */
+@import '../../../src/renderer/src/assets/semanticTokens.css';
 @import '../../../src/renderer/src/components/terminal/terminalTheme.css';
 
 /*
