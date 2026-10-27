@@ -18,9 +18,9 @@
 ### Fixed
 
 - Message spacing: the gaps inside a reply now follow the text size instead of sitting at a fixed 14px, list items keep the block rhythm when a table or a code block follows their text (they used to collapse to the 3px item gap, so text and its table read as flush), and only the last row of a reply keeps the hover action band — tool cards and intermediate paragraphs no longer reserve 25px of empty space each
-- Tool cards and read groups keep 18px between each other at the default text size and 15px against prose, so a run of calls separates into single steps instead of reading as one glued block
-- A thinking card is its own group: 24px against a tool card and 18px against the prose it introduces, against 12px between two paragraphs, so reasoning and tool work no longer run into one another
-- Markdown headings follow the text size instead of keeping fixed rem margins, and every rhythm step grew by about a third (paragraph gap 9 → 12)
+- Message rhythm follows two rules: neighbours of the same kind (prose ↔ prose, card ↔ card, thinking ↔ thinking) sit at that kind's step, and any change of kind — prose against a tool card, a thinking card against either — takes the widest step inside a reply (12 / 18 / 24px at the default text size), so reasoning and tool work read as separate groups
+- Markdown headings follow the text size instead of keeping fixed rem margins, with a bottom margin that deepens by heading level and a top margin 1.8× the bottom one
+- Every rhythm step inside a reply grew by about a third (paragraph gap 9 → 12)
 - Switch tracks are 20px instead of 18.4px, so the thumb sits on whole pixels with a 2px gap above and below instead of a fractional 1.2px that rendered unevenly
 - The font pickers no longer list their default twice: the empty "System" / "System mono" entry is gone and the slot's null value maps onto the family it falls back to, so code font now reads "SF Mono"
 - Font picker values are left-aligned instead of pushed to the right edge of a 136px control

@@ -85,20 +85,17 @@
      size; the hover button band and the base row gap stay fixed, because they
      are chrome rather than prose.
 
-     One ladder, read as groups rather than as single gaps:
-       item  0.3  items inside one list
-       prose 0.8  paragraph ↔ paragraph
-       card  1.0  prose ↔ card
-       pair  1.2  card ↔ card, thinking ↔ prose
-       group 1.6  thinking ↔ card: reasoning and tool work are different
-                  groups, so their boundary is the widest step in a reply. */
+     A row is one of three kinds — prose, a card (tool card, read group), or a
+     thinking card — and there are only two rules: neighbours of the same kind
+     sit at that kind's step, neighbours of different kinds sit at the boundary
+     step. Reasoning and tool work are different groups of a reply, so any
+     change of kind is the widest gap inside a reply. */
   :root {
     --message-row-gap: 4px;
     --message-item-spacing: calc(0.3 * var(--text-body));
     --message-block-spacing: calc(0.8 * var(--text-body));
-    --message-edge-spacing: calc(1 * var(--text-body));
     --message-pair-spacing: calc(1.2 * var(--text-body));
-    --message-group-spacing: calc(1.6 * var(--text-body));
+    --message-boundary-spacing: calc(1.6 * var(--text-body));
   }
 
   /* Rows in the middle of a reply carry no hover band any more, so their
@@ -111,16 +108,12 @@
     padding-bottom: calc(var(--message-block-spacing) - var(--message-row-gap));
   }
 
-  [data-row-space='edge'] {
-    padding-bottom: calc(var(--message-edge-spacing) - var(--message-row-gap));
-  }
-
   [data-row-space='pair'] {
     padding-bottom: calc(var(--message-pair-spacing) - var(--message-row-gap));
   }
 
-  [data-row-space='group'] {
-    padding-bottom: calc(var(--message-group-spacing) - var(--message-row-gap));
+  [data-row-space='boundary'] {
+    padding-bottom: calc(var(--message-boundary-spacing) - var(--message-row-gap));
   }
 
   button {
@@ -171,28 +164,32 @@
     margin-bottom: var(--markdown-block-spacing);
   }
 
-  /* Headings: the top margin is 1.5–2× the block gap and the bottom margin is
-     the block gap itself, so a heading binds to the section it introduces
-     instead of floating between sections. Both scale with the text size. */
+  /* Headings: the bottom margin deepens with the heading's own weight, and the
+     top margin is 1.8× the bottom one so a heading binds to the section it
+     introduces instead of floating between sections. Both scale with the text
+     size. */
   /* Heading sizes are em against the body size, so raising the text size
      scales the whole document instead of leaving headings behind at a fixed
      pixel size. The ratios are the shipped 24/20/17 against a 15px body. */
   .markdown-body h1 {
-    margin: calc(1.8 * var(--text-body)) 0 var(--markdown-block-spacing);
+    --heading-gap: calc(1 * var(--text-body));
+    margin: calc(1.8 * var(--heading-gap)) 0 var(--heading-gap);
     font-size: 1.6em;
     font-weight: 600;
     line-height: 1.33;
   }
 
   .markdown-body h2 {
-    margin: calc(1.6 * var(--text-body)) 0 var(--markdown-block-spacing);
+    --heading-gap: calc(0.9 * var(--text-body));
+    margin: calc(1.8 * var(--heading-gap)) 0 var(--heading-gap);
     font-size: 1.333em;
     font-weight: 600;
     line-height: 1.4;
   }
 
   .markdown-body h3 {
-    margin: calc(1.2 * var(--text-body)) 0 var(--markdown-block-spacing);
+    --heading-gap: calc(0.8 * var(--text-body));
+    margin: calc(1.8 * var(--heading-gap)) 0 var(--heading-gap);
     font-size: 1.133em;
     font-weight: 600;
     line-height: 1.41;

@@ -5,12 +5,12 @@ import type { RenderItem } from './readGrouping';
  *
  * A row that ends a reply keeps a hover action band, and the band plus the base
  * row gap already separates it from the next turn, so it asks for nothing more.
- * Rows in the middle of a reply follow one ladder: prose against prose is the
- * tightest step, a tool card widens it, two cards in a row widen it again, and
- * a thinking card against a tool card gets the widest step of all, because
- * reasoning and tool work read as different groups of the same reply.
+ * Rows in the middle of a reply follow two rules only: neighbours of the same
+ * kind sit at that kind's step, neighbours of different kinds sit at the
+ * boundary step. Reasoning and tool work are different groups of a reply, so
+ * any change of kind is the widest gap inside it.
  */
-export type RowSpace = 'block' | 'edge' | 'pair' | 'group';
+export type RowSpace = 'block' | 'pair' | 'boundary';
 
 /** What a row looks like at the edge that faces a neighbour. */
 type RowKind = 'prose' | 'card' | 'thinking';
@@ -33,32 +33,38 @@ function hasThinkingCard(item: RenderItem): boolean {
 function hasProse(item: RenderItem): boolean {
   if (item.type !== 'node') return false;
   const node = item.node;
-  return node.role === 'assistant' && (node.text.length > 0 || Boolean(node.errorMessage));
+  return node.role === 'assistant' && node.text.length > 0;
+}
+
+function hasErrorCard(item: RenderItem): boolean {
+  if (item.type !== 'node') return false;
+  const node = item.node;
+  return node.role === 'assistant' && Boolean(node.errorMessage);
 }
 
 /**
  * A row can start with one kind and end with another: a streaming reply opens
  * with its thinking card and continues into prose, so the gap above it belongs
- * to the thinking step while the gap below it belongs to the prose step.
+ * to the thinking step while the gap below it belongs to the prose step. A
+ * reply renders its parts in this order: thinking card, prose, error card.
  */
 function leadingKind(item: RenderItem): RowKind {
   if (isCardItem(item)) return 'card';
-  return hasThinkingCard(item) ? 'thinking' : 'prose';
+  if (hasThinkingCard(item)) return 'thinking';
+  if (hasProse(item)) return 'prose';
+  return hasErrorCard(item) ? 'card' : 'prose';
 }
 
 function trailingKind(item: RenderItem): RowKind {
   if (isCardItem(item)) return 'card';
+  if (hasErrorCard(item)) return 'card';
   if (hasProse(item)) return 'prose';
   return hasThinkingCard(item) ? 'thinking' : 'prose';
 }
 
 function spaceBetween(current: RowKind, next: RowKind): RowSpace {
-  if (current === 'thinking' || next === 'thinking') {
-    const other = current === 'thinking' ? next : current;
-    return other === 'card' ? 'group' : 'pair';
-  }
-  if (current === 'card' && next === 'card') return 'pair';
-  return current === next ? 'block' : 'edge';
+  if (current !== next) return 'boundary';
+  return current === 'prose' ? 'block' : 'pair';
 }
 
 export function rowSpaceFor(
@@ -69,7 +75,7 @@ export function rowSpaceFor(
   if (!next || isUserItem(next)) {
     // The action band supplies the turn boundary; a row that cannot render one
     // still needs its gutters, or the turn would collapse to the base row gap.
-    return currentHasActionBand ? undefined : 'edge';
+    return currentHasActionBand ? undefined : 'boundary';
   }
   if (isUserItem(current)) return undefined;
   return spaceBetween(trailingKind(current), leadingKind(next));

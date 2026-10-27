@@ -297,7 +297,7 @@ export default function CollapsedReadGroup({
         </div>
         <CollapsibleContent
           className="flex flex-col px-3 pb-1.5"
-          style={{ gap: 'var(--message-block-spacing)', marginTop: 'var(--message-block-spacing)' }}
+          style={{ gap: 'var(--message-pair-spacing)', marginTop: 'var(--message-block-spacing)' }}
         >
           {entries.map((entry) => (
             <HighlightedEntry

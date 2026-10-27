@@ -79,24 +79,26 @@ code block silently shrinks its own gaps and the same block gap renders at
 three different sizes in one message. Heading margins are part of the same
 ladder, so raising the text size moves headings with the paragraphs around them.
 
-One ladder, ordered from the inside of a paragraph to the boundary between
-groups of a reply:
+A row inside a reply is one of three kinds — prose, a card (tool card, read
+group), or a thinking card — and there are two rules only: neighbours of the
+same kind sit at that kind's step, neighbours of different kinds sit at the
+boundary step. Reasoning and tool work are different groups of a reply, so any
+change of kind is the widest gap inside it.
 
-| Token                      | Value               | Where                                              |
-| -------------------------- | ------------------- | -------------------------------------------------- |
-| `--markdown-item-spacing`  | `0.3 × --text-body` | list item ↔ list item, nested lists                |
-| `--markdown-block-spacing` | `0.8 × --text-body` | block ↔ block, inside list items too, heading foot |
-| `--message-edge-spacing`   | `1 × --text-body`   | prose ↔ tool card                                  |
-| `--message-pair-spacing`   | `1.2 × --text-body` | tool card ↔ tool card, thinking card → its prose   |
-| `--message-group-spacing`  | `1.6 × --text-body` | thinking card ↔ tool card                          |
+| Token                        | Value               | Where                               |
+| ---------------------------- | ------------------- | ----------------------------------- |
+| `--message-item-spacing`     | `0.3 × --text-body` | list item ↔ list item, nested lists |
+| `--message-block-spacing`    | `0.8 × --text-body` | prose ↔ prose                       |
+| `--message-pair-spacing`     | `1.2 × --text-body` | card ↔ card                         |
+| `--message-boundary-spacing` | `1.6 × --text-body` | any two different kinds             |
 
 `--markdown-*` alias the `--message-*` values, so the markdown body and the
-transcript cannot drift apart. A 15px body gives 4.5 / 12 / 15 / 18 / 24.
+transcript cannot drift apart. A 15px body gives 4.5 / 12 / 18 / 24.
 
-The ordering is the point: reasoning and tool work are different groups of one
-reply, so their boundary is the widest step inside it; two cards of the same
-kind are closer; a card against prose is closer still. Only the turn boundary
-(37px above a reply, 53px below it) is wider than all of them.
+Heading margins are the same scale read differently: the bottom margin deepens
+with the heading's own weight (`1.0 / 0.9 / 0.8 × --text-body` for h1/h2/h3) and
+the top margin is 1.8× the bottom one, so a heading binds to the section it
+introduces instead of floating between sections.
 
 Fixed chrome, deliberately not scaling: the 25px hover action band, the 4px base
 row gap, `pt-6`/`pb-2` on a user message.
