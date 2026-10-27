@@ -1,5 +1,5 @@
 import { IconArrowLeft } from '@tabler/icons-react';
-import { Kbd } from '../ui/kbd';
+import { Kbd, MENU_ROW_KBD_CLASS_NAME } from '../ui/kbd';
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -48,7 +48,7 @@ export default function SettingsSidebar({
               >
                 <IconArrowLeft data-icon="inline-start" />
                 <span>Back to app</span>
-                <Kbd className="ml-auto hidden shrink-0 group-hover/menu-item:inline-flex">Esc</Kbd>
+                <Kbd className={MENU_ROW_KBD_CLASS_NAME}>Esc</Kbd>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

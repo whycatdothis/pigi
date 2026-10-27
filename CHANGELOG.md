@@ -20,7 +20,7 @@
 - Message spacing follows the text size and two rules: same kind of block sits at its own step, a change of kind sits wider. Only the last row of a reply keeps the hover action band, and a table or code block after list text is no longer flush against it
 - The Chat settings page is one row: a Default view switch instead of three described options
 - The minimal view's shimmer sweeps a clip window over brighter glyphs instead of painting a white band over the background
-- The Settings row in the sidebar's menu shows its shortcut (⌘ ,) on hover, like New chat and Open project
+- Sidebar and menu rows show their shortcut as a bordered keycap on hover (New chat, Open project, Settings, Back to app), and the Shortcuts page's closing line draws ⌘ , as a keycap instead of plain text
 - The quotes tab's Send and the comment editor's Save keep their Enter hint out of sight until the button is hovered, with the label centered and the button the same width either way. Save is an outline button; only Send is accent-filled
 - A sent quote now opens with its number on the quoted line (`1. > quoted text`) instead of the number standing on a line of its own
 

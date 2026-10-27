@@ -2,7 +2,7 @@ import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ShortcutKbd, ShortcutKbdSpacer } from '../../shortcuts/shortcutKbd';
 import { Button } from '../ui/button';
-import { BUTTON_KBD_CLASS_NAME, HOVER_REVEAL_KBD_CLASS_NAME } from '../ui/kbd';
+import { COMPACT_KBD_CLASS_NAME, HOVER_REVEAL_KBD_CLASS_NAME } from '../ui/kbd';
 import { Textarea } from '../ui/textarea';
 
 interface QuoteCommentEditorProps {
@@ -88,12 +88,12 @@ export default function QuoteCommentEditor({
         {/* The spacer keeps Save centered once the hover hint shows. */}
         <ShortcutKbdSpacer
           binding={{ key: 'Enter' }}
-          className={`${BUTTON_KBD_CLASS_NAME} ${HOVER_REVEAL_KBD_CLASS_NAME}`}
+          className={`${COMPACT_KBD_CLASS_NAME} ${HOVER_REVEAL_KBD_CLASS_NAME}`}
         />
         Save
         <ShortcutKbd
           binding={{ key: 'Enter' }}
-          className={`${BUTTON_KBD_CLASS_NAME} ${HOVER_REVEAL_KBD_CLASS_NAME}`}
+          className={`${COMPACT_KBD_CLASS_NAME} ${HOVER_REVEAL_KBD_CLASS_NAME}`}
         />
       </Button>
     </div>

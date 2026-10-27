@@ -13,11 +13,18 @@ function Kbd({ className, ...props }: React.ComponentProps<'kbd'>) {
   );
 }
 
-/** A compact shortcut hint inside a button, after its label. */
-const BUTTON_KBD_CLASS_NAME = 'h-4 min-w-4 px-1 text-3xs';
+/** A keycap on a sidebar or menu row: it is hidden until the row is hovered, and
+ * its border keeps it a keycap rather than turning into plain text once the
+ * row's hover fill and the chip's own fill are the same gray.
+ */
+const MENU_ROW_KBD_CLASS_NAME =
+  'ml-auto hidden shrink-0 border border-foreground/10 group-hover/menu-item:inline-flex';
+
+/** A compact keycap, for a hint inside a button or a sentence. */
+const COMPACT_KBD_CLASS_NAME = 'h-4 min-w-4 px-1 text-3xs';
 
 /** A compact shortcut hint inside a primary button, after its label. */
-const PRIMARY_BUTTON_KBD_CLASS_NAME = `${BUTTON_KBD_CLASS_NAME} bg-primary-foreground/15 text-primary-foreground/80`;
+const PRIMARY_BUTTON_KBD_CLASS_NAME = `${COMPACT_KBD_CLASS_NAME} bg-primary-foreground/15 text-primary-foreground/80`;
 
 /**
  * Keeps a button's hint out of sight until the button is hovered. The hint keeps
@@ -39,7 +46,8 @@ function KbdGroup({ className, ...props }: React.ComponentProps<'div'>) {
 export {
   Kbd,
   KbdGroup,
-  BUTTON_KBD_CLASS_NAME,
+  MENU_ROW_KBD_CLASS_NAME,
+  COMPACT_KBD_CLASS_NAME,
   PRIMARY_BUTTON_KBD_CLASS_NAME,
   HOVER_REVEAL_KBD_CLASS_NAME,
 };
