@@ -8,11 +8,11 @@
  */
 import { DEFAULT_APPEARANCE, type AppearanceSettings } from '../../../shared/appearance';
 import {
-  deriveTokens,
   resolveAppearance,
   type AppearanceEnvironment,
   type ResolvedAppearance,
 } from '../../../shared/appearanceTokens';
+import { appearanceTokensFor } from './appearanceTokensCache';
 
 const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)';
 const SYSTEM_REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
@@ -100,7 +100,7 @@ export function applyAppearance(
   environment: AppearanceEnvironment = readSystemEnvironment(),
 ): ResolvedAppearance {
   const resolved = resolveAppearance(settings, environment);
-  const tokens = deriveTokens(resolved);
+  const tokens = appearanceTokensFor(resolved);
   const root = document.documentElement;
 
   // Nothing the page can see has changed (the same appearance was committed

@@ -72,7 +72,14 @@ export function AppearanceSettings(): React.JSX.Element {
   // With shared modes the light slot is authoritative, but its null colors
   // resolve to the *active* mode's defaults, so the swatch has to show those.
   const defaults = DEFAULT_MODE_COLORS[appearance.separateModes ? targetMode : resolved.mode];
-  const contrastTarget = resolvedSecondaryContrast(resolved);
+  // The ratio belongs to the slot being edited, which is not the slot in effect
+  // when separate modes are on and the page shows the other one.
+  const contrastTarget =
+    targetMode === resolved.mode
+      ? resolvedSecondaryContrast(resolved)
+      : resolvedSecondaryContrast(
+          resolveAppearance({ ...appearance, mode: targetMode }, readSystemEnvironment()),
+        );
 
   function patchSlot(patch: Partial<typeof slot>): void {
     updateAppearance((current) => {

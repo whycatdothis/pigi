@@ -12,6 +12,7 @@ import SyntaxHighlightedCode from './syntaxHighlightedCode';
 import CodeCopyButton from './codeCopyButton';
 import { ensureDiagramStyles } from '../../lib/mermaidRenderer';
 import { useMermaidDiagram } from '../../hooks/useMermaidDiagram';
+import { useShallow } from 'zustand/react/shallow';
 import { useSettingsStore } from '../../state/settingsStore';
 
 /** Breathing room around a zoomed diagram, so it reads as floating over the window. */
@@ -148,22 +149,25 @@ const DiagramGraphic = memo(function DiagramGraphic({
 export default function MermaidDiagram({ code }: { code: string }): React.JSX.Element {
   const theme = useSettingsStore((state) => state.appearance.diagramTheme);
   // Diagrams are measured with the app's own font, so the drawing has to be made
-  // again when that changes. A string key keeps the subscription to one compare,
-  // whether the change came from the family, the size, or the mode whose slot
-  // holds them.
-  const fontKey = useSettingsStore((state) => {
-    const { appearance } = state;
-    const light = appearance.light.fonts;
-    const dark = appearance.dark.fonts;
-    return [
-      appearance.mode,
-      appearance.separateModes,
-      light.ui,
-      light.uiSize,
-      dark.ui,
-      dark.uiSize,
-    ].join('|');
-  });
+  // again when that changes. Subscribe to the primitives that feed the font key
+  // rather than building the key inside the selector: a selector that allocates
+  // runs its own comparison on every store change, once per mounted diagram.
+  const [mode, separateModes, lightFamily, lightSize, darkFamily, darkSize] = useSettingsStore(
+    useShallow((state) => {
+      const { appearance } = state;
+      const light = appearance.light.fonts;
+      const dark = appearance.dark.fonts;
+      return [
+        appearance.mode,
+        appearance.separateModes,
+        light.ui,
+        light.uiSize,
+        dark.ui,
+        dark.uiSize,
+      ];
+    }),
+  );
+  const fontKey = [mode, separateModes, lightFamily, lightSize, darkFamily, darkSize].join('|');
   const diagram = useMermaidDiagram(code, theme, fontKey);
   const [showingSource, setShowingSource] = useState(false);
   const showDiagram = diagram.status === 'ready' && !showingSource;

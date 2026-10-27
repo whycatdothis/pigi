@@ -5,7 +5,7 @@ import {
   type BundledLanguage,
   type Highlighter,
 } from 'shiki/bundle/full';
-import { deriveTokens } from '../../../../shared/appearanceTokens';
+import { appearanceTokensFor } from '../../appearance/appearanceTokensCache';
 import { useResolvedAppearance } from '../../appearance/useResolvedAppearance';
 import { codeThemeNameFor, ensureThemeLoaded, loadCodeTheme } from './shikiThemes';
 import { useSettingsStore } from '../../state/settingsStore';
@@ -235,7 +235,7 @@ export default function SyntaxHighlightedCode({
   // The code block sits on --muted, so that is the surface the tokens have to
   // clear; the app background decides which base theme fits.
   const codeTheme = useMemo(() => {
-    const tokens = deriveTokens(resolvedAppearance);
+    const tokens = appearanceTokensFor(resolvedAppearance);
     const background = tokens['--app-background'];
     const surface = tokens['--app-muted'];
     return {
