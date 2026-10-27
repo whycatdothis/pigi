@@ -63,6 +63,19 @@ Rules that come up every time:
 `--app-font-ui-scale` (or `--app-font-code-scale`) so the size settings scale the
 whole ramp instead of the root font size.
 
+One scale, one set of names. Tailwind's `text-xs` / `text-sm` / `text-base`
+(13 / 15 / 17px) are the steps this ramp replaced, and app code must not use
+them: `text-xs` and `text-caption` were the same size under two names, and the
+merge is what makes a role name mean one thing. They stay defined in
+`designTokens.css` for the marketing site, which shares the file; `npm run
+check` rejects them in `src/renderer`.
+
+Line heights ship with the step: a semantic step without its own
+`--text-*--line-height` takes Tailwind's 1.6 default, which is what the merged
+call sites now render (a 15px caption line is 24px, 13px is 20.8px). Surfaces
+that need a tighter or looser rhythm say so with a `leading-*` class — the
+composer's editor is the one place that does.
+
 Weights carry hierarchy, not size: 400 body, 500 row labels and control values,
 600 page and group headings. Tracking is reserved for the page title
 (`-0.02em`). Line heights ship with the step (`--text-*--line-height`).

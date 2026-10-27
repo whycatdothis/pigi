@@ -222,7 +222,7 @@ export default function ChatInput({
   const [editorProps] = useState<EditorOptions['editorProps']>(() => ({
     attributes: {
       class: cn(
-        'chat-composer max-h-[17.5vh] overflow-y-auto px-4 pb-2 pt-4 text-sm leading-6 outline-none',
+        'chat-composer max-h-[17.5vh] overflow-y-auto px-4 pb-2 pt-4 text-body leading-6 outline-none',
         // Attachments sit right under the text instead of below the empty min height.
         isNewSession ? 'min-h-24' : 'min-h-16',
         'in-data-has-attachments:min-h-0',
@@ -942,7 +942,7 @@ export default function ChatInput({
               </InputGroupAddon>
             </InputGroup>
             {isNewSession ? (
-              <div className="-mt-15 rounded-b-surface-xl bg-muted/60 px-4 pt-17 pb-2 text-sm text-muted-foreground">
+              <div className="-mt-15 rounded-b-surface-xl bg-muted/60 px-4 pt-17 pb-2 text-body text-muted-foreground">
                 <div className="flex items-center">
                   <span
                     className="flex min-w-0 items-center gap-1.5"
@@ -954,7 +954,7 @@ export default function ChatInput({
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between gap-4 bg-background px-4 pt-1.5 pb-3 text-sm text-muted-foreground">
+              <div className="flex items-center justify-between gap-4 bg-background px-4 pt-1.5 pb-3 text-body text-muted-foreground">
                 <span
                   className="flex min-w-0 items-center gap-1.5"
                   onClick={() => void onRefreshGitBranch()}
@@ -972,7 +972,7 @@ export default function ChatInput({
           </div>
         </SlashCommandPopover>
         {isDragOver && (
-          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-surface-xl border-2 border-dashed border-ring bg-background/85 text-sm font-medium text-foreground">
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-surface-xl border-2 border-dashed border-ring bg-background/85 text-body font-medium text-foreground">
             Drop files to attach
           </div>
         )}

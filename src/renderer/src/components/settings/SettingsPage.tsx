@@ -215,7 +215,7 @@ function PiSettingsSection({
         <>
           {projectUntrusted && (
             <span
-              className="max-w-72 truncate text-xs text-warning-fg"
+              className="max-w-72 truncate text-caption text-warning-fg"
               title="pi ignores project settings and resources until the project is trusted (see /trust in the TUI)."
             >
               Project is not trusted — these settings are ignored

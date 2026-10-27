@@ -55,9 +55,9 @@ export function SessionTreeToolbar({
           onChange={(event) => onQueryChange(event.target.value)}
           onKeyDown={onKeyDown}
           placeholder="Search this session"
-          className="min-w-0 flex-1 bg-transparent pr-6 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground/55"
+          className="min-w-0 flex-1 bg-transparent pr-6 text-body leading-6 text-foreground outline-none placeholder:text-muted-foreground/55"
         />
-        <span className="shrink-0 text-xs text-muted-foreground/80">{counts}</span>
+        <span className="shrink-0 text-caption text-muted-foreground/80">{counts}</span>
         <SessionTreeHelpButton className="ml-3" />
       </div>
 
@@ -73,7 +73,7 @@ export function SessionTreeToolbar({
               data-active={active ? 'true' : undefined}
               onClick={() => onKindsChange(toggleKinds(kinds, chip.kinds))}
               className={cn(
-                'rounded-control-sm border px-2.5 py-0.5 text-xs transition-colors',
+                'rounded-control-sm border px-2.5 py-0.5 text-caption transition-colors',
                 active
                   ? 'border-transparent bg-[var(--system-accent)]/12 text-[var(--system-accent)]'
                   : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',

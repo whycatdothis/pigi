@@ -209,9 +209,9 @@ export default function SessionTreeDialog({
 
         <div className="min-h-0 flex-1 overflow-hidden pb-3">
           {data === null ? (
-            <div className="px-5 py-6 text-center text-sm text-muted-foreground">Loading…</div>
+            <div className="px-5 py-6 text-center text-body text-muted-foreground">Loading…</div>
           ) : data.itemCount === 0 ? (
-            <div className="px-5 py-6 text-center text-sm text-muted-foreground">
+            <div className="px-5 py-6 text-center text-body text-muted-foreground">
               No messages match
             </div>
           ) : (
@@ -267,7 +267,7 @@ export default function SessionTreeDialog({
                 <>
                   {previewText.text}
                   {previewText.truncated && (
-                    <div className="mt-2 text-xs text-muted-foreground">Text truncated</div>
+                    <div className="mt-2 text-caption text-muted-foreground">Text truncated</div>
                   )}
                 </>
               ) : (

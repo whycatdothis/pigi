@@ -40,7 +40,7 @@ const ContextMenuItem = React.forwardRef<
     data-inset={inset}
     data-variant={variant}
     className={cn(
-      'relative flex cursor-default items-center gap-1.5 rounded-control px-1.5 py-1 text-xs outline-hidden select-none',
+      'relative flex cursor-default items-center gap-1.5 rounded-control px-1.5 py-1 text-caption outline-hidden select-none',
       'data-highlighted:bg-foreground/5',
       'data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive',
       'data-disabled:pointer-events-none data-disabled:opacity-50',
@@ -76,7 +76,7 @@ const ContextMenuSubTrigger = React.forwardRef<
     ref={ref}
     data-inset={inset}
     className={cn(
-      'flex cursor-default items-center gap-1.5 rounded-control px-1.5 py-1 text-sm outline-hidden select-none',
+      'flex cursor-default items-center gap-1.5 rounded-control px-1.5 py-1 text-body outline-hidden select-none',
       'focus:bg-accent focus:text-accent-foreground',
       'data-inset:pl-7 data-open:bg-accent data-open:text-accent-foreground',
       '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*="size-"])]:size-4',
@@ -115,7 +115,7 @@ const ContextMenuShortcut = ({
     <span
       data-slot="context-menu-shortcut"
       className={cn(
-        'ml-auto text-xs tracking-widest text-muted-foreground',
+        'ml-auto text-caption tracking-widest text-muted-foreground',
         'group-focus/context-menu-item:text-accent-foreground',
         className,
       )}

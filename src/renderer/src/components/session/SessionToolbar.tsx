@@ -25,13 +25,13 @@ import { Kbd } from '../ui/kbd';
 import { PanelIcon } from '../panelIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
-// 13px menu text (app's text-xs scale, keeps the theme line-height — an
+// 13px menu text (app's caption scale, keeps the theme line-height — an
 // arbitrary text-caption would drop it and inherit body's 1.6 line-height).
 // The check icon renders inline right after the label (showCheckIcon={false}
 // disables the component's far-right absolute indicator), so the menu hugs
 // its content instead of reserving pr-8 + min-w-32 for a distant checkmark.
 const viewModeItemClassName =
-  'gap-1 pl-2 pr-2 py-1 text-xs transition-colors data-[state=checked]:bg-[var(--system-accent)]/10 data-[state=checked]:text-[var(--system-accent)] data-[state=checked]:focus:bg-[var(--system-accent)]/10 data-[state=checked]:focus:text-[var(--system-accent)] data-[state=checked]:focus:**:text-[var(--system-accent)]';
+  'gap-1 pl-2 pr-2 py-1 text-caption transition-colors data-[state=checked]:bg-[var(--system-accent)]/10 data-[state=checked]:text-[var(--system-accent)] data-[state=checked]:focus:bg-[var(--system-accent)]/10 data-[state=checked]:focus:text-[var(--system-accent)] data-[state=checked]:focus:**:text-[var(--system-accent)]';
 
 interface SessionToolbarProps {
   sessionPath: string;
@@ -135,11 +135,11 @@ export default React.memo(function SessionToolbar({
             onKeyDown={handleKeyDown}
             autoFocus
             size={editValue.length || 1}
-            className="min-w-0 max-w-full bg-transparent text-sm font-medium text-foreground outline-none caret-foreground"
+            className="min-w-0 max-w-full bg-transparent text-body font-medium text-foreground outline-none caret-foreground"
           />
         ) : (
           <span
-            className="truncate text-sm font-medium text-foreground cursor-default"
+            className="truncate text-body font-medium text-foreground cursor-default"
             title={title}
             onDoubleClick={handleStartRename}
           >

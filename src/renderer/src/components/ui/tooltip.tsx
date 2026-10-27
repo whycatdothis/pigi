@@ -68,7 +68,7 @@ function TooltipContent({
         data-variant={variant}
         sideOffset={sideOffset}
         className={cn(
-          'tooltip-surface z-50 inline-flex w-fit max-w-xs origin-(--radix-tooltip-content-transform-origin) items-center gap-1.5 text-xs has-data-[slot=kbd]:pr-1.5 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-inline',
+          'tooltip-surface z-50 inline-flex w-fit max-w-xs origin-(--radix-tooltip-content-transform-origin) items-center gap-1.5 text-caption has-data-[slot=kbd]:pr-1.5 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-inline',
           TOOLTIP_VARIANT_CLASS_NAMES[variant],
           className,
         )}

@@ -207,7 +207,7 @@ export function TreeRowContent({
       <span
         className={cn(
           'min-w-0 flex-1 truncate',
-          description.monospace && 'font-mono text-xs',
+          description.monospace && 'font-mono text-caption',
           isError && 'text-destructive',
           !isError && entry.kind === 'user' && 'font-medium text-foreground',
           !isError && entry.kind === 'assistant' && 'text-foreground/80',

@@ -399,11 +399,15 @@ test('lights the run down to a hovered row, and takes it away again', async () =
   withinPixel(railEnd(0, true), rowBox('s1').top + ROW_HEIGHT_PX / 2);
   withinPixel(railOf(1, false).top, rowBox('x1').top - BRANCH_SPACING_PX);
   const litRunAtRest = railOf(0, true).height;
-  const quietRunAtRest = railOf(1, false).height;
 
   // The row to point at is deep in the long chain, so the window has to reach it
   // first: a row that is not drawn cannot be hovered.
   await scrollRowToTop('y20');
+  // The state below returns to, measured where it will be compared. A height
+  // captured from another scroll position is cropped by a different slice of the
+  // branch, so a fraction of a pixel of list offset would read as a change.
+  const quietRunAtY20 = railOf(1, false).height;
+  const litRunAtY20 = railOf(0, true).height;
   await screen.getByTestId('session-tree-row').filter({ hasText: 'message y20' }).hover();
 
   // Pointing at a row deep in the long chain lights that chain's line — and the run
@@ -423,7 +427,9 @@ test('lights the run down to a hovered row, and takes it away again', async () =
   await expect
     .poll(() => drawnRails().some((rail) => rail.forkDepth === 1 && rail.lit))
     .toBe(false);
-  expect(railOf(1, false).top).toBeCloseTo(rowBox('x1').top - BRANCH_SPACING_PX, 0);
-  expect(railOf(1, false).height).toBeCloseTo(quietRunAtRest, 0);
-  expect(railOf(0, true).height).toBeCloseTo(litRunAtRest, 0);
+  // The line is drawn on a whole pixel while the row above it sits on a
+  // fraction, so the same one-pixel slack as the at-rest check applies here.
+  withinPixel(railOf(1, false).top, rowBox('x1').top - BRANCH_SPACING_PX);
+  expect(railOf(1, false).height).toBeCloseTo(quietRunAtY20, 0);
+  expect(railOf(0, true).height).toBeCloseTo(litRunAtY20, 0);
 });

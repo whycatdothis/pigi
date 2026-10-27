@@ -164,12 +164,12 @@ export default function MessageSearch({
             }}
             onKeyDown={handleKeyDown}
             placeholder="Search messages…"
-            className="h-7 w-44 border-0 bg-transparent px-px text-sm shadow-none focus-visible:ring-0"
+            className="h-7 w-44 border-0 bg-transparent px-px text-body shadow-none focus-visible:ring-0"
           />
           <div className="ml-auto flex items-center gap-1.5">
             {hasQuery && totalMatches > 0 && (
               <>
-                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
                   {clampedIndex + 1}/{totalMatches}
                 </span>
                 <span className="flex items-center gap-0.5">

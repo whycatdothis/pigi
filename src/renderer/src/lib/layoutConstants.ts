@@ -55,7 +55,7 @@ export const TERMINAL_MIN_HEIGHT = 120;
 /** Cap the panel at this fraction of the window height. */
 export const TERMINAL_MAX_HEIGHT_RATIO = 0.8;
 
-/** Visible rise per streaming-queue bar: bar height (pt-2 + text-xs line +
+/** Visible rise per streaming-queue bar: bar height (pt-2 + caption line +
  *  pb-15, about 85px) minus the -mt-14 stack overlap (56px). Must track those
  *  classes in StreamingQueue. */
 export const STREAMING_QUEUE_BAR_STEP_PX = 29;
@@ -99,7 +99,7 @@ export function sidebarToggleLeft(platform: Platform): number {
  * while an outline keeps 0.5px all the way round.
  */
 export const VIBRANCY_OVERLAY_CONTENT =
-  'rounded-surface bg-popover/88 backdrop-blur-sm p-4 text-sm text-popover-foreground shadow-md outline-[0.5px] outline-foreground/25 duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
+  'rounded-surface bg-popover/88 backdrop-blur-sm p-4 text-body text-popover-foreground shadow-md outline-[0.5px] outline-foreground/25 duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
 
 /** Background color used by transparent floating panels. */
 export const OVERLAY_BG = 'bg-popover/40';

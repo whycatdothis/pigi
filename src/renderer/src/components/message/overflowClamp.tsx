@@ -98,7 +98,7 @@ export default function OverflowClamp({
         data-action="expand-overflow"
         onClick={() => setExpanded((current) => !current)}
         className={cn(
-          'z-10 mb-0 flex w-fit items-center gap-1 rounded-full py-0.5 text-xs leading-4 text-muted-foreground transition-colors hover:text-foreground',
+          'z-10 mb-0 flex w-fit items-center gap-1 rounded-full py-0.5 text-caption leading-4 text-muted-foreground transition-colors hover:text-foreground',
           tailAnchor && 'sticky bottom-4',
           isStuck && tailAnchor && 'bg-background/70 shadow-sm backdrop-blur-sm',
           buttonClassName,

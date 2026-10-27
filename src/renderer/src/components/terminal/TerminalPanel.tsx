@@ -177,7 +177,7 @@ export default function TerminalPanel({
                   key={tab.id}
                   value={tab.id}
                   title={tab.title}
-                  className="group/tab h-8 max-w-40 flex-none px-2.5 text-xs font-normal text-muted-foreground"
+                  className="group/tab h-8 max-w-40 flex-none px-2.5 text-caption font-normal text-muted-foreground"
                 >
                   <IconTerminal2 size={13} className="shrink-0 opacity-70" />
                   <span className="truncate">{tab.title}</span>

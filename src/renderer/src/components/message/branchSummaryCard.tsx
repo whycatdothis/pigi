@@ -17,7 +17,7 @@ export default function BranchSummaryCard({ text }: { text: string }): React.JSX
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="flex w-full items-center gap-1.5 px-3 py-1.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
         >
           <IconChevronRight
             size={13}

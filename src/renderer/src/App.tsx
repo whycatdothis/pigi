@@ -1806,10 +1806,10 @@ function App(): React.JSX.Element {
                     Open a project to get started
                     <br />
                     {/* TODO: Use Ctrl instead of ⌘ on Windows/Linux */}
-                    <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-xs ml-1 min-w-6">
+                    <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-caption ml-1 min-w-6">
                       {'\u2318'}
                     </kbd>
-                    <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-xs ml-1 min-w-6">
+                    <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-caption ml-1 min-w-6">
                       o
                     </kbd>
                   </EmptyDescription>
