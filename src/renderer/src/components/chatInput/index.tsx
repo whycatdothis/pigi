@@ -38,6 +38,8 @@ import {
   attachmentFromPickedFile,
   attachmentFromPromptAttachment,
   MAX_PROMPT_ATTACHMENTS,
+  parkDraftAttachments,
+  takeParkedDraftAttachments,
   type ChatAttachment,
 } from '../../lib/chatAttachments';
 import { useInputHistory, type HistoryComposer } from '../../hooks/useInputHistory';
@@ -565,8 +567,10 @@ export default function ChatInput({
     resetHistory();
 
     if (previousKey !== draftKey) {
-      // Attachments belong to one draft/session; do not carry them across.
-      setAttachmentList([]);
+      // Attachments belong to one draft/session; do not carry them across. A
+      // remount of the same draft (the settings page replaces the main area)
+      // gets back what the unmount below parked.
+      setAttachmentList(previousKey === null ? takeParkedDraftAttachments(draftKey) : []);
       // Restore the current key's draft and auto-focus the input
       const draft = readChatDraft(draftKey);
       queueMicrotask(() => composer.setText(draft));
@@ -581,7 +585,10 @@ export default function ChatInput({
   useEffect(
     () => () => {
       const key = activeDraftKeyRef.current;
-      if (key !== null) writeChatDraft(key, getHistoryDraft());
+      if (key !== null) {
+        writeChatDraft(key, getHistoryDraft());
+        parkDraftAttachments(key, attachmentsRef.current);
+      }
     },
     [getHistoryDraft],
   );
