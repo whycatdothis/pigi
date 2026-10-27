@@ -148,7 +148,7 @@ export function ShortcutsSettings(): React.JSX.Element {
               }
             >
               {isCapturing ? (
-                <span className="rounded-md border border-dashed border-foreground/30 px-3 py-1 font-mono text-xs text-muted-foreground">
+                <span className="rounded-inline border border-dashed border-foreground/30 px-3 py-1 font-mono text-xs text-muted-foreground">
                   Press shortcut… (Esc cancels)
                 </span>
               ) : (

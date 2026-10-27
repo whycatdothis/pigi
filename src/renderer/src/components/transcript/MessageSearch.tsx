@@ -145,7 +145,7 @@ export default function MessageSearch({
       <PopoverContent
         align="end"
         sideOffset={0}
-        className="w-72 rounded-lg p-0"
+        className="w-72 rounded-surface p-0"
         onInteractOutside={(event) => {
           const target = event.target;
           if (target instanceof Element && target.closest('[data-testid="message-list"]')) {

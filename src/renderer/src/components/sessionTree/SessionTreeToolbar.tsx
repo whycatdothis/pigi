@@ -73,7 +73,7 @@ export function SessionTreeToolbar({
               data-active={active ? 'true' : undefined}
               onClick={() => onKindsChange(toggleKinds(kinds, chip.kinds))}
               className={cn(
-                'rounded-md border px-2.5 py-0.5 text-xs transition-colors',
+                'rounded-control-sm border px-2.5 py-0.5 text-xs transition-colors',
                 active
                   ? 'border-transparent bg-[var(--system-accent)]/12 text-[var(--system-accent)]'
                   : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',

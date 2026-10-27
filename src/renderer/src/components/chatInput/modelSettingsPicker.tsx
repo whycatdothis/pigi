@@ -118,7 +118,7 @@ export function ModelSettingsPicker({
                     key={key}
                     value={modelSearchValue(model)}
                     data-checked={key === selectedKey ? true : undefined}
-                    className="rounded-lg"
+                    className="rounded-control"
                     onSelect={() => {
                       onSelectModel(model);
                       // Same model or a model without thinking levels:
@@ -179,7 +179,7 @@ function ModelSettingsButton({
       variant="ghost"
       size="sm"
       className={cn(
-        'h-7 max-w-60 min-w-0 gap-1.5 rounded-md px-1.5 text-sm font-normal hover:bg-muted/70',
+        'h-7 max-w-60 min-w-0 gap-1.5 rounded-control px-1.5 text-sm font-normal hover:bg-muted/70',
         className,
       )}
       {...props}
@@ -231,7 +231,7 @@ function ThinkingLevelFlyout({
         size="sm"
         disabled={options.length === 0}
         className={cn(
-          'h-8 w-full justify-start gap-2 rounded-lg px-1.5 text-sm font-normal hover:bg-muted/60 border-0',
+          'h-8 w-full justify-start gap-2 rounded-control px-1.5 text-sm font-normal hover:bg-muted/60 border-0',
           forceOpen && 'bg-muted/70',
         )}
         aria-haspopup="menu"
@@ -248,7 +248,7 @@ function ThinkingLevelFlyout({
         <div className="absolute bottom-1 left-full pl-1">
           <div
             role="menu"
-            className="min-w-28 rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10"
+            className="min-w-28 rounded-surface bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10"
           >
             {options.map((level) => (
               <Button
@@ -262,7 +262,7 @@ function ThinkingLevelFlyout({
                 role="menuitemradio"
                 aria-checked={level === value}
                 className={cn(
-                  'h-7 w-full justify-start gap-2 rounded-md px-2 text-sm font-normal',
+                  'h-7 w-full justify-start gap-2 rounded-control px-2 text-sm font-normal',
                   level === value && 'bg-muted text-foreground',
                 )}
                 onClick={() => {

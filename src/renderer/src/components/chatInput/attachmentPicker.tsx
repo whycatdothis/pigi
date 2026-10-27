@@ -36,11 +36,11 @@ export function AttachmentPickerButton({
         side="top"
         align="start"
         sideOffset={6}
-        className="w-fit gap-0.5 rounded-lg bg-popover/50 p-1 backdrop-blur-md"
+        className="w-fit gap-0.5 rounded-surface bg-popover/50 p-1 backdrop-blur-md"
       >
         <button
           type="button"
-          className="flex items-center gap-2 rounded-md px-2 py-1 text-left text-xs hover:bg-muted"
+          className="flex items-center gap-2 rounded-control-sm px-2 py-1 text-left text-xs hover:bg-muted"
           onClick={() => pick('image')}
         >
           <IconPhoto className="size-3.5 shrink-0 text-muted-foreground" />
@@ -48,7 +48,7 @@ export function AttachmentPickerButton({
         </button>
         <button
           type="button"
-          className="flex items-center gap-2 rounded-md px-2 py-1 text-left text-xs hover:bg-muted"
+          className="flex items-center gap-2 rounded-control-sm px-2 py-1 text-left text-xs hover:bg-muted"
           onClick={() => pick('file')}
         >
           <IconPaperclip className="size-3.5 shrink-0 text-muted-foreground" />
@@ -106,7 +106,7 @@ function AttachmentChip({
         <img
           src={attachment.previewUrl}
           alt={attachment.name}
-          className="size-16 rounded-xl border border-border/60 object-cover"
+          className="size-16 rounded-chip border border-border/60 object-cover"
         />
         {removeButton}
       </div>
@@ -115,7 +115,7 @@ function AttachmentChip({
 
   return (
     <div
-      className="group/chip relative flex max-w-56 shrink-0 items-center gap-1.5 rounded-lg border border-border/60 bg-muted/50 py-1 pl-1.5 pr-3"
+      className="group/chip relative flex max-w-56 shrink-0 items-center gap-1.5 rounded-chip border border-border/60 bg-muted/50 py-1 pl-1.5 pr-3"
       title={attachment.path ?? attachment.name}
     >
       <FileIcon path={attachment.name} />

@@ -107,7 +107,7 @@ function SlashCommandItem({
     <button
       type="button"
       className={cn(
-        'flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-sm',
+        'flex w-full items-center gap-3 rounded-control px-3 py-1.5 text-left text-sm',
         isSelected && 'bg-foreground/7',
       )}
       onMouseDown={(e) => {

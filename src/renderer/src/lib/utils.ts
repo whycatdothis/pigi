@@ -5,10 +5,43 @@ import { extendTailwindMerge } from 'tailwind-merge';
 // tailwind-merge only knows Tailwind's own sizes, so without this a variant's
 // `text-caption` and a caller's `text-sm` both survive `cn()` and the stylesheet
 // order picks the winner instead of the last class the caller wrote.
+//
+// Radius is named by role in semanticTokens.css for the same reason: without the
+// names here, a primitive's `rounded-control` and a caller's `rounded-surface`
+// would both survive and the cascade, not the caller, would decide. Both entries
+// replace the Tailwind steps the app used to write.
+const RADIUS_ROLES = [
+  'inline',
+  'chip',
+  'control',
+  'control-sm',
+  'surface',
+  'surface-sm',
+  'surface-lg',
+  'surface-xl',
+  'container',
+  'full',
+];
+
 const mergeClassName = extendTailwindMerge({
   extend: {
     classGroups: {
       'font-size': [{ text: ['caption', 'ui', 'body', 'code', 'code-compact', '2xs', '3xs'] }],
+      rounded: [{ rounded: RADIUS_ROLES }],
+      'rounded-s': [{ 'rounded-s': RADIUS_ROLES }],
+      'rounded-e': [{ 'rounded-e': RADIUS_ROLES }],
+      'rounded-t': [{ 'rounded-t': RADIUS_ROLES }],
+      'rounded-r': [{ 'rounded-r': RADIUS_ROLES }],
+      'rounded-b': [{ 'rounded-b': RADIUS_ROLES }],
+      'rounded-l': [{ 'rounded-l': RADIUS_ROLES }],
+      'rounded-ss': [{ 'rounded-ss': RADIUS_ROLES }],
+      'rounded-se': [{ 'rounded-se': RADIUS_ROLES }],
+      'rounded-ee': [{ 'rounded-ee': RADIUS_ROLES }],
+      'rounded-es': [{ 'rounded-es': RADIUS_ROLES }],
+      'rounded-tl': [{ 'rounded-tl': RADIUS_ROLES }],
+      'rounded-tr': [{ 'rounded-tr': RADIUS_ROLES }],
+      'rounded-br': [{ 'rounded-br': RADIUS_ROLES }],
+      'rounded-bl': [{ 'rounded-bl': RADIUS_ROLES }],
     },
   },
 });

@@ -58,7 +58,7 @@ const ACTION_TOOLBAR_OFFSET_CLASS_NAME = 'mt-0.5';
 const ACTION_ICON_SIZE = 15;
 
 const ACTION_BUTTON_CLASS_NAME =
-  'flex items-center justify-center rounded-sm p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40';
+  'flex items-center justify-center rounded-inline p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40';
 
 /**
  * These are destructive-ish actions next to every message, so the label waits

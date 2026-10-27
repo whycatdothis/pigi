@@ -202,7 +202,7 @@ export function SegmentedControl<T extends string>({
           aria-pressed={option.value === value}
           onClick={() => onChange(option.value)}
           className={cn(
-            'h-6 rounded-md px-2.5 text-caption leading-none transition-colors',
+            'h-6 rounded-control-sm px-2.5 text-caption leading-none transition-colors',
             option.value === value
               ? 'bg-background text-foreground shadow-xs'
               : 'text-muted-foreground hover:text-foreground',
@@ -280,7 +280,7 @@ export function NumberField({
         inputMode="decimal"
         placeholder={placeholder}
         disabled={disabled}
-        className="h-7 w-28 rounded-md text-right font-mono text-caption tabular-nums"
+        className="h-7 w-28 rounded-control text-right font-mono text-caption tabular-nums"
       />
       {suffix && <span className="text-xs text-muted-foreground">{suffix}</span>}
     </div>
@@ -333,7 +333,7 @@ export function TextField({
       placeholder={placeholder}
       disabled={disabled}
       spellCheck={false}
-      className={cn('h-7 rounded-md text-xs', monospace && 'font-mono', className)}
+      className={cn('h-7 rounded-control text-xs', monospace && 'font-mono', className)}
     />
   );
 }
@@ -423,7 +423,7 @@ export function StringListField({
             placeholder={placeholder}
             disabled={disabled}
             spellCheck={false}
-            className="h-7 flex-1 rounded-md font-mono text-xs"
+            className="h-7 flex-1 rounded-control font-mono text-xs"
           />
           <Button
             type="button"

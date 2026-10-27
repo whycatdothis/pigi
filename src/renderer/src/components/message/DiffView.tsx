@@ -13,8 +13,8 @@ const LINE_STYLES = {
 } as const;
 
 const HIGHLIGHT_STYLES = {
-  add: 'bg-green-500/30 rounded-sm',
-  remove: 'bg-red-500/30 rounded-sm',
+  add: 'bg-green-500/30 rounded-inline',
+  remove: 'bg-red-500/30 rounded-inline',
 } as const;
 
 const PREFIX = {

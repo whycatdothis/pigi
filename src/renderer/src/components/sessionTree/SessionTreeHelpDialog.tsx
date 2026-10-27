@@ -85,7 +85,7 @@ export default function SessionTreeHelpDialog({
         <div className="flex flex-col gap-3">
           {HELP_POINTS.map(({ Icon, title, body }) => (
             <div key={title} className="flex gap-3">
-              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-control-sm bg-muted text-muted-foreground">
                 <Icon size={14} />
               </span>
               <span className="flex min-w-0 flex-col gap-0.5">
@@ -96,7 +96,7 @@ export default function SessionTreeHelpDialog({
           ))}
         </div>
 
-        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+        <p className="rounded-control bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
           Hover a row for a preview, search or filter to find one, then click it (or press Enter) to
           move the session there. Searching picks out the first match, and the up and down arrows
           move that pick without leaving the search box.

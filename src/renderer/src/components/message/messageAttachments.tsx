@@ -30,7 +30,7 @@ export function MessageAttachments({
               <img
                 src={source}
                 alt="Attached image"
-                className="size-16 rounded-xl border border-border/60 bg-background object-cover"
+                className="size-16 rounded-chip border border-border/60 bg-background object-cover"
               />
             </button>
           ))}
@@ -42,7 +42,7 @@ export function MessageAttachments({
             <button
               key={path}
               type="button"
-              className="flex max-w-56 items-center gap-1.5 rounded-lg border border-border/50 bg-background/70 px-2 py-1 text-xs text-foreground hover:bg-background"
+              className="flex max-w-56 items-center gap-1.5 rounded-chip border border-border/50 bg-background/70 px-2 py-1 text-xs text-foreground hover:bg-background"
               title={path}
               onClick={() => window.piApi.previewFile(path)}
             >
@@ -53,7 +53,7 @@ export function MessageAttachments({
           {inlineFileNames.map((name, index) => (
             <span
               key={`${index}-${name}`}
-              className="flex max-w-56 items-center gap-1.5 rounded-lg border border-border/50 bg-background/70 px-2 py-1 text-xs text-foreground"
+              className="flex max-w-56 items-center gap-1.5 rounded-chip border border-border/50 bg-background/70 px-2 py-1 text-xs text-foreground"
               title="Pasted file"
             >
               <FileIcon path={name} className="size-3.5" />
@@ -73,7 +73,7 @@ export function MessageAttachments({
               <img
                 src={viewedImage}
                 alt="Attached image"
-                className="max-h-[85vh] max-w-[90vw] cursor-zoom-out rounded-lg object-contain"
+                className="max-h-[85vh] max-w-[90vw] cursor-zoom-out rounded-surface-sm object-contain"
               />
             </DialogClose>
           )}

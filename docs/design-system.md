@@ -128,7 +128,11 @@ fills the corner further and reads squarer.
 3. Use the token name in `className` (`rounded-surface-lg`) or
    `var(--radius-surface-lg)` in CSS. Never a pixel value.
 4. If the element clips opaque children, add `corner-shape: round`.
-5. Run `npm run check` — it fails on hard-coded radii, font sizes and shadows.
+5. Run `npm run check` — it fails on hard-coded radii, on Tailwind's own radius
+   steps (`rounded-md`, `rounded-lg`, …) and on the primitive `--radius-sm…`
+   variables. A component copied in with `shadcn add` arrives with the scale
+   steps and has to be re-mapped to roles; that is deliberate, since a step's
+   size moves with `--radius` and a role's does not.
 
 ## Checking a change
 

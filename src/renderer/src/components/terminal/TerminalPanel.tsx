@@ -205,7 +205,7 @@ export default function TerminalPanel({
             type="button"
             title="New terminal tab"
             onClick={() => terminalController.openTab()}
-            className="flex flex-none items-center justify-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex flex-none items-center justify-center rounded-control p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <IconPlus size={18} />
           </button>

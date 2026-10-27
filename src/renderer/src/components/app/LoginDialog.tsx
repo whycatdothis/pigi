@@ -157,7 +157,7 @@ export default function LoginDialog({
               return (
                 <div
                   key={provider.id}
-                  className="flex items-center justify-between rounded-md border px-3 py-2"
+                  className="flex items-center justify-between rounded-control border px-3 py-2"
                 >
                   <div>
                     <div className="font-normal text-sm">{provider.name}</div>
@@ -216,7 +216,7 @@ export default function LoginDialog({
                   return (
                     <div
                       key={provider.id}
-                      className="flex items-center justify-between rounded-md border px-3 py-2"
+                      className="flex items-center justify-between rounded-control border px-3 py-2"
                     >
                       <div>
                         <div className="font-normal text-sm">{provider.name}</div>
@@ -259,7 +259,7 @@ export default function LoginDialog({
               <label className="text-sm font-normal mb-1 block">API key</label>
               <input
                 type="password"
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-control border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring"
                 placeholder="sk-..."
                 value={apiKeyValue}
                 onChange={(e) => setApiKeyValue(e.target.value)}
