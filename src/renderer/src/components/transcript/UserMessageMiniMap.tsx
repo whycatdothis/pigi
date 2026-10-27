@@ -273,7 +273,10 @@ export default React.memo(function UserMessageMiniMap({
           id={panelId}
           role="group"
           aria-label="Messages"
-          data-open={open}
+          // Not `data-open`: `VIBRANCY_OVERLAY_CONTENT` styles that attribute,
+          // and its `data-open:animate-in` would run a keyframe animation over
+          // the transition this class is made of.
+          data-panel-open={open}
           // Closed and fading both keep the panel out of hit testing, the tab
           // order and the accessibility tree. `display: none` already does that
           // once the exit is over; `inert` covers the fade itself.

@@ -514,14 +514,14 @@
       display var(--duration-base) allow-discrete;
   }
 
-  .message-minimap-panel[data-open='true'] {
+  .message-minimap-panel[data-panel-open='true'] {
     display: flex;
     opacity: 1;
     scale: 1;
   }
 
   @starting-style {
-    .message-minimap-panel[data-open='true'] {
+    .message-minimap-panel[data-panel-open='true'] {
       opacity: 0;
       scale: 0.95;
     }
