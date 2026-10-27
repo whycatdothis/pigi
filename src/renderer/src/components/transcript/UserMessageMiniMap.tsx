@@ -1,8 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { TranscriptNode, UserNode } from '../../state/transcriptController';
-import { OVERLAY_BG } from '../../lib/layoutConstants';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { MESSAGE_LIST_HORIZONTAL_PADDING, MESSAGE_LIST_MAX_WIDTH } from '../../lib/layoutConstants';
+import {
+  MESSAGE_LIST_HORIZONTAL_PADDING,
+  MESSAGE_LIST_MAX_WIDTH,
+  OVERLAY_BG,
+  VIBRANCY_OVERLAY_CONTENT,
+} from '../../lib/layoutConstants';
+import { cn } from '../../lib/utils';
 
 interface UserMessageMiniMapProps {
   nodes: TranscriptNode[];
@@ -21,6 +25,8 @@ function formatTime(timestamp: number): string {
 
 const HOVER_OPEN_DELAY = 200;
 const HOVER_CLOSE_DELAY = 300;
+/** Matches `duration-100` on the panel: it stays mounted for its exit animation. */
+const PANEL_EXIT_MS = 100;
 const LINE_WIDTH_MAX_CAP = 48;
 const LINE_WIDTH_RIGHT_MARGIN = 8;
 const LINE_WIDTH_MIN_CAP = 8;
@@ -60,6 +66,10 @@ export default React.memo(function UserMessageMiniMap({
   onScrollToIndex,
 }: UserMessageMiniMapProps): React.JSX.Element | null {
   const [open, setOpen] = useState(false);
+  // The panel outlives `open` by one animation so closing is not a hard cut
+  // while the ticks fade back in.
+  const [present, setPresent] = useState(false);
+  const panelId = useId();
   const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -115,107 +125,163 @@ export default React.memo(function UserMessageMiniMap({
     return -1;
   }, [userMessages, activeUserMessageIndex]);
 
+  const openPanel = useCallback((): void => {
+    setPresent(true);
+    setOpen(true);
+  }, []);
+
+  const closePanel = useCallback((): void => {
+    setOpen(false);
+    setHoveredIndex(null);
+  }, []);
+
   const handleMouseEnter = useCallback((): void => {
     if (closeTimerRef.current) {
       clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
-    openTimerRef.current = setTimeout(() => setOpen(true), HOVER_OPEN_DELAY);
-  }, []);
+    openTimerRef.current = setTimeout(openPanel, HOVER_OPEN_DELAY);
+  }, [openPanel]);
 
   const handleMouseLeave = useCallback((): void => {
     if (openTimerRef.current) {
       clearTimeout(openTimerRef.current);
       openTimerRef.current = null;
     }
-    closeTimerRef.current = setTimeout(() => {
-      setOpen(false);
-      setHoveredIndex(null);
-    }, HOVER_CLOSE_DELAY);
-  }, []);
+    closeTimerRef.current = setTimeout(closePanel, HOVER_CLOSE_DELAY);
+  }, [closePanel]);
 
   const handleItemHover = useCallback((index: number) => {
     setHoveredIndex(index);
   }, []);
 
+  // Scroll the active item into view once the panel mounts.
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      activeItemRef.current?.scrollIntoView({ block: 'center' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
+
+  // Escape closes, as it did when this was a Radix popover (its dismissable
+  // layer handled it for us).
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      if (openTimerRef.current) clearTimeout(openTimerRef.current);
+      closePanel();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, closePanel]);
+
+  // Unmount the panel after its exit animation has played.
+  useEffect(() => {
+    if (open || !present) return;
+    const timer = setTimeout(() => setPresent(false), PANEL_EXIT_MS);
+    return () => clearTimeout(timer);
+  }, [open, present]);
+
   if (userMessages.length === 0) return null;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <div
+      role="navigation"
+      aria-label="Message navigation minimap"
+      className="absolute right-0 top-1/2 z-10 -translate-y-1/2 cursor-default"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Docked panel: flush with the list's right edge, covering the lines.
+          It is a sibling of the scroll container (see MessageList), so nothing
+          between here and the app shell scrolls or clips — an anchored overlay
+          stays put and `scrollIntoView` below cannot drag the transcript. */}
+      {present && (
         <div
-          role="navigation"
-          aria-label="Message navigation minimap"
-          className="absolute right-0 top-1/2 z-10 flex -translate-y-1/2 cursor-default flex-col items-end gap-1.5 rounded-l py-2 pl-1 transition-opacity [&:not(:hover)]:opacity-60 hover:opacity-90"
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
+          id={panelId}
+          className={cn(
+            VIBRANCY_OVERLAY_CONTENT,
+            OVERLAY_BG,
+            'absolute right-0 top-1/2 flex max-h-[50vh] w-64 origin-right -translate-y-1/2 flex-col overflow-hidden rounded-l-surface p-0 backdrop-blur-md',
+            open ? 'animate-in fade-in-0 zoom-in-95' : 'animate-out fade-out-0 zoom-out-95',
+          )}
         >
-          {userMessages.map(({ node }, position) => (
-            <div
-              key={node.id}
-              className="rounded-full transition-colors"
-              style={{
-                width: `${getLineWidth(position, userMessages.length, maxLineWidth)}px`,
-                height: '1.5px',
-                backgroundColor:
-                  position === activePosition
-                    ? 'var(--system-accent)'
-                    : 'color-mix(in srgb, var(--muted-foreground) 50%, transparent)',
-              }}
-            />
-          ))}
-        </div>
-      </PopoverTrigger>
-      <PopoverContent
-        side="left"
-        align="center"
-        className={`max-h-[50vh] w-64 overflow-hidden ${OVERLAY_BG} p-0 backdrop-blur-md`}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          // Scroll active item into view when popover opens
-          requestAnimationFrame(() => {
-            activeItemRef.current?.scrollIntoView({ block: 'center' });
-          });
-        }}
-        onCloseAutoFocus={(event) => event.preventDefault()}
-      >
-        <div className="flex flex-col gap-0.5 overflow-y-auto p-1 scrollbar-none">
-          {userMessages.map(({ node, index }, position) => {
-            const isActive = position === activePosition;
-            const isHovered = hoveredIndex === index;
-            return (
-              <button
-                key={node.id}
-                ref={isActive ? activeItemRef : undefined}
-                type="button"
-                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
-                  isActive || isHovered ? 'bg-[var(--system-accent)]/10' : 'hover:bg-foreground/7'
-                }`}
-                onClick={() => {
-                  onScrollToIndex(index);
-                  setOpen(false);
-                }}
-                onMouseEnter={() => handleItemHover(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
-              >
-                <span
-                  className={`min-w-0 flex-1 truncate text-caption ${
-                    isActive || isHovered ? 'text-[var(--system-accent)]' : 'text-foreground'
+          <div className="flex flex-col gap-0.5 overflow-y-auto p-1 scrollbar-none">
+            {userMessages.map(({ node, index }, position) => {
+              const isActive = position === activePosition;
+              const isHovered = hoveredIndex === index;
+              return (
+                <button
+                  key={node.id}
+                  ref={isActive ? activeItemRef : undefined}
+                  type="button"
+                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+                    isActive || isHovered ? 'bg-[var(--system-accent)]/10' : 'hover:bg-foreground/7'
                   }`}
-                  title={node.text.split('\n')[0] || 'Empty message'}
+                  onClick={() => {
+                    onScrollToIndex(index);
+                    closePanel();
+                    // The button unmounts with the panel; hand focus back to the
+                    // list it just scrolled instead of dropping it on <body>.
+                    containerRef.current?.focus();
+                  }}
+                  onMouseEnter={() => handleItemHover(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
                 >
-                  {node.text.split('\n')[0] || 'Empty message'}
-                </span>
-                <span className="shrink-0 text-2xs text-muted-foreground">
-                  {formatTime(node.sentAt)}
-                </span>
-              </button>
-            );
-          })}
+                  <span
+                    className={`min-w-0 flex-1 truncate text-caption ${
+                      isActive || isHovered ? 'text-[var(--system-accent)]' : 'text-foreground'
+                    }`}
+                    title={node.text.split('\n')[0] || 'Empty message'}
+                  >
+                    {node.text.split('\n')[0] || 'Empty message'}
+                  </span>
+                  <span className="shrink-0 text-2xs text-muted-foreground">
+                    {formatTime(node.sentAt)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </PopoverContent>
-    </Popover>
+      )}
+      {/* Line ticks. 1px height + 7px gap = 8px pitch: an integer number of
+          device pixels at DPR 1/1.25/1.5/1.75/2, so every line rasterizes at the
+          same thickness. The old 1.5px + 6px = 7.5px pitch landed on different
+          subpixel phases per line on non-2x displays. */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-label="Jump to a message"
+        onFocus={openPanel}
+        onBlur={(event) => {
+          const nextTarget = event.relatedTarget;
+          if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+          closePanel();
+        }}
+        className={`flex flex-col items-end gap-[7px] rounded-l py-2 pl-1 outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring ${
+          open ? 'opacity-0' : '[&:not(:hover)]:opacity-60 hover:opacity-90'
+        }`}
+      >
+        {userMessages.map(({ node }, position) => (
+          <div
+            key={node.id}
+            className="rounded-full transition-colors"
+            style={{
+              width: `${getLineWidth(position, userMessages.length, maxLineWidth)}px`,
+              height: '1px',
+              backgroundColor:
+                position === activePosition
+                  ? 'var(--system-accent)'
+                  : 'color-mix(in srgb, var(--muted-foreground) 50%, transparent)',
+            }}
+          />
+        ))}
+      </div>
+    </div>
   );
 });
