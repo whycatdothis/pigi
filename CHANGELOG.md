@@ -6,6 +6,7 @@
 
 - Closing the minimap list by moving the pointer away no longer flashes the whole list for one frame before it disappears: the exit animation holds its final invisible values until the list unmounts
 - Ordered list items sit at the prose step instead of the tight bulleted-list gap, so a numbered list of one- or two-line steps reads as separate items at every text size
+- One pi settings write disabled every control on the page for the length of the worker round trip; only the fields a write carries go inert now, so the rest of the page stays editable
 
 ## [0.4.23] - 2026-10-27
 
@@ -33,7 +34,6 @@
 
 ### Fixed
 
-- One pi settings write disabled every control on the page for the length of the worker round trip; only the fields a write carries go inert now, so the rest of the page stays editable
 - The pi settings pages load in an unfocused or occluded window; they used to wait for an animation frame that such a window never produces
 - Opening Appearance, Chat or Shortcuts no longer reads pi's settings files, and a pi settings value outside its declared range is refused instead of written
 - A settings file that cannot be parsed is left alone instead of being replaced with the old localStorage value
