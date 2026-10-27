@@ -33,7 +33,10 @@ function QueueBar({
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <div className="rounded-t-surface-xl bg-muted px-4 pb-15 pt-2 text-caption text-muted-foreground">
+    <div
+      data-testid="streaming-queue-bar"
+      className="rounded-t-surface-xl bg-muted px-4 pb-15 pt-2 text-caption text-muted-foreground"
+    >
       <div className="flex items-center gap-1">
         {icon}
         {children}

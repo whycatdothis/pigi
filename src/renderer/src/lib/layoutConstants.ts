@@ -55,10 +55,13 @@ export const TERMINAL_MIN_HEIGHT = 120;
 /** Cap the panel at this fraction of the window height. */
 export const TERMINAL_MAX_HEIGHT_RATIO = 0.8;
 
-/** Visible rise per streaming-queue bar: bar height (pt-2 + caption line +
- *  pb-15, about 85px) minus the -mt-14 stack overlap (56px). Must track those
- *  classes in StreamingQueue. */
-export const STREAMING_QUEUE_BAR_STEP_PX = 29;
+/** Visible rise per streaming-queue bar. The bar is `pt-2` (8) + one
+ *  `text-caption` line + `pb-15` (60), and every bar after the first overlaps the
+ *  one below by `-mt-14` (56). The caption step ships no line-height, so its line
+ *  is the inherited body 1.6 × 13px = 20.8px: 8 + 20.8 + 60 − 56 = 32.8, rounded
+ *  up. This drifted once when the bar's step was renamed and nothing measured it,
+ *  so a browser test compares this number to the rendered bar. */
+export const STREAMING_QUEUE_BAR_STEP_PX = 33;
 
 export const SIDEBAR_DEFAULT_WIDTH = 244;
 export const SIDEBAR_MIN_WIDTH = 220;

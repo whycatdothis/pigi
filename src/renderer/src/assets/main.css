@@ -65,6 +65,9 @@
     width: 14px;
     height: 14px;
     border-radius: var(--radius-full);
+    /* A 50% radius plus the inherited superellipse is not a circle; the thumb is
+       a circle, so it opts out like `.rounded-full` does. */
+    corner-shape: round;
     background: var(--system-accent);
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
   }
