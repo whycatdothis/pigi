@@ -1,8 +1,8 @@
 import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ShortcutKbd, ShortcutKbdSpacer } from '../../shortcuts/shortcutKbd';
+import { ShortcutKbd } from '../../shortcuts/shortcutKbd';
 import { Button } from '../ui/button';
-import { COMPACT_KBD_CLASS_NAME, HOVER_REVEAL_KBD_CLASS_NAME } from '../ui/kbd';
+import { HOVER_REVEAL_KBD_CLASS_NAME } from '../ui/kbd';
 import { Textarea } from '../ui/textarea';
 
 interface QuoteCommentEditorProps {
@@ -82,18 +82,15 @@ export default function QuoteCommentEditor({
         type="button"
         variant="outline"
         size="xs"
-        className="gap-1.5 self-end"
+        // Symmetric padding sized to hold the hint in the trailing one, so the
+        // label stays centered and the button stays narrow.
+        className="relative self-end px-5"
         onClick={() => onSave(comment.trim())}
       >
-        {/* The spacer keeps Save centered once the hover hint shows. */}
-        <ShortcutKbdSpacer
-          binding={{ key: 'Enter' }}
-          className={`${COMPACT_KBD_CLASS_NAME} ${HOVER_REVEAL_KBD_CLASS_NAME}`}
-        />
         Save
         <ShortcutKbd
           binding={{ key: 'Enter' }}
-          className={`${COMPACT_KBD_CLASS_NAME} ${HOVER_REVEAL_KBD_CLASS_NAME}`}
+          className={`${HOVER_REVEAL_KBD_CLASS_NAME} absolute inset-y-0 right-0.5 my-auto h-4 min-w-3.5 px-0.5 text-3xs`}
         />
       </Button>
     </div>
