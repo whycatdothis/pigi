@@ -88,6 +88,27 @@ measurement ref and cache heights from the virtualizer's measurements, avoiding
 an extra synchronous height read per row on every resize render. Bottom-follow
 and user-controlled history reading remain owned by the scroll controller.
 
+### Why the renderer avoids viewport media queries
+
+Tailwind v4 output is layered, and Blink treats any rule-set change in a layered
+stylesheet as a change to every rule in it: each breakpoint crossing during a
+native window resize rebuilds the font cache, invalidates every font and re-runs
+style and layout for the whole document (60-80ms per crossing). This is a
+desktop app with a fixed minimum width, so the desktop style is written
+unconditionally. Enforced by an ESLint rule and `scripts/checkCssMediaQueries.mjs`
+in `npm run build`.
+
+### Why long animations are restricted to the compositor
+
+A spinner or shimmer must keep moving while the main thread streams a reply, so
+it may animate only `transform` and `opacity`. Chromium cannot composite a
+`transform` on an `<svg>` (the transform depends on the svg's box size), which is
+why a rotating icon is a wrapper around the svg (`SpinningIcon`,
+`src/renderer/src/components/ui/spinningIcon.tsx`). Short click-triggered
+transitions (a chevron rotating) are exempt. To check an animation, record a
+trace with the `blink.animations` category and look for `compositeFailed: 0` on
+its `Animation` event.
+
 ## Message List Bottom Follow
 
 One writer, one state, input-only transitions (`useMessageListScrollController`):
