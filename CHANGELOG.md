@@ -4,78 +4,36 @@
 
 ### Added
 
-- Code theme picker on the Appearance page: 18 themes (Ayu, Catppuccin, Everforest, GitHub, Gruvbox, Horizon, Kanagawa, Material, Min, Night Owl, Nord, One, Plus, Rosé Pine, Rosé Pine Moon, Slack, Solarized, Vitesse), each with a light and a dark Shiki theme chosen by the code surface's luminance and retinted to the 3:1 token floor
-- Code and diagrams share one "Code & diagrams" heading but each has its own card, with a specimen directly under its picker instead of one shared preview at the bottom of the group
-- The mermaid diagram theme moved from the Chat page to Appearance, onto its own Diagrams card above a live specimen, next to the Code card's own code specimen: each picker redraws the real component under it
-- Diagrams no longer follow the app's mode: the "Follow the app" choice is gone and Mermaid's default palette is the starting point, so a diagram looks the same in a light and a dark window (a stored `auto` falls back to it)
-- A semantic design-token layer (`semanticTokens.css`): radius, spacing, elevation and motion are named by role, `scripts/checkDesignTokens.mjs` rejects hard-coded values in `npm run check`, and `docs/design-system.md` documents the scale
-- `__designTokens()` in dev builds renders every token against the live theme
-- Settings page: the sidebar footer's Settings menu (or ⌘ ,) swaps the sidebar and the main area for a full-page settings view that closes with the top bar or Esc
-- Pi settings in the app: models and thinking, message delivery, compaction, retries, resource paths, and shell/network/security, with a Global / This project switch that writes to pi's `settings.json`
-- pigi settings: appearance (mode, accent, background and foreground colors, fonts, contrast), the default tool view, and the mermaid theme diagrams are drawn in
-- Named themes in the Appearance page: pigi, GitHub, Catppuccin, Nord, Gruvbox, Everforest, Notion, Linear
-- Copy the current look as a theme and paste one back in from the Appearance page
-- Mermaid diagrams: a ` ```mermaid ` block in a message is drawn as a diagram, with a switch in its header to read or copy the source. Diagrams follow the app's theme, are drawn as they stream in once their closing fence arrives, and can be clicked to open a zoom overlay — in the overlay the wheel, a pinch or a trackpad zoom the drawing, dragging or two fingers pan it, and Escape or a click on the background closes it. The text inside a diagram can be selected and found with the transcript's search. A diagram that cannot be parsed keeps its source and says so
-
-### Fixed
-
-- The pi settings pages load in a window that is occluded or in the background: the first read waited for an animation frame, which such a window never produces, so the page sat on "Could not read pi settings" until it was focused
-- Opening the Appearance, Chat or Shortcuts pages no longer reads pi's settings files in the session worker; only the pi sections do
-- A pi settings value outside its declared range (a negative retry count, a year-long timeout) is refused at the boundary instead of being written to `settings.json`, and the number fields clamp to the same range so the control cannot produce one
-- A `settings.json` that exists but cannot be parsed is left alone instead of being replaced by the value the app used to keep in localStorage
-- Dragging the background color picker no longer registers a new code theme per frame: the theme cache is bounded and surfaces are quantized before they become cache keys
-- A settings change made in the first second after a migration from localStorage can no longer be overwritten by the migration write arriving late
-- Message spacing: the gaps inside a reply now follow the text size instead of sitting at a fixed 14px, list items keep the block rhythm when a table or a code block follows their text (they used to collapse to the 3px item gap, so text and its table read as flush), and only the last row of a reply keeps the hover action band — tool cards and intermediate paragraphs no longer reserve 25px of empty space each
-- Message rhythm follows two rules: neighbours of the same kind sit at that kind's step (12px for prose against prose, 15px for a card against a card) and any change of kind takes a much wider step (27px at the default text size), so a paragraph, a tool card and a thinking card each read as their own group instead of blending into one column
-- Markdown headings follow the text size instead of keeping fixed rem margins, with a bottom margin that deepens by heading level and a top margin 1.8× the bottom one
-- Every rhythm step inside a reply grew by about a third (paragraph gap 9 → 12)
-- Switch tracks are 20px instead of 18.4px, so the thumb sits on whole pixels with a 2px gap above and below instead of a fractional 1.2px that rendered unevenly
-- The font pickers no longer list their default twice: the empty "System" / "System mono" entry is gone and the slot's null value maps onto the family it falls back to, so code font now reads "SF Mono"
-- Font picker values are left-aligned instead of pushed to the right edge of a 136px control
-- Tool status, diff, toast, and warning colors come from the theme's success, warning, danger, and info pairs, so they stay readable in dark mode instead of using fixed light-mode hex values
-- The terminal follows the code font and code size settings
-- Native window chrome and menus follow the chosen appearance instead of only the system setting
-- Code blocks follow the app theme: dark mode highlights with a dark palette instead of the light one, and every token color keeps at least 3:1 contrast against the code background in both modes
-- Messages: a code block in a reply that is still arriving is highlighted on a throttle instead of on every chunk, so streaming a long one no longer re-tokenizes the whole block dozens of times a second — tool output already did this, message text was left out
-- Checking again during the two-second "pigi is up to date" countdown no longer has the old timer pull the window away mid-check
-- An update window opened while a background check runs now closes itself when that check finds nothing, instead of sitting on "auto closing in 1s"
-- An install Squirrel never finishes returns to "ready to install" after 20 seconds, so updates can be checked again
-- A status that arrives while a window is still reading the current one is no longer overwritten by the older answer
-- The update window resets its zoom whenever it appears, so View-menu zoom can no longer clip its own buttons, and only that window can resize it
+- A full-page settings view (⌘ ,): Appearance, Chat and Shortcuts for pigi, and Models & Thinking, Message Delivery, Compaction, Retry, Resources and Advanced for pi, with a Global / This project switch that writes to pi's `settings.json`
+- Appearance settings: mode with a live preview, accent, background and foreground colors, contrast, text and code fonts and sizes
+- Named themes (pigi, GitHub, Catppuccin, Nord, Gruvbox, Everforest, Notion, Linear), plus copying the current look out as a theme file and pasting one back in
+- 18 code themes and 12 diagram themes, each with a real code block or diagram redrawn under its picker as you choose
+- Mermaid diagrams in messages: drawn as they stream, with a source switch, a zoom overlay (wheel, pinch, drag, Escape), and text that stays selectable and searchable
+- A design-token layer for radius, spacing, elevation and motion, with `docs/design-system.md`, a check that fails the build on hard-coded values, and `__designTokens()` in dev builds to render the set
 
 ### Changed
 
-- Typography has two families instead of three: one text family for messages and the app itself, and one monospace family for code. "Content font" is gone, and a stored content family becomes the text family so an existing choice survives
-- Markdown headings and tables follow the text size setting: heading sizes are em against the body (1.6/1.333/1.133) instead of fixed at 24/20/17px, so at 18px the structure scales with the prose
-- The minimal view's shimmer no longer paints a white band over the background: the sweep is a clip window over a brighter copy of the glyphs, so a tinted or dark background shows no smear
-- The panel toggle icon is drawn with a superellipse corner like every other rounded box
-- The composer moves up to 28px on a new `--radius-surface-xl` tier between the bubble and container sizes; the queue bar above it, the branch strip under it and the drag overlay follow, so the whole stack keeps one silhouette
-- Transcript surfaces step down one radius tier: markdown code blocks 16 → 14, and tool blocks, thinking blocks and read groups 20 → 16
-- Markdown tables drop from 16px to a 10px corner: a 1px hairline grid reads heavier than the filled code block beside it at the same value
-- The Chat settings page is one row: a "Default view" segmented control instead of three described option blocks that filled the page to say the same thing
-- pigi's own settings moved from `localStorage` to `settings.json` in the app data folder (`~/Library/Application Support/pigi/settings.json`), so they can be backed up and edited by hand; the existing value is migrated on first launch and the localStorage key is removed
-- The main process reads that file before it creates the window, so the native theme and the window background are correct from the first frame instead of waiting for the renderer to say so; writes are atomic and debounced 150 ms, flushed on window close, and a failed write now shows an error instead of being swallowed
-- Solid buttons, the checked switch and the sidebar's primary action use the theme accent: `primary` finally means the brand colour instead of a neutral fill, and the composer's send button and the updater's button no longer override it by hand
-- The accent splits into two values, as GitHub's `accent.emphasis` / `accent.fg` do: a fill that stays dark enough for a white label in both modes, and a text accent that is lifted above it in dark mode so links, icons and rails clear 4.5:1 against the page. Filled buttons keep one weight across modes instead of flipping to black labels
-- Accents are clamped to bands (lightness 0.45-0.58 light, 0.50-0.60 dark for the fill, 0.66-0.80 dark for the text accent, chroma 0.06-0.22), and the fill walks down until its white label clears 4.6:1
-- Primary buttons hover away from the page instead of fading toward it: darker on light, lighter on dark, where a 90% fill used to read as pressed
+- pigi's settings moved from localStorage to `settings.json` in the app data folder, migrated on first launch, written atomically and debounced
+- The accent is the theme colour: solid buttons, the checked switch and the sidebar action use it, split into a fill that keeps its white label readable and a text accent that clears 4.5:1 for links and icons
+- Corners are superellipses everywhere, sized by role: transcript surfaces one tier below cards, the composer one above, markdown tables a single 10px step
+- Typography has two families (text and code). Markdown headings and tables follow the text size instead of fixed pixels
+- Message spacing follows the text size and two rules: same kind of block sits at its own step, a change of kind sits wider. Only the last row of a reply keeps the hover action band, and a table or code block after list text is no longer flush against it
+- The Chat settings page is one row: a Default view switch instead of three described options
+- The minimal view's shimmer sweeps a clip window over brighter glyphs instead of painting a white band over the background
 
-- Every control shares one radius: inputs, selects, the theme picker, buttons and sidebar rows use the 14px control token instead of a mix of 9.6, 10 and 12
-- The theme previews use a 16px frame with a 12px mini window inside; the selection ring, the edge ring and the drawing's background all share the frame radius, so the ring hugs the picture
-- Transcript surfaces use one tier per role: 24 for message bubbles, 20 for cards (tool, thinking, read group, branch summary, error notices, menus), 16 for blocks embedded in prose (code, tables, images), 6 for inline code
-- The composer and the queue bar above it drop from 36px to 24px, matching the bubble tier; a 112px-tall composer was reading as more round than anything next to it
-- Headers and footers inside a card inherit its radius instead of declaring a smaller one, which left a notch in the tool block status bar
+### Fixed
 
-- Corners are continuous: every rounded surface uses `corner-shape: superellipse(1.5)`, which leaves the straight edge with zero curvature instead of jumping to a quarter circle; markdown tables opt back into `round` where their cells paint over the border arc
-- Radii grow with the surfaces they belong to: settings cards 38, the composer 40, tool blocks 24, message bubbles 21.6, thinking blocks and collapsed read groups 20, code blocks 18, and controls 12 (`--radius` moves from 10 to 12)
-- Blue replaces indigo as the default accent
-- Settings pages drop the top bar: the section name is a page heading in the content column, and the scope switch and reload button sit beside it
-- Default contrast drops from 73 to 30, so the shipped palette is softer; the slider still goes back up to the original steps
-- Picking an accent applies it to both modes, while background, foreground, contrast, and fonts stay per mode
-- Settings pages share one type and surface scale: solid cards with a real 1px edge, a single radius scale, 13px control text with tabular numerals, and a narrower column
-- Keyboard shortcuts are editable from the settings page, with duplicate-binding detection and per-shortcut reset
-- Appearance settings apply immediately and cover typography: separate UI, content, and code font sizes and families, reduce motion, a translucent-sidebar switch, font smoothing, and separate light and dark palettes
-- Messages and tool output: a code block that is still arriving rebuilds only the text that came in with the chunk, not every highlighted line above it — a file being written streams in chunk-sized work instead of milliseconds per chunk that grow with the file
+- The pi settings pages load in an unfocused or occluded window; they used to wait for an animation frame that such a window never produces
+- Opening Appearance, Chat or Shortcuts no longer reads pi's settings files, and a pi settings value outside its declared range is refused instead of written
+- A settings file that cannot be parsed is left alone instead of being replaced with the old localStorage value
+- Code blocks keep one theme per surface instead of registering a new one for every frame of a colour-picker drag
+- Switch tracks are 20px, so the thumb sits on whole pixels
+- The font pickers no longer list their default twice, and their values are left-aligned
+- Tool status, diff, toast and warning colours follow the theme, so they stay readable in dark mode
+- The terminal follows the code font and size; native window chrome and menus follow the chosen appearance
+- Code blocks use a dark palette in dark mode, every token clearing 3:1 against the code background
+- A code block that is still streaming is highlighted on a throttle instead of on every chunk
+- Update checks no longer pull the window mid-countdown, the update window closes itself when a background check finds nothing, and an install Squirrel never finishes returns to "ready to install"
 
 ## [0.4.22] - 2026-10-24
 

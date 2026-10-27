@@ -338,6 +338,18 @@ export function TextField({
   );
 }
 
+interface StringListRow {
+  /** Stable across edits: removing a row must not renumber the ones below it. */
+  id: number;
+  text: string;
+}
+
+let nextStringListRowId = 0;
+
+function stringListRows(entries: readonly string[]): StringListRow[] {
+  return entries.map((text) => ({ id: nextStringListRowId++, text }));
+}
+
 /** Editable list of strings; empty rows are dropped and an empty list clears the field. */
 export function StringListField({
   value,
@@ -352,7 +364,7 @@ export function StringListField({
   disabled?: boolean;
   addLabel: string;
 }): React.JSX.Element {
-  const [rows, setRows] = useState<string[]>(() => [...(value ?? [])]);
+  const [rows, setRows] = useState<StringListRow[]>(() => stringListRows(value ?? []));
   // Compare by content: a new snapshot re-creates every array, and
   // in-progress edits must not be reset just because the reference changed.
   const valueKey = JSON.stringify(value ?? []);
@@ -360,25 +372,24 @@ export function StringListField({
 
   if (valueKey !== lastValueKey) {
     setLastValueKey(valueKey);
-    setRows([...(value ?? [])]);
+    setRows(stringListRows(value ?? []));
   }
 
-  function commit(nextRows: string[]): void {
-    const cleaned = nextRows.map((row) => row.trim()).filter((row) => row.length > 0);
-    setRows(cleaned);
+  function commit(nextRows: StringListRow[]): void {
+    const cleaned = nextRows.map((row) => row.text.trim()).filter((row) => row.length > 0);
+    setRows(stringListRows(cleaned));
     onCommit(cleaned.length > 0 ? cleaned : null);
   }
 
   return (
     <div className="flex flex-col gap-1.5">
-      {rows.map((row, index) => (
-        <div key={index} className="flex items-center gap-1.5">
+      {rows.map((row) => (
+        <div key={row.id} className="flex items-center gap-1.5">
           <Input
-            value={row}
+            value={row.text}
             onChange={(event) => {
-              const next = [...rows];
-              next[index] = event.target.value;
-              setRows(next);
+              const text = event.target.value;
+              setRows(rows.map((entry) => (entry.id === row.id ? { ...entry, text } : entry)));
             }}
             onBlur={() => commit(rows)}
             onKeyDown={(event) => {
@@ -400,7 +411,7 @@ export function StringListField({
             size="icon-xs"
             aria-label="Remove entry"
             disabled={disabled}
-            onClick={() => commit(rows.filter((_, rowIndex) => rowIndex !== index))}
+            onClick={() => commit(rows.filter((entry) => entry.id !== row.id))}
             className="text-muted-foreground hover:text-foreground"
           >
             <IconX />
@@ -412,7 +423,7 @@ export function StringListField({
         variant="outline"
         size="xs"
         disabled={disabled}
-        onClick={() => setRows([...rows, ''])}
+        onClick={() => setRows([...rows, { id: nextStringListRowId++, text: '' }])}
         className="w-fit text-muted-foreground"
       >
         <IconPlus data-icon="inline-start" />
