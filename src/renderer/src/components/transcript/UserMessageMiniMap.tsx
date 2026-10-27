@@ -25,6 +25,18 @@ function formatTime(timestamp: number): string {
 
 const HOVER_OPEN_DELAY = 200;
 const HOVER_CLOSE_DELAY = 300;
+/** Slack on top of the exit animation before the fuse fires; see the effect. */
+const EXIT_FUSE_SLACK = 200;
+const EMPTY_MESSAGE_PREVIEW = 'Empty message';
+
+/** `animation-duration` lists one value per animation; the exit runs one. */
+function firstDurationMs(durations: string): number {
+  const [first = ''] = durations.split(',');
+  const value = first.trim();
+  const amount = Number.parseFloat(value);
+  if (Number.isNaN(amount)) return 0;
+  return value.endsWith('ms') ? amount : amount * 1000;
+}
 const LINE_WIDTH_MAX_CAP = 48;
 const LINE_WIDTH_RIGHT_MARGIN = 8;
 const LINE_WIDTH_MIN_CAP = 8;
@@ -111,11 +123,14 @@ export default React.memo(function UserMessageMiniMap({
   }, []);
 
   const userMessages = useMemo(() => {
-    const result: { node: UserNode; index: number }[] = [];
+    const result: { node: UserNode; index: number; preview: string }[] = [];
     for (let index = 0; index < nodes.length; index++) {
       const node = nodes[index];
       if (node.role === 'user') {
-        result.push({ node, index });
+        // The preview is the first line, and both the row's text and its title
+        // show it: splitting here keeps it once per node instead of twice per
+        // render, which matters at a few hundred messages.
+        result.push({ node, index, preview: node.text.split('\n')[0] || EMPTY_MESSAGE_PREVIEW });
       }
     }
     return result;
@@ -138,6 +153,22 @@ export default React.memo(function UserMessageMiniMap({
   const closePanel = useCallback((): void => {
     setOpen(false);
   }, []);
+
+  // A fuse under the exit animation. Unmounting on `animationend` is the
+  // mechanism, but it is the only one, and a panel that stays mounted is
+  // invisible and, without `inert` below, sits over the transcript's right edge
+  // swallowing clicks. The fuse length is read from the running exit rather than
+  // copied from a constant, so it cannot drift from the animation.
+  useEffect(() => {
+    if (open || !present) return;
+    const panel = panelRef.current;
+    const exitDuration = panel ? firstDurationMs(getComputedStyle(panel).animationDuration) : 0;
+    const fuse = setTimeout(() => {
+      setPresent(false);
+      setHoveredIndex(null);
+    }, exitDuration + EXIT_FUSE_SLACK);
+    return () => clearTimeout(fuse);
+  }, [open, present]);
 
   /** Activation from the trigger: open, then put focus on the first item.
    *  Returning focus to the trigger on close is only safe because focusing it
@@ -264,6 +295,12 @@ export default React.memo(function UserMessageMiniMap({
         <div
           ref={panelRef}
           id={panelId}
+          role="group"
+          aria-label="Jump to a message"
+          // While closing, the panel is still mounted but must not be reachable:
+          // `inert` keeps it out of hit testing, the tab order and the
+          // accessibility tree for the length of the fade.
+          inert={!open}
           onAnimationEnd={(event) => {
             // The exit keyframes end at opacity 0, but `animate-out` does not
             // fill: the moment they finish the panel snaps back to its own
@@ -278,15 +315,18 @@ export default React.memo(function UserMessageMiniMap({
           className={cn(
             VIBRANCY_OVERLAY_CONTENT,
             OVERLAY_BG,
-            // fill-mode-forwards: see the comment above. It is harmless while
-            // the enter animation runs (its implicit `to` is the element's own
-            // style, which is where it would rest anyway).
-            'absolute right-0 top-1/2 flex max-h-[50vh] w-64 origin-right -translate-y-1/2 flex-col overflow-hidden rounded-l-surface p-0 backdrop-blur-md fill-mode-forwards',
-            open ? 'animate-in fade-in-0 zoom-in-95' : 'animate-out fade-out-0 zoom-out-95',
+            'absolute right-0 top-1/2 flex max-h-[50vh] w-64 origin-right -translate-y-1/2 flex-col overflow-hidden rounded-l-surface p-0 backdrop-blur-md',
+            // fill empty only on the exit: `forwards` holds the last keyframe,
+            // which is why closing is a fade instead of a flash. On the enter it
+            // would freeze a snapshot of the element's own style taken when the
+            // animation started, and keep a finished keyframe effect alive.
+            open
+              ? 'animate-in fade-in-0 zoom-in-95'
+              : 'animate-out fade-out-0 zoom-out-95 fill-mode-forwards',
           )}
         >
           <div className="flex flex-col gap-0.5 overflow-y-auto p-1 scrollbar-none">
-            {userMessages.map(({ node, index }, position) => {
+            {userMessages.map(({ node, index, preview }, position) => {
               const isActive = position === activePosition;
               const isHovered = hoveredIndex === index;
               return (
@@ -311,9 +351,9 @@ export default React.memo(function UserMessageMiniMap({
                     className={`min-w-0 flex-1 truncate text-caption ${
                       isActive || isHovered ? 'text-[var(--system-accent)]' : 'text-foreground'
                     }`}
-                    title={node.text.split('\n')[0] || 'Empty message'}
+                    title={preview}
                   >
-                    {node.text.split('\n')[0] || 'Empty message'}
+                    {preview}
                   </span>
                   <span className="shrink-0 text-2xs text-muted-foreground">
                     {formatTime(node.sentAt)}
