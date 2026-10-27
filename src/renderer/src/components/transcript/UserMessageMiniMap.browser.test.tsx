@@ -15,7 +15,7 @@ const NODES: TranscriptNode[] = [
   { id: 'u3', role: 'user', text: 'Third question', sentAt: 1_760_000_120_000 },
 ];
 
-const PANEL_SELECTOR = '[role=group][aria-label="Jump to a message"]';
+const PANEL_SELECTOR = '[role=group][aria-label="Messages"]';
 
 /** The minimap sizes its lines from a scroll container, so it needs a real one. */
 function MiniMapHarness({
@@ -38,13 +38,12 @@ function MiniMapHarness({
 
 /** Opens the list and hands back the panel once the exit can be started. */
 async function openThenClose(): Promise<HTMLElement> {
-  const screen = await render(<MiniMapHarness onScrollToIndex={vi.fn()} />);
+  await render(<MiniMapHarness onScrollToIndex={vi.fn()} />);
   await userEvent.hover(requireElement<HTMLElement>('[role=navigation]'));
 
   const panel = await vi.waitFor(() => requireElement<HTMLElement>(PANEL_SELECTOR), {
     timeout: 2000,
   });
-  expect(screen.getByRole('group', { name: 'Jump to a message' })).toBeDefined();
 
   // Leave the minimap: closes after the hover-close delay, then runs the exit.
   await userEvent.hover(document.body);
@@ -81,6 +80,10 @@ test('only the exit holds its last frame', async () => {
 
 test('the closing list stays invisible and inert until it unmounts', async () => {
   const closingPanel = await openThenClose();
+  // The exit runs for 100ms and the wait above polls every 50ms, so the panel
+  // can already be gone here; say that plainly instead of letting a measurement
+  // of a detached element pass as a hit test.
+  expect(closingPanel.isConnected).toBe(true);
   const exitAnimation = closingPanel.getAnimations()[0];
   expect(exitAnimation).toBeDefined();
   // Two facts that hold whatever the timing is: the animation ends invisible,
@@ -103,6 +106,25 @@ test('the closing list stays invisible and inert until it unmounts', async () =>
   await vi.waitFor(() => expect(document.querySelector(PANEL_SELECTOR)).toBeNull(), {
     timeout: 3000,
   });
+});
+
+/**
+ * The fuse is the one mechanism that could kill a list the pointer came back
+ * for: it is cleared by an effect cleanup when `open` turns true again, and a
+ * cleanup that stopped running would only show up here.
+ */
+test('re-opening during the fade keeps the panel', async () => {
+  const panel = await openThenClose();
+  // Clicking the trigger re-opens at once, inside the 100ms exit. Hovering
+  // cannot test this: its own 200ms open delay outlives the fade, so the panel
+  // legitimately finishes closing and a fresh one opens afterwards.
+  requireElement<HTMLElement>('[aria-label="Jump to a message"]').click();
+
+  // Past the close delay plus the fuse: a panel that had been unmounted by the
+  // fuse is gone by now.
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  expect(panel.isConnected).toBe(true);
+  expect(getComputedStyle(panel).animationName).toBe('enter');
 });
 
 /**

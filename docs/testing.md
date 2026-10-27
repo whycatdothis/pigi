@@ -49,6 +49,9 @@ Presentational components (buttons, chips, markdown rendering) are not tested.
   keyboard sequence.
 - jsdom test files start with `// @vitest-environment jsdom` and import
   `../../testing/jsdomSetup` (matchers plus the few DOM APIs jsdom lacks).
+- `testing/domQuery.ts` has `requireElement(selector, scope)` for the browser
+  tests: they measure computed style and geometry, so they need the element
+  itself, and a query that throws beats a `null` three lines later.
 - A test that mounts a virtual list (the session tree list is one) calls
   `installViewport({ width, height })` before rendering. Without a size the list
   draws no rows at all, and a test that reads rows then measures nothing instead of
