@@ -23,7 +23,6 @@
 
 - Closing the minimap list by moving the pointer away no longer flashes the whole list for one frame before it disappears: the exit animation holds its final invisible values until the list unmounts, and the fading list is inert, so it cannot take a click or keep a tab stop. A cancel-safe timer unmounts it if the animation never reports that it ended
 - Ordered list items sit at twice the prose step (24px at the default text size) instead of the tight bulleted-list gap, so a numbered list of one- or two-line steps reads as separate actions at every text size
-- One pi settings write disabled every control on the page for the length of the worker round trip; only the fields a write carries go inert now, so the rest of the page stays editable
 
 ## [0.4.23] - 2026-10-27
 
