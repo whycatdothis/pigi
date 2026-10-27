@@ -80,7 +80,10 @@ test('the panel mounts on first open and fades in through its own transition', a
   await vi.waitFor(() => expect(Number(getComputedStyle(panel).opacity)).toBeCloseTo(1, 2));
   expect(getComputedStyle(panel).display).toBe('flex');
   // Opening used to be a keyframe animation. The state is the element's own
-  // now, so anything still animating through keyframes is a leftover.
+  // now, so anything still animating through keyframes is a leftover — and a
+  // leftover is what the shared overlay classes bring: they key off `data-open`,
+  // which is why this panel's own attribute is `data-panel-open`.
+  expect(getComputedStyle(panel).animationName).toBe('none');
   expect(
     panel.getAnimations().filter((animation) => !(animation instanceof CSSTransition)),
   ).toEqual([]);
@@ -116,7 +119,7 @@ test('the panel is inert for the fade and takes no space once closed', async () 
 test('re-opening during the fade brings the same panel back', async () => {
   const panel = await hoverOpen();
   await userEvent.hover(document.body);
-  await vi.waitFor(() => expect(panel.dataset.open).toBe('false'), { timeout: 2000 });
+  await vi.waitFor(() => expect(panel.dataset.panelOpen).toBe('false'), { timeout: 2000 });
 
   // Clicking the trigger re-opens at once, inside the fade. Hovering cannot test
   // this: its own 200ms open delay outlives the fade, so the panel legitimately
@@ -124,7 +127,7 @@ test('re-opening during the fade brings the same panel back', async () => {
   requireElement<HTMLElement>('[aria-label="Jump to a message"]').click();
 
   await vi.waitFor(() => expect(Number(getComputedStyle(panel).opacity)).toBeCloseTo(1, 2));
-  expect(panel.dataset.open).toBe('true');
+  expect(panel.dataset.panelOpen).toBe('true');
   expect(getComputedStyle(panel).display).toBe('flex');
   expect(panel.inert).toBe(false);
 });
