@@ -55,7 +55,7 @@ function DialogContent({
         data-slot="dialog-content"
         onOpenAutoFocus={(event) => event.preventDefault()}
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 max-w-[550px] outline-none',
+          'fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 max-w-[550px]',
           VIBRANCY_OVERLAY_CONTENT,
           className,
         )}

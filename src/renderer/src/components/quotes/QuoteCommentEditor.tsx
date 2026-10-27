@@ -1,8 +1,6 @@
 import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ShortcutKbd } from '../../shortcuts/shortcutKbd';
 import { Button } from '../ui/button';
-import { PRIMARY_BUTTON_KBD_CLASS_NAME } from '../ui/kbd';
 import { Textarea } from '../ui/textarea';
 
 interface QuoteCommentEditorProps {
@@ -80,12 +78,12 @@ export default function QuoteCommentEditor({
       />
       <Button
         type="button"
-        size="xs"
-        className="gap-1.5 self-end pr-1"
+        variant="outline"
+        size="sm"
+        className="self-end"
         onClick={() => onSave(comment.trim())}
       >
         Save
-        <ShortcutKbd binding={{ key: 'Enter' }} className={PRIMARY_BUTTON_KBD_CLASS_NAME} />
       </Button>
     </div>
   );

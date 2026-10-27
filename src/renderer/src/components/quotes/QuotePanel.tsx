@@ -251,14 +251,22 @@ export default React.memo(function QuotePanel({
       <div className="flex shrink-0 justify-center border-t-[0.5px] border-foreground/27 p-3">
         <Button
           type="button"
-          className="w-3/5 max-w-60 gap-1.5"
+          className="w-3/5 max-w-60"
           disabled={!canSend}
           onClick={() => void handleSend()}
         >
-          Send
-          {sendShortcut && (
-            <ShortcutKbd binding={sendShortcut} className={PRIMARY_BUTTON_KBD_CLASS_NAME} />
-          )}
+          {/* The label is the button's only in-flow child, so it stays centered;
+              the hint hangs off the label's trailing edge, out of flow, and no
+              layout shifts when it fades in. */}
+          <span className="relative inline-flex items-center">
+            Send
+            {sendShortcut && (
+              <ShortcutKbd
+                binding={sendShortcut}
+                className={`${PRIMARY_BUTTON_KBD_CLASS_NAME} absolute inset-y-0 left-full my-auto ml-1.5 opacity-0 transition-opacity group-hover/button:opacity-100 group-focus-visible/button:opacity-100`}
+              />
+            )}
+          </span>
         </Button>
       </div>
     </div>

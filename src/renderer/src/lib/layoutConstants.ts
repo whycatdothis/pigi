@@ -93,8 +93,13 @@ export function sidebarToggleLeft(platform: Platform): number {
 }
 
 /** Used by Dialog, Popover, and ContextMenu — these need backdrop-blur but blur renders incorrectly in vibrant regions, so they use a separate configuration. */
+/**
+ * The hairline is an outline, not a ring: a 0.5px box-shadow loses the whole arc
+ * of a 20px corner to antialiasing (the straight edges draw, the curves vanish),
+ * while an outline keeps 0.5px all the way round.
+ */
 export const VIBRANCY_OVERLAY_CONTENT =
-  'rounded-surface bg-popover/88 backdrop-blur-sm p-4 text-sm text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25 outline-hidden duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
+  'rounded-surface bg-popover/88 backdrop-blur-sm p-4 text-sm text-popover-foreground shadow-md outline-[0.5px] outline-foreground/25 duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
 
 /** Background color used by transparent floating panels. */
 export const OVERLAY_BG = 'bg-popover/40';

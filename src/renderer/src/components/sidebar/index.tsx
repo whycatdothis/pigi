@@ -11,7 +11,7 @@ import { SidebarToggle } from './sidebarToggle';
 import type { PiSessionInfo } from '../../../../shared/ipcContract';
 import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
-import { Kbd } from '../ui/kbd';
+import { Kbd, MENU_ROW_KBD_CLASS_NAME } from '../ui/kbd';
 import { isSessionRunning } from './utils';
 import { TooltipProvider } from '../ui/tooltip';
 import {
@@ -226,7 +226,7 @@ export default memo(function Sidebar({
               <SidebarMenuButton onClick={onNewSession}>
                 <IconMessageCirclePlus data-icon="inline-start" />
                 <span>New chat</span>
-                <Kbd className="ml-auto hidden shrink-0 group-hover/menu-item:inline-flex">
+                <Kbd className={MENU_ROW_KBD_CLASS_NAME}>
                   {formatShortcutLabel(
                     shortcutBindings?.get('sidebar.newChat') ??
                       ({ key: 'n', meta: true } satisfies ShortcutBinding),
@@ -238,7 +238,7 @@ export default memo(function Sidebar({
               <SidebarMenuButton onClick={onOpenProject}>
                 <IconFolderPlus data-icon="inline-start" />
                 <span>Open project</span>
-                <Kbd className="ml-auto hidden shrink-0 group-hover/menu-item:inline-flex">
+                <Kbd className={MENU_ROW_KBD_CLASS_NAME}>
                   {formatShortcutLabel(
                     shortcutBindings?.get('sidebar.openProject') ??
                       ({ key: 'o', meta: true } satisfies ShortcutBinding),
@@ -307,9 +307,16 @@ export default memo(function Sidebar({
                   sideOffset={2}
                   className="w-60 menu-content flex flex-col gap-1"
                 >
-                  <MenuItem onClick={onOpenSettings}>
+                  {/* The hint is hover-only, so the row carries its own group. */}
+                  <MenuItem onClick={onOpenSettings} className="group/menu-item">
                     <IconSettings />
                     <span>Settings</span>
+                    <Kbd className={MENU_ROW_KBD_CLASS_NAME}>
+                      {formatShortcutLabel(
+                        shortcutBindings?.get('settings.open') ??
+                          ({ key: ',', meta: true } satisfies ShortcutBinding),
+                      )}
+                    </Kbd>
                   </MenuItem>
                   {pendingUpdateVersion === null ? (
                     <MenuItem onClick={onCheckForUpdates}>

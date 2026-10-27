@@ -49,12 +49,10 @@ export function normalizeQuoteText(text: string): string {
  * The plain-text message that sends every quote in one turn:
  *
  *   Comments on quoted passages:
- *   1.
- *   > first quoted line
+ *   1. > first quoted line
  *   > second quoted line
  *   the comment
- *   2.
- *   ...
+ *   2. > ...
  *   Global comment:
  *   the comment on all of them
  *
@@ -62,7 +60,8 @@ export function normalizeQuoteText(text: string): string {
  *
  * The `> ` prefix already separates the quoted text from the comment and the
  * numbers separate the quotes, so neither needs a label or a blank line; that
- * keeps the message short.
+ * keeps the message short. The number opens the quote's first line instead of
+ * standing on a line of its own.
  */
 export function formatQuotesMessage(
   quotes: readonly MessageQuote[],
@@ -71,7 +70,7 @@ export function formatQuotesMessage(
   const sections = quotes.map((quote, index) => {
     const quotedLines = quote.text.split('\n').map((line) => (line ? `> ${line}` : '>'));
     const comment = quote.comment.trim();
-    const lines = [`${index + 1}.`, ...quotedLines];
+    const lines = [`${index + 1}. ${quotedLines[0]}`, ...quotedLines.slice(1)];
     if (comment) {
       lines.push(comment);
     }

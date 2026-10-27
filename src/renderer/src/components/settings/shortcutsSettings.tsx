@@ -5,7 +5,7 @@ import type { ShortcutBinding, ShortcutDefinition } from '../../../../shared/ipc
 import { useShortcutsStore } from '../../state/shortcutsStore';
 import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
 import { shortcutKeyFromEvent } from '../../shortcuts/shortcutKey';
-import { Kbd } from '../ui/kbd';
+import { COMPACT_KBD_CLASS_NAME, Kbd } from '../ui/kbd';
 import { Button } from '../ui/button';
 import { SettingsGroup, SettingsHint, SettingsRow } from './settingsControls';
 
@@ -153,7 +153,7 @@ export function ShortcutsSettings(): React.JSX.Element {
                 </span>
               ) : (
                 <>
-                  <Kbd className="min-w-14 justify-center border border-foreground/10 px-2 whitespace-nowrap">
+                  <Kbd className="min-w-14 justify-center px-2 whitespace-nowrap">
                     {formatShortcutLabel(definition.binding)}
                   </Kbd>
                   <Button
@@ -179,8 +179,16 @@ export function ShortcutsSettings(): React.JSX.Element {
       <SettingsHint>
         Changes apply immediately and are stored per user. Backspace clears a shortcut while
         recording; Esc cancels.
-        {openSettingsDefinition &&
-          ` ${formatShortcutLabel(openSettingsDefinition.binding)} opens this page from anywhere.`}
+        {openSettingsDefinition && (
+          /* The shortcut for this page reads as a keycap here, like everywhere else. */
+          <>
+            {' '}
+            <Kbd className={`${COMPACT_KBD_CLASS_NAME} mx-0.5 align-middle`}>
+              {formatShortcutLabel(openSettingsDefinition.binding)}
+            </Kbd>{' '}
+            opens this page from anywhere.
+          </>
+        )}
       </SettingsHint>
     </>
   );
