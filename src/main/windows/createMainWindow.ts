@@ -1,7 +1,7 @@
 /**
  * Create and configure the main BrowserWindow.
  */
-import { BrowserWindow, shell } from 'electron';
+import { BrowserWindow } from 'electron';
 import { join } from 'path';
 import { PIGI_SETTINGS_PATH_ARGUMENT } from '../../shared/pigiSettings';
 import { is } from '@electron-toolkit/utils';
@@ -50,10 +50,6 @@ export function createMainWindow({
     mainWindow!.show();
   });
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
-    return { action: 'deny' };
-  });
   guardWindowNavigation(mainWindow.webContents, join(__dirname, '../renderer/index.html'));
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {

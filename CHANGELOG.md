@@ -32,8 +32,10 @@
 - Tool status, diff, toast and warning colours follow the theme, so they stay readable in dark mode
 - The terminal follows the code font and size; native window chrome and menus follow the chosen appearance
 - Code blocks use a dark palette in dark mode, every token clearing 3:1 against the code background
-- A code block that is still streaming is highlighted on a throttle instead of on every chunk
+- A code block that is still streaming is highlighted on a throttle instead of on every chunk, and rebuilds only the text that came in with the chunk rather than every highlighted line above it
 - Update checks no longer pull the window mid-countdown, the update window closes itself when a background check finds nothing, and an install Squirrel never finishes returns to "ready to install"
+- An update status that arrives while a window is still reading the current one no longer overwrites it with the older answer
+- The update window resets its zoom whenever it appears, so View-menu zoom cannot clip its own buttons, and only that window can resize it
 
 ## [0.4.22] - 2026-10-24
 

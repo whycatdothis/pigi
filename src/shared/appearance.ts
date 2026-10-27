@@ -37,7 +37,7 @@ export interface ModeAppearance {
   background: string | null;
   foreground: string | null;
   accent: AccentChoice;
-  /** 0-100. 73 is the default and matches the historical look. */
+  /** 0-100, an absolute WCAG floor for secondary text. 30 is the default. */
   contrast: number;
   translucentSidebar: boolean;
   fonts: FontAppearance;

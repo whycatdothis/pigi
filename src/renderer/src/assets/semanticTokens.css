@@ -11,11 +11,11 @@
 @theme static {
   /* Radius ------------------------------------------------------------- */
   --radius-inline: 6px; /* inline code, kbd: padding-box ornaments */
-  --radius-chip: 8px; /* chips, badges, thumbnails, mini windows */
-  --radius-control-sm: 10px; /* 24px icon buttons and xs controls */
-  --radius-control: 14px; /* 28-32px buttons, inputs, menu items, rows */
-  --radius-surface-sm: 16px; /* code blocks, tables, preview trays */
-  --radius-surface: 20px; /* tool blocks, thinking blocks, read groups, menus */
+  --radius-chip: 8px; /* chips, badges, theme tiles */
+  --radius-control-sm: 10px; /* 24px icon buttons, xs controls, tables */
+  --radius-control: 14px; /* 28-32px buttons, inputs, rows, code blocks */
+  --radius-surface-sm: 16px; /* tool, thinking and read-group blocks, preview trays */
+  --radius-surface: 20px; /* menus, branch summary, error notices */
   --radius-surface-lg: 24px; /* message bubbles, cards */
   --radius-surface-xl: 28px; /* composer, between the bubble tier and the cards */
   --radius-container: 36px; /* page cards, large panels */

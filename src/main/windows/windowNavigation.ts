@@ -80,4 +80,11 @@ export function guardWindowNavigation(webContents: WebContents, rendererIndexPat
   webContents.on('will-redirect', (event, url) => {
     handle(event, url);
   });
+  // `target=_blank` and `window.open` do not navigate the window, they ask for
+  // a new one. There is no second app window to open here, so the request is
+  // denied and a web link goes to the browser.
+  webContents.setWindowOpenHandler(({ url }) => {
+    openExternally(url);
+    return { action: 'deny' };
+  });
 }

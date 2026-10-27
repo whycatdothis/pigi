@@ -551,7 +551,8 @@ Rules that the code depends on:
   pick, not the window's: a diagram looks the same in a light and a dark window.
 - **The model is told that the UI draws them.** Every session is given
   `src/processes/utility/systemPrompt.ts`, appended to pi's own system prompt
-  (`resourceLoaderOptions.appendSystemPrompt` in `piAgent.ts`), so a diagram is
+  (`appendSystemPromptOverride` in `piAgent.ts`, which appends to whatever APPEND_SYSTEM.md
+  the project already has instead of replacing it), so a diagram is
   something the model can reach for rather than something it has to guess at.
   That file is where anything else the model should know about this window goes.
 

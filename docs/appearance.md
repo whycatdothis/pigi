@@ -568,7 +568,9 @@ existing `SettingsGroup` / `SettingsRow` primitives plus
   accent, the name, and a chevron. Selecting one applies both mode slots; the
   label reads `Custom` as soon as a color no longer matches a preset.
 - `FontPicker` — a compact native select over the whitelist (no preview glyph,
-  single chevron); the code role's empty option reads "System mono".
+  single chevron), listing each family once: the slot's null value is drawn as
+  the family it falls back to, so the code role reads "SF Mono" rather than an
+  empty "System mono" row on top of it.
 - `ModePreviewPicker` — three icon-only miniature windows (System / Light /
   Dark), 84x66, drawn from the _derived_ tokens of each mode, so a custom
   palette or a named theme shows up in them immediately. The captured object is
@@ -635,9 +637,9 @@ Reset appearance                            (footer row, right)
   16 with a 12 mini window inside it. The selection ring, the edge ring and the
   drawing's own background all share the frame's 16, so the ring hugs the
   picture instead of cutting across its corners. Content blocks
-  carry their own tiers because they are far taller than a control: message
-  bubbles and the composer 24, tool block, thinking block, collapsed read group
-  and error notice 20, code block and markdown table 16, inline code 6. See
+  carry their own tiers because they are far taller than a control: the composer
+  28, message bubbles 24, tool block, thinking block, collapsed read group and
+  error notice 16, code block 14, markdown table 10, inline code 6. See
   `docs/design-system.md`.
 - Corners are superellipses, not quarter circles: `designTokens.css` declares
   `corner-shape: superellipse(1.5)` for every rounded element except

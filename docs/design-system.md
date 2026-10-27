@@ -21,8 +21,8 @@ third of the height; below a tenth it reads square.
 | Token                 | Value  | Applied to                                                          | Typical height | Ratio  |
 | --------------------- | ------ | ------------------------------------------------------------------- | -------------- | ------ |
 | `--radius-inline`     | 6px    | inline code, kbd                                                    | 18–22          | 30%    |
-| `--radius-chip`       | 8px    | chips, badges, thumbnails, markdown tables                          | 20–24          | 35%    |
-| `--radius-control-sm` | 10px   | `size-6` icon buttons, xs controls                                  | 24             | 42%    |
+| `--radius-chip`       | 8px    | chips, badges, thumbnails, theme tiles                              | 20–24          | 35%    |
+| `--radius-control-sm` | 10px   | `size-6` icon buttons, xs controls, markdown tables                 | 24–120         | 8–42%  |
 | `--radius-control`    | 14px   | buttons, inputs, menu items, sidebar rows, markdown code blocks     | 28–120         | 12–50% |
 | `--radius-surface-sm` | 16px   | tool blocks, thinking blocks, read groups, preview frames and rings | 40–240         | 7–40%  |
 | `--radius-surface`    | 20px   | menus, branch summary, error notices                                | 38–170         | 12–27% |
@@ -82,18 +82,18 @@ ladder, so raising the text size moves headings with the paragraphs around them.
 A row inside a reply is one of three kinds — prose, a card (tool card, read
 group), or a thinking card — and there are two rules only: neighbours of the
 same kind sit at that kind's step, neighbours of different kinds sit at the
-boundary step. Reasoning and tool work are different groups of a reply, so any
-change of kind is the widest gap inside it.
+kind-change step. Reasoning and tool work are different groups of a reply, so
+any change of kind is the widest gap inside it.
 
-| Token                        | Value               | Where                               |
-| ---------------------------- | ------------------- | ----------------------------------- |
-| `--message-item-spacing`     | `0.3 × --text-body` | list item ↔ list item, nested lists |
-| `--message-block-spacing`    | `0.8 × --text-body` | prose ↔ prose                       |
-| `--message-pair-spacing`     | `1.2 × --text-body` | card ↔ card                         |
-| `--message-boundary-spacing` | `1.6 × --text-body` | any two different kinds             |
+| Token                           | Value               | Where                               |
+| ------------------------------- | ------------------- | ----------------------------------- |
+| `--message-item-spacing`        | `0.3 × --text-body` | list item ↔ list item, nested lists |
+| `--message-text-spacing`        | `0.8 × --text-body` | prose ↔ prose                       |
+| `--message-surface-spacing`     | `1.0 × --text-body` | card ↔ card, thinking ↔ thinking    |
+| `--message-kind-change-spacing` | `1.8 × --text-body` | any two different kinds             |
 
 `--markdown-*` alias the `--message-*` values, so the markdown body and the
-transcript cannot drift apart. A 15px body gives 4.5 / 12 / 18 / 24.
+transcript cannot drift apart. A 15px body gives 4.5 / 12 / 15 / 27.
 
 Heading margins are the same scale read differently: the bottom margin deepens
 with the heading's own weight (`1.0 / 0.9 / 0.8 × --text-body` for h1/h2/h3) and
