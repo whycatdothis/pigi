@@ -101,6 +101,30 @@ next to Tailwind's (`text-xs` 13, `text-sm` 14), so two names mean one size and
   rather than the class, so it is a superellipse only because a pseudo-element
   is not matched by `:where(:not(.rounded-full))`.
 
+## The shimmer sweep repaints instead of compositing
+
+`.shimmer-text` (minimal view's `Thinking...` and running-command rows, plus a
+loading system message) animates `background-position` over a
+`background-clip: text` gradient. A `blink.animations` trace reports
+`compositeFailed: 8224` with `unsupportedProperties: [background-position-x]`,
+so each frame repaints the label — exactly while the main thread is busiest
+(streaming), which is why `AGENTS.md` forbids paint-animated loops. This is not a
+regression: the version it replaced animated `clip-path` and failed the same way
+(`compositeFailed: 8192`, `unsupportedProperties: [clip-path]`).
+
+It is deliberate: the previous version painted a second, `filter: brightness()`
+copy of the glyphs behind a moving `clip-path` window, whose rasterization did
+not land on the same edges as the base text and read as doubled glyphs. Pick one
+of these, then delete this entry:
+
+- Drop the sweep for the composited effect the reduced-motion branch already
+  uses: an `opacity` pulse on a single copy of the glyphs. Simplest, and the
+  label keeps moving while the main thread streams.
+- Keep the sweep and re-check whether two glyph copies now rasterize identically:
+  give the window's copy a plain colour (no `filter`) and animate it with
+  `transform` instead of `clip-path`. Verify at DPR 1 and 2, and check
+  `compositeFailed` on its `Animation` event before trusting it.
+
 ## Ordered list items need more room
 
 A numbered list reads cramped: `.markdown-body li + li` sits at

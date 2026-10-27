@@ -495,33 +495,58 @@
   }
 }
 
-/* Shimmer sweep: a fixed-width window travels across the text it labels,
-   entering from the left and exiting on the right.
-   --shimmer-scan-width is the measured width of the row (set by the component),
-   so a long truncated command does not waste the sweep on its hidden tail.
-   The highlight is a brighter copy of the glyphs revealed by the window rather
-   than a gradient band: a band paints its own rectangle over the background,
-   which shows as a light smear as soon as the theme's background is not white.
-   clip-path is animatable on the compositor, so the sweep keeps moving while
-   the row is streaming. */
-.shimmer-overlay {
-  filter: brightness(1.6);
-  clip-path: inset(0 100% 0 calc(-1 * var(--shimmer-band-width)));
-  animation: shimmer-clip 2.5s linear infinite;
+/* Shimmer sweep: the highlight travels across the text it labels, entering from
+   the left and exiting on the right.
+   The sweep is a gradient in the text's own colour (`background-clip: text`), so
+   only one copy of the glyphs is ever painted: a second, brightened copy shown
+   through a moving clip window rendered with a different antialiasing phase and
+   read as doubled glyphs. No band is painted over the background either — the
+   gradient only exists inside the glyphs, whatever is behind them.
+   It animates `background-position`, i.e. it repaints instead of compositing
+   (`compositeFailed`, `unsupportedProperties: [background-position-x]` in a
+   `blink.animations` trace). That is a deliberate exception to the
+   transform/opacity rule, recorded in docs/todo.md: a composited sweep would
+   have to paint the glyphs twice again. */
+.shimmer-text {
+  /* inline-block so the component can measure a width for the sweep duration;
+     an inline box reports clientWidth 0. */
+  display: inline-block;
+  max-width: 100%;
+  animation: shimmer-sweep 2.5s linear infinite;
 }
 
-@keyframes shimmer-clip {
+@keyframes shimmer-sweep {
   from {
-    clip-path: inset(0 100% 0 calc(-1 * var(--shimmer-band-width)));
+    background-position: 100% 0;
   }
   to {
-    clip-path: inset(0 calc(-1 * var(--shimmer-band-width)) 0 100%);
+    background-position: 0% 0;
+  }
+}
+
+/* The gradient is the text colour, so it may only replace `color` where the clip
+   actually works — otherwise the label would render invisible. */
+@supports ((background-clip: text) or (-webkit-background-clip: text)) {
+  .shimmer-text {
+    color: transparent;
+    background-image: linear-gradient(
+      90deg,
+      var(--muted-foreground) 40%,
+      var(--foreground) 50%,
+      var(--muted-foreground) 60%
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   /* Keep the live state indication, drop the movement: gentle fade in place. */
-  .shimmer-overlay {
+  .shimmer-text {
+    background-image: none;
+    color: inherit;
     animation: shimmer-fade 2.5s ease-in-out infinite;
   }
 }
@@ -529,10 +554,10 @@
 @keyframes shimmer-fade {
   0%,
   100% {
-    opacity: 0.3;
+    opacity: 1;
   }
   50% {
-    opacity: 0.7;
+    opacity: 0.5;
   }
 }
 

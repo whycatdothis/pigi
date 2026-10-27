@@ -19,7 +19,7 @@
 - Typography has two families (text and code). Markdown headings and tables follow the text size instead of fixed pixels
 - Message spacing follows the text size and two rules: same kind of block sits at its own step, a change of kind sits wider. Only the last row of a reply keeps the hover action band, and a table or code block after list text is no longer flush against it
 - The Chat settings page is one row: a Default view switch instead of three described options
-- The minimal view's shimmer sweeps a clip window over brighter glyphs instead of painting a white band over the background
+- The minimal view's shimmer is a gradient inside the text's own glyphs instead of a second, brighter copy revealed through a moving window
 - Sidebar and menu rows show their shortcut as a bordered keycap on hover (New chat, Open project, Settings, Back to app), and the Shortcuts page's closing line draws ⌘ , as a keycap instead of plain text
 - The comment editor's Save is an outline button, so only the quotes tab's Send carries the accent fill
 - A sent quote now opens with its number on the quoted line (`1. > quoted text`) instead of the number standing on a line of its own
@@ -43,6 +43,7 @@
 - The update window resets its zoom whenever it appears, so View-menu zoom cannot clip its own buttons, and only that window can resize it
 - Message minimap lines are one device pixel thick on every display: they sit on an 8px pitch, so no line lands on a different subpixel phase
 - The minimap's hover list opens flush against the side edge and covers the lines, closes on Escape, and returns focus to the transcript after a jump
+- The live state label's letters no longer look doubled: the shimmer paints one copy of the glyphs, and it stays visible where the clip is unsupported or motion is reduced
 
 ## [0.4.22] - 2026-10-24
 

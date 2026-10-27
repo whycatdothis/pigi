@@ -21,10 +21,7 @@ import ToolBlock from '../message/ToolBlock';
 import ThinkingBlock from '../message/thinkingBlock';
 import { MessageToolbar, SystemBubble, UserBubble } from '../message/messageBubbles';
 import { getToolCommandParts } from '../../lib/toolDisplay';
-import ShimmerText, {
-  SHIMMER_BAND_WIDTH_PX,
-  SHIMMER_SPEED_PX_PER_SECOND,
-} from '../message/shimmerText';
+import ShimmerText from '../message/shimmerText';
 import { cn } from '../../lib/utils';
 
 /**
@@ -368,10 +365,9 @@ const TurnSection = React.memo(function TurnSection({
     feedRow = (
       <div
         key={feedNode.id}
-        className="relative w-fit overflow-hidden text-body text-muted-foreground"
+        className="w-fit text-body text-muted-foreground"
         data-testid="minimal-thinking"
       >
-        Thinking...
         <ShimmerText>Thinking...</ShimmerText>
       </div>
     );
@@ -616,55 +612,29 @@ const COMMAND_TAIL_CHARS = 20;
 
 function ToolLine({ node }: { node: ToolNode }): React.JSX.Element {
   const { prefix, body } = getToolCommandParts(node);
-  const bodyRef = useRef<HTMLSpanElement>(null);
   const showTail = body.length > COMMAND_TAIL_CHARS;
-
-  const [shimmerDurationMs, setShimmerDurationMs] = useState<number | undefined>(undefined);
-  useLayoutEffect(() => {
-    const element = bodyRef.current;
-    if (!element) return;
-    function update(): void {
-      const target = bodyRef.current;
-      if (!target) return;
-      const width = target.clientWidth;
-      if (width > 0) {
-        const distance = width + SHIMMER_BAND_WIDTH_PX;
-        const scaled = (distance / SHIMMER_SPEED_PX_PER_SECOND) * 1000;
-        setShimmerDurationMs(Math.round(Math.min(5000, Math.max(2500, scaled))));
-      }
-    }
-    update();
-    const resizeObserver = new ResizeObserver(update);
-    resizeObserver.observe(element);
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  // The row is rendered twice: once as the layout, once inside the shimmer as
-  // the brighter copy the sweep reveals. Same markup, same truncation.
-  const row = (
-    <span className="flex items-baseline gap-1">
-      <span className="shrink-0 text-foreground/80">{prefix}</span>
-      <span ref={bodyRef} className="flex min-w-0 flex-1 items-baseline">
-        {showTail ? (
-          <>
-            <span className="truncate">{body.slice(0, -COMMAND_TAIL_CHARS)}</span>
-            <span className="shrink-0 whitespace-pre">{body.slice(-COMMAND_TAIL_CHARS)}</span>
-          </>
-        ) : (
-          <span className="truncate">{body}</span>
-        )}
-      </span>
-    </span>
-  );
 
   return (
     <div
-      className="relative w-fit max-w-full overflow-hidden py-0.5 font-mono text-body text-muted-foreground"
+      className="w-fit max-w-full overflow-hidden py-0.5 font-mono text-body text-muted-foreground"
       style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       data-testid="minimal-running-tool"
     >
-      {row}
-      <ShimmerText durationMs={shimmerDurationMs}>{row}</ShimmerText>
+      <ShimmerText>
+        <span className="flex items-baseline gap-1">
+          <span className="shrink-0 text-foreground/80">{prefix}</span>
+          <span className="flex min-w-0 flex-1 items-baseline">
+            {showTail ? (
+              <>
+                <span className="truncate">{body.slice(0, -COMMAND_TAIL_CHARS)}</span>
+                <span className="shrink-0 whitespace-pre">{body.slice(-COMMAND_TAIL_CHARS)}</span>
+              </>
+            ) : (
+              <span className="truncate">{body}</span>
+            )}
+          </span>
+        </span>
+      </ShimmerText>
     </div>
   );
 }
