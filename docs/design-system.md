@@ -82,7 +82,7 @@ editor is the one place that does.
 Weights carry hierarchy, not size: 400 body, 500 row labels and control values,
 600 page and group headings. Tracking is reserved for display-size type — the
 page title (`-0.02em`) and the two top markdown headings (`-0.015em`,
-`-0.011em`); below 22px the whole-line difference is a pixel or two and the
+`-0.011em`); at h3 and below the whole-line difference is a pixel or two and the
 declaration earns nothing.
 
 ## Spacing, elevation, motion
@@ -96,7 +96,7 @@ declaration earns nothing.
 
 ## Prose rhythm scales, chrome does not
 
-Text spacing multiplies `--text-body`, never `em`: `em` resolves against the
+Block spacing multiplies `--text-body`, never `em`: `em` resolves against the
 font size of the element that owns the margin, so a 0.93em table or a 0.84em
 code block silently shrinks its own gaps and the same block gap renders at
 three different sizes in one message. Heading margins are part of the same

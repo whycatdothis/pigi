@@ -128,9 +128,10 @@
 
 @layer components {
   /* Follows the app's markdown typographic system at this page's fixed 14px
-     body: the same shapes, weights and rhythm, not the same numbers, since the
-     site has no text-size setting for them to scale against. Re-derive the
-     values here when the app's system changes; do not copy them across. */
+     body: the same shapes, weights and rhythm for its h1–h3, not the same
+     numbers, since the site has no text-size setting for them to scale against.
+     Re-derive the values here when the app's system changes; do not copy them
+     across. */
   .markdown-body {
     --markdown-block-spacing: 0.875rem;
     --markdown-item-spacing: 0.1875rem;
