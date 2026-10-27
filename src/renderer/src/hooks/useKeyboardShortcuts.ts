@@ -36,10 +36,9 @@ export function bindingMatches(binding: ShortcutBinding, event: KeyboardEvent): 
 export function useKeyboardShortcuts(
   shortcutActions: Record<string, () => void>,
 ): Map<string, ShortcutBinding> | null {
-  const { definitions, isRecording, load } = useShortcutsStore(
+  const { definitions, load } = useShortcutsStore(
     useShallow((state) => ({
       definitions: state.definitions,
-      isRecording: state.isRecording,
       load: state.load,
     })),
   );
@@ -55,7 +54,9 @@ export function useKeyboardShortcuts(
     const resolvedBindings = bindings;
 
     function handleKeyDown(event: KeyboardEvent): void {
-      // The settings shortcut recorder owns the keyboard while capturing.
+      // The settings shortcut recorder owns the keyboard while capturing. Read
+      // at event time, not through the dependency list: subscribing would
+      // rebuild the window listener every time recording starts or stops.
       if (useShortcutsStore.getState().isRecording) {
         return;
       }
@@ -73,7 +74,7 @@ export function useKeyboardShortcuts(
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [bindings, shortcutActions, isRecording]);
+  }, [bindings, shortcutActions]);
 
   return bindings;
 }

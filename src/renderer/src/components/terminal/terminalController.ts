@@ -69,6 +69,9 @@ function cssColorToRgb(color: string): string {
  * The palette lives entirely in CSS (per light/dark), so reskinning the terminal
  * is a CSS-only change; `background` tracks --background so the panel blends in.
  */
+/** One PTY resize per settled change: a burst of fits is one fit. */
+export const FIT_DEBOUNCE_MS = 80;
+
 function readTerminalFont(): { fontFamily: string; fontSize: number } {
   const styles = getComputedStyle(document.documentElement);
   const family = styles.getPropertyValue('--app-font-code').trim();
@@ -146,6 +149,10 @@ interface ProjectGroup {
 }
 
 class TerminalController {
+  /** Font the cached terminals are drawn with, to tell a refit from a repaint. */
+  private appliedFont: { fontFamily: string; fontSize: number } | null = null;
+  /** Pending debounced fit, so a burst of appearance changes fits once. */
+  private fitTimer: number | null = null;
   /** project key -> group. */
   private readonly groups = new Map<string, ProjectGroup>();
   /** project keys ordered least- to most-recently-used (last = MRU). */
@@ -516,24 +523,43 @@ class TerminalController {
 
   /**
    * Sync every cached terminal to the current appearance: palette, code font,
-   * and code size. The active tab is refitted because cell metrics change with
-   * the font.
+   * and code size.
+   *
+   * Refitting is the expensive part — it re-measures a cell, forces layout, and
+   * resizes the PTY — and only a font change can move the cell metrics. Dragging
+   * a colour slider notifies once per frame, so a fit on every notification
+   * would resize the PTY sixty times a second; the fit is skipped unless the
+   * font changed, and coalesced through the same debounce the panel uses.
    */
   applyAppearance(): void {
     const theme = readTerminalTheme();
-    const { fontFamily, fontSize } = readTerminalFont();
+    const font = readTerminalFont();
+    const fontChanged =
+      this.appliedFont === null ||
+      this.appliedFont.fontFamily !== font.fontFamily ||
+      this.appliedFont.fontSize !== font.fontSize;
+    this.appliedFont = font;
     for (const group of this.groups.values()) {
       for (const tab of group.tabs) {
         tab.terminal.options.theme = theme;
-        tab.terminal.options.fontFamily = fontFamily;
-        tab.terminal.options.fontSize = fontSize;
+        tab.terminal.options.fontFamily = font.fontFamily;
+        tab.terminal.options.fontSize = font.fontSize;
       }
     }
-    const active = this.activeTab;
-    if (active) {
-      active.fitAddon.fit();
-      window.piApi.terminal.resize(active.id, active.terminal.cols, active.terminal.rows);
+    if (fontChanged) {
+      this.scheduleFit();
     }
+  }
+
+  /** Coalesces a burst of fits into one, so the PTY is not resized per frame. */
+  scheduleFit(): void {
+    if (this.fitTimer !== null) {
+      window.clearTimeout(this.fitTimer);
+    }
+    this.fitTimer = window.setTimeout(() => {
+      this.fitTimer = null;
+      this.fit();
+    }, FIT_DEBOUNCE_MS);
   }
 }
 

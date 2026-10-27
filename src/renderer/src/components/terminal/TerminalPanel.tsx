@@ -10,13 +10,9 @@ import {
   TERMINAL_HEIGHT_VALUE,
 } from '../../lib/layoutConstants';
 import { useAppStore } from '../../state/appStore';
-import { terminalController } from './terminalController';
+import { FIT_DEBOUNCE_MS, terminalController } from './terminalController';
 import { subscribeAppearance } from '../../appearance/applyAppearance';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
-
-// Coalesce rapid resize events (drag, window resize) into a single fit so we
-// don't spam node-pty with resizes and cause the terminal to flicker.
-const RESIZE_DEBOUNCE_MS = 80;
 
 // Purpose-built drawer curve (fast start, clean settle) in both directions;
 // open is slightly slower than close for enter/exit asymmetry. Kept identical
@@ -99,7 +95,7 @@ export default function TerminalPanel({
       clearTimeout(timer);
       timer = setTimeout(() => {
         if (visible) terminalController.fit();
-      }, RESIZE_DEBOUNCE_MS);
+      }, FIT_DEBOUNCE_MS);
     });
     observer.observe(container);
     return () => {
