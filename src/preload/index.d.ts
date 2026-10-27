@@ -1,7 +1,6 @@
 import { ElectronAPI } from '@electron-toolkit/preload';
 import type { PigiSettingsReadResult } from '../shared/pigiSettings';
 import type {
-  AppInfo,
   PiCommand,
   PiPush,
   GitBranchResult,
@@ -70,7 +69,6 @@ interface PiApi {
 
   // Utilities
   getCwd: () => string;
-  getAppInfo: () => Promise<AppInfo>;
   openExternal: (url: string) => void;
   previewFile: (path: string) => void;
   getModelCatalog: () => Promise<ModelCatalogSnapshot>;
@@ -91,7 +89,6 @@ interface PiApi {
     id: string,
     binding: ShortcutBinding,
   ) => Promise<{ success: boolean; error?: string }>;
-  getAccentColor: () => Promise<string | null>;
   setAppearanceTheme: (theme: 'system' | 'light' | 'dark') => void;
   /** pigi's own settings, read synchronously so the first paint can use them. */
   readPigiSettings: () => PigiSettingsReadResult;

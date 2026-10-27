@@ -148,8 +148,3 @@ export function readResolvedAppearance(): ResolvedAppearance {
   lastResolved ??= resolveAppearance(DEFAULT_APPEARANCE, FALLBACK_ENVIRONMENT);
   return lastResolved;
 }
-
-/** Current resolved mode, for UI that edits the active slot. */
-export function currentColorMode(settings: AppearanceSettings): 'light' | 'dark' {
-  return resolveAppearance(settings, readSystemEnvironment()).mode;
-}

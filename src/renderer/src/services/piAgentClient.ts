@@ -5,7 +5,6 @@
  * All session-scoped functions take `sessionPath` as the session identifier.
  */
 import type {
-  AppInfo,
   AuthProviderInfo,
   ClearedQueue,
   EntryTextResult,
@@ -357,11 +356,6 @@ export async function logout(sessionPath: string, providerId: string): Promise<C
 // =============================================================================
 // Pi settings
 // =============================================================================
-
-/** App/electron/runtime versions shown in the About section. */
-export async function getAppInfo(): Promise<AppInfo> {
-  return window.piApi.getAppInfo();
-}
 
 /** Read the global and project pi settings snapshot for a project cwd. */
 export async function getPiSettings(cwd: string): Promise<PiSettingsResult> {

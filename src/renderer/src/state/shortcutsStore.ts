@@ -22,7 +22,6 @@ interface ShortcutsState {
   /** True while the settings page is capturing a new binding. */
   isRecording: boolean;
   load: () => Promise<void>;
-  refresh: () => Promise<void>;
   setRecording: (recording: boolean) => void;
   /** Returns an error message, or null on success. */
   setBinding: (id: string, binding: ShortcutBinding) => Promise<string | null>;
@@ -48,7 +47,6 @@ export const useShortcutsStore = create<ShortcutsState>((set, get) => {
       }
       await loadDefinitions();
     },
-    refresh: loadDefinitions,
     setRecording: (isRecording) => set({ isRecording }),
     setBinding: async (id, binding) => {
       const result = await window.piApi.setShortcut(id, binding);

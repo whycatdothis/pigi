@@ -18,7 +18,6 @@ import {
   isAccentPresetId,
   parseAppearance,
   type AppearanceSettings,
-  type ThemeMode,
 } from './appearance';
 import {
   DEFAULT_DIAGRAM_THEME,
@@ -50,9 +49,6 @@ export const PIGI_SETTINGS_STORAGE_KEY = 'pigi.settings';
  * snapshot of window creation, so the value would go stale on every reload.
  */
 export const PIGI_SETTINGS_PATH_ARGUMENT = '--pigi-settings-path=';
-
-/** Re-exported for the appearance UI, which labels the mode control. */
-export const PIGI_THEMES: readonly ThemeMode[] = THEME_MODES;
 
 export const TOOL_BLOCK_VIEW_MODES: readonly ToolBlockViewMode[] = [
   'default',
@@ -102,7 +98,7 @@ function legacyDiagramTheme(raw: unknown): DiagramThemeChoice | null {
 function migrateFromV1(raw: unknown): PigiSettings {
   const record = isRecord(raw) ? raw : {};
   const appearance = parseAppearance(record.appearance);
-  const mode = includes(PIGI_THEMES, record.theme) ? record.theme : appearance.mode;
+  const mode = includes(THEME_MODES, record.theme) ? record.theme : appearance.mode;
   const accentId = isAccentPresetId(record.accentId) ? record.accentId : DEFAULT_THEME_ACCENT_ID;
 
   return {

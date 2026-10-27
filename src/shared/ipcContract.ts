@@ -466,8 +466,6 @@ export enum PiChannel {
   SearchProjectFiles = 'pi:search_project_files',
   /** renderer → main: list directory entries for inline path completion */
   CompletePath = 'pi:complete_path',
-  /** renderer → main: get system accent color */
-  GetAccentColor = 'pi:get_accent_color',
   /** renderer → main: the app theme, so window materials follow it */
   SetAppearanceTheme = 'pi:set_appearance_theme',
   /** renderer → main: replace pigi's settings file (appearance and chat) */
@@ -481,7 +479,6 @@ export enum PiChannel {
   /** renderer → main: write pi settings fields in one scope (atomic batch) */
   SetPiSettings = 'pi:set_pi_settings',
   /** renderer → main: app/electron/runtime version info */
-  GetAppInfo = 'pi:get_app_info',
   /** renderer → main: get the cached model catalog snapshot */
   GetModelCatalog = 'pi:get_model_catalog',
   /** renderer → main: kick a background catalog reload and get the current snapshot back immediately */
@@ -622,14 +619,6 @@ export type SessionWorkerResponse =
     }
   | { type: 'catalog_updated'; models: ModelInfo[] }
   | ({ type: 'settings_result'; requestId: string } & PiSettingsResult);
-
-/** App/runtime versions shown in the About section. */
-export interface AppInfo {
-  appVersion: string;
-  electronVersion: string;
-  chromeVersion: string;
-  nodeVersion: string;
-}
 
 // =============================================================================
 // Internal: Main → Utility (parentPort, lifecycle only)

@@ -5,16 +5,7 @@
  * - Sessions are created on-demand from renderer
  * - Each session gets control/data MessagePorts for commands and streaming
  */
-import {
-  app,
-  BrowserWindow,
-  ipcMain,
-  nativeTheme,
-  net,
-  protocol,
-  shell,
-  systemPreferences,
-} from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme, net, protocol, shell } from 'electron';
 import { electronApp } from '@electron-toolkit/utils';
 import { refreshApplicationMenu, setupApplicationMenu } from './menus/applicationMenu';
 import { createMainWindow, getMainWindow } from './windows/createMainWindow';
@@ -33,7 +24,7 @@ import {
   setUpdateStatusObserver,
 } from './ipc/updateManager';
 import { stopProjectFileSearch } from './projects/projectFileSearch';
-import { PiChannel, type AppInfo } from '../shared/ipcContract';
+import { PiChannel } from '../shared/ipcContract';
 import { configureDebugPanel, installMainDebugHandle } from './debugConfig';
 import { initializeShellEnv } from './processes/shellEnvResolver';
 import {
@@ -113,21 +104,6 @@ app.whenReady().then(() => {
       window.setVibrancy(null);
       window.setVibrancy('menu');
     }
-  });
-
-  ipcMain.handle(PiChannel.GetAccentColor, () => {
-    // macOS 10.14+: returns system accent color as RGBA hex (#RRGGBBAA).
-    const accent = systemPreferences.getAccentColor();
-    return accent || null;
-  });
-
-  ipcMain.handle(PiChannel.GetAppInfo, (): AppInfo => {
-    return {
-      appVersion: app.getVersion(),
-      electronVersion: process.versions.electron ?? '',
-      chromeVersion: process.versions.chrome ?? '',
-      nodeVersion: process.versions.node ?? '',
-    };
   });
 
   openMainWindow(

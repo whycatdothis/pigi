@@ -57,7 +57,3 @@ export function findSettingsSection(id: string): SettingsSection | undefined {
 export function settingsSectionFor(id: string): SettingsSection {
   return findSettingsSection(id) ?? DEFAULT_SECTION_META;
 }
-
-export function isSettingsSectionId(id: string): id is SettingsSectionId {
-  return findSettingsSection(id) !== undefined;
-}

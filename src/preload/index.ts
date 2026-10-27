@@ -12,7 +12,6 @@ import {
   isPiPush,
   isPiResult,
   isStreamBatch,
-  type AppInfo,
   type ControlPortMessage,
   type DataPortMessage,
   type GitBranchResult,
@@ -481,7 +480,6 @@ const piApi = {
   getCwd: (): string => process.cwd(),
 
   /** Get app/electron/runtime version info for the About section. */
-  getAppInfo: (): Promise<AppInfo> => ipcRenderer.invoke(PiChannel.GetAppInfo),
 
   /** Read pi settings (global + project) for a project cwd. */
   getPiSettings: (cwd: string): Promise<PiSettingsResult> =>
@@ -513,9 +511,6 @@ const piApi = {
     binding: ShortcutBinding,
   ): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke(PiChannel.SetShortcut, id, binding),
-
-  /** Get the system accent color as a hex string (e.g. '#007aff'). Returns null on unsupported platforms. */
-  getAccentColor: (): Promise<string | null> => ipcRenderer.invoke(PiChannel.GetAccentColor),
 
   /** Tell the main process which theme is applied, so window materials match. */
   setAppearanceTheme: (theme: 'system' | 'light' | 'dark'): void => {
