@@ -43,17 +43,22 @@ export const SETTINGS_SECTIONS = [
   { id: 'advanced', group: 'pi', label: 'Advanced', icon: IconAdjustmentsHorizontal },
 ] as const satisfies readonly SettingsSection[];
 
-export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id'];
+/** One entry of the registry, with its id kept as the literal it was written as. */
+export type SettingsSectionEntry = (typeof SETTINGS_SECTIONS)[number];
+
+export type SettingsSectionId = SettingsSectionEntry['id'];
 
 export const DEFAULT_SETTINGS_SECTION: SettingsSectionId = SETTINGS_SECTIONS[0].id;
 
-const DEFAULT_SECTION_META: SettingsSection = SETTINGS_SECTIONS[0];
+const DEFAULT_SECTION_META: SettingsSectionEntry = SETTINGS_SECTIONS[0];
 
-export function findSettingsSection(id: string): SettingsSection | undefined {
-  return (SETTINGS_SECTIONS as readonly SettingsSection[]).find((section) => section.id === id);
+export function findSettingsSection(id: string): SettingsSectionEntry | undefined {
+  return (SETTINGS_SECTIONS as readonly SettingsSectionEntry[]).find(
+    (section) => section.id === id,
+  );
 }
 
 /** A stored section id can outlive the section it names; the default stands in. */
-export function settingsSectionFor(id: string): SettingsSection {
+export function settingsSectionFor(id: string): SettingsSectionEntry {
   return findSettingsSection(id) ?? DEFAULT_SECTION_META;
 }

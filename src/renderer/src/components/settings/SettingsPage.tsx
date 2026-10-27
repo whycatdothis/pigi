@@ -13,7 +13,7 @@ import { SegmentedControl, SettingsContent, SettingsHint } from './settingsContr
 import { SpinningIcon } from '../ui/spinningIcon';
 import {
   settingsSectionFor,
-  type SettingsSection,
+  type SettingsSectionEntry,
   type SettingsSectionId,
 } from '../../lib/settingsSections';
 import type { PiSectionProps } from './piSectionProps';
@@ -95,7 +95,7 @@ export default function SettingsPage({
   );
 }
 
-function PigiSettingsSection({ meta }: { meta: SettingsSection }): React.JSX.Element {
+function PigiSettingsSection({ meta }: { meta: SettingsSectionEntry }): React.JSX.Element {
   let content: ReactNode = null;
   switch (meta.id) {
     case 'appearance':
@@ -120,7 +120,7 @@ function PiSettingsSection({
   cwd,
   models,
 }: {
-  meta: SettingsSection;
+  meta: SettingsSectionEntry;
   cwd: string | null;
   models: ModelInfo[];
 }): React.JSX.Element {
@@ -128,7 +128,7 @@ function PiSettingsSection({
   const [scope, setScope] = useState<PiSettingsScope>('global');
   // Sections that only touch global fields pin the scope, so values and
   // override badges always match the file being edited.
-  const globalOnlySection = meta.piScope === 'global';
+  const globalOnlySection = 'piScope' in meta && meta.piScope === 'global';
   const effectiveScope: PiSettingsScope = globalOnlySection ? 'global' : scope;
 
   const defaults = useMemo(() => piSettingDefaults(), []);
