@@ -13,9 +13,18 @@ function Kbd({ className, ...props }: React.ComponentProps<'kbd'>) {
   );
 }
 
+/** A compact shortcut hint inside a button, after its label. */
+const BUTTON_KBD_CLASS_NAME = 'h-4 min-w-4 px-1 text-3xs';
+
 /** A compact shortcut hint inside a primary button, after its label. */
-const PRIMARY_BUTTON_KBD_CLASS_NAME =
-  'h-4 min-w-4 px-1 text-3xs bg-primary-foreground/15 text-primary-foreground/80';
+const PRIMARY_BUTTON_KBD_CLASS_NAME = `${BUTTON_KBD_CLASS_NAME} bg-primary-foreground/15 text-primary-foreground/80`;
+
+/**
+ * Keeps a button's hint out of sight until the button is hovered. The hint keeps
+ * its space so revealing it never resizes the button or recenters its label.
+ */
+const HOVER_REVEAL_KBD_CLASS_NAME =
+  'opacity-0 transition-opacity group-hover/button:opacity-100 group-focus-visible/button:opacity-100';
 
 function KbdGroup({ className, ...props }: React.ComponentProps<'div'>) {
   return (
@@ -27,4 +36,10 @@ function KbdGroup({ className, ...props }: React.ComponentProps<'div'>) {
   );
 }
 
-export { Kbd, KbdGroup, PRIMARY_BUTTON_KBD_CLASS_NAME };
+export {
+  Kbd,
+  KbdGroup,
+  BUTTON_KBD_CLASS_NAME,
+  PRIMARY_BUTTON_KBD_CLASS_NAME,
+  HOVER_REVEAL_KBD_CLASS_NAME,
+};

@@ -7,7 +7,7 @@ import { bindingMatches } from '../../hooks/useKeyboardShortcuts';
 import { formatQuotesMessage, NO_QUOTES, type MessageQuote } from '../../lib/messageQuotes';
 import { ShortcutKbd } from '../../shortcuts/shortcutKbd';
 import { Button } from '../ui/button';
-import { PRIMARY_BUTTON_KBD_CLASS_NAME } from '../ui/kbd';
+import { PRIMARY_BUTTON_KBD_CLASS_NAME, HOVER_REVEAL_KBD_CLASS_NAME } from '../ui/kbd';
 import OverflowClamp from '../message/overflowClamp';
 import QuoteCommentEditor from './QuoteCommentEditor';
 
@@ -257,7 +257,10 @@ export default React.memo(function QuotePanel({
         >
           Send
           {sendShortcut && (
-            <ShortcutKbd binding={sendShortcut} className={PRIMARY_BUTTON_KBD_CLASS_NAME} />
+            <ShortcutKbd
+              binding={sendShortcut}
+              className={`${PRIMARY_BUTTON_KBD_CLASS_NAME} ${HOVER_REVEAL_KBD_CLASS_NAME}`}
+            />
           )}
         </Button>
       </div>

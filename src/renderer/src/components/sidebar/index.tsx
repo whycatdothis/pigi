@@ -307,9 +307,16 @@ export default memo(function Sidebar({
                   sideOffset={2}
                   className="w-60 menu-content flex flex-col gap-1"
                 >
-                  <MenuItem onClick={onOpenSettings}>
+                  {/* The hint is hover-only, so the row carries its own group. */}
+                  <MenuItem onClick={onOpenSettings} className="group/menu-item">
                     <IconSettings />
                     <span>Settings</span>
+                    <Kbd className="ml-auto hidden shrink-0 group-hover/menu-item:inline-flex">
+                      {formatShortcutLabel(
+                        shortcutBindings?.get('settings.open') ??
+                          ({ key: ',', meta: true } satisfies ShortcutBinding),
+                      )}
+                    </Kbd>
                   </MenuItem>
                   {pendingUpdateVersion === null ? (
                     <MenuItem onClick={onCheckForUpdates}>

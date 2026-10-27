@@ -34,7 +34,7 @@ describe('QuotePanel send shortcut', () => {
     expect(sendButton).toHaveTextContent('Send⌘');
     expect(within(sendButton).getByLabelText('Enter')).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
-    expect(onSend).toHaveBeenCalledWith('Comments on quoted passages:\n1.\n> quoted');
+    expect(onSend).toHaveBeenCalledWith('Comments on quoted passages:\n1. > quoted');
   });
 
   it('adds a global comment from the plus and sends it after the quotes', () => {
@@ -47,7 +47,7 @@ describe('QuotePanel send shortcut', () => {
 
     fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
     expect(onSend).toHaveBeenCalledWith(
-      'Comments on quoted passages:\n1.\n> quoted\nGlobal comment:\nOverall fine.',
+      'Comments on quoted passages:\n1. > quoted\nGlobal comment:\nOverall fine.',
     );
     expect(useAppStore.getState().globalCommentBySession.has(SESSION_PATH)).toBe(false);
   });
@@ -73,7 +73,7 @@ describe('QuotePanel send shortcut', () => {
       });
     });
     fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
-    expect(onSend).toHaveBeenCalledWith('Comments on quoted passages:\n1.\n> quoted');
+    expect(onSend).toHaveBeenCalledWith('Comments on quoted passages:\n1. > quoted');
   });
 
   it('ignores the shortcut while the sidebar is closed or on a plain Enter', () => {

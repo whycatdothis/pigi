@@ -28,13 +28,11 @@ describe('formatQuotesMessage', () => {
     expect(message).toBe(
       [
         'Comments on quoted passages:',
-        '1.',
-        '> line one',
+        '1. > line one',
         '>',
         '> line two',
         'Why this?',
-        '2.',
-        '> single',
+        '2. > single',
         'Rename it.',
         'Also add a test.',
       ].join('\n'),
@@ -43,7 +41,7 @@ describe('formatQuotesMessage', () => {
 
   it('leaves out an empty comment', () => {
     expect(formatQuotesMessage([{ id: 'a', text: 'only text', comment: ' ' }], ' ')).toBe(
-      'Comments on quoted passages:\n1.\n> only text',
+      'Comments on quoted passages:\n1. > only text',
     );
   });
 
@@ -53,7 +51,7 @@ describe('formatQuotesMessage', () => {
 
   it('puts the global comment last, under its own label', () => {
     expect(formatQuotesMessage([{ id: 'a', text: 'quoted', comment: '' }], ' Overall fine. ')).toBe(
-      'Comments on quoted passages:\n1.\n> quoted\nGlobal comment:\nOverall fine.',
+      'Comments on quoted passages:\n1. > quoted\nGlobal comment:\nOverall fine.',
     );
   });
 });
