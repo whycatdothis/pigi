@@ -93,10 +93,10 @@
   :root {
     --message-row-gap: 4px;
     --message-item-spacing: calc(0.3 * var(--text-body));
-    /* Ordered lists are steps with real text in them, so their items sit at
-       the prose step instead of the tight gap a bulleted list of short lines
-       was tuned for. */
-    --message-ordered-item-spacing: calc(0.8 * var(--text-body));
+    /* Ordered lists are steps with real text in them, so their items sit wider
+       than the prose step a bulleted list of short lines was tuned for: 24px at
+       the default 15px body, where a bulleted gap is 4.5px. */
+    --message-ordered-item-spacing: calc(1.6 * var(--text-body));
     --message-text-spacing: calc(0.8 * var(--text-body));
     --message-surface-spacing: calc(1 * var(--text-body));
     --message-kind-change-spacing: calc(1.8 * var(--text-body));
