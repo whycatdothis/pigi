@@ -37,13 +37,16 @@ function stringValue(
   return typeof value === 'string' ? value : undefined;
 }
 
-/** Global-only fields cannot be written to a project file. */
+/** Global-only fields cannot be written to a project file; a write in flight disables its own fields only. */
 function isFieldDisabled(
   field: PiSettingFieldId,
   scope: PiSettingsScope,
-  saving: boolean,
+  isFieldSaving: PiSectionProps['isFieldSaving'],
 ): boolean {
-  return saving || (scope === 'project' && findPiSettingField(field)?.globalOnly === true);
+  return (
+    isFieldSaving(field, scope) ||
+    (scope === 'project' && findPiSettingField(field)?.globalOnly === true)
+  );
 }
 
 /** Source tag, or a "Global only" note for fields with no project form. */
@@ -79,7 +82,7 @@ function BooleanSetting({
   isOverridden,
   setValue,
   scope,
-  saving,
+  isFieldSaving,
 }: FieldSettingProps): React.JSX.Element {
   return (
     <SettingsRow
@@ -96,7 +99,7 @@ function BooleanSetting({
     >
       <Switch
         checked={values[field] === true}
-        disabled={isFieldDisabled(field, scope, saving)}
+        disabled={isFieldDisabled(field, scope, isFieldSaving)}
         onCheckedChange={(checked) => setValue(field, checked)}
       />
     </SettingsRow>
@@ -112,7 +115,7 @@ function EnumSetting<T extends string>({
   isOverridden,
   setValue,
   scope,
-  saving,
+  isFieldSaving,
 }: FieldSettingProps & {
   options: readonly { value: T; label: string }[];
 }): React.JSX.Element {
@@ -133,7 +136,7 @@ function EnumSetting<T extends string>({
       <SegmentedControl
         value={current ?? (options[0]?.value as T)}
         options={options}
-        disabled={isFieldDisabled(field, scope, saving)}
+        disabled={isFieldDisabled(field, scope, isFieldSaving)}
         onChange={(value) => setValue(field, value)}
       />
     </SettingsRow>
@@ -152,7 +155,7 @@ function NumberSetting({
   isOverridden,
   setValue,
   scope,
-  saving,
+  isFieldSaving,
 }: FieldSettingProps & {
   placeholder?: string;
   min?: number;
@@ -182,7 +185,7 @@ function NumberSetting({
         max={max ?? bounds?.max}
         suffix={suffix}
         placeholder={placeholder}
-        disabled={isFieldDisabled(field, scope, saving)}
+        disabled={isFieldDisabled(field, scope, isFieldSaving)}
         onCommit={(next) => setValue(field, next)}
       />
     </SettingsRow>
@@ -198,7 +201,7 @@ function TextSetting({
   isOverridden,
   setValue,
   scope,
-  saving,
+  isFieldSaving,
 }: FieldSettingProps & { placeholder?: string }): React.JSX.Element {
   return (
     <SettingsRow
@@ -216,7 +219,7 @@ function TextSetting({
       <TextField
         value={stringValue(values, field)}
         placeholder={placeholder}
-        disabled={isFieldDisabled(field, scope, saving)}
+        disabled={isFieldDisabled(field, scope, isFieldSaving)}
         monospace
         className="w-72"
         onCommit={(next) => setValue(field, next)}
@@ -235,7 +238,7 @@ function ListSetting({
   isOverridden,
   setValue,
   scope,
-  saving,
+  isFieldSaving,
 }: FieldSettingProps & { placeholder?: string; addLabel: string }): React.JSX.Element {
   const value = values[field];
   return (
@@ -253,7 +256,7 @@ function ListSetting({
       <StringListField
         value={Array.isArray(value) ? value : undefined}
         placeholder={placeholder}
-        disabled={saving}
+        disabled={isFieldDisabled(field, scope, isFieldSaving)}
         addLabel={addLabel}
         onCommit={(next) => setValue(field, next)}
       />
@@ -262,7 +265,7 @@ function ListSetting({
 }
 
 export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
-  const { values, models, setValues, saving } = props;
+  const { values, models, setValues, scope, isFieldSaving } = props;
   const provider = stringValue(values, 'defaultProvider');
   const modelId = stringValue(values, 'defaultModel');
   const selectedKey = provider && modelId ? `${provider}/${modelId}` : '';
@@ -320,7 +323,13 @@ export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
         >
           <NativeSelect
             value={selectedKey}
-            disabled={saving || models.length === 0}
+            // One write carries both fields, so either of them in flight disables
+            // the pair; a thinking-level write leaves the select usable.
+            disabled={
+              models.length === 0 ||
+              isFieldSaving('defaultProvider', scope) ||
+              isFieldSaving('defaultModel', scope)
+            }
             className="w-72 [&_select]:text-caption [&_select]:border-transparent [&_select]:bg-transparent dark:[&_select]:bg-transparent [&_select]:hover:bg-muted"
             onChange={(event) => {
               const nextKey = event.target.value;
@@ -366,7 +375,7 @@ export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
         >
           <SegmentedControl
             value={thinkingValue ?? thinkingLevels[0]}
-            disabled={saving}
+            disabled={isFieldDisabled('defaultThinkingLevel', scope, isFieldSaving)}
             options={thinkingLevels.map((level) => ({ value: level, label: level }))}
             onChange={(level) => props.setValue('defaultThinkingLevel', level)}
           />

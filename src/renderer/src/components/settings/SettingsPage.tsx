@@ -124,7 +124,7 @@ function PiSettingsSection({
   cwd: string | null;
   models: ModelInfo[];
 }): React.JSX.Element {
-  const { snapshot, loading, saving, reload, setUpdates } = usePiSettings(cwd);
+  const { snapshot, loading, saving, isFieldSaving, reload, setUpdates } = usePiSettings(cwd);
   const [scope, setScope] = useState<PiSettingsScope>('global');
   // Sections that only touch global fields pin the scope, so values and
   // override badges always match the file being edited.
@@ -175,7 +175,7 @@ function PiSettingsSection({
     isOverridden,
     setValue,
     setValues,
-    saving,
+    isFieldSaving,
     models,
   };
   const projectUntrusted =
