@@ -198,6 +198,35 @@ describe('deriveTokens', () => {
     }
   });
 
+  it('gives the shimmer a highlight lighter than the text it sweeps', () => {
+    // The label's base colour is `--muted-foreground`; the band that crosses it
+    // must be a sheen. Deriving it from the foreground made it a dark bar on
+    // light themes, which is what this pins down.
+    const samples = [
+      ...(['light', 'dark'] as const).flatMap((mode) =>
+        [0, 73, 100].flatMap((contrast) =>
+          ACCENT_PRESETS.map((preset) => ({ mode, contrast, accent: { presetId: preset.id } })),
+        ),
+      ),
+      // A theme file can set its own page colours; the sheen has to follow them.
+      { mode: 'light' as const, background: '#f5ecd9', foreground: '#3a2f1f' },
+      { mode: 'dark' as const, background: '#101820', foreground: '#e6eef5' },
+    ];
+
+    for (const sample of samples) {
+      const tokens = tokensFor(sample);
+      const base = color(tokens['--app-muted-foreground']);
+      const highlight = color(tokens['--app-shimmer-highlight']);
+
+      // Measured range across presets and contrast settings is 0.13–0.33: the
+      // delta narrows where the theme's secondary text is already light, because
+      // a white mix runs out of headroom. The assertion only has to separate a
+      // sheen from the dark band this replaced.
+      expect(highlight.lightness).toBeGreaterThan(base.lightness + 0.1);
+      expect(highlight.chroma).toBeLessThanOrEqual(base.chroma + 0.001);
+    }
+  });
+
   it('keeps the documented default palette', () => {
     for (const mode of ['light', 'dark'] as const) {
       const tokens = tokensFor({ mode });

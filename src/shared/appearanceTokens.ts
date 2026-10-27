@@ -83,6 +83,10 @@ const DEFAULT_CONTRAST_ANCHOR = 73;
 const SURFACE_STEPS: Record<ColorMode, number> = { light: 0.037, dark: 0.146 };
 const CARD_STEPS: Record<ColorMode, number> = { light: 0, dark: 0.0714 };
 const SIDEBAR_STEPS: Record<ColorMode, number> = { light: 0, dark: 0.148 };
+/** How far the shimmer's highlight is mixed toward white, from the secondary
+ *  text it sweeps across. The band has to read as light crossing the label, so
+ *  it goes almost all the way: a 60% mix is barely visible on a white page. */
+const SHIMMER_WHITE_MIX = 0.85;
 
 function interpolate(values: number[], contrast: number): number {
   const clamped = Math.min(100, Math.max(0, contrast));
@@ -311,6 +315,12 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
   const surface = (factor: number): OklchColor =>
     mixOklch(background, foreground, surfaceStep * factor);
   const secondaryText = secondaryTextColor(background, foreground, targets);
+  // The thinking label's sweep is a specular highlight, so it is mixed toward
+  // white instead of toward `--foreground`: the foreground is near-black on a
+  // light theme, and a dark band travelling across the label reads as a smudge
+  // rather than a shine. Mixing from the secondary text keeps the hue and
+  // guarantees the band is lighter than the text it crosses in every theme.
+  const shimmerHighlight = mixOklch(secondaryText, WHITE, SHIMMER_WHITE_MIX);
 
   const accentBase = readAccent(slot.accent, mode);
   // The fill only needs to separate from the page (3:1 is the non-text floor);
@@ -360,6 +370,7 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
     '--app-secondary-foreground': formatOklch(foreground),
     '--app-muted': formatOklch(muted),
     '--app-muted-foreground': formatOklch(secondaryText),
+    '--app-shimmer-highlight': formatOklch(shimmerHighlight),
     '--app-accent': formatOklch(hover),
     '--app-accent-foreground': formatOklch(foreground),
     '--app-destructive': formatOklch(status.danger.fg),
