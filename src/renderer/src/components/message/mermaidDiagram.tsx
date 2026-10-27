@@ -11,9 +11,7 @@ import 'react-medium-image-zoom/dist/styles.css';
 import SyntaxHighlightedCode from './syntaxHighlightedCode';
 import CodeCopyButton from './codeCopyButton';
 import { ensureDiagramStyles } from '../../lib/mermaidRenderer';
-import { resolveDiagramTheme } from '../../../../shared/diagramTheme';
 import { useMermaidDiagram } from '../../hooks/useMermaidDiagram';
-import { useResolvedAppearance } from '../../appearance/useResolvedAppearance';
 import { useSettingsStore } from '../../state/settingsStore';
 
 /** Breathing room around a zoomed diagram, so it reads as floating over the window. */
@@ -148,9 +146,7 @@ const DiagramGraphic = memo(function DiagramGraphic({
  * stays, with a line saying so.
  */
 export default function MermaidDiagram({ code }: { code: string }): React.JSX.Element {
-  const appTheme = useResolvedAppearance().mode;
-  const themeChoice = useSettingsStore((state) => state.appearance.diagramTheme);
-  const theme = resolveDiagramTheme(themeChoice, appTheme);
+  const theme = useSettingsStore((state) => state.appearance.diagramTheme);
   const diagram = useMermaidDiagram(code, theme);
   const [showingSource, setShowingSource] = useState(false);
   const showDiagram = diagram.status === 'ready' && !showingSource;

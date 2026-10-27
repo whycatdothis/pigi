@@ -306,14 +306,16 @@ describe('parsePigiSettings', () => {
     expect(parsed.appearance.light.background).toBe('#f6f1e8');
     expect(parsed.appearance.mode).toBe('light');
     expect(parsed.chat.toolBlockViewMode).toBe('default');
-    expect(parsed.appearance.diagramTheme).toBe('auto');
+    expect(parsed.appearance.diagramTheme).toBe('default');
   });
 
   it('keeps a known diagram theme and drops an unknown one', () => {
     const read = (diagramTheme: unknown): string =>
       parsePigiSettings({ version: 2, appearance: { diagramTheme } }).appearance.diagramTheme;
     expect(read('forest')).toBe('forest');
-    expect(read('solarized')).toBe('auto');
+    expect(read('solarized')).toBe('default');
+    // `auto` was a real choice before the picker dropped it.
+    expect(read('auto')).toBe('default');
   });
 
   it('adopts a diagram theme stored under chat', () => {

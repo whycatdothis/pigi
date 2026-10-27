@@ -7,6 +7,7 @@
 - Code theme picker on the Appearance page: 18 themes (Ayu, Catppuccin, Everforest, GitHub, Gruvbox, Horizon, Kanagawa, Material, Min, Night Owl, Nord, One, Plus, Rosé Pine, Rosé Pine Moon, Slack, Solarized, Vitesse), each with a light and a dark Shiki theme chosen by the code surface's luminance and retinted to the 3:1 token floor
 - Code and diagrams are separate cards on the Appearance page, each with its own specimen directly under its picker instead of one shared preview at the bottom
 - The mermaid diagram theme moved from the Chat page to Appearance, onto its own Diagrams card above a live specimen, next to the Code card's own code specimen: each picker redraws the real component under it
+- Diagrams no longer follow the app's mode: the "Follow the app" choice is gone and Mermaid's default palette is the starting point, so a diagram looks the same in a light and a dark window (a stored `auto` falls back to it)
 - A semantic design-token layer (`semanticTokens.css`): radius, spacing, elevation and motion are named by role, `scripts/checkDesignTokens.mjs` rejects hard-coded values in `npm run check`, and `docs/design-system.md` documents the scale
 - `__designTokens()` in dev builds renders every token against the live theme
 - Settings page: the sidebar footer's Settings menu (or ⌘ ,) swaps the sidebar and the main area for a full-page settings view that closes with the top bar or Esc

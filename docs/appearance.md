@@ -204,6 +204,10 @@ preset's tokens are retinted to the 3:1 code-token floor on that surface
 (`shared/codeTheme.ts`), which is what keeps a preset usable on backgrounds it
 was not designed for.
 
+A diagram is always drawn in the palette the reader picked: there is no
+"follow the app" mode any more, so a dark window and a light window draw the
+same diagram. The stored `auto` value from before falls back to `default`.
+
 The diagram theme used to be `chat.diagramTheme`; it moved here because both
 choices are about how content is drawn, not about chat behaviour. A stored
 `chat.diagramTheme` is read as the fallback, so an existing pick survives.
@@ -612,7 +616,7 @@ Code
   Theme             [One ▾]                (CODE_THEME_PRESETS)
   <specimen>                              (a real code block in that theme)
 Diagrams
-  Theme             [Follow the app ▾]     (DIAGRAM_THEME_CHOICES)
+  Theme             [Mermaid default ▾]    (DIAGRAM_THEME_CHOICES)
   <specimen>                              (a real mermaid diagram in that theme)
 Details
   Translucent sidebar  [switch]

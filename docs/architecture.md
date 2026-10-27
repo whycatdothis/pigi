@@ -547,9 +547,8 @@ Rules that the code depends on:
   same type as the text beside them. `shared/diagramTheme.ts` holds the
   choices; the reader's pick is `appearance.diagramTheme` in pigi's settings
   file, set from the Diagrams group on the Appearance page, above a live
-  mermaid sample. When following the app, the window's
-  mode comes from `useResolvedAppearance`, the same resolved appearance the
-  code blocks and the terminal read.
+  mermaid sample. The palette is the reader's
+  pick, not the window's: a diagram looks the same in a light and a dark window.
 - **The model is told that the UI draws them.** Every session is given
   `src/processes/utility/systemPrompt.ts`, appended to pi's own system prompt
   (`resourceLoaderOptions.appendSystemPrompt` in `piAgent.ts`), so a diagram is

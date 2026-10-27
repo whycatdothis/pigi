@@ -423,17 +423,17 @@ test('draws a diagram it has already drawn without going near the source again',
 test('draws in the theme the reader picks, whatever the app is doing', async () => {
   const screen = await render(<MermaidDiagram code={FLOWCHART} />);
   await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
-  const following = graphicIn(screen.container).innerHTML;
+  const asBundled = graphicIn(screen.container).innerHTML;
 
   // What the settings page writes: a mermaid theme of the reader's own.
   useSettingsStore.getState().setDiagramTheme('forest');
-  await waitFor(() => graphicIn(screen.container).innerHTML !== following);
+  await waitFor(() => graphicIn(screen.container).innerHTML !== asBundled);
 
   // A picked theme is drawn whatever the window is doing, so switching the app's
   // own theme leaves the drawing alone.
   setAppMode('dark');
   const forestInDark = graphicIn(screen.container).innerHTML;
-  expect(forestInDark).not.toBe(following);
+  expect(forestInDark).not.toBe(asBundled);
 
   useSettingsStore.getState().setDiagramTheme('neutral');
   await waitFor(() => graphicIn(screen.container).innerHTML !== forestInDark);
@@ -446,8 +446,8 @@ test('draws in the theme the reader picks, whatever the app is doing', async () 
   );
   write.mockRestore();
 
-  // Back to following the app, so the rest of this file starts where it did.
+  // Back to the theme this file started on, so the rest of it sees the same.
   setAppMode('light');
-  useSettingsStore.getState().setDiagramTheme('auto');
-  await waitFor(() => graphicIn(screen.container).innerHTML === following);
+  useSettingsStore.getState().setDiagramTheme('default');
+  await waitFor(() => graphicIn(screen.container).innerHTML === asBundled);
 });
