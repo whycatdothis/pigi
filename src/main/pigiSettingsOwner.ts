@@ -33,6 +33,7 @@ export function createPigiSettingsOwner({ path }: PigiSettingsOwnerOptions): Pig
   let settings = readPigiSettingsFile(path).settings;
 
   function applyChange(change: PigiSettingsChange): PigiSettings {
+    if (change.appearance === undefined && change.chat === undefined) return settings;
     settings = parsePigiSettings({
       ...settings,
       ...(change.appearance === undefined ? {} : { appearance: change.appearance }),

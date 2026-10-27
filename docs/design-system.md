@@ -70,15 +70,18 @@ merge is what makes a role name mean one thing. They stay defined in
 `designTokens.css` for the marketing site, which shares the file; `npm run
 check` rejects them in `src/renderer`.
 
-Line heights ship with the step: a semantic step without its own
-`--text-*--line-height` takes Tailwind's 1.6 default, which is what the merged
-call sites now render (a 15px caption line is 24px, 13px is 20.8px). Surfaces
-that need a tighter or looser rhythm say so with a `leading-*` class — the
-composer's editor is the one place that does.
+Line heights ship with the step: a step that declares its own
+`--text-*--line-height` carries one, and a step that does not — every semantic
+role here — emits no `line-height` at all, so the element inherits
+`body { line-height: 1.6 }` from `main.css`. That is why a merged `text-sm` call
+site renders at 15 × 1.6 = 24px and a `text-caption` at 13 × 1.6 = 20.8px, where
+Tailwind's `13 / 15 / 17` steps carried 17 / 22 / 26px line boxes. Surfaces that
+need a tighter or looser rhythm say so with a `leading-*` class — the composer's
+editor is the one place that does.
 
 Weights carry hierarchy, not size: 400 body, 500 row labels and control values,
 600 page and group headings. Tracking is reserved for the page title
-(`-0.02em`). Line heights ship with the step (`--text-*--line-height`).
+(`-0.02em`).
 
 ## Spacing, elevation, motion
 

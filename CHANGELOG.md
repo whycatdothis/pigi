@@ -7,12 +7,18 @@
 - Small text uses the named type scale everywhere: `text-sm`/`text-xs` were the
   same sizes as `text-body`/`text-caption` under Tailwind's names, and the last
   126 call sites now use the role names, so one size has one name and the check
-  rejects the old steps in app code
+  rejects the old steps in app code. Two visible consequences: the renamed call
+  sites inherit the body's 1.6 line-height instead of the 17 / 22 / 26px line
+  boxes their old steps carried, and three 17px titles (dialog and sheet titles,
+  the session-tree search field) render at 15px, the closest role
 - Every corner is named by role now: the last `rounded-md`/`lg`/`sm`/`xl` call
   sites (including the shadcn primitives) use the semantic tiers, so a radius no
   longer moves when `--radius` moves, and `npm run check` rejects the scale
   steps and the primitive `--radius-*` variables the way it already rejected
-  arbitrary values
+  arbitrary values. This is not only a rename: menus and dialog rows were on
+  `rounded-md` (9.6px) and now use `--radius-control` (14px), while the
+  `rounded-lg` (12px) and `rounded-xl` (16.8px) surfaces land on
+  `--radius-surface` (20px)
 - The message minimap opens and closes with a `display`/`opacity` transition
   (`allow-discrete` with `@starting-style`) instead of an exit animation that
   unmounted the panel from its own `animationend`, with a timer under it in case

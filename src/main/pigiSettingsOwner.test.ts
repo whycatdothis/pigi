@@ -3,7 +3,7 @@
  * writes it before it returns. What matters here is that a change never loses
  * the slice it did not carry, and that the file is written when the call ends.
  */
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -56,6 +56,16 @@ describe('pigi settings owner', () => {
 
     // No timer to wait for: the write is part of the call.
     expect(readPigiSettingsFile(path).settings.appearance.mode).toBe('light');
+  });
+
+  it('does not create the file for a change that carries no slice', () => {
+    const owner = createPigiSettingsOwner({ path });
+
+    // `parsePigiSettingsChange` turns a malformed payload into `{}`; merging it
+    // would write the same bytes back, which is only noise on disk.
+    owner.applyChange({});
+
+    expect(existsSync(path)).toBe(false);
   });
 
   it('keeps the file human-readable', () => {
