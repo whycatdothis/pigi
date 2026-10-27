@@ -106,15 +106,16 @@ any change of kind is the widest gap inside it.
 | Token                            | Value               | Where                                   |
 | -------------------------------- | ------------------- | --------------------------------------- |
 | `--message-item-spacing`         | `0.3 × --text-body` | bulleted list item ↔ item, nested lists |
-| `--message-ordered-item-spacing` | `0.8 × --text-body` | ordered list item ↔ ordered list item   |
+| `--message-ordered-item-spacing` | `1.6 × --text-body` | ordered list item ↔ ordered list item   |
 | `--message-text-spacing`         | `0.8 × --text-body` | prose ↔ prose                           |
 | `--message-surface-spacing`      | `1.0 × --text-body` | card ↔ card, thinking ↔ thinking        |
 | `--message-kind-change-spacing`  | `1.8 × --text-body` | any two different kinds                 |
 
 `--markdown-*` alias the `--message-*` values, so the markdown body and the
-transcript cannot drift apart. A 15px body gives 4.5 / 12 / 12 / 15 / 27 — and
-the ordered-list step is the prose step on purpose: steps are one or two lines
-of real text, so they read at the paragraph rhythm while bullets stay tight.
+transcript cannot drift apart. A 15px body gives 4.5 / 24 / 12 / 15 / 27. The
+ordered-list step is deliberately twice the prose step: a numbered list is a
+sequence of steps with real text in each one, and at the paragraph gap they read
+as one run of text rather than as separate actions.
 
 Heading margins are the same scale read differently: the bottom margin deepens
 with the heading's own weight (`1.0 / 0.9 / 0.8 × --text-body` for h1/h2/h3) and

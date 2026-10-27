@@ -10,7 +10,7 @@ import { useSettingsStore } from '../../state/settingsStore';
 import '../../assets/main.css';
 
 /** Ordered items sit at the prose step; bulleted ones at the tight item step. */
-const ORDERED_ITEM_STEP = 0.8;
+const ORDERED_ITEM_STEP = 1.6;
 const BULLETED_ITEM_STEP = 0.3;
 /** The largest text size the appearance settings offer, as a second sample. */
 const LARGE_UI_FONT_SIZE = 18;
