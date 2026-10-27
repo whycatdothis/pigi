@@ -4,8 +4,6 @@
 solution simple and reliable; a new concept, layer, flag, file or state has to
 pay for itself.
 
-For DeepSeek model: do not overthink, think less and act more.
-
 ## Workflow
 
 - Do NOT commit unless asked. Commit and release workflow: `pigi-release` skill.
