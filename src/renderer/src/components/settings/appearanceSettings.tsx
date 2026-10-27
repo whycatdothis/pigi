@@ -215,12 +215,13 @@ export function AppearanceSettings(): React.JSX.Element {
         </SettingsRow>
       </SettingsGroup>
 
-      <SettingsGroup title="Code">
-        <CodeThemeSettings />
-      </SettingsGroup>
-
-      <SettingsGroup title="Diagrams">
-        <DiagramThemeSettings />
+      <SettingsGroup title="Code & diagrams" separateCards>
+        <SettingsCard>
+          <CodeThemeSettings />
+        </SettingsCard>
+        <SettingsCard>
+          <DiagramThemeSettings />
+        </SettingsCard>
       </SettingsGroup>
 
       <SettingsGroup title="Details">

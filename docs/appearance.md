@@ -612,11 +612,10 @@ Typography
   Code font         [System mono ▾]
   Text size         [15] px
   Code font size    [14] px
-Code
-  Theme             [One ▾]                (CODE_THEME_PRESETS)
+Code & diagrams                          (one heading, one card per theme)
+  Code theme        [One ▾]                (CODE_THEME_PRESETS)
   <specimen>                              (a real code block in that theme)
-Diagrams
-  Theme             [Mermaid default ▾]    (DIAGRAM_THEME_CHOICES)
+  Diagram theme     [Mermaid default ▾]    (DIAGRAM_THEME_CHOICES)
   <specimen>                              (a real mermaid diagram in that theme)
 Details
   Translucent sidebar  [switch]

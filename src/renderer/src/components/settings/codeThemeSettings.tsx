@@ -23,7 +23,7 @@ export function CodeThemeSettings(): React.JSX.Element {
   return (
     // One block, so the card's row divider does not cut off the specimen.
     <div>
-      <SettingsRow label="Theme">
+      <SettingsRow label="Code theme">
         <NativeSelect
           size="sm"
           aria-label="Code theme"

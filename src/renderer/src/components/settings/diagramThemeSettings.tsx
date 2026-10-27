@@ -21,7 +21,7 @@ export function DiagramThemeSettings(): React.JSX.Element {
   return (
     // One block, so the card's row divider does not cut off the specimen.
     <div>
-      <SettingsRow label="Theme">
+      <SettingsRow label="Diagram theme">
         <NativeSelect
           size="sm"
           aria-label="Diagram theme"
