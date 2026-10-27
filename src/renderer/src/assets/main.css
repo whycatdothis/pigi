@@ -83,23 +83,30 @@
 
   /* Transcript rhythm. Everything inside one message scales with the text
      size; the hover button band and the base row gap stay fixed, because they
-     are chrome rather than prose. */
+     are chrome rather than prose.
+
+     One ladder, read as groups rather than as single gaps:
+       item  0.3  items inside one list
+       prose 0.8  paragraph ↔ paragraph
+       card  1.0  prose ↔ card
+       pair  1.2  card ↔ card, thinking ↔ prose
+       group 1.6  thinking ↔ card: reasoning and tool work are different
+                  groups, so their boundary is the widest step in a reply. */
   :root {
     --message-row-gap: 4px;
-    --message-block-spacing: calc(0.6 * var(--text-body));
-    --message-edge-spacing: calc(0.8 * var(--text-body));
-    --message-card-spacing: calc(0.65 * var(--text-body));
-    --message-pair-spacing: calc(1 * var(--text-body));
+    --message-item-spacing: calc(0.3 * var(--text-body));
+    --message-block-spacing: calc(0.8 * var(--text-body));
+    --message-edge-spacing: calc(1 * var(--text-body));
+    --message-pair-spacing: calc(1.2 * var(--text-body));
+    --message-group-spacing: calc(1.6 * var(--text-body));
   }
 
   /* Rows in the middle of a reply carry no hover band any more, so their
-     trailing space has to express the block rhythm. It lives in the row's
-     padding (not its margin) because the virtualizer measures border boxes:
-     padding is inside the measured height, a margin would fall outside it and
+     trailing space has to express the rhythm. It lives in the row's padding
+     (not its margin) because the virtualizer measures border boxes: padding is
+     inside the measured height, a margin would fall outside it and
      desynchronise the scroll model. The base row gap is still added on top,
-     hence the subtraction. A row that touches a tool card gets the wider edge
-     spacing, and two cards in a row get one step more: a bordered surface needs
-     more air than a paragraph before it stops reading as glued to the next. */
+     hence the subtraction. */
   [data-row-space='block'] {
     padding-bottom: calc(var(--message-block-spacing) - var(--message-row-gap));
   }
@@ -110,6 +117,10 @@
 
   [data-row-space='pair'] {
     padding-bottom: calc(var(--message-pair-spacing) - var(--message-row-gap));
+  }
+
+  [data-row-space='group'] {
+    padding-bottom: calc(var(--message-group-spacing) - var(--message-row-gap));
   }
 
   button {
@@ -128,8 +139,8 @@
 
 @layer components {
   /* Markdown typographic system for assistant messages.
-     15px base text × 1.5 line-height, with two rhythm tokens: block spacing
-     (0.6× the body size) between block-level elements, item spacing (0.25×)
+     15px base text × 1.5 line-height, with one rhythm ladder shared with the
+     transcript: prose spacing between block-level elements, item spacing
      between list items and nested lists. Multipliers apply to --text-body
      rather than using em: em resolves against the element's own font-size, so
      a 0.93em table or 0.84em code block would silently shrink its own gaps.
@@ -138,8 +149,8 @@
      specificity, so the cascade is plain file order — no specificity wars, no
      arbitrary-variant hacks in components. */
   .markdown-body {
-    --markdown-block-spacing: calc(0.6 * var(--text-body));
-    --markdown-item-spacing: calc(0.25 * var(--text-body));
+    --markdown-block-spacing: var(--message-block-spacing);
+    --markdown-item-spacing: var(--message-item-spacing);
     width: 100%;
     min-width: 0;
     overflow-wrap: break-word;
@@ -160,27 +171,28 @@
     margin-bottom: var(--markdown-block-spacing);
   }
 
-  /* Headings: top margin ≥ 2× bottom margin so a heading binds to the
-     section it introduces instead of floating between sections. */
+  /* Headings: the top margin is 1.5–2× the block gap and the bottom margin is
+     the block gap itself, so a heading binds to the section it introduces
+     instead of floating between sections. Both scale with the text size. */
   /* Heading sizes are em against the body size, so raising the text size
      scales the whole document instead of leaving headings behind at a fixed
      pixel size. The ratios are the shipped 24/20/17 against a 15px body. */
   .markdown-body h1 {
-    margin: 2rem 0 0.75rem;
+    margin: calc(1.8 * var(--text-body)) 0 var(--markdown-block-spacing);
     font-size: 1.6em;
     font-weight: 600;
     line-height: 1.33;
   }
 
   .markdown-body h2 {
-    margin: 1.75rem 0 0.625rem;
+    margin: calc(1.6 * var(--text-body)) 0 var(--markdown-block-spacing);
     font-size: 1.333em;
     font-weight: 600;
     line-height: 1.4;
   }
 
   .markdown-body h3 {
-    margin: 1.25rem 0 0.5rem;
+    margin: calc(1.2 * var(--text-body)) 0 var(--markdown-block-spacing);
     font-size: 1.133em;
     font-weight: 600;
     line-height: 1.41;

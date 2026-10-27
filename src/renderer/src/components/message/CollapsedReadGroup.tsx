@@ -11,7 +11,7 @@ import {
 import { useRef, useState, useMemo } from 'react';
 import { type ToolNode, type AssistantNode, getToolArgs } from '../../state/transcriptController';
 import { collapseCommandNewlines } from '../../lib/toolDisplay';
-import { MESSAGE_ROW_GAP, READ_GROUP_MAX_COLLAPSED_ENTRIES } from '../../lib/layoutConstants';
+import { READ_GROUP_MAX_COLLAPSED_ENTRIES } from '../../lib/layoutConstants';
 import type { ReadGroupEntry } from '../../lib/readGrouping';
 import { extractEffectiveCommand, isReadOnlyGitCommand } from '../../lib/readOnlyCommand';
 import ToolBlock from './ToolBlock';
@@ -297,7 +297,7 @@ export default function CollapsedReadGroup({
         </div>
         <CollapsibleContent
           className="flex flex-col px-3 pb-1.5"
-          style={{ gap: `${MESSAGE_ROW_GAP * 3}px`, marginTop: `${MESSAGE_ROW_GAP * 3}px` }}
+          style={{ gap: 'var(--message-block-spacing)', marginTop: 'var(--message-block-spacing)' }}
         >
           {entries.map((entry) => (
             <HighlightedEntry

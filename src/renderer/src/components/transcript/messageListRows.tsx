@@ -174,7 +174,7 @@ function AssistantBubble({
         {showText && (
           <div
             style={{
-              marginTop: showThinking ? 'var(--message-card-spacing)' : undefined,
+              marginTop: showThinking ? 'var(--message-pair-spacing)' : undefined,
             }}
           >
             <MarkdownMessage text={node.text} isStreaming={node.isStreaming} />

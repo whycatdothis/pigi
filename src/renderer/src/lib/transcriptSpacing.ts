@@ -5,20 +5,60 @@ import type { RenderItem } from './readGrouping';
  *
  * A row that ends a reply keeps a hover action band, and the band plus the base
  * row gap already separates it from the next turn, so it asks for nothing more.
- * Rows in the middle of a reply have no band: they get the block rhythm, a row
- * that touches a tool card gets the wider edge rhythm, and two cards side by
- * side get one step more again.
+ * Rows in the middle of a reply follow one ladder: prose against prose is the
+ * tightest step, a tool card widens it, two cards in a row widen it again, and
+ * a thinking card against a tool card gets the widest step of all, because
+ * reasoning and tool work read as different groups of the same reply.
  */
-export type RowSpace = 'block' | 'edge' | 'pair';
+export type RowSpace = 'block' | 'edge' | 'pair' | 'group';
+
+/** What a row looks like at the edge that faces a neighbour. */
+type RowKind = 'prose' | 'card' | 'thinking';
 
 function isUserItem(item: RenderItem | undefined): boolean {
   return item?.type === 'node' && item.node.role === 'user';
 }
 
-/** Cards are the surfaces that need breathing room around them. */
-function isCardItem(item: RenderItem | undefined): boolean {
-  if (!item) return false;
+/** Tool cards and read groups are one kind of thing: a bordered surface. */
+function isCardItem(item: RenderItem): boolean {
   return item.type === 'readGroup' || item.node.role === 'tool';
+}
+
+function hasThinkingCard(item: RenderItem): boolean {
+  if (item.type !== 'node') return false;
+  const node = item.node;
+  return node.role === 'assistant' && node.thinking.length > 0;
+}
+
+function hasProse(item: RenderItem): boolean {
+  if (item.type !== 'node') return false;
+  const node = item.node;
+  return node.role === 'assistant' && (node.text.length > 0 || Boolean(node.errorMessage));
+}
+
+/**
+ * A row can start with one kind and end with another: a streaming reply opens
+ * with its thinking card and continues into prose, so the gap above it belongs
+ * to the thinking step while the gap below it belongs to the prose step.
+ */
+function leadingKind(item: RenderItem): RowKind {
+  if (isCardItem(item)) return 'card';
+  return hasThinkingCard(item) ? 'thinking' : 'prose';
+}
+
+function trailingKind(item: RenderItem): RowKind {
+  if (isCardItem(item)) return 'card';
+  if (hasProse(item)) return 'prose';
+  return hasThinkingCard(item) ? 'thinking' : 'prose';
+}
+
+function spaceBetween(current: RowKind, next: RowKind): RowSpace {
+  if (current === 'thinking' || next === 'thinking') {
+    const other = current === 'thinking' ? next : current;
+    return other === 'card' ? 'group' : 'pair';
+  }
+  if (current === 'card' && next === 'card') return 'pair';
+  return current === next ? 'block' : 'edge';
 }
 
 export function rowSpaceFor(
@@ -32,10 +72,7 @@ export function rowSpaceFor(
     return currentHasActionBand ? undefined : 'edge';
   }
   if (isUserItem(current)) return undefined;
-  const currentIsCard = isCardItem(current);
-  const nextIsCard = isCardItem(next);
-  if (currentIsCard && nextIsCard) return 'pair';
-  return currentIsCard === nextIsCard ? 'block' : 'edge';
+  return spaceBetween(trailingKind(current), leadingKind(next));
 }
 
 /** The next row that belongs to a reply; system notices never end one. */

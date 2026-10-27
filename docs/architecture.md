@@ -131,16 +131,18 @@ scroll model (`lib/transcriptSpacing.ts`, `[data-row-space]` rules in
 
 Only the last row of a reply renders the hover action band (25px, plus the 2px
 offset inside it). Rows in the middle of a reply have no band and carry the
-prose rhythm instead: `0.6 × --text-body` between like kinds, `0.8 × --text-body`
-when the pair involves a tool card or a read group. Two tool cards in a row stay
-at the block step, so a run of calls reads as one group. A user message keeps
-its band and its `pt-6`/`pb-2` padding, which is what makes the turn boundary
-(37px above a reply, 53px below it) outweigh every gap inside it.
+prose rhythm instead, from one ladder: 0.8× the body size between paragraphs and
+blocks, 1× against a card, 1.2× between two cards, 1.6× between a thinking card
+and a card. A row is classified by the edge that faces its neighbour, not by its
+contents: a streaming reply that opens with a thinking card and continues into
+prose presents its thinking edge upwards and its prose edge downwards.
 
-Every rhythm token multiplies `--text-body` rather than using `em`: `em`
-resolves against the font size of the element that owns the margin, so tables
-(0.93em) and code blocks (0.84em) would shrink their own gaps and the same block
-gap would render at three different sizes inside one message.
+`--markdown-*` in the message body alias the same `--message-*` values, so a
+paragraph gap and a transcript gap are the same number by construction. Every
+rhythm token multiplies `--text-body` rather than using `em`: `em` resolves
+against the font size of the element that owns the margin, so tables (0.93em)
+and code blocks (0.84em) would shrink their own gaps and the same block gap
+would render at three different sizes inside one message.
 
 ## Process Model
 

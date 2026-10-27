@@ -553,7 +553,7 @@ function DetailItem({
         {(node.text.length > 0 || node.errorMessage) && (
           <div
             style={{
-              marginTop: node.thinking.length > 0 ? 'var(--message-card-spacing)' : undefined,
+              marginTop: node.thinking.length > 0 ? 'var(--message-pair-spacing)' : undefined,
             }}
           >
             <AssistantText node={node} />

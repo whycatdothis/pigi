@@ -76,21 +76,30 @@ Weights carry hierarchy, not size: 400 body, 500 row labels and control values,
 Text spacing multiplies `--text-body`, never `em`: `em` resolves against the
 font size of the element that owns the margin, so a 0.93em table or a 0.84em
 code block silently shrinks its own gaps and the same block gap renders at
-three different sizes in one message.
+three different sizes in one message. Heading margins are part of the same
+ladder, so raising the text size moves headings with the paragraphs around them.
 
-| Token                      | Value                | Where                                |
-| -------------------------- | -------------------- | ------------------------------------ |
-| `--markdown-block-spacing` | `0.6 × --text-body`  | block ↔ block, inside list items too |
-| `--markdown-item-spacing`  | `0.25 × --text-body` | list item ↔ list item, nested lists  |
-| `--message-card-spacing`   | `0.65 × --text-body` | thinking card → prose                |
-| `--message-block-spacing`  | `0.6 × --text-body`  | prose ↔ prose, tool card ↔ tool card |
-| `--message-edge-spacing`   | `0.8 × --text-body`  | prose ↔ tool card                    |
+One ladder, ordered from the inside of a paragraph to the boundary between
+groups of a reply:
+
+| Token                      | Value               | Where                                              |
+| -------------------------- | ------------------- | -------------------------------------------------- |
+| `--markdown-item-spacing`  | `0.3 × --text-body` | list item ↔ list item, nested lists                |
+| `--markdown-block-spacing` | `0.8 × --text-body` | block ↔ block, inside list items too, heading foot |
+| `--message-edge-spacing`   | `1 × --text-body`   | prose ↔ tool card                                  |
+| `--message-pair-spacing`   | `1.2 × --text-body` | tool card ↔ tool card, thinking card → its prose   |
+| `--message-group-spacing`  | `1.6 × --text-body` | thinking card ↔ tool card                          |
+
+`--markdown-*` alias the `--message-*` values, so the markdown body and the
+transcript cannot drift apart. A 15px body gives 4.5 / 12 / 15 / 18 / 24.
+
+The ordering is the point: reasoning and tool work are different groups of one
+reply, so their boundary is the widest step inside it; two cards of the same
+kind are closer; a card against prose is closer still. Only the turn boundary
+(37px above a reply, 53px below it) is wider than all of them.
 
 Fixed chrome, deliberately not scaling: the 25px hover action band, the 4px base
-row gap, `pt-6`/`pb-2` on a user message. A tool card carries a border and a
-tinted surface, so its gap is one step wider than a paragraph gap, and two of
-them in a row get one step more again: at the paragraph step they read as glued
-together, and a run of calls stops separating into single steps.
+row gap, `pt-6`/`pb-2` on a user message.
 
 ## Corners are superellipses
 
