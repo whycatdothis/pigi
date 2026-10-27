@@ -1,13 +1,15 @@
 /**
  * Presentational building blocks for the settings page. Controls are
  * uncontrolled-in-progress: text and number fields keep a local draft and
- * commit on blur/Enter, so a write never fires per keystroke.
+ * commit on blur/Enter, so a write never fires per keystroke. The draft and its
+ * reset-when-the-value-changes rule live in `hooks/useDraft`.
  */
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { SETTINGS_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
+import { useDraft } from '../../hooks/useDraft';
 import { cn } from '@/lib/utils';
 
 /** Page-level content column shared by every section. */
@@ -235,16 +237,7 @@ export function NumberField({
   className?: string;
 }): React.JSX.Element {
   const formatted = value === undefined ? '' : String(value);
-  const [draft, setDraft] = useState(formatted);
-  const [lastFormatted, setLastFormatted] = useState(formatted);
-
-  // Adjust during render when the committed value changes (React's
-  // "storing information from previous renders" pattern) instead of an
-  // effect, which would add a cascading render pass.
-  if (formatted !== lastFormatted) {
-    setLastFormatted(formatted);
-    setDraft(formatted);
-  }
+  const [draft, setDraft] = useDraft(formatted, (next) => next);
 
   function commit(): void {
     const trimmed = draft.trim();
@@ -303,13 +296,7 @@ export function TextField({
   monospace?: boolean;
 }): React.JSX.Element {
   const formatted = value ?? '';
-  const [draft, setDraft] = useState(formatted);
-  const [lastFormatted, setLastFormatted] = useState(formatted);
-
-  if (formatted !== lastFormatted) {
-    setLastFormatted(formatted);
-    setDraft(formatted);
-  }
+  const [draft, setDraft] = useDraft(formatted, (next) => next);
 
   function commit(): void {
     const trimmed = draft.trim();
@@ -380,16 +367,16 @@ export function StringListField({
   disabled?: boolean;
   addLabel: string;
 }): React.JSX.Element {
-  const [rows, setRows] = useState<StringListRow[]>(() => stringListRows(value ?? []));
-  // Compare by content: a new snapshot re-creates every array, and
-  // in-progress edits must not be reset just because the reference changed.
-  const valueKey = JSON.stringify(value ?? []);
-  const [lastValueKey, setLastValueKey] = useState(valueKey);
-
-  if (valueKey !== lastValueKey) {
-    setLastValueKey(valueKey);
-    setRows((previous) => syncStringListRows(previous, value ?? []));
-  }
+  // Compare by content: a new snapshot re-creates every array, and in-progress
+  // edits must not be reset just because the reference changed. The derive step
+  // keeps the id of each row still in the same place, so an edit that round-trips
+  // through the worker does not remount its input (and drop the caret).
+  const [rows, setRows] = useDraft<readonly string[], StringListRow[]>(
+    value ?? [],
+    (entries, previous) =>
+      previous === undefined ? stringListRows(entries) : syncStringListRows(previous, entries),
+    (next, previous) => JSON.stringify(next) === JSON.stringify(previous),
+  );
 
   function commit(nextRows: StringListRow[]): void {
     const cleaned = nextRows

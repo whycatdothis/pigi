@@ -4,7 +4,8 @@
  * Everything here is presentational: values in, callbacks out. The page owns
  * the store writes, so a control never has to know which mode slot it edits.
  */
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo } from 'react';
+import { useDraft } from '../../hooks/useDraft';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { NativeSelect } from '../ui/native-select';
 import {
@@ -49,13 +50,7 @@ export function ColorField({
 }): React.JSX.Element {
   const inputId = useId();
   const hex = toHex(value, fallback);
-  const [draft, setDraft] = useState(hex);
-  const [lastHex, setLastHex] = useState(hex);
-
-  if (hex !== lastHex) {
-    setLastHex(hex);
-    setDraft(hex);
-  }
+  const [draft, setDraft] = useDraft(hex, (next) => next);
 
   function commit(): void {
     const normalized = normalizeHexColor(draft);
@@ -233,13 +228,7 @@ export function NumberInput({
   suffix: string;
   onChange: (value: number) => void;
 }): React.JSX.Element {
-  const [draft, setDraft] = useState(String(value));
-  const [lastValue, setLastValue] = useState(value);
-
-  if (value !== lastValue) {
-    setLastValue(value);
-    setDraft(String(value));
-  }
+  const [draft, setDraft] = useDraft(String(value), (next) => next);
 
   function commit(): void {
     const parsed = Number.parseInt(draft, 10);
