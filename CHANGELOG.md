@@ -5,6 +5,7 @@
 ### Fixed
 
 - Closing the minimap list by moving the pointer away no longer flashes the whole list for one frame before it disappears: the exit animation holds its final invisible values until the list unmounts
+- Ordered list items sit at the prose step instead of the tight bulleted-list gap, so a numbered list of one- or two-line steps reads as separate items at every text size
 
 ## [0.4.23] - 2026-10-27
 
@@ -53,7 +54,6 @@
 - The live state label's letters no longer look doubled: the shimmer paints one copy of the glyphs, and it stays visible where the clip is unsupported or motion is reduced
 - With reduced motion the live state label pulses at a fixed pace; the shimmer's measured width no longer retimes that pulse
 - A tool block keeps one gap between the title and its output and the same gap to the status bar, with or without Show more; a block with no output no longer pays the gap twice
-- Ordered list items sit at the prose step instead of the tight bulleted-list gap, so a numbered list of one- or two-line steps reads as separate items at every text size
 
 ## [0.4.22] - 2026-10-24
 
