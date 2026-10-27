@@ -1,5 +1,12 @@
 # Development Rules
 
+**Do not add an entity unless it is necessary (如无必要，勿增实体).** Keeping the
+solution simple and reliable is this project's highest requirement. A new
+concept, layer, flag, file or state has to pay for itself: if a simpler
+mechanism covers the real case, the general one is not an improvement. Prefer
+the design a reader can hold in their head over the one that anticipates every
+future need.
+
 For DeepSeek model: do not overthink, think less and act more.
 
 ## Workflow
