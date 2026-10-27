@@ -153,7 +153,7 @@ export function ShortcutsSettings(): React.JSX.Element {
                 </span>
               ) : (
                 <>
-                  <Kbd className="min-w-14 justify-center border border-foreground/10 px-2 whitespace-nowrap">
+                  <Kbd className="min-w-14 justify-center px-2 whitespace-nowrap">
                     {formatShortcutLabel(definition.binding)}
                   </Kbd>
                   <Button

@@ -31,8 +31,8 @@ describe('QuotePanel send shortcut', () => {
     useAppStore.setState({ platform: 'mac' });
     const onSend = renderPanel();
     const sendButton = screen.getByRole('button', { name: /^Send/ });
-    expect(sendButton).toHaveTextContent('Send⌘');
     expect(within(sendButton).getByLabelText('Enter')).toBeInTheDocument();
+    expect(sendButton).toHaveTextContent('Send');
     fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
     expect(onSend).toHaveBeenCalledWith('Comments on quoted passages:\n1. > quoted');
   });

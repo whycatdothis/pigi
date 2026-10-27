@@ -1,8 +1,6 @@
 import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ShortcutKbd } from '../../shortcuts/shortcutKbd';
 import { Button } from '../ui/button';
-import { HOVER_REVEAL_KBD_CLASS_NAME } from '../ui/kbd';
 import { Textarea } from '../ui/textarea';
 
 interface QuoteCommentEditorProps {
@@ -81,17 +79,11 @@ export default function QuoteCommentEditor({
       <Button
         type="button"
         variant="outline"
-        size="xs"
-        // Symmetric padding sized to hold the hint in the trailing one, so the
-        // label stays centered and the button stays narrow.
-        className="relative self-end px-5"
+        size="sm"
+        className="self-end"
         onClick={() => onSave(comment.trim())}
       >
         Save
-        <ShortcutKbd
-          binding={{ key: 'Enter' }}
-          className={`${HOVER_REVEAL_KBD_CLASS_NAME} absolute inset-y-0 right-0.5 my-auto h-4 min-w-3.5 px-0.5 text-3xs`}
-        />
       </Button>
     </div>
   );

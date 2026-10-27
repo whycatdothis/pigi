@@ -1,8 +1,20 @@
 import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { extendTailwindMerge } from 'tailwind-merge';
+
+// The type scale is named in designTokens.css (caption, ui, body, code, ...).
+// tailwind-merge only knows Tailwind's own sizes, so without this a variant's
+// `text-caption` and a caller's `text-sm` both survive `cn()` and the stylesheet
+// order picks the winner instead of the last class the caller wrote.
+const mergeClassName = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      'font-size': [{ text: ['caption', 'ui', 'body', 'code', 'code-compact', '2xs', '3xs'] }],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]): string {
-  return twMerge(clsx(inputs));
+  return mergeClassName(clsx(inputs));
 }
 
 /**

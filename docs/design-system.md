@@ -49,6 +49,11 @@ Rules that come up every time:
   still keeps the corner. Markdown tables are the one opt-out, and for a
   different reason: their cells paint over the border arc, so the container
   needs `round` to keep the arc and the fill agreeing.
+- **A 0.5px hairline on a big radius is an outline.** `rounded-surface` (20px)
+  with `ring-[0.5px]` draws its straight edges and loses the whole arc to
+  antialiasing; a 0.5px `border` does the same. `VIBRANCY_OVERLAY_CONTENT`
+  therefore draws its edge with `outline-[0.5px]`, which renders at every radius.
+  Smaller radii (8–12px chips and cards) are fine with a ring.
 
 ## Type
 

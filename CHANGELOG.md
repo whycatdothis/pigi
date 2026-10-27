@@ -21,7 +21,7 @@
 - The Chat settings page is one row: a Default view switch instead of three described options
 - The minimal view's shimmer sweeps a clip window over brighter glyphs instead of painting a white band over the background
 - Sidebar and menu rows show their shortcut as a bordered keycap on hover (New chat, Open project, Settings, Back to app), and the Shortcuts page's closing line draws ⌘ , as a keycap instead of plain text
-- The quotes tab's Send and the comment editor's Save keep their Enter hint out of sight until the button is hovered, with the label centered and the button the same width either way. Save is an outline button; only Send is accent-filled
+- The comment editor's Save is an outline button, so only the quotes tab's Send carries the accent fill
 - A sent quote now opens with its number on the quoted line (`1. > quoted text`) instead of the number standing on a line of its own
 
 ### Fixed
@@ -31,6 +31,8 @@
 - A settings file that cannot be parsed is left alone instead of being replaced with the old localStorage value
 - Code blocks keep one theme per surface instead of registering a new one for every frame of a colour-picker drag
 - Switch tracks are 20px, so the thumb sits on whole pixels
+- Popover, dialog and context-menu surfaces keep a visible hairline around their corners: the 0.5px ring drew the straight edges and vanished along a 20px arc, so the edge is an outline now
+- A button that sets its own type size keeps it: the class merge understands the named type scale, so the model picker's label is 15px again instead of the variant's 13px
 - The font pickers no longer list their default twice, and their values are left-aligned
 - Tool status, diff, toast and warning colours follow the theme, so they stay readable in dark mode
 - The terminal follows the code font and size; native window chrome and menus follow the chosen appearance
