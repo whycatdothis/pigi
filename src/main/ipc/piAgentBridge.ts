@@ -16,14 +16,11 @@ import {
   PiChannel,
   type ListProjectSessionsCommand,
   type ModelInfo,
-  type ReadSessionMessagesCommand,
-  type ReadSettingsCommand,
-  type RenameSessionCommand,
+  type SessionWorkerCommand,
   type SessionWorkerResponse,
   type SessionListResult,
   type UtilityCommand,
   type UtilityResponse,
-  type WriteSettingsCommand,
 } from '../../shared/ipcContract';
 import {
   isPiSettingValue,
@@ -34,22 +31,139 @@ import {
 
 let sessionWorkerProcess: Electron.UtilityProcess | null = null;
 let sessionWorkerRequestId = 0;
-const pendingRenameCallbacks = new Map<
-  string,
-  (result: { success: boolean; error?: string }) => void
->();
-const pendingReadMessagesCallbacks = new Map<
-  string,
-  (result: {
+
+/**
+ * One session-worker request kind: the timeout message, the id prefix, and how
+ * to read its answer.
+ *
+ * A request is identified by its definition object (not a string key), so a
+ * reply type cannot be paired with another kind's reader — the pairing is the
+ * function signature. `read` receives the reply message itself, which the
+ * dispatcher narrows in its switch; adding a reply in `ipcContract.ts` without
+ * a case there is a compile error (the switch ends in a `never` check) instead
+ * of a request that waits for its timeout.
+ */
+interface SessionWorkerRequest<TReply, TResult> {
+  idPrefix: string;
+  timeoutError: string;
+  read: (reply: TReply) => TResult;
+}
+
+const RENAME_SESSION_REQUEST: SessionWorkerRequest<
+  Extract<SessionWorkerResponse, { type: 'rename_session_result' }>,
+  { success: boolean; error?: string }
+> = {
+  idPrefix: 'rename',
+  timeoutError: 'rename timed out',
+  read: (reply) => ({ success: reply.success, error: reply.error }),
+};
+
+const READ_SESSION_MESSAGES_REQUEST: SessionWorkerRequest<
+  Extract<SessionWorkerResponse, { type: 'session_messages_result' }>,
+  {
     success: boolean;
     messages?: unknown[];
     compactionCount?: number;
     thinkingLevel?: string;
     model?: { provider: string; modelId: string } | null;
     error?: string;
-  }) => void
->();
-const pendingSettingsCallbacks = new Map<string, (result: PiSettingsResult) => void>();
+  }
+> = {
+  idPrefix: 'read-messages',
+  timeoutError: 'read session messages timed out',
+  read: (reply) => ({
+    success: reply.success,
+    messages: reply.messages,
+    compactionCount: reply.compactionCount,
+    thinkingLevel: reply.thinkingLevel,
+    model: reply.model,
+    error: reply.error,
+  }),
+};
+
+/** Reads and writes share one reply shape, so they share one kind. */
+const PI_SETTINGS_REQUEST: SessionWorkerRequest<PiSettingsResult, PiSettingsResult> = {
+  idPrefix: 'settings',
+  timeoutError: 'settings request timed out',
+  read: (reply) => ({
+    success: reply.success,
+    error: reply.error,
+    snapshot: reply.snapshot,
+  }),
+};
+
+interface PendingRequest {
+  /** Resolves the caller's promise; the kind owns the result type. */
+  settle: (result: unknown) => void;
+  timer: NodeJS.Timeout;
+}
+
+const pendingSessionWorkerRequests = new Map<string, PendingRequest>();
+
+/** One round trip; the same budget each handler used to hard-code. */
+const SESSION_WORKER_REQUEST_TIMEOUT_MS = 10000;
+
+/**
+ * A bare failure satisfies every kind's answer, since each one carries
+ * `success` and an optional `error`.
+ */
+function failureResult<TResult>(error: string): TResult {
+  // The result types are records with `success`/`error`; the generic cannot
+  // destructure that, so the invariant is stated here once.
+  return { success: false, error } as TResult;
+}
+
+/**
+ * Hands one worker reply to the request that awaits it. The pair (definition,
+ * reply) is checked at the call site, so a rename reply cannot resolve a
+ * settings request.
+ */
+function settleRequest<TReply, TResult>(
+  definition: SessionWorkerRequest<TReply, TResult>,
+  reply: TReply,
+  requestId: string,
+): void {
+  const pending = pendingSessionWorkerRequests.get(requestId);
+  if (!pending) {
+    return;
+  }
+  pendingSessionWorkerRequests.delete(requestId);
+  clearTimeout(pending.timer);
+  pending.settle(definition.read(reply));
+}
+
+/**
+ * Posts one command and waits for the worker's reply.
+ *
+ * The id, the pending slot, the 10s timeout and its cleanup live here once;
+ * `build` gets the freshly minted id so each call site keeps its own command
+ * shape. A failure resolves the kind's failure shape rather than throwing into
+ * ipcMain, which is what every handler already returned.
+ */
+type SessionWorkerRequestCommand = Exclude<SessionWorkerCommand, { type: 'reload_catalog' }>;
+
+function requestFromSessionWorker<TReply, TResult>(
+  definition: SessionWorkerRequest<TReply, TResult>,
+  build: (requestId: string) => SessionWorkerRequestCommand,
+): Promise<TResult> {
+  startSessionWorker();
+  if (!sessionWorkerProcess) {
+    return Promise.resolve(failureResult<TResult>('session worker process not available'));
+  }
+  const proc = sessionWorkerProcess;
+  const command = build(`${definition.idPrefix}-${++sessionWorkerRequestId}`);
+  return new Promise<TResult>((resolve) => {
+    const timer = setTimeout(() => {
+      pendingSessionWorkerRequests.delete(command.requestId);
+      resolve(failureResult<TResult>(definition.timeoutError));
+    }, SESSION_WORKER_REQUEST_TIMEOUT_MS);
+    pendingSessionWorkerRequests.set(command.requestId, {
+      settle: (result) => resolve(result as TResult),
+      timer,
+    });
+    proc.postMessage(command);
+  });
+}
 
 function sendToRenderer(channel: PiChannel, data: unknown): void {
   const win = getMainWindow();
@@ -144,40 +258,20 @@ function startSessionWorker(): void {
           error: message.error,
         });
         break;
-      case 'rename_session_result': {
-        const callback = pendingRenameCallbacks.get(message.requestId);
-        if (callback) {
-          pendingRenameCallbacks.delete(message.requestId);
-          callback({ success: message.success, error: message.error });
-        }
+      case 'rename_session_result':
+        settleRequest(RENAME_SESSION_REQUEST, message, message.requestId);
         break;
-      }
-      case 'session_messages_result': {
-        const callback = pendingReadMessagesCallbacks.get(message.requestId);
-        if (callback) {
-          pendingReadMessagesCallbacks.delete(message.requestId);
-          callback({
-            success: message.success,
-            messages: message.messages,
-            compactionCount: message.compactionCount,
-            thinkingLevel: message.thinkingLevel,
-            model: message.model,
-            error: message.error,
-          });
-        }
+      case 'session_messages_result':
+        settleRequest(READ_SESSION_MESSAGES_REQUEST, message, message.requestId);
         break;
-      }
-      case 'settings_result': {
-        const callback = pendingSettingsCallbacks.get(message.requestId);
-        if (callback) {
-          pendingSettingsCallbacks.delete(message.requestId);
-          callback({
-            success: message.success,
-            error: message.error,
-            snapshot: message.snapshot,
-          });
-        }
+      case 'settings_result':
+        settleRequest(PI_SETTINGS_REQUEST, message, message.requestId);
         break;
+      default: {
+        // Every reply above is answered or forwarded; a new one has to be added
+        // here, which is what this line makes the compiler say.
+        const unhandled: never = message;
+        throw new Error(`Unhandled session worker reply: ${String(unhandled)}`);
       }
     }
   });
@@ -188,17 +282,10 @@ function startSessionWorker(): void {
       // The cache is kept: it is the last known catalog and stays valid until
       // the respawned worker publishes (a respawned worker reloads the
       // catalog on startup, so recovery needs no coordination here).
-      for (const [id, callback] of pendingRenameCallbacks) {
-        callback({ success: false, error: 'session worker process exited' });
-        pendingRenameCallbacks.delete(id);
-      }
-      for (const [id, callback] of pendingReadMessagesCallbacks) {
-        callback({ success: false, error: 'session worker process exited' });
-        pendingReadMessagesCallbacks.delete(id);
-      }
-      for (const [id, callback] of pendingSettingsCallbacks) {
-        callback({ success: false, error: 'session worker process exited' });
-        pendingSettingsCallbacks.delete(id);
+      for (const [id, pending] of pendingSessionWorkerRequests) {
+        clearTimeout(pending.timer);
+        pending.settle(failureResult('session worker process exited'));
+        pendingSessionWorkerRequests.delete(id);
       }
       scheduleSessionWorkerRespawn();
     }
@@ -221,28 +308,6 @@ function listProjectSessions(cwds: string[]): SessionListResult {
   // Prewarm services in the warm process for these cwds
   processPool.ensureWarmProcess(cwds);
   return { success: true, requestId };
-}
-
-/** Forward a settings read/write to the session worker and await its reply. */
-function sendSettingsCommand(
-  command: ReadSettingsCommand | WriteSettingsCommand,
-): Promise<PiSettingsResult> {
-  startSessionWorker();
-  if (!sessionWorkerProcess) {
-    return Promise.resolve({ success: false, error: 'session worker process not available' });
-  }
-  const proc = sessionWorkerProcess;
-  return new Promise<PiSettingsResult>((resolve) => {
-    const timeout = setTimeout(() => {
-      pendingSettingsCallbacks.delete(command.requestId);
-      resolve({ success: false, error: 'settings request timed out' });
-    }, 10000);
-    pendingSettingsCallbacks.set(command.requestId, (result) => {
-      clearTimeout(timeout);
-      resolve(result);
-    });
-    proc.postMessage(command);
-  });
 }
 
 /**
@@ -486,29 +551,12 @@ export function registerIpcHandlers(): void {
       if (!name || typeof name !== 'string') {
         return { success: false, error: 'name must be a non-empty string' };
       }
-      startSessionWorker();
-      if (!sessionWorkerProcess) {
-        return { success: false, error: 'session worker process not available' };
-      }
-      const requestId = `rename-${++sessionWorkerRequestId}`;
-      const proc = sessionWorkerProcess;
-      return new Promise<{ success: boolean; error?: string }>((resolve) => {
-        const timeout = setTimeout(() => {
-          pendingRenameCallbacks.delete(requestId);
-          resolve({ success: false, error: 'rename timed out' });
-        }, 10000);
-        pendingRenameCallbacks.set(requestId, (result) => {
-          clearTimeout(timeout);
-          resolve(result);
-        });
-        const renameCmd: RenameSessionCommand = {
-          type: 'rename_session',
-          requestId,
-          sessionPath,
-          name,
-        };
-        proc.postMessage(renameCmd);
-      });
+      return requestFromSessionWorker(RENAME_SESSION_REQUEST, (requestId) => ({
+        type: 'rename_session',
+        requestId,
+        sessionPath,
+        name,
+      }));
     },
   );
 
@@ -516,47 +564,22 @@ export function registerIpcHandlers(): void {
     if (!sessionPath || typeof sessionPath !== 'string' || sessionPath.trim().length === 0) {
       return { success: false, error: 'sessionPath must be a non-empty string' };
     }
-    startSessionWorker();
-    if (!sessionWorkerProcess) {
-      return { success: false, error: 'session worker process not available' };
-    }
-    const requestId = `read-messages-${++sessionWorkerRequestId}`;
-    const proc = sessionWorkerProcess;
-    return new Promise<{
-      success: boolean;
-      messages?: unknown[];
-      compactionCount?: number;
-      thinkingLevel?: string;
-      model?: { provider: string; modelId: string } | null;
-      error?: string;
-    }>((resolve) => {
-      const timeout = setTimeout(() => {
-        pendingReadMessagesCallbacks.delete(requestId);
-        resolve({ success: false, error: 'read session messages timed out' });
-      }, 10000);
-      pendingReadMessagesCallbacks.set(requestId, (result) => {
-        clearTimeout(timeout);
-        resolve(result);
-      });
-      const readCmd: ReadSessionMessagesCommand = {
-        type: 'read_session_messages',
-        requestId,
-        sessionPath,
-      };
-      proc.postMessage(readCmd);
-    });
+    return requestFromSessionWorker(READ_SESSION_MESSAGES_REQUEST, (requestId) => ({
+      type: 'read_session_messages',
+      requestId,
+      sessionPath,
+    }));
   });
 
   ipcMain.handle(PiChannel.GetPiSettings, async (_e, cwd: string) => {
     if (!cwd || typeof cwd !== 'string' || cwd.trim().length === 0) {
       return { success: false, error: 'cwd must be a non-empty string' };
     }
-    const command: ReadSettingsCommand = {
+    return requestFromSessionWorker(PI_SETTINGS_REQUEST, (requestId) => ({
       type: 'read_settings',
-      requestId: `settings-read-${++sessionWorkerRequestId}`,
+      requestId,
       cwd,
-    };
-    return sendSettingsCommand(command);
+    }));
   });
 
   ipcMain.handle(
@@ -583,15 +606,14 @@ export function registerIpcHandlers(): void {
           return { success: false, error: 'each update value must be a setting value or null' };
         }
       }
-      const command: WriteSettingsCommand = {
+      return requestFromSessionWorker(PI_SETTINGS_REQUEST, (requestId) => ({
         type: 'write_settings',
-        requestId: `settings-write-${++sessionWorkerRequestId}`,
+        requestId,
         cwd,
         scope,
         // Safe narrowing: the worker validates every field against the registry.
         updates: updates as PiSettingUpdate[],
-      };
-      return sendSettingsCommand(command);
+      }));
     },
   );
 }
