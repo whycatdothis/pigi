@@ -61,3 +61,42 @@ case.
 Each of these three needs the settings page, the updater window and the session
 worker re-checked afterwards, which is why they are not folded into a feature
 branch.
+
+## One owner for pigi's settings file
+
+Today the main process reads `settings.json` before the window exists (native
+theme, window background), the preload reads it again synchronously (first paint
+without a flash of the wrong theme), and the renderer writes it through a 150 ms
+debounce. Three readers, one writer, no broadcast: the updater window and the
+main window can disagree, a `pagehide` flush is an async `invoke` that
+`before-quit` can beat, and nothing in the file says which revision it is.
+
+The shape that makes all three problems go away at once: the main process owns
+the file, the renderer receives a snapshot and sends changes, main debounces and
+flushes synchronously on `before-quit`, and the file carries a monotonic
+revision so a late write cannot win. The synchronous preload read has to stay —
+it is what avoids the theme flash — so the snapshot has to be pushed into the
+preload's first paint path rather than fetched after it.
+
+## Per-field saving state on the pi settings pages
+
+`usePiSettings` exposes one `saving` flag, so one field's write disables every
+field on the page for the length of a worker round trip, a lock and two file
+reads (up to ~200 ms while the pi TUI holds the lock). Track the fields that are
+in flight instead, and leave the rest interactive.
+
+## One type scale
+
+The semantic scale (`--text-caption` 13, `--text-ui` 14, `--text-body` 15) sits
+next to Tailwind's (`text-xs` 13, `text-sm` 14), so two names mean one size and
+126 call sites still use the old one. Merge them, or mark the legacy steps in
+`docs/design-system.md` the way `docs/todo.md` marks the radius migration.
+
+## Terminal and appearance follow-ups
+
+- `corner-shape: superellipse(1.5)` applies to every rounded box, which moves
+  painting off the fast rounded-rect path. Record one trace on a long transcript
+  with `blink.animations` to confirm paint cost did not regress, and check
+  `.appearance-slider::-webkit-slider-thumb` — it uses `var(--radius-full)`
+  rather than the class, so it is a superellipse only because a pseudo-element
+  is not matched by `:where(:not(.rounded-full))`.
