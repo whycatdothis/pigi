@@ -93,6 +93,10 @@
   :root {
     --message-row-gap: 4px;
     --message-item-spacing: calc(0.3 * var(--text-body));
+    /* Ordered lists are steps with real text in them, so their items sit at
+       the prose step instead of the tight gap a bulleted list of short lines
+       was tuned for. */
+    --message-ordered-item-spacing: calc(0.8 * var(--text-body));
     --message-text-spacing: calc(0.8 * var(--text-body));
     --message-surface-spacing: calc(1 * var(--text-body));
     --message-kind-change-spacing: calc(1.8 * var(--text-body));
@@ -144,6 +148,7 @@
   .markdown-body {
     --markdown-block-spacing: var(--message-text-spacing);
     --markdown-item-spacing: var(--message-item-spacing);
+    --markdown-ordered-item-spacing: var(--message-ordered-item-spacing);
     width: 100%;
     min-width: 0;
     overflow-wrap: break-word;
@@ -215,6 +220,17 @@
 
   .markdown-body li + li {
     margin-top: var(--markdown-item-spacing);
+  }
+
+  /* A numbered list is usually steps — one or two lines each — so its items
+     sit at the prose step while a bulleted list keeps the tight one. The
+     selector still carries exactly one class; it outranks the li + li rule
+     above through its extra element (ol), not through order or specificity
+     tricks, so the file-order cascade is untouched: an item of any ol,
+     including one nested in a ul, takes this gap, and the nested list's own
+     margin (li > ol below) keeps the item spacing. */
+  .markdown-body ol > li + li {
+    margin-top: var(--markdown-ordered-item-spacing);
   }
 
   /* Blocks inside a list item keep the block rhythm. Only the *items* are
