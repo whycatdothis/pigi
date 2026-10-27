@@ -272,19 +272,6 @@ export function solveMaxMixAmount(
 }
 
 /**
- * Mixes `from` toward `toward` by the smallest amount that reaches `target`
- * contrast against `reference`.
- */
-export function mixUntilContrast(
-  from: OklchColor,
-  toward: OklchColor,
-  reference: OklchColor,
-  target: number,
-): OklchColor {
-  return mixOklch(from, toward, solveMixAmount(from, toward, reference, target));
-}
-
-/**
  * Moves `color` away from `reference` along lightness until it reaches
  * `target` contrast. Used to enforce a foreground floor for user-entered
  * colors without touching their hue.

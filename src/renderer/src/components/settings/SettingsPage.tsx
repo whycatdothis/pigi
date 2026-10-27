@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { IconLoader2, IconRefresh } from '@tabler/icons-react';
 import type { ModelInfo } from '../../../../shared/ipcContract';
 import {
@@ -10,11 +10,12 @@ import {
 } from '../../../../shared/piSettings';
 import { usePiSettings } from '../../hooks/usePiSettings';
 import { SegmentedControl, SettingsContent, SettingsHint } from './settingsControls';
+import { SpinningIcon } from '../ui/spinningIcon';
 import {
-  DEFAULT_SETTINGS_SECTION,
-  findSettingsSection,
+  settingsSectionFor,
+  type SettingsSection,
   type SettingsSectionId,
-} from './settingsSections';
+} from '../../lib/settingsSections';
 import type { PiSectionProps } from './piSectionProps';
 import {
   AdvancedSettings,
@@ -41,6 +42,41 @@ const SCOPE_OPTIONS = [
   { value: 'project' as const, label: 'This project' },
 ];
 
+/**
+ * The page around one section: title row, scroll area, footer hint.
+ *
+ * The title row is a slot rather than a prop per control because the pi sections
+ * fill it from their own state — scope, loading, reload — and the pigi sections
+ * leave it empty.
+ */
+function SettingsFrame({
+  title,
+  actions,
+  footer,
+  children,
+}: {
+  title: string;
+  actions?: ReactNode;
+  footer?: ReactNode;
+  children: ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <SettingsContent>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">{title}</h1>
+            <div className="flex-1" />
+            {actions}
+          </div>
+          {children}
+          {footer}
+        </SettingsContent>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage({
   section,
   cwd,
@@ -49,12 +85,50 @@ export default function SettingsPage({
   // A section id can outlive the section it names (this page keeps its
   // selection in the store), so an unknown id falls back to the default rather
   // than stranding the view on an error message.
-  const sectionMeta = findSettingsSection(section) ?? findSettingsSection(DEFAULT_SETTINGS_SECTION);
+  const sectionMeta = settingsSectionFor(section);
+  // Reading pi's settings means a round trip to the session worker and two
+  // reads of pi's own files. Only the pi sections need it, so only they ask.
+  return sectionMeta.group === 'pi' ? (
+    <PiSettingsSection meta={sectionMeta} cwd={cwd} models={models} />
+  ) : (
+    <PigiSettingsSection meta={sectionMeta} />
+  );
+}
+
+function PigiSettingsSection({ meta }: { meta: SettingsSection }): React.JSX.Element {
+  let content: ReactNode = null;
+  switch (meta.id) {
+    case 'appearance':
+      content = <AppearanceSettings />;
+      break;
+    case 'chat':
+      content = <ChatSettings />;
+      break;
+    case 'shortcuts':
+      content = <ShortcutsSettings />;
+      break;
+    default:
+      content = null;
+      break;
+  }
+
+  return <SettingsFrame title={meta.label}>{content}</SettingsFrame>;
+}
+
+function PiSettingsSection({
+  meta,
+  cwd,
+  models,
+}: {
+  meta: SettingsSection;
+  cwd: string | null;
+  models: ModelInfo[];
+}): React.JSX.Element {
   const { snapshot, loading, saving, reload, setUpdates } = usePiSettings(cwd);
   const [scope, setScope] = useState<PiSettingsScope>('global');
   // Sections that only touch global fields pin the scope, so values and
   // override badges always match the file being edited.
-  const globalOnlySection = sectionMeta?.piScope === 'global';
+  const globalOnlySection = meta.piScope === 'global';
   const effectiveScope: PiSettingsScope = globalOnlySection ? 'global' : scope;
 
   const defaults = useMemo(() => piSettingDefaults(), []);
@@ -95,15 +169,6 @@ export default function SettingsPage({
     [setValues],
   );
 
-  if (!sectionMeta) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        Unknown settings section.
-      </div>
-    );
-  }
-
-  const isPiSection = sectionMeta.group === 'pi';
   const piProps: PiSectionProps = {
     scope: effectiveScope,
     values,
@@ -114,14 +179,10 @@ export default function SettingsPage({
     models,
   };
   const projectUntrusted =
-    isPiSection &&
-    !globalOnlySection &&
-    scope === 'project' &&
-    snapshot !== null &&
-    !snapshot.projectTrusted;
+    !globalOnlySection && scope === 'project' && snapshot !== null && !snapshot.projectTrusted;
 
-  let content: React.ReactNode;
-  switch (section) {
+  let content: ReactNode = null;
+  switch (meta.id) {
     case 'models':
       content = <ModelsSettings {...piProps} />;
       break;
@@ -140,69 +201,61 @@ export default function SettingsPage({
     case 'advanced':
       content = <AdvancedSettings {...piProps} />;
       break;
-    case 'appearance':
-      content = <AppearanceSettings />;
-      break;
-    case 'chat':
-      content = <ChatSettings />;
-      break;
-    case 'shortcuts':
-      content = <ShortcutsSettings />;
+    default:
+      content = null;
       break;
   }
 
-  const piContentUnavailable = isPiSection && !loading && snapshot === null;
+  const unavailable = !loading && snapshot === null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <SettingsContent>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">
-              {sectionMeta.label}
-            </h1>
-            <div className="flex-1" />
-            {projectUntrusted && (
-              <span
-                className="max-w-72 truncate text-xs text-warning-fg"
-                title="pi ignores project settings and resources until the project is trusted (see /trust in the TUI)."
-              >
-                Project is not trusted — these settings are ignored
-              </span>
-            )}
-            {isPiSection && !globalOnlySection && (
-              <SegmentedControl value={scope} options={SCOPE_OPTIONS} onChange={setScope} />
-            )}
-            {isPiSection && (loading || saving) && (
-              <IconLoader2 size={14} className="animate-spin text-muted-foreground" />
-            )}
-            {isPiSection && !loading && (
-              <button
-                type="button"
-                onClick={reload}
-                title="Reload from disk"
-                aria-label="Reload settings from disk"
-                className="flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <IconRefresh size={14} />
-              </button>
-            )}
-          </div>
-          {piContentUnavailable ? (
-            <SettingsHint>
-              Could not read pi settings. Check the session worker logs, then reload.
-            </SettingsHint>
-          ) : (
-            content
+    <SettingsFrame
+      title={meta.label}
+      actions={
+        <>
+          {projectUntrusted && (
+            <span
+              className="max-w-72 truncate text-xs text-warning-fg"
+              title="pi ignores project settings and resources until the project is trusted (see /trust in the TUI)."
+            >
+              Project is not trusted — these settings are ignored
+            </span>
           )}
-          {isPiSection && (
-            <SettingsHint>
-              Changes are saved immediately and apply to sessions started afterwards. Run /reload in
-              a running session to apply them now.
-            </SettingsHint>
+          {!globalOnlySection && (
+            <SegmentedControl value={scope} options={SCOPE_OPTIONS} onChange={setScope} />
           )}
-        </SettingsContent>
-      </div>
-    </div>
+          {(loading || saving) && (
+            <SpinningIcon className="text-muted-foreground">
+              <IconLoader2 size={14} />
+            </SpinningIcon>
+          )}
+          {!loading && (
+            <button
+              type="button"
+              onClick={reload}
+              title="Reload from disk"
+              aria-label="Reload settings from disk"
+              className="flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <IconRefresh size={14} />
+            </button>
+          )}
+        </>
+      }
+      footer={
+        <SettingsHint>
+          Changes are saved immediately and apply to sessions started afterwards. Run /reload in a
+          running session to apply them now.
+        </SettingsHint>
+      }
+    >
+      {unavailable ? (
+        <SettingsHint>
+          Could not read pi settings. Check the session worker logs, then reload.
+        </SettingsHint>
+      ) : (
+        content
+      )}
+    </SettingsFrame>
   );
 }

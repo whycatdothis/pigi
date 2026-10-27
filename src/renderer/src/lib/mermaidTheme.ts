@@ -10,6 +10,16 @@ export function diagramFontFamily(): string {
   return family === '' ? 'sans-serif' : family;
 }
 
+/**
+ * What a diagram's labels are measured with: the stack above and the size the
+ * app draws body text at. Mermaid bakes both into the drawing it lays out, so a
+ * change to either is a different drawing, and this is the key that says so.
+ */
+export function diagramFontKey(): string {
+  const style = getComputedStyle(document.body);
+  return `${style.fontFamily}|${style.fontSize}`;
+}
+
 // The colours diagrams used to be drawn with, kept for the day the app's own
 // palette is wanted again. Mermaid's themes are what a diagram is drawn in now
 // (see `resolveDiagramTheme` in `shared/diagramTheme.ts`): a diagram painted out of the app's greys

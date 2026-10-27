@@ -14,9 +14,23 @@ import {
   type ResolvedAppearance,
 } from '../../../shared/appearanceTokens';
 
+const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)';
+const SYSTEM_REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
 type AppearanceListener = (resolved: ResolvedAppearance) => void;
 
 const listeners = new Set<AppearanceListener>();
+
+/**
+ * What the DOM currently shows. Before the first write it stands in for the
+ * defaults, so `readResolvedAppearance` — a `useSyncExternalStore` snapshot that
+ * React may call during render — never has to apply anything itself.
+ */
+const FALLBACK_ENVIRONMENT: AppearanceEnvironment = {
+  systemIsDark: false,
+  systemPrefersReducedMotion: false,
+};
+
 let lastResolved: ResolvedAppearance | null = null;
 let lastTokens: Record<string, string> | null = null;
 
@@ -64,9 +78,6 @@ export function subscribeAppearance(listener: AppearanceListener): () => void {
   };
 }
 
-const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)';
-const SYSTEM_REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
-
 export function readSystemEnvironment(): AppearanceEnvironment {
   return {
     systemIsDark: window.matchMedia(SYSTEM_DARK_QUERY).matches,
@@ -105,11 +116,15 @@ export function applyAppearance(
   return resolved;
 }
 
-/** The last applied appearance, for components that need tokens in JS. */
+/**
+ * The last applied appearance, for components that need tokens in JS.
+ *
+ * Reading before the first write yields the defaults. That value is memoised
+ * rather than recomputed, so two reads in one render always agree — a snapshot
+ * that changed under React would be a tearing bug.
+ */
 export function readResolvedAppearance(): ResolvedAppearance {
-  if (lastResolved === null) {
-    lastResolved = applyAppearance(DEFAULT_APPEARANCE);
-  }
+  lastResolved ??= resolveAppearance(DEFAULT_APPEARANCE, FALLBACK_ENVIRONMENT);
   return lastResolved;
 }
 

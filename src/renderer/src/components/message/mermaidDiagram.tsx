@@ -147,7 +147,24 @@ const DiagramGraphic = memo(function DiagramGraphic({
  */
 export default function MermaidDiagram({ code }: { code: string }): React.JSX.Element {
   const theme = useSettingsStore((state) => state.appearance.diagramTheme);
-  const diagram = useMermaidDiagram(code, theme);
+  // Diagrams are measured with the app's own font, so the drawing has to be made
+  // again when that changes. A string key keeps the subscription to one compare,
+  // whether the change came from the family, the size, or the mode whose slot
+  // holds them.
+  const fontKey = useSettingsStore((state) => {
+    const { appearance } = state;
+    const light = appearance.light.fonts;
+    const dark = appearance.dark.fonts;
+    return [
+      appearance.mode,
+      appearance.separateModes,
+      light.ui,
+      light.uiSize,
+      dark.ui,
+      dark.uiSize,
+    ].join('|');
+  });
+  const diagram = useMermaidDiagram(code, theme, fontKey);
   const [showingSource, setShowingSource] = useState(false);
   const showDiagram = diagram.status === 'ready' && !showingSource;
   const styles = diagram.status === 'ready' ? diagram.diagram.styles : null;

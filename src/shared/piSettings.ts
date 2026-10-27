@@ -21,11 +21,24 @@ export interface PiSettingField {
   type: PiSettingType;
   /** Allowed values for `enum` fields. */
   options?: readonly string[];
+  /** Bounds for `number` fields; a write outside them is refused. */
+  min?: number;
+  max?: number;
   /** Only meaningful in `~/.pi/agent/settings.json`. */
   globalOnly?: boolean;
   /** Built-in value pi uses when the field is absent (display only). */
   defaultValue?: PiSettingValue;
 }
+
+/** A day, in milliseconds: longer than any timeout a provider would ask for. */
+const MAX_TIMEOUT_MS = 86_400_000;
+/** Retries beyond this are a loop, not a retry policy. */
+const MAX_RETRIES = 100;
+/** Ten million tokens is already past every model's context window. */
+const MAX_TOKEN_COUNT = 10_000_000;
+/** Resource lists hold paths; a thousand of them is a broken settings file. */
+const MAX_STRING_LIST_ITEMS = 1_000;
+const MAX_STRING_LIST_ITEM_LENGTH = 4_096;
 
 export const PI_SETTING_FIELDS = [
   // Models & thinking (global only: these are startup defaults).
@@ -56,19 +69,43 @@ export const PI_SETTING_FIELDS = [
     options: ['auto', 'sse', 'websocket', 'websocket-cached'],
     defaultValue: 'auto',
   },
-  { id: 'httpIdleTimeoutMs', type: 'number', defaultValue: 300000 },
+  { id: 'httpIdleTimeoutMs', type: 'number', defaultValue: 300000, min: 0, max: MAX_TIMEOUT_MS },
   // Compaction.
   { id: 'compaction.enabled', type: 'boolean', defaultValue: true },
-  { id: 'compaction.reserveTokens', type: 'number', defaultValue: 16384 },
-  { id: 'compaction.keepRecentTokens', type: 'number', defaultValue: 20000 },
+  {
+    id: 'compaction.reserveTokens',
+    type: 'number',
+    defaultValue: 16384,
+    min: 0,
+    max: MAX_TOKEN_COUNT,
+  },
+  {
+    id: 'compaction.keepRecentTokens',
+    type: 'number',
+    defaultValue: 20000,
+    min: 0,
+    max: MAX_TOKEN_COUNT,
+  },
   // Retry.
   { id: 'retry.enabled', type: 'boolean', defaultValue: true },
-  { id: 'retry.maxRetries', type: 'number', defaultValue: 3 },
-  { id: 'retry.baseDelayMs', type: 'number', defaultValue: 2000 },
-  { id: 'retry.maxAgentDelayMs', type: 'number', defaultValue: 60000 },
-  { id: 'retry.provider.timeoutMs', type: 'number' },
-  { id: 'retry.provider.maxRetries', type: 'number', defaultValue: 0 },
-  { id: 'retry.provider.maxRetryDelayMs', type: 'number', defaultValue: 60000 },
+  { id: 'retry.maxRetries', type: 'number', defaultValue: 3, min: 0, max: MAX_RETRIES },
+  { id: 'retry.baseDelayMs', type: 'number', defaultValue: 2000, min: 0, max: MAX_TIMEOUT_MS },
+  {
+    id: 'retry.maxAgentDelayMs',
+    type: 'number',
+    defaultValue: 60000,
+    min: 0,
+    max: MAX_TIMEOUT_MS,
+  },
+  { id: 'retry.provider.timeoutMs', type: 'number', min: 0, max: MAX_TIMEOUT_MS },
+  { id: 'retry.provider.maxRetries', type: 'number', defaultValue: 0, min: 0, max: MAX_RETRIES },
+  {
+    id: 'retry.provider.maxRetryDelayMs',
+    type: 'number',
+    defaultValue: 60000,
+    min: 0,
+    max: MAX_TIMEOUT_MS,
+  },
   // Resources.
   { id: 'enableSkillCommands', type: 'boolean', defaultValue: true },
   { id: 'extensions', type: 'stringList', defaultValue: [] },
@@ -248,10 +285,22 @@ export function isPiSettingValueValid(field: PiSettingField, value: PiSettingVal
     case 'string':
       return typeof value === 'string';
     case 'number':
-      return typeof value === 'number' && Number.isFinite(value);
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return false;
+      }
+      return (
+        (field.min === undefined || value >= field.min) &&
+        (field.max === undefined || value <= field.max)
+      );
     case 'enum':
       return typeof value === 'string' && (field.options ?? []).includes(value);
     case 'stringList':
-      return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
+      return (
+        Array.isArray(value) &&
+        value.length <= MAX_STRING_LIST_ITEMS &&
+        value.every(
+          (entry) => typeof entry === 'string' && entry.length <= MAX_STRING_LIST_ITEM_LENGTH,
+        )
+      );
   }
 }

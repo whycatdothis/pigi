@@ -7,7 +7,11 @@
  * synchronously, before the returned promise resolves, so a test can assert on
  * the file contents without waiting a tick.
  */
-import { parsePigiSettings, type PigiSettings } from '../../../shared/pigiSettings';
+import {
+  PIGI_SETTINGS_READ_STATE,
+  parsePigiSettings,
+  type PigiSettings,
+} from '../../../shared/pigiSettings';
 
 export interface PigiSettingsBridge {
   /** Every value the store asked to persist, in order. */
@@ -17,7 +21,10 @@ export interface PigiSettingsBridge {
 /** Replaces the bridge. Call before the store is used; nothing is reloaded. */
 export function installPigiSettingsBridge(initial: unknown = null): PigiSettingsBridge {
   const writes: PigiSettings[] = [];
-  window.piApi.readPigiSettings = (): unknown => initial;
+  window.piApi.readPigiSettings = () =>
+    initial === null
+      ? { state: PIGI_SETTINGS_READ_STATE.missing }
+      : { state: PIGI_SETTINGS_READ_STATE.ok, settings: initial };
   window.piApi.writePigiSettings = (value: unknown): Promise<boolean> => {
     writes.push(parsePigiSettings(value));
     return Promise.resolve(true);

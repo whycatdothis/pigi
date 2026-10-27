@@ -4,17 +4,12 @@ import { toast } from 'sonner';
 import type { ShortcutBinding, ShortcutDefinition } from '../../../../shared/ipcContract';
 import { useShortcutsStore } from '../../state/shortcutsStore';
 import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
+import { shortcutKeyFromEvent } from '../../shortcuts/shortcutKey';
 import { Kbd } from '../ui/kbd';
 import { Button } from '../ui/button';
 import { SettingsGroup, SettingsHint, SettingsRow } from './settingsControls';
 
 const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'OS']);
-const SHIFTED_BRACKET_KEYS: Record<string, string> = { '{': '[', '}': ']' };
-
-function normalizeKey(event: KeyboardEvent): string {
-  const key = event.shiftKey ? (SHIFTED_BRACKET_KEYS[event.key] ?? event.key) : event.key;
-  return key.length === 1 ? key.toLowerCase() : key;
-}
 
 function bindingsEqual(a: ShortcutBinding, b: ShortcutBinding): boolean {
   return (
@@ -101,7 +96,7 @@ export function ShortcutsSettings(): React.JSX.Element {
       }
 
       const binding: ShortcutBinding = {
-        key: normalizeKey(event),
+        key: shortcutKeyFromEvent(event),
         ...(event.metaKey ? { meta: true } : {}),
         ...(event.ctrlKey ? { ctrl: true } : {}),
         ...(event.shiftKey ? { shift: true } : {}),

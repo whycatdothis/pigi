@@ -11,7 +11,7 @@ import {
   SettingsManager,
   VERSION,
 } from '@earendil-works/pi-coding-agent';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import lockfile from 'proper-lockfile';
 import type {
@@ -285,38 +285,25 @@ function readPiSettings(cwd: string): PiSettingsSnapshot {
   };
 }
 
-function acquireSettingsLockWithRetry(path: string): () => void {
-  const maxAttempts = 10;
-  const delayMs = 20;
-  let lastError: unknown = null;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      return lockfile.lockSync(path, { realpath: false });
-    } catch (error) {
-      const code =
-        typeof error === 'object' && error !== null && 'code' in error
-          ? String((error as { code?: unknown }).code)
-          : undefined;
-      if (code !== 'ELOCKED' || attempt === maxAttempts) {
-        throw error;
-      }
-      lastError = error;
-      const start = Date.now();
-      while (Date.now() - start < delayMs) {
-        // Sleep synchronously to avoid changing callers to async.
-      }
-    }
-  }
-
-  throw lastError ?? new Error('Failed to acquire settings lock');
+/**
+ * Takes pi's settings lock, waiting for a holder rather than spinning.
+ *
+ * The wait has to be a real one: this process also carries the session list,
+ * the catalog pushes and every settings request, all on one message loop. A
+ * synchronous sleep here blocks all of them for as long as pi holds the lock.
+ */
+function acquireSettingsLock(path: string): Promise<() => void> {
+  return lockfile.lock(path, {
+    realpath: false,
+    retries: { retries: 9, factor: 1, minTimeout: 20, maxTimeout: 20, randomize: false },
+  });
 }
 
-function writePiSettings(
+async function writePiSettings(
   cwd: string,
   scope: PiSettingsScope,
   updates: PiSettingUpdate[],
-): PiSettingsSnapshot {
+): Promise<PiSettingsSnapshot> {
   for (const update of updates) {
     const field = findPiSettingField(update.field);
     if (!field) {
@@ -336,7 +323,7 @@ function writePiSettings(
     mkdirSync(directory, { recursive: true });
   }
 
-  const release = acquireSettingsLockWithRetry(path);
+  const release = await acquireSettingsLock(path);
   try {
     let document: Record<string, unknown> = {};
     if (existsSync(path)) {
@@ -349,9 +336,14 @@ function writePiSettings(
     for (const update of updates) {
       setPiSettingValue(document, update.field, update.value === null ? undefined : update.value);
     }
-    writeFileSync(path, JSON.stringify(document, null, 2), 'utf-8');
+    // Written beside the target and renamed into place, like pigi's own
+    // settings file: a crash mid-write must not leave pi with a truncated
+    // config, which is the one file that holds every setting the reader has.
+    const temporaryPath = `${path}.tmp`;
+    writeFileSync(temporaryPath, JSON.stringify(document, null, 2), 'utf-8');
+    renameSync(temporaryPath, path);
   } finally {
-    release();
+    await release();
   }
 
   return readPiSettings(cwd);
@@ -491,7 +483,7 @@ process.parentPort?.on('message', async (messageEvent) => {
     }
     case 'write_settings': {
       try {
-        const snapshot = writePiSettings(command.cwd, command.scope, command.updates);
+        const snapshot = await writePiSettings(command.cwd, command.scope, command.updates);
         sendToMain({
           type: 'settings_result',
           requestId: command.requestId,

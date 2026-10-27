@@ -26,8 +26,10 @@ const RULES = [
   },
   {
     name: 'arbitrary font size',
-    pattern: /text-\[\d+(?:\.\d+)?px\]/g,
+    pattern: /text-\[[^\]]*?\d+(?:\.\d+)?(?:px|rem|em)[^\]]*?\]/g,
     hint: 'use the type scale (text-3xs … text-2xl, text-code)',
+    // `text-[var(--text-ui)]` names a token, which is what this rule wants.
+    skip: (match) => match.includes('var(--text'),
   },
   {
     name: 'arbitrary shadow',

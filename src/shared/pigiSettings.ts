@@ -119,6 +119,24 @@ function migrateFromV1(raw: unknown): PigiSettings {
 }
 
 /**
+ * What reading pigi's settings file found.
+ *
+ * `corrupt` is separate from `missing` on purpose: the renderer migrates an old
+ * localStorage value when there is no file, and doing that over a file that
+ * exists but could not be parsed would erase whatever the reader had.
+ */
+export const PIGI_SETTINGS_READ_STATE = {
+  ok: 'ok',
+  missing: 'missing',
+  corrupt: 'corrupt',
+} as const;
+
+export type PigiSettingsReadResult =
+  | { state: typeof PIGI_SETTINGS_READ_STATE.ok; settings: unknown }
+  | { state: typeof PIGI_SETTINGS_READ_STATE.missing }
+  | { state: typeof PIGI_SETTINGS_READ_STATE.corrupt };
+
+/**
  * Parse a persisted blob, falling back field by field. Never throws: a corrupt
  * store must not prevent the app from starting.
  */

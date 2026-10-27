@@ -66,16 +66,14 @@ export function PathMentionPopover({
     >
       <div ref={listRef} className="max-h-[25vh] overflow-y-auto p-1">
         {entries.length === 0 ? (
-          <div className="px-2 py-1 text-[0.875rem] text-muted-foreground">
-            {error ?? 'Loading…'}
-          </div>
+          <div className="px-2 py-1 text-ui text-muted-foreground">{error ?? 'Loading…'}</div>
         ) : (
           entries.map((entry, index) => (
             <button
               key={entry.path}
               type="button"
               className={cn(
-                'flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[0.875rem]',
+                'flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-ui',
                 index === selectedIndex && 'bg-foreground/7',
               )}
               onMouseDown={(event) => {

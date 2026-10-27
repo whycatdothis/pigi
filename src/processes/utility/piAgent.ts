@@ -230,8 +230,12 @@ function createServicesForCwd(cwd: string): Promise<AgentSessionServices> {
         settingsManager,
         modelRuntime,
         // What the app knows about itself, told to every session on top of the
-        // SDK's own prompt.
-        resourceLoaderOptions: { appendSystemPrompt: [PIGI_SYSTEM_PROMPT] },
+        // SDK's own prompt. It has to be the override hook: passing
+        // `appendSystemPrompt` replaces the discovered APPEND_SYSTEM.md instead
+        // of adding to it, and the resource loader resolves one or the other.
+        resourceLoaderOptions: {
+          appendSystemPromptOverride: (base) => [...base, PIGI_SYSTEM_PROMPT],
+        },
       });
     } finally {
       process.chdir(previousCwd);

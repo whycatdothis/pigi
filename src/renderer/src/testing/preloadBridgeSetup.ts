@@ -7,10 +7,12 @@
  * reason; tests that care about the value install `installPigiSettingsBridge`
  * instead. Node-environment tests have no window and skip it.
  */
+import { PIGI_SETTINGS_READ_STATE } from '../../../shared/pigiSettings';
+
 if (typeof window !== 'undefined' && !('piApi' in window)) {
   Object.defineProperty(window, 'piApi', {
     value: {
-      readPigiSettings: (): unknown => null,
+      readPigiSettings: () => ({ state: PIGI_SETTINGS_READ_STATE.missing }),
       writePigiSettings: (): Promise<boolean> => Promise.resolve(true),
     },
     configurable: true,

@@ -141,6 +141,34 @@ describe('deriveTokens', () => {
     }
   });
 
+  it('keeps the fill labelled on a mid-tone page', () => {
+    // A user-set mid-tone background is where the two rules collide: the fill has
+    // to move away from the page to keep its 3:1 separation, ends up light, and a
+    // white label on it reads at 1.73:1 (#6b6b6b) to 3.72:1 (#3a3a3a). The label
+    // flips and the fill is walked until it reads, instead of either floor giving
+    // way.
+    for (const mode of ['light', 'dark'] as const) {
+      for (const backgroundHex of ['#6b6b6b', '#555555', '#3a3a3a', '#808080']) {
+        for (const preset of ACCENT_PRESETS) {
+          const tokens = tokensFor({
+            mode,
+            background: backgroundHex,
+            accent: { presetId: preset.id },
+          });
+          const background = color(tokens['--app-background']);
+          const fill = color(tokens['--app-primary']);
+          const label = color(tokens['--app-primary-foreground']);
+
+          expect(contrastRatio(fill, background)).toBeGreaterThanOrEqual(3);
+          expect(contrastRatio(label, fill)).toBeGreaterThanOrEqual(4.5);
+          expect(tokens['--app-sidebar-primary-foreground']).toBe(
+            tokens['--app-primary-foreground'],
+          );
+        }
+      }
+    }
+  });
+
   it('lifts the text accent above the fill in dark mode', () => {
     const tokens = tokensFor({ mode: 'dark' });
     // The fill stays dark enough for a white label; only the text accent is

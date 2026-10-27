@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { TERMINAL_DEFAULT_HEIGHT } from '../lib/layoutConstants';
-import type { SettingsSectionId } from '../components/settings/settingsSections';
-import { DEFAULT_SETTINGS_SECTION } from '../components/settings/settingsSections';
+import type { SettingsSectionId } from '../lib/settingsSections';
+import { DEFAULT_SETTINGS_SECTION } from '../lib/settingsSections';
 import type {
   ContextUsage,
   ModelInfo,

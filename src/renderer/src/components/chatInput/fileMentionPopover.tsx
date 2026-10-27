@@ -57,7 +57,7 @@ export function FileMentionPopover({
     >
       {matches.length === 0 ? (
         <div className="p-1">
-          <div className="px-2 py-1 text-[0.875rem] text-muted-foreground">
+          <div className="px-2 py-1 text-ui text-muted-foreground">
             {searching
               ? 'Searching files…'
               : error
@@ -72,7 +72,7 @@ export function FileMentionPopover({
               key={path}
               type="button"
               className={cn(
-                'flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[0.875rem]',
+                'flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-ui',
                 index === selectedIndex && 'bg-foreground/7',
               )}
               onMouseDown={(event) => {

@@ -45,10 +45,17 @@ export const SETTINGS_SECTIONS = [
 
 export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id'];
 
-export const DEFAULT_SETTINGS_SECTION: SettingsSectionId = 'appearance';
+export const DEFAULT_SETTINGS_SECTION: SettingsSectionId = SETTINGS_SECTIONS[0].id;
+
+const DEFAULT_SECTION_META: SettingsSection = SETTINGS_SECTIONS[0];
 
 export function findSettingsSection(id: string): SettingsSection | undefined {
   return (SETTINGS_SECTIONS as readonly SettingsSection[]).find((section) => section.id === id);
+}
+
+/** A stored section id can outlive the section it names; the default stands in. */
+export function settingsSectionFor(id: string): SettingsSection {
+  return findSettingsSection(id) ?? DEFAULT_SECTION_META;
 }
 
 export function isSettingsSectionId(id: string): id is SettingsSectionId {

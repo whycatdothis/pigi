@@ -13,6 +13,7 @@ import { is } from '@electron-toolkit/utils';
 import { PiChannel } from '../../shared/ipcContract';
 import { UPDATE_PROGRESS_HASH } from '../../shared/routes';
 import { getMainWindow } from './createMainWindow';
+import { guardWindowNavigation } from './windowNavigation';
 
 const WIDTH = 400;
 /** First paint's content height, before the renderer has measured anything. */
@@ -135,6 +136,8 @@ export function openUpdateProgressWindow(): BrowserWindow {
       sandbox: false,
     },
   });
+
+  guardWindowNavigation(progressWindow.webContents, join(__dirname, '../renderer/index.html'));
 
   positionOverParent(progressWindow, liveParent);
 

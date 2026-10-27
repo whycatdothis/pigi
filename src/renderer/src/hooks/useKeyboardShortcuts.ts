@@ -2,16 +2,11 @@ import { useEffect, useMemo } from 'react';
 import type { ShortcutBinding } from '../../../shared/ipcContract';
 import { useShallow } from 'zustand/react/shallow';
 import { selectShortcutBindings, useShortcutsStore } from '../state/shortcutsStore';
-
-const SHIFTED_BRACKET_KEYS: Record<string, string> = { '{': '[', '}': ']' };
+import { shortcutKeyFromEvent } from '../shortcuts/shortcutKey';
 
 export function bindingMatches(binding: ShortcutBinding, event: KeyboardEvent): boolean {
-  // Shift produces braces on bracket keys; bindings retain their unshifted labels.
-  const key = event.shiftKey ? (SHIFTED_BRACKET_KEYS[event.key] ?? event.key) : event.key;
-  if (
-    event.key.toLowerCase() !== binding.key.toLowerCase() &&
-    key.toLowerCase() !== binding.key.toLowerCase()
-  ) {
+  const key = shortcutKeyFromEvent(event);
+  if (key.toLowerCase() !== binding.key.toLowerCase()) {
     return false;
   }
   if (Boolean(binding.meta) !== event.metaKey) {

@@ -147,10 +147,6 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
   },
 ];
 
-export function findThemePreset(id: string): ThemePreset | null {
-  return THEME_PRESETS.find((preset) => preset.id === id) ?? null;
-}
-
 /** Hex shown in the `Aa` swatch for a stored accent choice. */
 export function accentSwatchHex(accent: AccentChoice): string {
   if ('hex' in accent) {

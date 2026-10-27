@@ -176,6 +176,31 @@ function fitAccent(color: OklchColor, mode: ColorMode, role: AccentRole): OklchC
   return fitted;
 }
 
+/**
+ * A filled accent and the label that reads on it.
+ *
+ * `fitAccent` walks a fill down until white text reads on it, but the fill then
+ * has to keep 3:1 against the page, and on a mid-tone background those two rules
+ * cannot both hold: the fill is pushed away from the page, ends up light, and
+ * white text on it is 1.73:1. So the label is chosen first (white while it reads,
+ * near-black when it does not) and the fill is then walked in the direction that
+ * keeps that label legible. The usual dark fill on a light page is untouched.
+ */
+function fitFillWithLabel(
+  fill: OklchColor,
+  background: OklchColor,
+): { fill: OklchColor; label: OklchColor } {
+  const separated = ensureContrast(fill, background, 3);
+  const label =
+    contrastRatio(WHITE, separated) >= contrastRatio(NEAR_BLACK, separated) ? WHITE : NEAR_BLACK;
+  const direction = label === WHITE ? -0.005 : 0.005;
+  const fitted = { ...separated };
+  for (let step = 0; step < 40 && contrastRatio(label, fitted) < 4.6; step += 1) {
+    fitted.lightness = Math.min(1, Math.max(0, fitted.lightness + direction));
+  }
+  return { fill: fitted, label };
+}
+
 /** The accent the user picked, before any fitting. */
 function readAccent(accent: AccentChoice, mode: ColorMode): OklchColor {
   if ('presetId' in accent) {
@@ -236,15 +261,46 @@ function alphaMix(color: OklchColor, amount: number): string {
  * they have no WCAG floor of their own, so they stay in proportion to the
  * user's contrast choice.
  */
+/** Foreground floor for anything the reader typed: below this it is unreadable. */
+const FOREGROUND_CONTRAST_FLOOR = 7;
+
+/** The three solved inputs every color token is derived from. */
+function resolveColorInputs(resolved: ResolvedAppearance): {
+  background: OklchColor;
+  foreground: OklchColor;
+  targets: ContrastTargets;
+} {
+  const defaults = DEFAULT_MODE_COLORS[resolved.mode];
+  const background = parseColor(resolved.slot.background, defaults.background);
+  const foreground = ensureContrast(
+    parseColor(resolved.slot.foreground, defaults.foreground),
+    background,
+    FOREGROUND_CONTRAST_FLOOR,
+  );
+  return {
+    background,
+    foreground,
+    targets: contrastTargets(resolved.slot.contrast, resolved.mode),
+  };
+}
+
+/** Secondary text: the foreground mixed toward the page until it just passes. */
+function secondaryTextColor(
+  background: OklchColor,
+  foreground: OklchColor,
+  targets: ContrastTargets,
+): OklchColor {
+  return mixOklch(
+    foreground,
+    background,
+    solveMaxMixAmount(foreground, background, background, targets.secondaryText),
+  );
+}
+
 export function deriveTokens(resolved: ResolvedAppearance): Record<string, string> {
   const { mode, slot } = resolved;
-  const defaults = DEFAULT_MODE_COLORS[mode];
 
-  const background = parseColor(slot.background, defaults.background);
-  const storedForeground = parseColor(slot.foreground, defaults.foreground);
-  const foreground = ensureContrast(storedForeground, background, 7);
-
-  const targets = contrastTargets(slot.contrast, mode);
+  const { background, foreground, targets } = resolveColorInputs(resolved);
   const borderAmount = solveMixAmount(background, foreground, background, targets.border);
 
   // Surfaces use fixed per-mode steps toward the foreground (documented in
@@ -254,17 +310,15 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
   const surfaceStep = SURFACE_STEPS[mode];
   const surface = (factor: number): OklchColor =>
     mixOklch(background, foreground, surfaceStep * factor);
-  const secondaryText = mixOklch(
-    foreground,
-    background,
-    solveMaxMixAmount(foreground, background, background, targets.secondaryText),
-  );
+  const secondaryText = secondaryTextColor(background, foreground, targets);
 
   const accentBase = readAccent(slot.accent, mode);
   // The fill only needs to separate from the page (3:1 is the non-text floor);
   // its label is guaranteed by the band. The text accent needs the full 4.5:1,
   // because it is read as a link, a rail or an icon.
-  const fillAccent = ensureContrast(fitAccent(accentBase, mode, 'fill'), background, 3);
+  const fillStep = fitFillWithLabel(fitAccent(accentBase, mode, 'fill'), background);
+  const fillAccent = fillStep.fill;
+  const fillLabel = fillStep.label;
   const textAccent = ensureContrast(fitAccent(accentBase, mode, 'text'), background, 4.5);
   // Hover moves away from the page in both modes: darker on light, lighter on
   // dark. Fading the fill toward the background, the usual shortcut, would
@@ -300,7 +354,7 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
     '--app-popover': formatOklch(popover),
     '--app-popover-foreground': formatOklch(foreground),
     '--app-primary': formatOklch(fillAccent),
-    '--app-primary-foreground': formatOklch(WHITE),
+    '--app-primary-foreground': formatOklch(fillLabel),
     '--app-primary-hover': formatOklch(hoverAccent),
     '--app-secondary': formatOklch(muted),
     '--app-secondary-foreground': formatOklch(foreground),
@@ -316,7 +370,7 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
     '--app-sidebar-solid': formatOklch(sidebarSolid),
     '--app-sidebar-foreground': formatOklch(foreground),
     '--app-sidebar-primary': formatOklch(fillAccent),
-    '--app-sidebar-primary-foreground': formatOklch(WHITE),
+    '--app-sidebar-primary-foreground': formatOklch(fillLabel),
     '--app-sidebar-accent': alphaMix(foreground, 0.1),
     '--app-sidebar-accent-foreground': formatOklch(foreground),
     '--app-sidebar-border': formatOklch(mixOklch(background, foreground, borderAmount)),
@@ -342,28 +396,6 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
 
 /** Resolved secondary-text contrast, shown next to the slider. */
 export function resolvedSecondaryContrast(resolved: ResolvedAppearance): number {
-  const defaults = DEFAULT_MODE_COLORS[resolved.mode];
-  const background = parseColor(resolved.slot.background, defaults.background);
-  const foreground = ensureContrast(
-    parseColor(resolved.slot.foreground, defaults.foreground),
-    background,
-    7,
-  );
-  const targets = contrastTargets(resolved.slot.contrast, resolved.mode);
-  const muted = mixOklch(
-    foreground,
-    background,
-    solveMaxMixAmount(foreground, background, background, targets.secondaryText),
-  );
-  return contrastRatio(muted, background);
-}
-
-/** Formats a stored color for the settings UI, falling back to the default. */
-export function displayColor(
-  value: string | null,
-  mode: ColorMode,
-  role: 'background' | 'foreground',
-): string {
-  const fallback = requireColor(DEFAULT_MODE_COLORS[mode][role]);
-  return formatHex((value === null ? null : parseCssColor(value)) ?? fallback);
+  const { background, foreground, targets } = resolveColorInputs(resolved);
+  return contrastRatio(secondaryTextColor(background, foreground, targets), background);
 }

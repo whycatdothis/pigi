@@ -12,7 +12,11 @@ import {
   SidebarMenuItem,
 } from '../ui/sidebar';
 import { TooltipProvider } from '../ui/tooltip';
-import { SETTINGS_GROUPS, SETTINGS_SECTIONS, type SettingsSectionId } from './settingsSections';
+import {
+  SETTINGS_GROUPS,
+  SETTINGS_SECTIONS,
+  type SettingsSectionId,
+} from '../../lib/settingsSections';
 
 interface SettingsSidebarProps {
   activeSection: SettingsSectionId;

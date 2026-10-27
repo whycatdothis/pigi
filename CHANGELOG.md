@@ -19,6 +19,12 @@
 
 ### Fixed
 
+- The pi settings pages load in a window that is occluded or in the background: the first read waited for an animation frame, which such a window never produces, so the page sat on "Could not read pi settings" until it was focused
+- Opening the Appearance, Chat or Shortcuts pages no longer reads pi's settings files in the session worker; only the pi sections do
+- A pi settings value outside its declared range (a negative retry count, a year-long timeout) is refused at the boundary instead of being written to `settings.json`, and the number fields clamp to the same range so the control cannot produce one
+- A `settings.json` that exists but cannot be parsed is left alone instead of being replaced by the value the app used to keep in localStorage
+- Dragging the background color picker no longer registers a new code theme per frame: the theme cache is bounded and surfaces are quantized before they become cache keys
+- A settings change made in the first second after a migration from localStorage can no longer be overwritten by the migration write arriving late
 - Message spacing: the gaps inside a reply now follow the text size instead of sitting at a fixed 14px, list items keep the block rhythm when a table or a code block follows their text (they used to collapse to the 3px item gap, so text and its table read as flush), and only the last row of a reply keeps the hover action band — tool cards and intermediate paragraphs no longer reserve 25px of empty space each
 - Message rhythm follows two rules: neighbours of the same kind sit at that kind's step (12px for prose against prose, 15px for a card against a card) and any change of kind takes a much wider step (27px at the default text size), so a paragraph, a tool card and a thinking card each read as their own group instead of blending into one column
 - Markdown headings follow the text size instead of keeping fixed rem margins, with a bottom margin that deepens by heading level and a top margin 1.8× the bottom one

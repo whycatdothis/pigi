@@ -107,8 +107,14 @@ function MarkdownCode({
   // A mermaid block is drawn as a diagram, but only once its fence is closed:
   // while it streams it is a code block that is still being written, and there
   // is nothing to draw yet.
+  const startLine = node?.position?.start.line;
   const endLine = node?.position?.end.line;
-  if (isMermaidLanguage(language) && endLine !== undefined && isFenceClosed(source, endLine)) {
+  if (
+    isMermaidLanguage(language) &&
+    startLine !== undefined &&
+    endLine !== undefined &&
+    isFenceClosed(source, startLine, endLine)
+  ) {
     return <MermaidDiagram code={code} />;
   }
 

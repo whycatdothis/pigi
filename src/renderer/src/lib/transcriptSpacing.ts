@@ -43,23 +43,21 @@ function hasErrorCard(item: RenderItem): boolean {
 }
 
 /**
- * A row can start with one kind and end with another: a streaming reply opens
- * with its thinking card and continues into prose, so the gap above it belongs
- * to the thinking step while the gap below it belongs to the prose step. A
- * reply renders its parts in this order: thinking card, prose, error card.
+ * The two kinds a row presents to its neighbours.
+ *
+ * A reply renders its parts in one order — thinking card, prose, error card — so
+ * the top edge is the first part that exists and the bottom edge is the last.
+ * Writing that order once keeps the two edges from disagreeing.
  */
-function leadingKind(item: RenderItem): RowKind {
-  if (isCardItem(item)) return 'card';
-  if (hasThinkingCard(item)) return 'thinking';
-  if (hasProse(item)) return 'prose';
-  return hasErrorCard(item) ? 'card' : 'prose';
-}
-
-function trailingKind(item: RenderItem): RowKind {
-  if (isCardItem(item)) return 'card';
-  if (hasErrorCard(item)) return 'card';
-  if (hasProse(item)) return 'prose';
-  return hasThinkingCard(item) ? 'thinking' : 'prose';
+function rowEdges(item: RenderItem): { leading: RowKind; trailing: RowKind } {
+  if (isCardItem(item)) return { leading: 'card', trailing: 'card' };
+  const parts: RowKind[] = [];
+  if (hasThinkingCard(item)) parts.push('thinking');
+  if (hasProse(item)) parts.push('prose');
+  if (hasErrorCard(item)) parts.push('card');
+  const leading = parts[0] ?? 'prose';
+  const trailing = parts[parts.length - 1] ?? 'prose';
+  return { leading, trailing };
 }
 
 function spaceBetween(current: RowKind, next: RowKind): RowSpace {
@@ -78,7 +76,7 @@ export function rowSpaceFor(
     return currentHasActionBand ? undefined : 'kind-change';
   }
   if (isUserItem(current)) return undefined;
-  return spaceBetween(trailingKind(current), leadingKind(next));
+  return spaceBetween(rowEdges(current).trailing, rowEdges(next).leading);
 }
 
 /** The next row that belongs to a reply; system notices never end one. */

@@ -7,6 +7,7 @@ import { PIGI_SETTINGS_PATH_ARGUMENT } from '../../shared/pigiSettings';
 import { is } from '@electron-toolkit/utils';
 import icon from '../../../resources/icon.png?asset';
 import { openDebugPanel } from '../debugConfig';
+import { guardWindowNavigation } from './windowNavigation';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -53,6 +54,7 @@ export function createMainWindow({
     shell.openExternal(details.url);
     return { action: 'deny' };
   });
+  guardWindowNavigation(mainWindow.webContents, join(__dirname, '../renderer/index.html'));
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);

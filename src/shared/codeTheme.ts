@@ -1,3 +1,13 @@
+import type { BundledTheme } from 'shiki/bundle/full';
+import {
+  ensureContrast,
+  formatHex,
+  oklchToRgb,
+  parseCssColor,
+  relativeLuminance,
+  rgbToHex,
+} from './colorMath';
+
 /**
  * Code-block theming: which base theme to use, and how to keep its token colors
  * readable against the actual code surface.
@@ -65,11 +75,30 @@ export function codeThemePresetFor(id: string): CodeThemePreset {
 /** WCAG 1.4.11 rate for large text and graphics: what code tokens count as. */
 export const CODE_TOKEN_CONTRAST_TARGET = 3;
 
+/**
+ * Rounds a surface to a coarse grid so a colour picker being dragged does not
+ * mint a theme per frame.
+ *
+ * Every step of the drag would otherwise retint and register a whole Shiki theme
+ * under a new name, and neither the theme cache nor the highlighter's registry
+ * can give that memory back. Four levels per channel is under 1% of luminance,
+ * well inside the rounding of the 3:1 floor, and it turns a continuous drag into
+ * a handful of distinct surfaces.
+ */
+const SURFACE_QUANTUM = 4;
+
+export function quantizeSurface(surface: string): string {
+  const parsed = parseCssColor(surface);
+  if (!parsed) {
+    return surface;
+  }
+  const rgb = oklchToRgb(parsed);
+  const step = (value: number): number => Math.round(value / SURFACE_QUANTUM) * SURFACE_QUANTUM;
+  return rgbToHex({ red: step(rgb.red), green: step(rgb.green), blue: step(rgb.blue) });
+}
+
 /** Above this relative luminance the surface is light enough for one-light. */
 const LIGHT_SURFACE_LUMINANCE = 0.2;
-
-import type { BundledTheme } from 'shiki/bundle/full';
-import { ensureContrast, formatHex, parseCssColor, relativeLuminance } from './colorMath';
 
 /** The subset of Shiki's `IRawThemeSetting` this pass reads and writes. */
 export interface CodeThemeTokenColor {

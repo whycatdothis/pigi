@@ -58,12 +58,19 @@ export function usePiSettings(cwd: string | null): PiSettingsController {
   }, [cwd]);
 
   useEffect(() => {
-    // The rAF boundary is for the react-hooks/set-state-in-effect rule: load()
-    // sets loading state synchronously before its await.
-    const frame = requestAnimationFrame(() => {
-      void load();
+    // Deferred so the effect body does not set state synchronously, which the
+    // react-hooks/set-state-in-effect rule rejects; load() flips `loading` before
+    // its first await. A microtask, not a frame: an occluded window does not
+    // animate, and the settings would then never load at all.
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        void load();
+      }
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   const setUpdates = useCallback(

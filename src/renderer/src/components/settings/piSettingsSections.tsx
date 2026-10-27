@@ -160,6 +160,9 @@ function NumberSetting({
   suffix?: string;
 }): React.JSX.Element {
   const value = values[field];
+  // The registry declares what a write may carry; the field clamps to the same
+  // range so the control cannot produce a value the worker would refuse.
+  const bounds = findPiSettingField(field);
   return (
     <SettingsRow
       label={label}
@@ -175,8 +178,8 @@ function NumberSetting({
     >
       <NumberField
         value={typeof value === 'number' ? value : undefined}
-        min={min}
-        max={max}
+        min={min ?? bounds?.min}
+        max={max ?? bounds?.max}
         suffix={suffix}
         placeholder={placeholder}
         disabled={isFieldDisabled(field, scope, saving)}

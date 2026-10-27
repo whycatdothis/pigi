@@ -48,6 +48,12 @@ jobs:
 
       - run: npm run format:check
 
+      # The design rules ship with their own checks; running them in CI is what
+      # makes them rules rather than comments.
+      - run: node scripts/checkDesignTokens.mjs
+
+      - run: node scripts/checkCssMediaQueries.mjs
+
       - run: npm test
 
   website:

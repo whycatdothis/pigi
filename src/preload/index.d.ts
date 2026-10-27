@@ -1,4 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload';
+import type { PigiSettingsReadResult } from '../shared/pigiSettings';
 import type {
   AppInfo,
   PiCommand,
@@ -93,7 +94,7 @@ interface PiApi {
   getAccentColor: () => Promise<string | null>;
   setAppearanceTheme: (theme: 'system' | 'light' | 'dark') => void;
   /** pigi's own settings, read synchronously so the first paint can use them. */
-  readPigiSettings: () => unknown;
+  readPigiSettings: () => PigiSettingsReadResult;
   /** Replace pigi's settings file; resolves false when the write failed. */
   writePigiSettings: (settings: unknown) => Promise<boolean>;
 

@@ -35,7 +35,11 @@ import {
   type UpdateStatus,
 } from '../shared/ipcContract';
 import type { PiSettingsResult, PiSettingsScope, PiSettingUpdate } from '../shared/piSettings';
-import { PIGI_SETTINGS_PATH_ARGUMENT } from '../shared/pigiSettings';
+import {
+  PIGI_SETTINGS_PATH_ARGUMENT,
+  PIGI_SETTINGS_READ_STATE,
+  type PigiSettingsReadResult,
+} from '../shared/pigiSettings';
 
 // =============================================================================
 // pigi settings path (main passes it through `additionalArguments`)
@@ -522,20 +526,25 @@ const piApi = {
    * pigi's own settings, read from disk synchronously.
    *
    * The renderer applies appearance before its first paint, so an async round
-   * trip would paint one frame with the fallback palette. Null means there is
-   * no file yet; the renderer then migrates its old localStorage value.
+   * trip would paint one frame with the fallback palette. A missing file and an
+   * unreadable one are reported differently: only the first may be replaced with
+   * the value the app used to keep in localStorage.
    */
-  readPigiSettings: (): unknown => {
+  readPigiSettings: (): PigiSettingsReadResult => {
     if (!pigiSettingsPath) {
-      return null;
+      return { state: PIGI_SETTINGS_READ_STATE.missing };
     }
     try {
-      return JSON.parse(readFileSync(pigiSettingsPath, 'utf8'));
+      return {
+        state: PIGI_SETTINGS_READ_STATE.ok,
+        settings: JSON.parse(readFileSync(pigiSettingsPath, 'utf8')),
+      };
     } catch (error) {
-      if (!isMissingFileError(error)) {
-        console.error('Failed to read pigi settings:', error);
+      if (isMissingFileError(error)) {
+        return { state: PIGI_SETTINGS_READ_STATE.missing };
       }
-      return null;
+      console.error('Failed to read pigi settings:', error);
+      return { state: PIGI_SETTINGS_READ_STATE.corrupt };
     }
   },
 

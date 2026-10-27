@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { create } from 'zustand';
 import {
   DEFAULT_PIGI_SETTINGS,
+  PIGI_SETTINGS_READ_STATE,
   PIGI_SETTINGS_STORAGE_KEY,
   parsePigiSettings,
   type PigiSettings,
@@ -22,13 +23,10 @@ import {
 import type { DiagramThemeChoice } from '../../../shared/diagramTheme';
 import {
   DEFAULT_APPEARANCE,
-  type AccentChoice,
   type AppearanceSettings,
-  type ColorMode,
-  type ModeAppearance,
   type ThemeMode,
 } from '../../../shared/appearance';
-import { applyAppearance, currentColorMode } from '../appearance/applyAppearance';
+import { applyAppearance } from '../appearance/applyAppearance';
 
 const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)';
 const SYSTEM_REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
@@ -46,19 +44,23 @@ function readLegacySettings(): PigiSettings | null {
 
 function readStoredSettings(): PigiSettings {
   const stored = window.piApi.readPigiSettings();
-  if (stored !== null) {
-    return parsePigiSettings(stored);
+  if (stored.state === PIGI_SETTINGS_READ_STATE.ok) {
+    return parsePigiSettings(stored.settings);
+  }
+  if (stored.state === PIGI_SETTINGS_READ_STATE.corrupt) {
+    // Unreadable, not absent: keep the file as it is so it can be repaired by
+    // hand, and start from the defaults instead of overwriting it with a stale
+    // localStorage value.
+    return DEFAULT_PIGI_SETTINGS;
   }
   const legacy = readLegacySettings();
   if (legacy) {
-    // First launch after the switch to a file: keep what the user had, and
-    // write it out so the next launch reads it from disk. The old key is only
-    // dropped once the file is there, so a failed write cannot lose the value.
-    void window.piApi.writePigiSettings(legacy).then((written) => {
-      if (written) {
-        localStorage.removeItem(PIGI_SETTINGS_STORAGE_KEY);
-      }
-    });
+    // First launch after the switch to a file: keep what the user had and let
+    // the normal debounced writer put it on disk. Going through that path is
+    // what keeps this value from landing *after* a setting the reader changes in
+    // the first second and overwriting it — both would be separate writes.
+    migratedFromLegacy = true;
+    persistSettings(legacy);
     return legacy;
   }
   return DEFAULT_PIGI_SETTINGS;
@@ -69,6 +71,9 @@ const PERSIST_DEBOUNCE_MS = 150;
 
 let queuedSettings: PigiSettings | null = null;
 let persistTimer: number | null = null;
+
+/** Set while the value read from localStorage has not reached the file yet. */
+let migratedFromLegacy = false;
 
 /** Writes the queued settings now. Called on page hide, and by tests. */
 export function flushPigiSettingsWrites(): void {
@@ -86,6 +91,11 @@ export function flushPigiSettingsWrites(): void {
     .then((written) => {
       if (!written) {
         toast.error('Could not save settings. Check the app data folder for errors.');
+      } else if (migratedFromLegacy) {
+        // The file exists now, so the old key is redundant. Dropping it earlier
+        // would lose the value if the write had failed.
+        migratedFromLegacy = false;
+        localStorage.removeItem(PIGI_SETTINGS_STORAGE_KEY);
       }
     })
     .catch((error) => {
@@ -108,8 +118,6 @@ window.addEventListener('pagehide', flushPigiSettingsWrites);
 
 interface SettingsState extends PigiSettings {
   setMode: (mode: ThemeMode) => void;
-  /** Edits the active mode's slot unless `mode` is given. */
-  setAccent: (accent: AccentChoice, mode?: ColorMode) => void;
   setToolBlockViewMode: (mode: ToolBlockViewMode) => void;
   setCodeTheme: (codeTheme: string) => void;
   setDiagramTheme: (choice: DiagramThemeChoice) => void;
@@ -132,23 +140,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     set(next);
   }
 
-  function updateSlot(
-    mode: ColorMode | undefined,
-    updater: (slot: ModeAppearance) => ModeAppearance,
-  ): void {
-    const appearance = get().appearance;
-    const targetMode = mode ?? (appearance.separateModes ? currentColorMode(appearance) : 'light');
-    const nextAppearance: AppearanceSettings = {
-      ...appearance,
-      [targetMode]: updater(appearance[targetMode]),
-    };
-    commit({ appearance: nextAppearance });
-  }
-
   return {
     ...initialSettings,
     setMode: (mode) => commit({ appearance: { ...get().appearance, mode } }),
-    setAccent: (accent, mode) => updateSlot(mode, (slot) => ({ ...slot, accent })),
     setToolBlockViewMode: (toolBlockViewMode) =>
       commit({ chat: { ...get().chat, toolBlockViewMode } }),
     setCodeTheme: (codeTheme) => commit({ appearance: { ...get().appearance, codeTheme } }),
@@ -158,12 +152,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     resetAppearance: () => commit({ appearance: DEFAULT_APPEARANCE }),
   };
 });
-
-/** Current mode whose slot the settings page edits. */
-export function activeAppearanceMode(): ColorMode {
-  const appearance = useSettingsStore.getState().appearance;
-  return appearance.separateModes ? currentColorMode(appearance) : 'light';
-}
 
 /**
  * Apply persisted settings before render and keep `system` choices in sync
