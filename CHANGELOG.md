@@ -13,11 +13,11 @@
   longer moves when `--radius` moves, and `npm run check` rejects the scale
   steps and the primitive `--radius-*` variables the way it already rejected
   arbitrary values
-- pigi's settings have one writer: the main process owns the file, a settings
-  change sends only the slice it edited, and every window receives the merged
-  snapshot, so the main window and the update window can no longer overwrite
-  each other's writes. The file carries a monotonic revision, so a late write
-  cannot win, and the last change is flushed synchronously on quit
+- pigi's settings have one writer: the main process owns the file and a settings
+  change sends only the slice it edited, so a commit cannot overwrite a value it
+  never touched. The write happens as the change arrives — no debounce to lose on
+  quit — and only main writes, so writes reach the file in the order they were
+  made
 
 ### Fixed
 

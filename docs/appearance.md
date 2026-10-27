@@ -157,9 +157,11 @@ One key (`pigi.settings`), now versioned:
 - `separateModes: false` (v1 had one accent for both modes)
 - everything else → defaults
 
-Writes are debounced (`requestIdleCallback` or a short timer) because a color
-picker drag commits many values; the store keeps the in-memory value immediate
-and the DOM update synchronous.
+A color picker drag commits many values, so the store keeps the in-memory value
+immediate and the DOM update synchronous, and sends each commit to main. Main
+writes every change as it arrives: the file is small, the atomic temp-file
+rename is cheap, and a debounce would leave the last change in a timer that a
+quit can outrun.
 
 ## Resolution
 
@@ -758,13 +760,13 @@ Tests (vitest, jsdom project):
 - `src/shared/appearance.test.ts` — parse/migrate/defaults, per-mode resolution.
 - `src/shared/appearanceTokens.test.ts` — the invariant list above, default
   parity with `designTokens.css`.
-- `src/main/pigiSettingsOwner.test.ts` — merge, revision bumps, debounced write,
-  synchronous flush, and a file that moved ahead.
-- `src/main/pigiSettingsFile.test.ts` — atomic writes and the monotonic revision
-  (including an interleaved stale writer).
-- `src/renderer/src/state/settingsStore.test.ts` — commit → change sent →
-  snapshot adopted, appearance applied only when the look changed, stale
-  snapshots dropped, and a broadcast from the other window adopted.
+- `src/main/pigiSettingsOwner.test.ts` — slice merge, a slice the change does
+  not carry survives, and the write lands before the call returns.
+- `src/main/pigiSettingsFile.test.ts` — atomic writes, a missing file, a corrupt
+  one, and the window background derived from the stored look.
+- `src/renderer/src/state/settingsStore.test.ts` — commit sends only the slice it
+  changed and applies it locally first, and appearance is re-applied only for an
+  appearance change.
 
 ## Phases
 

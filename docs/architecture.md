@@ -591,14 +591,12 @@ Two data paths:
   paint, and a renderer store applies it to the document at startup (no theme
   flash). After that the renderer is a client: a commit applies locally for
   instant feedback and sends only the slice it changed
-  (`changePigiSettings`); main merges it onto its authoritative copy, bumps a
-  monotonic revision, writes on a 150 ms debounce (atomic: temp file + rename),
-  flushes synchronously on `before-quit`, and pushes the merged snapshot to
-  every window (`PigiSettingsChanged`). The update progress window loads the
-  same bundle, so the broadcast is what keeps two windows from disagreeing; a
-  snapshot with a lower revision than the window holds is dropped. The file's
-  own revision is the last word — a writer holding a stale copy bumps past it
-  rather than moving it backwards.
+  (`changePigiSettings`); main merges it onto its authoritative copy and writes
+  immediately (atomic: temp file + rename). One writer is the whole ordering
+  argument — writes reach the file in the order main received them, and no
+  revision has to referee them. The update progress window loads the same
+  bundle and reads the file at startup for its own first paint; it does not
+  edit settings, so it does not need the change pushed to it.
   Keyboard shortcut definitions live in a second renderer store so edits on the
   settings page update the live bindings immediately.
   Appearance (colors, fonts, sizes, per-mode slots) is derived from one settings

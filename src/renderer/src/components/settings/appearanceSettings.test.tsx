@@ -46,7 +46,6 @@ function seed(): void {
   bridge = installPigiSettingsBridge();
   useSettingsStore.setState({
     version: 2,
-    revision: 0,
     appearance: DEFAULT_APPEARANCE,
     chat: { toolBlockViewMode: 'compact_read' },
   });

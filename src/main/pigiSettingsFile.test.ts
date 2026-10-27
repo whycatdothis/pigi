@@ -23,7 +23,6 @@ afterEach(() => {
 function settingsWithAccent(presetId: string): PigiSettings {
   return {
     version: 2,
-    revision: 0,
     appearance: {
       ...DEFAULT_PIGI_SETTINGS.appearance,
       light: { ...DEFAULT_PIGI_SETTINGS.appearance.light, accent: { presetId } },
@@ -86,55 +85,6 @@ describe('writePigiSettingsFile', () => {
     const raw = readFileSync(path, 'utf8');
     expect(raw).toContain('\n  "version": 2');
     expect(raw.endsWith('\n')).toBe(true);
-  });
-});
-
-describe('the revision', () => {
-  it('starts at one for a fresh file and counts up', () => {
-    const path = join(directory, PIGI_SETTINGS_FILE_NAME);
-    expect(readPigiSettingsFile(path).settings.revision).toBe(0);
-
-    const first = writePigiSettingsFile(path, settingsWithAccent('teal'));
-    expect(first.revision).toBe(1);
-    expect(readPigiSettingsFile(path).settings.revision).toBe(1);
-
-    const second = writePigiSettingsFile(path, settingsWithAccent('amber'));
-    expect(second.revision).toBe(2);
-  });
-
-  it("writes the writer's revision when it is ahead of the file", () => {
-    const path = join(directory, PIGI_SETTINGS_FILE_NAME);
-    writePigiSettingsFile(path, settingsWithAccent('teal'));
-
-    // The owner had already told every window about revision 7.
-    const written = writePigiSettingsFile(path, { ...settingsWithAccent('amber'), revision: 7 });
-    expect(written.revision).toBe(7);
-    expect(readPigiSettingsFile(path).settings.revision).toBe(7);
-  });
-
-  it('never lets a stale writer move the file backwards', () => {
-    const path = join(directory, PIGI_SETTINGS_FILE_NAME);
-    writePigiSettingsFile(path, settingsWithAccent('teal'));
-    writePigiSettingsFile(path, settingsWithAccent('amber'));
-    expect(readPigiSettingsFile(path).settings.revision).toBe(2);
-
-    // Interleaved writers: this one holds revision 1, from before the last
-    // write. Its content is the last write to install, but the number must not
-    // regress, or a window holding revision 2 would treat the file as current.
-    const written = writePigiSettingsFile(path, { ...settingsWithAccent('rose'), revision: 1 });
-    expect(written.revision).toBe(3);
-    expect(readPigiSettingsFile(path).settings.revision).toBe(3);
-    expect(readPigiSettingsFile(path).settings.appearance.light.accent).toEqual({
-      presetId: 'rose',
-    });
-  });
-
-  it('reads a file without a revision as revision 0', () => {
-    const path = join(directory, PIGI_SETTINGS_FILE_NAME);
-    const { revision, ...withoutRevision } = settingsWithAccent('violet');
-    expect(revision).toBe(0);
-    writeFileSync(path, JSON.stringify(withoutRevision), 'utf8');
-    expect(readPigiSettingsFile(path).settings.revision).toBe(0);
   });
 });
 
