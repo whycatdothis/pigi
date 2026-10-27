@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import '../../../shared/designTokens.css';
+@import './semanticTokens.css';
 
 /* The scanner emits `.container` (with five width media queries) because the
    word appears in identifiers and comments; nothing uses the class. Crossing a
@@ -28,7 +29,7 @@
   }
 
   html {
-    @apply font-sans;
+    font-family: var(--font-ui);
     height: 100%;
   }
 
@@ -37,10 +38,8 @@
     background: transparent;
     height: 100%;
     overflow: hidden;
-    font-size: 14px;
+    font-size: calc(14px * var(--app-font-ui-scale, 1));
     line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     user-select: none;
     -webkit-user-select: none;
   }
@@ -57,10 +56,64 @@
   .user-content {
     user-select: text;
     -webkit-user-select: text;
+    font-family: var(--font-sans);
+  }
+
+  /* The contrast slider: a flat track whose thumb follows the accent. */
+  .appearance-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: var(--radius-full);
+    background: var(--system-accent);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+  }
+
+  /* Antialiased is the app's shipped rendering; turning the setting off falls
+     back to the platform default (subpixel on macOS). Inherited, so html is
+     enough. */
+  html[data-font-smoothing='on'] {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   #root {
     height: 100%;
+  }
+
+  /* Transcript rhythm. Everything inside one message scales with the text
+     size; the hover button band and the base row gap stay fixed, because they
+     are chrome rather than prose.
+
+     A row is one of three kinds — prose, a card (tool card, read group), or a
+     thinking card — and there are only two rules: neighbours of the same kind
+     sit at that kind's step, neighbours of different kinds sit at the boundary
+     step. Reasoning and tool work are different groups of a reply, so any
+     change of kind is the widest gap inside a reply. */
+  :root {
+    --message-row-gap: 4px;
+    --message-item-spacing: calc(0.3 * var(--text-body));
+    --message-text-spacing: calc(0.8 * var(--text-body));
+    --message-surface-spacing: calc(1 * var(--text-body));
+    --message-kind-change-spacing: calc(1.8 * var(--text-body));
+  }
+
+  /* Rows in the middle of a reply carry no hover band any more, so their
+     trailing space has to express the rhythm. It lives in the row's padding
+     (not its margin) because the virtualizer measures border boxes: padding is
+     inside the measured height, a margin would fall outside it and
+     desynchronise the scroll model. The base row gap is still added on top,
+     hence the subtraction. */
+  [data-row-space='text'] {
+    padding-bottom: calc(var(--message-text-spacing) - var(--message-row-gap));
+  }
+
+  [data-row-space='surface'] {
+    padding-bottom: calc(var(--message-surface-spacing) - var(--message-row-gap));
+  }
+
+  [data-row-space='kind-change'] {
+    padding-bottom: calc(var(--message-kind-change-spacing) - var(--message-row-gap));
   }
 
   button {
@@ -68,27 +121,29 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+[data-reduce-motion='true'] *,
+[data-reduce-motion='true'] *::before,
+[data-reduce-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 @layer components {
   /* Markdown typographic system for assistant messages.
-     15px base text × 1.7 line-height = 25.5px line box, with two rhythm
-     tokens: block spacing (14px) between block-level elements, item spacing
-     (4px) between list items and nested lists. Every selector carries exactly
-     one class of specificity, so the cascade is plain file order — no
-     specificity wars, no arbitrary-variant hacks in components. */
+     15px base text × 1.5 line-height, with one rhythm ladder shared with the
+     transcript: prose spacing between block-level elements, item spacing
+     between list items and nested lists. Multipliers apply to --text-body
+     rather than using em: em resolves against the element's own font-size, so
+     a 0.93em table or 0.84em code block would silently shrink its own gaps.
+     Scaling off the body size keeps the whole document in proportion when the
+     text-size setting changes. Every selector carries exactly one class of
+     specificity, so the cascade is plain file order — no specificity wars, no
+     arbitrary-variant hacks in components. */
   .markdown-body {
-    --markdown-block-spacing: 0.875rem;
-    --markdown-item-spacing: 0.1875rem;
+    --markdown-block-spacing: var(--message-text-spacing);
+    --markdown-item-spacing: var(--message-item-spacing);
     width: 100%;
     min-width: 0;
     overflow-wrap: break-word;
@@ -109,27 +164,35 @@
     margin-bottom: var(--markdown-block-spacing);
   }
 
-  /* Headings: top margin ≥ 2× bottom margin so a heading binds to the
-     section it introduces instead of floating between sections. */
+  /* Headings: the bottom margin deepens with the heading's own weight, and the
+     top margin is 1.8× the bottom one so a heading binds to the section it
+     introduces instead of floating between sections. Both scale with the text
+     size. */
+  /* Heading sizes are em against the body size, so raising the text size
+     scales the whole document instead of leaving headings behind at a fixed
+     pixel size. The ratios are the shipped 24/20/17 against a 15px body. */
   .markdown-body h1 {
-    margin: 2rem 0 0.75rem;
-    font-size: 24px;
+    --heading-gap: calc(1 * var(--text-body));
+    margin: calc(1.8 * var(--heading-gap)) 0 var(--heading-gap);
+    font-size: 1.6em;
     font-weight: 600;
-    line-height: 2rem;
+    line-height: 1.33;
   }
 
   .markdown-body h2 {
-    margin: 1.75rem 0 0.625rem;
-    font-size: 20px;
+    --heading-gap: calc(0.9 * var(--text-body));
+    margin: calc(1.8 * var(--heading-gap)) 0 var(--heading-gap);
+    font-size: 1.333em;
     font-weight: 600;
-    line-height: 1.75rem;
+    line-height: 1.4;
   }
 
   .markdown-body h3 {
-    margin: 1.25rem 0 0.5rem;
-    font-size: 17px;
+    --heading-gap: calc(0.8 * var(--text-body));
+    margin: calc(1.8 * var(--heading-gap)) 0 var(--heading-gap);
+    font-size: 1.133em;
     font-weight: 600;
-    line-height: 1.5rem;
+    line-height: 1.41;
   }
 
   .markdown-body ul,
@@ -154,6 +217,14 @@
     margin-top: var(--markdown-item-spacing);
   }
 
+  /* Blocks inside a list item keep the block rhythm. Only the *items* are
+     tight: a paragraph that introduces a table or a code block must not
+     collapse to the item spacing, which is what made text followed by a table
+     read as flush. */
+  .markdown-body li > * + * {
+    margin-top: var(--markdown-block-spacing);
+  }
+
   .markdown-body li > ul,
   .markdown-body li > ol {
     margin: var(--markdown-item-spacing) 0;
@@ -164,13 +235,9 @@
     margin-bottom: 0;
   }
 
-  /* Loose lists: react-markdown wraps li content in <p>; collapse its block
-     margin so items don't pick up an extra 14px. */
+  /* Loose lists: react-markdown wraps li content in <p>; the paragraph carries
+     no bottom margin of its own so a single-paragraph item stays tight. */
   .markdown-body li > p {
-    margin-bottom: var(--markdown-item-spacing);
-  }
-
-  .markdown-body li > p:last-child {
     margin-bottom: 0;
   }
 
@@ -190,21 +257,11 @@
     max-width: 100%;
     overflow-x: auto;
     overscroll-behavior-x: none;
-    border-radius: calc(var(--radius) * 0.8);
+    border-radius: var(--radius-control);
     background: var(--muted);
     padding: 10px 14px;
-    font-family: var(
-      --font-mono,
-      ui-monospace,
-      SFMono-Regular,
-      Menlo,
-      Monaco,
-      Consolas,
-      'Liberation Mono',
-      'Courier New',
-      monospace
-    );
-    font-size: 14px;
+    font-family: var(--font-mono);
+    font-size: calc(14px * var(--app-font-code-scale, 1));
     line-height: 1.6;
     color: var(--foreground);
   }
@@ -221,23 +278,13 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 14px 0;
-    border-radius: calc(var(--radius) * 0.8) calc(var(--radius) * 0.8) 0 0;
+    border-radius: var(--radius-control) var(--radius-control) 0 0;
     background: var(--muted);
-    font-family: var(
-      --font-mono,
-      ui-monospace,
-      SFMono-Regular,
-      Menlo,
-      Monaco,
-      Consolas,
-      'Liberation Mono',
-      'Courier New',
-      monospace
-    );
+    font-family: var(--font-mono);
   }
 
   .markdown-code-header + pre {
-    border-radius: 0 0 calc(var(--radius) * 0.8) calc(var(--radius) * 0.8);
+    border-radius: 0 0 var(--radius-control) var(--radius-control);
   }
 
   .markdown-code-label {
@@ -251,7 +298,7 @@
     justify-content: center;
     margin-left: auto;
     padding: 2px;
-    border-radius: 0.25rem;
+    border-radius: var(--radius-chip);
     color: var(--muted-foreground);
     transition:
       color 0.15s ease,
@@ -276,7 +323,7 @@
      the two labels so the header's contents do not shuffle when it is pressed. */
   .markdown-code-source-toggle {
     padding: 2px 6px;
-    border-radius: 0.25rem;
+    border-radius: var(--radius-chip);
     min-width: 7ch;
     font-size: 12px;
     text-align: center;
@@ -299,7 +346,7 @@
     display: flex;
     justify-content: center;
     padding: 14px;
-    border-radius: 0 0 calc(var(--radius) * 0.8) calc(var(--radius) * 0.8);
+    border-radius: 0 0 var(--radius-control) var(--radius-control);
     background: var(--muted);
     overflow-x: auto;
     overscroll-behavior-x: none;
@@ -335,20 +382,10 @@
   /* Inline code: em-relative size scales with surrounding text;
      box-decoration-break keeps the pill intact across line wraps. */
   .markdown-body code {
-    border-radius: 0.25rem;
+    border-radius: var(--radius-inline);
     background: var(--muted);
     padding: 2px 4px;
-    font-family: var(
-      --font-mono,
-      ui-monospace,
-      SFMono-Regular,
-      Menlo,
-      Monaco,
-      Consolas,
-      'Liberation Mono',
-      'Courier New',
-      monospace
-    );
+    font-family: var(--font-mono);
     font-size: 0.875em;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
@@ -367,7 +404,7 @@
   .markdown-body img {
     margin: var(--markdown-block-spacing) 0;
     max-width: 100%;
-    border-radius: calc(var(--radius) * 0.8);
+    border-radius: var(--radius-surface-sm);
   }
 
   .markdown-table-wrapper {
@@ -386,10 +423,13 @@
     border-collapse: separate;
     border-spacing: 0;
     overflow: hidden;
+    /* Opt out of the global superellipse corners: cell backgrounds are opaque
+       and overflow clips them with a circular radius, so they cover the border
+       arc and the table reads as a rounded rect with square corners. */
+    corner-shape: round;
     border: 1px solid var(--border);
-    border-radius: calc(var(--radius) * 0.8);
+    border-radius: var(--radius-control-sm);
     text-align: left;
-    font-size: 14px;
   }
 
   .markdown-body th,
@@ -450,27 +490,33 @@
 
   /* Frosted menu content: hairline ring + blur shadow */
   .menu-content {
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-surface);
     padding: 0.25rem;
   }
 }
 
-@keyframes shimmer {
-  from {
-    transform: translateX(calc(-1 * var(--shimmer-band-width)));
-  }
-  to {
-    transform: translateX(var(--shimmer-scan-width));
-  }
+/* Shimmer sweep: a fixed-width window travels across the text it labels,
+   entering from the left and exiting on the right.
+   --shimmer-scan-width is the measured width of the row (set by the component),
+   so a long truncated command does not waste the sweep on its hidden tail.
+   The highlight is a brighter copy of the glyphs revealed by the window rather
+   than a gradient band: a band paints its own rectangle over the background,
+   which shows as a light smear as soon as the theme's background is not white.
+   clip-path is animatable on the compositor, so the sweep keeps moving while
+   the row is streaming. */
+.shimmer-overlay {
+  filter: brightness(1.6);
+  clip-path: inset(0 100% 0 calc(-1 * var(--shimmer-band-width)));
+  animation: shimmer-clip 2.5s linear infinite;
 }
 
-/* Shimmer sweep: the band is a fixed-width highlight that travels across the
-   text it labels — entering from the left and exiting on the right.
-   --shimmer-scan-width is the measured width of the text element (set by the
-   component), so a long truncated command does not waste the sweep on its
-   hidden tail. Transform-only, run on the compositor. */
-.shimmer-overlay {
-  animation: shimmer 2.5s linear infinite;
+@keyframes shimmer-clip {
+  from {
+    clip-path: inset(0 100% 0 calc(-1 * var(--shimmer-band-width)));
+  }
+  to {
+    clip-path: inset(0 calc(-1 * var(--shimmer-band-width)) 0 100%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

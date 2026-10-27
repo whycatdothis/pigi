@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { act, cleanup, render } from '@testing-library/react';
 import MarkdownMessage from './markdownMessage';
+import { installSystemAppearance } from '../../testing/jsdomSetup';
 
 // Shiki is the cost this file is about, so the highlighter is a counter: how
 // often a block is tokenized again is the thing being asserted, and the real
@@ -14,8 +15,13 @@ vi.mock('shiki/bundle/full', () => ({
   // The component asks whether a language is bundled before it highlights it;
   // anything not listed here is rendered as plain text instead.
   bundledLanguages: { ts: {}, typescript: {} },
+  bundledThemes: {
+    'one-light': async () => ({ default: { tokenColors: [] } }),
+    'one-dark-pro': async () => ({ default: { tokenColors: [] } }),
+  },
   createHighlighter: async () => ({
     loadLanguage: async () => undefined,
+    loadTheme: async () => undefined,
     codeToTokens: highlighter.codeToTokens,
   }),
 }));
@@ -140,6 +146,10 @@ test('moves the plain tail into the highlight when the next one lands', async ()
   } finally {
     vi.useRealTimers();
   }
+});
+
+beforeEach(() => {
+  installSystemAppearance({ dark: false });
 });
 
 afterEach(() => {

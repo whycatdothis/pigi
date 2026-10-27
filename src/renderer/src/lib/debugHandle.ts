@@ -4,6 +4,7 @@
  * Installed from main.tsx only when import.meta.env.DEV.
  */
 import { useAppStore } from '../state/appStore';
+import { useSettingsStore } from '../state/settingsStore';
 import type { TranscriptController } from '../state/transcriptController';
 import { getTranscriptController } from '../hooks/useTranscript';
 
@@ -28,6 +29,7 @@ function transcript(sessionPath?: string): TranscriptController | null {
 
 function snapshot(): Record<string, unknown> {
   const state = useAppStore.getState();
+  const settings = useSettingsStore.getState();
   const controller = transcript();
   const transcriptState = controller?.state;
   return {
@@ -43,7 +45,9 @@ function snapshot(): Record<string, unknown> {
     })),
     sidebarExpanded: state.sidebarExpanded,
     terminalOpen: state.terminalOpen,
-    toolBlockViewMode: state.toolBlockViewMode,
+    settingsOpen: state.settingsOpen,
+    settingsSection: state.settingsSection,
+    toolBlockViewMode: settings.chat.toolBlockViewMode,
     transcript: transcriptState
       ? {
           status: transcriptState.status,

@@ -8,7 +8,7 @@
   "license": "Apache-2.0",
   "homepage": "https://pigi.pink",
   "scripts": {
-    "check": "npm run typecheck && npm run lint:fix && npm run format",
+    "check": "npm run typecheck && node scripts/checkDesignTokens.mjs && node scripts/checkLockfileRegistry.mjs && npm run lint:fix && npm run format",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint --cache .",
@@ -22,7 +22,7 @@
     "test:watch": "vitest",
     "start": "electron-vite preview",
     "dev": "electron-vite dev --inspect 9229",
-    "build": "npm run typecheck && electron-vite build && node scripts/checkCssMediaQueries.mjs",
+    "build": "npm run typecheck && node scripts/checkDesignTokens.mjs && electron-vite build && node scripts/checkCssMediaQueries.mjs",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir -c.mac.notarize=false",
     "build:win": "npm run build && electron-builder --win",

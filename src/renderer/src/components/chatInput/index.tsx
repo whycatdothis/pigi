@@ -38,6 +38,8 @@ import {
   attachmentFromPickedFile,
   attachmentFromPromptAttachment,
   MAX_PROMPT_ATTACHMENTS,
+  parkDraftAttachments,
+  takeParkedDraftAttachments,
   type ChatAttachment,
 } from '../../lib/chatAttachments';
 import { useInputHistory, type HistoryComposer } from '../../hooks/useInputHistory';
@@ -111,7 +113,7 @@ const EMPTY_PATH_ENTRIES: PathCompletionEntry[] = [];
 const TEXT_BLOCK_SEPARATOR = '\n';
 /** Send and stop share one look so the button does not change colour mid-run. */
 const PRIMARY_ACTION_CLASS_NAME =
-  'rounded-full bg-[var(--system-accent)] text-white hover:bg-[var(--system-accent)]';
+  'rounded-full bg-primary text-primary-foreground hover:bg-primary-hover';
 
 /** Editor callbacks that need the latest render's state. */
 interface ComposerHandlers {
@@ -565,8 +567,10 @@ export default function ChatInput({
     resetHistory();
 
     if (previousKey !== draftKey) {
-      // Attachments belong to one draft/session; do not carry them across.
-      setAttachmentList([]);
+      // Attachments belong to one draft/session; do not carry them across. A
+      // remount of the same draft (the settings page replaces the main area)
+      // gets back what the unmount below parked.
+      setAttachmentList(previousKey === null ? takeParkedDraftAttachments(draftKey) : []);
       // Restore the current key's draft and auto-focus the input
       const draft = readChatDraft(draftKey);
       queueMicrotask(() => composer.setText(draft));
@@ -581,7 +585,10 @@ export default function ChatInput({
   useEffect(
     () => () => {
       const key = activeDraftKeyRef.current;
-      if (key !== null) writeChatDraft(key, getHistoryDraft());
+      if (key !== null) {
+        writeChatDraft(key, getHistoryDraft());
+        parkDraftAttachments(key, attachmentsRef.current);
+      }
     },
     [getHistoryDraft],
   );
@@ -882,7 +889,7 @@ export default function ChatInput({
             )}
             <InputGroup
               className={cn(
-                'relative h-auto flex-col rounded-3xl border bg-background shadow-[0_10px_34px_rgb(0_0_0_/_0.075)]',
+                'relative h-auto flex-col [--input-group-radius:var(--radius-surface-xl)] border bg-background shadow-composer',
                 !isNewSession && 'min-h-28',
               )}
               data-has-attachments={attachments.length > 0 || undefined}
@@ -935,7 +942,7 @@ export default function ChatInput({
               </InputGroupAddon>
             </InputGroup>
             {isNewSession ? (
-              <div className="-mt-15 rounded-b-2xl bg-muted/60 px-4 pt-17 pb-2 text-sm text-muted-foreground">
+              <div className="-mt-15 rounded-b-surface-xl bg-muted/60 px-4 pt-17 pb-2 text-sm text-muted-foreground">
                 <div className="flex items-center">
                   <span
                     className="flex min-w-0 items-center gap-1.5"
@@ -965,7 +972,7 @@ export default function ChatInput({
           </div>
         </SlashCommandPopover>
         {isDragOver && (
-          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-3xl border-2 border-dashed border-ring bg-background/85 text-sm font-medium text-foreground">
+          <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-surface-xl border-2 border-dashed border-ring bg-background/85 text-sm font-medium text-foreground">
             Drop files to attach
           </div>
         )}

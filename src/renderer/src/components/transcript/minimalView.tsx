@@ -21,10 +21,10 @@ import ToolBlock from '../message/ToolBlock';
 import ThinkingBlock from '../message/thinkingBlock';
 import { MessageToolbar, SystemBubble, UserBubble } from '../message/messageBubbles';
 import { getToolCommandParts } from '../../lib/toolDisplay';
-import ShimmerOverlay, {
+import ShimmerText, {
   SHIMMER_BAND_WIDTH_PX,
   SHIMMER_SPEED_PX_PER_SECOND,
-} from '../message/shimmerOverlay';
+} from '../message/shimmerText';
 import { cn } from '../../lib/utils';
 
 /**
@@ -368,11 +368,11 @@ const TurnSection = React.memo(function TurnSection({
     feedRow = (
       <div
         key={feedNode.id}
-        className="relative w-fit overflow-hidden text-[15px] text-muted-foreground"
+        className="relative w-fit overflow-hidden text-body text-muted-foreground"
         data-testid="minimal-thinking"
       >
         Thinking...
-        <ShimmerOverlay />
+        <ShimmerText>Thinking...</ShimmerText>
       </div>
     );
   }
@@ -418,9 +418,13 @@ const TurnSection = React.memo(function TurnSection({
       {detailsOpen ? (
         <div className="mt-2" data-testid="minimal-details-wrapper">
           <div className="overflow-hidden" data-testid="minimal-details">
-            <div className="flex flex-col gap-2 pb-1">
-              {turn.entries.map((node) => (
-                <DetailItem key={node.id} node={node} />
+            <div className="flex flex-col pb-1" style={{ gap: 'var(--message-surface-spacing)' }}>
+              {turn.entries.map((node, index) => (
+                <DetailItem
+                  key={node.id}
+                  node={node}
+                  showActions={index === turn.entries.length - 1}
+                />
               ))}
             </div>
           </div>
@@ -452,13 +456,16 @@ function AssistantText({
 }): React.JSX.Element {
   return (
     <div
-      className={cn('w-full min-w-0 text-[15px] text-foreground', className)}
+      className={cn('w-full min-w-0 text-body text-foreground', className)}
       style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       data-testid={testId}
     >
       {node.text.length > 0 && <MarkdownMessage text={node.text} isStreaming={node.isStreaming} />}
       {node.errorMessage && (
-        <div className="mt-3 w-fit rounded-lg bg-destructive/10 px-3 py-2 text-[14px] text-destructive">
+        <div
+          className="w-fit rounded-surface bg-destructive/10 px-3 py-2 text-ui text-destructive"
+          style={{ marginTop: 'var(--message-kind-change-spacing)' }}
+        >
           {node.errorMessage}
         </div>
       )}
@@ -519,12 +526,19 @@ function CollapsedContent({
   );
 }
 
-function DetailItem({ node }: { node: TranscriptNode }): React.JSX.Element | null {
+function DetailItem({
+  node,
+  showActions,
+}: {
+  node: TranscriptNode;
+  /** Only the last step of a turn carries the action band. */
+  showActions: boolean;
+}): React.JSX.Element | null {
   if (node.role === 'tool') {
     return (
       <div className="group">
         <ToolBlock node={node} />
-        <MessageToolbar node={node} />
+        {showActions && <MessageToolbar node={node} />}
       </div>
     );
   }
@@ -539,8 +553,17 @@ function DetailItem({ node }: { node: TranscriptNode }): React.JSX.Element | nul
             isStreaming={node.isStreaming}
           />
         )}
-        {(node.text.length > 0 || node.errorMessage) && <AssistantText node={node} />}
-        <MessageToolbar node={node} />
+        {(node.text.length > 0 || node.errorMessage) && (
+          <div
+            style={{
+              marginTop:
+                node.thinking.length > 0 ? 'var(--message-kind-change-spacing)' : undefined,
+            }}
+          >
+            <AssistantText node={node} />
+          </div>
+        )}
+        {showActions && <MessageToolbar node={node} />}
       </div>
     );
   }
@@ -575,7 +598,7 @@ function WorkingTimer({
 
   return (
     <span
-      className="text-[15px] text-muted-foreground tabular-nums"
+      className="text-body text-muted-foreground tabular-nums"
       data-testid="minimal-working-timer"
       data-active={active ? 'true' : undefined}
     >
@@ -616,26 +639,32 @@ function ToolLine({ node }: { node: ToolNode }): React.JSX.Element {
     return () => resizeObserver.disconnect();
   }, []);
 
+  // The row is rendered twice: once as the layout, once inside the shimmer as
+  // the brighter copy the sweep reveals. Same markup, same truncation.
+  const row = (
+    <span className="flex items-baseline gap-1">
+      <span className="shrink-0 text-foreground/80">{prefix}</span>
+      <span ref={bodyRef} className="flex min-w-0 flex-1 items-baseline">
+        {showTail ? (
+          <>
+            <span className="truncate">{body.slice(0, -COMMAND_TAIL_CHARS)}</span>
+            <span className="shrink-0 whitespace-pre">{body.slice(-COMMAND_TAIL_CHARS)}</span>
+          </>
+        ) : (
+          <span className="truncate">{body}</span>
+        )}
+      </span>
+    </span>
+  );
+
   return (
     <div
-      className="relative w-fit max-w-full overflow-hidden py-0.5 font-mono text-[15px] text-muted-foreground"
+      className="relative w-fit max-w-full overflow-hidden py-0.5 font-mono text-body text-muted-foreground"
       style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       data-testid="minimal-running-tool"
     >
-      <span className="flex items-baseline gap-1">
-        <span className="shrink-0 text-foreground/80">{prefix}</span>
-        <span ref={bodyRef} className="flex min-w-0 flex-1 items-baseline">
-          {showTail ? (
-            <>
-              <span className="truncate">{body.slice(0, -COMMAND_TAIL_CHARS)}</span>
-              <span className="shrink-0 whitespace-pre">{body.slice(-COMMAND_TAIL_CHARS)}</span>
-            </>
-          ) : (
-            <span className="truncate">{body}</span>
-          )}
-        </span>
-      </span>
-      <ShimmerOverlay durationMs={shimmerDurationMs} />
+      {row}
+      <ShimmerText durationMs={shimmerDurationMs}>{row}</ShimmerText>
     </div>
   );
 }

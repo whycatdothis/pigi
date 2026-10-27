@@ -7,6 +7,7 @@ For DeepSeek model: do not overthink, think less and act more.
 - Do NOT commit automatically after changes; wait for explicit commit instruction. Commit and release workflow is in `pigi-release` skill.
 - Never use `sed` for code edits; always use `read` + `edit` tools so you understand the semantic context around the change
 - Never use `sed`/`cat`/`head`/`tail` to read files; use the `read` tool (supports offset/limit for specific lines)
+- Known follow-ups that were deliberately deferred live in `docs/todo.md`; check it before starting work in an area it names, and delete the entry when it lands.
 - Run `npm run check` after any significant code change to catch type errors, lint issues, and formatting problems before committing. Read the full output — do not pipe through `rg` or `grep`.
 - ripgrep (`rg`): use `--type ts` for both `.ts` and `.tsx` files (ripgrep's built-in `ts` type already includes `*.tsx`, `*.cts`, `*.mts`). Do NOT use `--type tsx` — it's not a valid type. Run `rg --type-list` to verify.
 
@@ -43,6 +44,12 @@ For DeepSeek model: do not overthink, think less and act more.
 - No viewport-width media queries in the renderer CSS: no Tailwind breakpoint variants (`sm:` `md:` `lg:` `xl:` `2xl:` `max-*:`), no `.container` utility, and check third-party CSS before adding it. Tailwind v4 output is layered, and Blink treats any rule-set change in a layered sheet as a change to all rules: every breakpoint crossing during a native window resize rebuilds the font cache, invalidates every font, and re-runs style and layout for the whole document (60-80ms per crossing). This is a desktop app with a fixed minimum width; write the desktop style unconditionally. Enforced by an ESLint rule and `scripts/checkCssMediaQueries.mjs` (runs in `npm run build`).
 - Looping or long-running animations (spinners, shimmer) must run on the compositor so they keep moving while the main thread is busy (streaming, long tool output): animate only `transform` and `opacity`, and never animate a `transform` on an `<svg>` element. Short click-triggered transitions (a chevron rotating) are exempt. Chromium cannot composite it (the transform depends on the svg's box size), so it freezes with the main thread. Rotate a wrapper instead: use `SpinningIcon` (`src/renderer/src/components/ui/spinningIcon.tsx`) for any spinning icon. To check an animation, record a trace with the `blink.animations` category and look for `compositeFailed: 0` on its `Animation` event.
 - Validate resize changes with long conversations: panel dragging, native window resizing, bottom follow, history reading, and interrupted gestures. Document the reusable behavior in `docs/architecture.md`.
+
+## Design System
+
+- Radius, spacing, elevation, motion and the type ramp are named in `src/renderer/src/assets/semanticTokens.css` by role. Read `docs/design-system.md` before styling a new component.
+- No pixel values for radius, font size or shadow in `className`; `npm run check` runs `scripts/checkDesignTokens.mjs` and rejects them.
+- `__designTokens()` in a dev build renders the whole token set against the live theme.
 
 ## Naming Conventions
 

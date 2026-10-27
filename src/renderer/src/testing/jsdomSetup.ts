@@ -111,3 +111,37 @@ HTMLElement.prototype.showPopover = function showPopover(): void {
 Element.prototype.scrollIntoView = function scrollIntoView(): void {
   scrollRequests.push(this);
 };
+
+/**
+ * Media queries, which jsdom does not implement.
+ *
+ * The appearance engine reads the OS preference through `matchMedia` on every
+ * resolve, so a component test needs an answer. Pass the state the test wants
+ * to look like; nothing re-reports a change (no test changes the OS yet).
+ */
+export function installSystemAppearance(appearance: {
+  dark: boolean;
+  reducedMotion?: boolean;
+}): void {
+  window.matchMedia = (query: string): MediaQueryList => {
+    const matches = query.includes('prefers-color-scheme: dark')
+      ? appearance.dark
+      : query.includes('prefers-reduced-motion: reduce')
+        ? (appearance.reducedMotion ?? false)
+        : false;
+    // Cast required: jsdom has no MediaQueryList, and the deprecated listener
+    // methods are the only members EventTarget does not already provide.
+    return new MediaQueryListStub(query, matches) as MediaQueryList;
+  };
+}
+
+class MediaQueryListStub extends EventTarget {
+  onchange: ((this: MediaQueryList, event: MediaQueryListEvent) => unknown) | null = null;
+
+  constructor(
+    readonly media: string,
+    readonly matches: boolean,
+  ) {
+    super();
+  }
+}

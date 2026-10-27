@@ -6,6 +6,7 @@
  */
 import { electronAPI } from '@electron-toolkit/preload';
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import { readFileSync } from 'node:fs';
 import {
   PiChannel,
   isPiPush,
@@ -32,6 +33,24 @@ import {
   type TerminalOutboundMessage,
   type UpdateStatus,
 } from '../shared/ipcContract';
+import type { PiSettingsResult, PiSettingsScope, PiSettingUpdate } from '../shared/piSettings';
+import {
+  PIGI_SETTINGS_PATH_ARGUMENT,
+  PIGI_SETTINGS_READ_STATE,
+  isMissingFileError,
+  type PigiSettingsReadResult,
+} from '../shared/pigiSettings';
+
+// =============================================================================
+// pigi settings path (main passes it through `additionalArguments`)
+// =============================================================================
+
+const settingsPathArgument = process.argv.find((argument) =>
+  argument.startsWith(PIGI_SETTINGS_PATH_ARGUMENT),
+);
+const pigiSettingsPath = settingsPathArgument
+  ? settingsPathArgument.slice(PIGI_SETTINGS_PATH_ARGUMENT.length)
+  : null;
 
 // =============================================================================
 // Per-session port management (keyed by sessionPath)
@@ -457,6 +476,19 @@ const piApi = {
   /** Get the app's working directory (for session creation). */
   getCwd: (): string => process.cwd(),
 
+  /** Get app/electron/runtime version info for the About section. */
+
+  /** Read pi settings (global + project) for a project cwd. */
+  getPiSettings: (cwd: string): Promise<PiSettingsResult> =>
+    ipcRenderer.invoke(PiChannel.GetPiSettings, cwd),
+
+  /** Write pi setting fields in one scope (atomic batch). `null` clears a field. */
+  setPiSettings: (
+    cwd: string,
+    scope: PiSettingsScope,
+    updates: PiSettingUpdate[],
+  ): Promise<PiSettingsResult> => ipcRenderer.invoke(PiChannel.SetPiSettings, cwd, scope, updates),
+
   /** Open a URL in the system browser. */
   openExternal: (url: string): void => {
     ipcRenderer.send(PiChannel.OpenExternal, url);
@@ -477,8 +509,40 @@ const piApi = {
   ): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke(PiChannel.SetShortcut, id, binding),
 
-  /** Get the system accent color as a hex string (e.g. '#007aff'). Returns null on unsupported platforms. */
-  getAccentColor: (): Promise<string | null> => ipcRenderer.invoke(PiChannel.GetAccentColor),
+  /** Tell the main process which theme is applied, so window materials match. */
+  setAppearanceTheme: (theme: 'system' | 'light' | 'dark'): void => {
+    ipcRenderer.send(PiChannel.SetAppearanceTheme, theme);
+  },
+
+  /**
+   * pigi's own settings, read from disk synchronously.
+   *
+   * The renderer applies appearance before its first paint, so an async round
+   * trip would paint one frame with the fallback palette. A missing file and an
+   * unreadable one are reported differently: only the first may be replaced with
+   * the value the app used to keep in localStorage.
+   */
+  readPigiSettings: (): PigiSettingsReadResult => {
+    if (!pigiSettingsPath) {
+      return { state: PIGI_SETTINGS_READ_STATE.missing };
+    }
+    try {
+      return {
+        state: PIGI_SETTINGS_READ_STATE.ok,
+        settings: JSON.parse(readFileSync(pigiSettingsPath, 'utf8')),
+      };
+    } catch (error) {
+      if (isMissingFileError(error)) {
+        return { state: PIGI_SETTINGS_READ_STATE.missing };
+      }
+      console.error('Failed to read pigi settings:', error);
+      return { state: PIGI_SETTINGS_READ_STATE.corrupt };
+    }
+  },
+
+  /** Replace pigi's settings file. Resolves false when the write failed. */
+  writePigiSettings: (settings: unknown): Promise<boolean> =>
+    ipcRenderer.invoke(PiChannel.WritePigiSettings, settings),
 
   /** Auto-update. Every renderer gets the status pushed on change. */
   update: {

@@ -15,7 +15,7 @@ export function SpinningIcon({
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <span className={cn('inline-flex shrink-0 animate-spin motion-reduce:animate-none', className)}>
+    <span className={cn('inline-flex shrink-0 animate-spin reduce-motion:animate-none', className)}>
       {children}
     </span>
   );

@@ -98,16 +98,14 @@ function ClosingHint(): React.JSX.Element {
     return () => clearInterval(timer);
   }, []);
   return (
-    <span className="shrink-0 text-[11px] text-muted-foreground/70">
-      auto closing in {seconds}s
-    </span>
+    <span className="shrink-0 text-2xs text-muted-foreground/70">auto closing in {seconds}s</span>
   );
 }
 
 const SECONDARY_BUTTON =
   'rounded-full bg-foreground/6 hover:bg-foreground/10 dark:hover:bg-foreground/12';
 const ACCENT_BUTTON =
-  'rounded-full bg-[var(--system-accent)] font-medium text-white hover:bg-[var(--system-accent)]/90';
+  'rounded-full bg-primary font-medium text-primary-foreground hover:bg-primary-hover';
 
 export default function UpdateProgress(): React.JSX.Element | null {
   // Null until the first status arrives: a manual check opens this window at the
@@ -187,7 +185,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
       <img
         src={appIconUrl}
         alt=""
-        className="size-11 shrink-0 rounded-[10px] shadow-sm ring-1 ring-black/5"
+        className="size-11 shrink-0 rounded-control shadow-sm ring-1 ring-black/5"
       />
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
         <div className="flex items-center gap-1.5">
@@ -196,7 +194,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
               <IconLoader className="size-3.5 text-foreground/45" />
             </SpinningIcon>
           )}
-          <span className="truncate text-[13px] leading-5 font-semibold">
+          <span className="truncate text-caption leading-5 font-semibold">
             {statusTitle(status)}
           </span>
           {status.phase === 'up_to_date' && (
@@ -235,7 +233,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
         {hasFooter && (
           <div className="flex items-center gap-1.5">
             {bytes !== null && (
-              <span className="text-[11px] tabular-nums text-muted-foreground">{bytes}</span>
+              <span className="text-2xs tabular-nums text-muted-foreground">{bytes}</span>
             )}
             <div className="ml-auto flex items-center gap-1.5">
               {status.phase === 'downloading' && (

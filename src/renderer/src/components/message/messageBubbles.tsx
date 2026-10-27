@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import MarkdownMessage from './markdownMessage';
 import OverflowClamp from './overflowClamp';
 import { highlightMatches } from '../../lib/highlightMatches';
-import ShimmerOverlay from './shimmerOverlay';
+import ShimmerText from './shimmerText';
 import { parseSkillBlock, type ParsedSkillBlock } from '../../lib/skillBlock';
 import {
   INTERACTIVE_REFERENCE_CHIP_CLASS,
@@ -248,7 +248,7 @@ function SkillLinkBubble({
   return (
     <div className="flex justify-end pb-2 pt-6" data-testid="skill-message">
       <div className="group flex max-w-[85%] flex-col items-end">
-        <div className="rounded-2xl bg-muted px-3.5 py-1.5 text-[15px] leading-6 text-foreground max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] w-fit">
+        <div className="rounded-surface-lg bg-muted px-3.5 py-1.5 text-body leading-6 text-foreground max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] w-fit">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <button type="button" className={INTERACTIVE_REFERENCE_CHIP_CLASS}>
@@ -294,7 +294,7 @@ function CommandBubble({
   return (
     <div className="flex justify-end pb-2 pt-6" data-testid="command-message">
       <div className="group flex max-w-[85%] flex-col items-end">
-        <div className="rounded-2xl bg-muted px-3.5 py-1.5 text-[15px] leading-6 text-foreground max-w-full w-fit">
+        <div className="rounded-surface-lg bg-muted px-3.5 py-1.5 text-body leading-6 text-foreground max-w-full w-fit">
           <span className={REFERENCE_CHIP_CLASS}>
             <IconTerminal2 className="size-4 shrink-0" />
             <span className="truncate">{name}</span>
@@ -355,12 +355,12 @@ export function UserBubble({
   return (
     <div className="flex justify-end pb-2 pt-6" data-testid="user-message">
       <div className="group flex max-w-[85%] flex-col items-end">
-        <div className="flex max-w-full w-fit flex-col gap-2 overflow-clip rounded-2xl bg-muted px-3.5 py-2">
+        <div className="flex max-w-full w-fit flex-col gap-2 overflow-clip rounded-surface-lg bg-muted px-3.5 py-2">
           {text && (
             <OverflowClamp
               maxHeight={maxHeight}
               tailAnchor={false}
-              className="text-[15px] leading-6 text-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+              className="text-body leading-6 text-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
             >
               {highlightMatches(text, searchQuery, activeOccurrenceIndex)}
             </OverflowClamp>
@@ -397,12 +397,14 @@ export function SystemBubble({
     return <BranchSummaryCard text={node.detail} />;
   }
 
+  const label = highlightMatches(node.text, searchQuery, activeOccurrenceIndex);
+
   return (
     <div className="flex items-center gap-3 py-2" data-testid="system-message">
       <div className="h-px flex-1 bg-border" />
-      <span className="relative shrink-0 text-sm text-muted-foreground overflow-hidden">
-        {highlightMatches(node.text, searchQuery, activeOccurrenceIndex)}
-        {node.isLoading && <ShimmerOverlay />}
+      <span className="relative shrink-0 overflow-hidden text-sm text-muted-foreground">
+        {label}
+        {node.isLoading && <ShimmerText>{label}</ShimmerText>}
       </span>
       <div className="h-px flex-1 bg-border" />
     </div>

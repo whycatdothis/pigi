@@ -18,6 +18,7 @@ export default defineConfig({
     },
   },
   test: {
+    setupFiles: ['src/renderer/src/testing/preloadBridgeSetup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     exclude: ['**/node_modules/**', 'src/**/*.browser.test.{ts,tsx}'],
   },

@@ -69,8 +69,8 @@ export default function ThinkingBlock({
   text: string;
 } & ThinkingTimingProps): React.JSX.Element {
   return (
-    <div className="rounded-md bg-muted/70 px-3 py-1.5 text-muted-foreground">
-      <div className="flex items-center justify-between gap-2 text-[13px] font-medium">
+    <div className="rounded-surface-sm bg-muted/70 px-3 py-1.5 text-muted-foreground">
+      <div className="flex items-center justify-between gap-2 text-caption font-medium">
         <span data-search-ignore>Thinking</span>
         <ThinkingDuration
           startedAt={startedAt}
@@ -80,7 +80,7 @@ export default function ThinkingBlock({
         />
       </div>
       <OverflowClamp maxHeight={120} tailAnchor>
-        <pre className="whitespace-pre-wrap break-words font-sans text-[14px] leading-5 text-muted-foreground">
+        <pre className="whitespace-pre-wrap break-words font-sans text-ui leading-5 text-muted-foreground">
           {text}
         </pre>
       </OverflowClamp>

@@ -10,12 +10,9 @@ import {
   TERMINAL_HEIGHT_VALUE,
 } from '../../lib/layoutConstants';
 import { useAppStore } from '../../state/appStore';
-import { terminalController } from './terminalController';
+import { FIT_DEBOUNCE_MS, terminalController } from './terminalController';
+import { subscribeAppearance } from '../../appearance/applyAppearance';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
-
-// Coalesce rapid resize events (drag, window resize) into a single fit so we
-// don't spam node-pty with resizes and cause the terminal to flicker.
-const RESIZE_DEBOUNCE_MS = 80;
 
 // Purpose-built drawer curve (fast start, clean settle) in both directions;
 // open is slightly slower than close for enter/exit asymmetry. Kept identical
@@ -65,21 +62,14 @@ export default function TerminalPanel({
   }, []);
   const slidIn = visible && activated;
 
-  // Position the shared terminal in this container and keep its theme in sync.
+  // Position the shared terminal in this container and keep it in sync with
+  // the appearance (palette, code font, code size).
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     terminalController.mount(container);
-    terminalController.applyTheme();
-
-    const themeObserver = new MutationObserver(() => {
-      terminalController.applyTheme();
-    });
-    themeObserver.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-    return () => themeObserver.disconnect();
+    terminalController.applyAppearance();
+    return subscribeAppearance(() => terminalController.applyAppearance());
   }, []);
 
   // Show the active project's terminal group whenever the panel becomes visible
@@ -105,7 +95,7 @@ export default function TerminalPanel({
       clearTimeout(timer);
       timer = setTimeout(() => {
         if (visible) terminalController.fit();
-      }, RESIZE_DEBOUNCE_MS);
+      }, FIT_DEBOUNCE_MS);
     });
     observer.observe(container);
     return () => {
@@ -152,7 +142,7 @@ export default function TerminalPanel({
         dragging
           ? 'transition-none'
           : cn(
-              'transition-transform motion-reduce:transition-none',
+              'transition-transform reduce-motion:transition-none',
               slidIn ? OPEN_TRANSITION : CLOSE_TRANSITION,
             ),
       )}

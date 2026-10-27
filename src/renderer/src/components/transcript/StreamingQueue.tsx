@@ -21,7 +21,7 @@ interface StreamingQueueProps {
 
 /**
  * A single bar that "grows out" from behind the element below it.
- * - rounded-t-2xl top corners
+ * - top corners rounded to the composer's radius, so the bar reads as part of it
  * - pb-6 bottom padding (the lower portion is covered by the next element)
  * - z-[-1] relative to its sibling below
  */
@@ -33,7 +33,7 @@ function QueueBar({
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <div className="rounded-t-2xl bg-muted px-4 pb-15 pt-2 text-xs text-muted-foreground">
+    <div className="rounded-t-surface-xl bg-muted px-4 pb-15 pt-2 text-xs text-muted-foreground">
       <div className="flex items-center gap-1">
         {icon}
         {children}
@@ -87,7 +87,7 @@ export default function StreamingQueue({
       node: (
         <QueuedMessageBar
           label="Steer"
-          labelClassName="text-yellow-600"
+          labelClassName="text-warning-fg"
           message={message}
           onEdit={() => onEditQueuedMessage('steer', i)}
         />
@@ -101,7 +101,7 @@ export default function StreamingQueue({
       node: (
         <QueuedMessageBar
           label="Follow-up"
-          labelClassName="text-blue-500"
+          labelClassName="text-info-fg"
           message={message}
           onEdit={() => onEditQueuedMessage('followUp', i)}
         />

@@ -13,7 +13,7 @@ export default function BranchSummaryCard({ text }: { text: string }): React.JSX
 
   return (
     <div className="py-2" data-testid="branch-summary">
-      <div className="mx-auto w-full rounded-lg border border-border bg-muted/30">
+      <div className="mx-auto w-full rounded-surface border border-border bg-muted/30">
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
@@ -26,7 +26,7 @@ export default function BranchSummaryCard({ text }: { text: string }): React.JSX
           <span>Branch summary</span>
         </button>
         {open && (
-          <div className="max-h-80 overflow-y-auto px-3 pb-2 text-[13px] text-foreground/80">
+          <div className="max-h-80 overflow-y-auto px-3 pb-2 text-caption text-foreground/80">
             <MarkdownMessage text={text} />
           </div>
         )}

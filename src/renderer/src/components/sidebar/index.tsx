@@ -51,6 +51,7 @@ export default memo(function Sidebar({
   pendingUpdateVersion,
   onCheckForUpdates,
   onInstallUpdate,
+  onOpenSettings,
 }: SidebarProps): React.JSX.Element {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [visibleWhenCollapsedSessionIds, setVisibleWhenCollapsedSessionIds] = useState<
@@ -306,7 +307,7 @@ export default memo(function Sidebar({
                   sideOffset={2}
                   className="w-60 menu-content flex flex-col gap-1"
                 >
-                  <MenuItem>
+                  <MenuItem onClick={onOpenSettings}>
                     <IconSettings />
                     <span>Settings</span>
                   </MenuItem>

@@ -40,9 +40,19 @@ jobs:
 
       - run: npm run typecheck
 
+      # Every tarball must resolve from the public registry: a lockfile written
+      # against a private mirror hangs every later install on an unreachable host.
+      - run: node scripts/checkLockfileRegistry.mjs
+
       - run: npm run lint
 
       - run: npm run format:check
+
+      # The design rules ship with their own checks; running them in CI is what
+      # makes them rules rather than comments.
+      - run: node scripts/checkDesignTokens.mjs
+
+      - run: node scripts/checkCssMediaQueries.mjs
 
       - run: npm test
 

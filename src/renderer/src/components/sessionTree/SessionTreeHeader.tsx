@@ -47,7 +47,7 @@ export function TreeHeaderContent({
       />
       <span
         className={cn(
-          'text-[11px] font-medium tracking-wide',
+          'text-2xs font-medium tracking-wide',
           isCurrent ? 'text-[var(--system-accent)]' : 'text-muted-foreground',
         )}
       >
@@ -55,12 +55,12 @@ export function TreeHeaderContent({
         Tree {position}
       </span>
       {stats && (
-        <span className="text-[11px] text-muted-foreground/80">
+        <span className="text-2xs text-muted-foreground/80">
           {stats.rowCount} {stats.rowCount === 1 ? 'message' : 'messages'}
         </span>
       )}
       {range !== '' && (
-        <span className="ml-auto font-mono text-[11px] text-muted-foreground/60 tabular-nums">
+        <span className="ml-auto font-mono text-2xs text-muted-foreground/60 tabular-nums">
           {range}
         </span>
       )}

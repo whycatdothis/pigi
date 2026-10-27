@@ -32,12 +32,12 @@ function Toaster({ ...props }: ToasterProps): React.JSX.Element {
           '--normal-bg': 'var(--popover)',
           '--normal-text': 'var(--popover-foreground)',
           '--normal-border': 'transparent',
-          '--success-bg': 'color-mix(in oklab, var(--popover) 85%, #16a34a)',
-          '--success-text': '#15803d',
-          '--success-border': 'transparent',
-          '--error-bg': 'color-mix(in oklab, var(--popover) 85%, #dc2626)',
-          '--error-text': '#b91c1c',
-          '--error-border': 'transparent',
+          '--success-bg': 'var(--success-bg)',
+          '--success-text': 'var(--success-fg)',
+          '--success-border': 'var(--success-border)',
+          '--error-bg': 'var(--danger-bg)',
+          '--error-text': 'var(--danger-fg)',
+          '--error-border': 'var(--danger-border)',
           '--border-radius': 'var(--radius-md)',
         } as React.CSSProperties
       }

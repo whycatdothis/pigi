@@ -5,6 +5,10 @@ import {
   type BundledLanguage,
   type Highlighter,
 } from 'shiki/bundle/full';
+import { appearanceTokensFor } from '../../appearance/appearanceTokensCache';
+import { useResolvedAppearance } from '../../appearance/useResolvedAppearance';
+import { codeThemeNameFor, ensureThemeLoaded, loadCodeTheme } from './shikiThemes';
+import { useSettingsStore } from '../../state/settingsStore';
 
 interface SyntaxHighlightedCodeProps {
   code: string;
@@ -32,7 +36,6 @@ interface HighlightedState {
   lines: HighlightedLine[] | null;
 }
 
-const SHIKI_THEME = 'one-light';
 const MAX_HIGHLIGHTED_CODE_LENGTH = 80_000;
 const MAX_HIGHLIGHT_CACHE_SIZE = 100;
 const MAX_TOKENIZED_LINE_LENGTH = 2_000;
@@ -46,12 +49,15 @@ const FONT_STYLE_STRIKETHROUGH = 8;
 
 let highlighterPromise: Promise<Highlighter> | null = null;
 const loadedLanguages = new Set<BundledLanguage>();
+const loadedThemes = new Set<string>();
 const highlightedCodeCache = new Map<string, Promise<HighlightedLine[] | null>>();
 
 function getHighlighter(): Promise<Highlighter> {
   if (!highlighterPromise) {
+    // Themes are registered on demand, once the appearance says which ones the
+    // code surface needs.
     highlighterPromise = createHighlighter({
-      themes: [SHIKI_THEME],
+      themes: [],
       langs: [],
     });
   }
@@ -97,12 +103,12 @@ function tokenStyle(token: HighlightedToken): CSSProperties {
   return style;
 }
 
-function cacheKey(code: string, language: BundledLanguage): string {
-  return `${language}\n${code}`;
+function cacheKey(code: string, language: BundledLanguage, themeName: string): string {
+  return `${themeName}\n${language}\n${code}`;
 }
 
-function highlightedStateKey(code: string, language: BundledLanguage): string {
-  return [language, code.length, hashString(code)].join(HIGHLIGHT_STATE_KEY_SEPARATOR);
+function highlightedStateKey(code: string, language: BundledLanguage, themeName: string): string {
+  return [themeName, language, code.length, hashString(code)].join(HIGHLIGHT_STATE_KEY_SEPARATOR);
 }
 
 function hashString(value: string): string {
@@ -116,14 +122,18 @@ function hashString(value: string): string {
 function cacheHighlightedCode(
   code: string,
   language: BundledLanguage,
+  themeName: string,
+  background: string,
+  surface: string,
+  codeThemeId: string,
 ): Promise<HighlightedLine[] | null> {
-  const key = cacheKey(code, language);
+  const key = cacheKey(code, language, themeName);
   const cached = highlightedCodeCache.get(key);
   if (cached) {
     return cached;
   }
 
-  const highlighted = highlightCode(code, language);
+  const highlighted = highlightCode(code, language, themeName, background, surface, codeThemeId);
   highlightedCodeCache.set(key, highlighted);
   if (highlightedCodeCache.size > MAX_HIGHLIGHT_CACHE_SIZE) {
     const oldestKey = highlightedCodeCache.keys().next().value;
@@ -137,12 +147,18 @@ function cacheHighlightedCode(
 async function highlightCode(
   code: string,
   language: BundledLanguage,
+  themeName: string,
+  background: string,
+  surface: string,
+  codeThemeId: string,
 ): Promise<HighlightedLine[] | null> {
   if (code.length > MAX_HIGHLIGHTED_CODE_LENGTH) {
     return null;
   }
 
   const highlighter = await getHighlighter();
+  const theme = await loadCodeTheme(background, surface, codeThemeId);
+  await ensureThemeLoaded(highlighter, theme, loadedThemes);
   if (!loadedLanguages.has(language)) {
     await highlighter.loadLanguage(language);
     loadedLanguages.add(language);
@@ -150,7 +166,7 @@ async function highlightCode(
 
   const result = highlighter.codeToTokens(code, {
     lang: language,
-    theme: SHIKI_THEME,
+    theme: themeName,
     tokenizeMaxLineLength: MAX_TOKENIZED_LINE_LENGTH,
     tokenizeTimeLimit: TOKENIZE_TIME_LIMIT_MS,
   });
@@ -214,6 +230,20 @@ export default function SyntaxHighlightedCode({
   language,
   isStreaming = false,
 }: SyntaxHighlightedCodeProps): React.JSX.Element {
+  const resolvedAppearance = useResolvedAppearance();
+  const codeThemeId = useSettingsStore((state) => state.appearance.codeTheme);
+  // The code block sits on --muted, so that is the surface the tokens have to
+  // clear; the app background decides which base theme fits.
+  const codeTheme = useMemo(() => {
+    const tokens = appearanceTokensFor(resolvedAppearance);
+    const background = tokens['--app-background'];
+    const surface = tokens['--app-muted'];
+    return {
+      background,
+      surface,
+      name: codeThemeNameFor(background, surface, codeThemeId),
+    };
+  }, [resolvedAppearance, codeThemeId]);
   const normalizedLanguage = useMemo(() => normalizeLanguage(language), [language]);
   const highlightInput = useStreamingThrottledCode(
     code,
@@ -221,8 +251,11 @@ export default function SyntaxHighlightedCode({
     STREAMING_HIGHLIGHT_THROTTLE_MS,
   );
   const currentHighlightKey = useMemo(
-    () => (normalizedLanguage ? highlightedStateKey(highlightInput, normalizedLanguage) : null),
-    [highlightInput, normalizedLanguage],
+    () =>
+      normalizedLanguage
+        ? highlightedStateKey(highlightInput, normalizedLanguage, codeTheme.name)
+        : null,
+    [highlightInput, normalizedLanguage, codeTheme.name],
   );
   const [highlightedState, setHighlightedState] = useState<HighlightedState | null>(null);
   // Stale-while-revalidate: keep the last successful highlight on screen while
@@ -269,7 +302,14 @@ export default function SyntaxHighlightedCode({
       };
     }
 
-    void cacheHighlightedCode(highlightInput, normalizedLanguage)
+    void cacheHighlightedCode(
+      highlightInput,
+      normalizedLanguage,
+      codeTheme.name,
+      codeTheme.background,
+      codeTheme.surface,
+      codeThemeId,
+    )
       .then((lines) => {
         if (!cancelled) {
           setHighlightedState({ key: currentHighlightKey, source: highlightInput, lines });
@@ -284,13 +324,11 @@ export default function SyntaxHighlightedCode({
     return () => {
       cancelled = true;
     };
-  }, [highlightInput, currentHighlightKey, normalizedLanguage]);
+  }, [highlightInput, currentHighlightKey, normalizedLanguage, codeTheme, codeThemeId]);
 
   if (!highlightedLines) {
     return (
-      <code className="block min-w-full w-max bg-transparent p-0 font-mono text-[14px]">
-        {code}
-      </code>
+      <code className="block min-w-full w-max bg-transparent p-0 font-mono text-code">{code}</code>
     );
   }
 
@@ -304,14 +342,12 @@ export default function SyntaxHighlightedCode({
     // Content diverged (not a simple append); avoid showing a mismatched
     // highlight and fall back to plain until the next highlight lands.
     return (
-      <code className="block min-w-full w-max bg-transparent p-0 font-mono text-[14px]">
-        {code}
-      </code>
+      <code className="block min-w-full w-max bg-transparent p-0 font-mono text-code">{code}</code>
     );
   }
 
   return (
-    <code className="block min-w-full w-max bg-transparent p-0 font-mono text-[14px]">
+    <code className="block min-w-full w-max bg-transparent p-0 font-mono text-code">
       {highlightedLineNodes}
       {plainTail !== '' && <span className="block whitespace-pre-wrap">{plainTail}</span>}
     </code>

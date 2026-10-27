@@ -1,12 +1,17 @@
 import {
   type AgentSessionServices,
+  CONFIG_DIR_NAME,
   createAgentSessionServices,
   getAgentDir,
+  hasTrustRequiringProjectResources,
   type ModelRuntime,
+  ProjectTrustStore,
   type SessionInfo,
   SessionManager,
   SettingsManager,
+  VERSION,
 } from '@earendil-works/pi-coding-agent';
+import { join } from 'node:path';
 import type {
   PiSessionInfo,
   SessionWorkerCommand,
@@ -14,8 +19,17 @@ import type {
   ThinkingLevel,
 } from '../../shared/ipcContract';
 import { promptTitle } from '../../shared/chatAttachments';
+import {
+  extractPiSettingsValues,
+  findPiSettingField,
+  isPiSettingValueValid,
+  type PiSettingsScope,
+  type PiSettingsSnapshot,
+  type PiSettingUpdate,
+} from '../../shared/piSettings';
 import { toModelInfo } from '../../shared/modelInfo';
 import { createModelRuntime } from './fileCredentialStore';
+import { writePiSettingsDocument } from './piSettingsWrite';
 
 function sendToMain(response: SessionWorkerResponse): void {
   process.parentPort?.postMessage(response);
@@ -207,6 +221,87 @@ function reloadCatalog(): Promise<void> {
   return pendingReload;
 }
 
+// =============================================================================
+// Pi settings (settings.json read/write)
+//
+// Reads go through SettingsManager so migration and merge semantics match pi.
+// Writes are read-modify-write of the requested dotted fields under the same
+// proper-lockfile scheme the SDK uses, so a concurrent pi TUI cannot lose
+// updates and unrelated keys are preserved byte-for-value.
+// =============================================================================
+
+/**
+ * Whether pi would apply this project's settings.json at runtime. Mirrors the
+ * non-interactive fallback: an explicit trust entry wins, then the global
+ * defaultProjectTrust, then "trusted unless the project has gated resources".
+ */
+function resolveProjectTrust(cwd: string, agentDir: string): boolean {
+  const decision = new ProjectTrustStore(agentDir).get(cwd);
+  if (decision !== null) {
+    return decision;
+  }
+  const fallback = SettingsManager.create(cwd, agentDir, {
+    projectTrusted: false,
+  }).getDefaultProjectTrust();
+  if (fallback === 'always') {
+    return true;
+  }
+  if (fallback === 'never') {
+    return false;
+  }
+  return !hasTrustRequiringProjectResources(cwd);
+}
+
+function settingsFilePath(cwd: string, scope: PiSettingsScope): string {
+  return scope === 'global'
+    ? join(getAgentDir(), 'settings.json')
+    : join(cwd, CONFIG_DIR_NAME, 'settings.json');
+}
+
+/**
+ * Snapshot for the settings page. Project settings are read regardless of
+ * trust so the file contents stay visible; `projectTrusted` reports whether
+ * pi would actually apply them.
+ */
+function readPiSettings(cwd: string): PiSettingsSnapshot {
+  const agentDir = getAgentDir();
+  const settingsManager = SettingsManager.create(cwd, agentDir);
+  return {
+    global: extractPiSettingsValues(settingsManager.getGlobalSettings()),
+    project: extractPiSettingsValues(settingsManager.getProjectSettings()),
+    paths: {
+      agentDir,
+      globalSettings: settingsFilePath(cwd, 'global'),
+      projectSettings: settingsFilePath(cwd, 'project'),
+    },
+    projectTrusted: resolveProjectTrust(cwd, agentDir),
+    piVersion: VERSION,
+  };
+}
+
+async function writePiSettings(
+  cwd: string,
+  scope: PiSettingsScope,
+  updates: PiSettingUpdate[],
+): Promise<PiSettingsSnapshot> {
+  for (const update of updates) {
+    const field = findPiSettingField(update.field);
+    if (!field) {
+      throw new Error(`unknown pi setting field: ${update.field}`);
+    }
+    if (field.globalOnly && scope === 'project') {
+      throw new Error(`pi setting is global-only: ${update.field}`);
+    }
+    if (update.value !== null && !isPiSettingValueValid(field, update.value)) {
+      throw new Error(`invalid value for pi setting: ${update.field}`);
+    }
+  }
+
+  await writePiSettingsDocument(settingsFilePath(cwd, scope), updates);
+
+  return readPiSettings(cwd);
+}
+
 function serializeSessionInfo(session: SessionInfo): PiSessionInfo {
   return {
     path: session.path,
@@ -314,6 +409,43 @@ process.parentPort?.on('message', async (messageEvent) => {
       } catch (error) {
         sendToMain({
           type: 'session_messages_result',
+          requestId: command.requestId,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      break;
+    }
+    case 'read_settings': {
+      try {
+        sendToMain({
+          type: 'settings_result',
+          requestId: command.requestId,
+          success: true,
+          snapshot: readPiSettings(command.cwd),
+        });
+      } catch (error) {
+        sendToMain({
+          type: 'settings_result',
+          requestId: command.requestId,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      break;
+    }
+    case 'write_settings': {
+      try {
+        const snapshot = await writePiSettings(command.cwd, command.scope, command.updates);
+        sendToMain({
+          type: 'settings_result',
+          requestId: command.requestId,
+          success: true,
+          snapshot,
+        });
+      } catch (error) {
+        sendToMain({
+          type: 'settings_result',
           requestId: command.requestId,
           success: false,
           error: error instanceof Error ? error.message : String(error),

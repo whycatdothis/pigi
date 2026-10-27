@@ -23,6 +23,7 @@ export default defineConfig({
   },
   test: {
     include: ['src/**/*.browser.test.tsx'],
+    setupFiles: ['src/renderer/src/testing/preloadBridgeSetup.ts'],
     browser: {
       enabled: true,
       headless: true,

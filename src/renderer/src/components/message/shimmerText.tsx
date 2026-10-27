@@ -12,26 +12,38 @@ export const SHIMMER_SPEED_PX_PER_SECOND = 72;
  *  how long the command line is. */
 export const SHIMMER_BAND_WIDTH_PX = 100;
 
-interface ShimmerOverlayProps {
+interface ShimmerTextProps {
+  /** A second copy of the row's content; rendered brighter and clipped. */
+  children: React.ReactNode;
   /** Explicit cycle duration. Pass a width-derived value to keep the sweep at
    *  a constant px/s speed across element widths; defaults to the 2.5s class. */
   durationMs?: number;
 }
 
-export default function ShimmerOverlay({ durationMs }: ShimmerOverlayProps): React.JSX.Element {
+/**
+ * Highlight that sweeps across the text it is placed over.
+ *
+ * The overlay is a second copy of the glyphs rather than a gradient band: a band
+ * paints its own rectangle over the background, which shows as a light smear
+ * once the theme's background is not white. Brightening the glyphs and clipping
+ * them can only affect the text, whatever is behind it.
+ *
+ * Callers render the content twice — once normally, once here — because the
+ * layout must stay with the original copy.
+ */
+export default function ShimmerText({ children, durationMs }: ShimmerTextProps): React.JSX.Element {
   const overlayRef = useRef<HTMLSpanElement>(null);
   const [scanWidth, setScanWidth] = useState(0);
   // The band only starts once the scan width has been measured. Until then
-  // animation-name is pinned to 'none'; flipping it back to the class
-  // animation restarts it from the beginning — so a freshly shown row's
-  // sweep always starts at the left edge instead of joining a cycle that
-  // began while the element had zero width.
+  // animation-name is pinned to 'none'; flipping it back to the class animation
+  // restarts it from the beginning — so a freshly shown row's sweep always
+  // starts at the left edge instead of joining a cycle that began while the
+  // element had zero width.
   const [measured, setMeasured] = useState(false);
 
-  // The band sweeps only the text it labels: measure the parent (the text
-  // span it is placed inside), so truncated long commands do not waste the
-  // sweep on invisible areas. The CSS variables drive this element's own
-  // keyframes (--shimmer-scan-width), not a child's transform.
+  // The band sweeps only the text it labels: measure the parent (the row it is
+  // placed inside), so truncated long commands do not waste the sweep on
+  // invisible areas.
   useLayoutEffect(() => {
     const parent = overlayRef.current?.parentElement;
     if (!parent) return;
@@ -48,8 +60,6 @@ export default function ShimmerOverlay({ durationMs }: ShimmerOverlayProps): Rea
 
   // Custom CSS properties need a cast (React does not type them).
   const style = {
-    width: `${SHIMMER_BAND_WIDTH_PX}px`,
-    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.95) 50%, transparent)',
     '--shimmer-band-width': `${SHIMMER_BAND_WIDTH_PX}px`,
     '--shimmer-scan-width': `${scanWidth}px`,
     animationDuration: durationMs !== undefined ? `${durationMs}ms` : undefined,
@@ -58,9 +68,13 @@ export default function ShimmerOverlay({ durationMs }: ShimmerOverlayProps): Rea
   } as React.CSSProperties;
 
   return (
-    /* The band itself: a fixed-width strip that the .shimmer-overlay keyframes
-       translate from its own width left of the text to the measured text
-       width (enter -> sweep -> exit), transform-only on the compositor. */
-    <span ref={overlayRef} className="shimmer-overlay absolute top-0 left-0 h-full" style={style} />
+    <span
+      ref={overlayRef}
+      aria-hidden
+      className="shimmer-overlay pointer-events-none absolute inset-0"
+      style={style}
+    >
+      {children}
+    </span>
   );
 }

@@ -25,8 +25,14 @@ import '@xterm/xterm/css/xterm.css';
 import './terminalTheme.css';
 import { useAppStore, type TerminalTabView } from '../../state/appStore';
 
-const FONT_FAMILY = "ui-monospace, SFMono-Regular, Menlo, Monaco, 'Courier New', monospace";
-const FONT_SIZE = 15;
+/**
+ * The terminal keeps its shipped size as the anchor and scales with the code
+ * size setting (14px default), so changing the code font size moves the
+ * terminal proportionally instead of jumping to the body size.
+ */
+const TERMINAL_BASE_FONT_SIZE = 15;
+const FALLBACK_FONT_FAMILY =
+  "ui-monospace, SFMono-Regular, Menlo, Monaco, 'Courier New', monospace";
 /** Max number of project groups kept alive; opening a further project evicts the LRU. */
 const PROJECT_LRU_MAX = 5;
 /** A cached (off-screen) group is killed after this long with no terminal I/O. */
@@ -63,6 +69,21 @@ function cssColorToRgb(color: string): string {
  * The palette lives entirely in CSS (per light/dark), so reskinning the terminal
  * is a CSS-only change; `background` tracks --background so the panel blends in.
  */
+/** One PTY resize per settled change: a burst of fits is one fit. */
+export const FIT_DEBOUNCE_MS = 80;
+
+function readTerminalFont(): { fontFamily: string; fontSize: number } {
+  const styles = getComputedStyle(document.documentElement);
+  const family = styles.getPropertyValue('--app-font-code').trim();
+  const scale = Number.parseFloat(styles.getPropertyValue('--app-font-code-scale'));
+  return {
+    fontFamily: family || FALLBACK_FONT_FAMILY,
+    fontSize: Number.isFinite(scale)
+      ? Math.max(8, Math.round(TERMINAL_BASE_FONT_SIZE * scale))
+      : TERMINAL_BASE_FONT_SIZE,
+  };
+}
+
 function readTerminalTheme(): TerminalTheme {
   const styles = getComputedStyle(document.documentElement);
   const color = (name: string): string => cssColorToRgb(styles.getPropertyValue(name).trim());
@@ -128,6 +149,10 @@ interface ProjectGroup {
 }
 
 class TerminalController {
+  /** Font the cached terminals are drawn with, to tell a refit from a repaint. */
+  private appliedFont: { fontFamily: string; fontSize: number } | null = null;
+  /** Pending debounced fit, so a burst of appearance changes fits once. */
+  private fitTimer: number | null = null;
   /** project key -> group. */
   private readonly groups = new Map<string, ProjectGroup>();
   /** project keys ordered least- to most-recently-used (last = MRU). */
@@ -152,6 +177,7 @@ class TerminalController {
     host.style.width = '100%';
     host.style.height = '100%';
 
+    const { fontFamily, fontSize } = readTerminalFont();
     const terminal = new Terminal({
       cursorBlink: true,
       // Thin vertical beam instead of the default solid block.
@@ -160,8 +186,8 @@ class TerminalController {
       // ESC-prefixed sequence shells expect (M-b, M-d, M-f, M-Backspace, ...).
       // Trade-off: Option can no longer type accented characters in the terminal.
       macOptionIsMeta: true,
-      fontSize: FONT_SIZE,
-      fontFamily: FONT_FAMILY,
+      fontSize,
+      fontFamily,
       allowProposedApi: true,
       theme: readTerminalTheme(),
     });
@@ -495,12 +521,45 @@ class TerminalController {
     requestAnimationFrame(() => this.focus());
   }
 
-  /** Sync every cached terminal's colors to the current app theme. */
-  applyTheme(): void {
+  /**
+   * Sync every cached terminal to the current appearance: palette, code font,
+   * and code size.
+   *
+   * Refitting is the expensive part — it re-measures a cell, forces layout, and
+   * resizes the PTY — and only a font change can move the cell metrics. Dragging
+   * a colour slider notifies once per frame, so a fit on every notification
+   * would resize the PTY sixty times a second; the fit is skipped unless the
+   * font changed, and coalesced through the same debounce the panel uses.
+   */
+  applyAppearance(): void {
     const theme = readTerminalTheme();
+    const font = readTerminalFont();
+    const fontChanged =
+      this.appliedFont === null ||
+      this.appliedFont.fontFamily !== font.fontFamily ||
+      this.appliedFont.fontSize !== font.fontSize;
+    this.appliedFont = font;
     for (const group of this.groups.values()) {
-      for (const tab of group.tabs) tab.terminal.options.theme = theme;
+      for (const tab of group.tabs) {
+        tab.terminal.options.theme = theme;
+        tab.terminal.options.fontFamily = font.fontFamily;
+        tab.terminal.options.fontSize = font.fontSize;
+      }
     }
+    if (fontChanged) {
+      this.scheduleFit();
+    }
+  }
+
+  /** Coalesces a burst of fits into one, so the PTY is not resized per frame. */
+  scheduleFit(): void {
+    if (this.fitTimer !== null) {
+      window.clearTimeout(this.fitTimer);
+    }
+    this.fitTimer = window.setTimeout(() => {
+      this.fitTimer = null;
+      this.fit();
+    }, FIT_DEBOUNCE_MS);
   }
 }
 

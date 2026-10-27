@@ -47,7 +47,7 @@ export default React.memo(function RightSidebar({
             <IconQuote size={13} className="opacity-70" />
             {TAB_LABELS[RIGHT_SIDEBAR_TABS.quotes]}
             {quoteCount > 0 && (
-              <span className="rounded-full bg-foreground/10 px-1.5 text-[10px] leading-4 tabular-nums">
+              <span className="rounded-full bg-foreground/10 px-1.5 text-3xs leading-4 tabular-nums">
                 {quoteCount}
               </span>
             )}

@@ -18,6 +18,9 @@ export const MESSAGE_LIST_HORIZONTAL_PADDING = 20;
 export const MESSAGE_CONTENT_MAX_WIDTH =
   MESSAGE_LIST_MAX_WIDTH - MESSAGE_LIST_HORIZONTAL_PADDING * 2;
 export const CHAT_INPUT_MAX_WIDTH = MESSAGE_CONTENT_MAX_WIDTH;
+/** Settings rows carry a label and a control, so they read better in a
+ *  narrower column than the transcript. */
+export const SETTINGS_CONTENT_MAX_WIDTH = 660;
 export const MESSAGE_ROW_GAP = 4;
 
 /** Max entries a collapsed read group previews before its "Show more" toggle. */
@@ -83,7 +86,7 @@ export const SIDEBAR_TOGGLE_CLEARANCE_PX = 36;
 
 /** Shared by the sidebar width and the toolbar title inset so both move in step. */
 export const SIDEBAR_TRANSITION_CLASS_NAME =
-  'duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none';
+  'duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] reduce-motion:transition-none';
 
 export function sidebarToggleLeft(platform: Platform): number {
   return platform === 'mac' ? SIDEBAR_TOGGLE_LEFT_MAC_PX : SIDEBAR_TOGGLE_LEFT_PX;
@@ -91,7 +94,7 @@ export function sidebarToggleLeft(platform: Platform): number {
 
 /** Used by Dialog, Popover, and ContextMenu — these need backdrop-blur but blur renders incorrectly in vibrant regions, so they use a separate configuration. */
 export const VIBRANCY_OVERLAY_CONTENT =
-  'rounded-xl bg-popover/88 backdrop-blur-sm p-4 text-sm text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25 outline-hidden duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
+  'rounded-surface bg-popover/88 backdrop-blur-sm p-4 text-sm text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25 outline-hidden duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
 
 /** Background color used by transparent floating panels. */
 export const OVERLAY_BG = 'bg-popover/40';

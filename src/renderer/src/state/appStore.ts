@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { TERMINAL_DEFAULT_HEIGHT } from '../lib/layoutConstants';
+import type { SettingsSectionId } from '../lib/settingsSections';
+import { DEFAULT_SETTINGS_SECTION } from '../lib/settingsSections';
 import type {
   ContextUsage,
   ModelInfo,
@@ -12,11 +14,6 @@ import type { Platform } from '../../../shared/platform';
 import { createPersistedSessionMap } from '../lib/persistedSessionMap';
 import { parseStoredQuotes, type MessageQuote } from '../lib/messageQuotes';
 import { RIGHT_SIDEBAR_TABS, type RightSidebarTab } from '../lib/rightSidebarTabs';
-import type { DiagramThemeChoice } from '../lib/mermaidTheme';
-import {
-  readDiagramThemePreference,
-  writeDiagramThemePreference,
-} from '../lib/diagramThemePreference';
 import type { AgentStatus } from './transcriptController';
 
 export type { AgentStatus };
@@ -73,6 +70,13 @@ interface AppState {
   setSidebarExpanded: (expanded: boolean) => void;
   toggleSidebar: () => void;
 
+  // Settings page (replaces the sidebar and the main area while open)
+  settingsOpen: boolean;
+  settingsSection: SettingsSectionId;
+  openSettings: () => void;
+  closeSettings: () => void;
+  setSettingsSection: (section: SettingsSectionId) => void;
+
   // Bottom terminal panel. `terminalMounted` stays true after first open so the
   // xterm instance (and its PTY) persist while the panel is toggled hidden.
   terminalOpen: boolean;
@@ -110,15 +114,8 @@ interface AppState {
   toggleRightSidebar: (sessionPath: string) => void;
   setRightSidebarTab: (tab: RightSidebarTab) => void;
 
-  // Tool block view mode: 'default' shows all cards, 'compact_read' collapses consecutive read-only tools, 'minimal' renders a minimal/codex-style activity view
-  toolBlockViewMode: 'default' | 'compact_read' | 'minimal';
-  setToolBlockViewMode: (mode: 'default' | 'compact_read' | 'minimal') => void;
-
-  // Theme a diagram is drawn in: 'auto' follows the app's own theme, anything
-  // else is a mermaid theme name the reader picked. Kept here rather than in the
-  // diagram's own module so a settings page has one place to read and write it.
-  diagramTheme: DiagramThemeChoice;
-  setDiagramTheme: (choice: DiagramThemeChoice) => void;
+  // Tool block view mode and diagram theme live in the settings store
+  // (persisted preferences).
 
   // Platform
   platform: Platform;
@@ -320,6 +317,13 @@ export const useAppStore = create<AppState>((set) => ({
   setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
   toggleSidebar: () => set((s) => ({ sidebarExpanded: !s.sidebarExpanded })),
 
+  // Settings page
+  settingsOpen: false,
+  settingsSection: DEFAULT_SETTINGS_SECTION,
+  openSettings: () => set({ settingsOpen: true }),
+  closeSettings: () => set({ settingsOpen: false }),
+  setSettingsSection: (settingsSection) => set({ settingsSection }),
+
   // Bottom terminal panel
   terminalOpen: false,
   terminalMounted: false,
@@ -405,17 +409,6 @@ export const useAppStore = create<AppState>((set) => ({
       ),
     })),
   setRightSidebarTab: (tab) => set({ rightSidebarTab: tab }),
-
-  // Tool block view mode
-  toolBlockViewMode: 'compact_read',
-
-  setToolBlockViewMode: (mode) => set({ toolBlockViewMode: mode }),
-
-  diagramTheme: readDiagramThemePreference(),
-  setDiagramTheme: (choice) => {
-    writeDiagramThemePreference(choice);
-    set({ diagramTheme: choice });
-  },
 
   // Platform
   platform: 'unknown',

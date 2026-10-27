@@ -7,8 +7,8 @@ interface DiffViewProps {
 }
 
 const LINE_STYLES = {
-  add: 'bg-green-500/15 text-green-700 dark:text-green-400',
-  remove: 'bg-red-500/15 text-red-700 dark:text-red-400',
+  add: 'bg-success-bg text-success-fg',
+  remove: 'bg-danger-bg text-danger-fg',
   context: 'text-muted-foreground',
 } as const;
 
@@ -49,7 +49,7 @@ export default function DiffView({ lines }: DiffViewProps): React.JSX.Element {
   }, [lines]);
 
   return (
-    <div className="overflow-hidden rounded font-mono text-[13px] leading-5">
+    <div className="overflow-hidden rounded font-mono text-code-compact leading-5">
       {sections.map((section, sectionIdx) => (
         <div key={sectionIdx}>
           {sectionIdx > 0 && (

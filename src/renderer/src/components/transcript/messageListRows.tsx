@@ -5,7 +5,7 @@ import {
   type ToolNode,
   type AssistantNode,
 } from '../../state/transcriptController';
-import { MESSAGE_CONTENT_MAX_WIDTH, MESSAGE_ROW_GAP } from '../../lib/layoutConstants';
+import { MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
 import ToolBlock from '../message/ToolBlock';
 import MarkdownMessage from '../message/markdownMessage';
 import { useHighlightTextNodes } from '../../lib/highlightMatches';
@@ -20,6 +20,7 @@ import CollapsedReadGroup from '../message/CollapsedReadGroup';
 export const RenderItemRenderer = React.memo(function RenderItemRenderer({
   item,
   isLast,
+  showActions,
   sessionActive,
   searchQuery,
   expanded,
@@ -30,6 +31,8 @@ export const RenderItemRenderer = React.memo(function RenderItemRenderer({
 }: {
   item: RenderItem;
   isLast: boolean;
+  /** Reply actions belong to the last row of a reply, not to every row. */
+  showActions: boolean;
   sessionActive: boolean;
   searchQuery: string;
   expanded?: boolean;
@@ -55,16 +58,23 @@ export const RenderItemRenderer = React.memo(function RenderItemRenderer({
     );
   }
   return (
-    <NodeRenderer node={item.node} searchQuery={searchQuery} activeOccurrenceIndex={activeIndex} />
+    <NodeRenderer
+      node={item.node}
+      showActions={showActions}
+      searchQuery={searchQuery}
+      activeOccurrenceIndex={activeIndex}
+    />
   );
 });
 
 function NodeRenderer({
   node,
+  showActions,
   searchQuery,
   activeOccurrenceIndex,
 }: {
   node: TranscriptNode;
+  showActions: boolean;
   searchQuery: string;
   activeOccurrenceIndex: number | null;
 }): React.JSX.Element {
@@ -81,6 +91,7 @@ function NodeRenderer({
       return (
         <AssistantBubble
           node={node}
+          showActions={showActions}
           searchQuery={searchQuery}
           activeOccurrenceIndex={activeOccurrenceIndex}
         />
@@ -89,6 +100,7 @@ function NodeRenderer({
       return (
         <ToolBubble
           node={node}
+          showActions={showActions}
           searchQuery={searchQuery}
           activeOccurrenceIndex={activeOccurrenceIndex}
         />
@@ -106,10 +118,12 @@ function NodeRenderer({
 
 function ToolBubble({
   node,
+  showActions,
   searchQuery,
   activeOccurrenceIndex,
 }: {
   node: ToolNode;
+  showActions: boolean;
   searchQuery: string;
   activeOccurrenceIndex: number | null;
 }): React.JSX.Element {
@@ -119,17 +133,19 @@ function ToolBubble({
   return (
     <div ref={containerRef} className="group">
       <ToolBlock node={node} />
-      <MessageToolbar node={node} />
+      {showActions && <MessageToolbar node={node} />}
     </div>
   );
 }
 
 function AssistantBubble({
   node,
+  showActions,
   searchQuery,
   activeOccurrenceIndex,
 }: {
   node: AssistantNode;
+  showActions: boolean;
   searchQuery: string;
   activeOccurrenceIndex: number | null;
 }): React.JSX.Element {
@@ -143,7 +159,7 @@ function AssistantBubble({
     <div className="group flex justify-start" data-testid="assistant-message">
       <div
         ref={contentRef}
-        className="w-full min-w-0 text-[15px] text-foreground"
+        className="w-full min-w-0 text-body text-foreground"
         style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       >
         {showThinking && (
@@ -156,18 +172,25 @@ function AssistantBubble({
         )}
 
         {showText && (
-          <div style={{ marginTop: showThinking ? `${MESSAGE_ROW_GAP}px` : undefined }}>
+          <div
+            style={{
+              marginTop: showThinking ? 'var(--message-kind-change-spacing)' : undefined,
+            }}
+          >
             <MarkdownMessage text={node.text} isStreaming={node.isStreaming} />
           </div>
         )}
 
         {node.errorMessage && (
-          <div className="mt-3 w-fit rounded-lg bg-destructive/10 px-3 py-2 text-[14px] text-destructive">
+          <div
+            className="w-fit rounded-surface bg-destructive/10 px-3 py-2 text-ui text-destructive"
+            style={{ marginTop: 'var(--message-kind-change-spacing)' }}
+          >
             {node.errorMessage}
           </div>
         )}
 
-        <MessageToolbar node={node} />
+        {showActions && <MessageToolbar node={node} />}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import mermaid, { type MermaidConfig } from 'mermaid';
-import { diagramFontFamily, type DiagramTheme } from './mermaidTheme';
+import { diagramFontFamily, diagramFontKey } from './mermaidTheme';
+import type { DiagramTheme } from '../../../shared/diagramTheme';
 
 export interface RenderedDiagram {
   /** Mermaid's own markup, which is what the drawing is made of. */
@@ -37,7 +38,8 @@ const CACHE_LIMIT = 32;
 const cache = new Map<string, DiagramOutcome>();
 
 let renderCount = 0;
-let initializedTheme: DiagramTheme | null = null;
+/** The configuration mermaid was last initialized with, theme and font. */
+let initializedConfig: string | null = null;
 
 /**
  * Mermaid keeps its working state and its configuration on the module, so a
@@ -62,7 +64,11 @@ const inFlight = new Map<string, Promise<DiagramOutcome>>();
  * wrongly is an ordinary outcome in a chat, not something to catch per caller.
  */
 export async function renderDiagram(code: string, theme: DiagramTheme): Promise<DiagramOutcome> {
-  const key = `${theme}\u0000${code}`;
+  // Read once: the font decides both the cache identity and the configuration
+  // mermaid is initialized with, and the two must agree even if the app's font
+  // changes while this render waits its turn.
+  const fontKey = diagramFontKey();
+  const key = diagramKey(code, theme, fontKey);
   const cached = cache.get(key);
   if (cached !== undefined) {
     cache.delete(key);
@@ -76,7 +82,7 @@ export async function renderDiagram(code: string, theme: DiagramTheme): Promise<
   }
 
   const pending = queue
-    .then(() => renderUncached(code, theme, key))
+    .then(() => renderUncached(code, theme, key, fontKey))
     .then((outcome) => {
       cache.set(key, outcome);
       if (cache.size > CACHE_LIMIT) {
@@ -106,19 +112,31 @@ export async function renderDiagram(code: string, theme: DiagramTheme): Promise<
  * the first frame instead of showing its source again.
  */
 export function peekDiagram(code: string, theme: DiagramTheme): RenderedDiagram | null {
-  const cached = cache.get(`${theme}\u0000${code}`);
+  const cached = cache.get(diagramKey(code, theme, diagramFontKey()));
   return cached?.ok === true ? cached.diagram : null;
+}
+
+/**
+ * The cache identity of a drawing: the diagram, the theme it is drawn in, and
+ * the font its labels were measured with. The last one is easy to forget and
+ * expensive to forget: mermaid writes the metrics into the markup, so a drawing
+ * made before a font change keeps the old stack until it is drawn again.
+ */
+function diagramKey(code: string, theme: DiagramTheme, fontKey: string): string {
+  return `${theme}\u0000${fontKey}\u0000${code}`;
 }
 
 async function renderUncached(
   code: string,
   theme: DiagramTheme,
   key: string,
+  fontKey: string,
 ): Promise<DiagramOutcome> {
   try {
-    if (initializedTheme !== theme) {
+    const configKey = `${theme}\u0000${fontKey}`;
+    if (initializedConfig !== configKey) {
       mermaid.initialize(configFor(theme));
-      initializedTheme = theme;
+      initializedConfig = configKey;
     }
 
     // Labels are measured while rendering, so the app's font has to be there
@@ -177,6 +195,14 @@ function prepareDiagram(markup: string, renderId: string, diagramId: string): Re
     root.setAttribute('width', String(size.width));
     root.setAttribute('height', String(size.height));
     root.removeAttribute('style');
+  }
+  // A `click` directive can give a node a link. Strict mode leaves it inert, but
+  // an anchor is still an anchor: opened in a new window it goes through the
+  // window-open handler and out to the browser, and it can never navigate the
+  // app itself (see `main/windows/windowNavigation.ts`).
+  for (const anchor of holder.querySelectorAll('a')) {
+    anchor.setAttribute('target', '_blank');
+    anchor.setAttribute('rel', 'noopener noreferrer');
   }
   if (root !== null && scoped !== null) {
     root.setAttribute(SCOPE_ATTRIBUTE, scoped.scope);

@@ -320,8 +320,8 @@ export function SessionList({
         aria-hidden={!showList}
         className={
           showList
-            ? 'grid grid-rows-[1fr] translate-y-0 opacity-100 transition-[grid-template-rows,opacity,transform] duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none'
-            : 'grid grid-rows-[0fr] -translate-y-1 opacity-0 transition-[grid-template-rows,opacity,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none'
+            ? 'grid grid-rows-[1fr] translate-y-0 opacity-100 transition-[grid-template-rows,opacity,transform] duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] reduce-motion:transition-none'
+            : 'grid grid-rows-[0fr] -translate-y-1 opacity-0 transition-[grid-template-rows,opacity,transform] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] reduce-motion:transition-none'
         }
       >
         <div className="min-h-0 overflow-hidden">
@@ -366,7 +366,7 @@ export function SessionList({
       {showList && showAll && rows.length > visibleSessionCount && !isCollapsedWithPinned && (
         <SidebarMenuSub
           data-show-all
-          className="sticky bottom-0 z-10 mx-0 border-l-0 px-0 py-0 gap-0 bg-muted rounded-md hover:bg-[#e5e5e5]"
+          className="sticky bottom-0 z-10 mx-0 border-l-0 px-0 py-0 gap-0 bg-muted rounded-control hover:bg-accent"
         >
           <SidebarMenuSubItem>
             <SidebarMenuSubButton

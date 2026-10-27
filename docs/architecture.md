@@ -120,6 +120,31 @@ ends above the topmost bar; content cannot be covered by them.
 Measure with the painted-state probe from `pigi-jitter-debug`, never with rAF
 sampling or screenshots.
 
+## Transcript Row Spacing
+
+Rows sit in flow inside one translated wrapper, so the virtualizer's `gap` must
+equal the DOM's base row gap, and every extra pixel of spacing lives in the
+row's _padding_ — `measureElement` returns the border box, so padding is inside
+the measured height while a margin would fall outside it and desynchronise the
+scroll model (`lib/transcriptSpacing.ts`, `[data-row-space]` rules in
+`main.css`).
+
+Only the last row of a reply renders the hover action band (25px, plus the 2px
+offset inside it). Rows in the middle of a reply have no band and carry the
+prose rhythm instead: same kind → its own step (prose 0.8× the body size, card
+1×), different kind → 1.8×. A row is classified by the edge that faces its
+neighbour, not by its contents, because a reply renders thinking, then prose,
+then an error card: a streaming row that opens with a thinking card and
+continues into prose presents its thinking edge upwards and its prose edge
+downwards.
+
+`--markdown-*` in the message body alias the same `--message-*` values, so a
+paragraph gap and a transcript gap are the same number by construction. Every
+rhythm token multiplies `--text-body` rather than using `em`: `em` resolves
+against the font size of the element that owns the margin, so tables (0.93em)
+and code blocks (0.84em) would shrink their own gaps and the same block gap
+would render at three different sizes inside one message.
+
 ## Process Model
 
 ```
@@ -519,14 +544,15 @@ Rules that the code depends on:
   `default` and the dark one its `dark`; no theme variable is overridden, so the
   drawing looks like the diagram it is rather than like the app's chrome around
   it. The only thing taken from the app is the font stack, so labels sit in the
-  same type as the text beside them. `lib/mermaidTheme.ts` holds the choices a
-  settings page will offer, and the reader's pick is kept in the app store and
-  in `localStorage` until that page exists. The app's theme lives in a class on
-  the document element, which `useResolvedTheme` observes — that class is the
-  single source of truth for which theme is drawn when following the app.
+  same type as the text beside them. `shared/diagramTheme.ts` holds the
+  choices; the reader's pick is `appearance.diagramTheme` in pigi's settings
+  file, set from the Diagrams group on the Appearance page, above a live
+  mermaid sample. The palette is the reader's
+  pick, not the window's: a diagram looks the same in a light and a dark window.
 - **The model is told that the UI draws them.** Every session is given
   `src/processes/utility/systemPrompt.ts`, appended to pi's own system prompt
-  (`resourceLoaderOptions.appendSystemPrompt` in `piAgent.ts`), so a diagram is
+  (`appendSystemPromptOverride` in `piAgent.ts`, which appends to whatever APPEND_SYSTEM.md
+  the project already has instead of replacing it), so a diagram is
   something the model can reach for rather than something it has to guess at.
   That file is where anything else the model should know about this window goes.
 
@@ -545,6 +571,42 @@ reload on model picker open (`RefreshModelCatalog`), and the full services
 rebuild on `credentials_changed` (a plain `modelRuntime.refresh()` in the
 worker now sees the new credentials). Once this change has proven itself,
 remove them one at a time.
+
+## Settings Page
+
+Settings is a mode, not a modal: `appStore.settingsOpen` swaps the sidebar for
+`SettingsSidebar` and the main area for `SettingsPage`, inside the same
+resizable sidebar wrapper. The sidebar's top bar and `Esc` close it;
+`settings.open` (⌘ ,) opens it from anywhere. Shortcut actions that navigate
+close settings first, so nothing acts invisibly underneath the page.
+
+Two data paths:
+
+- **pigi settings** (theme, accent, default tool view) live in a renderer
+  zustand store persisted to `settings.json` in the app's user data directory
+  (`main/pigiSettingsFile.ts`) and applied to the document before the first
+  paint (`initializePigiSettings` in `main.tsx`) — no theme flash. The main
+  process reads the same file before it creates the window, so the native theme
+  and the window background are right from the first frame; the renderer reads
+  it synchronously through the preload (`readPigiSettings`), not with an async
+  round trip that would land after the first paint. Writes are debounced 150 ms,
+  flushed on `pagehide`, and atomic in the main process (temp file + rename).
+  Keyboard shortcut definitions live in a second renderer store so edits on the
+  settings page update the live bindings immediately.
+  Appearance (colors, fonts, sizes, per-mode slots) is derived from one settings
+  object through `src/shared/appearanceTokens.ts`; see
+  [appearance.md](appearance.md) for the model and derivation rules.
+- **Pi settings** are JSON files (`~/.pi/agent/settings.json`, project
+  `<cwd>/.pi/settings.json`) owned by the session worker, which already runs
+  the SDK. `src/shared/piSettings.ts` is the field registry that is the
+  exposure boundary: the worker flattens exactly those dotted paths out of
+  both files and validates every write against it, so unknown fields are
+  preserved untouched. Writes are read-modify-write of the requested paths
+  under the same `proper-lockfile` scheme the SDK uses, so the pi TUI can edit
+  concurrently without lost updates. The renderer reads a snapshot (`global`,
+  `project`, paths, trust state, pi version) and sends atomic update batches;
+  project scope values resolve through global to built-in defaults, and
+  `globalOnly` fields are disabled in project scope.
 
 ## File Map
 
@@ -595,6 +657,8 @@ src/
         ├── services/
         │   └── piAgentClient.ts  # Typed wrappers over piApi
         ├── state/
-        │   └── appStore.ts       # Zustand store
+        │   ├── appStore.ts       # Zustand store
+        │   ├── settingsStore.ts  # Persisted pigi preferences
+        │   └── shortcutsStore.ts # Shortcut definitions (main-owned)
         └── ...
 ```

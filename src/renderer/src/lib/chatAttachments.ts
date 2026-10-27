@@ -191,3 +191,24 @@ export function chatMessageTitle(message: string, attachments: ChatAttachment[])
     .map((attachment) => attachment.name);
   return attachmentOnlyTitle(attachments.length - fileNames.length, fileNames);
 }
+
+/**
+ * Attachments of a draft whose composer was unmounted.
+ *
+ * Opening the settings page replaces the whole main area, so the composer goes
+ * with it. The text survives in the draft store; without this the attachments
+ * would be dropped silently. One slot is enough: a composer parks its list when
+ * it unmounts and the next mount of the same draft takes it back.
+ */
+let parkedAttachments: { key: string; attachments: ChatAttachment[] } | null = null;
+
+export function parkDraftAttachments(key: string, attachments: readonly ChatAttachment[]): void {
+  parkedAttachments = attachments.length > 0 ? { key, attachments: [...attachments] } : null;
+}
+
+/** Returns what was parked for `key` and empties the slot. */
+export function takeParkedDraftAttachments(key: string): ChatAttachment[] {
+  const parked = parkedAttachments;
+  parkedAttachments = null;
+  return parked !== null && parked.key === key ? parked.attachments : [];
+}

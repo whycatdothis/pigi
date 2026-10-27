@@ -1,5 +1,6 @@
 import React, { useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../../state/appStore';
+import { useSettingsStore } from '../../state/settingsStore';
 import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
 import { IconArrowDown } from '@tabler/icons-react';
 import type { TranscriptNode } from '../../state/transcriptController';
@@ -10,6 +11,7 @@ import {
   MESSAGE_ROW_GAP,
 } from '../../lib/layoutConstants';
 import { buildRenderItems } from '../../lib/readGrouping';
+import { nextReplyItem, rowShowsActions, rowSpaceFor } from '../../lib/transcriptSpacing';
 import { estimateRenderItemHeight } from '../../lib/messageListEstimates';
 import { getMeasuredRowHeight, recordMeasuredRowHeight } from '../../lib/measuredRowHeights';
 import { RenderItemRenderer } from './messageListRows';
@@ -60,7 +62,7 @@ export default React.memo(function MessageList({
 
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(() => new Set());
 
-  const toolBlockViewMode = useAppStore((state) => state.toolBlockViewMode);
+  const toolBlockViewMode = useSettingsStore((state) => state.chat.toolBlockViewMode);
   // Minimal mode renders plain (non-virtualized) turn content inside the same
   // scroll container, sharing auto-scroll / restore / minimap with other modes.
   const isMinimal = toolBlockViewMode === 'minimal';
@@ -344,12 +346,19 @@ export default React.memo(function MessageList({
                 {virtualItems.map((virtualItem) => {
                   const item = renderItems[virtualItem.index];
                   const isLast = virtualItem.index === renderItems.length - 1;
+                  const nextItem = renderItems[virtualItem.index + 1];
+                  // Only node rows can render the band; a read group at the end
+                  // of a reply keeps its gutters instead.
+                  const showsActions =
+                    item.type === 'node' &&
+                    rowShowsActions(nextReplyItem(renderItems, virtualItem.index));
                   return (
                     <div
                       key={item.id}
                       ref={rowVirtualizer.measureElement}
                       data-index={virtualItem.index}
                       data-item-id={item.id}
+                      data-row-space={rowSpaceFor(item, nextItem, showsActions)}
                       style={{
                         marginBottom: `${isLast ? MESSAGE_LIST_BOTTOM_INSET : MESSAGE_ROW_GAP}px`,
                       }}
@@ -357,6 +366,7 @@ export default React.memo(function MessageList({
                       <RenderItemRenderer
                         item={item}
                         isLast={isLast}
+                        showActions={showsActions}
                         sessionActive={sessionStatus !== 'idle'}
                         searchQuery={searchQuery}
                         expanded={

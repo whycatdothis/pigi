@@ -30,7 +30,7 @@ function WritePreview({
   // Strip trailing newline to avoid rendering an extra empty line
   const trimmed = content.endsWith('\n') ? content.slice(0, -1) : content;
   return (
-    <div className="overflow-hidden rounded font-mono text-[13px] leading-5">
+    <div className="overflow-hidden rounded font-mono text-code-compact leading-5">
       <pre className="overflow-x-auto overscroll-x-none whitespace-pre text-muted-foreground">
         <SyntaxHighlightedCode code={trimmed} language={language} isStreaming={isStreaming} />
         {isStreaming && <span className="animate-pulse text-muted-foreground/50">▋</span>}
@@ -55,7 +55,7 @@ const BASH_SKELETON_WIDTHS = ['w-3/4', 'w-2/3', 'w-1/2', 'w-3/5'];
 /** Diff-styled placeholder shown while an edit is still running */
 function DiffSkeleton(): React.JSX.Element {
   return (
-    <div className="overflow-hidden rounded font-mono text-[13px] leading-5" aria-hidden>
+    <div className="overflow-hidden rounded font-mono text-code-compact leading-5" aria-hidden>
       {DIFF_SKELETON_ROWS.map((row, index) => (
         <div key={index} className={cn('flex h-5 items-center gap-2 px-2', row.tint)}>
           <Skeleton className="h-3.5 w-6 shrink-0" />
@@ -69,7 +69,7 @@ function DiffSkeleton(): React.JSX.Element {
 /** File-content placeholder shown while a write is still streaming */
 function WriteSkeleton(): React.JSX.Element {
   return (
-    <div className="flex flex-col font-mono text-[13px] leading-5" aria-hidden>
+    <div className="flex flex-col font-mono text-code-compact leading-5" aria-hidden>
       {WRITE_SKELETON_WIDTHS.map((width, index) => (
         <div key={index} className="flex h-5 items-center gap-2">
           <Skeleton className="h-3.5 w-6 shrink-0" />
@@ -84,7 +84,7 @@ function WriteSkeleton(): React.JSX.Element {
  *  No line-number gutter, unlike WriteSkeleton, to read as log/terminal lines. */
 function BashSkeleton(): React.JSX.Element {
   return (
-    <div className="flex flex-col font-mono text-[14px] leading-5" aria-hidden>
+    <div className="flex flex-col font-mono text-code leading-5" aria-hidden>
       {BASH_SKELETON_WIDTHS.map((width, index) => (
         <div key={index} className="flex h-5 items-center">
           <Skeleton className={cn('h-3.5', width)} />
@@ -101,22 +101,22 @@ interface ToolBlockProps {
 const STATUS_CONFIG = {
   running: {
     label: 'Running',
-    className: 'text-[#854d0e]',
+    className: 'text-warning-fg',
     Icon: null,
   },
   success: {
     label: 'Succeeded',
-    className: 'text-[#166534]',
+    className: 'text-success-fg',
     Icon: IconCheck,
   },
   error: {
     label: 'Failed',
-    className: 'text-[#991b1b]',
+    className: 'text-danger-fg',
     Icon: IconX,
   },
   cancelled: {
     label: 'Cancelled',
-    className: 'text-[#3f3f46]',
+    className: 'text-muted-foreground',
     Icon: IconMinus,
   },
 } as const;
@@ -260,12 +260,12 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
   return (
     <>
       <div
-        className="overflow-clip rounded-md border border-border/65 bg-muted/25 px-3 pt-0 pb-1.5 text-sm text-muted-foreground"
+        className="overflow-clip rounded-surface-sm border border-border/65 bg-muted/25 px-3 pt-0 pb-1.5 text-sm text-muted-foreground"
         style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
         data-testid={`tool-block-${node.toolCallId}`}
       >
         {command.body ? (
-          <div className="-mx-3 flex items-start gap-1 px-3 pt-1.5 font-mono text-[14px] font-medium leading-5 text-foreground">
+          <div className="-mx-3 flex items-start gap-1 px-3 pt-1.5 font-mono text-code font-medium leading-5 text-foreground">
             <span className="shrink-0">{command.prefix}</span>
             <span
               ref={commandRef}
@@ -287,7 +287,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
             )}
           </div>
         ) : (
-          <div className="-mx-3 flex items-start gap-1 px-3 pt-1.5 font-mono text-[14px] font-medium leading-5 text-foreground">
+          <div className="-mx-3 flex items-start gap-1 px-3 pt-1.5 font-mono text-code font-medium leading-5 text-foreground">
             <span className="shrink-0">{command.prefix}</span>
             <span className="min-w-0 text-muted-foreground">…</span>
           </div>
@@ -318,7 +318,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
           {(node.status !== 'running' || STREAMING_OUTPUT_TOOLS.has(node.name)) &&
             hasOutput &&
             ((node.name !== 'edit' && node.name !== 'write') || node.status === 'error') && (
-              <pre className="overflow-x-auto overscroll-x-none whitespace-pre font-mono text-[14px] leading-5 text-muted-foreground">
+              <pre className="overflow-x-auto overscroll-x-none whitespace-pre font-mono text-code leading-5 text-muted-foreground">
                 <SyntaxHighlightedCode
                   code={cleanedOutput}
                   language={outputLanguage}
@@ -333,7 +333,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
         <div
           data-search-ignore
           className={cn(
-            '-mx-3 -mb-2 flex items-center justify-between gap-1.5 px-3 py-1.5 text-xs font-medium rounded-b-md',
+            '-mx-3 -mb-2 flex items-center justify-between gap-1.5 px-3 py-1.5 text-xs font-medium',
             statusClassName,
           )}
         >

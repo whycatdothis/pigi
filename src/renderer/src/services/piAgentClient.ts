@@ -25,6 +25,11 @@ import type {
   ThinkingLevel,
   UpdateStatus,
 } from '../../../shared/ipcContract';
+import type {
+  PiSettingsResult,
+  PiSettingsScope,
+  PiSettingUpdate,
+} from '../../../shared/piSettings';
 
 type CommandResult<T = unknown> = { success: boolean; error?: string } & T;
 
@@ -346,6 +351,24 @@ export async function loginApiKey(
 
 export async function logout(sessionPath: string, providerId: string): Promise<CommandResult> {
   return send<CommandResult>(sessionPath, { type: 'logout', providerId });
+}
+
+// =============================================================================
+// Pi settings
+// =============================================================================
+
+/** Read the global and project pi settings snapshot for a project cwd. */
+export async function getPiSettings(cwd: string): Promise<PiSettingsResult> {
+  return window.piApi.getPiSettings(cwd);
+}
+
+/** Write pi setting fields in one scope (atomic batch). `null` clears a field. */
+export async function setPiSettings(
+  cwd: string,
+  scope: PiSettingsScope,
+  updates: PiSettingUpdate[],
+): Promise<PiSettingsResult> {
+  return window.piApi.setPiSettings(cwd, scope, updates);
 }
 
 // =============================================================================

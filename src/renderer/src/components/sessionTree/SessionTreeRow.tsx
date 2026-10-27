@@ -91,7 +91,7 @@ export function TreeRow({
         // The row spans the list, so the gutter a branch line runs through stays
         // part of its click and hover target; the highlight itself sits on the
         // content box below, which starts where the row's content starts.
-        'group flex w-full items-center text-left text-[13px] text-foreground outline-none select-none',
+        'group flex w-full items-center text-left text-caption text-foreground outline-none select-none',
       )}
       style={{ height: ROW_HEIGHT_PX, paddingLeft: rowContentX(depth) }}
       data-tree-current={isCurrent ? 'true' : undefined}
@@ -225,23 +225,20 @@ export function TreeRowContent({
         // A chip rather than only a tint: the position has to stay readable while
         // the pointer is on it, and while the list is scrolled to something else.
         // Its own tint is stronger than the row's, or it would vanish into it.
-        <span className="shrink-0 rounded-sm bg-[var(--system-accent)]/25 px-1.5 py-0.5 text-[10px] font-medium leading-none text-[var(--system-accent)]">
+        <span className="shrink-0 rounded-sm bg-[var(--system-accent)]/25 px-1.5 py-0.5 text-3xs font-medium leading-none text-[var(--system-accent)]">
           Current
         </span>
       )}
 
       {description.trailing && (
         <span
-          className={cn(
-            'shrink-0 text-[11px] text-muted-foreground',
-            isError && 'text-destructive',
-          )}
+          className={cn('shrink-0 text-2xs text-muted-foreground', isError && 'text-destructive')}
         >
           {description.trailing}
         </span>
       )}
 
-      <span className="w-14 shrink-0 text-right font-mono text-[11px] text-muted-foreground tabular-nums">
+      <span className="w-14 shrink-0 text-right font-mono text-2xs text-muted-foreground tabular-nums">
         {formatSessionTreeTime(entry.timestamp)}
       </span>
     </>

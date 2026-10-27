@@ -1,6 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { IconCheck, IconFilter2, IconTerminal2 } from '@tabler/icons-react';
 import { useAppStore } from '../../state/appStore';
+import { useSettingsStore } from '../../state/settingsStore';
+import { isToolBlockViewMode } from '../../../../shared/pigiSettings';
 import {
   SIDEBAR_TOGGLE_CLEARANCE_PX,
   SIDEBAR_TRANSITION_CLASS_NAME,
@@ -24,7 +26,7 @@ import { PanelIcon } from '../panelIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 // 13px menu text (app's text-xs scale, keeps the theme line-height — an
-// arbitrary text-[13px] would drop it and inherit body's 1.6 line-height).
+// arbitrary text-caption would drop it and inherit body's 1.6 line-height).
 // The check icon renders inline right after the label (showCheckIcon={false}
 // disables the component's far-right absolute indicator), so the menu hugs
 // its content instead of reserving pr-8 + min-w-32 for a distant checkmark.
@@ -75,8 +77,8 @@ export default React.memo(function SessionToolbar({
   const hasQuotes = useAppStore((state) => state.quotesBySession.has(sessionPath));
   const rightSidebarOpen = useAppStore((state) => state.openRightSidebarSessions.has(sessionPath));
   const toggleRightSidebar = useAppStore((state) => state.toggleRightSidebar);
-  const toolBlockViewMode = useAppStore((state) => state.toolBlockViewMode);
-  const setToolBlockViewMode = useAppStore((state) => state.setToolBlockViewMode);
+  const toolBlockViewMode = useSettingsStore((state) => state.chat.toolBlockViewMode);
+  const setToolBlockViewMode = useSettingsStore((state) => state.setToolBlockViewMode);
 
   const [displayTitle, skipNextAnimation] = useTypewriter(title);
   useRenameSuppress(sessionPath, skipNextAnimation);
@@ -206,9 +208,11 @@ export default React.memo(function SessionToolbar({
           <DropdownMenuRadioGroup
             className="flex flex-col gap-1"
             value={toolBlockViewMode}
-            onValueChange={(value) =>
-              setToolBlockViewMode(value as 'default' | 'compact_read' | 'minimal')
-            }
+            onValueChange={(value) => {
+              if (isToolBlockViewMode(value)) {
+                setToolBlockViewMode(value);
+              }
+            }}
           >
             <TooltipProvider delayDuration={400}>
               <Tooltip>

@@ -1,4 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload';
+import type { PigiSettingsReadResult } from '../shared/pigiSettings';
 import type {
   PiCommand,
   PiPush,
@@ -16,6 +17,7 @@ import type {
   StreamBatch,
   UpdateStatus,
 } from '../shared/ipcContract';
+import type { PiSettingsResult, PiSettingsScope, PiSettingUpdate } from '../shared/piSettings';
 
 interface PiApi {
   // Session lifecycle (via main process IPC)
@@ -73,13 +75,25 @@ interface PiApi {
   refreshModelCatalog: () => Promise<ModelCatalogSnapshot>;
   onModelCatalogUpdated: (callback: (snapshot: ModelCatalogSnapshot) => void) => () => void;
 
+  // Pi settings (settings.json)
+  getPiSettings: (cwd: string) => Promise<PiSettingsResult>;
+  setPiSettings: (
+    cwd: string,
+    scope: PiSettingsScope,
+    updates: PiSettingUpdate[],
+  ) => Promise<PiSettingsResult>;
+
   // Keyboard shortcuts
   getShortcuts: () => Promise<ShortcutDefinition[]>;
   setShortcut: (
     id: string,
     binding: ShortcutBinding,
   ) => Promise<{ success: boolean; error?: string }>;
-  getAccentColor: () => Promise<string | null>;
+  setAppearanceTheme: (theme: 'system' | 'light' | 'dark') => void;
+  /** pigi's own settings, read synchronously so the first paint can use them. */
+  readPigiSettings: () => PigiSettingsReadResult;
+  /** Replace pigi's settings file; resolves false when the write failed. */
+  writePigiSettings: (settings: unknown) => Promise<boolean>;
 
   // Auto-update
   update: {

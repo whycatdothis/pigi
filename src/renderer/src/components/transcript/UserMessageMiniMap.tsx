@@ -201,14 +201,14 @@ export default React.memo(function UserMessageMiniMap({
                 onMouseLeave={() => setHoveredIndex(null)}
               >
                 <span
-                  className={`min-w-0 flex-1 truncate text-[13px] ${
+                  className={`min-w-0 flex-1 truncate text-caption ${
                     isActive || isHovered ? 'text-[var(--system-accent)]' : 'text-foreground'
                   }`}
                   title={node.text.split('\n')[0] || 'Empty message'}
                 >
                   {node.text.split('\n')[0] || 'Empty message'}
                 </span>
-                <span className="shrink-0 text-[11px] text-muted-foreground">
+                <span className="shrink-0 text-2xs text-muted-foreground">
                   {formatTime(node.sentAt)}
                 </span>
               </button>
