@@ -5,7 +5,7 @@ import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { useAppStore } from '../../state/appStore';
 import { bindingMatches } from '../../hooks/useKeyboardShortcuts';
 import { formatQuotesMessage, NO_QUOTES, type MessageQuote } from '../../lib/messageQuotes';
-import { ShortcutKbd } from '../../shortcuts/shortcutKbd';
+import { ShortcutKbd, ShortcutKbdSpacer } from '../../shortcuts/shortcutKbd';
 import { Button } from '../ui/button';
 import { PRIMARY_BUTTON_KBD_CLASS_NAME, HOVER_REVEAL_KBD_CLASS_NAME } from '../ui/kbd';
 import OverflowClamp from '../message/overflowClamp';
@@ -255,6 +255,13 @@ export default React.memo(function QuotePanel({
           disabled={!canSend}
           onClick={() => void handleSend()}
         >
+          {/* The spacer keeps Send centered once the hover hint shows. */}
+          {sendShortcut && (
+            <ShortcutKbdSpacer
+              binding={sendShortcut}
+              className={`${PRIMARY_BUTTON_KBD_CLASS_NAME} ${HOVER_REVEAL_KBD_CLASS_NAME}`}
+            />
+          )}
           Send
           {sendShortcut && (
             <ShortcutKbd

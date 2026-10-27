@@ -21,7 +21,7 @@
 - The Chat settings page is one row: a Default view switch instead of three described options
 - The minimal view's shimmer sweeps a clip window over brighter glyphs instead of painting a white band over the background
 - The Settings row in the sidebar's menu shows its shortcut (⌘ ,) on hover, like New chat and Open project
-- The quotes tab's Send and the comment editor's Save keep their Enter hint out of sight until the button is hovered, so the buttons read as plain labels at rest. Save is an outline button; only Send is accent-filled
+- The quotes tab's Send and the comment editor's Save keep their Enter hint out of sight until the button is hovered, with the label centered and the button the same width either way. Save is an outline button; only Send is accent-filled
 - A sent quote now opens with its number on the quoted line (`1. > quoted text`) instead of the number standing on a line of its own
 
 ### Fixed

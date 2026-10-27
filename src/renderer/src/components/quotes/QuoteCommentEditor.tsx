@@ -1,6 +1,6 @@
 import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ShortcutKbd } from '../../shortcuts/shortcutKbd';
+import { ShortcutKbd, ShortcutKbdSpacer } from '../../shortcuts/shortcutKbd';
 import { Button } from '../ui/button';
 import { BUTTON_KBD_CLASS_NAME, HOVER_REVEAL_KBD_CLASS_NAME } from '../ui/kbd';
 import { Textarea } from '../ui/textarea';
@@ -85,6 +85,11 @@ export default function QuoteCommentEditor({
         className="gap-1.5 self-end"
         onClick={() => onSave(comment.trim())}
       >
+        {/* The spacer keeps Save centered once the hover hint shows. */}
+        <ShortcutKbdSpacer
+          binding={{ key: 'Enter' }}
+          className={`${BUTTON_KBD_CLASS_NAME} ${HOVER_REVEAL_KBD_CLASS_NAME}`}
+        />
         Save
         <ShortcutKbd
           binding={{ key: 'Enter' }}
