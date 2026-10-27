@@ -17,6 +17,7 @@
 
 ### Fixed
 
+- Message spacing: the gaps inside a reply now follow the text size instead of sitting at a fixed 14px, list items keep the block rhythm when a table or a code block follows their text (they used to collapse to the 3px item gap, so text and its table read as flush), and only the last row of a reply keeps the hover action band — tool cards and intermediate paragraphs no longer reserve 25px of empty space each
 - Switch tracks are 20px instead of 18.4px, so the thumb sits on whole pixels with a 2px gap above and below instead of a fractional 1.2px that rendered unevenly
 - The font pickers no longer list their default twice: the empty "System" / "System mono" entry is gone and the slot's null value maps onto the family it falls back to, so code font now reads "SF Mono"
 - Font picker values are left-aligned instead of pushed to the right edge of a 136px control

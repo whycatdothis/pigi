@@ -71,6 +71,26 @@ Weights carry hierarchy, not size: 400 body, 500 row labels and control values,
 - `--duration-fast` 100ms (hover, focus), `--duration-base` 150ms (colour,
   opacity), `--duration-slow` 200ms (enter, exit), `--ease-standard`.
 
+## Prose rhythm scales, chrome does not
+
+Text spacing multiplies `--text-body`, never `em`: `em` resolves against the
+font size of the element that owns the margin, so a 0.93em table or a 0.84em
+code block silently shrinks its own gaps and the same block gap renders at
+three different sizes in one message.
+
+| Token                      | Value                | Where                                |
+| -------------------------- | -------------------- | ------------------------------------ |
+| `--markdown-block-spacing` | `0.6 × --text-body`  | block ↔ block, inside list items too |
+| `--markdown-item-spacing`  | `0.25 × --text-body` | list item ↔ list item, nested lists  |
+| `--message-card-spacing`   | `0.65 × --text-body` | thinking card → prose                |
+| `--message-block-spacing`  | `0.6 × --text-body`  | prose ↔ prose, tool card ↔ tool card |
+| `--message-edge-spacing`   | `0.8 × --text-body`  | prose ↔ tool card                    |
+
+Fixed chrome, deliberately not scaling: the 25px hover action band, the 4px base
+row gap, `pt-6`/`pb-2` on a user message. A tool card carries a border and a
+tinted surface, so its gap is one step wider than a paragraph gap; two tool
+cards in a row stay at the block step so a run of calls reads as one group.
+
 ## Corners are superellipses
 
 `designTokens.css` declares `corner-shape: superellipse(1.5)` for every rounded

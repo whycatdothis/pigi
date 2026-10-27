@@ -11,6 +11,7 @@ import {
   MESSAGE_ROW_GAP,
 } from '../../lib/layoutConstants';
 import { buildRenderItems } from '../../lib/readGrouping';
+import { nextReplyItem, rowShowsActions, rowSpaceFor } from '../../lib/transcriptSpacing';
 import { estimateRenderItemHeight } from '../../lib/messageListEstimates';
 import { getMeasuredRowHeight, recordMeasuredRowHeight } from '../../lib/measuredRowHeights';
 import { RenderItemRenderer } from './messageListRows';
@@ -345,12 +346,14 @@ export default React.memo(function MessageList({
                 {virtualItems.map((virtualItem) => {
                   const item = renderItems[virtualItem.index];
                   const isLast = virtualItem.index === renderItems.length - 1;
+                  const nextItem = renderItems[virtualItem.index + 1];
                   return (
                     <div
                       key={item.id}
                       ref={rowVirtualizer.measureElement}
                       data-index={virtualItem.index}
                       data-item-id={item.id}
+                      data-row-space={rowSpaceFor(item, nextItem)}
                       style={{
                         marginBottom: `${isLast ? MESSAGE_LIST_BOTTOM_INSET : MESSAGE_ROW_GAP}px`,
                       }}
@@ -358,6 +361,7 @@ export default React.memo(function MessageList({
                       <RenderItemRenderer
                         item={item}
                         isLast={isLast}
+                        showActions={rowShowsActions(nextReplyItem(renderItems, virtualItem.index))}
                         sessionActive={sessionStatus !== 'idle'}
                         searchQuery={searchQuery}
                         expanded={

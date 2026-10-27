@@ -120,6 +120,28 @@ ends above the topmost bar; content cannot be covered by them.
 Measure with the painted-state probe from `pigi-jitter-debug`, never with rAF
 sampling or screenshots.
 
+## Transcript Row Spacing
+
+Rows sit in flow inside one translated wrapper, so the virtualizer's `gap` must
+equal the DOM's base row gap, and every extra pixel of spacing lives in the
+row's _padding_ — `measureElement` returns the border box, so padding is inside
+the measured height while a margin would fall outside it and desynchronise the
+scroll model (`lib/transcriptSpacing.ts`, `[data-row-space]` rules in
+`main.css`).
+
+Only the last row of a reply renders the hover action band (25px, plus the 2px
+offset inside it). Rows in the middle of a reply have no band and carry the
+prose rhythm instead: `0.6 × --text-body` between like kinds, `0.8 × --text-body`
+when the pair involves a tool card or a read group. Two tool cards in a row stay
+at the block step, so a run of calls reads as one group. A user message keeps
+its band and its `pt-6`/`pb-2` padding, which is what makes the turn boundary
+(37px above a reply, 53px below it) outweigh every gap inside it.
+
+Every rhythm token multiplies `--text-body` rather than using `em`: `em`
+resolves against the font size of the element that owns the margin, so tables
+(0.93em) and code blocks (0.84em) would shrink their own gaps and the same block
+gap would render at three different sizes inside one message.
+
 ## Process Model
 
 ```

@@ -81,6 +81,31 @@
     height: 100%;
   }
 
+  /* Transcript rhythm. Everything inside one message scales with the text
+     size; the hover button band and the base row gap stay fixed, because they
+     are chrome rather than prose. */
+  :root {
+    --message-row-gap: 4px;
+    --message-block-spacing: calc(0.6 * var(--text-body));
+    --message-edge-spacing: calc(0.8 * var(--text-body));
+    --message-card-spacing: calc(0.65 * var(--text-body));
+  }
+
+  /* Rows in the middle of a reply carry no hover band any more, so their
+     trailing space has to express the block rhythm. It lives in the row's
+     padding (not its margin) because the virtualizer measures border boxes:
+     padding is inside the measured height, a margin would fall outside it and
+     desynchronise the scroll model. The base row gap is still added on top,
+     hence the subtraction. A row that touches a tool card gets the wider edge
+     spacing, so a run of tool cards reads as one group. */
+  [data-row-space='block'] {
+    padding-bottom: calc(var(--message-block-spacing) - var(--message-row-gap));
+  }
+
+  [data-row-space='edge'] {
+    padding-bottom: calc(var(--message-edge-spacing) - var(--message-row-gap));
+  }
+
   button {
     cursor: default;
   }
@@ -97,14 +122,18 @@
 
 @layer components {
   /* Markdown typographic system for assistant messages.
-     15px base text × 1.7 line-height = 25.5px line box, with two rhythm
-     tokens: block spacing (14px) between block-level elements, item spacing
-     (4px) between list items and nested lists. Every selector carries exactly
-     one class of specificity, so the cascade is plain file order — no
-     specificity wars, no arbitrary-variant hacks in components. */
+     15px base text × 1.5 line-height, with two rhythm tokens: block spacing
+     (0.6× the body size) between block-level elements, item spacing (0.25×)
+     between list items and nested lists. Multipliers apply to --text-body
+     rather than using em: em resolves against the element's own font-size, so
+     a 0.93em table or 0.84em code block would silently shrink its own gaps.
+     Scaling off the body size keeps the whole document in proportion when the
+     text-size setting changes. Every selector carries exactly one class of
+     specificity, so the cascade is plain file order — no specificity wars, no
+     arbitrary-variant hacks in components. */
   .markdown-body {
-    --markdown-block-spacing: 0.875rem;
-    --markdown-item-spacing: 0.1875rem;
+    --markdown-block-spacing: calc(0.6 * var(--text-body));
+    --markdown-item-spacing: calc(0.25 * var(--text-body));
     width: 100%;
     min-width: 0;
     overflow-wrap: break-word;
@@ -173,6 +202,14 @@
     margin-top: var(--markdown-item-spacing);
   }
 
+  /* Blocks inside a list item keep the block rhythm. Only the *items* are
+     tight: a paragraph that introduces a table or a code block must not
+     collapse to the item spacing, which is what made text followed by a table
+     read as flush. */
+  .markdown-body li > * + * {
+    margin-top: var(--markdown-block-spacing);
+  }
+
   .markdown-body li > ul,
   .markdown-body li > ol {
     margin: var(--markdown-item-spacing) 0;
@@ -183,13 +220,9 @@
     margin-bottom: 0;
   }
 
-  /* Loose lists: react-markdown wraps li content in <p>; collapse its block
-     margin so items don't pick up an extra 14px. */
+  /* Loose lists: react-markdown wraps li content in <p>; the paragraph carries
+     no bottom margin of its own so a single-paragraph item stays tight. */
   .markdown-body li > p {
-    margin-bottom: var(--markdown-item-spacing);
-  }
-
-  .markdown-body li > p:last-child {
     margin-bottom: 0;
   }
 

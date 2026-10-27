@@ -231,7 +231,9 @@ export default function CollapsedReadGroup({
   );
 
   return (
-    <Collapsible className="group/collapsible mb-[22px]" open={open} onOpenChange={onOpenChange}>
+    // No trailing margin of its own: the read group is a card row, so the
+    // transcript's row spacing decides the gap around it.
+    <Collapsible className="group/collapsible" open={open} onOpenChange={onOpenChange}>
       <div className="rounded-surface-sm border border-border/65 bg-muted/25">
         <div className="px-3 py-1.5">
           <CollapsibleTrigger className="inline-flex items-center gap-1 text-body leading-6 text-foreground hover:text-foreground cursor-pointer transition-colors [&[data-state=open]>svg.chevron-right]:hidden [&[data-state=closed]>svg.chevron-down]:hidden">

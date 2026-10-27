@@ -419,8 +419,12 @@ const TurnSection = React.memo(function TurnSection({
         <div className="mt-2" data-testid="minimal-details-wrapper">
           <div className="overflow-hidden" data-testid="minimal-details">
             <div className="flex flex-col gap-2 pb-1">
-              {turn.entries.map((node) => (
-                <DetailItem key={node.id} node={node} />
+              {turn.entries.map((node, index) => (
+                <DetailItem
+                  key={node.id}
+                  node={node}
+                  showActions={index === turn.entries.length - 1}
+                />
               ))}
             </div>
           </div>
@@ -519,12 +523,19 @@ function CollapsedContent({
   );
 }
 
-function DetailItem({ node }: { node: TranscriptNode }): React.JSX.Element | null {
+function DetailItem({
+  node,
+  showActions,
+}: {
+  node: TranscriptNode;
+  /** Only the last step of a turn carries the action band. */
+  showActions: boolean;
+}): React.JSX.Element | null {
   if (node.role === 'tool') {
     return (
       <div className="group">
         <ToolBlock node={node} />
-        <MessageToolbar node={node} />
+        {showActions && <MessageToolbar node={node} />}
       </div>
     );
   }
@@ -539,8 +550,16 @@ function DetailItem({ node }: { node: TranscriptNode }): React.JSX.Element | nul
             isStreaming={node.isStreaming}
           />
         )}
-        {(node.text.length > 0 || node.errorMessage) && <AssistantText node={node} />}
-        <MessageToolbar node={node} />
+        {(node.text.length > 0 || node.errorMessage) && (
+          <div
+            style={{
+              marginTop: node.thinking.length > 0 ? 'var(--message-card-spacing)' : undefined,
+            }}
+          >
+            <AssistantText node={node} />
+          </div>
+        )}
+        {showActions && <MessageToolbar node={node} />}
       </div>
     );
   }
