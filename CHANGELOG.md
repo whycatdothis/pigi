@@ -44,6 +44,7 @@
 - Message minimap lines are one device pixel thick on every display: they sit on an 8px pitch, so no line lands on a different subpixel phase
 - The minimap's hover list opens flush against the side edge and covers the lines, closes on Escape, and returns focus to the transcript after a jump
 - The live state label's letters no longer look doubled: the shimmer paints one copy of the glyphs, and it stays visible where the clip is unsupported or motion is reduced
+- A tool block keeps one gap between the title and its output and the same gap to the status bar, with or without Show more; a block with no output no longer pays the gap twice
 
 ## [0.4.22] - 2026-10-24
 

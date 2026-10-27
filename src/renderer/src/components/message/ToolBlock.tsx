@@ -251,11 +251,26 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
   const showWriteSkeleton =
     node.name === 'write' && node.status === 'running' && (writeEntries?.length ?? 0) === 0;
   const showBashSkeleton = node.name === 'bash' && node.status === 'running' && !hasOutput;
+  // Mirrors exactly what the clamp below renders, so the title's bottom padding
+  // is only paid where there is a body to separate from it.
+  const hasBody =
+    (node.status !== 'running' && node.status !== 'error' && editDiffFromDetails !== null) ||
+    showEditSkeleton ||
+    ((writeEntries?.length ?? 0) > 0 && node.status !== 'error') ||
+    showWriteSkeleton ||
+    ((node.status !== 'running' || STREAMING_OUTPUT_TOOLS.has(node.name)) &&
+      hasOutput &&
+      ((node.name !== 'edit' && node.name !== 'write') || node.status === 'error')) ||
+    showBashSkeleton;
   const outputLanguage = getToolOutputLanguage(node);
   const bodyHeightRange = getToolBlockBodyHeightRange(node);
   const durationLabel = formatDuration(node.durationMs);
   const args = getToolArgs(node);
   const timeout = typeof args?.timeout === 'number' ? args.timeout : undefined;
+  const titleRowClassName = cn(
+    '-mx-3 flex items-start gap-1 px-3 pt-1.5 font-mono text-code font-medium leading-5 text-foreground',
+    hasBody ? 'pb-1.5' : 'pb-0',
+  );
 
   return (
     <>
@@ -265,7 +280,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
         data-testid={`tool-block-${node.toolCallId}`}
       >
         {command.body ? (
-          <div className="-mx-3 flex items-start gap-1 px-3 pt-1.5 font-mono text-code font-medium leading-5 text-foreground">
+          <div className={titleRowClassName}>
             <span className="shrink-0">{command.prefix}</span>
             <span
               ref={commandRef}
@@ -287,7 +302,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
             )}
           </div>
         ) : (
-          <div className="-mx-3 flex items-start gap-1 px-3 pt-1.5 font-mono text-code font-medium leading-5 text-foreground">
+          <div className={titleRowClassName}>
             <span className="shrink-0">{command.prefix}</span>
             <span className="min-w-0 text-muted-foreground">…</span>
           </div>
