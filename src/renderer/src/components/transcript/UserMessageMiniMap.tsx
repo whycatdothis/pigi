@@ -28,6 +28,9 @@ const HOVER_CLOSE_DELAY = 300;
 /** Slack on top of the exit animation before the fuse fires; see the effect. */
 const EXIT_FUSE_SLACK = 200;
 const EMPTY_MESSAGE_PREVIEW = 'Empty message';
+const LINE_WIDTH_MAX_CAP = 48;
+const LINE_WIDTH_RIGHT_MARGIN = 8;
+const LINE_WIDTH_MIN_CAP = 8;
 
 /** `animation-duration` lists one value per animation; the exit runs one. */
 function firstDurationMs(durations: string): number {
@@ -37,9 +40,6 @@ function firstDurationMs(durations: string): number {
   if (Number.isNaN(amount)) return 0;
   return value.endsWith('ms') ? amount : amount * 1000;
 }
-const LINE_WIDTH_MAX_CAP = 48;
-const LINE_WIDTH_RIGHT_MARGIN = 8;
-const LINE_WIDTH_MIN_CAP = 8;
 
 /** Returns a width based on message count and position. */
 function getLineWidth(index: number, total: number, maxWidth: number): number {
@@ -154,21 +154,26 @@ export default React.memo(function UserMessageMiniMap({
     setOpen(false);
   }, []);
 
+  /** Ends the panel's life. Two callers: the exit animation ending, and the
+   *  fuse under it; both mean the same thing, so they share one definition. */
+  const finishClose = useCallback((): void => {
+    setPresent(false);
+    setHoveredIndex(null);
+  }, []);
+
   // A fuse under the exit animation. Unmounting on `animationend` is the
   // mechanism, but it is the only one, and a panel that stays mounted is
   // invisible and, without `inert` below, sits over the transcript's right edge
   // swallowing clicks. The fuse length is read from the running exit rather than
-  // copied from a constant, so it cannot drift from the animation.
+  // copied from a constant, so it cannot drift from the animation. Re-opening
+  // during the fade clears it through this effect's cleanup.
   useEffect(() => {
     if (open || !present) return;
     const panel = panelRef.current;
     const exitDuration = panel ? firstDurationMs(getComputedStyle(panel).animationDuration) : 0;
-    const fuse = setTimeout(() => {
-      setPresent(false);
-      setHoveredIndex(null);
-    }, exitDuration + EXIT_FUSE_SLACK);
+    const fuse = setTimeout(finishClose, exitDuration + EXIT_FUSE_SLACK);
     return () => clearTimeout(fuse);
-  }, [open, present]);
+  }, [open, present, finishClose]);
 
   /** Activation from the trigger: open, then put focus on the first item.
    *  Returning focus to the trigger on close is only safe because focusing it
@@ -296,7 +301,7 @@ export default React.memo(function UserMessageMiniMap({
           ref={panelRef}
           id={panelId}
           role="group"
-          aria-label="Jump to a message"
+          aria-label="Messages"
           // While closing, the panel is still mounted but must not be reachable:
           // `inert` keeps it out of hit testing, the tab order and the
           // accessibility tree for the length of the fade.
@@ -309,14 +314,13 @@ export default React.memo(function UserMessageMiniMap({
             // invisible values for that frame, so closing is a fade, not a
             // flash. Unmounting here is still what ends the panel's life.
             if (event.target !== event.currentTarget || open) return;
-            setPresent(false);
-            setHoveredIndex(null);
+            finishClose();
           }}
           className={cn(
             VIBRANCY_OVERLAY_CONTENT,
             OVERLAY_BG,
             'absolute right-0 top-1/2 flex max-h-[50vh] w-64 origin-right -translate-y-1/2 flex-col overflow-hidden rounded-l-surface p-0 backdrop-blur-md',
-            // fill empty only on the exit: `forwards` holds the last keyframe,
+            // fill mode only on the exit: `forwards` holds the last keyframe,
             // which is why closing is a fade instead of a flash. On the enter it
             // would freeze a snapshot of the element's own style taken when the
             // animation started, and keep a finished keyframe effect alive.
