@@ -608,10 +608,12 @@ Typography
   Code font         [System mono ▾]
   Text size         [15] px
   Code font size    [14] px
-Code & diagrams
-  Code theme        [One ▾]                (CODE_THEME_PRESETS)
-  Diagram theme     [Follow the app ▾]     (DIAGRAM_THEME_CHOICES)
-  Preview                                 (a real code block and mermaid diagram)
+Code
+  Theme             [One ▾]                (CODE_THEME_PRESETS)
+  <specimen>                              (a real code block in that theme)
+Diagrams
+  Theme             [Follow the app ▾]     (DIAGRAM_THEME_CHOICES)
+  <specimen>                              (a real mermaid diagram in that theme)
 Details
   Translucent sidebar  [switch]
   Font smoothing    [switch]

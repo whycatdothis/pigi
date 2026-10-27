@@ -28,7 +28,8 @@ import {
 } from '../../../../shared/appearanceTokens';
 import { SettingsCard, SettingsGroup, SettingsRow, SegmentedControl } from './settingsControls';
 import { ThemeFileActions } from './themeFileActions';
-import { CodeStyleSettings } from './codeStyleSettings';
+import { CodeThemeSettings } from './codeThemeSettings';
+import { DiagramThemeSettings } from './diagramThemeSettings';
 import {
   AccentField,
   ColorField,
@@ -214,8 +215,12 @@ export function AppearanceSettings(): React.JSX.Element {
         </SettingsRow>
       </SettingsGroup>
 
-      <SettingsGroup title="Code & diagrams">
-        <CodeStyleSettings />
+      <SettingsGroup title="Code">
+        <CodeThemeSettings />
+      </SettingsGroup>
+
+      <SettingsGroup title="Diagrams">
+        <DiagramThemeSettings />
       </SettingsGroup>
 
       <SettingsGroup title="Details">

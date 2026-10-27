@@ -546,8 +546,8 @@ Rules that the code depends on:
   it. The only thing taken from the app is the font stack, so labels sit in the
   same type as the text beside them. `shared/diagramTheme.ts` holds the
   choices; the reader's pick is `appearance.diagramTheme` in pigi's settings
-  file, set from the Code & diagrams group on the Appearance page, beside the
-  code theme and a live sample of both. When following the app, the window's
+  file, set from the Diagrams group on the Appearance page, above a live
+  mermaid sample. When following the app, the window's
   mode comes from `useResolvedAppearance`, the same resolved appearance the
   code blocks and the terminal read.
 - **The model is told that the UI draws them.** Every session is given
