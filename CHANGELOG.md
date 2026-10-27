@@ -42,8 +42,10 @@
 - An update status that arrives while a window is still reading the current one no longer overwrites it with the older answer
 - The update window resets its zoom whenever it appears, so View-menu zoom cannot clip its own buttons, and only that window can resize it
 - Message minimap lines are one device pixel thick on every display: they sit on an 8px pitch, so no line lands on a different subpixel phase
-- The minimap's hover list opens flush against the side edge and covers the lines, closes on Escape, and returns focus to the transcript after a jump
+- The minimap's hover list opens flush against the side edge and covers the lines
+- The minimap list works from the keyboard: Tab reaches its rows, Enter opens it, and Escape closes it, returns focus to the lines, and does not flash the list back for a frame on the way out
 - The live state label's letters no longer look doubled: the shimmer paints one copy of the glyphs, and it stays visible where the clip is unsupported or motion is reduced
+- With reduced motion the live state label pulses at a fixed pace; the shimmer's measured width no longer retimes that pulse
 - A tool block keeps one gap between the title and its output and the same gap to the status bar, with or without Show more; a block with no output no longer pays the gap twice
 
 ## [0.4.22] - 2026-10-24

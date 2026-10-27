@@ -251,19 +251,43 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
   const showWriteSkeleton =
     node.name === 'write' && node.status === 'running' && (writeEntries?.length ?? 0) === 0;
   const showBashSkeleton = node.name === 'bash' && node.status === 'running' && !hasOutput;
-  // Mirrors exactly what the clamp below renders, so the title's bottom padding
-  // is only paid where there is a body to separate from it.
-  const hasBody =
-    (node.status !== 'running' && node.status !== 'error' && editDiffFromDetails !== null) ||
-    showEditSkeleton ||
-    ((writeEntries?.length ?? 0) > 0 && node.status !== 'error') ||
-    showWriteSkeleton ||
-    ((node.status !== 'running' || STREAMING_OUTPUT_TOOLS.has(node.name)) &&
-      hasOutput &&
-      ((node.name !== 'edit' && node.name !== 'write') || node.status === 'error')) ||
-    showBashSkeleton;
   const outputLanguage = getToolOutputLanguage(node);
   const bodyHeightRange = getToolBlockBodyHeightRange(node);
+  // The body is one array so its "is there anything to show" and the padding that
+  // depends on it cannot drift apart: the title pays the status bar's own 6px
+  // only when something follows it.
+  const bodyParts = [
+    node.status !== 'running' && node.status !== 'error' && editDiffFromDetails ? (
+      <DiffView key="diff" lines={editDiffFromDetails} />
+    ) : null,
+    showEditSkeleton ? <DiffSkeleton key="diff-skeleton" /> : null,
+    // Write preview shown during running (streaming) unlike edit which waits for completion
+    writeEntries && writeEntries.length > 0 && node.status !== 'error' ? (
+      <WritePreview
+        key="write-preview"
+        content={writeEntries[0].newText}
+        language={outputLanguage}
+        isStreaming={node.status === 'running'}
+      />
+    ) : null,
+    showWriteSkeleton ? <WriteSkeleton key="write-skeleton" /> : null,
+    (node.status !== 'running' || STREAMING_OUTPUT_TOOLS.has(node.name)) &&
+    hasOutput &&
+    ((node.name !== 'edit' && node.name !== 'write') || node.status === 'error') ? (
+      <pre
+        key="output"
+        className="overflow-x-auto overscroll-x-none whitespace-pre font-mono text-code leading-5 text-muted-foreground"
+      >
+        <SyntaxHighlightedCode
+          code={cleanedOutput}
+          language={outputLanguage}
+          isStreaming={node.status === 'running'}
+        />
+      </pre>
+    ) : null,
+    showBashSkeleton ? <BashSkeleton key="bash-skeleton" /> : null,
+  ];
+  const hasBody = bodyParts.some((part) => part !== null);
   const durationLabel = formatDuration(node.durationMs);
   const args = getToolArgs(node);
   const timeout = typeof args?.timeout === 'number' ? args.timeout : undefined;
@@ -313,36 +337,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
           maxHeight={bodyHeightRange.maxHeight}
           tailAnchor={node.name !== 'edit'}
         >
-          {node.status !== 'running' && node.status !== 'error' && editDiffFromDetails && (
-            <DiffView lines={editDiffFromDetails} />
-          )}
-
-          {showEditSkeleton && <DiffSkeleton />}
-
-          {/* Write preview shown during running (streaming) unlike edit which waits for completion */}
-          {writeEntries && writeEntries.length > 0 && node.status !== 'error' && (
-            <WritePreview
-              content={writeEntries[0].newText}
-              language={outputLanguage}
-              isStreaming={node.status === 'running'}
-            />
-          )}
-
-          {showWriteSkeleton && <WriteSkeleton />}
-
-          {(node.status !== 'running' || STREAMING_OUTPUT_TOOLS.has(node.name)) &&
-            hasOutput &&
-            ((node.name !== 'edit' && node.name !== 'write') || node.status === 'error') && (
-              <pre className="overflow-x-auto overscroll-x-none whitespace-pre font-mono text-code leading-5 text-muted-foreground">
-                <SyntaxHighlightedCode
-                  code={cleanedOutput}
-                  language={outputLanguage}
-                  isStreaming={node.status === 'running'}
-                />
-              </pre>
-            )}
-
-          {showBashSkeleton && <BashSkeleton />}
+          {bodyParts}
         </OverflowClamp>
 
         <div

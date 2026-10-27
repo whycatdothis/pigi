@@ -25,8 +25,6 @@ function formatTime(timestamp: number): string {
 
 const HOVER_OPEN_DELAY = 200;
 const HOVER_CLOSE_DELAY = 300;
-/** Matches `duration-100` on the panel: it stays mounted for its exit animation. */
-const PANEL_EXIT_MS = 100;
 const LINE_WIDTH_MAX_CAP = 48;
 const LINE_WIDTH_RIGHT_MARGIN = 8;
 const LINE_WIDTH_MIN_CAP = 8;
@@ -74,6 +72,12 @@ export default React.memo(function UserMessageMiniMap({
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const activeItemRef = useRef<HTMLButtonElement>(null);
+  const minimapRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  /** Set by a keyboard activation: the panel opened under the focused trigger,
+   *  so focus follows it in. Hover must not steal focus. */
+  const focusFirstItemRef = useRef(false);
 
   const [maxLineWidth, setMaxLineWidth] = useState(
     MESSAGE_LIST_HORIZONTAL_PADDING - LINE_WIDTH_RIGHT_MARGIN,
@@ -130,10 +134,22 @@ export default React.memo(function UserMessageMiniMap({
     setOpen(true);
   }, []);
 
+  /** Closes the panel; the panel itself unmounts when its exit animation ends. */
   const closePanel = useCallback((): void => {
     setOpen(false);
-    setHoveredIndex(null);
   }, []);
+
+  /** Activation from the trigger: open, then put focus on the first item.
+   *  Returning focus to the trigger on close is only safe because focusing it
+   *  does not open the panel — hover does. */
+  const handleTriggerClick = useCallback((): void => {
+    if (open) {
+      closePanel();
+      return;
+    }
+    focusFirstItemRef.current = true;
+    openPanel();
+  }, [open, closePanel, openPanel]);
 
   const handleMouseEnter = useCallback((): void => {
     if (closeTimerRef.current) {
@@ -155,52 +171,107 @@ export default React.memo(function UserMessageMiniMap({
     setHoveredIndex(index);
   }, []);
 
-  // Scroll the active item into view once the panel mounts.
+  // Scroll the active item into view once the panel mounts, and move focus into
+  // it when it was opened from the keyboard.
   useEffect(() => {
     if (!open) return;
     const frame = requestAnimationFrame(() => {
       activeItemRef.current?.scrollIntoView({ block: 'center' });
+      if (!focusFirstItemRef.current) return;
+      focusFirstItemRef.current = false;
+      const target =
+        activeItemRef.current ?? panelRef.current?.querySelector<HTMLButtonElement>('button');
+      target?.focus();
     });
     return () => cancelAnimationFrame(frame);
   }, [open]);
 
   // Escape closes, as it did when this was a Radix popover (its dismissable
-  // layer handled it for us).
+  // layer handled it for us). Focus returns to the trigger rather than to the
+  // transcript: the scroll container is an abort scope, so focusing it would
+  // turn the next Escape into "stop generating".
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return;
-      if (openTimerRef.current) clearTimeout(openTimerRef.current);
+      if (openTimerRef.current) {
+        clearTimeout(openTimerRef.current);
+        openTimerRef.current = null;
+      }
+      const focusInside = minimapRef.current?.contains(document.activeElement) ?? false;
       closePanel();
+      if (focusInside) triggerRef.current?.focus();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, closePanel]);
 
-  // Unmount the panel after its exit animation has played.
-  useEffect(() => {
-    if (open || !present) return;
-    const timer = setTimeout(() => setPresent(false), PANEL_EXIT_MS);
-    return () => clearTimeout(timer);
-  }, [open, present]);
-
   if (userMessages.length === 0) return null;
 
   return (
     <div
+      ref={minimapRef}
       role="navigation"
       aria-label="Message navigation minimap"
       className="absolute right-0 top-1/2 z-10 -translate-y-1/2 cursor-default"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onBlur={(event) => {
+        // Focus leaving the minimap entirely, not just the trigger: the panel is
+        // part of it, so moving between the two must not close anything.
+        const nextTarget = event.relatedTarget;
+        if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+        closePanel();
+      }}
     >
+      {/* Line ticks. 1px height + 7px gap = 8px pitch: an integer number of
+          device pixels at DPR 1/1.25/1.5/1.75/2, so every line rasterizes at the
+          same thickness. The old 1.5px + 6px = 7.5px pitch landed on different
+          subpixel phases per line on non-2x displays. */}
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-expanded={open}
+        aria-controls={present ? panelId : undefined}
+        aria-label="Jump to a message"
+        onClick={handleTriggerClick}
+        className={`flex flex-col items-end gap-[7px] rounded-l bg-transparent py-2 pl-1 outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring ${
+          open ? 'opacity-0' : '[&:not(:hover)]:opacity-60 hover:opacity-90'
+        }`}
+      >
+        {userMessages.map(({ node }, position) => (
+          <div
+            key={node.id}
+            className="rounded-full transition-colors"
+            style={{
+              width: `${getLineWidth(position, userMessages.length, maxLineWidth)}px`,
+              height: '1px',
+              backgroundColor:
+                position === activePosition
+                  ? 'var(--system-accent)'
+                  : 'color-mix(in srgb, var(--muted-foreground) 50%, transparent)',
+            }}
+          />
+        ))}
+      </button>
       {/* Docked panel: flush with the list's right edge, covering the lines.
           It is a sibling of the scroll container (see MessageList), so nothing
           between here and the app shell scrolls or clips — an anchored overlay
-          stays put and `scrollIntoView` below cannot drag the transcript. */}
+          stays put and `scrollIntoView` below cannot drag the transcript.
+          It follows the trigger in the DOM so Tab reaches the items, and it is
+          positioned, so the visual order is unchanged. */}
       {present && (
         <div
+          ref={panelRef}
           id={panelId}
+          onAnimationEnd={(event) => {
+            // The exit keyframes do not fill, so the element returns to its own
+            // (opaque) style the moment they end: unmount here, not on a timer
+            // that repeats the duration and would flash a frame if they differ.
+            if (event.target !== event.currentTarget || open) return;
+            setPresent(false);
+            setHoveredIndex(null);
+          }}
           className={cn(
             VIBRANCY_OVERLAY_CONTENT,
             OVERLAY_BG,
@@ -224,8 +295,8 @@ export default React.memo(function UserMessageMiniMap({
                     onScrollToIndex(index);
                     closePanel();
                     // The button unmounts with the panel; hand focus back to the
-                    // list it just scrolled instead of dropping it on <body>.
-                    containerRef.current?.focus();
+                    // trigger instead of dropping it on <body>.
+                    triggerRef.current?.focus();
                   }}
                   onMouseEnter={() => handleItemHover(index)}
                   onMouseLeave={() => setHoveredIndex(null)}
@@ -247,41 +318,6 @@ export default React.memo(function UserMessageMiniMap({
           </div>
         </div>
       )}
-      {/* Line ticks. 1px height + 7px gap = 8px pitch: an integer number of
-          device pixels at DPR 1/1.25/1.5/1.75/2, so every line rasterizes at the
-          same thickness. The old 1.5px + 6px = 7.5px pitch landed on different
-          subpixel phases per line on non-2x displays. */}
-      <div
-        role="button"
-        tabIndex={0}
-        aria-expanded={open}
-        aria-controls={panelId}
-        aria-label="Jump to a message"
-        onFocus={openPanel}
-        onBlur={(event) => {
-          const nextTarget = event.relatedTarget;
-          if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
-          closePanel();
-        }}
-        className={`flex flex-col items-end gap-[7px] rounded-l py-2 pl-1 outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring ${
-          open ? 'opacity-0' : '[&:not(:hover)]:opacity-60 hover:opacity-90'
-        }`}
-      >
-        {userMessages.map(({ node }, position) => (
-          <div
-            key={node.id}
-            className="rounded-full transition-colors"
-            style={{
-              width: `${getLineWidth(position, userMessages.length, maxLineWidth)}px`,
-              height: '1px',
-              backgroundColor:
-                position === activePosition
-                  ? 'var(--system-accent)'
-                  : 'color-mix(in srgb, var(--muted-foreground) 50%, transparent)',
-            }}
-          />
-        ))}
-      </div>
     </div>
   );
 });

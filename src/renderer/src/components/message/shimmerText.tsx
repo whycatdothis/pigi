@@ -44,12 +44,16 @@ export default function ShimmerText({
   }, []);
 
   return (
-    <span
-      ref={elementRef}
-      className="shimmer-text"
-      style={durationMs !== undefined ? { animationDuration: `${durationMs}ms` } : undefined}
-    >
+    <span ref={elementRef} className="shimmer-text" style={durationStyle(durationMs)}>
       {children}
     </span>
   );
+}
+
+/** Feeds the measured width to `.shimmer-text` as a custom property, so it sets
+ *  the sweep's pace without touching any other animation the class may run. */
+function durationStyle(durationMs: number | undefined): React.CSSProperties | undefined {
+  if (durationMs === undefined) return undefined;
+  // A custom property is not in React's CSS type map, so the cast is required.
+  return { '--shimmer-duration': `${durationMs}ms` } as React.CSSProperties;
 }

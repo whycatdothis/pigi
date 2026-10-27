@@ -512,7 +512,6 @@
      an inline box reports clientWidth 0. */
   display: inline-block;
   max-width: 100%;
-  animation: shimmer-sweep 2.5s linear infinite;
 }
 
 @keyframes shimmer-sweep {
@@ -525,7 +524,9 @@
 }
 
 /* The gradient is the text colour, so it may only replace `color` where the clip
-   actually works — otherwise the label would render invisible. */
+   actually works — otherwise the label would render invisible. The animation
+   lives in here too: without the clip it would advance a background-position
+   that paints nothing. */
 @supports ((background-clip: text) or (-webkit-background-clip: text)) {
   .shimmer-text {
     color: transparent;
@@ -539,11 +540,15 @@
     background-repeat: no-repeat;
     -webkit-background-clip: text;
     background-clip: text;
+    /* A custom property, not an inline `animation-duration`: the inline value
+       would also retime the reduced-motion pulse below. */
+    animation: shimmer-sweep var(--shimmer-duration, 2.5s) linear infinite;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Keep the live state indication, drop the movement: gentle fade in place. */
+  /* Keep the live state indication, drop the movement: gentle fade in place, at
+     the class's own pace (the shorthand does not read --shimmer-duration). */
   .shimmer-text {
     background-image: none;
     color: inherit;
