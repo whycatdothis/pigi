@@ -402,9 +402,8 @@ export function SystemBubble({
   return (
     <div className="flex items-center gap-3 py-2" data-testid="system-message">
       <div className="h-px flex-1 bg-border" />
-      <span className="relative shrink-0 overflow-hidden text-sm text-muted-foreground">
-        {label}
-        {node.isLoading && <ShimmerText>{label}</ShimmerText>}
+      <span className="shrink-0 text-sm text-muted-foreground">
+        {node.isLoading ? <ShimmerText>{label}</ShimmerText> : label}
       </span>
       <div className="h-px flex-1 bg-border" />
     </div>
