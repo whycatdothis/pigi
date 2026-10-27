@@ -147,7 +147,11 @@
      Scaling off the body size keeps the whole document in proportion when the
      text-size setting changes. Every selector carries exactly one class of
      specificity, so the cascade is plain file order — no specificity wars, no
-     arbitrary-variant hacks in components. */
+     arbitrary-variant hacks in components. The section-break rule below is the
+     one exception: it has to name the wrappers react-markdown puts around code
+     blocks and tables, which are classes and so lift it to two. It only ever
+     adds a top margin to a heading that has a preceding sibling, so it never
+     competes with the first-child reset. */
   .markdown-body {
     --markdown-block-spacing: var(--message-text-spacing);
     --markdown-item-spacing: var(--message-item-spacing);
@@ -172,35 +176,69 @@
     margin-bottom: var(--markdown-block-spacing);
   }
 
-  /* Headings: the bottom margin deepens with the heading's own weight, and the
-     top margin is 1.8× the bottom one so a heading binds to the section it
-     introduces instead of floating between sections. Both scale with the text
-     size. */
-  /* Heading sizes are em against the body size, so raising the text size
-     scales the whole document instead of leaving headings behind at a fixed
-     pixel size. The ratios are the shipped 24/20/17 against a 15px body. */
-  .markdown-body h1 {
-    --heading-gap: calc(1 * var(--text-body));
-    margin: calc(1.8 * var(--heading-gap)) 0 var(--heading-gap);
-    font-size: 1.6em;
+  /* Headings are a six-step ladder that never dips below the body size — h6 is
+     exactly 1em and stays a heading through weight and space, not size. Sizes
+     are em against the body size, so raising the text size scales the whole
+     document instead of leaving headings behind at a fixed pixel size. The
+     ratios are ~1.107 apart, so every step is a visible move and the whole
+     ladder fits in a chat column.
+
+     Line height runs against size: the larger the heading, the tighter its
+     line box, because a 24px line set at 1.5 reads as two heading rows. The two
+     display steps pull their tracking in for the same reason — at 22px and up
+     the default spacing looks loose — and stop there, because below that the
+     difference is a fraction of a pixel per glyph.
+
+     Every heading carries the prose step above and below; a heading that opens
+     a section gets the wider break from the rule after these. */
+  .markdown-body :is(h1, h2, h3, h4, h5, h6) {
+    margin: var(--markdown-block-spacing) 0;
     font-weight: 600;
-    line-height: 1.33;
+  }
+
+  .markdown-body h1 {
+    font-size: 1.618em;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
   }
 
   .markdown-body h2 {
-    --heading-gap: calc(0.9 * var(--text-body));
-    margin: calc(1.8 * var(--heading-gap)) 0 var(--heading-gap);
-    font-size: 1.333em;
-    font-weight: 600;
-    line-height: 1.4;
+    font-size: 1.462em;
+    line-height: 1.2;
+    letter-spacing: -0.011em;
   }
 
   .markdown-body h3 {
-    --heading-gap: calc(0.8 * var(--text-body));
-    margin: calc(1.8 * var(--heading-gap)) 0 var(--heading-gap);
-    font-size: 1.133em;
-    font-weight: 600;
-    line-height: 1.41;
+    font-size: 1.318em;
+    line-height: 1.3;
+  }
+
+  .markdown-body h4 {
+    font-size: 1.188em;
+    line-height: 1.4;
+  }
+
+  .markdown-body h5 {
+    font-size: 1.076em;
+    line-height: 1.5;
+  }
+
+  .markdown-body h6 {
+    font-size: 1em;
+    line-height: 1.5;
+  }
+
+  /* A heading that follows prose opens a section, so it takes a break twice the
+     prose step (30px at the default body). A heading that follows another
+     heading is an outline, not a boundary, and keeps the plain block step — the
+     document reads as sections of headings rather than one heading per row.
+     Margins collapse between siblings, so these are the rendered gaps: 30px
+     into a section, 12px inside an outline, 12px out of a heading into its
+     text. */
+  .markdown-body
+    :is(p, ul, ol, blockquote, .markdown-code-block, .markdown-table-wrapper)
+    + :is(h1, h2, h3, h4, h5, h6) {
+    margin-top: calc(2 * var(--text-body));
   }
 
   .markdown-body ul,
@@ -225,13 +263,13 @@
     margin-top: var(--markdown-item-spacing);
   }
 
-  /* A numbered list is usually steps — one or two lines each — so its items
-     sit at the prose step while a bulleted list keeps the tight one. The
-     selector still carries exactly one class; it outranks the li + li rule
-     above through its extra element (ol), not through order or specificity
-     tricks, so the file-order cascade is untouched: an item of any ol,
-     including one nested in a ul, takes this gap, and the nested list's own
-     margin (li > ol below) keeps the item spacing. */
+  /* A numbered list is a sequence of steps with real text in each one, so its
+     items sit at twice the prose step instead of at the tight bulleted one: at
+     the paragraph gap they read as one run of text rather than as separate
+     actions. The selector carries exactly one class; the extra element (ol)
+     outranks the li + li rule above, so an item of any ol, including one nested
+     in a ul, takes this gap, and the nested list's own margin (li > ol below)
+     keeps the item spacing. */
   .markdown-body ol > li + li {
     margin-top: var(--markdown-ordered-item-spacing);
   }
@@ -260,15 +298,26 @@
     margin-bottom: 0;
   }
 
+  /* A quote is a container, not an indented paragraph: its text sits on its own
+     column, far enough from the 2px rule that the two do not crowd, and the
+     inset scales with the body so a larger text size keeps the proportion. */
   .markdown-body blockquote {
     margin-bottom: var(--markdown-block-spacing);
     border-left: 2px solid var(--border);
-    padding-left: 0.75rem;
+    padding-left: calc(1.5 * var(--text-body));
     color: var(--muted-foreground);
   }
 
+  /* The quote's border ends with its text, not with the last block's trailing
+     prose margin. */
+  .markdown-body blockquote > :last-child {
+    margin-bottom: 0;
+  }
+
+  /* A rule separates sections, so it takes the same break as a heading that
+     opens one, and like every other prose gap it scales with the body. */
   .markdown-body hr {
-    margin: 1.5rem 0;
+    margin: calc(2 * var(--text-body)) 0;
     border-color: var(--border);
   }
 
@@ -403,7 +452,7 @@
   .markdown-body code {
     border-radius: var(--radius-inline);
     background: var(--muted);
-    padding: 2px 4px;
+    padding: 0.15em 0.3em;
     font-family: var(--font-mono);
     font-size: 0.875em;
     -webkit-box-decoration-break: clone;
@@ -439,6 +488,9 @@
      and overflow: hidden clips cell backgrounds to the rounded corners. */
   .markdown-body table {
     width: 100%;
+    /* Rows are data, not prose: a tight line box keeps a multi-row table from
+       reading as a stack of paragraphs. */
+    line-height: 1.3;
     border-collapse: separate;
     border-spacing: 0;
     overflow: hidden;

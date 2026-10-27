@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Headings are a six-step ladder that ends at body size: the fourth, fifth and sixth levels used to render as plain text, and every level now has its own line height, with the break above a heading that opens a section twice the paragraph gap
+- A table's rows sit on a tighter line, a quote is indented further with its rule ending at the last line, and the padding inside inline code and around a horizontal rule follows the text size instead of staying at fixed pixels
+
 ## [0.4.24] - 2026-10-27
 
 ### Changed

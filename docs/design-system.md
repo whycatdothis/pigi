@@ -80,8 +80,10 @@ need a tighter or looser rhythm say so with a `leading-*` class — the composer
 editor is the one place that does.
 
 Weights carry hierarchy, not size: 400 body, 500 row labels and control values,
-600 page and group headings. Tracking is reserved for the page title
-(`-0.02em`).
+600 page and group headings. Tracking is reserved for display-size type — the
+page title (`-0.02em`) and the two top markdown headings (`-0.015em`,
+`-0.011em`); below 22px the whole-line difference is a pixel or two and the
+declaration earns nothing.
 
 ## Spacing, elevation, motion
 
@@ -120,10 +122,19 @@ ordered-list step is deliberately twice the prose step: a numbered list is a
 sequence of steps with real text in each one, and at the paragraph gap they read
 as one run of text rather than as separate actions.
 
-Heading margins are the same scale read differently: the bottom margin deepens
-with the heading's own weight (`1.0 / 0.9 / 0.8 × --text-body` for h1/h2/h3) and
-the top margin is 1.8× the bottom one, so a heading binds to the section it
-introduces instead of floating between sections.
+Headings are their own ladder, em against the body size so they scale with the
+text-size setting: `1.618 / 1.462 / 1.318 / 1.188 / 1.076 / 1em` for h1…h6, with
+line height running against size (`1.2 / 1.2 / 1.3 / 1.4 / 1.5 / 1.5`) and
+tracking pulling in on the two display steps (`-0.015em` at h1, `-0.011em` at
+h2). h6 is exactly the body size: a heading is a heading through weight and
+space, and no step of the ladder drops below the paragraph it introduces.
+
+Vertically every heading carries the prose step above and below, and a heading
+that follows prose takes a break of `2 × --text-body` instead — 30px at the
+default body, against a 12px prose gap and a 12px heading-to-heading gap. A
+heading that opens a section reads as a boundary; two headings in a row read as
+an outline, so they stay at the block step. A rule takes the same break on both
+sides, since it separates sections too.
 
 Fixed chrome, deliberately not scaling: the 25px hover action band, the 4px base
 row gap, `pt-6`/`pb-2` on a user message.
