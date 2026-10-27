@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Closing the minimap list by moving the pointer away no longer flashes the whole list for one frame before it disappears: the exit animation holds its final invisible values until the list unmounts
+
 ## [0.4.23] - 2026-10-27
 
 ### Added

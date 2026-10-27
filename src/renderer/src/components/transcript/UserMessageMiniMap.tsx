@@ -265,9 +265,12 @@ export default React.memo(function UserMessageMiniMap({
           ref={panelRef}
           id={panelId}
           onAnimationEnd={(event) => {
-            // The exit keyframes do not fill, so the element returns to its own
-            // (opaque) style the moment they end: unmount here, not on a timer
-            // that repeats the duration and would flash a frame if they differ.
+            // The exit keyframes end at opacity 0, but `animate-out` does not
+            // fill: the moment they finish the panel snaps back to its own
+            // (opaque) style and paints one full frame before this handler's
+            // unmount commits. `fill-mode-forwards` below holds the final
+            // invisible values for that frame, so closing is a fade, not a
+            // flash. Unmounting here is still what ends the panel's life.
             if (event.target !== event.currentTarget || open) return;
             setPresent(false);
             setHoveredIndex(null);
@@ -275,7 +278,10 @@ export default React.memo(function UserMessageMiniMap({
           className={cn(
             VIBRANCY_OVERLAY_CONTENT,
             OVERLAY_BG,
-            'absolute right-0 top-1/2 flex max-h-[50vh] w-64 origin-right -translate-y-1/2 flex-col overflow-hidden rounded-l-surface p-0 backdrop-blur-md',
+            // fill-mode-forwards: see the comment above. It is harmless while
+            // the enter animation runs (its implicit `to` is the element's own
+            // style, which is where it would rest anyway).
+            'absolute right-0 top-1/2 flex max-h-[50vh] w-64 origin-right -translate-y-1/2 flex-col overflow-hidden rounded-l-surface p-0 backdrop-blur-md fill-mode-forwards',
             open ? 'animate-in fade-in-0 zoom-in-95' : 'animate-out fade-out-0 zoom-out-95',
           )}
         >
