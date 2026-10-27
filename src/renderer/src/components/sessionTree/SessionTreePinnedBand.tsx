@@ -55,7 +55,7 @@ function PinnedRow({
     >
       <span
         className={cn(
-          'flex h-full min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md pr-2',
+          'flex h-full min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-control pr-2',
           // The same hover the rows themselves use: the pinned copies must read
           // as rows, so they hover like them.
           'group-hover:bg-foreground/10',

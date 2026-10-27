@@ -46,10 +46,10 @@ const TOOLTIP_VARIANT_CLASS_NAMES: Record<TooltipVariant, string> = {
   // Same family as popover / dialog / context menu: popover tone, hairline
   // ring, soft shadow. Follows the theme, so dark mode needs nothing extra.
   surface:
-    'rounded-md bg-popover px-2.5 py-1.5 text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25',
+    'rounded-control-sm bg-popover px-2.5 py-1.5 text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25',
   // shadcn's stock inverted bubble. Loud by design; use it where the tooltip
   // sits on top of busy content and needs to win.
-  inverted: 'rounded-md bg-foreground px-3 py-1.5 text-background',
+  inverted: 'rounded-control-sm bg-foreground px-3 py-1.5 text-background',
 };
 
 function TooltipContent({
@@ -68,7 +68,7 @@ function TooltipContent({
         data-variant={variant}
         sideOffset={sideOffset}
         className={cn(
-          'tooltip-surface z-50 inline-flex w-fit max-w-xs origin-(--radix-tooltip-content-transform-origin) items-center gap-1.5 text-xs has-data-[slot=kbd]:pr-1.5 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-sm',
+          'tooltip-surface z-50 inline-flex w-fit max-w-xs origin-(--radix-tooltip-content-transform-origin) items-center gap-1.5 text-xs has-data-[slot=kbd]:pr-1.5 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-inline',
           TOOLTIP_VARIANT_CLASS_NAMES[variant],
           className,
         )}

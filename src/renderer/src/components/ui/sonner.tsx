@@ -38,7 +38,7 @@ function Toaster({ ...props }: ToasterProps): React.JSX.Element {
           '--error-bg': 'var(--danger-bg)',
           '--error-text': 'var(--danger-fg)',
           '--error-border': 'var(--danger-border)',
-          '--border-radius': 'var(--radius-md)',
+          '--border-radius': 'var(--radius-surface)',
         } as React.CSSProperties
       }
       {...props}

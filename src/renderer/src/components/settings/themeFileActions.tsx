@@ -54,7 +54,7 @@ export function ThemeFileActions(): React.JSX.Element {
               type="button"
               aria-label="Import theme"
               onClick={() => setImportOpen(true)}
-              className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex size-7 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <IconDownload size={15} stroke={1.75} />
             </button>
@@ -68,7 +68,7 @@ export function ThemeFileActions(): React.JSX.Element {
               aria-label="Copy theme"
               data-copied={copied}
               onClick={copy}
-              className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex size-7 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               {copied ? <IconCheck size={15} stroke={2} /> : <IconCopy size={15} stroke={1.75} />}
             </button>
@@ -97,7 +97,7 @@ export function ThemeFileActions(): React.JSX.Element {
               aria-label="Theme file contents"
               spellCheck={false}
               placeholder={'{\n  "kind": "pigi-theme",\n  …\n}'}
-              className="h-40 w-full resize-none rounded-md border border-input bg-transparent p-2.5 font-mono text-caption outline-none placeholder:text-muted-foreground focus-visible:border-ring"
+              className="h-40 w-full resize-none rounded-control border border-input bg-transparent p-2.5 font-mono text-caption outline-none placeholder:text-muted-foreground focus-visible:border-ring"
             />
             {error !== null && <p className="text-caption text-danger-fg">{error}</p>}
             <DialogFooter>

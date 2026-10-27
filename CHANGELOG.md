@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Every corner is named by role now: the last `rounded-md`/`lg`/`sm`/`xl` call
+  sites (including the shadcn primitives) use the semantic tiers, so a radius no
+  longer moves when `--radius` moves, and `npm run check` rejects the scale
+  steps and the primitive `--radius-*` variables the way it already rejected
+  arbitrary values
+
 ### Fixed
 
 - Closing the minimap list by moving the pointer away no longer flashes the whole list for one frame before it disappears: the exit animation holds its final invisible values until the list unmounts

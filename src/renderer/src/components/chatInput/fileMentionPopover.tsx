@@ -52,7 +52,7 @@ export function FileMentionPopover({
 
   return (
     <div
-      className="absolute bottom-full left-0 right-0 z-30 mb-2 overflow-hidden rounded-lg bg-popover/50 shadow-md ring-[0.5px] ring-foreground/25 backdrop-blur-md"
+      className="absolute bottom-full left-0 right-0 z-30 mb-2 overflow-hidden rounded-surface bg-popover/50 shadow-md ring-[0.5px] ring-foreground/25 backdrop-blur-md"
       onMouseDown={(event) => event.preventDefault()}
     >
       {matches.length === 0 ? (
@@ -72,7 +72,7 @@ export function FileMentionPopover({
               key={path}
               type="button"
               className={cn(
-                'flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-ui',
+                'flex w-full items-center gap-2 rounded-control px-2 py-1 text-left text-ui',
                 index === selectedIndex && 'bg-foreground/7',
               )}
               onMouseDown={(event) => {

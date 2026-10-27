@@ -43,7 +43,7 @@ function getProjectName(cwd: string): string {
 
 function highlightResult(result: Fuzzysort.Result, fallback: string): React.ReactNode {
   const highlighted = result.highlight((match, index) => (
-    <span key={index} className="bg-ring/25 rounded-sm px-0.5">
+    <span key={index} className="bg-ring/25 rounded-inline px-0.5">
       {match}
     </span>
   ));

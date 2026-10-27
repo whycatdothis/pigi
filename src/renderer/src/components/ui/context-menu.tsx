@@ -17,7 +17,7 @@ const ContextMenuContent = React.forwardRef<
       ref={ref}
       className={cn(
         VIBRANCY_OVERLAY_CONTENT,
-        'z-50 w-48 overflow-hidden rounded-lg p-1',
+        'z-50 w-48 overflow-hidden rounded-surface p-1',
         'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
         'data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
         className,
@@ -40,7 +40,7 @@ const ContextMenuItem = React.forwardRef<
     data-inset={inset}
     data-variant={variant}
     className={cn(
-      'relative flex cursor-default items-center gap-1.5 rounded-sm px-1.5 py-1 text-xs outline-hidden select-none',
+      'relative flex cursor-default items-center gap-1.5 rounded-control px-1.5 py-1 text-xs outline-hidden select-none',
       'data-highlighted:bg-foreground/5',
       'data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive',
       'data-disabled:pointer-events-none data-disabled:opacity-50',
@@ -76,7 +76,7 @@ const ContextMenuSubTrigger = React.forwardRef<
     ref={ref}
     data-inset={inset}
     className={cn(
-      'flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none',
+      'flex cursor-default items-center gap-1.5 rounded-control px-1.5 py-1 text-sm outline-hidden select-none',
       'focus:bg-accent focus:text-accent-foreground',
       'data-inset:pl-7 data-open:bg-accent data-open:text-accent-foreground',
       '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*="size-"])]:size-4',
@@ -97,7 +97,7 @@ const ContextMenuSubContent = React.forwardRef<
   <ContextMenu.SubContent
     ref={ref}
     className={cn(
-      'z-50 min-w-32 overflow-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg',
+      'z-50 min-w-32 overflow-hidden rounded-surface border bg-popover p-1 text-popover-foreground shadow-lg',
       'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
       'data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
       className,

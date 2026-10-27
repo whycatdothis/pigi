@@ -104,7 +104,7 @@ export function TreeRow({
     >
       <span
         className={cn(
-          'flex h-full min-w-0 flex-1 items-center gap-2 rounded-md pr-2',
+          'flex h-full min-w-0 flex-1 items-center gap-2 rounded-control pr-2',
           // The position wears the theme colour, and answers the pointer with a
           // slightly stronger version of it; every other row answers with grey.
           // One hover class per row, so neither can land on the other.
@@ -225,7 +225,7 @@ export function TreeRowContent({
         // A chip rather than only a tint: the position has to stay readable while
         // the pointer is on it, and while the list is scrolled to something else.
         // Its own tint is stronger than the row's, or it would vanish into it.
-        <span className="shrink-0 rounded-sm bg-[var(--system-accent)]/25 px-1.5 py-0.5 text-3xs font-medium leading-none text-[var(--system-accent)]">
+        <span className="shrink-0 rounded-inline bg-[var(--system-accent)]/25 px-1.5 py-0.5 text-3xs font-medium leading-none text-[var(--system-accent)]">
           Current
         </span>
       )}
@@ -257,7 +257,7 @@ function renderMatchHighlight(text: string, indexes: number[] | undefined): Reac
     if (runStart < 0) return;
     if (runStart > cursor) nodes.push(text.slice(cursor, runStart));
     nodes.push(
-      <mark key={runStart} className="rounded-sm bg-[var(--system-accent)]/20 text-inherit">
+      <mark key={runStart} className="rounded-inline bg-[var(--system-accent)]/20 text-inherit">
         {text.slice(runStart, runEnd + 1)}
       </mark>,
     );

@@ -448,6 +448,14 @@
     text-align: left;
   }
 
+  /* The image zoom overlay's own 40px buttons are 50% circles in the library
+     stylesheet, so they never carried `.rounded-full` and the global
+     superellipse turned them into squircles. Circles stay circles. */
+  [data-rmiz-btn-zoom],
+  [data-rmiz-btn-unzoom] {
+    corner-shape: round;
+  }
+
   .markdown-body th,
   .markdown-body td {
     border-right: 1px solid var(--border);

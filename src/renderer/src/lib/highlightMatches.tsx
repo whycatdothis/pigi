@@ -31,7 +31,7 @@ export function highlightMatches(
     nodes.push(
       <mark
         key={key++}
-        className="rounded-sm text-foreground"
+        className="rounded-inline text-foreground"
         style={{
           backgroundColor: isActive
             ? 'color-mix(in srgb, var(--system-accent) 70%, transparent)'

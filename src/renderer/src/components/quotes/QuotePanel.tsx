@@ -15,7 +15,7 @@ import QuoteCommentEditor from './QuoteCommentEditor';
 const QUOTE_TEXT_MAX_HEIGHT_PX = 88;
 
 const CARD_CLASS_NAME =
-  'group relative flex flex-col gap-2 rounded-lg bg-muted/50 p-2.5 ring-[0.5px] ring-foreground/10';
+  'group relative flex flex-col gap-2 rounded-surface-sm bg-muted/50 p-2.5 ring-[0.5px] ring-foreground/10';
 
 function DeleteCardButton({
   label,
@@ -52,7 +52,7 @@ function CommentText({
       {comment}
       <button
         type="button"
-        className="ml-0.5 inline-flex size-6 items-center justify-center rounded-md align-top text-muted-foreground hover:bg-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-foreground [-webkit-app-region:no-drag]"
+        className="ml-0.5 inline-flex size-6 items-center justify-center rounded-control-sm align-top text-muted-foreground hover:bg-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-foreground [-webkit-app-region:no-drag]"
         onClick={onEdit}
         aria-label="Edit comment"
         title="Edit comment"
@@ -136,7 +136,7 @@ const GlobalCommentCard = React.memo(function GlobalCommentCard({
     return (
       <button
         type="button"
-        className="flex h-8 items-center justify-center gap-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+        className="flex h-8 items-center justify-center gap-1.5 rounded-control text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground"
         onClick={() => setEditing(true)}
       >
         <IconPlus className="size-4" />

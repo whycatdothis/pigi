@@ -10,6 +10,11 @@
  * Allowed: `rounded-[var(--radius-x)]`, `rounded-[calc(...)]` built from
  * tokens, and the miniature drawings in the appearance previews, which scale a
  * whole window into 84px and cannot use UI radii.
+ *
+ * Tailwind's own radius steps (`rounded-md` and friends) are rejected too: they
+ * are computed from `--radius`, so a step's size moves whenever that primitive
+ * moves, which is the opposite of a role. The steps stay defined in
+ * `shared/designTokens.css` for the marketing site, not for app code.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,6 +28,24 @@ const RULES = [
     name: 'arbitrary radius',
     pattern: /rounded(?:-[a-z]+)*\[[^\]]*(?:\d+(?:px|rem|em)|calc\(var\(--radius\))[^\]]*\]/g,
     hint: 'use rounded-inline / chip / control / surface / container',
+  },
+  {
+    name: 'Tailwind radius step',
+    pattern: /rounded(?:-[a-z]+)*(?:-(?:xs|sm|md|lg|xl|2xl|3xl))\b/g,
+    hint: 'use rounded-inline / chip / control / control-sm / surface* / container / full',
+    extensions: ['.ts', '.tsx'],
+    // `control-sm` and `surface-sm` end in a Tailwind step name; they are role
+    // names, not steps.
+    skip: (match) =>
+      /^rounded(?:-(?:s|e|t|r|b|l|ss|se|ee|es|tl|tr|br|bl))?-(?:inline|chip|control-sm|control|surface-sm|surface-lg|surface-xl|surface|container|full)$/.test(
+        match,
+      ),
+  },
+  {
+    name: 'primitive radius variable',
+    pattern: /var\(--radius-(?:xs|sm|md|lg|xl|2xl|3xl|4xl)\)/g,
+    hint: 'use var(--radius-inline … container) from semanticTokens.css',
+    extensions: ['.ts', '.tsx'],
   },
   {
     name: 'arbitrary font size',

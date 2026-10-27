@@ -61,7 +61,7 @@ export function PathMentionPopover({
   return (
     <div
       ref={popoverRef}
-      className="absolute bottom-full left-0 z-30 mb-2 w-max max-w-full overflow-hidden rounded-lg bg-popover/50 shadow-md ring-[0.5px] ring-foreground/25 backdrop-blur-md"
+      className="absolute bottom-full left-0 z-30 mb-2 w-max max-w-full overflow-hidden rounded-surface bg-popover/50 shadow-md ring-[0.5px] ring-foreground/25 backdrop-blur-md"
       onMouseDown={(event) => event.preventDefault()}
     >
       <div ref={listRef} className="max-h-[25vh] overflow-y-auto p-1">
@@ -73,7 +73,7 @@ export function PathMentionPopover({
               key={entry.path}
               type="button"
               className={cn(
-                'flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-ui',
+                'flex w-full items-center gap-2 rounded-control px-2 py-1 text-left text-ui',
                 index === selectedIndex && 'bg-foreground/7',
               )}
               onMouseDown={(event) => {
