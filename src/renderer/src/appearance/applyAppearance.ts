@@ -70,6 +70,15 @@ function tokensChanged(previous: Record<string, string>, next: Record<string, st
   );
 }
 
+/** Fields of a resolved appearance that the token set does not carry. */
+function sameResolved(previous: ResolvedAppearance, next: ResolvedAppearance): boolean {
+  return (
+    previous.mode === next.mode &&
+    previous.reduceMotion === next.reduceMotion &&
+    previous.fontSmoothing === next.fontSmoothing
+  );
+}
+
 /** Notifies non-CSS consumers after every applied appearance. */
 export function subscribeAppearance(listener: AppearanceListener): () => void {
   listeners.add(listener);
@@ -93,6 +102,18 @@ export function applyAppearance(
   const resolved = resolveAppearance(settings, environment);
   const tokens = deriveTokens(resolved);
   const root = document.documentElement;
+
+  // Nothing the page can see has changed (the same appearance was committed
+  // twice, or a commit carried the same value): keep the previous snapshot so
+  // subscribers do not re-theme for an identical object.
+  if (
+    lastResolved !== null &&
+    lastTokens !== null &&
+    !tokensChanged(lastTokens, tokens) &&
+    sameResolved(lastResolved, resolved)
+  ) {
+    return lastResolved;
+  }
 
   // The first apply has nothing on screen to transition from, and a commit
   // that only changed chat settings leaves the colours as they were.

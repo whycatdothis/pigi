@@ -136,7 +136,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
       chat: partial.chat ?? current.chat,
     };
     persistSettings(next);
-    applyAppearance(next.appearance);
+    // Only an appearance commit re-derives tokens and notifies every subscriber;
+    // a chat-only change would otherwise rewrite the whole token set and make
+    // each code block and terminal re-theme for nothing.
+    if (partial.appearance) {
+      applyAppearance(next.appearance);
+    }
     set(next);
   }
 

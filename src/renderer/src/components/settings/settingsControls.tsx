@@ -350,6 +350,22 @@ function stringListRows(entries: readonly string[]): StringListRow[] {
   return entries.map((text) => ({ id: nextStringListRowId++, text }));
 }
 
+/**
+ * Adopts a value that came back from outside (a saved snapshot), keeping the id
+ * of each row that is still in the same place and only minting ids for rows the
+ * list grew by. Reusing ids keeps the inputs mounted, so an edit that round-trips
+ * through the worker does not drop the caret.
+ */
+function syncStringListRows(
+  previous: readonly StringListRow[],
+  entries: readonly string[],
+): StringListRow[] {
+  return entries.map((text, index) => {
+    const existing = previous[index];
+    return existing ? { ...existing, text } : { id: nextStringListRowId++, text };
+  });
+}
+
 /** Editable list of strings; empty rows are dropped and an empty list clears the field. */
 export function StringListField({
   value,
@@ -372,13 +388,17 @@ export function StringListField({
 
   if (valueKey !== lastValueKey) {
     setLastValueKey(valueKey);
-    setRows(stringListRows(value ?? []));
+    setRows((previous) => syncStringListRows(previous, value ?? []));
   }
 
   function commit(nextRows: StringListRow[]): void {
-    const cleaned = nextRows.map((row) => row.text.trim()).filter((row) => row.length > 0);
-    setRows(stringListRows(cleaned));
-    onCommit(cleaned.length > 0 ? cleaned : null);
+    const cleaned = nextRows
+      .map((row) => ({ ...row, text: row.text.trim() }))
+      .filter((row) => row.text.length > 0);
+    // Reuse the ids: reissuing them would remount every input, and Enter is
+    // committed from inside a field, so the caret would leave it.
+    setRows(cleaned);
+    onCommit(cleaned.length > 0 ? cleaned.map((row) => row.text) : null);
   }
 
   return (
