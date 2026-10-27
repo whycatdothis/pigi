@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { cn } from '../../lib/utils';
 
@@ -87,8 +87,10 @@ export default function OverflowClamp({
 
   const fadeMask = tailAnchor ? TOP_FADE_MASK : BOTTOM_FADE_MASK;
 
-  const buttonNode = isOverflowing && (
-    <>
+  // Both nodes are returned in one array, in an order that depends on the
+  // anchor, so each carries a key of its own.
+  const buttonNode = isOverflowing ? (
+    <Fragment key="clamp-button">
       <div ref={sentinelRef} aria-hidden className="h-0" />
       <button
         ref={buttonRef}
@@ -122,11 +124,12 @@ export default function OverflowClamp({
           </>
         )}
       </button>
-    </>
-  );
+    </Fragment>
+  ) : null;
 
   const contentNode = (
     <div
+      key="clamp-content"
       className={cn(
         'flex flex-col overflow-hidden',
         // Short content sits at the top even in tail-anchor mode; the two
