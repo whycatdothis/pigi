@@ -588,15 +588,16 @@
 /* The gradient is the text colour, so it may only replace `color` where the clip
    actually works — otherwise the label would render invisible. The animation
    lives in here too: without the clip it would advance a background-position
-   that paints nothing. */
+   that paints nothing. The band is a highlight, not a darker copy of the text:
+   see `--shimmer-highlight`. */
 @supports ((background-clip: text) or (-webkit-background-clip: text)) {
   .shimmer-text {
     color: transparent;
     background-image: linear-gradient(
       90deg,
-      var(--muted-foreground) 40%,
-      var(--foreground) 50%,
-      var(--muted-foreground) 60%
+      var(--muted-foreground) 44%,
+      var(--shimmer-highlight) 50%,
+      var(--muted-foreground) 56%
     );
     background-size: 200% 100%;
     background-repeat: no-repeat;

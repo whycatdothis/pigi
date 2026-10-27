@@ -187,6 +187,9 @@
   --secondary-foreground: var(--app-secondary-foreground, oklch(0.205 0 0));
   --muted: var(--app-muted, oklch(0.97 0 0));
   --muted-foreground: var(--app-muted-foreground, oklch(0.556 0 0));
+  /* The thinking label's sweep. Everything else here is solved from the page's
+     own colours, so the fallback only has to be a plausible sheen. */
+  --shimmer-highlight: var(--app-shimmer-highlight, oklch(0.84 0 0));
   --accent: var(--app-accent, oklch(0.97 0 0));
   --accent-foreground: var(--app-accent-foreground, oklch(0.205 0 0));
   --destructive: var(--app-destructive, oklch(0.577 0.245 27.325));
@@ -254,6 +257,7 @@
   --secondary-foreground: var(--app-secondary-foreground, oklch(0.985 0 0));
   --muted: var(--app-muted, oklch(0.269 0 0));
   --muted-foreground: var(--app-muted-foreground, oklch(0.708 0 0));
+  --shimmer-highlight: var(--app-shimmer-highlight, oklch(0.9 0 0));
   --accent: var(--app-accent, oklch(0.269 0 0));
   --accent-foreground: var(--app-accent-foreground, oklch(0.985 0 0));
   --destructive: var(--app-destructive, oklch(0.704 0.191 22.216));

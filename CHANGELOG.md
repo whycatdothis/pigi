@@ -4,6 +4,12 @@
 
 ### Changed
 
+- The thinking label's sweep is a highlight again. The band was drawn in
+  `--foreground`, which on a light theme is near-black, so the label looked like
+  a dark bar travelling across it; it now mixes the secondary text 85% toward
+  white (`--app-shimmer-highlight`, derived per theme) and is narrower, so it
+  reads as light crossing the label on any page colour
+
 - Small text uses the named type scale everywhere: `text-sm`/`text-xs` were the
   same sizes as `text-body`/`text-caption` under Tailwind's names, and the last
   126 call sites now use the role names, so one size has one name and the check

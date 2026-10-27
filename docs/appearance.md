@@ -353,6 +353,7 @@ verbatim):
 | `--app-popover`, `--app-popover-foreground`                        | surface(0.50) / fg                          |
 | `--app-secondary`, `--app-secondary-foreground`                    | surface(1.0) / fg                           |
 | `--app-muted`, `--app-muted-foreground`                            | surface(1.0) / mutedText                    |
+| `--app-shimmer-highlight`                                          | mutedText mixed 90% toward white            |
 | `--app-accent`, `--app-accent-foreground`                          | surface(1.6) / fg                           |
 | `--app-primary`, `--app-primary-foreground`                        | accent fill / white                         |
 | `--app-primary-hover`                                              | fill stepped away from the page             |
