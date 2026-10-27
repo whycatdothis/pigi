@@ -93,9 +93,9 @@
   :root {
     --message-row-gap: 4px;
     --message-item-spacing: calc(0.3 * var(--text-body));
-    --message-block-spacing: calc(0.8 * var(--text-body));
-    --message-pair-spacing: calc(1.2 * var(--text-body));
-    --message-boundary-spacing: calc(1.6 * var(--text-body));
+    --message-text-spacing: calc(0.8 * var(--text-body));
+    --message-surface-spacing: calc(1 * var(--text-body));
+    --message-kind-change-spacing: calc(1.8 * var(--text-body));
   }
 
   /* Rows in the middle of a reply carry no hover band any more, so their
@@ -104,16 +104,16 @@
      inside the measured height, a margin would fall outside it and
      desynchronise the scroll model. The base row gap is still added on top,
      hence the subtraction. */
-  [data-row-space='block'] {
-    padding-bottom: calc(var(--message-block-spacing) - var(--message-row-gap));
+  [data-row-space='text'] {
+    padding-bottom: calc(var(--message-text-spacing) - var(--message-row-gap));
   }
 
-  [data-row-space='pair'] {
-    padding-bottom: calc(var(--message-pair-spacing) - var(--message-row-gap));
+  [data-row-space='surface'] {
+    padding-bottom: calc(var(--message-surface-spacing) - var(--message-row-gap));
   }
 
-  [data-row-space='boundary'] {
-    padding-bottom: calc(var(--message-boundary-spacing) - var(--message-row-gap));
+  [data-row-space='kind-change'] {
+    padding-bottom: calc(var(--message-kind-change-spacing) - var(--message-row-gap));
   }
 
   button {
@@ -142,7 +142,7 @@
      specificity, so the cascade is plain file order — no specificity wars, no
      arbitrary-variant hacks in components. */
   .markdown-body {
-    --markdown-block-spacing: var(--message-block-spacing);
+    --markdown-block-spacing: var(--message-text-spacing);
     --markdown-item-spacing: var(--message-item-spacing);
     width: 100%;
     min-width: 0;

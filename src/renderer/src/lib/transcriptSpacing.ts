@@ -7,10 +7,10 @@ import type { RenderItem } from './readGrouping';
  * row gap already separates it from the next turn, so it asks for nothing more.
  * Rows in the middle of a reply follow two rules only: neighbours of the same
  * kind sit at that kind's step, neighbours of different kinds sit at the
- * boundary step. Reasoning and tool work are different groups of a reply, so
+ * kind-change step. Reasoning and tool work are different groups of a reply, so
  * any change of kind is the widest gap inside it.
  */
-export type RowSpace = 'block' | 'pair' | 'boundary';
+export type RowSpace = 'text' | 'surface' | 'kind-change';
 
 /** What a row looks like at the edge that faces a neighbour. */
 type RowKind = 'prose' | 'card' | 'thinking';
@@ -63,8 +63,8 @@ function trailingKind(item: RenderItem): RowKind {
 }
 
 function spaceBetween(current: RowKind, next: RowKind): RowSpace {
-  if (current !== next) return 'boundary';
-  return current === 'prose' ? 'block' : 'pair';
+  if (current !== next) return 'kind-change';
+  return current === 'prose' ? 'text' : 'surface';
 }
 
 export function rowSpaceFor(
@@ -75,7 +75,7 @@ export function rowSpaceFor(
   if (!next || isUserItem(next)) {
     // The action band supplies the turn boundary; a row that cannot render one
     // still needs its gutters, or the turn would collapse to the base row gap.
-    return currentHasActionBand ? undefined : 'boundary';
+    return currentHasActionBand ? undefined : 'kind-change';
   }
   if (isUserItem(current)) return undefined;
   return spaceBetween(trailingKind(current), leadingKind(next));

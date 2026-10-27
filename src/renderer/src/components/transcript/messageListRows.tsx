@@ -174,7 +174,7 @@ function AssistantBubble({
         {showText && (
           <div
             style={{
-              marginTop: showThinking ? 'var(--message-boundary-spacing)' : undefined,
+              marginTop: showThinking ? 'var(--message-kind-change-spacing)' : undefined,
             }}
           >
             <MarkdownMessage text={node.text} isStreaming={node.isStreaming} />
@@ -184,7 +184,7 @@ function AssistantBubble({
         {node.errorMessage && (
           <div
             className="w-fit rounded-surface bg-destructive/10 px-3 py-2 text-ui text-destructive"
-            style={{ marginTop: 'var(--message-boundary-spacing)' }}
+            style={{ marginTop: 'var(--message-kind-change-spacing)' }}
           >
             {node.errorMessage}
           </div>

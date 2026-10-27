@@ -418,7 +418,7 @@ const TurnSection = React.memo(function TurnSection({
       {detailsOpen ? (
         <div className="mt-2" data-testid="minimal-details-wrapper">
           <div className="overflow-hidden" data-testid="minimal-details">
-            <div className="flex flex-col pb-1" style={{ gap: 'var(--message-pair-spacing)' }}>
+            <div className="flex flex-col pb-1" style={{ gap: 'var(--message-surface-spacing)' }}>
               {turn.entries.map((node, index) => (
                 <DetailItem
                   key={node.id}
@@ -464,7 +464,7 @@ function AssistantText({
       {node.errorMessage && (
         <div
           className="w-fit rounded-surface bg-destructive/10 px-3 py-2 text-ui text-destructive"
-          style={{ marginTop: 'var(--message-boundary-spacing)' }}
+          style={{ marginTop: 'var(--message-kind-change-spacing)' }}
         >
           {node.errorMessage}
         </div>
@@ -556,7 +556,8 @@ function DetailItem({
         {(node.text.length > 0 || node.errorMessage) && (
           <div
             style={{
-              marginTop: node.thinking.length > 0 ? 'var(--message-boundary-spacing)' : undefined,
+              marginTop:
+                node.thinking.length > 0 ? 'var(--message-kind-change-spacing)' : undefined,
             }}
           >
             <AssistantText node={node} />

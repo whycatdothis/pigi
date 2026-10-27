@@ -132,7 +132,7 @@ scroll model (`lib/transcriptSpacing.ts`, `[data-row-space]` rules in
 Only the last row of a reply renders the hover action band (25px, plus the 2px
 offset inside it). Rows in the middle of a reply have no band and carry the
 prose rhythm instead: same kind → its own step (prose 0.8× the body size, card
-1.2×), different kind → 1.6×. A row is classified by the edge that faces its
+1×), different kind → 1.8×. A row is classified by the edge that faces its
 neighbour, not by its contents, because a reply renders thinking, then prose,
 then an error card: a streaming row that opens with a thinking card and
 continues into prose presents its thinking edge upwards and its prose edge

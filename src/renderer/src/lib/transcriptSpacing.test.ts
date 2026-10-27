@@ -46,15 +46,15 @@ test('same kinds sit at their own step, different kinds at the boundary step', (
   const text = node('assistant');
   const tool = node('tool');
 
-  expect(rowSpaceFor(text, text, false)).toBe('block');
-  expect(rowSpaceFor(tool, tool, false)).toBe('pair');
-  expect(rowSpaceFor(readGroup, tool, false)).toBe('pair');
-  expect(rowSpaceFor(readGroup, readGroup, false)).toBe('pair');
+  expect(rowSpaceFor(text, text, false)).toBe('text');
+  expect(rowSpaceFor(tool, tool, false)).toBe('surface');
+  expect(rowSpaceFor(readGroup, tool, false)).toBe('surface');
+  expect(rowSpaceFor(readGroup, readGroup, false)).toBe('surface');
 
-  expect(rowSpaceFor(text, tool, false)).toBe('boundary');
-  expect(rowSpaceFor(tool, text, false)).toBe('boundary');
-  expect(rowSpaceFor(text, readGroup, false)).toBe('boundary');
-  expect(rowSpaceFor(readGroup, text, false)).toBe('boundary');
+  expect(rowSpaceFor(text, tool, false)).toBe('kind-change');
+  expect(rowSpaceFor(tool, text, false)).toBe('kind-change');
+  expect(rowSpaceFor(text, readGroup, false)).toBe('kind-change');
+  expect(rowSpaceFor(readGroup, text, false)).toBe('kind-change');
 });
 
 test('a thinking card is its own kind against prose and against cards', () => {
@@ -62,21 +62,21 @@ test('a thinking card is its own kind against prose and against cards', () => {
   const tool = node('tool');
   const thought = thinking();
 
-  expect(rowSpaceFor(thought, tool, false)).toBe('boundary');
-  expect(rowSpaceFor(tool, thought, false)).toBe('boundary');
-  expect(rowSpaceFor(thought, readGroup, false)).toBe('boundary');
-  expect(rowSpaceFor(thought, text, false)).toBe('boundary');
-  expect(rowSpaceFor(text, thought, false)).toBe('boundary');
-  expect(rowSpaceFor(thought, thinking(), false)).toBe('pair');
+  expect(rowSpaceFor(thought, tool, false)).toBe('kind-change');
+  expect(rowSpaceFor(tool, thought, false)).toBe('kind-change');
+  expect(rowSpaceFor(thought, readGroup, false)).toBe('kind-change');
+  expect(rowSpaceFor(thought, text, false)).toBe('kind-change');
+  expect(rowSpaceFor(text, thought, false)).toBe('kind-change');
+  expect(rowSpaceFor(thought, thinking(), false)).toBe('surface');
 });
 
 test('a row that starts with thinking and ends in prose takes the step of each edge', () => {
   const tool = node('tool');
   const mixed = thinkingWithProse();
 
-  expect(rowSpaceFor(tool, mixed, false)).toBe('boundary');
-  expect(rowSpaceFor(mixed, tool, false)).toBe('boundary');
-  expect(rowSpaceFor(mixed, node('assistant'), false)).toBe('block');
+  expect(rowSpaceFor(tool, mixed, false)).toBe('kind-change');
+  expect(rowSpaceFor(mixed, tool, false)).toBe('kind-change');
+  expect(rowSpaceFor(mixed, node('assistant'), false)).toBe('text');
 });
 
 test('turn boundaries keep the action band as their spacing', () => {
@@ -91,6 +91,6 @@ test('turn boundaries keep the action band as their spacing', () => {
   expect(rowSpaceFor(thinking(), user, true)).toBeUndefined();
 
   // A row that cannot render the band still has to hold its turn boundary.
-  expect(rowSpaceFor(readGroup, user, false)).toBe('boundary');
-  expect(rowSpaceFor(readGroup, undefined, false)).toBe('boundary');
+  expect(rowSpaceFor(readGroup, user, false)).toBe('kind-change');
+  expect(rowSpaceFor(readGroup, undefined, false)).toBe('kind-change');
 });
