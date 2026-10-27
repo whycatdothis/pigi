@@ -491,6 +491,40 @@
   }
 }
 
+@layer components {
+  /* The minimap panel's whole open/close state.
+     `display` is what used to need a second `present` flag, an `animationend`
+     handler that unmounted the panel, a timer under it in case the event never
+     arrived, and `inert` for the window in between. With `allow-discrete` the
+     browser holds `display: flex` for the length of the exit and then drops it
+     by itself, and `@starting-style` gives the enter its first frame, so one
+     element and one boolean describe the panel, and nothing can desync.
+     `display: none` is also what keeps a closed panel out of layout and hit
+     testing, which is why the panel never needs to unmount. */
+  .message-minimap-panel {
+    display: none;
+    opacity: 0;
+    scale: 0.95;
+    transition:
+      opacity var(--duration-base) var(--ease-standard),
+      scale var(--duration-base) var(--ease-standard),
+      display var(--duration-base) allow-discrete;
+  }
+
+  .message-minimap-panel[data-open='true'] {
+    display: flex;
+    opacity: 1;
+    scale: 1;
+  }
+
+  @starting-style {
+    .message-minimap-panel[data-open='true'] {
+      opacity: 0;
+      scale: 0.95;
+    }
+  }
+}
+
 @layer utilities {
   .no-scrollbar {
     scrollbar-width: none;

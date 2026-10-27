@@ -5,8 +5,8 @@ import { useRef } from 'react';
 import type { TranscriptNode } from '../../state/transcriptController';
 import { requireElement } from '../../testing/domQuery';
 import UserMessageMiniMap from './UserMessageMiniMap';
-// The exit animation and its fill mode are real CSS: load the stylesheet, or
-// every computed-style assertion below reads `none`.
+// The panel's open/close state is real CSS: load the stylesheet, or every
+// computed-style assertion below reads the element's own defaults.
 import '../../assets/main.css';
 
 const NODES: TranscriptNode[] = [
@@ -36,108 +36,95 @@ function MiniMapHarness({
   );
 }
 
-/** Opens the list and hands back the panel once the exit can be started. */
-async function openThenClose(): Promise<HTMLElement> {
+/** Opens the panel by hover and hands it back once it is fully opaque. */
+async function hoverOpen(): Promise<HTMLElement> {
   await render(<MiniMapHarness onScrollToIndex={vi.fn()} />);
   await userEvent.hover(requireElement<HTMLElement>('[role=navigation]'));
-
   const panel = await vi.waitFor(() => requireElement<HTMLElement>(PANEL_SELECTOR), {
     timeout: 2000,
   });
-
-  // Leave the minimap: closes after the hover-close delay, then runs the exit.
-  await userEvent.hover(document.body);
-  await vi.waitFor(
-    () => {
-      if (!panel.isConnected) throw new Error('panel unmounted before the exit started');
-      if (getComputedStyle(panel).animationName !== 'exit') {
-        throw new Error('the exit animation has not started yet');
-      }
-    },
-    { timeout: 2000 },
-  );
+  // The enter is a transition too; sampling the exit from half-way through it
+  // would record a fade *in* and read as the panel coming back.
+  await vi.waitFor(() => expect(Number(getComputedStyle(panel).opacity)).toBeCloseTo(1, 2));
   return panel;
 }
 
 /**
- * Closing used to flash: `animate-out` does not fill, so between its last frame
- * (opacity 0) and the unmount driven by `animationend` the panel painted one
- * full frame at its own opacity 1.
+ * Leaves the minimap and samples the panel's painted opacity every frame until
+ * it drops out of the layout. Sampling from the first frame is the point: the
+ * flash this replaced was a single frame, so only a per-frame record can say it
+ * cannot happen.
  */
-test('only the exit holds its last frame', async () => {
+async function recordClose(panel: HTMLElement): Promise<{ opacities: number[]; display: string }> {
+  await userEvent.hover(document.body);
+  const opacities: number[] = [];
+  const deadline = performance.now() + 3000;
+  while (performance.now() < deadline) {
+    const display = getComputedStyle(panel).display;
+    if (display === 'none') return { opacities, display };
+    opacities.push(Number(getComputedStyle(panel).opacity));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+  throw new Error('the panel never left the layout');
+}
+
+test('the panel mounts on first open and fades in through its own transition', async () => {
   await render(<MiniMapHarness onScrollToIndex={vi.fn()} />);
+  expect(document.querySelector(PANEL_SELECTOR)).toBeNull();
+
   await userEvent.hover(requireElement<HTMLElement>('[role=navigation]'));
   const panel = await vi.waitFor(() => requireElement<HTMLElement>(PANEL_SELECTOR), {
     timeout: 2000,
   });
 
-  // `forwards` belongs to the exit alone: on the enter it would freeze a
-  // snapshot of the panel's own style and keep the effect alive after it ends.
-  expect(getComputedStyle(panel).animationName).toBe('enter');
-  expect(getComputedStyle(panel).animationFillMode).toBe('none');
-  expect(panel.inert).toBe(false);
+  await vi.waitFor(() => expect(Number(getComputedStyle(panel).opacity)).toBeCloseTo(1, 2));
+  expect(getComputedStyle(panel).display).toBe('flex');
+  // Opening used to be a keyframe animation. The state is the element's own
+  // now, so anything still animating through keyframes is a leftover.
+  expect(
+    panel.getAnimations().filter((animation) => !(animation instanceof CSSTransition)),
+  ).toEqual([]);
 });
 
-test('the closing list stays invisible and inert until it unmounts', async () => {
-  const closingPanel = await openThenClose();
-  // The exit runs for 100ms and the wait above polls every 50ms, so the panel
-  // can already be gone here; say that plainly instead of letting a measurement
-  // of a detached element pass as a hit test.
-  expect(closingPanel.isConnected).toBe(true);
-  const exitAnimation = closingPanel.getAnimations()[0];
-  expect(exitAnimation).toBeDefined();
-  // Two facts that hold whatever the timing is: the animation ends invisible,
-  // and the fill mode keeps that frame after it finishes.
-  const effect = exitAnimation.effect;
-  expect(effect instanceof KeyframeEffect).toBe(true);
-  const lastKeyframe = effect instanceof KeyframeEffect ? effect.getKeyframes().at(-1) : undefined;
-  expect(String(lastKeyframe?.opacity)).toBe('0');
-  expect(getComputedStyle(closingPanel).animationFillMode).toBe('forwards');
+test('closing fades out, then leaves the layout without a visible frame', async () => {
+  const panel = await hoverOpen();
+  const { opacities, display } = await recordClose(panel);
 
-  // A fading panel still sits over the transcript's right edge, so it must not
-  // take clicks, keep focusable children, or stay in the accessibility tree.
-  expect(closingPanel.inert).toBe(true);
-  const box = closingPanel.getBoundingClientRect();
-  const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-  expect(hit === null || !closingPanel.contains(hit)).toBe(true);
+  expect(display).toBe('none');
+  // The panel is never unmounted any more: `display` is what hides it, so the
+  // rows are not rebuilt on the next hover.
+  expect(panel.isConnected).toBe(true);
 
-  // And it goes away by itself: unmounting on `animationend` is the mechanism,
-  // but nothing may depend on that event arriving.
-  await vi.waitFor(() => expect(document.querySelector(PANEL_SELECTOR)).toBeNull(), {
-    timeout: 3000,
-  });
+  const fading = opacities.filter((opacity) => opacity < 0.99);
+  expect(fading.length).toBeGreaterThan(1);
+  for (let index = 1; index < fading.length; index++) {
+    expect(fading[index]).toBeLessThanOrEqual(fading[index - 1] + 0.02);
+  }
+  expect(opacities.at(-1)).toBeLessThan(0.05);
 });
 
-/**
- * The fuse is the one mechanism that could kill a list the pointer came back
- * for: it is cleared by an effect cleanup when `open` turns true again, and a
- * cleanup that stopped running would only show up here.
- */
-test('re-opening during the fade keeps the panel', async () => {
-  const panel = await openThenClose();
-  // Clicking the trigger re-opens at once, inside the 100ms exit. Hovering
-  // cannot test this: its own 200ms open delay outlives the fade, so the panel
-  // legitimately finishes closing and a fresh one opens afterwards.
+test('the panel is inert for the fade and takes no space once closed', async () => {
+  const panel = await hoverOpen();
+  const closing = recordClose(panel);
+  await vi.waitFor(() => expect(panel.inert).toBe(true));
+  await closing;
+
+  expect(panel.checkVisibility()).toBe(false);
+  expect(panel.getBoundingClientRect().height).toBe(0);
+});
+
+test('re-opening during the fade brings the same panel back', async () => {
+  const panel = await hoverOpen();
+  await userEvent.hover(document.body);
+  await vi.waitFor(() => expect(panel.dataset.open).toBe('false'), { timeout: 2000 });
+
+  // Clicking the trigger re-opens at once, inside the fade. Hovering cannot test
+  // this: its own 200ms open delay outlives the fade, so the panel legitimately
+  // finishes closing and opens again afterwards.
   requireElement<HTMLElement>('[aria-label="Jump to a message"]').click();
 
-  // Past the close delay plus the fuse: a panel that had been unmounted by the
-  // fuse is gone by now.
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  expect(panel.isConnected).toBe(true);
-  expect(getComputedStyle(panel).animationName).toBe('enter');
-});
-
-/**
- * `animationend` is the only unmount, and it is not the only way an exit can
- * end: a cancelled animation (React re-renders the panel's class mid-exit, the
- * element is hidden) never fires it. Without the fuse the panel would stay
- * mounted at opacity 0, over the transcript, for the rest of the session.
- */
-test('a cancelled exit still unmounts the panel', async () => {
-  const panel = await openThenClose();
-  for (const animation of panel.getAnimations()) animation.cancel();
-
-  await vi.waitFor(() => expect(document.querySelector(PANEL_SELECTOR)).toBeNull(), {
-    timeout: 3000,
-  });
+  await vi.waitFor(() => expect(Number(getComputedStyle(panel).opacity)).toBeCloseTo(1, 2));
+  expect(panel.dataset.open).toBe('true');
+  expect(getComputedStyle(panel).display).toBe('flex');
+  expect(panel.inert).toBe(false);
 });

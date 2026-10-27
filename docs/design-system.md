@@ -133,6 +133,20 @@ The argument is half the classic exponent: 1.5 is `x³ + y³ = r³`, which leave
 the straight edge with zero curvature. 1 is a circle; 2 (the `squircle` keyword)
 fills the corner further and reads squarer.
 
+## An overlay exits through its own `display`
+
+An overlay that fades out does not need JavaScript to remove it. Transition
+`display` with `allow-discrete` alongside `opacity`, and give the open state its
+first frame with `@starting-style`: the element stays for the length of the exit
+and then leaves the layout by itself. One boolean in the component, no
+`animationend` handler, no timer underneath in case that event never arrives,
+and nothing that can desync from the state. `display: none` is also what keeps a
+closed panel out of hit testing, the tab order and the accessibility tree, so
+`inert` is only needed for the fade itself. The message minimap is the reference
+(`.message-minimap-panel` in `main.css`). Keep the element mounted after its
+first open — a hidden subtree costs no layout, and diffing 400 hidden rows
+measured the same as diffing none.
+
 ## Adding a component
 
 1. Pick the tier by role, not by look: is it a control, a content block, a card?
