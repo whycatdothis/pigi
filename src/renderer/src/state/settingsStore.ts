@@ -16,6 +16,7 @@ import {
   DEFAULT_PIGI_SETTINGS,
   PIGI_SETTINGS_READ_STATE,
   PIGI_SETTINGS_STORAGE_KEY,
+  PIGI_SETTINGS_VERSION,
   parsePigiSettings,
   type PigiSettings,
   type ToolBlockViewMode,
@@ -131,7 +132,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
   function commit(partial: Partial<PigiSettings>): void {
     const current = get();
     const next: PigiSettings = {
-      version: 2,
+      version: PIGI_SETTINGS_VERSION,
       appearance: partial.appearance ?? current.appearance,
       chat: partial.chat ?? current.chat,
     };

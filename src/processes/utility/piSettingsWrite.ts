@@ -6,7 +6,7 @@
  * proper-lockfile scheme the pi TUI uses: a concurrent TUI cannot lose updates,
  * unrelated keys are preserved, and a crash mid-write cannot truncate the file.
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import lockfile from 'proper-lockfile';
 import { setPiSettingValue, type PiSettingUpdate } from '../../shared/piSettings';
@@ -23,7 +23,7 @@ function stripBom(content: string): string {
  * message loop. A synchronous sleep here blocks all of them for as long as pi
  * holds the lock.
  */
-export function acquireSettingsLock(path: string): Promise<() => void> {
+export function acquireSettingsLock(path: string): Promise<() => Promise<void>> {
   return lockfile.lock(path, {
     realpath: false,
     retries: { retries: 9, factor: 1, minTimeout: 20, maxTimeout: 20, randomize: false },
@@ -62,9 +62,18 @@ export async function writePiSettingsDocument(
     // settings file: a crash mid-write must not leave pi with a truncated
     // config.
     const temporaryPath = `${path}.tmp`;
-    writeFileSync(temporaryPath, JSON.stringify(document, null, 2), 'utf-8');
-    renameSync(temporaryPath, path);
+    try {
+      writeFileSync(temporaryPath, JSON.stringify(document, null, 2), 'utf-8');
+      renameSync(temporaryPath, path);
+    } catch (error) {
+      // A failed write must not leave the half-written file next to the real one.
+      rmSync(temporaryPath, { force: true });
+      throw error;
+    }
   } finally {
-    await release();
+    // Never let a failing unlock replace the error that explains the failure.
+    await release().catch((error: unknown) => {
+      console.error('Failed to release the pi settings lock:', error);
+    });
   }
 }

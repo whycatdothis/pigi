@@ -37,6 +37,7 @@ import type { PiSettingsResult, PiSettingsScope, PiSettingUpdate } from '../shar
 import {
   PIGI_SETTINGS_PATH_ARGUMENT,
   PIGI_SETTINGS_READ_STATE,
+  isMissingFileError,
   type PigiSettingsReadResult,
 } from '../shared/pigiSettings';
 
@@ -50,10 +51,6 @@ const settingsPathArgument = process.argv.find((argument) =>
 const pigiSettingsPath = settingsPathArgument
   ? settingsPathArgument.slice(PIGI_SETTINGS_PATH_ARGUMENT.length)
   : null;
-
-function isMissingFileError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
-}
 
 // =============================================================================
 // Per-session port management (keyed by sessionPath)

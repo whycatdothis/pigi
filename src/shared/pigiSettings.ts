@@ -31,8 +31,16 @@ export interface ChatSettings {
   toolBlockViewMode: ToolBlockViewMode;
 }
 
+/** Whether a failed read means "no file yet" rather than a file that is broken. */
+export function isMissingFileError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
+}
+
+/** Bumped when the stored shape changes; `parsePigiSettings` migrates older ones. */
+export const PIGI_SETTINGS_VERSION = 2;
+
 export interface PigiSettings {
-  version: 2;
+  version: typeof PIGI_SETTINGS_VERSION;
   appearance: AppearanceSettings;
   chat: ChatSettings;
 }
@@ -57,7 +65,7 @@ export const TOOL_BLOCK_VIEW_MODES: readonly ToolBlockViewMode[] = [
 ];
 
 export const DEFAULT_PIGI_SETTINGS: PigiSettings = {
-  version: 2,
+  version: PIGI_SETTINGS_VERSION,
   appearance: DEFAULT_APPEARANCE,
   chat: { toolBlockViewMode: 'compact_read' },
 };
@@ -102,7 +110,7 @@ function migrateFromV1(raw: unknown): PigiSettings {
   const accentId = isAccentPresetId(record.accentId) ? record.accentId : DEFAULT_THEME_ACCENT_ID;
 
   return {
-    version: 2,
+    version: PIGI_SETTINGS_VERSION,
     appearance: {
       ...appearance,
       mode,
@@ -137,9 +145,9 @@ export type PigiSettingsReadResult =
  * store must not prevent the app from starting.
  */
 export function parsePigiSettings(raw: unknown): PigiSettings {
-  if (isRecord(raw) && raw.version === 2) {
+  if (isRecord(raw) && raw.version === PIGI_SETTINGS_VERSION) {
     return {
-      version: 2,
+      version: PIGI_SETTINGS_VERSION,
       appearance: parseAppearance(raw.appearance, legacyDiagramTheme(raw) ?? DEFAULT_DIAGRAM_THEME),
       chat: parseChat(raw.chat),
     };

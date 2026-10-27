@@ -10,10 +10,11 @@
  * Writes are atomic: a half-written file would drop every appearance setting,
  * and a temp file plus rename costs nothing at this size.
  */
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
   DEFAULT_PIGI_SETTINGS,
+  isMissingFileError,
   parsePigiSettings,
   type PigiSettings,
 } from '../shared/pigiSettings';
@@ -22,10 +23,6 @@ import { formatHex, parseCssColor } from '../shared/colorMath';
 
 /** File name inside `app.getPath('userData')`. */
 export const PIGI_SETTINGS_FILE_NAME = 'settings.json';
-
-function isMissingFileError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
-}
 
 /**
  * Reads and normalizes the file. `exists` is false when there is nothing on
@@ -56,8 +53,14 @@ export function readPigiSettingsFile(path: string): { settings: PigiSettings; ex
 export function writePigiSettingsFile(path: string, settings: PigiSettings): void {
   mkdirSync(dirname(path), { recursive: true });
   const temporaryPath = `${path}.tmp`;
-  writeFileSync(temporaryPath, `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
-  renameSync(temporaryPath, path);
+  try {
+    writeFileSync(temporaryPath, `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
+    renameSync(temporaryPath, path);
+  } catch (error) {
+    // A failed write must not leave the half-written file next to the real one.
+    rmSync(temporaryPath, { force: true });
+    throw error;
+  }
 }
 
 /**
