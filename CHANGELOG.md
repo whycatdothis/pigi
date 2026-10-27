@@ -4,12 +4,6 @@
 
 ### Changed
 
-- The thinking label's sweep is a highlight again. The band was drawn in
-  `--foreground`, which on a light theme is near-black, so the label looked like
-  a dark bar travelling across it; it now mixes the secondary text 85% toward
-  white (`--app-shimmer-highlight`, derived per theme) and is narrower, so it
-  reads as light crossing the label on any page colour
-
 - Small text uses the named type scale everywhere: `text-sm`/`text-xs` were the
   same sizes as `text-body`/`text-caption` under Tailwind's names, and the last
   126 call sites now use the role names, so one size has one name and the check
@@ -39,6 +33,15 @@
 
 ### Fixed
 
+- In dark mode the composer's model row no longer sits on a lighter band than the
+  input above it: the composer's box is opaque in dark mode too, instead of
+  letting the footer row pulled up behind it show through. Light mode was already
+  opaque, which is why only the dark theme looked wrong
+- The thinking label's sweep is a highlight again. The band was drawn in
+  `--foreground`, which on a light theme is near-black, so the label looked like
+  a dark bar travelling across it; it now mixes the secondary text 85% toward
+  white (`--app-shimmer-highlight`, derived per theme) and is narrower, so it
+  reads as light crossing the label on any page colour
 - Closing the minimap list by moving the pointer away no longer flashes the whole list for one frame before it disappears: the exit animation holds its final invisible values until the list unmounts, and the fading list is inert, so it cannot take a click or keep a tab stop. A cancel-safe timer unmounts it if the animation never reports that it ended
 - Ordered list items sit at twice the prose step (24px at the default text size) instead of the tight bulleted-list gap, so a numbered list of one- or two-line steps reads as separate actions at every text size
 

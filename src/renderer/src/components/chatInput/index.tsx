@@ -889,7 +889,12 @@ export default function ChatInput({
             )}
             <InputGroup
               className={cn(
-                'relative h-auto flex-col [--input-group-radius:var(--radius-surface-xl)] border bg-background shadow-composer',
+                // `dark:bg-background` cancels the input group's translucent
+                // dark fill: the composer sits on a footer row that is pulled up
+                // behind it, and a see-through box showed that row as a lighter
+                // band under the editor, right across the model row. Light mode
+                // was already opaque, which is why only dark mode looked wrong.
+                'relative h-auto flex-col [--input-group-radius:var(--radius-surface-xl)] border bg-background dark:bg-background shadow-composer',
                 !isNewSession && 'min-h-28',
               )}
               data-has-attachments={attachments.length > 0 || undefined}
