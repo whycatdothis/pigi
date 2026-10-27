@@ -7,7 +7,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { AppearanceSettings } from './appearanceSettings';
-import { flushPigiSettingsWrites, useSettingsStore } from '../../state/settingsStore';
+import { useSettingsStore } from '../../state/settingsStore';
 import {
   DEFAULT_APPEARANCE,
   DEFAULT_CONTRAST,
@@ -26,14 +26,18 @@ import {
 
 let bridge: PigiSettingsBridge;
 
-/** What the settings file holds now: the store debounces, so ask it to write. */
+/**
+ * The look the owner last received.
+ *
+ * A commit sends the slice it changed and the fake owner applies it, so the
+ * bridge's current snapshot is what a second window would read from the file.
+ */
 function storedAppearance(): Appearance {
-  flushPigiSettingsWrites();
-  const written = bridge.writes.at(-1);
-  if (!written) {
+  const changes = bridge.changes;
+  if (changes.length === 0) {
     throw new Error('Nothing persisted');
   }
-  return parseAppearance(written.appearance);
+  return parseAppearance(bridge.current().appearance);
 }
 
 function seed(): void {
@@ -42,6 +46,7 @@ function seed(): void {
   bridge = installPigiSettingsBridge();
   useSettingsStore.setState({
     version: 2,
+    revision: 0,
     appearance: DEFAULT_APPEARANCE,
     chat: { toolBlockViewMode: 'compact_read' },
   });
