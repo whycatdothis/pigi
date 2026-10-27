@@ -4,103 +4,63 @@
 
 ### Changed
 
-- Small text uses the named type scale everywhere: `text-sm`/`text-xs` were the
-  same sizes as `text-body`/`text-caption` under Tailwind's names, and the last
-  126 call sites now use the role names, so one size has one name and the check
-  rejects the old steps in app code. Two visible consequences: the renamed call
-  sites inherit the body's 1.6 line-height instead of the 17 / 22 / 26px line
-  boxes their old steps carried, and three 17px titles (dialog and sheet titles,
-  the session-tree search field) render at 15px, the closest role
-- Every corner is named by role now: the last `rounded-md`/`lg`/`sm`/`xl` call
-  sites (including the shadcn primitives) use the semantic tiers, so a radius no
-  longer moves when `--radius` moves, and `npm run check` rejects the scale
-  steps and the primitive `--radius-*` variables the way it already rejected
-  arbitrary values. This is not only a rename: menus and dialog rows were on
-  `rounded-md` (9.6px) and now use `--radius-control` (14px), while the
-  `rounded-lg` (12px) and `rounded-xl` (16.8px) surfaces land on
-  `--radius-surface` (20px)
-- The message minimap opens and closes with a `display`/`opacity` transition
-  (`allow-discrete` with `@starting-style`) instead of an exit animation that
-  unmounted the panel from its own `animationend`, with a timer under it in case
-  that event never arrived: one boolean describes the panel now, the exit cannot
-  desync from the state, and the closing fade still never paints a frame at full
-  opacity
-- pigi's settings have one writer: the main process owns the file and a settings
-  change sends only the slice it edited, so a commit cannot overwrite a value it
-  never touched. The write happens as the change arrives — no debounce to lose on
-  quit — and only main writes, so writes reach the file in the order they were
-  made
+- Corners are a little rounder across the window: buttons, inputs and rows sit at the app's 14px control tier and menus, dialogs and cards at 20px
+- Small text keeps its size on the body's roomier line spacing, and three 17px titles (dialog and sheet titles, the session tree's search field) render at 15px
+- The message minimap fades out instead of vanishing in one frame, and a list that is fading takes neither a click nor a tab stop
+- Settings are written the moment you change them, one setting at a time: a change survives quitting the app, and one control can no longer overwrite a value it never touched
 
 ### Fixed
 
-- In dark mode the composer's model row no longer sits on a lighter band than the
-  input above it: the composer's box is opaque in dark mode too, instead of
-  letting the footer row pulled up behind it show through. Light mode was already
-  opaque, which is why only the dark theme looked wrong
-- The thinking label's sweep is a highlight again. The band was drawn in
-  `--foreground`, which on a light theme is near-black, so the label looked like
-  a dark bar travelling across it; it now mixes the secondary text 85% toward
-  white (`--app-shimmer-highlight`, derived per theme) and is narrower, so it
-  reads as light crossing the label on any page colour
-- Closing the minimap list by moving the pointer away no longer flashes the whole list for one frame before it disappears: the exit animation holds its final invisible values until the list unmounts, and the fading list is inert, so it cannot take a click or keep a tab stop. A cancel-safe timer unmounts it if the animation never reports that it ended
-- Ordered list items sit at twice the prose step (24px at the default text size) instead of the tight bulleted-list gap, so a numbered list of one- or two-line steps reads as separate actions at every text size
+- In dark mode the composer is one colour: the model row no longer sits on a lighter band than the input above it
+- The thinking label's sweep is a highlight again; on light themes it looked like a dark bar travelling across the text
+- Ordered list items sit at twice the prose step, so a numbered list of short steps reads as separate actions
 
 ## [0.4.23] - 2026-10-27
 
 ### Added
 
-- A full-page settings view (⌘ ,): Appearance, Chat and Shortcuts for pigi, and Models & Thinking, Message Delivery, Compaction, Retry, Resources and Advanced for pi, with a Global / This project switch that writes to pi's `settings.json`
-- Appearance settings: mode with a live preview, accent, background and foreground colors, contrast, text and code fonts and sizes
-- Named themes (pigi, GitHub, Catppuccin, Nord, Gruvbox, Everforest, Notion, Linear), plus copying the current look out as a theme file and pasting one back in
-- 18 code themes and 12 diagram themes, each with a real code block or diagram redrawn under its picker as you choose
-- Mermaid diagrams in messages: drawn as they stream, with a source switch, a zoom overlay (wheel, pinch, drag, Escape), and text that stays selectable and searchable
-- A design-token layer for radius, spacing, elevation and motion, with `docs/design-system.md`, a check that fails the build on hard-coded values, and `__designTokens()` in dev builds to render the set
+- A full-page settings view (⌘ ,): Appearance, Chat and Shortcuts for pigi, and Models & Thinking, Message Delivery, Compaction, Retry, Resources and Advanced for pi, with a Global / This project switch
+- Appearance settings: mode with a live preview, accent, background and foreground colours, contrast, text and code fonts and sizes
+- Named themes (pigi, GitHub, Catppuccin, Nord, Gruvbox, Everforest, Notion, Linear), and copying the current look out as a theme file or pasting one back in
+- 18 code themes and 12 diagram themes, each drawn under its picker as you choose
+- Mermaid diagrams in messages: drawn as they stream, with a source switch, a zoom overlay and text that stays selectable
 
 ### Changed
 
-- pigi's settings moved from localStorage to `settings.json` in the app data folder, migrated on first launch, written atomically and debounced
-- The accent is the theme colour: solid buttons, the checked switch and the sidebar action use it, split into a fill that keeps its white label readable and a text accent that clears 4.5:1 for links and icons
-- Corners are superellipses everywhere, sized by role: transcript surfaces one tier below cards, the composer one above, markdown tables a single 10px step
-- Typography has two families (text and code). Markdown headings and tables follow the text size instead of fixed pixels
-- Message spacing follows the text size and two rules: same kind of block sits at its own step, a change of kind sits wider. Only the last row of a reply keeps the hover action band, and a table or code block after list text is no longer flush against it
+- pigi's settings live in `settings.json` in the app data folder, migrated from localStorage on first launch
+- The accent colours the app: solid buttons, the checked switch, links and sidebar actions
+- Corners are continuous superellipses, sized by role, and the composer sits one tier above the transcript's cards
+- Two type families, one for text and one for code; markdown headings and tables follow the text size
+- Message spacing follows the text size, and a change of kind of block sits wider than two blocks of the same kind
 - The Chat settings page is one row: a Default view switch instead of three described options
-- The minimal view's shimmer is a gradient inside the text's own glyphs instead of a second, brighter copy revealed through a moving window
-- Sidebar and menu rows show their shortcut as a bordered keycap on hover (New chat, Open project, Settings, Back to app), and the Shortcuts page's closing line draws ⌘ , as a keycap instead of plain text
-- The comment editor's Save is an outline button, so only the quotes tab's Send carries the accent fill
-- A sent quote now opens with its number on the quoted line (`1. > quoted text`) instead of the number standing on a line of its own
+- The minimal view's shimmer runs inside the glyphs instead of revealing a second, brighter copy through a moving window
+- Sidebar and menu rows show their shortcut as a keycap on hover
+- A sent quote opens with its number on the quoted line
 
 ### Fixed
 
-- The pi settings pages load in an unfocused or occluded window; they used to wait for an animation frame that such a window never produces
-- Opening Appearance, Chat or Shortcuts no longer reads pi's settings files, and a pi settings value outside its declared range is refused instead of written
-- A settings file that cannot be parsed is left alone instead of being replaced with the old localStorage value
-- Code blocks keep one theme per surface instead of registering a new one for every frame of a colour-picker drag
-- Switch tracks are 20px, so the thumb sits on whole pixels
-- Popover, dialog and context-menu surfaces keep a visible hairline around their corners: the 0.5px ring drew the straight edges and vanished along a 20px arc, so the edge is an outline now
-- A button that sets its own type size keeps it: the class merge understands the named type scale, so the model picker's label is 15px again instead of the variant's 13px
-- The font pickers no longer list their default twice, and their values are left-aligned
+- The pi settings pages load in an unfocused or occluded window
+- Opening a pigi settings page no longer reads pi's settings files, and a pi value outside its declared range is refused instead of written
+- A settings file that cannot be parsed is left alone instead of being replaced
+- Popover, dialog and context-menu surfaces keep a visible hairline around their corners
 - Tool status, diff, toast and warning colours follow the theme, so they stay readable in dark mode
-- The terminal follows the code font and size; native window chrome and menus follow the chosen appearance
-- Code blocks use a dark palette in dark mode, every token clearing 3:1 against the code background
-- A code block that is still streaming is highlighted on a throttle instead of on every chunk, and rebuilds only the text that came in with the chunk rather than every highlighted line above it
-- Update checks no longer pull the window mid-countdown, the update window closes itself when a background check finds nothing, and an install Squirrel never finishes returns to "ready to install"
-- An update status that arrives while a window is still reading the current one no longer overwrites it with the older answer
-- The update window resets its zoom whenever it appears, so View-menu zoom cannot clip its own buttons, and only that window can resize it
-- Message minimap lines are one device pixel thick on every display: they sit on an 8px pitch, so no line lands on a different subpixel phase
+- The terminal follows the code font and size, and the native window chrome and menus follow the chosen appearance
+- Code blocks use a dark palette in dark mode, every token clearing 3:1
+- A streaming code block is highlighted on a throttle instead of on every chunk, so long output no longer stutters
+- Update checks no longer pull the window mid-countdown, and the update window closes itself when a background check finds nothing
+- Message minimap lines are one device pixel thick on every display
 - The minimap's hover list opens flush against the side edge and covers the lines
-- The minimap list works from the keyboard: Tab reaches its rows, Enter opens it, and Escape closes it, returns focus to the lines, and does not flash the list back for a frame on the way out
-- The live state label's letters no longer look doubled: the shimmer paints one copy of the glyphs, and it stays visible where the clip is unsupported or motion is reduced
-- With reduced motion the live state label pulses at a fixed pace; the shimmer's measured width no longer retimes that pulse
-- A tool block keeps one gap between the title and its output and the same gap to the status bar, with or without Show more; a block with no output no longer pays the gap twice
+- The minimap list works from the keyboard: Tab reaches its rows, Enter opens it, Escape closes it and returns to the lines
+- The live state label's letters no longer look doubled
+- With reduced motion the live state label pulses at a fixed pace
 
 ## [0.4.22] - 2026-10-24
 
 ### Fixed
 
-- The update window really does size itself to its content now. Until this fix a download's Cancel and Install buttons were clipped off the bottom of the window, and "pigi is up to date" left the window at its opening height.
-- "Check for Updates" opens the window when a background check is already running, instead of appearing to do nothing.
-- "Install and Restart" says "Restarting to install…" while the bundle is being swapped in, so the click has an answer.
-- "Later" only closes the window - it was going through the cancel path - and Escape closes it the same way.
+- The update window sizes itself to its content, so a download's Cancel and Install buttons are no longer clipped off the bottom
+- "Check for Updates" opens the window when a background check is already running instead of appearing to do nothing
+- "Install and Restart" says "Restarting to install…" while the bundle is swapped in, and "Later" only closes the window
 
 ## [0.4.21] - 2026-10-24
 
@@ -112,59 +72,57 @@
 
 ### Changed
 
-- The update window is a normal titled window that sizes itself to what it has to show, instead of a fixed frameless box: one line for a check, a progress bar and its buttons while a download runs
-- It reads like a system update dialog - app icon, bold status, progress bar, byte count - and its buttons use the theme accent
-- "Check for Updates" opens its window immediately, so the click answers at once instead of after the check
-- "pigi is up to date" is shown in that window, marked as closing itself after a second, instead of a notification in the main window
-- The Settings menu rows match the size of the sidebar row they belong to, and the "Update to <version>" row carries the same dot as the Settings button
+- The update window is a normal titled window that sizes itself to what it has to show: one line for a check, a progress bar and its buttons while a download runs
+- It reads like a system update dialog, with the app icon, a bold status, a progress bar and a byte count
+- "Check for Updates" opens its window immediately, and "pigi is up to date" is shown there instead of as a notification in the main window
+- Settings menu rows match the size of the sidebar row they belong to
 
 ## [0.4.19] - 2026-10-24
 
 ### Added
 
-- "Check for Updates…" in the macOS app menu; it follows the update status (checking, downloading, ready to install)
+- "Check for Updates…" in the macOS app menu, following the update status
 
 ### Fixed
 
-- The update dot and the download progress bar use the theme accent colour instead of a hard-coded blue
-- Background update checks are spread by ±10 minutes instead of landing on a fixed two-hour cadence
+- The update dot and the download progress bar use the theme accent instead of a hard-coded blue
+- Background update checks are spread by ±10 minutes instead of landing on a fixed cadence
 
 ## [0.4.18] - 2026-10-23
 
 ### Added
 
-- pigi updates itself: a downloaded update lights a blue dot on Settings, which offers "Update to <version>" and restarts into it
-- "Check for Updates" in the Settings menu, with a progress window that shows the download and can cancel it
+- pigi updates itself: a downloaded update lights a dot on Settings, which offers "Update to <version>" and restarts into it
+- "Check for Updates" in the Settings menu, with a progress window that can cancel the download
 
 ## [0.4.17] - 2026-10-23
 
 ### Fixed
 
-- Cmd+Enter sends the quotes again. After quoting a passage in a session whose quotes panel was already open, the shortcut did nothing until the session was reopened
+- Cmd+Enter sends the quotes again after quoting a passage in a session whose quotes panel was already open
 
 ## [0.4.16] - 2026-10-23
 
 ### Added
 
-- Dragging either sidebar past its minimum width collapses it, with the same animation as the toggle; dragging back out reopens it, and the resize cursor stays for the whole drag
-- A plus under the quotes adds a global comment on all of them, sent after the quotes and labeled as such
-- Cmd+Enter sends the quotes while the right sidebar is open; the shortcut is shown on the Send button and can be changed in settings
+- Dragging either sidebar past its minimum width collapses it, with the same animation as the toggle; dragging back out reopens it
+- A plus under the quotes adds a global comment on all of them, sent after the quotes and labelled as such
+- Cmd+Enter sends the quotes while the right sidebar is open, and the shortcut is shown on the Send button
 
 ### Changed
 
-- The right sidebar can be dragged much wider on a large window, and narrows again when the window does. Quotes stay in a readable column however wide it gets
-- Sent quotes form a more compact message, without blank lines between the quotes
+- The right sidebar can be dragged much wider on a large window, and narrows again when the window does
+- Sent quotes form a more compact message, without blank lines between them
 
 ### Fixed
 
-- Sending the first message of a new session no longer opens the right sidebar just because another session had it open. Each session remembers whether its sidebar is open, across restarts
+- Sending the first message of a new session no longer opens the right sidebar just because another session had it open; each session remembers its own sidebar
 
 ## [0.4.15] - 2026-10-23
 
 ### Added
 
-- Quote passages from the conversation: select text in a message and a Quote button appears next to where the selection ends (or press Q); add a comment, and the quote is collected in a new right sidebar where comments can be edited or deleted. Send turns all quotes into one message. Unsent quotes are kept across restarts
-- A right sidebar with tabs, toggled from the button at the right end of the session toolbar. Quotes is its first tab
+- Quote passages from the conversation: select text in a message and a Quote button appears (or press Q); add a comment, and the quotes collect in a right sidebar where they can be edited, deleted and sent as one message. Unsent quotes are kept across restarts
 
 ### Changed
 
@@ -172,48 +130,46 @@
 
 ### Fixed
 
-- When an extension compacts the context right after a response finishes, the working bar stays visible and messages sent during compaction show in the queue, instead of disappearing until compaction ends
-- Editing a message whose response was stopped mid tool call goes back to before it, instead of reporting that the message has no reply to leave
-- Moving the session to the message it is already at no longer drops a model or thinking level change made after it
-- After going back to before the first message, the session tree opens the newest version instead of folding everything away, which left a single-version session with an empty list and no way to get back
-- Buttons and other controls show a focus ring only while navigating with Tab or the arrow keys. Clicking a control and then pressing Shift or Escape, or closing a menu with the mouse after typing, no longer leaves a ring on it
+- When an extension compacts the context right after a response, the working bar stays visible and messages sent during compaction show in the queue
+- Editing a message whose response was stopped mid tool call goes back to before it instead of reporting that there is no reply to leave
+- Moving the session to the message it is already at keeps a model or thinking level change made after it
+- After going back to before the first message, the session tree opens the newest version
+- Buttons and other controls show a focus ring only while navigating with Tab or the arrow keys
 
 ## [0.4.14] - 2026-10-22
 
 ### Added
 
-- A session that finishes while you are in another one shows an accent-colored dot in the sidebar in place of its time, until you open it. The dot is kept across restarts
-- Edit any message you sent from the toolbar under it: the conversation goes back to before that message, without a summary, and the message returns to the chat input. What came after stays reachable in the session tree
+- A session that finishes while you are in another one shows an accent dot in the sidebar in place of its time, until you open it
+- Edit any message you sent: the conversation goes back to before it, without a summary, and the message returns to the chat input
 
 ### Changed
 
 - The branch summary prompt's two answers are styled alike, with no highlighted default
-- The path completion list opens above the path you are typing instead of at the left edge of the chat input, and folders no longer end with `/`
+- The path completion list opens above the path you are typing, and folders no longer end with `/`
 
 ### Fixed
 
-- Extension commands (such as `/plannotator-review`) show a terminal icon in the chat input, matching the sent message, instead of the skill icon
-- Spinners (the star in the working bar, a running session in the sidebar, reading and thinking in the transcript, loading toasts) keep turning while the app is busy (for example while a long tool output streams in) instead of freezing
-- A message taken back to the chat input (editing it, moving the session to it, or continuing before it in a new chat) keeps its images and files, instead of showing the attached file list and pasted file contents as text and losing its images
+- Extension commands such as `/plannotator-review` show a terminal icon in the chat input, matching the sent message
+- Spinners keep turning while the app is busy, for example while a long tool output streams in
+- A message taken back to the chat input keeps its images and files instead of showing them as text
 
 ## [0.4.13] - 2026-10-21
 
 ### Added
 
-- Attach files and images to a message with the `+` button, by pasting, or by dropping them on the chat input. Messages sent while the agent is working (steer and follow-up) keep their attachments, and files too large to attach are refused with a message
-- Images and files you send appear inside your message; click an image to see it larger, or a file to preview it (Quick Look on macOS, the file manager elsewhere)
-- Type `@` to reference a project file: the most recently modified files show before you type, then results narrow as you type, with file-type icons
-- Type a path (anything with a `/`, or `~` for your home folder) to complete files and folders with fuzzy matching. A completed path becomes a chip that shows the whole path; a folder stays open until you type a space, so you can keep typing or pick to go deeper, and Backspace goes up a level
-- Skills, slash commands and `@` file references show as labels with icons, both in the chat input and in sent messages
-- A button at the top of the sidebar, or Cmd+B, hides and shows it, with an animation; hovering the button shows the shortcut
+- Attach files and images with the `+` button, by pasting, or by dropping them on the chat input; messages sent while the agent is working keep their attachments
+- Images and files you send appear inside your message; click one to see it larger or to preview it
+- Type `@` to reference a project file: recent files show first, then results narrow as you type
+- Type a path to complete files and folders with fuzzy matching; a completed path becomes a chip, and Backspace goes up a level
+- Skills, slash commands and `@` references show as labels with icons, in the chat input and in sent messages
+- A button at the top of the sidebar, or Cmd+B, hides and shows it
 
 ### Changed
 
 - Choosing a project with `#` returns focus to the chat input
-- New sidebar icons for new chat, project folders and opening a project
-- The session title in the toolbar no longer has an icon in front of it
-- Send and stop buttons use the accent color
-- Taller lines in the chat input
+- New sidebar icons, and the session title in the toolbar no longer has one in front of it
+- Send and stop buttons use the accent colour, and the chat input's lines are taller
 
 ### Fixed
 
@@ -224,24 +180,25 @@
 
 ### Changed
 
-- The session list and the chat area meet in a straight line: the rounded corner between them is gone, and the hairline that separates them runs the full height of the window
-- The macOS download is named `pigi-arm64.dmg` instead of `pigi-<version>-arm64.dmg`, so the site can link to `releases/latest/download/pigi-arm64.dmg` and hand out the newest release the moment it is published, with nothing to rebuild
+- The session list and the chat area meet in a straight line, with the hairline between them running the full height of the window
+- The macOS download is named `pigi-arm64.dmg`, so the site can link to the newest release as soon as it is published
 
 ## [0.4.11] - 2026-10-12
 
 ### Added
 
-- Session tree: the tree button in the session toolbar (or `/tree`) shows every branch of the session, not just the one you are on. Search it, filter by `User` / `Assistant` / `Tools` / `Summaries`, hover a row to preview the message, and pick one (click or Enter) to continue the session from there. Hovering a row lights the branch line that leads to it, and the rows it hangs from stay pinned at the top while you scroll
-- Session tree: when a move would leave messages behind, you can have them summarized first; the summary joins the conversation as context, and a running summary can be cancelled
-- Fork any message into a new chat: the conversation up to that point is copied into a new session with the same model and thinking level, and the original stays where it was. Forking before one of your messages puts that message back in the input box so you can reword it
-- Forked chats are listed under the chat they came from in the sidebar
+- Session tree: the tree button in the session toolbar (or `/tree`) shows every branch of the session — search it, filter by User, Assistant, Tools or Summaries, hover a row to preview the message, and pick one to continue from there
+- A move that would leave messages behind can summarize them first, and a running summary can be cancelled
+- Fork any message into a new chat, with the same model and thinking level; forking before one of your messages puts it back in the input
+- Forked chats are listed under the chat they came from
 - Every message shows `tree` and `fork` actions on hover, with a `?` that explains the session tree
-- The new-chat input keeps its draft: text typed without sending is still there the next time you start a new chat
+- The new-chat input keeps its draft across restarts
 
 ### Changed
 
-- Tooltips use the app's surface colour instead of black, without the arrow
-- Icons are drawn slightly bolder across the app
+- Tooltips use the app's surface colour instead of black, and icons are drawn slightly bolder
+
+### Fixed
 
 - Draft text is no longer lost when switching between a session and the new-chat screen
 - Narrowing the window keeps the chat input and the streaming queue aligned with the messages
@@ -250,571 +207,495 @@
 
 ### Changed
 
-- Auto-follow during streaming now keeps the message list glued to the exact bottom: content stays above the input with no drift, and every auto-scroll (new message, scroll-to-bottom button) lands fully at the end
-- Scrolling up more than a few lines while output streams stops the follow; scrolling back down to the bottom resumes it. Small wheel nudges no longer stop the follow
-- The Working bar and queued messages reserve their own space below the message list instead of overlapping it, so they can never cover the transcript
+- Auto-follow keeps the message list glued to the exact bottom, and every auto-scroll lands fully at the end
+- Scrolling up more than a few lines stops the follow, and scrolling back down resumes it; small wheel nudges no longer stop it
+- The Working bar and queued messages reserve their own space below the list instead of covering the transcript
 - Less empty space below the last message
 
 ### Fixed
 
-- Tool cards and other content that grow after they appear no longer push the end of the transcript under the bottom edge, leaving the list stuck short of the bottom until you scrolled manually
+- Content that grows after it appears no longer leaves the list stuck short of the bottom
 
 ## [0.4.9] - 2026-09-11
 
 ### Added
 
-- The session toolbar is now a draggable title bar region — drag anywhere on the toolbar to move the window
-- Message list scrollbar stays thin at all times instead of occasionally showing the thick system scrollbar
+- The session toolbar is a title bar region: drag anywhere on it to move the window
 
 ### Changed
 
-- Picking a model now keeps the picker open and opens the thinking-level menu so you can confirm a thinking level for the new model; the picker closes once you pick one (or dismiss it)
-- Tool cards shift less while a tool runs: edit and write cards reserve their body height from the first frame and only grow, command output is capped at a shorter height before "Show more", and the card's header, footer and toggle are tighter
+- Picking a model keeps the picker open and asks for a thinking level, so a new model can be confirmed in one go
+- Tool cards shift less while a tool runs: edit and write cards reserve their height up front, and command output is capped sooner
 - Long lines in tool output scroll horizontally instead of wrapping
-- The chat input grows to at most half its previous maximum height before scrolling
-- The login dialog now has OAuth and API key tabs side by side with a fixed height; the API key form is always visible instead of hidden behind "Add provider"
-- Login dialog: signed-in OAuth providers are listed first, the list scrollbar is hidden, and Login buttons match the Logout style instead of solid black
+- The chat input's maximum height before scrolling is halved
+- The login dialog has OAuth and API key tabs side by side, with the API key form always visible
 - Terminal tabs are slightly taller
 
 ### Fixed
 
-- New sessions no longer occasionally start without your gateway/OAuth models (and with a model picker that refuses to switch). This happened when a session was created while another process was refreshing a login token, most visibly right after launching the app; logging in or out in one session is now also picked up by all others without restarting them
-- The sidebar no longer wobbles sideways after expanding many sessions with "Show more"
-- The view-mode menu in the toolbar has proper list sizing and spacing again, with the check mark right beside the selected label
-- Queued steer/follow-up messages no longer cover the transcript: the message list raises its bottom edge as the queue grows taller
-- Selected text in the terminal is clearly visible again in light and dark themes
-- Cmd+K clears the terminal buffer while the terminal is focused
-- Resizing the window no longer stutters or makes messages jump when the width passes 768, 1024, 1280 or 1536px
-- Opening or resizing the terminal no longer covers messages; the latest messages stay visible while reading history preserves your position
-- Dragging the terminal resize handle now smoothly resizes the chat input and message list
-- Dragging the sidebar edge no longer re-renders the whole app on every pointer move; the width follows the pointer and is saved on release
-- Resizing the window does less work per frame in long conversations: the message minimap tracks its own width and virtual rows reuse observed heights instead of re-measuring every visible row
-- The git branch shown in the chat input refreshes when you create a session, switch sessions, or switch project in a new session
-- Code blocks, tables, tool output and the login dialog no longer rubber-band when scrolled past their edge on macOS, which previously exposed transparent backgrounds and shifted code away from its header
-- Tab bars now lay out horizontally and highlight the active tab correctly
-- The active terminal tab shows its rounded grey background again
+- New sessions no longer start without gateway or OAuth models after another process refreshes a login token; logging in or out is picked up by every session
+- A collapsed project no longer makes the sidebar wobble sideways
+- Queued steer and follow-up messages no longer cover the transcript
+- Selected text in the terminal is clearly visible in both themes
+- Resizing the window no longer stutters or makes messages jump at 768, 1024, 1280 or 1536px
+- Opening or resizing the terminal no longer covers messages
+- Dragging the sidebar edge or the terminal handle follows the pointer and no longer re-renders the app on every move
+- The git branch in the chat input refreshes when you create a session, switch sessions or switch project
+- Code blocks, tables, tool output and the login dialog no longer rubber-band when scrolled past their edge on macOS
+- Tab bars lay out horizontally and highlight the active tab, and the active terminal tab shows its grey background again
 
 ## [0.4.8] - 2026-09-07
 
 ### Added
 
-- Use Cmd+Shift+[ and Cmd+Shift+] to cycle through threads in the current project in sidebar order, wrapping between the first and last threads
-- `/reload` slash command reloads extensions, skills, prompts, settings and context files without restarting the session
+- Cmd+Shift+[ and Cmd+Shift+] cycle through threads in the current project, wrapping at the ends
+- `/reload` reloads extensions, skills, prompts, settings and context files without restarting the session
 
 ### Fixed
 
-- Switching back to a session now restores the position you left it at — previously it could land at the previous session's position or an unrelated spot
-- Auto-follow no longer stalls or vibrates while new output streams in, and streaming cards no longer overflow the breathing room below the last message
-- Arrow-up/down history recall now respects soft-wrapped lines — previously it triggered history even when the cursor was on a wrapped (visual) line that wasn't the first or last
+- Switching back to a session restores the position you left it at
+- Auto-follow no longer stalls or vibrates while output streams in
+- Arrow-up/down history recall respects soft-wrapped lines
 
 ## [0.4.7] - 2026-09-06
 
 ### Fixed
 
 - Streaming message lists no longer freeze mid-turn or jolt when a turn finishes
-- Auto-follow is more reliable: the list keeps following new output whenever the latest message is still fully visible, instead of randomly stopping
-- Switching sessions restores your exact scroll position; opening a session lands on the newest messages, and scrolling back to the bottom lands cleanly without chasing a moving target
-- Opening the terminal no longer shifts the message list — only the chat input rises above the panel, and messages no longer show through the bar under the input
+- Auto-follow keeps following while the latest message is fully visible, instead of stopping at random
+- Switching sessions restores your exact scroll position
+- Opening the terminal no longer shifts the message list
 - Read groups no longer freeze while the model thinks between file reads
 
 ## [0.4.6] - 2026-09-01
 
 ### Added
 
-- Extension commands (e.g. `/plannotator-review`) now appear in the slash command autocomplete menu
-- Extension notifications are displayed as toast messages instead of being silently ignored
-- Slash commands render as a styled command pill in the chat instead of a plain text bubble
+- Extension commands appear in the slash command menu, and extension notifications arrive as toasts
+- Slash commands render as a styled pill instead of a plain text bubble
 
 ### Changed
 
-- Read groups now show "Explored N files" instead of "Looked into N files"
-- Git read-only commands (diff, log, show, status, blame, etc.) are collapsed into read groups and labeled separately as "checked git N times"
-- Thinking count is now visible during streaming, not just after completion
-- More bash commands recognized as read-only and collapsed: `sed`, `awk`, `nl`, `tac`, `sort`, `uniq`, `perl` (with read-only flags)
+- Read groups say "Explored N files", collapse git read-only commands separately, and show the thinking count while streaming
+- More commands are recognised as read-only and collapsed into those groups
 
 ### Fixed
 
-- Compact and Show All message lists no longer intermittently jump away from the bottom while many messages stream in.
-- Code blocks with long lines now show a horizontal scrollbar instead of clipping content
-- The copy button on code blocks no longer scrolls away when scrolling code horizontally
+- Compact and Show All lists no longer jump away from the bottom while many messages stream in
+- Code blocks with long lines scroll horizontally instead of clipping
+- The copy button no longer scrolls away when scrolling code sideways
 - Editing a queued message during compaction no longer fails silently
 
 ## [0.4.5] - 2026-08-17
 
 ### Fixed
 
-- Sending a message now reliably scrolls to the bottom and follows the reply again: auto-follow no longer trips on the list's own scroll positioning while the chat input collapses after sending (the lock is wheel-only again — keyboard and scrollbar scrolling no longer disable auto-follow).
+- Sending a message scrolls to the bottom and follows the reply again, without the chat input's collapse tripping auto-follow
 
 ## [0.4.4] - 2026-08-17
 
 ### Added
 
-- Code blocks in messages now show a copy button in the top-right corner, so you can copy the code inside a fenced block with one click.
+- Code blocks have a copy button in the top-right corner
 
 ### Fixed
 
-- Scrolling up now reliably locks the message list so streaming output no longer drags it back to the bottom: the virtualizer's scroll corrections are gated off while the lock is engaged (late row re-measurements, such as async code highlighting landing above the viewport, could still yank the locked viewport downward), and any scroll away from the bottom — including scrollbar drags and keyboard scrolling, not just wheel events — now disables auto-follow until the list is scrolled back down to the bottom.
-- The up and down arrow keys in the chat input now move the cursor between lines first: recalling previous messages only kicks in when the cursor is already on the first line (up arrow) or the last line (down arrow), so editing a multi-line message no longer suddenly jumps into message history.
-- The message list no longer micro-jitters when scrolling to the bottom of a long conversation: messages stay in place instead of shifting a few pixels as the list settles.
-- The model list can no longer get permanently stuck after a bad start: every catalog load is now time-boxed and aborted for real, a worker that cannot build the catalog is respawned fresh, and opening the model picker now kicks a background refresh — so a session opened quickly after launch no longer ends up with a missing or frozen model list that only an app restart could fix.
+- Scrolling up locks the message list so streaming output cannot drag it back to the bottom
+- The arrow keys in the chat input move the cursor between lines first, and recall history only at the first or last line
+- The message list no longer shifts a few pixels when it settles at the bottom
+- The model list can no longer get stuck after a bad start; loading it is time-boxed and retried
 
 ## [0.4.3] - 2026-08-13
 
 ### Added
 
-- New Minimal view provides a focused, compact way to follow agent work and final responses.
+- A Minimal view for following agent work and final responses
 
 ### Changed
 
-- User messages are more compact and long prompts take up less screen space.
-- Subagents now launch through the standalone pi CLI instead of opening another app window.
+- User messages are more compact, so long prompts take less screen space
+- Subagents run through the standalone pi CLI instead of opening another window
 
 ### Fixed
 
-- Chat input now recovers correctly after prompt or session startup errors.
-- Closing the terminal no longer disrupts the chat layout or sticky headers.
+- The chat input recovers after prompt or session startup errors
+- Closing the terminal no longer disturbs the chat layout
 
 ## [0.4.2] - 2026-08-07
 
 ### Added
 
-- Pressing the up arrow in the chat input now recalls your previous messages, one by one back through the whole conversation; the down arrow walks forward again. If you had started typing something, it is remembered and comes back when you press down — so nothing you wrote is lost.
+- Arrow-up recalls your previous messages and arrow-down walks forward again, keeping whatever you had started typing
 
 ### Fixed
 
-- In the sidebar, collapsing a project's chat list with "Show less" now sticks: the list no longer flickers and springs back open when the selected chat is one of the hidden older chats.
-- Clicking a chat in the sidebar no longer makes the list refresh or jump: resuming a chat leaves the list untouched, and the scroll-to-center behavior now applies only to selections made outside the list (session switcher, navigation history), not to your own clicks.
-- Thinking levels in a new chat now match the model you are on: models that support the strongest level (like Kimi K3's "max") offer it again, and the last-used level is clamped to what the current model actually supports instead of carrying over a level from another model.
+- "Show less" sticks, instead of flickering and springing back open when the selected chat is hidden
+- Clicking a chat in the sidebar no longer refreshes or jumps the list
+- A new chat's thinking levels match the model you are on
 
 ## [0.4.1] - 2026-08-05
 
 ### Changed
 
-- The view mode dropdown in the message toolbar now highlights the selected option (Compact / Show All) with the app's accent color and a matching check mark; the menu and its options have more breathing room.
+- The view mode menu highlights the selected option with the accent colour and a check mark
 
 ### Fixed
 
-- The model picker now reliably shows the full model list, including gateway models that load over the network: the model list is loaded once at startup, pushed to the app when ready, and refreshed when you log in or out — instead of being re-fetched and repeatedly polled by each chat, which could leave the picker stuck on a partial list.
-- A new chat's thinking-level options now follow your most recently used model instead of the first model in the list when the app has just started.
+- The model picker reliably shows the full model list, including gateway models that load over the network
+- A new chat's thinking levels follow your most recently used model
 
 ## [0.4.0] - 2026-07-31
 
 ### Fixed
 
-- The message list no longer visibly bounces while pinned to the bottom during fast streaming (most noticeable with quick models): the bottom pin now runs inside a ResizeObserver callback, so it applies in the same frame the content grows instead of one frame later.
+- The message list no longer bounces while pinned to the bottom during fast streaming
 
 ## [0.3.20] - 2026-07-29
 
-### Fixed
-
-- The message list no longer occasionally vibrates when it's scrolled to the bottom, which could happen shortly after opening a conversation.
-- The "Working..." indicator and the sidebar's running-session spinner stay smooth instead of stuttering while the app is busy rendering.
-- Syntax-highlighted code in write previews and command output no longer flickers between plain and colored text as it streams in.
-
 ### Changed
 
-- Tool blocks have a cleaner look: removed internal border lines, tightened spacing, and the status bar now uses colored text without a background fill.
-- The conversation header is slightly taller and shows a notebook icon before the (now medium-weight) title; its width is capped and horizontal padding tightened.
-- Tool block status bars now show a success/failure icon and just the elapsed time (dropped the "Elapsed"/"Took" labels), and status/thinking icons are a touch bolder.
-- Links, search highlights, the message mini-map, focus rings, and the "Working..." indicator now use a refined indigo accent color instead of following the (often muted) system accent. More accent colors are built in, ready for an upcoming picker in settings.
-- Large edit diffs render noticeably faster and are less likely to cause a hitch when they first appear, since off-screen diff lines are no longer laid out until scrolled into view.
-- Large highlighted output (writes, command results, code blocks) renders faster: off-screen lines are no longer laid out until scrolled into view.
+- Tool blocks are cleaner: no internal border lines, tighter spacing, and a status bar with coloured text instead of a background
+- The conversation header is slightly taller and shows the title without the old spacing
+- Tool block status bars show a success or failure icon and the elapsed time only
+- Links, search highlights, the minimap and the working indicator use a refined indigo accent
+- Large edit diffs and large highlighted output render faster
+
+### Fixed
+
+- The message list no longer vibrates shortly after opening a conversation
+- The working indicator and the sidebar's running spinner stay smooth while the app renders
+- Syntax highlighting in write previews and command output no longer flickers as it streams
 
 ## [0.3.19] - 2026-07-27
 
 ### Added
 
-- Built-in terminal panel that slides up from the bottom of the main area. Toggle it with the title-bar terminal icon or Cmd+J (the icon's tooltip shows the shortcut), and drag its top edge to resize. Its colors follow the app's light/dark theme, and it opens and closes with a smooth animation that stays fluid even on long conversations.
-- Terminal tabs, one strip per project. The "+" button opens a new terminal in the current project's directory; each tab shows the shell's title and has a close button. Tabs are grouped per project: switching projects shows that project's own tabs, and switching back restores them exactly (shells and scrollback intact). The 5 most-recently-used projects are kept alive, and a project's tabs are released after an hour of inactivity. macOS line-editing shortcuts work inside the terminal (Cmd/Option with arrows and delete), clicking a tab focuses its terminal, and closing the last tab (or the panel) returns focus to the chat input.
+- A terminal panel that slides up from the bottom, toggled with Cmd+J or the title-bar icon, resizable by its top edge and coloured by the theme
+- Terminal tabs per project: the shells, their scrollback and their order are kept when you switch away and back, macOS line-editing shortcuts work inside, and closing the last tab returns focus to the chat input
 
 ### Changed
 
-- In collapsed read groups, an over-long command now ellipsizes in the middle instead of the end, so the useful tail (filename, line range, final arguments) stays visible.
+- An over-long command in a collapsed read group ellipsizes in the middle, keeping the filename and line range visible
 
 ### Fixed
 
-- Sessions are auto-named again after the first exchange. The automatic title generation had silently stopped working after a recent model-system update.
+- Sessions are auto-named again after the first exchange
 
 ## [0.3.18] - 2026-07-23
 
 ### Added
 
-- Edit, write, and bash tool cards now show a placeholder skeleton while they run, instead of a blank card, so it's clear content is still loading.
+- Edit, write and bash tool cards show a placeholder skeleton while they run
 
 ### Changed
 
-- The title bar's bottom border is now a hairline that matches the sidebar divider, instead of the thicker, heavier line it used before.
-- A successful edit no longer fills its status footer with green, so it no longer blends into the green of the diff above it. The footer bar and timing stay; only the background is dropped.
+- The title bar's bottom border is a hairline matching the sidebar divider
+- A successful edit no longer fills its status footer with green, so it no longer blends into the diff above it
 
 ## [0.3.17] - 2026-07-23
 
 ### Changed
 
-- Tightened spacing in rendered messages: paragraphs and lists now share a single, more compact line-height, so bullet and numbered lists no longer feel loosely spaced.
-- Thinking blocks and long tool output now stay anchored to their latest lines when collapsed, with the Show more button above the content. Edit diffs still show from the top.
+- Paragraphs and lists share one tighter line height
+- Thinking blocks and long tool output stay anchored to their latest lines when collapsed
 
 ### Fixed
 
-- New sessions sometimes opened with an incomplete model list (notably missing Booking-Gateway models) when a provider was slow to load. The model picker now keeps refreshing until the full list is available, and it updates on its own right after you log in or out.
-- The message list and the scroll-to-bottom button sometimes stopped just short of the real bottom. Auto-scroll now lands exactly at the bottom.
+- New sessions no longer open with an incomplete model list; the picker keeps refreshing until the full list is available
+- Auto-scroll lands exactly at the bottom instead of a few pixels short
 
 ## [0.3.16] - 2026-07-22
 
 ### Added
 
-- Long block content (tool outputs, thinking text, user messages) now auto-collapses at 300px with a "Show more" / "Show less" button. For streaming tool output, the button floats above the content with a frosted-glass background while scrolling. For static content like user messages, the button sits below the clamped area.
-- Consecutive read-only tool calls (read, grep, ls) now auto-group into a compact collapsed row like "Looked into 3 files". Expanding the group shows full tool outputs with search highlight support. The "Working..." shimmer row now appears at the end of expanded content inside the group.
-- Thinking blocks inside read groups are shown as compact rows with a brain icon, duration, and chevron to expand the full block inline. Thinking blocks stay inside the group even after the thinking message finishes.
-- Thinking blocks now display the thinking duration in the header, with live ticking during streaming.
-- Tool block title rows now have a gray background for visual separation from the output body.
+- Long content (tool output, thinking, user messages) collapses at 300px with Show more / Show less
+- Consecutive read-only calls group into one compact row such as "Looked into 3 files", with search highlights inside
+- Thinking blocks show their duration, ticking live while streaming
+- Message search with Cmd+F: fuzzy search across messages and tool output, with keyboard navigation and a highlight for each match
 
 ### Changed
 
-- Tool block command timeout is now shown in the status bar (next to "Took Xs") instead of the title row.
-- Show more/less chevron direction adapts to whether the button is above or below content.
-- User message bubble spacing is now managed by a single container padding instead of individual margins.
-- Thinking block collapsed max height reduced to 120px.
-- Thinking duration format: sub-second durations show as `0.xs` instead of `<1s`.
-- Live streaming thinking duration anchors to message start time rather than first delta, avoiding zero durations when deltas are batched.
-- Tool block command truncation button no longer disappears after expanding.
-- Expanding a read group no longer auto-scrolls to the bottom of the conversation.
+- Tool block command timeouts show in the status bar, and the Show more chevron points the right way
+- Thinking blocks collapse at 120px, and sub-second durations read `0.xs`
+- Markdown has a more comfortable line height, headings group with their content, and code blocks have better spacing
+- The pi SDK upgrade adds Kimi K3 and keeps API key and OAuth credentials across launches
 
 ### Fixed
 
-- History thinking duration was missing when opening a previous session. Messages now carry the outer persistence timestamp for accurate duration calculation.
-- Thinking blocks between read tools are transparent to grouping and appear inside the group instead of breaking it apart.
-- Thinking deltas arriving in bursts no longer produce zero or missing durations during live streaming.
-
-### Fixed
-
-- Search matches hidden behind clamped content now auto-expand the block to reveal the match.
-
-### Added
-
-- Message search via Cmd+F / Ctrl+F: fuzzy-search across all messages and tool outputs, with keyboard-driven match navigation (Enter/arrows), per-occurrence active highlight like Chrome's find-in-page, and auto-expand for grouped read blocks and overflow-hidden tool content.
-
-### Changed
-
-- Upgraded pi SDK from v0.80.6 to v0.80.10, adding Kimi K3 model support and improving credential persistence for API key and OAuth providers.
-- Improved markdown typography in assistant messages: more comfortable line height for reading, headings now visually group with their content, and code blocks have better spacing.
-
-### Fixed
-
-- Search highlights no longer disappear when navigating between matches — the active highlight now stays visible throughout paging.
-- Tool output blocks with overflow-hidden content now auto-expand when jumping to a search match below the fold.
-- Scroll-to-bottom button now scrolls all the way to the last message.
+- Thinking blocks between read tools no longer break the group apart
+- Thinking durations are no longer missing or zero when deltas arrive in bursts
+- A search match hidden in clamped content expands the block to reveal it
+- Search highlights stay visible while paging between matches, and a match below the fold expands its block
+- Scroll-to-bottom reaches the last message, and the sidebar scrolls to the selected session
 
 ## [0.3.14] - 2026-07-10
 
 ### Added
 
-- Message minimap now highlights the bar closest to your current scroll position with a blue indicator.
-- Hovering the minimap popover highlights and scrolls the active item into view.
-- OAuth device code flow support: when a provider requires a device code, a persistent toast shows the code with a "Copy & Open" button that copies to clipboard and opens the verification page.
+- The minimap highlights the bar closest to your scroll position, and hovering the popover scrolls the active item into view
+- OAuth device code flow, with a toast that copies the code and opens the verification page
 
 ### Changed
 
-- Upgraded pi SDK from v0.74.0 to v0.80.6, bringing 30+ new LLM providers and models.
-- Assistant messages now use the app's default line height instead of a fixed 24px, for a tighter and more natural reading rhythm.
-- Message toolbar spacing shifted from above to below buttons, reducing visual gap between message text and action bar.
-- Bottom gradient fade shortened to avoid overlapping the chat input area.
-- Last message in the list has slightly more breathing room at the bottom.
+- Assistant messages use the app's default line height instead of a fixed 24px
+- The message toolbar's spacing moved below the buttons, and the bottom fade is shorter
+- The pi SDK upgrade brings 30+ providers and models
 
 ### Fixed
 
-- Scroll-to-bottom button now scrolls all the way to the last message instead of stopping a few pixels short.
-- Restored bottom spacing between message list and chat input that was lost when switching to block translation layout.
-- Reduced visual jitter when long content streams in during AI responses, especially noticeable in long thinking blocks.
-- Sidebar now automatically scrolls to the selected session when switching, expanding the project and show-more list as needed
+- The list no longer jitters when long content streams in
 
 ## [0.3.13] - 2026-07-01
 
 ### Fixed
 
-- Switching sessions no longer triggers typewriter animation on the toolbar title.
+- Switching sessions no longer triggers the typewriter animation on the toolbar title
 
 ## [0.3.12] - 2026-07-01
 
 ### Added
 
-- Double-click the session name in the toolbar to rename it inline, matching the sidebar behavior.
-- Toolbar session title now animates with the same typewriter effect as the sidebar when the title updates.
+- Double-click the session name in the toolbar to rename it inline, with the same typewriter effect as the sidebar
 
 ### Changed
 
-- Expanded compact read group now shows tool cards inside the same bordered container.
+- An expanded compact read group shows its tool cards inside one bordered container
 
 ## [0.3.11] - 2026-06-30
 
 ### Added
 
-- Session toolbar at the top of the message list showing session title and a view mode toggle to switch between compact and full tool block display.
+- A session toolbar with the session title and a view mode toggle between compact and full tool blocks
 
 ## [0.3.10] - 2026-06-30
 
 ### Added
 
-- Compact read view mode: consecutive read-only tool calls (read, grep, rg, ls, fd, etc.) are collapsed into a single "Looked into N files" line with a list of commands underneath. Click to expand and see the full cards. Active groups show a shimmer animation on the current command.
+- A compact read view: consecutive read-only calls collapse into one line, with the commands listed underneath
 
 ### Fixed
 
-- Pressing Enter while selecting text with an input method no longer saves a session rename.
-- Pressing Esc now only aborts a running session when the chat input or message list is focused.
-- New chats now recover better from failed startup attempts and retry without resending old failed messages.
-- Session switcher now shows accurate relative times (e.g. "2m", "5h") instead of "now" for all sessions.
-- Clicking a session or project in the sidebar now refreshes the session list
+- Pressing Enter while selecting text with an input method no longer renames a session
+- Escape aborts a running session only when the chat input or the message list is focused
+- New chats recover from failed startup attempts without resending old failed messages
+- The session switcher shows accurate relative times, and clicking a session or project refreshes the list
 
 ## [0.3.9] - 2026-06-28
 
 ### Fixed
 
-- New sessions now appear in session switcher and sidebar after the first response completes
-- Navigation forward/back no longer skips sessions that are being loaded from disk
-- Session titles no longer get truncated to 48 characters on first message
-- Switching sessions now correctly restores scroll-to-bottom position when user was already scrolled to the bottom
+- New sessions appear in the sidebar and switcher after the first response completes
+- Navigation forward and back no longer skips sessions that are still loading
+- Session titles are no longer truncated to 48 characters
+- Switching sessions restores the scroll-to-bottom position
 
 ## [0.3.8] - 2026-06-14
 
 ### Fixed
 
-- Clicking a session now properly switches the active project to that session's project
-- Opening a new session no longer loses the previously active session from navigation history
+- Clicking a session switches the active project to that session's project
+- Opening a new session no longer loses the previous one from navigation history
 
 ## [0.3.7] - 2026-06-14
 
 ### Added
 
-- New session view with centered "Here we go" heading, center-aligned input box, and clean footer
-- `#project-name` dropdown in top-left of input for project selection with fuzzy search
-- `#` hash autocomplete in textarea for switching projects
+- A new session view with a centred heading, a centred input box and a clean footer
+- `#` in the input opens a project picker with fuzzy search
 
 ### Changed
 
-- Thinking level options are now per-model: switching models filters available thinking levels automatically
-- Model selection no longer available in new session toolbar; model/thinking set on first send
+- Thinking level options are per model, and the model is chosen on the first send
+- Markdown tables have rounded corners, and the transcript is more compact
 
 ### Fixed
 
-- Switching to a model that doesn't support the current thinking level now properly resets to `off` on the backend
-
-### Changed
-
-- Reduced spacing between messages in the transcript for a more compact layout.
-- Markdown tables now have rounded corners.
-- Increased the maximum number of recent projects from 12 to 64.
-
-### Fixed
-
-- The copy button now sits flush below thinking blocks instead of having extra space.
-- The copy button now sits flush below thinking blocks instead of having extra space.
-- Session switcher now shows accurate relative times (e.g. "2m", "5h") instead of "now" for all sessions.
+- Switching to a model that does not support the current thinking level resets it instead of sending it
+- The copy button sits flush below thinking blocks, and the session switcher shows accurate relative times
 
 ## [0.3.6] - 2026-06-08
 
 ### Changed
 
-- Auto-rename now triggers after 3 text messages instead of waiting for the first full agent turn to complete.
+- Auto-rename triggers after 3 text messages instead of after the first full turn
 
 ## [0.3.5] - 2026-06-08
 
 ### Added
 
-- Auto-rename sessions: after 3 text messages (user + assistant, excluding tool calls), a lightweight LLM call generates a concise title using the cheapest available model. Triggers mid-turn without waiting for the full agent response.
-- Typewriter animation when auto-rename updates the session title in the sidebar.
+- Auto-rename: after 3 text messages a lightweight call generates a title, with a typewriter animation in the sidebar
 
 ### Fixed
 
-- Session switcher no longer lags when searching with many sessions (1000+).
-- Session switcher now always selects the first item when opened or when search results change.
-- Manual rename now refreshes the correct project's session list (uses session cwd instead of active project).
+- The session switcher no longer lags when searching 1000+ sessions, and always selects the first result
+- Manual rename refreshes the right project's list
 
 ## [0.3.4] - 2026-06-07
 
 ### Fixed
 
-- Ctrl+R session switcher shortcut now works in production builds, not just in dev mode.
+- The Ctrl+R session switcher works in production builds
 
 ## [0.3.3] - 2026-06-07
 
 ### Added
 
-- Session session message lists remember scroll position — switching between sessions restores where you left off. New sessions open scrolled to the latest message.
-- User message minimap on the right side of the chat — hover to see a list of your messages, click to jump to any one.
-- Session switcher (Ctrl+R): search and switch to any session across all projects.
-- Ctrl+Tab opens the session switcher and auto-focuses the previous session for quick toggling.
-- Navigate session history with Cmd+[ (back) and Cmd+] (forward), browser-style.
-- Switching sessions now auto-expands the project and scrolls to the session in the sidebar.
-
-### Changed
-
-- Dialog and command palette now use 550px width by default.
+- Each session remembers its scroll position
+- A user message minimap on the right of the chat: hover for the list, click to jump
+- A session switcher (Ctrl+R) across all projects, with Ctrl+Tab to toggle to the previous one
+- Cmd+[ and Cmd+] navigate session history, browser-style
+- Switching sessions expands the project and scrolls to the session in the sidebar
 
 ### Fixed
 
-- Refreshing the app (Cmd+R) no longer breaks session resume — the session reconnects seamlessly.
-- Opening a session no longer briefly logs errors about missing ports.
-- Renamed sessions now show their updated name in the session switcher.
+- Cmd+R no longer breaks session resume
+- Renamed sessions show their new name in the switcher
 
 ## [0.3.2] - 2026-06-03
 
 ### Changed
 
-- Edit tool diffs now render using the server-computed diff from tool result details, instead of recomputing client-side from tool arguments. This enables diff display for custom edit tools (e.g. tagged-edit) that don't use oldText/newText arguments.
+- Edit diffs render from the server-computed diff, so custom edit tools show a diff too
 
 ### Fixed
 
-- Compaction errors now display as a separate error message below the "Compaction failed" marker, instead of cramming the full error into the marker line.
-- Clicking a recently created session in the sidebar no longer switches to a different session.
+- Compaction errors show as their own message below the failure marker
+- Clicking a recently created session no longer opens a different one
 
 ## [0.3.1] - 2026-06-03
 
 ### Fixed
 
-- New chat no longer appears twice in the sidebar.
+- New chat no longer appears twice in the sidebar
 
 ## [0.3.0] - 2026-06-03
 
 ### Added
 
-- New chat opens instantly with no delay — a warm background process is pre-spawned so model info and settings are available immediately.
+- New chat opens instantly, from a warm background process that already has model info and settings
 
 ### Changed
 
-- Switching to a previous session is now near-instant — messages appear immediately without waiting for the background process.
-- New chat shows the last-used model and thinking level by default (seeded from the most recent session on first launch).
+- Switching to a previous session is near-instant
+- A new chat starts on the last-used model and thinking level
 
 ### Fixed
 
-- Alt+Enter follow-up message now works correctly during streaming.
+- Alt+Enter follow-up messages work during streaming
 
 ## [0.2.8] - 2026-05-31
 
 ### Added
 
-- Slash command autocomplete now includes available skills alongside built-in commands.
+- Slash command autocomplete includes skills
 
 ### Changed
 
-- Send shortcut changed from Cmd+Enter to Enter (Shift+Enter still inserts newline).
-- New sessions now inherit the last-used model and thinking level from the previous session.
-- Long messages now fade out at the edge instead of being cut off.
-- Refined visual polish across tool blocks, icons, menus, and dialogs.
+- Enter sends and Shift+Enter inserts a newline
+- New sessions inherit the last-used model and thinking level
+- Long messages fade out at the edge instead of being cut off
+- Refined tool blocks, icons, menus and dialogs
 
 ### Fixed
 
-- System accent color now correctly matches the macOS accent color setting.
-- Tool block footer spacing restored between content and status bar.
+- The accent follows the macOS accent colour setting
 
 ## [0.2.7] - 2026-05-29
 
 ### Changed
 
-- macOS window: refined border to hairline-thin by aligning `vibrancy`/`backgroundColor` with native Codex approach, removing redundant `transparent: true` and `visualEffectState: 'active'`.
+- The window border is hairline-thin, aligned with the native look
+- Bash output is plain text, while code keeps full syntax highlighting
+- Session labels sit slightly darker than folder labels
 
 ### Fixed
 
-- Disable Electron cookie encryption fuse to prevent macOS Keychain password prompt on launch.
-- ESC/send button now correctly aborts in-progress compaction via `abortCompaction()`.
-- Steer/followUp messages sent during compaction are preserved and replayed when compaction finishes.
-
-### Changed
-
-- Tool block: bash execution output no longer has syntax highlighting (plain text).
-- Tool block: use shiki full bundle for syntax highlighting, supporting all languages (rust, go, etc.).
-- Tool block: file extension resolved directly as shiki language key at runtime; only a small override map for ambiguous extensions.
-- Sidebar: session labels slightly darker than folder labels for better visual hierarchy.
-- Compaction: show abort button during compaction, correct end-of-compaction text (aborted/failed/success), position marker at chronological boundary instead of scroll-out-of-view top, and display "Compacted N times" at the bottom of reopened compacted sessions.
+- No more macOS Keychain prompt on launch
+- Escape and the send button abort a running compaction, and steer messages sent during compaction are replayed after it
+- Compacted sessions show "Compacted N times" when reopened
 
 ## [0.2.6] - 2026-05-26
 
 ### Changed
 
-- Markdown links now use system accent color with improved underline styling for better visibility.
-
-- Code syntax highlighting theme switched from `github-light` to `one-light`.
-- Thinking block: tighter title-content spacing and increased background opacity for better visibility.
-- Enable font smoothing (antialiased) for crisper text on macOS.
-- Body font-weight now uses `--font-weight-normal` variable instead of hardcoded value.
-- Thinking block: 13px medium title, 14px content with tighter line-height.
-- Markdown headings resized (h1: 26px, h2: 19px, h3: 17px).
-- Font weight scale aligned with standard values (400/500/600/700) for lighter text rendering.
-- Light mode foreground color aligned with Codex (#1a1c1f) for less aggressive contrast.
-- Settings popover and context menus now use frosted glass with 80% opacity instead of solid backgrounds.
-- macOS sidebar now uses `menu` vibrancy with semi-transparent background for a more refined frosted glass appearance.
+- Markdown links use the accent colour
+- Code highlighting uses the `one-light` theme
+- Thinking blocks are tighter and more legible
+- Text is antialiased, and the light theme's foreground is softer
+- Settings popovers and context menus are frosted glass, as is the sidebar
 
 ### Fixed
 
-- Bash toolblock: fix "more" button position when timeout indicator is also present, now right-aligned below timeout instead of stranded mid-line after the command text.
+- The bash block's "more" button sits right-aligned below the timeout instead of stranded mid-line
 
 ## [0.2.5] - 2026-05-23
 
 ### Added
 
-- Double-click session name in sidebar to rename it inline.
+- Double-click a session name in the sidebar to rename it inline
 
 ### Changed
 
-- Projects group action button (+ icon) now only appears on hover, reducing visual clutter.
+- A project's add button appears on hover
 
 ### Fixed
 
-- Prevent duplicate empty sessions when quickly creating new chats in succession.
+- No more duplicate empty sessions when creating new chats quickly
 
 ## [0.2.4] - 2026-05-23
 
 ### Changed
 
-- Font weight scale adjusted: `font-normal` 350, `font-medium` 550, `font-semibold` 650, `font-bold` 750.
+- The font weight scale follows the macOS feel, so text renders lighter
 
 ## [0.2.3] - 2026-05-23
 
 ### Changed
 
-- Font weight adjusted for native macOS feel: baseline 350, UI controls use `font-normal` (350), dialog/sheet/popover/empty titles use `font-semibold` (600), markdown bold and tool block command titles use `font-medium` (500).
-- Toast notifications repositioned to bottom-right with transparent borders.
+- Font weights tuned per role: UI controls, dialog titles and markdown bold each sit at their own weight
+- Toasts moved to the bottom-right with transparent borders
 
 ## [0.2.2]
 
 ### Added
 
-- Settings button in sidebar footer with frosted-glass popover containing Login and Settings items.
-- `MenuItem` component and `.menu-content` CSS utility for reusable frosted-glass menu styling.
-- Chat input textarea now auto-grows up to 35vh with scrollbar at max height.
-- System accent color used for focus rings and sidebar highlights instead of gray.
-- Centralized keyboard shortcut system with persistent keybinding store and customizable shortcuts.
+- A settings popover in the sidebar footer with Login and Settings
+- Reusable frosted-glass menus
+- The chat input grows to 35vh and scrolls at its maximum
+- The system accent colour for focus rings and sidebar highlights
+- Customisable keyboard shortcuts
 
 ### Changed
 
-- Sidebar and main content divider refined to 0.5px hairline border for native-feel precision.
-- Project right-click context menu uses frosted-glass styling matching the Settings popover.
-- Unify empty-state branding: session-empty screen now shows "Welcome to pigi" instead of "No session open", matching the project-empty screen.
-- Switch from Geist web font to system font stack for more native text rendering on each OS.
-- Disable text selection on UI chrome (labels, buttons, headings); message content remains selectable.
-- Dialog overlay backdrop lightened and auto-focus on open removed for more native dialog behavior.
+- A 0.5px hairline between the sidebar and the main content
+- Empty states share one welcome screen
+- The app uses the system font stack instead of a web font
+- Text on UI chrome is not selectable, while messages stay selectable
+- Dialogs open without taking focus
 
 ## [0.2.1] - 2026-05-15
 
 ### Added
 
-- Empty state screen when no session is active, replacing the chat input. First-time users see "Welcome to pigi" with a shortcut hint (Cmd+O) to open a project. Returning users see "No session open" with a prompt to select from the sidebar.
-- Global Cmd+O keyboard shortcut to open a project directory.
+- An empty state when no session is open, with a shortcut hint for first-time users
+- Cmd+O opens a project directory
 
 ### Changed
 
-- Chat input, message list, and streaming queue are now hidden when no session is open.
+- The chat input, message list and streaming queue hide when no session is open
 
 ## [0.2.0] - 2026-05-11
 
 ### Added
 
-- App icon.
+- App icon
 
 ### Fixed
 
-- Running sessions remain visible when a project is collapsed, even after they finish running. The collapsed view now snapshots running session IDs at collapse time and filters the session list to show only those sessions.
+- A running session stays visible when its project is collapsed
 
 ## [0.1.0] - 2026-05-10
 
 ### Added
 
-- Initial release. Desktop GUI for pi with project management, session sidebar, and high-performance rendering.
+- Initial release: a desktop GUI for pi with project management, a session sidebar and a fast transcript
