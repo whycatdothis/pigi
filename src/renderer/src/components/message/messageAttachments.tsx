@@ -42,7 +42,7 @@ export function MessageAttachments({
             <button
               key={path}
               type="button"
-              className="flex max-w-56 items-center gap-1.5 rounded-chip border border-border/50 bg-background/70 px-2 py-1 text-xs text-foreground hover:bg-background"
+              className="flex max-w-56 items-center gap-1.5 rounded-chip border border-border/50 bg-background/70 px-2 py-1 text-caption text-foreground hover:bg-background"
               title={path}
               onClick={() => window.piApi.previewFile(path)}
             >
@@ -53,7 +53,7 @@ export function MessageAttachments({
           {inlineFileNames.map((name, index) => (
             <span
               key={`${index}-${name}`}
-              className="flex max-w-56 items-center gap-1.5 rounded-chip border border-border/50 bg-background/70 px-2 py-1 text-xs text-foreground"
+              className="flex max-w-56 items-center gap-1.5 rounded-chip border border-border/50 bg-background/70 px-2 py-1 text-caption text-foreground"
               title="Pasted file"
             >
               <FileIcon path={name} className="size-3.5" />

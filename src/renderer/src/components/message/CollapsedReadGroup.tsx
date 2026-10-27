@@ -137,7 +137,7 @@ function ThinkingGroupRow({ node }: { node: AssistantNode }): React.JSX.Element 
           startedAt={node.thinkingStartedAt}
           endedAt={node.thinkingEndedAt}
           isStreaming={node.isStreaming}
-          className="ml-0.5 shrink-0 text-xs text-muted-foreground"
+          className="ml-0.5 shrink-0 text-caption text-muted-foreground"
         />
         <IconChevronRight
           className={`-ml-1 size-3.5 shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`}
@@ -246,7 +246,7 @@ export default function CollapsedReadGroup({
               <button
                 type="button"
                 aria-expanded={showAllEntries}
-                className="flex w-fit items-center gap-1 py-0.5 text-xs leading-4 text-muted-foreground transition-colors hover:text-foreground"
+                className="flex w-fit items-center gap-1 py-0.5 text-caption leading-4 text-muted-foreground transition-colors hover:text-foreground"
                 onClick={(event) => {
                   event.stopPropagation();
                   setShowAllEntries((prev) => !prev);

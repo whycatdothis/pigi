@@ -40,7 +40,7 @@ export function AttachmentPickerButton({
       >
         <button
           type="button"
-          className="flex items-center gap-2 rounded-control-sm px-2 py-1 text-left text-xs hover:bg-muted"
+          className="flex items-center gap-2 rounded-control-sm px-2 py-1 text-left text-caption hover:bg-muted"
           onClick={() => pick('image')}
         >
           <IconPhoto className="size-3.5 shrink-0 text-muted-foreground" />
@@ -48,7 +48,7 @@ export function AttachmentPickerButton({
         </button>
         <button
           type="button"
-          className="flex items-center gap-2 rounded-control-sm px-2 py-1 text-left text-xs hover:bg-muted"
+          className="flex items-center gap-2 rounded-control-sm px-2 py-1 text-left text-caption hover:bg-muted"
           onClick={() => pick('file')}
         >
           <IconPaperclip className="size-3.5 shrink-0 text-muted-foreground" />
@@ -120,7 +120,9 @@ function AttachmentChip({
     >
       <FileIcon path={attachment.name} />
       <div className="min-w-0">
-        <div className="truncate text-xs text-foreground">{displayFileName(attachment.name)}</div>
+        <div className="truncate text-caption text-foreground">
+          {displayFileName(attachment.name)}
+        </div>
         {attachment.size > 0 && (
           <div className="text-3xs leading-3 text-muted-foreground">
             {formatFileSize(attachment.size)}

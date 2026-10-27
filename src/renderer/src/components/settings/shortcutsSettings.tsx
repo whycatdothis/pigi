@@ -138,7 +138,7 @@ export function ShortcutsSettings(): React.JSX.Element {
                 isOverridden(definition) && !isCapturing ? (
                   <button
                     type="button"
-                    className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    className="text-caption text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                     disabled={savingId === definition.id}
                     onClick={() => void saveBinding(definition.id, definition.defaultBinding)}
                   >
@@ -148,7 +148,7 @@ export function ShortcutsSettings(): React.JSX.Element {
               }
             >
               {isCapturing ? (
-                <span className="rounded-inline border border-dashed border-foreground/30 px-3 py-1 font-mono text-xs text-muted-foreground">
+                <span className="rounded-inline border border-dashed border-foreground/30 px-3 py-1 font-mono text-caption text-muted-foreground">
                   Press shortcut… (Esc cancels)
                 </span>
               ) : (

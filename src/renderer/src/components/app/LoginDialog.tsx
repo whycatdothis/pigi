@@ -160,8 +160,8 @@ export default function LoginDialog({
                   className="flex items-center justify-between rounded-control border px-3 py-2"
                 >
                   <div>
-                    <div className="font-normal text-sm">{provider.name}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="font-normal text-body">{provider.name}</div>
+                    <div className="text-caption text-muted-foreground">
                       {isEnvAuth
                         ? `Via ${provider.authStatus.source}`
                         : provider.hasAuth
@@ -200,7 +200,7 @@ export default function LoginDialog({
               );
             })}
             {oauthProviders.length === 0 && (
-              <div className="text-sm text-muted-foreground py-4 text-center">
+              <div className="text-body text-muted-foreground py-4 text-center">
                 No OAuth providers available.
               </div>
             )}
@@ -219,8 +219,8 @@ export default function LoginDialog({
                       className="flex items-center justify-between rounded-control border px-3 py-2"
                     >
                       <div>
-                        <div className="font-normal text-sm">{provider.name}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="font-normal text-body">{provider.name}</div>
+                        <div className="text-caption text-muted-foreground">
                           {isEnvAuth ? `Via ${provider.authStatus.source}` : 'Authenticated'}
                         </div>
                       </div>
@@ -256,10 +256,10 @@ export default function LoginDialog({
               ))}
             </NativeSelect>
             <div>
-              <label className="text-sm font-normal mb-1 block">API key</label>
+              <label className="text-body font-normal mb-1 block">API key</label>
               <input
                 type="password"
-                className="w-full rounded-control border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-control border bg-background px-3 py-2 text-body font-mono outline-none focus:ring-1 focus:ring-ring"
                 placeholder="sk-..."
                 value={apiKeyValue}
                 onChange={(e) => setApiKeyValue(e.target.value)}

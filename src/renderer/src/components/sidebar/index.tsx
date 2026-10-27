@@ -252,7 +252,7 @@ export default memo(function Sidebar({
         <SidebarContent className="overflow-hidden">
           <SidebarGroup className="min-h-0 flex-1">
             <div className="group/projects-header">
-              <SidebarGroupLabel className="text-sm text-muted-foreground">
+              <SidebarGroupLabel className="text-body text-muted-foreground">
                 Projects
               </SidebarGroupLabel>
               <SidebarGroupAction

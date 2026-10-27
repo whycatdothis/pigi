@@ -275,7 +275,7 @@ export function NumberField({
         disabled={disabled}
         className="h-7 w-28 rounded-control text-right font-mono text-caption tabular-nums"
       />
-      {suffix && <span className="text-xs text-muted-foreground">{suffix}</span>}
+      {suffix && <span className="text-caption text-muted-foreground">{suffix}</span>}
     </div>
   );
 }
@@ -320,7 +320,7 @@ export function TextField({
       placeholder={placeholder}
       disabled={disabled}
       spellCheck={false}
-      className={cn('h-7 rounded-control text-xs', monospace && 'font-mono', className)}
+      className={cn('h-7 rounded-control text-caption', monospace && 'font-mono', className)}
     />
   );
 }
@@ -410,7 +410,7 @@ export function StringListField({
             placeholder={placeholder}
             disabled={disabled}
             spellCheck={false}
-            className="h-7 flex-1 rounded-control font-mono text-xs"
+            className="h-7 flex-1 rounded-control font-mono text-caption"
           />
           <Button
             type="button"
@@ -441,5 +441,5 @@ export function StringListField({
 }
 
 export function SettingsHint({ children }: { children: ReactNode }): React.JSX.Element {
-  return <p className="px-1 text-xs text-muted-foreground">{children}</p>;
+  return <p className="px-1 text-caption text-muted-foreground">{children}</p>;
 }

@@ -101,11 +101,11 @@ function SessionTrailing({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+        <span className="ml-2 shrink-0 text-caption text-muted-foreground">
           {formatRelativeTime(modifiedTime, relativeTimeBase)}
         </span>
       </TooltipTrigger>
-      <TooltipContent side="top" className="text-xs flex flex-col gap-0.5 items-start">
+      <TooltipContent side="top" className="text-caption flex flex-col gap-0.5 items-start">
         <div>Created: {formatDateTime(session.created)}</div>
         {session.modified && <div>Updated: {formatDateTime(session.modified)}</div>}
       </TooltipContent>
@@ -174,7 +174,7 @@ export function SessionItem({
               onBlur={handleFinishRename}
               onKeyDown={handleKeyDown}
               autoFocus
-              className="min-w-0 flex-1 truncate bg-transparent text-sm outline-none caret-foreground"
+              className="min-w-0 flex-1 truncate bg-transparent text-body outline-none caret-foreground"
             />
           </div>
         </SidebarMenuSubButton>

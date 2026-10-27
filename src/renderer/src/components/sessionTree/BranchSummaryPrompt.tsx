@@ -51,7 +51,7 @@ function PromptBody({
   return (
     <>
       <DialogHeader>
-        <DialogTitle className="text-sm">Leave this branch?</DialogTitle>
+        <DialogTitle className="text-body">Leave this branch?</DialogTitle>
         <DialogDescription className="text-caption">
           {abandonedCount === 1
             ? 'One message leaves the conversation.'

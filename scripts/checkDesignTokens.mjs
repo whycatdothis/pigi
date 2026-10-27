@@ -11,10 +11,12 @@
  * tokens, and the miniature drawings in the appearance previews, which scale a
  * whole window into 84px and cannot use UI radii.
  *
- * Tailwind's own radius steps (`rounded-md` and friends) are rejected too: they
- * are computed from `--radius`, so a step's size moves whenever that primitive
- * moves, which is the opposite of a role. The steps stay defined in
- * `shared/designTokens.css` for the marketing site, not for app code.
+ * Tailwind's own steps are rejected too. `rounded-md` and friends are computed
+ * from `--radius`, so their size moves whenever that primitive moves, which is
+ * the opposite of a role. `text-xs` / `text-sm` / `text-base` are the steps the
+ * semantic ramp replaced (13 / 15 / 17px); app code names the role instead.
+ * Both sets stay defined in `shared/designTokens.css` for the marketing site,
+ * not for app code.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -45,6 +47,12 @@ const RULES = [
     name: 'primitive radius variable',
     pattern: /var\(--radius-(?:xs|sm|md|lg|xl|2xl|3xl|4xl)\)/g,
     hint: 'use var(--radius-inline … container) from semanticTokens.css',
+    extensions: ['.ts', '.tsx'],
+  },
+  {
+    name: 'Tailwind type step',
+    pattern: /\btext-(?:xs|sm|base)\b/g,
+    hint: 'use the semantic scale (text-caption / text-ui / text-body / text-lg / text-xl / text-2xl)',
     extensions: ['.ts', '.tsx'],
   },
   {

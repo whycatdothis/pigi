@@ -53,7 +53,7 @@ export default function DiffView({ lines }: DiffViewProps): React.JSX.Element {
       {sections.map((section, sectionIdx) => (
         <div key={sectionIdx}>
           {sectionIdx > 0 && (
-            <div className="bg-muted/40 px-3 py-0.5 text-xs text-muted-foreground">
+            <div className="bg-muted/40 px-3 py-0.5 text-caption text-muted-foreground">
               edit [{sectionIdx}]
             </div>
           )}
@@ -62,7 +62,7 @@ export default function DiffView({ lines }: DiffViewProps): React.JSX.Element {
               return (
                 <div
                   key={`sep-${lineIdx}`}
-                  className="bg-muted/30 px-3 py-0.5 text-xs text-muted-foreground"
+                  className="bg-muted/30 px-3 py-0.5 text-caption text-muted-foreground"
                 >
                   ⋯
                 </div>

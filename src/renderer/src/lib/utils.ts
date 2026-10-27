@@ -3,7 +3,7 @@ import { extendTailwindMerge } from 'tailwind-merge';
 
 // The type scale is named in designTokens.css (caption, ui, body, code, ...).
 // tailwind-merge only knows Tailwind's own sizes, so without this a variant's
-// `text-caption` and a caller's `text-sm` both survive `cn()` and the stylesheet
+// `text-caption` and a caller's `text-body` both survive `cn()` and the stylesheet
 // order picks the winner instead of the last class the caller wrote.
 //
 // Radius is named by role in semanticTokens.css for the same reason: without the

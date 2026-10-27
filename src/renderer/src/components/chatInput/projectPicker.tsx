@@ -56,7 +56,7 @@ export function ProjectPicker({
         <button
           type="button"
           className={cn(
-            'flex items-center rounded-chip px-1.5 py-0.5 text-sm font-normal bg-muted/60 hover:bg-muted transition-colors text-muted-foreground',
+            'flex items-center rounded-chip px-1.5 py-0.5 text-body font-normal bg-muted/60 hover:bg-muted transition-colors text-muted-foreground',
           )}
         >
           <span className={cn('mr-0.5', hashActive && 'text-[var(--system-accent)]')}>#</span>

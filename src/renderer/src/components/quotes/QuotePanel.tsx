@@ -136,7 +136,7 @@ const GlobalCommentCard = React.memo(function GlobalCommentCard({
     return (
       <button
         type="button"
-        className="flex h-8 items-center justify-center gap-1.5 rounded-control text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+        className="flex h-8 items-center justify-center gap-1.5 rounded-control text-caption text-muted-foreground hover:bg-muted/50 hover:text-foreground"
         onClick={() => setEditing(true)}
       >
         <IconPlus className="size-4" />
@@ -153,7 +153,7 @@ const GlobalCommentCard = React.memo(function GlobalCommentCard({
           onClick={() => useAppStore.getState().setGlobalComment(sessionPath, '')}
         />
       )}
-      <span className="text-xs leading-5 text-muted-foreground">Global comment</span>
+      <span className="text-caption leading-5 text-muted-foreground">Global comment</span>
       {editing ? (
         <QuoteCommentEditor
           initialComment={comment}
@@ -229,7 +229,7 @@ export default React.memo(function QuotePanel({
     <div className="flex h-full w-full flex-col" data-testid="quote-panel">
       <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-width:thin]">
         {quotes.length === 0 && !hasGlobalComment ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center text-xs leading-5 text-muted-foreground">
+          <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center text-caption leading-5 text-muted-foreground">
             <IconQuote className="size-5" />
             Select text in a message, then choose Quote to comment on it.
           </div>

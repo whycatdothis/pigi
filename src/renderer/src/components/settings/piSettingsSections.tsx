@@ -62,7 +62,7 @@ function FieldHint({
   onReset: () => void;
 }): React.JSX.Element {
   if (findPiSettingField(field)?.globalOnly === true) {
-    return <span className="text-xs text-muted-foreground/70">Global only</span>;
+    return <span className="text-caption text-muted-foreground/70">Global only</span>;
   }
   return <SettingSourceTag isOverridden={isOverridden} scope={scope} onReset={onReset} />;
 }
@@ -308,7 +308,7 @@ export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
             modelId ? (
               <button
                 type="button"
-                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                className="text-caption text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                 onClick={() => {
                   setValues([
                     { field: 'defaultProvider', value: null },

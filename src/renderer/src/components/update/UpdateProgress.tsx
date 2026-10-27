@@ -209,7 +209,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
         </div>
 
         {detail !== null && (
-          <div className="line-clamp-2 text-xs leading-4 text-muted-foreground">{detail}</div>
+          <div className="line-clamp-2 text-caption leading-4 text-muted-foreground">{detail}</div>
         )}
 
         {percent !== null && (

@@ -299,7 +299,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
   return (
     <>
       <div
-        className="overflow-clip rounded-surface-sm border border-border/65 bg-muted/25 px-3 pt-0 pb-1.5 text-sm text-muted-foreground"
+        className="overflow-clip rounded-surface-sm border border-border/65 bg-muted/25 px-3 pt-0 pb-1.5 text-body text-muted-foreground"
         style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
         data-testid={`tool-block-${node.toolCallId}`}
       >
@@ -319,7 +319,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
               <button
                 type="button"
                 onClick={() => setCommandExpanded((v) => !v)}
-                className="shrink-0 self-end text-xs font-normal text-muted-foreground hover:text-foreground"
+                className="shrink-0 self-end text-caption font-normal text-muted-foreground hover:text-foreground"
               >
                 {commandExpanded ? 'Less' : 'More'}
               </button>
@@ -343,7 +343,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
         <div
           data-search-ignore
           className={cn(
-            '-mx-3 -mb-2 flex items-center justify-between gap-1.5 px-3 py-1.5 text-xs font-medium',
+            '-mx-3 -mb-2 flex items-center justify-between gap-1.5 px-3 py-1.5 text-caption font-medium',
             statusClassName,
           )}
         >

@@ -273,16 +273,16 @@ export default function SessionSwitcher({
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-2">
                       <div className="flex min-w-0 flex-1 flex-col gap-0">
-                        <span className="min-w-0 flex-1 truncate text-sm">
+                        <span className="min-w-0 flex-1 truncate text-body">
                           {results ? highlightResult(results[0], session.title) : session.title}
                         </span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-caption text-muted-foreground">
                           {results
                             ? highlightResult(results[1], session.projectName)
                             : session.projectName}
                         </span>
                       </div>
-                      <span className="shrink-0 text-xs text-muted-foreground">
+                      <span className="shrink-0 text-caption text-muted-foreground">
                         {formatRelativeTime(session.modified, relativeTimeBase)}
                       </span>
                     </div>

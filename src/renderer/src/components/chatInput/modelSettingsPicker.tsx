@@ -135,7 +135,7 @@ export function ModelSettingsPicker({
                   >
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate">{model.name}</span>
-                      <span className="truncate text-xs text-muted-foreground">
+                      <span className="truncate text-caption text-muted-foreground">
                         {formatModelDetails(model)}
                       </span>
                     </span>
@@ -179,7 +179,7 @@ function ModelSettingsButton({
       variant="ghost"
       size="sm"
       className={cn(
-        'h-7 max-w-60 min-w-0 gap-1.5 rounded-control px-1.5 text-sm font-normal hover:bg-muted/70',
+        'h-7 max-w-60 min-w-0 gap-1.5 rounded-control px-1.5 text-body font-normal hover:bg-muted/70',
         className,
       )}
       {...props}
@@ -231,7 +231,7 @@ function ThinkingLevelFlyout({
         size="sm"
         disabled={options.length === 0}
         className={cn(
-          'h-8 w-full justify-start gap-2 rounded-control px-1.5 text-sm font-normal hover:bg-muted/60 border-0',
+          'h-8 w-full justify-start gap-2 rounded-control px-1.5 text-body font-normal hover:bg-muted/60 border-0',
           forceOpen && 'bg-muted/70',
         )}
         aria-haspopup="menu"
@@ -262,7 +262,7 @@ function ThinkingLevelFlyout({
                 role="menuitemradio"
                 aria-checked={level === value}
                 className={cn(
-                  'h-7 w-full justify-start gap-2 rounded-control px-2 text-sm font-normal',
+                  'h-7 w-full justify-start gap-2 rounded-control px-2 text-body font-normal',
                   level === value && 'bg-muted text-foreground',
                 )}
                 onClick={() => {

@@ -4,6 +4,10 @@
 
 ### Changed
 
+- Small text uses the named type scale everywhere: `text-sm`/`text-xs` were the
+  same sizes as `text-body`/`text-caption` under Tailwind's names, and the last
+  126 call sites now use the role names, so one size has one name and the check
+  rejects the old steps in app code
 - Every corner is named by role now: the last `rounded-md`/`lg`/`sm`/`xl` call
   sites (including the shadcn primitives) use the semantic tiers, so a radius no
   longer moves when `--radius` moves, and `npm run check` rejects the scale

@@ -73,7 +73,7 @@ export default function SessionTreeHelpDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[520px]" data-testid="session-tree-help">
         <DialogHeader className="gap-1">
-          <DialogTitle className="flex items-center gap-2 text-sm">
+          <DialogTitle className="flex items-center gap-2 text-body">
             <SessionTreeIcon size={16} className="shrink-0 text-muted-foreground" />
             <span>Tree: a time machine for this session</span>
           </DialogTitle>
@@ -96,7 +96,7 @@ export default function SessionTreeHelpDialog({
           ))}
         </div>
 
-        <p className="rounded-control bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+        <p className="rounded-control bg-muted/50 px-3 py-2 text-caption leading-relaxed text-muted-foreground">
           Hover a row for a preview, search or filter to find one, then click it (or press Enter) to
           move the session there. Searching picks out the first match, and the up and down arrows
           move that pick without leaving the search box.

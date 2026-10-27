@@ -42,7 +42,7 @@ export default React.memo(function RightSidebar({
         <TabsList variant="chip" className="[-webkit-app-region:no-drag]">
           <TabsTrigger
             value={RIGHT_SIDEBAR_TABS.quotes}
-            className="h-7 flex-none px-2.5 text-xs font-normal text-muted-foreground"
+            className="h-7 flex-none px-2.5 text-caption font-normal text-muted-foreground"
           >
             <IconQuote size={13} className="opacity-70" />
             {TAB_LABELS[RIGHT_SIDEBAR_TABS.quotes]}
