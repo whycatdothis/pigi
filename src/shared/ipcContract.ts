@@ -471,7 +471,6 @@ export enum PiChannel {
   /** renderer → main: apply appearance/chat slices to pigi's settings */
   ChangePigiSettings = 'pi:change_pigi_settings',
   /** main → renderer: the merged settings snapshot every window shares */
-  PigiSettingsChanged = 'pi:pigi_settings_changed',
   /** renderer → main: get all keyboard shortcut definitions with current bindings */
   GetShortcuts = 'pi:get_shortcuts',
   /** renderer → main: update a keyboard shortcut binding */

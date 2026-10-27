@@ -5,8 +5,7 @@
  * store reads the file synchronously through the preload at module init and
  * applies the appearance before the first paint, so there is no theme flash.
  * After that it is a client of the owner: a mutation applies locally for instant
- * feedback and sends the slice it changed; the owner's merged snapshot — the
- * reply, or the broadcast that both windows receive — replaces the local value.
+ * feedback and sends the slice it changed, which main merges and writes.
  */
 import { toast } from 'sonner';
 import { create } from 'zustand';
@@ -67,11 +66,6 @@ function readStoredSettings(): PigiSettings {
   return DEFAULT_PIGI_SETTINGS;
 }
 
-/** Two appearance slices are the same look when they serialize the same. */
-function looksTheSame(first: AppearanceSettings, second: AppearanceSettings): boolean {
-  return JSON.stringify(first) === JSON.stringify(second);
-}
-
 interface SettingsState extends PigiSettings {
   setMode: (mode: ThemeMode) => void;
   setToolBlockViewMode: (mode: ToolBlockViewMode) => void;
@@ -88,23 +82,19 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     const current = get();
     const next: PigiSettings = {
       version: PIGI_SETTINGS_VERSION,
-      revision: current.revision,
       appearance: change.appearance ?? current.appearance,
       chat: change.chat ?? current.chat,
     };
-    // Apply immediately: the worker round trip is short, but a dragged slider
-    // must not wait for it. The owner's snapshot replaces this value below.
+    // Apply immediately: the round trip is short, but a dragged slider must not
+    // wait for it. Main merges the same slice and writes it.
     if (change.appearance) {
       applyAppearance(next.appearance);
     }
     set(next);
-    void window.piApi
-      .changePigiSettings(change)
-      .then(adoptSnapshot)
-      .catch((error) => {
-        console.error('Failed to persist pigi settings:', error);
-        toast.error('Could not save settings. Check the app data folder for errors.');
-      });
+    void window.piApi.changePigiSettings(change).catch((error) => {
+      console.error('Failed to persist pigi settings:', error);
+      toast.error('Could not save settings. Check the app data folder for errors.');
+    });
   }
 
   return {
@@ -120,48 +110,18 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
   };
 });
 
-/**
- * Adopts the owner's snapshot.
- *
- * A lower revision is a reply or broadcast that lost the race with a newer one
- * (the owner bumps once per change, so only two windows are needed for that), and
- * is dropped. The appearance is re-applied only when the look actually differs: a
- * chat change must not re-derive every token and re-theme every code block.
- */
-function adoptSnapshot(snapshot: PigiSettings): void {
-  const settings = parsePigiSettings(snapshot);
-  const current = useSettingsStore.getState();
-  if (settings.revision < current.revision) {
-    return;
-  }
-  if (migratedFromLegacy) {
-    // Main has the value in hand now (a revision of at least 1), so the old key
-    // is redundant; dropping it earlier would lose the value if the write failed.
-    migratedFromLegacy = false;
-    localStorage.removeItem(PIGI_SETTINGS_STORAGE_KEY);
-  }
-  const appearanceChanged = !looksTheSame(settings.appearance, current.appearance);
-  useSettingsStore.setState({
-    version: settings.version,
-    revision: settings.revision,
-    appearance: settings.appearance,
-    chat: settings.chat,
-  });
-  if (appearanceChanged) {
-    applyAppearance(settings.appearance);
-  }
-}
-
-// Every change — from this window or the other one — arrives here.
-window.piApi.onPigiSettingsChanged(adoptSnapshot);
-
 if (migratedFromLegacy) {
   // The file does not exist yet: hand the old localStorage value to the owner so
-  // it lands on disk (and gets a revision) before anything else touches it.
+  // it lands on disk before anything else touches it.
   const legacy = useSettingsStore.getState();
   void window.piApi
     .changePigiSettings({ appearance: legacy.appearance, chat: legacy.chat })
-    .then(adoptSnapshot)
+    .then(() => {
+      // The write landed, so the old key is redundant. Dropping it when the
+      // change was sent would lose the value if the write failed.
+      migratedFromLegacy = false;
+      localStorage.removeItem(PIGI_SETTINGS_STORAGE_KEY);
+    })
     .catch((error) => {
       console.error('Failed to migrate the old settings:', error);
     });

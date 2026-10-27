@@ -8,10 +8,6 @@
  * depend on an async round trip happening before the first frame, which is how
  * the old localStorage read avoided a theme flash.
  *
- * Every file carries a monotonic revision. Writes take the highest of the file's
- * revision and the one the writer had in hand, then add one, so a writer holding
- * a stale copy can never move the file backwards.
- *
  * Writes are atomic: a half-written file would drop every appearance setting,
  * and a temp file plus rename costs nothing at this size.
  */
@@ -55,16 +51,8 @@ export function readPigiSettingsFile(path: string): { settings: PigiSettings; ex
   }
 }
 
-export function writePigiSettingsFile(path: string, settings: PigiSettings): PigiSettings {
-  // A stale writer (a second window that never saw the last broadcast, or an
-  // older app instance) must not lower the revision, so the file's own value
-  // counts as much as the writer's. A writer that is ahead keeps its number:
-  // the owner has already told every window about it.
-  const fileRevision = readPigiSettingsFile(path).settings.revision;
-  const next: PigiSettings = {
-    ...parsePigiSettings(settings),
-    revision: settings.revision > fileRevision ? settings.revision : fileRevision + 1,
-  };
+export function writePigiSettingsFile(path: string, settings: PigiSettings): void {
+  const next = parsePigiSettings(settings);
   mkdirSync(dirname(path), { recursive: true });
   const temporaryPath = `${path}.tmp`;
   try {
@@ -75,7 +63,6 @@ export function writePigiSettingsFile(path: string, settings: PigiSettings): Pig
     rmSync(temporaryPath, { force: true });
     throw error;
   }
-  return next;
 }
 
 /**

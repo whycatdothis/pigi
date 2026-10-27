@@ -41,23 +41,14 @@ export const PIGI_SETTINGS_VERSION = 2;
 
 export interface PigiSettings {
   version: typeof PIGI_SETTINGS_VERSION;
-  /**
-   * Monotonic revision of the file's contents.
-   *
-   * The main process owns the file, but the update window loads the same
-   * renderer bundle and can hold a snapshot of its own. A higher revision on
-   * disk or in a broadcast is what tells a window that its copy is old, so a
-   * late write cannot win over a newer one. Absent on read means 0.
-   */
-  revision: number;
   appearance: AppearanceSettings;
   chat: ChatSettings;
 }
 
 /**
  * What a renderer asks the owner to change: the slices it edited, not the whole
- * document. Main merges these onto its authoritative copy, so two windows
- * editing different slices never overwrite each other.
+ * document. Main merges these onto its authoritative copy, so a commit only
+ * touches what it edited.
  */
 export interface PigiSettingsChange {
   appearance?: AppearanceSettings;
@@ -111,18 +102,12 @@ export const TOOL_BLOCK_VIEW_MODES: readonly ToolBlockViewMode[] = [
 
 export const DEFAULT_PIGI_SETTINGS: PigiSettings = {
   version: PIGI_SETTINGS_VERSION,
-  revision: 0,
   appearance: DEFAULT_APPEARANCE,
   chat: { toolBlockViewMode: 'compact_read' },
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/** A hand-edited or older file has no revision, which is revision 0. */
-function parseRevision(raw: unknown): number {
-  return typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 ? raw : 0;
 }
 
 function includes<T extends string>(values: readonly T[], value: unknown): value is T {
@@ -153,7 +138,6 @@ function migrateFromV1(raw: unknown): PigiSettings {
 
   return {
     version: PIGI_SETTINGS_VERSION,
-    revision: parseRevision(record.revision),
     appearance: {
       ...appearance,
       mode,
@@ -191,7 +175,6 @@ export function parsePigiSettings(raw: unknown): PigiSettings {
   if (isRecord(raw) && raw.version === PIGI_SETTINGS_VERSION) {
     return {
       version: PIGI_SETTINGS_VERSION,
-      revision: parseRevision(raw.revision),
       appearance: parseAppearance(raw.appearance, legacyDiagramTheme(raw) ?? DEFAULT_DIAGRAM_THEME),
       chat: parseChat(raw.chat),
     };

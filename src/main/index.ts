@@ -32,7 +32,7 @@ import {
   readPigiSettingsFile,
   windowBackgroundFor,
 } from './pigiSettingsFile';
-import { createPigiSettingsOwner, type PigiSettingsOwner } from './pigiSettingsOwner';
+import { createPigiSettingsOwner } from './pigiSettingsOwner';
 import { parsePigiSettingsChange } from '../shared/pigiSettings';
 import { join } from 'node:path';
 
@@ -42,9 +42,6 @@ installMainDebugHandle({ piAgent: getPiAgentDebugSnapshot });
 protocol.registerSchemesAsPrivileged([
   { scheme: 'local-file', privileges: { bypassCSP: true, supportFetchAPI: true } },
 ]);
-
-/** Set once the app is ready; `before-quit` flushes it. */
-let settingsOwner: PigiSettingsOwner | null = null;
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.pigi');
@@ -56,26 +53,15 @@ app.whenReady().then(() => {
   const initialSettings = readPigiSettingsFile(settingsPath).settings;
   nativeTheme.themeSource = initialSettings.appearance.mode;
 
-  // One owner: renderers send the slices they changed, main merges them onto
-  // its copy, and every window receives the same snapshot. Both the main window
-  // and the update progress window load this bundle, so the broadcast is what
-  // keeps them from disagreeing.
-  settingsOwner = createPigiSettingsOwner({
-    path: settingsPath,
-    onChanged: (settings) => {
-      for (const window of BrowserWindow.getAllWindows()) {
-        if (!window.isDestroyed()) {
-          window.webContents.send(PiChannel.PigiSettingsChanged, settings);
-        }
-      }
-    },
-  });
+  // One owner: renderers send the slices they changed and main merges them onto
+  // its copy and writes it, so the file has one writer and the last change is
+  // never sitting in a debounce when the app quits.
+  const settingsOwner = createPigiSettingsOwner({ path: settingsPath });
 
-  const owner = settingsOwner;
   ipcMain.handle(PiChannel.ChangePigiSettings, (_event, change: unknown) => {
     // The change is parsed here, not trusted: it keeps only the slices the
     // payload carries and normalizes them field by field.
-    return owner.applyChange(parsePigiSettingsChange(change));
+    settingsOwner.applyChange(parsePigiSettingsChange(change));
   });
 
   protocol.handle('local-file', (request) =>
@@ -126,7 +112,7 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) {
       openMainWindow(
         settingsPath,
-        windowBackgroundFor(owner.current(), nativeTheme.shouldUseDarkColors),
+        windowBackgroundFor(settingsOwner.current(), nativeTheme.shouldUseDarkColors),
       );
     }
   });
@@ -139,9 +125,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  // A renderer's pagehide invoke can lose this race, so the last change is
-  // written here, synchronously, by the process that owns the file.
-  settingsOwner?.flush();
   stopAllProcesses();
   stopTerminalProcess();
   stopProjectFileSearch();

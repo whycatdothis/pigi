@@ -38,7 +38,6 @@ import {
   PIGI_SETTINGS_PATH_ARGUMENT,
   PIGI_SETTINGS_READ_STATE,
   isMissingFileError,
-  type PigiSettings,
   type PigiSettingsChange,
   type PigiSettingsReadResult,
 } from '../shared/pigiSettings';
@@ -545,25 +544,12 @@ const piApi = {
   /**
    * Ask the main process to apply appearance/chat slices to pigi's settings.
    *
-   * Main owns the file: it merges the change onto its copy, bumps the revision,
-   * broadcasts the result to every window and resolves with the same snapshot.
+   * Main owns the file: it merges the change onto its copy and writes it. The
+   * renderer already applied the same change locally, so there is no snapshot
+   * to hand back; the promise is how a caller knows the write landed.
    */
-  changePigiSettings: (change: PigiSettingsChange): Promise<PigiSettings> =>
+  changePigiSettings: (change: PigiSettingsChange): Promise<void> =>
     ipcRenderer.invoke(PiChannel.ChangePigiSettings, change),
-
-  /**
-   * Subscribe to the merged snapshot every change produces (both windows get
-   * it, whichever one asked). Returns the unsubscribe function.
-   */
-  onPigiSettingsChanged: (callback: (settings: PigiSettings) => void): (() => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, settings: PigiSettings): void => {
-      callback(settings);
-    };
-    ipcRenderer.on(PiChannel.PigiSettingsChanged, listener);
-    return () => {
-      ipcRenderer.removeListener(PiChannel.PigiSettingsChanged, listener);
-    };
-  },
 
   /** Auto-update. Every renderer gets the status pushed on change. */
   update: {
