@@ -5,11 +5,11 @@ import type { RenderItem } from './readGrouping';
  *
  * A row that ends a reply keeps a hover action band, and the band plus the base
  * row gap already separates it from the next turn, so it asks for nothing more.
- * Rows in the middle of a reply have no band: they get the block rhythm, and a
- * row that touches a tool card gets the wider edge rhythm so that a run of tool
- * calls reads as one group instead of as separate paragraphs.
+ * Rows in the middle of a reply have no band: they get the block rhythm, a row
+ * that touches a tool card gets the wider edge rhythm, and two cards side by
+ * side get one step more again.
  */
-export type RowSpace = 'block' | 'edge';
+export type RowSpace = 'block' | 'edge' | 'pair';
 
 function isUserItem(item: RenderItem | undefined): boolean {
   return item?.type === 'node' && item.node.role === 'user';
@@ -21,14 +21,21 @@ function isCardItem(item: RenderItem | undefined): boolean {
   return item.type === 'readGroup' || item.node.role === 'tool';
 }
 
-/** Returns undefined for rows whose spacing comes from their action band. */
 export function rowSpaceFor(
   current: RenderItem,
   next: RenderItem | undefined,
+  currentHasActionBand: boolean,
 ): RowSpace | undefined {
-  if (!next) return undefined;
-  if (isUserItem(current) || isUserItem(next)) return undefined;
-  return isCardItem(current) === isCardItem(next) ? 'block' : 'edge';
+  if (!next || isUserItem(next)) {
+    // The action band supplies the turn boundary; a row that cannot render one
+    // still needs its gutters, or the turn would collapse to the base row gap.
+    return currentHasActionBand ? undefined : 'edge';
+  }
+  if (isUserItem(current)) return undefined;
+  const currentIsCard = isCardItem(current);
+  const nextIsCard = isCardItem(next);
+  if (currentIsCard && nextIsCard) return 'pair';
+  return currentIsCard === nextIsCard ? 'block' : 'edge';
 }
 
 /** The next row that belongs to a reply; system notices never end one. */

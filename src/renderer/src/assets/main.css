@@ -89,6 +89,7 @@
     --message-block-spacing: calc(0.6 * var(--text-body));
     --message-edge-spacing: calc(0.8 * var(--text-body));
     --message-card-spacing: calc(0.65 * var(--text-body));
+    --message-pair-spacing: calc(1 * var(--text-body));
   }
 
   /* Rows in the middle of a reply carry no hover band any more, so their
@@ -97,13 +98,18 @@
      padding is inside the measured height, a margin would fall outside it and
      desynchronise the scroll model. The base row gap is still added on top,
      hence the subtraction. A row that touches a tool card gets the wider edge
-     spacing, so a run of tool cards reads as one group. */
+     spacing, and two cards in a row get one step more: a bordered surface needs
+     more air than a paragraph before it stops reading as glued to the next. */
   [data-row-space='block'] {
     padding-bottom: calc(var(--message-block-spacing) - var(--message-row-gap));
   }
 
   [data-row-space='edge'] {
     padding-bottom: calc(var(--message-edge-spacing) - var(--message-row-gap));
+  }
+
+  [data-row-space='pair'] {
+    padding-bottom: calc(var(--message-pair-spacing) - var(--message-row-gap));
   }
 
   button {

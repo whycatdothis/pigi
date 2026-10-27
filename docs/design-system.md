@@ -88,8 +88,9 @@ three different sizes in one message.
 
 Fixed chrome, deliberately not scaling: the 25px hover action band, the 4px base
 row gap, `pt-6`/`pb-2` on a user message. A tool card carries a border and a
-tinted surface, so its gap is one step wider than a paragraph gap; two tool
-cards in a row stay at the block step so a run of calls reads as one group.
+tinted surface, so its gap is one step wider than a paragraph gap, and two of
+them in a row get one step more again: at the paragraph step they read as glued
+together, and a run of calls stops separating into single steps.
 
 ## Corners are superellipses
 

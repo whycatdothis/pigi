@@ -347,13 +347,18 @@ export default React.memo(function MessageList({
                   const item = renderItems[virtualItem.index];
                   const isLast = virtualItem.index === renderItems.length - 1;
                   const nextItem = renderItems[virtualItem.index + 1];
+                  // Only node rows can render the band; a read group at the end
+                  // of a reply keeps its gutters instead.
+                  const showsActions =
+                    item.type === 'node' &&
+                    rowShowsActions(nextReplyItem(renderItems, virtualItem.index));
                   return (
                     <div
                       key={item.id}
                       ref={rowVirtualizer.measureElement}
                       data-index={virtualItem.index}
                       data-item-id={item.id}
-                      data-row-space={rowSpaceFor(item, nextItem)}
+                      data-row-space={rowSpaceFor(item, nextItem, showsActions)}
                       style={{
                         marginBottom: `${isLast ? MESSAGE_LIST_BOTTOM_INSET : MESSAGE_ROW_GAP}px`,
                       }}
@@ -361,7 +366,7 @@ export default React.memo(function MessageList({
                       <RenderItemRenderer
                         item={item}
                         isLast={isLast}
-                        showActions={rowShowsActions(nextReplyItem(renderItems, virtualItem.index))}
+                        showActions={showsActions}
                         sessionActive={sessionStatus !== 'idle'}
                         searchQuery={searchQuery}
                         expanded={
