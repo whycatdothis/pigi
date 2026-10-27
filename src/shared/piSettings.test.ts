@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { findPiSettingField, isPiSettingValueValid, type PiSettingValue } from './piSettings';
+import {
+  findPiSettingField,
+  isPiSettingValueValid,
+  setPiSettingValue,
+  type PiSettingValue,
+} from './piSettings';
 
 function valid(fieldId: string, value: unknown): boolean {
   const field = findPiSettingField(fieldId);
@@ -40,5 +45,63 @@ describe('isPiSettingValueValid', () => {
     expect(valid('retry.maxRetries', '3')).toBe(false);
     expect(valid('retry.enabled', 1)).toBe(false);
     expect(valid('transport', 'carrier-pigeon')).toBe(false);
+  });
+});
+
+describe('setPiSettingValue', () => {
+  it('writes a dotted field into the nested object', () => {
+    const target: Record<string, unknown> = {};
+
+    setPiSettingValue(target, 'compaction.reserveTokens', 16384);
+
+    expect(target).toEqual({ compaction: { reserveTokens: 16384 } });
+  });
+
+  it('keeps the siblings of a nested write', () => {
+    const target: Record<string, unknown> = {
+      compaction: { reserveTokens: 1, keepRecentTokens: 2 },
+      theme: 'dark',
+    };
+
+    setPiSettingValue(target, 'compaction.reserveTokens', 9);
+
+    expect(target).toEqual({
+      compaction: { reserveTokens: 9, keepRecentTokens: 2 },
+      theme: 'dark',
+    });
+  });
+
+  it('clears a field and drops its parent once the parent is empty', () => {
+    const target: Record<string, unknown> = { compaction: { reserveTokens: 16384 } };
+
+    setPiSettingValue(target, 'compaction.reserveTokens', undefined);
+
+    expect(target).toEqual({});
+  });
+
+  it('clears one field without dropping a sibling', () => {
+    const target: Record<string, unknown> = {
+      compaction: { reserveTokens: 16384, keepRecentTokens: 20000 },
+    };
+
+    setPiSettingValue(target, 'compaction.keepRecentTokens', undefined);
+
+    expect(target).toEqual({ compaction: { reserveTokens: 16384 } });
+  });
+
+  it('leaves a non-object parent alone rather than losing what it held', () => {
+    // A hand-edited file can hold a scalar where the registry expects an object.
+    const target: Record<string, unknown> = { compaction: 'off' };
+
+    setPiSettingValue(target, 'compaction.reserveTokens', 100);
+
+    expect(target).toEqual({ compaction: { reserveTokens: 100 } });
+  });
+
+  it('does not throw when clearing a field that was never set', () => {
+    const target: Record<string, unknown> = {};
+
+    expect(() => setPiSettingValue(target, 'compaction.reserveTokens', undefined)).not.toThrow();
+    expect(target).toEqual({});
   });
 });
