@@ -528,9 +528,10 @@
    gradient only exists inside the glyphs, whatever is behind them.
    It animates `background-position`, i.e. it repaints instead of compositing
    (`compositeFailed`, `unsupportedProperties: [background-position-x]` in a
-   `blink.animations` trace). That is a deliberate exception to the
-   transform/opacity rule, recorded in docs/todo.md: a composited sweep would
-   have to paint the glyphs twice again. */
+   `blink.animations` trace). That is a deliberate, documented exception to the
+   transform/opacity rule in AGENTS.md: the composited alternative paints the
+   glyphs twice, and the two copies rasterize at different edge phases, which is
+   the doubling this replaced. Keep it in the glyphs, and keep it to one copy. */
 .shimmer-text {
   /* inline-block so the component can measure a width for the sweep duration;
      an inline box reports clientWidth 0. */
