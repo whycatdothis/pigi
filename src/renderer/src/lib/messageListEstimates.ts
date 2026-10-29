@@ -61,8 +61,13 @@ function estimateNodeHeight(node: TranscriptNode | undefined): number {
     case 'tool':
       return estimateToolHeight(node);
     case 'system':
-      return 56;
+      return node.kind === 'peer' ? estimatePeerHeight(node.detail ?? '') : 56;
   }
+}
+
+function estimatePeerHeight(text: string): number {
+  const lineCount = Math.max(countLines(text), Math.ceil(text.length / 84));
+  return Math.max(96, lineCount * 24 + 56);
 }
 
 function estimateUserHeight(text: string): number {

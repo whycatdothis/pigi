@@ -6,6 +6,8 @@ import {
   type TranscriptNode,
   type UserNode,
 } from '../state/transcriptController';
+import { parseSlashCommand } from './slashCommands';
+import { parseSkillBlock } from './skillBlock';
 
 /**
  * Minimal view: transcript nodes are grouped into turns, one per user message.
@@ -84,6 +86,11 @@ function getAssistantStart(node: AssistantNode): number | undefined {
   return node.messageStartedAt ?? node.thinkingStartedAt ?? node.messageEndedAt;
 }
 
+/** A prompt the SDK handles as a command/skill, not as ordinary agent input. */
+function isCommandMessage(text: string): boolean {
+  return parseSlashCommand(text) !== null || parseSkillBlock(text) !== null;
+}
+
 function getAssistantEnd(node: AssistantNode): number | undefined {
   // No fallback to the start timestamp: a live message that has not ended yet
   // (no message_end, no thinking end) must yield undefined so the timer keeps
@@ -157,9 +164,17 @@ export function analyzeTurn(
   // counts as active while the session is streaming so the timer appears early.
   // 'error' is a sticky terminal status — it must not keep a dead turn active
   // (the timer would tick forever on a failed session).
+  //
+  // A slash command or a skill invocation is a prompt that may start no agent
+  // work at all: an extension command can run for minutes on its own and never
+  // produce a message. Until the agent produces a timestamp there is nothing to
+  // time, so the working timer must not start from the prompt's own send time.
+  const isCommandTurn = turn.userNode !== null && isCommandMessage(turn.userNode.text);
+  const waitsForAgent = isCommandTurn && startAt === undefined;
   const isActive =
     !isPureSystemTurn &&
     isLastTurn &&
+    !waitsForAgent &&
     (lastAgentNodeActive ||
       turn.entries.length === 0 ||
       sessionStatus === 'streaming' ||
@@ -194,8 +209,9 @@ export function analyzeTurn(
     // agent first started: agent_start may arrive seconds later (queueing,
     // session creation) and would otherwise reset the timer to 0s — most
     // visible when the run errors out immediately after starting. The agent
-    // timestamps only serve as fallback for user-less turns.
-    startAt: turn.userNode?.sentAt ?? startAt,
+    // timestamps only serve as fallback for user-less turns, and a command
+    // turn ignores the prompt's own send time entirely (see above).
+    startAt: isCommandTurn ? startAt : (turn.userNode?.sentAt ?? startAt),
     endAt,
     hasTools,
     isActive,

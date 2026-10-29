@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Messages sent by another pi session through the pi-peer extension appear in
+  the transcript as a card with the sender and the message, instead of being
+  invisible
+
+### Fixed
+
+- The minimal view no longer starts a working timer for a slash command or
+  skill before the agent has produced any work, so an extension command that
+  runs on its own is not shown as an endlessly working turn
+
 ## [0.4.28] - 2026-10-30
 
 ### Changed

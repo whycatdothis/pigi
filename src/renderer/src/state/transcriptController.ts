@@ -1,6 +1,7 @@
 import type { EditToolDetails } from '@earendil-works/pi-coding-agent';
 import type { PromptAttachment, PromptInput, StreamBatch } from '../../../shared/ipcContract';
 import { sanitizeUserPromptForDisplay } from '../../../shared/chatAttachments';
+import { parsePeerMessage } from '../lib/peerMessage';
 
 /**
  * TranscriptController - manages transcript state for a single session.
@@ -94,9 +95,10 @@ export interface SystemNode {
   /** This visual marker occurred inside an active user turn and must not
    *  become a logical turn boundary (for example, automatic compaction). */
   continuesUserTurn?: boolean;
-  /** Which marker this is; `branch` renders as a collapsible card. */
-  kind?: 'branch';
-  /** Long-form body (the branch summary text). */
+  /** Which marker this is; `branch` renders as a collapsible card and `peer`
+   *  as a message from another pi session. */
+  kind?: 'branch' | 'peer';
+  /** Long-form body (the branch summary or the peer message text). */
   detail?: string;
 }
 
@@ -162,7 +164,16 @@ export interface TranscriptState {
 // SDK event shapes (only types actually used in casts are kept)
 interface SdkMessageStart {
   type: 'message_start';
-  message: { id?: string; role?: string; content?: unknown[]; timestamp?: number | string };
+  message: {
+    id?: string;
+    role?: string;
+    content?: unknown;
+    timestamp?: number | string;
+    /** Custom messages only: the extension that injected it. */
+    customType?: string;
+    /** Custom messages only: false means hidden entirely. */
+    display?: boolean;
+  };
 }
 interface SdkMessageUpdate {
   type: 'message_update';
@@ -252,6 +263,10 @@ export class TranscriptController {
   private static readonly MIN_RENDER_INTERVAL_MS = 16;
   private _compactionReplayCallback: CompactionReplayCallback | null = null;
   private _sessionId: string | null = null;
+  /** Whether the next message_start is the prompt that opened this agent run.
+   *  A custom message that is the run's first prompt started a turn; one that
+   *  arrives later was steered into an already-running turn. */
+  private _runPromptPending = false;
 
   /** Register a callback that fires when compaction ends with queued messages to replay. */
   setCompactionReplayCallback(sessionId: string, callback: CompactionReplayCallback): void {
@@ -326,6 +341,7 @@ export class TranscriptController {
 
   hydrate(messages: unknown[], compactionCount?: number): void {
     this._optimisticUserMessages.clear();
+    this._runPromptPending = false;
     const nodes = this.createNodesFromMessages(messages);
 
     // If the last message is a compaction marker, update it with the count
@@ -393,7 +409,7 @@ export class TranscriptController {
       const parsed = rawMessage as {
         id?: string;
         role?: string;
-        content?: unknown[];
+        content?: unknown;
         summary?: string;
         model?: { name?: string; provider?: string };
         timestamp?: number | string;
@@ -402,6 +418,9 @@ export class TranscriptController {
         pigiPersistedAt?: string;
         stopReason?: string;
         errorMessage?: string;
+        /** Custom messages only. */
+        customType?: string;
+        display?: boolean;
       };
       if (!parsed.role) continue;
 
@@ -448,7 +467,7 @@ export class TranscriptController {
             thinking,
             toolCalls: assistantToolCalls,
             errorMessage: contentError,
-          } = extractAssistantContent(parsed.content);
+          } = extractAssistantContent(Array.isArray(parsed.content) ? parsed.content : undefined);
           const assistantError = parsed.errorMessage || contentError;
           const assistantTimestamp = tryNormalizeTimestamp(parsed.timestamp);
           const persistedAt = tryNormalizeTimestamp(parsed.pigiPersistedAt);
@@ -524,6 +543,12 @@ export class TranscriptController {
           }
           break;
         }
+        case 'custom': {
+          if (parsed.customType !== 'pi-peer' || parsed.display === false) break;
+          const node = createPeerSystemNode(customMessageText(parsed.content), false);
+          if (node) nodes.push(node);
+          break;
+        }
         case 'compactionSummary':
           // Handled above via compactionTimestamp; marker is inserted at the
           // chronological boundary between kept and post-compaction messages.
@@ -550,6 +575,7 @@ export class TranscriptController {
 
   reset(): void {
     this._optimisticUserMessages.clear();
+    this._runPromptPending = false;
     if (this.renderTimer) {
       clearTimeout(this.renderTimer);
       this.renderTimer = null;
@@ -750,6 +776,7 @@ export class TranscriptController {
     const type = String(event.type ?? '');
     switch (type) {
       case 'agent_start':
+        this._runPromptPending = true;
         this.setState({ status: 'streaming' });
         break;
 
@@ -765,6 +792,7 @@ export class TranscriptController {
         break;
 
       case 'agent_settled':
+        this._runPromptPending = false;
         this.finalizeCurrent();
         // An extension can start a compaction from its agent_settled handler,
         // so compaction_start may arrive first. Keep the compaction busy state
@@ -789,6 +817,19 @@ export class TranscriptController {
       case 'message_start': {
         const startEvent = raw as SdkMessageStart;
         const startMessage = startEvent.message;
+        // Only the first message of an agent run is its prompt; a custom
+        // message that arrives later was steered into the running turn.
+        const opensAgentRun = this._runPromptPending;
+        this._runPromptPending = false;
+        if (startMessage?.role === 'custom') {
+          if (startMessage.customType !== 'pi-peer' || startMessage.display === false) break;
+          const node = createPeerSystemNode(
+            customMessageText(startMessage.content),
+            !opensAgentRun,
+          );
+          if (node) this.setState({ nodes: [...this._state.nodes, node] });
+          break;
+        }
         if (startMessage?.role === 'user') {
           // Check if this user message was already added optimistically
           const { text, imageSources, filePaths, inlineFileNames } = extractUserContent(
@@ -1376,8 +1417,12 @@ function areDuplicateNodes(left: TranscriptNode, right: TranscriptNode): boolean
     }
     case 'tool':
       return left.toolCallId === (right as ToolNode).toolCallId;
-    case 'system':
-      return left.text === (right as SystemNode).text;
+    case 'system': {
+      const system = right as SystemNode;
+      // Two peer messages can share a sender; the body is what tells them
+      // apart when hydration is merged into a live transcript.
+      return left.text === system.text && (left.detail ?? '') === (system.detail ?? '');
+    }
   }
 }
 
@@ -1392,6 +1437,27 @@ function extractText(content: unknown[] | undefined): string {
     }
   }
   return parts.join('\n');
+}
+
+/** An extension-injected message's text: a string, or its text blocks. */
+function customMessageText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  return Array.isArray(content) ? extractText(content) : '';
+}
+
+/** A peer delivery as a system card, or null when it has no body to show. */
+function createPeerSystemNode(content: string, continuesUserTurn: boolean): SystemNode | null {
+  const { from, body } = parsePeerMessage(content);
+  if (!body) return null;
+  return {
+    id: nextNodeId(),
+    role: 'system',
+    kind: 'peer',
+    text: from,
+    detail: body,
+    continuesUserTurn,
+    isLoading: false,
+  };
 }
 
 /**

@@ -1,5 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { IconCheck, IconCopy, IconCube, IconPencil, IconTerminal2 } from '@tabler/icons-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  IconCheck,
+  IconCopy,
+  IconCube,
+  IconMessageDots,
+  IconPencil,
+  IconTerminal2,
+} from '@tabler/icons-react';
 import {
   type SystemNode,
   type TranscriptNode,
@@ -14,7 +21,8 @@ import BranchSummaryCard from './branchSummaryCard';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import MarkdownMessage from './markdownMessage';
 import OverflowClamp from './overflowClamp';
-import { highlightMatches } from '../../lib/highlightMatches';
+import { highlightMatches, useHighlightTextNodes } from '../../lib/highlightMatches';
+import { MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
 import ShimmerText from './shimmerText';
 import { parseSkillBlock, type ParsedSkillBlock } from '../../lib/skillBlock';
 import {
@@ -23,16 +31,7 @@ import {
 } from '../../lib/referenceChipStyles';
 import { MessageAttachments } from './messageAttachments';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
-
-/** Matches a slash command like `/plannotator-review` or `/review staged`. */
-const SLASH_COMMAND_PATTERN = /^\/([a-z][a-z0-9_-]*)(\s.*)?$/i;
-
-function parseSlashCommand(text: string): { name: string; args: string } | null {
-  if (text.includes('\n')) return null;
-  const match = text.match(SLASH_COMMAND_PATTERN);
-  if (!match) return null;
-  return { name: match[1], args: (match[2] ?? '').trim() };
-}
+import { parseSlashCommand } from '../../lib/slashCommands';
 
 /**
  * Shared message bubbles (user / system / toolbar) used by both the classic
@@ -393,6 +392,16 @@ export function SystemBubble({
   searchQuery: string;
   activeOccurrenceIndex: number | null;
 }): React.JSX.Element {
+  if (node.kind === 'peer') {
+    return (
+      <PeerMessageCard
+        node={node}
+        searchQuery={searchQuery}
+        activeOccurrenceIndex={activeOccurrenceIndex}
+      />
+    );
+  }
+
   if (node.kind === 'branch' && node.detail) {
     return <BranchSummaryCard text={node.detail} />;
   }
@@ -406,6 +415,46 @@ export function SystemBubble({
         {node.isLoading ? <ShimmerText>{label}</ShimmerText> : label}
       </span>
       <div className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+/**
+ * A message delivered by another pi session (the pi-peer extension). It reads
+ * as a note from a colleague rather than as the user's own bubble: the sender
+ * is in the header, and the body is the peer's markdown without the delivery
+ * boilerplate the model needs.
+ */
+function PeerMessageCard({
+  node,
+  searchQuery,
+  activeOccurrenceIndex,
+}: {
+  node: SystemNode;
+  searchQuery: string;
+  activeOccurrenceIndex: number | null;
+}): React.JSX.Element {
+  const contentRef = useRef<HTMLDivElement>(null);
+  useHighlightTextNodes(contentRef, searchQuery, activeOccurrenceIndex);
+  const from = node.text || 'Another session';
+
+  return (
+    <div className="flex justify-start" data-testid="peer-message">
+      <div
+        className="w-full overflow-hidden rounded-surface border border-border/65 bg-muted/25"
+        style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
+      >
+        <div className="flex items-center gap-2 border-b border-border/60 px-3 py-1.5 text-caption text-muted-foreground">
+          <IconMessageDots className="size-4 shrink-0 text-[var(--system-accent)]" />
+          <span className="shrink-0 font-medium text-foreground">Peer message</span>
+          <span className="min-w-0 truncate" title={from}>
+            {from}
+          </span>
+        </div>
+        <div ref={contentRef} className="px-3 py-2 text-body text-foreground">
+          <MarkdownMessage text={node.detail ?? ''} />
+        </div>
+      </div>
     </div>
   );
 }
