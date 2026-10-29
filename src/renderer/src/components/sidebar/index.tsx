@@ -264,7 +264,7 @@ export default memo(function Sidebar({
                 <span className="sr-only">Open project</span>
               </SidebarGroupAction>
             </div>
-            <SidebarGroupContent className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto sidebar-scrollbar content-fade-bottom">
+            <SidebarGroupContent className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto sidebar-scrollbar sidebar-scrollbar-stable content-fade-bottom">
               <ProjectList
                 sessions={sessions}
                 recentProjects={recentProjects}

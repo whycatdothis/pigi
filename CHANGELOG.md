@@ -36,8 +36,8 @@
 
 ### Fixed
 
-- The sidebar scrolls on one thin rail instead of occasionally drawing Chrome's
-  wide platform scrollbar
+- The sidebar now shows one thin scrollbar instead of hiding it until Chrome
+  occasionally draws its wide platform rail
 
 ## [0.4.26] - 2026-10-29
 

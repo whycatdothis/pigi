@@ -626,12 +626,9 @@
   /* The sidebar's own scrollbar. Chrome's overlay scrollbar is thin, but the
      platform can fall back to its classic rail — twice as wide and drawn over
      the rows — and `scrollbar-width: none` would replace that with no position
-     cue at all. An explicit 6px rail keeps one width in every system setting,
-     and `stable` keeps the list from shifting when it starts to overflow. */
-  .sidebar-scrollbar {
-    scrollbar-gutter: stable;
-  }
-
+     cue at all. An explicit 6px rail keeps one width in every system setting.
+     A standard `scrollbar-width` on the same element would win over these
+     pseudo-elements, so a caller must not combine the two. */
   .sidebar-scrollbar::-webkit-scrollbar {
     width: 6px;
   }
@@ -642,11 +639,18 @@
 
   .sidebar-scrollbar::-webkit-scrollbar-thumb {
     border-radius: var(--radius-full);
-    background: color-mix(in oklab, var(--foreground) 18%, transparent);
+    background: color-mix(in oklab, var(--foreground) 22%, transparent);
   }
 
   .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in oklab, var(--foreground) 28%, transparent);
+    background: color-mix(in oklab, var(--foreground) 32%, transparent);
+  }
+
+  /* The session list always has a scrollbar width reserved, so a project that
+     makes it overflow does not shift every row 6px. The settings sidebar is
+     short and fixed, so it keeps the rail without the permanent inset. */
+  .sidebar-scrollbar-stable {
+    scrollbar-gutter: stable;
   }
 
   /* Content bottom fade mask, 16px gradient to transparent */
