@@ -387,7 +387,12 @@ const TurnSection = React.memo(function TurnSection({
       )}
 
       {showTimer && (
-        <div className={cn('flex flex-col', detailsOpen && 'sticky top-0 z-20 bg-background')}>
+        <div
+          className={cn(
+            'flex flex-col border-b-[0.5px] border-foreground/27',
+            detailsOpen && 'sticky top-0 z-20 bg-background',
+          )}
+        >
           <button
             type="button"
             onClick={handleToggleDetails}
@@ -407,7 +412,6 @@ const TurnSection = React.memo(function TurnSection({
               )}
             />
           </button>
-          <div className="h-px bg-border/60" data-testid="minimal-divider" />
         </div>
       )}
 

@@ -180,3 +180,43 @@ test('breaks wider before a heading that opens a section, at both text sizes', a
   expect(bodySizeIn(screen.container)).toBeCloseTo(LARGE_UI_FONT_SIZE, 1);
   expectHeadingGaps(screen.container, LARGE_UI_FONT_SIZE);
 });
+
+/** Data and task rows are the two shapes that do not read like prose: a table
+ *  runs one step smaller, and a task row's checkbox replaces its bullet. */
+const TABLE_AND_TASKS = [
+  '- [x] Shipped',
+  '- [ ] Pending',
+  '',
+  '| Column | Value |',
+  '| ------ | ----- |',
+  '| alpha  | 1     |',
+].join('\n');
+
+test('scales table text below prose and draws task rows without bullets', async () => {
+  const screen = await render(
+    <div className="text-body">
+      <MarkdownMessage text={TABLE_AND_TASKS} />
+    </div>,
+  );
+
+  const bodySize = bodySizeIn(screen.container);
+  const cell = requireElement<HTMLElement>('.markdown-body td', screen.container);
+  expect(parseFloat(getComputedStyle(cell).fontSize)).toBeCloseTo(bodySize * 0.93, 1);
+
+  const taskList = requireElement<HTMLElement>(
+    '.markdown-body ul.contains-task-list',
+    screen.container,
+  );
+  expect(getComputedStyle(taskList).listStyleType).toBe('none');
+  const checkbox = requireElement<HTMLElement>(
+    '.markdown-body li.task-list-item input[type="checkbox"]',
+    screen.container,
+  );
+  expect(parseFloat(getComputedStyle(checkbox).width)).toBeCloseTo(bodySize, 0);
+
+  // The same two rules hold when the text size setting changes.
+  setUiFontSize(LARGE_UI_FONT_SIZE);
+
+  expect(parseFloat(getComputedStyle(cell).fontSize)).toBeCloseTo(LARGE_UI_FONT_SIZE * 0.93, 1);
+  expect(parseFloat(getComputedStyle(checkbox).width)).toBeCloseTo(LARGE_UI_FONT_SIZE, 0);
+});

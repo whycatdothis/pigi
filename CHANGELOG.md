@@ -1,5 +1,22 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Markdown tables sit one step below prose, so a dense grid no longer reads as a
+  larger paragraph
+- Task lists show a single checkbox instead of a checkbox and a bullet, and the
+  checkbox follows the message's text size
+- A key in a message looks like a key rather than a code fragment
+- The user's message bubbles and the working, steer and follow-up bars carry a
+  faint tint of the accent instead of the grey surface
+- The sidebar reads as a hierarchy: "Projects" is a small semibold label and a
+  project name is medium weight, while its sessions stay regular
+- The View menu uses the app's translucent popup and shadcn's item spacing, and
+  its edge is a hairline instead of a faint ring
+- The minimal view's divider is a hairline border, so it keeps one thickness
+
 ## [0.4.26] - 2026-10-29
 
 ### Changed

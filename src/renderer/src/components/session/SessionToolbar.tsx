@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { IconCheck, IconFilter2, IconTerminal2 } from '@tabler/icons-react';
+import { IconFilter2, IconTerminal2 } from '@tabler/icons-react';
 import { useAppStore } from '../../state/appStore';
 import { useSettingsStore } from '../../state/settingsStore';
 import { isToolBlockViewMode } from '../../../../shared/pigiSettings';
 import {
   SIDEBAR_TOGGLE_CLEARANCE_PX,
   SIDEBAR_TRANSITION_CLASS_NAME,
+  VIBRANCY_OVERLAY_CONTENT,
   sidebarToggleLeft,
 } from '../../lib/layoutConstants';
 import { cn } from '../../lib/utils';
@@ -24,14 +25,6 @@ import { SessionTreeIcon } from '../sessionTree/sessionTreeIcons';
 import { Kbd } from '../ui/kbd';
 import { PanelIcon } from '../panelIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-
-// 13px menu text (app's caption scale, keeps the theme line-height — an
-// arbitrary text-caption would drop it and inherit body's 1.6 line-height).
-// The check icon renders inline right after the label (showCheckIcon={false}
-// disables the component's far-right absolute indicator), so the menu hugs
-// its content instead of reserving pr-8 + min-w-32 for a distant checkmark.
-const viewModeItemClassName =
-  'gap-1 pl-2 pr-2 py-1 text-caption transition-colors data-[state=checked]:bg-[var(--system-accent)]/10 data-[state=checked]:text-[var(--system-accent)] data-[state=checked]:focus:bg-[var(--system-accent)]/10 data-[state=checked]:focus:text-[var(--system-accent)] data-[state=checked]:focus:**:text-[var(--system-accent)]';
 
 interface SessionToolbarProps {
   sessionPath: string;
@@ -203,10 +196,15 @@ export default React.memo(function SessionToolbar({
         <DropdownMenuContent
           align="end"
           sideOffset={6}
-          className="menu-content w-fit min-w-0 bg-popover/50 backdrop-blur-md"
+          // Radix sets `outline: none` inline on menu content, so the shared
+          // constant's outline cannot draw here. The same 0.5px hairline is
+          // expressed as a ring instead.
+          className={cn(
+            VIBRANCY_OVERLAY_CONTENT,
+            'w-fit min-w-0 p-1 ring-[0.5px] ring-foreground/25',
+          )}
         >
           <DropdownMenuRadioGroup
-            className="flex flex-col gap-1"
             value={toolBlockViewMode}
             onValueChange={(value) => {
               if (isToolBlockViewMode(value)) {
@@ -217,14 +215,7 @@ export default React.memo(function SessionToolbar({
             <TooltipProvider delayDuration={400}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <DropdownMenuRadioItem
-                    value="minimal"
-                    className={viewModeItemClassName}
-                    showCheckIcon={false}
-                  >
-                    Minimal
-                    {toolBlockViewMode === 'minimal' && <IconCheck />}
-                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="minimal">Minimal</DropdownMenuRadioItem>
                 </TooltipTrigger>
                 <TooltipContent side="left">
                   Minimal activity view: working timer, tool cards, final summary
@@ -232,14 +223,7 @@ export default React.memo(function SessionToolbar({
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <DropdownMenuRadioItem
-                    value="compact_read"
-                    className={viewModeItemClassName}
-                    showCheckIcon={false}
-                  >
-                    Compact
-                    {toolBlockViewMode === 'compact_read' && <IconCheck />}
-                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="compact_read">Compact</DropdownMenuRadioItem>
                 </TooltipTrigger>
                 <TooltipContent side="left">
                   Collapse consecutive read-only tool calls into a single group
@@ -247,14 +231,7 @@ export default React.memo(function SessionToolbar({
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <DropdownMenuRadioItem
-                    value="default"
-                    className={viewModeItemClassName}
-                    showCheckIcon={false}
-                  >
-                    Show All
-                    {toolBlockViewMode === 'default' && <IconCheck />}
-                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="default">Show All</DropdownMenuRadioItem>
                 </TooltipTrigger>
                 <TooltipContent side="left">
                   Display every tool call as an individual expanded block

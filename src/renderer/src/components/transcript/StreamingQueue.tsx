@@ -35,7 +35,7 @@ function QueueBar({
   return (
     <div
       data-testid="streaming-queue-bar"
-      className="rounded-t-surface-xl bg-muted px-4 pb-15 pt-2 text-caption text-muted-foreground"
+      className="rounded-t-surface-xl bg-accent-subtle px-4 pb-15 pt-2 text-caption text-muted-foreground"
     >
       <div className="flex items-center gap-1">
         {icon}

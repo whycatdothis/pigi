@@ -298,6 +298,27 @@
     margin-bottom: 0;
   }
 
+  /* GFM task lists: the checkbox replaces the bullet. Without this the row
+     renders both markers — a disc from the list and a native checkbox — and
+     the checkbox keeps the platform's fixed size instead of following the
+     message's text size. */
+  .markdown-body ul.contains-task-list {
+    padding-left: 0;
+    list-style: none;
+  }
+
+  .markdown-body li.task-list-item {
+    padding-left: 0;
+  }
+
+  .markdown-body li.task-list-item > input[type='checkbox'] {
+    width: 1em;
+    height: 1em;
+    margin-right: 0.5em;
+    vertical-align: -0.125em;
+    accent-color: var(--system-accent);
+  }
+
   /* A quote is a container, not an indented paragraph: its text sits on its own
      column, far enough from the 2px rule that the two do not crowd, and the
      inset scales with the body so a larger text size keeps the proportion. */
@@ -465,6 +486,24 @@
     font-size: inherit;
   }
 
+  /* A key embedded in prose: an ornament like inline code, not a code sample,
+     so it keeps the text family and the inline radius. The background and
+     border follow the same pair the app's own <Kbd> uses. */
+  .markdown-body kbd {
+    display: inline-block;
+    min-width: 1.25em;
+    padding: 0.05em 0.3em;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-inline);
+    background: var(--muted);
+    font-family: var(--font-sans);
+    font-size: 0.875em;
+    font-weight: 500;
+    line-height: 1.4;
+    text-align: center;
+    color: var(--muted-foreground);
+  }
+
   .markdown-body strong {
     font-weight: 600;
   }
@@ -488,6 +527,11 @@
      and overflow: hidden clips cell backgrounds to the rounded corners. */
   .markdown-body table {
     width: 100%;
+    /* One step below prose: a dense grid of cells reads larger than a paragraph
+       at the same size, so it takes 0.93em of the message's own text size. The
+       block gap lives on `.markdown-table-wrapper` and stays at --text-body, so
+       the table's smaller size never shrinks the rhythm around it. */
+    font-size: 0.93em;
     /* Rows are data, not prose: a tight line box keeps a multi-row table from
        reading as a stack of paragraphs. */
     line-height: 1.3;
