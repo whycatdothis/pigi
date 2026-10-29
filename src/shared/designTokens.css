@@ -190,6 +190,10 @@
   /* The thinking label's sweep. Everything else here is solved from the page's
      own colours, so the fallback only has to be a plausible sheen. */
   --shimmer-highlight: var(--app-shimmer-highlight, oklch(0.84 0 0));
+  /* Message ticks in the minimap. Solved from the contrast slider like the
+     border, but at a much higher ratio: a line only a few device pixels tall
+     paints fainter than its colour suggests. */
+  --minimap-tick: var(--app-minimap-tick, var(--muted-foreground));
   --accent: var(--app-accent, oklch(0.97 0 0));
   --accent-foreground: var(--app-accent-foreground, oklch(0.205 0 0));
   --destructive: var(--app-destructive, oklch(0.577 0.245 27.325));

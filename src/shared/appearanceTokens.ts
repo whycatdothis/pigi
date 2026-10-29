@@ -62,9 +62,10 @@ export const DEFAULT_MODE_COLORS: Record<ColorMode, { background: string; foregr
 };
 
 /**
- * Contrast anchors for the slider. Values at 73 are the shipped defaults; dark
- * mode asks for a higher physical ratio because the same ratio reads weaker on
- * a dark surface.
+ * Contrast anchors for the slider. The numbers at 73 are the ones the palette
+ * was designed around and the ones `docs/appearance.md` documents; the shipped
+ * slider starts below that, at 30. Dark mode asks for a higher physical ratio
+ * at the same position because the same ratio reads weaker on a dark surface.
  *
  * Slider position 0 / 73 / 100.
  */
@@ -73,7 +74,24 @@ const CONTRAST_PROFILES: Record<ColorMode, { secondaryText: number[]; border: nu
   dark: { secondaryText: [5.5, 7.0, 10.0], border: [1.25, 1.45, 3.0] },
 };
 
-const DEFAULT_CONTRAST_ANCHOR = 73;
+/** The middle anchor: below it the values interpolate toward the 0 anchor. */
+const CONTRAST_ANCHOR = 73;
+
+/**
+ * Contrast anchors for the minimap's ticks, on the slider's 0 / 73 / 100.
+ *
+ * Antialiasing spreads a thin line over several device rows, so a colour at the
+ * border ratio paints fainter than its ratio reads; these sit above it, over a
+ * wide range so the rail goes from a light grey to nearly the secondary text.
+ */
+const TICK_PROFILES: Record<ColorMode, number[]> = {
+  light: [1.4, 2.2, 5.5],
+  dark: [1.6, 2.7, 6.5],
+};
+
+export function minimapTickTarget(contrast: number, mode: ColorMode): number {
+  return interpolate(TICK_PROFILES[mode], contrast);
+}
 
 /**
  * Surface steps toward the foreground, in oklab lightness. These reproduce the
@@ -90,11 +108,11 @@ const SHIMMER_WHITE_MIX = 0.85;
 
 function interpolate(values: number[], contrast: number): number {
   const clamped = Math.min(100, Math.max(0, contrast));
-  if (clamped <= DEFAULT_CONTRAST_ANCHOR) {
-    const t = clamped / DEFAULT_CONTRAST_ANCHOR;
+  if (clamped <= CONTRAST_ANCHOR) {
+    const t = clamped / CONTRAST_ANCHOR;
     return values[0] + (values[1] - values[0]) * t;
   }
-  const t = (clamped - DEFAULT_CONTRAST_ANCHOR) / (100 - DEFAULT_CONTRAST_ANCHOR);
+  const t = (clamped - CONTRAST_ANCHOR) / (100 - CONTRAST_ANCHOR);
   return values[1] + (values[2] - values[1]) * t;
 }
 
@@ -315,6 +333,11 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
   const surface = (factor: number): OklchColor =>
     mixOklch(background, foreground, surfaceStep * factor);
   const secondaryText = secondaryTextColor(background, foreground, targets);
+  const minimapTick = mixOklch(
+    background,
+    foreground,
+    solveMixAmount(background, foreground, background, minimapTickTarget(slot.contrast, mode)),
+  );
   // The thinking label's sweep is a specular highlight, so it is mixed toward
   // white instead of toward `--foreground`: the foreground is near-black on a
   // light theme, and a dark band travelling across the label reads as a smudge
@@ -375,6 +398,7 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
     '--app-accent-foreground': formatOklch(foreground),
     '--app-destructive': formatOklch(status.danger.fg),
     '--app-border': formatOklch(mixOklch(background, foreground, borderAmount)),
+    '--app-minimap-tick': formatOklch(minimapTick),
     '--app-input': formatOklch(mixOklch(background, foreground, borderAmount)),
     '--app-ring': formatOklch(textAccent),
     '--app-sidebar': sidebarTint,

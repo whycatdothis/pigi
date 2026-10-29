@@ -7,6 +7,7 @@ import {
   VIBRANCY_OVERLAY_CONTENT,
 } from '../../lib/layoutConstants';
 import { cn } from '../../lib/utils';
+import { computeTickLayout, TICK_EDGE_INSET_DEVICE_PX } from './minimapTickLayout';
 
 interface UserMessageMiniMapProps {
   nodes: TranscriptNode[];
@@ -29,19 +30,34 @@ const EMPTY_MESSAGE_PREVIEW = 'Empty message';
 const LINE_WIDTH_MAX_CAP = 48;
 const LINE_WIDTH_RIGHT_MARGIN = 8;
 const LINE_WIDTH_MIN_CAP = 8;
+function useDevicePixelRatio(): number {
+  const [devicePixelRatio, setDevicePixelRatio] = useState(() => window.devicePixelRatio || 1);
 
-/** Returns a width based on message count and position. */
+  useEffect(() => {
+    const update = (): void => setDevicePixelRatio(window.devicePixelRatio || 1);
+    // A zoom and a move to another display both change this resolution query;
+    // `resize` re-reads the ratio in the cases where the query fires late.
+    const media = window.matchMedia(`(resolution: ${devicePixelRatio}dppx)`);
+    media.addEventListener('change', update);
+    window.addEventListener('resize', update);
+    return () => {
+      media.removeEventListener('change', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [devicePixelRatio]);
+
+  return devicePixelRatio;
+}
+
+const UNIFORM_TICK_COUNT = 6;
+
+/**
+ * Tick width by position. The curve peaks in the middle, a shape that only reads
+ * once there are enough lines to trace it: below seven messages every bar is the
+ * full width of the column.
+ */
 function getLineWidth(index: number, total: number, maxWidth: number): number {
-  if (total <= 1) return maxWidth * 0.4;
-  if (total === 2) return Math.round(maxWidth * 0.5);
-
-  if (total <= 5) {
-    // Few messages: linear from min to ~60% of max at center
-    const normalized = index / (total - 1);
-    const distFromCenter = 1 - Math.abs(normalized * 2 - 1);
-    const target = maxWidth * 0.6;
-    return Math.round(LINE_WIDTH_MIN_CAP + distFromCenter * (target - LINE_WIDTH_MIN_CAP));
-  }
+  if (total <= UNIFORM_TICK_COUNT) return Math.round(maxWidth);
 
   if (total <= 10) {
     // Medium count: quadratic curve, center reaches ~80% of max
@@ -133,6 +149,9 @@ export default React.memo(function UserMessageMiniMap({
     }
     return -1;
   }, [userMessages, activeUserMessageIndex]);
+
+  const devicePixelRatio = useDevicePixelRatio();
+  const tickLayout = computeTickLayout(devicePixelRatio, userMessages.length, maxLineWidth);
 
   const openPanel = useCallback((): void => {
     setHasOpened(true);
@@ -231,10 +250,6 @@ export default React.memo(function UserMessageMiniMap({
         closePanel();
       }}
     >
-      {/* Line ticks. 1px height + 7px gap = 8px pitch: an integer number of
-          device pixels at DPR 1/1.25/1.5/1.75/2, so every line rasterizes at the
-          same thickness. The old 1.5px + 6px = 7.5px pitch landed on different
-          subpixel phases per line on non-2x displays. */}
       <button
         ref={triggerRef}
         type="button"
@@ -242,24 +257,43 @@ export default React.memo(function UserMessageMiniMap({
         aria-controls={hasOpened ? panelId : undefined}
         aria-label="Jump to a message"
         onClick={handleTriggerClick}
-        className={`flex flex-col items-end gap-[7px] rounded-l bg-transparent py-2 pl-1 outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring ${
-          open ? 'opacity-0' : '[&:not(:hover)]:opacity-60 hover:opacity-90'
+        className={`block rounded-l bg-transparent py-2 pl-1 outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ring ${
+          open ? 'opacity-0' : ''
         }`}
       >
-        {userMessages.map(({ node }, position) => (
-          <div
-            key={node.id}
-            className="rounded-full transition-colors"
-            style={{
-              width: `${getLineWidth(position, userMessages.length, maxLineWidth)}px`,
-              height: '1px',
-              backgroundColor:
-                position === activePosition
-                  ? 'var(--system-accent)'
-                  : 'color-mix(in srgb, var(--muted-foreground) 50%, transparent)',
-            }}
-          />
-        ))}
+        {/* `none`, not the default `meet`: it maps the viewBox onto the box
+            exactly, so one user unit stays one device pixel even when the used
+            size rounds; it would squash the lines if the box ever got a maximum. */}
+        <svg
+          aria-hidden="true"
+          className="block"
+          width={tickLayout.viewWidth / tickLayout.devicePixelRatio}
+          height={tickLayout.viewHeight / tickLayout.devicePixelRatio}
+          viewBox={`0 0 ${tickLayout.viewWidth} ${tickLayout.viewHeight}`}
+          preserveAspectRatio="none"
+        >
+          {userMessages.map(({ node }, position) => {
+            const width = Math.min(
+              tickLayout.viewWidth - TICK_EDGE_INSET_DEVICE_PX * 2,
+              Math.round(
+                getLineWidth(position, userMessages.length, maxLineWidth) *
+                  tickLayout.devicePixelRatio,
+              ),
+            );
+            return (
+              <rect
+                key={node.id}
+                className="transition-colors"
+                x={tickLayout.viewWidth - TICK_EDGE_INSET_DEVICE_PX - width}
+                y={TICK_EDGE_INSET_DEVICE_PX + position * tickLayout.pitch}
+                width={width}
+                height={tickLayout.lineHeight}
+                rx={tickLayout.lineHeight / 2}
+                fill={position === activePosition ? 'var(--system-accent)' : 'var(--minimap-tick)'}
+              />
+            );
+          })}
+        </svg>
       </button>
       {/* Docked panel: flush with the list's right edge, covering the lines.
           It is a sibling of the scroll container (see MessageList), so nothing
