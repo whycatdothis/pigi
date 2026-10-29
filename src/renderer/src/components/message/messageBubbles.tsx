@@ -443,19 +443,21 @@ function PeerMessageCard({
   const from = node.text || 'Another session';
 
   return (
-    <div className="flex justify-start" data-testid="peer-message">
+    <div className="flex justify-start" data-testid="peer-message" ref={contentRef}>
       <div
         className="w-full overflow-hidden rounded-surface border border-border/65 bg-muted/25"
         style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       >
         <div className="flex items-center gap-2 border-b border-border/60 px-3 py-1.5 text-caption text-muted-foreground">
           <IconMessageDots className="size-4 shrink-0 text-[var(--system-accent)]" />
-          <span className="shrink-0 font-medium text-foreground">Peer message</span>
+          <span className="shrink-0 font-medium text-foreground" data-search-ignore>
+            Peer message
+          </span>
           <span className="min-w-0 truncate" title={from}>
             {from}
           </span>
         </div>
-        <div ref={contentRef} className="px-3 py-2 text-body text-foreground">
+        <div className="px-3 py-2 text-body text-foreground">
           <MarkdownMessage text={node.detail ?? ''} />
         </div>
       </div>
