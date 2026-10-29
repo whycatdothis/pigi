@@ -233,17 +233,23 @@ into color values.
    hand-tuned ramp; it selects how much separation the theme must guarantee.
    Targets are floors: a stronger user foreground is never lowered.
 
-   | Slider        | Secondary text            | Border / divider           |
-   | ------------- | ------------------------- | -------------------------- |
-   | 0             | 4.5:1 light / 5.5:1 dark  | 1.15:1 light / 1.25:1 dark |
-   | 73 (original) | 5.0:1 light / 7.0:1 dark  | 1.3:1 light / 1.45:1 dark  |
-   | 100           | 7.0:1 light / 10.0:1 dark | 3.0:1                      |
+   | Slider        | Secondary text            | Border / divider           | Minimap ticks            |
+   | ------------- | ------------------------- | -------------------------- | ------------------------ |
+   | 0             | 4.5:1 light / 5.5:1 dark  | 1.15:1 light / 1.25:1 dark | 1.4:1 light / 1.6:1 dark |
+   | 73 (original) | 5.0:1 light / 7.0:1 dark  | 1.3:1 light / 1.45:1 dark  | 2.2:1 light / 2.7:1 dark |
+   | 100           | 7.0:1 light / 10.0:1 dark | 3.0:1                      | 5.5:1 light / 6.5:1 dark |
 
    Intermediate positions interpolate linearly. Dark mode asks for a higher
    physical ratio at the same slider position because the same ratio reads
    weaker on a dark background (Material's dark theme uses 60% white for
    secondary text, about 7.5:1 on `#121212`). The settings page shows the
    resolved ratio next to the slider, so the number is never opaque.
+
+   Tick targets sit above the border over a wider range: a message line is only
+   a few device pixels tall and antialiasing spreads it over more rows than
+   that, so a colour at the border ratio paints fainter than its number reads.
+   The shipped slider position is 30, which puts the ticks at 1.73:1 light and
+   2.05:1 dark.
 
 3. **Solving, not constants.** `mixUntilContrast(from, toward, reference,
 ratio)` binary searches the mix amount (16 iterations) to hit a floor
@@ -295,12 +301,17 @@ The floors above change three values compared with today's hand-tuned palette;
 everything else stays put, so the default look is preserved except where it was
 below AA:
 
-| Token                   | Today         | New default | Why                             |
-| ----------------------- | ------------- | ----------- | ------------------------------- |
-| Light secondary text    | 4.61:1        | 5.0:1       | Floor for secondary text        |
-| Dark secondary text     | 7.62:1        | 7.0:1       | Same perceived strength on dark |
-| Light border            | 1.26:1        | 1.3:1       | Hairlines were nearly invisible |
-| Foreground / background | 17.1 / 18.9:1 | unchanged   | Already above AAA               |
+| Token                   | Today         | At slider 73 | Why                             |
+| ----------------------- | ------------- | ------------ | ------------------------------- |
+| Light secondary text    | 4.61:1        | 5.0:1        | Floor for secondary text        |
+| Dark secondary text     | 7.62:1        | 7.0:1        | Same perceived strength on dark |
+| Light border            | 1.26:1        | 1.3:1        | Hairlines were nearly invisible |
+| Foreground / background | 17.1 / 18.9:1 | unchanged    | Already above AAA               |
+
+The column reads 73 because that is the anchor the numbers were designed
+against. The slider ships at 30, where the same curves give 4.71:1 secondary
+text and a 1.21:1 border — softer than the table, which is the point of
+shipping below the anchor.
 
 The accent is a first-class token, not a highlight colour: `primary` fills solid
 buttons and the checked switch, because shadcn wires `primary` to
@@ -354,6 +365,7 @@ verbatim):
 | `--app-secondary`, `--app-secondary-foreground`                    | surface(1.0) / fg                           |
 | `--app-muted`, `--app-muted-foreground`                            | surface(1.0) / mutedText                    |
 | `--app-shimmer-highlight`                                          | mutedText mixed 90% toward white            |
+| `--app-minimap-tick`                                               | tick target, solved like the border         |
 | `--app-accent`, `--app-accent-foreground`                          | surface(1.6) / fg                           |
 | `--app-primary`, `--app-primary-foreground`                        | accent fill / white                         |
 | `--app-primary-hover`                                              | fill stepped away from the page             |
@@ -385,6 +397,9 @@ mid-grey):
 - `contrast(successFg, bg) >= 4.5`, same for warning/danger/info
 - `contrast(border, bg) >= target(contrast, mode).border`, and the border ratio
   is monotonic in `contrast`
+- `contrast(minimapTick, bg) >= minimapTickTarget(contrast, mode)`, and that
+  ratio is monotonic in `contrast` too (`minimapTickTarget` is exported next to
+  `contrastTargets` for this reason)
 - with `contrast >= 73` on the default palette, every token ratio is at least
   the documented default in [Default palette](#default-palette)
 - a mid-grey background still yields a readable theme: the solver falls back

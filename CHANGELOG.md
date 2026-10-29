@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The minimap's lines are a little heavier — 1.5 CSS px instead of 1, always at full strength instead of fading until you hover it, and one length up to six messages, where a three-line session used to draw three different lengths that read as a mistake rather than a shape
+- Their colour now follows the contrast slider instead of being a fixed 50% of the muted text colour, so the rail goes from a faint grey at the slider's bottom to nearly the secondary text at the top
+
+### Fixed
+
+- Message minimap lines keep one weight down the whole column: they are drawn into one SVG measured in device pixels, so a scaled display or a page zoom no longer makes some lines thicker than their neighbours
+
 ## [0.4.25] - 2026-10-27
 
 ### Changed

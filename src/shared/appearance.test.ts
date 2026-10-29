@@ -8,7 +8,12 @@ import {
   parseAppearance,
   type AppearanceSettings,
 } from './appearance';
-import { deriveTokens, resolveAppearance, contrastTargets } from './appearanceTokens';
+import {
+  deriveTokens,
+  resolveAppearance,
+  contrastTargets,
+  minimapTickTarget,
+} from './appearanceTokens';
 import { contrastRatio, parseCssColor, type OklchColor } from './colorMath';
 import { DEFAULT_PIGI_SETTINGS, parsePigiSettings } from './pigiSettings';
 
@@ -318,6 +323,38 @@ describe('deriveTokens', () => {
     );
     expect(ratios[0]).toBeLessThan(ratios[1]);
     expect(ratios[1]).toBeLessThan(ratios[2]);
+  });
+
+  it('moves minimap ticks with the contrast slider, above the border ratio', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      const ratios = [0, 30, 73, 100].map((contrast) => {
+        const tokens = tokensFor({ mode, contrast });
+        const background = color(tokens['--app-background']);
+        const tick = contrastRatio(color(tokens['--app-minimap-tick']), background);
+        expect(tick).toBeCloseTo(minimapTickTarget(contrast, mode), 1);
+        // Never below the border: the rail has to be findable at every setting.
+        expect(tick).toBeGreaterThan(contrastRatio(color(tokens['--app-border']), background));
+        return tick;
+      });
+      expect(ratios[0]).toBeLessThan(ratios[1]);
+      expect(ratios[1]).toBeLessThan(ratios[2]);
+      expect(ratios[2]).toBeLessThan(ratios[3]);
+      // The slider has to be worth dragging: the top is over twice the bottom.
+      expect(ratios[3]).toBeGreaterThan(ratios[0] * 2.5);
+    }
+  });
+
+  it('keeps minimap ticks visible on a background the solver cannot reach', () => {
+    // On mid grey the target is unreachable and the solve snaps to an extreme;
+    // the rail must not come out the same colour as the page.
+    const background = color('#808080');
+    for (const mode of ['light', 'dark'] as const) {
+      const tick = contrastRatio(
+        color(tokensFor({ mode, background: '#808080' })['--app-minimap-tick']),
+        background,
+      );
+      expect(tick).toBeGreaterThan(1.5);
+    }
   });
 
   it('drops the sidebar alpha when translucency is off', () => {
