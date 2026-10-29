@@ -254,3 +254,18 @@ test('styles checkboxes in loose and nested task lists', async () => {
   );
   expect(parseFloat(getComputedStyle(nestedList).paddingLeft)).toBeGreaterThan(0);
 });
+
+test('removes the number from an ordered task list too', async () => {
+  const screen = await render(
+    <div className="text-body">
+      <MarkdownMessage text={'1. [x] first\n2. [ ] second'} />
+    </div>,
+  );
+
+  const list = requireElement<HTMLElement>(
+    '.markdown-body > ol.contains-task-list',
+    screen.container,
+  );
+  expect(getComputedStyle(list).listStyleType).toBe('none');
+  expect(parseFloat(getComputedStyle(list).paddingLeft)).toBe(0);
+});

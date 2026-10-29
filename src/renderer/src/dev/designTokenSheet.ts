@@ -43,7 +43,7 @@ const COLOR_TOKENS = [
   '--card',
   '--muted',
   '--muted-foreground',
-  '--color-accent-subtle',
+  '--accent-subtle',
   '--border',
   '--system-accent',
   '--success-fg',

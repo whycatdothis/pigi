@@ -114,6 +114,7 @@
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
+  --color-accent-subtle: var(--accent-subtle);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
@@ -187,6 +188,11 @@
   --secondary-foreground: var(--app-secondary-foreground, oklch(0.205 0 0));
   --muted: var(--app-muted, oklch(0.97 0 0));
   --muted-foreground: var(--app-muted-foreground, oklch(0.556 0 0));
+  /* A surface tinted by the accent instead of the page's greys: the user's own
+     messages and the queue bars behind the composer. Mixed from the published
+     tokens so it follows the accent in both modes; the percentage stays low
+     enough to remain a tint rather than a second accent. */
+  --accent-subtle: color-mix(in oklab, var(--system-accent) 8%, var(--background));
   /* The thinking label's sweep. Everything else here is solved from the page's
      own colours, so the fallback only has to be a plausible sheen. */
   --shimmer-highlight: var(--app-shimmer-highlight, oklch(0.84 0 0));
@@ -261,6 +267,7 @@
   --secondary-foreground: var(--app-secondary-foreground, oklch(0.985 0 0));
   --muted: var(--app-muted, oklch(0.269 0 0));
   --muted-foreground: var(--app-muted-foreground, oklch(0.708 0 0));
+  --accent-subtle: color-mix(in oklab, var(--system-accent) 8%, var(--background));
   --shimmer-highlight: var(--app-shimmer-highlight, oklch(0.9 0 0));
   --accent: var(--app-accent, oklch(0.269 0 0));
   --accent-foreground: var(--app-accent-foreground, oklch(0.985 0 0));

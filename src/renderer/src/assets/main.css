@@ -298,18 +298,18 @@
     margin-bottom: 0;
   }
 
-  /* GFM task lists: the checkbox replaces the bullet. Without this the row
-     renders both markers — a disc from the list and a native checkbox — and
-     the checkbox keeps the platform's fixed size instead of following the
-     message's text size. */
-  .markdown-body ul.contains-task-list {
+  /* GFM task lists: the checkbox replaces the marker. Without this the row
+     renders both markers — a disc or number from the list and a native
+     checkbox — and the checkbox keeps the platform's fixed size instead of
+     following the message's text size. */
+  .markdown-body :is(ul, ol).contains-task-list {
     list-style: none;
   }
 
   /* Only the outermost task list drops its padding so its checkboxes line up
      with the message's text. A nested task list keeps the normal list indent,
      otherwise every nesting level would collapse onto its parent. */
-  .markdown-body > ul.contains-task-list {
+  .markdown-body > :is(ul, ol).contains-task-list {
     padding-left: 0;
   }
 

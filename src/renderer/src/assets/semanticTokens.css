@@ -9,14 +9,6 @@
  * height each tier was tuned against.
  */
 @theme static {
-  /* Color -------------------------------------------------------------- */
-  /* A surface tinted by the theme accent instead of the page's greys. Used by
-     the user's own messages and the queue bars behind the composer, where the
-     neutral muted surface read as disabled chrome. Mixed from the published
-     accent and background so it follows both modes and the accent setting; the
-     percentage is low enough to stay a tint rather than a second accent. */
-  --color-accent-subtle: color-mix(in oklab, var(--system-accent) 8%, var(--background));
-
   /* Radius ------------------------------------------------------------- */
   --radius-inline: 6px; /* inline code, kbd: padding-box ornaments */
   --radius-chip: 8px; /* chips, badges, theme tiles */
