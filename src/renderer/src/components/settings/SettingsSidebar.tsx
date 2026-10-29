@@ -56,7 +56,7 @@ export default function SettingsSidebar({
 
         <SidebarContent className="overflow-hidden">
           <SidebarGroup className="min-h-0 flex-1">
-            <SidebarGroupContent className="no-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+            <SidebarGroupContent className="sidebar-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
               {SETTINGS_GROUPS.map((group) => (
                 <div key={group.id} className="flex flex-col gap-1 pb-2">
                   <SidebarGroupLabel className="px-2 pt-3 pb-0 text-body text-muted-foreground">

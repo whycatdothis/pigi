@@ -623,6 +623,32 @@
     display: none;
   }
 
+  /* The sidebar's own scrollbar. Chrome's overlay scrollbar is thin, but the
+     platform can fall back to its classic rail — twice as wide and drawn over
+     the rows — and `scrollbar-width: none` would replace that with no position
+     cue at all. An explicit 6px rail keeps one width in every system setting,
+     and `stable` keeps the list from shifting when it starts to overflow. */
+  .sidebar-scrollbar {
+    scrollbar-gutter: stable;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: var(--radius-full);
+    background: color-mix(in oklab, var(--foreground) 18%, transparent);
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--foreground) 28%, transparent);
+  }
+
   /* Content bottom fade mask, 16px gradient to transparent */
   .content-fade-bottom {
     mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent);

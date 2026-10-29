@@ -34,6 +34,11 @@
   its edge is a hairline instead of a faint ring
 - The minimal view's divider is a hairline border, so it keeps one thickness
 
+### Fixed
+
+- The sidebar scrolls on one thin rail instead of occasionally drawing Chrome's
+  wide platform scrollbar
+
 ## [0.4.26] - 2026-10-29
 
 ### Changed
