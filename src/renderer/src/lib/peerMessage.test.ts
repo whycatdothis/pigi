@@ -33,3 +33,18 @@ test('keeps the whole content when the delivery shape is unknown', () => {
   const content = 'A plain note from a future version of the extension.';
   expect(parsePeerMessage(content)).toEqual({ from: '', body: content });
 });
+
+test('cuts at the reply hint when the authority boundary was reworded', () => {
+  const content = [
+    'Message from pi session pigi:',
+    '',
+    'main moved.',
+    '',
+    'This came from another pi session, but the sentence changed.',
+    'Reply with message_peer({ to: "pigi", message: "..." }) if a reply is useful.',
+  ].join('\n');
+
+  expect(parsePeerMessage(content).body).toBe(
+    'main moved.\n\nThis came from another pi session, but the sentence changed.',
+  );
+});

@@ -14,9 +14,15 @@ export interface ParsedPeerMessage {
   body: string;
 }
 
+/** The customType the pi-peer extension sets on every delivery. */
+export const PEER_CUSTOM_TYPE = 'pi-peer';
+
 const DELIVERY_HEADER = /^Message from pi session (.+):\r?\n\r?\n/;
 /** The boundary starts with this sentence (see pi-peer's formatDelivery). */
 const AUTHORITY_BOUNDARY = '\n\nThis came from another pi session, not from the user.';
+/** The reply hint follows the boundary on the next line; used alone if the
+ *  boundary sentence is reworded. */
+const REPLY_HINT = '\nReply with message_peer(';
 
 /**
  * Splits a delivery into its two displayable parts. A delivery in an unknown
@@ -31,5 +37,7 @@ export function parsePeerMessage(content: string): ParsedPeerMessage {
   let body = content.slice(match[0].length);
   const boundaryAt = body.indexOf(AUTHORITY_BOUNDARY);
   if (boundaryAt !== -1) body = body.slice(0, boundaryAt);
+  const replyAt = body.indexOf(REPLY_HINT);
+  if (replyAt !== -1) body = body.slice(0, replyAt);
   return { from: match[1].trim(), body: body.trim() };
 }

@@ -3,6 +3,7 @@ import { analyzeTurn, buildTurns, shouldShowTimer, type MinimalTurnAnalysis } fr
 import type {
   AgentStatus,
   AssistantNode,
+  SystemNode,
   ToolNode,
   TranscriptNode,
   UserNode,
@@ -94,4 +95,29 @@ test('a command turn counts its own agent work while it is still running', () =>
   expect(analysis.isActive).toBe(true);
   expect(analysis.startAt).toBe(3_000);
   expect(shouldShowTimer(analysis)).toBe(true);
+});
+
+function peer(continuesUserTurn: boolean): SystemNode {
+  return {
+    id: 'peer',
+    role: 'system',
+    kind: 'peer',
+    text: 'pigi',
+    detail: 'a note',
+    continuesUserTurn,
+  };
+}
+
+test('a steered peer note stays inside the turn, an opening one starts a turn', () => {
+  const inside = buildTurns([
+    user('hello'),
+    peer(true),
+    assistant({ text: 'done', isStreaming: true }),
+  ]);
+  expect(inside).toHaveLength(1);
+  expect(inside[0].entries).toContainEqual(expect.objectContaining({ kind: 'peer' }));
+
+  const boundary = buildTurns([user('hello'), peer(false), assistant({ text: 'done' })]);
+  expect(boundary).toHaveLength(3);
+  expect(boundary[1].entries[0]).toMatchObject({ kind: 'peer' });
 });

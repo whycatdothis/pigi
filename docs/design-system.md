@@ -116,7 +116,8 @@ ladder, so raising the text size moves headings with the paragraphs around them.
 A row inside a reply is one of three kinds — prose, a card (tool card, read
 group), or a thinking card — and there are two rules only: neighbours of the
 same kind sit at that kind's step, neighbours of different kinds sit at the
-kind-change step. Reasoning and tool work are different groups of a reply, so
+kind-change step. A peer message from another session is a card of its own
+between replies. Reasoning and tool work are different groups of a reply, so
 any change of kind is the widest gap inside it.
 
 | Token                            | Value               | Where                                   |

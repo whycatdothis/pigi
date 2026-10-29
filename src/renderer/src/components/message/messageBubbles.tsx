@@ -31,7 +31,7 @@ import {
 } from '../../lib/referenceChipStyles';
 import { MessageAttachments } from './messageAttachments';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
-import { parseSlashCommand } from '../../lib/slashCommands';
+import { parseSlashCommand, slashCommandDisplayName } from '../../lib/slashCommands';
 
 /**
  * Shared message bubbles (user / system / toolbar) used by both the classic
@@ -347,7 +347,11 @@ export function UserBubble({
 
   if (slashCommand) {
     return (
-      <CommandBubble name={slashCommand.name} args={slashCommand.args} timestamp={node.sentAt} />
+      <CommandBubble
+        name={slashCommandDisplayName(slashCommand.name)}
+        args={slashCommand.args}
+        timestamp={node.sentAt}
+      />
     );
   }
 

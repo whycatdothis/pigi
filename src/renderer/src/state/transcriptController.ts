@@ -1,7 +1,7 @@
 import type { EditToolDetails } from '@earendil-works/pi-coding-agent';
 import type { PromptAttachment, PromptInput, StreamBatch } from '../../../shared/ipcContract';
 import { sanitizeUserPromptForDisplay } from '../../../shared/chatAttachments';
-import { parsePeerMessage } from '../lib/peerMessage';
+import { PEER_CUSTOM_TYPE, parsePeerMessage } from '../lib/peerMessage';
 
 /**
  * TranscriptController - manages transcript state for a single session.
@@ -264,8 +264,11 @@ export class TranscriptController {
   private _compactionReplayCallback: CompactionReplayCallback | null = null;
   private _sessionId: string | null = null;
   /** Whether the next message_start is the prompt that opened this agent run.
-   *  A custom message that is the run's first prompt started a turn; one that
-   *  arrives later was steered into an already-running turn. */
+   *  The SDK emits agent_start before the prompt's message_start. A custom
+   *  message arriving while this is true opened the run; one that arrives
+   *  later was steered into it. (A continuation run can re-emit a queued steer
+   *  as its first prompt, which reads as an opener; that only changes how the
+   *  minimal view groups the card.) */
   private _runPromptPending = false;
 
   /** Register a callback that fires when compaction ends with queued messages to replay. */
@@ -544,7 +547,10 @@ export class TranscriptController {
           break;
         }
         case 'custom': {
-          if (parsed.customType !== 'pi-peer' || parsed.display === false) break;
+          if (parsed.customType !== PEER_CUSTOM_TYPE || parsed.display === false) break;
+          // The persisted entry does not record whether the delivery was a
+          // steer or a new turn, so a reloaded session treats every peer note
+          // as a turn boundary. The live path knows (see message_start).
           const node = createPeerSystemNode(customMessageText(parsed.content), false);
           if (node) nodes.push(node);
           break;
@@ -822,7 +828,7 @@ export class TranscriptController {
         const opensAgentRun = this._runPromptPending;
         this._runPromptPending = false;
         if (startMessage?.role === 'custom') {
-          if (startMessage.customType !== 'pi-peer' || startMessage.display === false) break;
+          if (startMessage.customType !== PEER_CUSTOM_TYPE || startMessage.display === false) break;
           const node = createPeerSystemNode(
             customMessageText(startMessage.content),
             !opensAgentRun,

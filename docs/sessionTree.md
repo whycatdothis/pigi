@@ -798,10 +798,11 @@ await resumeSession(newPath);    // only when the fork wrote a file
 `get_messages` contains one. The controller maps it to:
 
 ```ts
-SystemNode & { kind: 'branch'; detail: string }
+SystemNode & { kind: 'branch' | 'peer'; detail: string }
 ```
 
-and `SystemBubble` renders `kind === 'branch'` as a collapsible card. Keep
+and `SystemBubble` renders `kind === 'branch'` as a collapsible card and
+`kind === 'peer'` as a message from another pi session. Keep
 `kind: 'compaction'` for the existing compaction marker. Check
 `messageSearchTargets.ts` and `minimalView.tsx` for the new node shape.
 

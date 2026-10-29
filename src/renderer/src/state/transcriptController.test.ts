@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TranscriptController, type SystemNode } from './transcriptController';
+import { PEER_CUSTOM_TYPE } from '../lib/peerMessage';
 
 function imageOnlyUserStart(): unknown {
   return {
@@ -64,7 +65,7 @@ const PEER_DELIVERY = [
 function peerStart(content = PEER_DELIVERY): unknown {
   return {
     type: 'message_start',
-    message: { role: 'custom', customType: 'pi-peer', display: true, content },
+    message: { role: 'custom', customType: PEER_CUSTOM_TYPE, display: true, content },
   };
 }
 
@@ -80,7 +81,7 @@ describe('TranscriptController peer messages', () => {
     controller.hydrate([
       {
         role: 'custom',
-        customType: 'pi-peer',
+        customType: PEER_CUSTOM_TYPE,
         display: true,
         content: PEER_DELIVERY,
         timestamp: '2026-10-27T15:26:35.387Z',
@@ -92,6 +93,8 @@ describe('TranscriptController peer messages', () => {
       kind: 'peer',
       text: 'pigi (/Users/mingxin/Programs/pigi)',
       detail: 'main moved; rebase before you push.',
+      // The persisted entry has no delivery mode; a reload is a boundary.
+      continuesUserTurn: false,
     });
   });
 
@@ -105,7 +108,7 @@ describe('TranscriptController peer messages', () => {
     expect(controller.state.nodes).toHaveLength(1);
 
     controller.mergeHydratedMessages([
-      { role: 'custom', customType: 'pi-peer', display: true, content: PEER_DELIVERY },
+      { role: 'custom', customType: PEER_CUSTOM_TYPE, display: true, content: PEER_DELIVERY },
     ]);
 
     expect(controller.state.nodes).toHaveLength(1);
@@ -141,7 +144,7 @@ describe('TranscriptController peer messages', () => {
       type: 'message_start',
       message: {
         role: 'custom',
-        customType: 'pi-peer',
+        customType: PEER_CUSTOM_TYPE,
         display: false,
         content: PEER_DELIVERY,
       },
