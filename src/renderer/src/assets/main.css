@@ -303,15 +303,23 @@
      the checkbox keeps the platform's fixed size instead of following the
      message's text size. */
   .markdown-body ul.contains-task-list {
-    padding-left: 0;
     list-style: none;
+  }
+
+  /* Only the outermost task list drops its padding so its checkboxes line up
+     with the message's text. A nested task list keeps the normal list indent,
+     otherwise every nesting level would collapse onto its parent. */
+  .markdown-body > ul.contains-task-list {
+    padding-left: 0;
   }
 
   .markdown-body li.task-list-item {
     padding-left: 0;
   }
 
-  .markdown-body li.task-list-item > input[type='checkbox'] {
+  /* The checkbox is a direct child in a tight list and sits inside the item's
+     paragraph in a loose one, so this cannot use a child combinator. */
+  .markdown-body li.task-list-item input[type='checkbox'] {
     width: 1em;
     height: 1em;
     margin-right: 0.5em;
@@ -484,24 +492,6 @@
     background: transparent;
     padding: 0;
     font-size: inherit;
-  }
-
-  /* A key embedded in prose: an ornament like inline code, not a code sample,
-     so it keeps the text family and the inline radius. The background and
-     border follow the same pair the app's own <Kbd> uses. */
-  .markdown-body kbd {
-    display: inline-block;
-    min-width: 1.25em;
-    padding: 0.05em 0.3em;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-inline);
-    background: var(--muted);
-    font-family: var(--font-sans);
-    font-size: 0.875em;
-    font-weight: 500;
-    line-height: 1.4;
-    text-align: center;
-    color: var(--muted-foreground);
   }
 
   .markdown-body strong {

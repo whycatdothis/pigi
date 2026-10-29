@@ -8,7 +8,6 @@
   larger paragraph
 - Task lists show a single checkbox instead of a checkbox and a bullet, and the
   checkbox follows the message's text size
-- A key in a message looks like a key rather than a code fragment
 - The user's message bubbles and the working, steer and follow-up bars carry a
   faint tint of the accent instead of the grey surface
 - The sidebar reads as a hierarchy: "Projects" is a small semibold label and a

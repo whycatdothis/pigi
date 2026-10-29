@@ -220,3 +220,37 @@ test('scales table text below prose and draws task rows without bullets', async 
   expect(parseFloat(getComputedStyle(cell).fontSize)).toBeCloseTo(LARGE_UI_FONT_SIZE * 0.93, 1);
   expect(parseFloat(getComputedStyle(checkbox).width)).toBeCloseTo(LARGE_UI_FONT_SIZE, 0);
 });
+
+/** A loose task list (items wrapped in paragraphs) with a nested list. */
+const LOOSE_TASKS = [
+  '- [x] first',
+  '',
+  '  second paragraph of the first item',
+  '',
+  '- [ ] parent',
+  '  - [x] nested',
+].join('\n');
+
+test('styles checkboxes in loose and nested task lists', async () => {
+  const screen = await render(
+    <div className="text-body">
+      <MarkdownMessage text={LOOSE_TASKS} />
+    </div>,
+  );
+
+  const bodySize = bodySizeIn(screen.container);
+  for (const checkbox of screen.container.querySelectorAll<HTMLElement>(
+    '.markdown-body li.task-list-item input[type="checkbox"]',
+  )) {
+    expect(parseFloat(getComputedStyle(checkbox).width)).toBeCloseTo(bodySize, 0);
+    expect(getComputedStyle(checkbox).accentColor).not.toBe('auto');
+  }
+
+  // The nested list keeps the normal list indent instead of collapsing onto
+  // the item that contains it.
+  const nestedList = requireElement<HTMLElement>(
+    '.markdown-body li.task-list-item ul.contains-task-list',
+    screen.container,
+  );
+  expect(parseFloat(getComputedStyle(nestedList).paddingLeft)).toBeGreaterThan(0);
+});
