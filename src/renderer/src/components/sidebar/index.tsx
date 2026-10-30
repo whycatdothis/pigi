@@ -31,6 +31,7 @@ import { MenuItem } from '../app/MenuItem';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import type { SidebarProps } from './types';
 import { ProjectList } from './projectList';
+import { ThinScrollbar } from '../ui/thinScrollbar';
 import { getProjectSessions as getOrderedProjectSessions } from '../../lib/projectSessions';
 
 export default memo(function Sidebar({
@@ -61,6 +62,8 @@ export default memo(function Sidebar({
   // Track the last session path we've successfully scrolled to.
   // This allows retries when projectSessions loads asynchronously after selectedSessionPath changes.
   const lastScrolledPathRef = useRef<string | null>(null);
+  const sessionListRef = useRef<HTMLDivElement | null>(null);
+  const sessionListContentRef = useRef<HTMLDivElement | null>(null);
   // The selection observed at the previous effect run — distinguishes a real
   // selection change from a projectSessions-only re-run.
   const lastSelectionRef = useRef<string | null>(null);
@@ -264,25 +267,37 @@ export default memo(function Sidebar({
                 <span className="sr-only">Open project</span>
               </SidebarGroupAction>
             </div>
-            <SidebarGroupContent className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto sidebar-scrollbar sidebar-scrollbar-stable content-fade-bottom">
-              <ProjectList
-                sessions={sessions}
-                recentProjects={recentProjects}
-                selectedSessionPath={selectedSessionPath}
-                relativeTimeBase={relativeTimeBase}
-                expandedProjects={expandedProjects}
-                visibleWhenCollapsedSessionIdsByPath={visibleWhenCollapsedSessionIds}
-                onToggleProjectExpand={toggleProjectExpand}
-                onSelectProject={onSelectProject}
-                onNewSessionForProject={handleNewSessionForProject}
-                onResumeSession={handleResumeSessionFromList}
-                onOpenProject={onOpenProject}
-                onRemoveProject={onRemoveProject}
-                onReorderProjects={onReorderProjects}
-                onRenameSession={onRenameSession}
-                getProjectSessions={getProjectSessions}
+            <div className="relative min-h-0 flex-1">
+              <SidebarGroupContent
+                ref={sessionListRef}
+                className="h-full overflow-x-hidden overflow-y-auto no-scrollbar content-fade-bottom"
+              >
+                <div ref={sessionListContentRef}>
+                  <ProjectList
+                    sessions={sessions}
+                    recentProjects={recentProjects}
+                    selectedSessionPath={selectedSessionPath}
+                    relativeTimeBase={relativeTimeBase}
+                    expandedProjects={expandedProjects}
+                    visibleWhenCollapsedSessionIdsByPath={visibleWhenCollapsedSessionIds}
+                    onToggleProjectExpand={toggleProjectExpand}
+                    onSelectProject={onSelectProject}
+                    onNewSessionForProject={handleNewSessionForProject}
+                    onResumeSession={handleResumeSessionFromList}
+                    onOpenProject={onOpenProject}
+                    onRemoveProject={onRemoveProject}
+                    onReorderProjects={onReorderProjects}
+                    onRenameSession={onRenameSession}
+                    getProjectSessions={getProjectSessions}
+                  />
+                </div>
+              </SidebarGroupContent>
+              <ThinScrollbar
+                viewportRef={sessionListRef}
+                contentRef={sessionListContentRef}
+                className="absolute top-0 right-0 bottom-0"
               />
-            </SidebarGroupContent>
+            </div>
           </SidebarGroup>
         </SidebarContent>
 

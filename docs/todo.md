@@ -27,11 +27,3 @@ combination appears a third time, add 2–3 roles — section label, row, page
 title — that bundle size, weight, line height and colour, so a change lands in
 one place. Do not use `h1–h6` as font-size APIs; they describe document
 structure, not visual hierarchy.
-
-## The sidebar's fade mask also fades its scrollbar
-
-`content-fade-bottom` sits on the session list's scroll container, so the last
-16px of the custom 6px rail dissolve with the content. The rail stays usable
-and the fade is where the content fades too; if it becomes noticeable, move the
-fade to a non-scrolling overlay above the scroll container rather than
-shrinking it.

@@ -16,6 +16,9 @@
 - A minimap of six messages or fewer draws its lines at a quarter of the
   column's width, and the rail only takes the width its lines need, so its
   hover area no longer reaches past the lines
+- The sidebar draws its own 6px scrollbar, so the rail keeps one width while
+  hovered or dragged instead of widening with Chrome's platform rail, and its
+  thumb no longer fades with the bottom of the content
 
 ## [0.4.27] - 2026-10-30
 
@@ -33,11 +36,6 @@
 - The View menu uses the app's translucent popup and shadcn's item spacing, and
   its edge is a hairline instead of a faint ring
 - The minimal view's divider is a hairline border, so it keeps one thickness
-
-### Fixed
-
-- The sidebar now shows one thin scrollbar instead of hiding it until Chrome
-  occasionally draws its wide platform rail
 
 ## [0.4.26] - 2026-10-29
 

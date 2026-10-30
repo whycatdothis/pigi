@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Kbd, MENU_ROW_KBD_CLASS_NAME } from '../ui/kbd';
 import {
@@ -11,6 +12,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '../ui/sidebar';
+import { ThinScrollbar } from '../ui/thinScrollbar';
 import { TooltipProvider } from '../ui/tooltip';
 import {
   SETTINGS_GROUPS,
@@ -33,6 +35,9 @@ export default function SettingsSidebar({
   onSelectSection,
   onClose,
 }: SettingsSidebarProps): React.JSX.Element {
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const listContentRef = useRef<HTMLDivElement | null>(null);
+
   return (
     <TooltipProvider delayDuration={300}>
       <ShadcnSidebar collapsible="none" className="sidebar-surface" data-testid="settings-sidebar">
@@ -56,34 +61,46 @@ export default function SettingsSidebar({
 
         <SidebarContent className="overflow-hidden">
           <SidebarGroup className="min-h-0 flex-1">
-            <SidebarGroupContent className="sidebar-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-              {SETTINGS_GROUPS.map((group) => (
-                <div key={group.id} className="flex flex-col gap-1 pb-2">
-                  <SidebarGroupLabel className="px-2 pt-3 pb-0 text-body text-muted-foreground">
-                    {group.label}
-                  </SidebarGroupLabel>
-                  <SidebarMenu>
-                    {SETTINGS_SECTIONS.filter((section) => section.group === group.id).map(
-                      (section) => {
-                        const SectionIcon = section.icon;
-                        return (
-                          <SidebarMenuItem key={section.id}>
-                            <SidebarMenuButton
-                              isActive={section.id === activeSection}
-                              onClick={() => onSelectSection(section.id)}
-                              data-testid={`settings-nav-${section.id}`}
-                            >
-                              <SectionIcon data-icon="inline-start" />
-                              <span>{section.label}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        );
-                      },
-                    )}
-                  </SidebarMenu>
+            <div className="relative min-h-0 flex-1">
+              <SidebarGroupContent
+                ref={listRef}
+                className="h-full overflow-x-hidden overflow-y-auto no-scrollbar"
+              >
+                <div ref={listContentRef}>
+                  {SETTINGS_GROUPS.map((group) => (
+                    <div key={group.id} className="flex flex-col gap-1 pb-2">
+                      <SidebarGroupLabel className="px-2 pt-3 pb-0 text-body text-muted-foreground">
+                        {group.label}
+                      </SidebarGroupLabel>
+                      <SidebarMenu>
+                        {SETTINGS_SECTIONS.filter((section) => section.group === group.id).map(
+                          (section) => {
+                            const SectionIcon = section.icon;
+                            return (
+                              <SidebarMenuItem key={section.id}>
+                                <SidebarMenuButton
+                                  isActive={section.id === activeSection}
+                                  onClick={() => onSelectSection(section.id)}
+                                  data-testid={`settings-nav-${section.id}`}
+                                >
+                                  <SectionIcon data-icon="inline-start" />
+                                  <span>{section.label}</span>
+                                </SidebarMenuButton>
+                              </SidebarMenuItem>
+                            );
+                          },
+                        )}
+                      </SidebarMenu>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </SidebarGroupContent>
+              </SidebarGroupContent>
+              <ThinScrollbar
+                viewportRef={listRef}
+                contentRef={listContentRef}
+                className="absolute top-0 right-0 bottom-0"
+              />
+            </div>
           </SidebarGroup>
         </SidebarContent>
       </ShadcnSidebar>
