@@ -11,7 +11,8 @@ import { NativeSelect } from '../ui/native-select';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { Switch } from '../ui/switch';
@@ -348,17 +349,21 @@ export function ThemePresetField({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        {THEME_PRESETS.map((option) => (
-          <DropdownMenuItem
-            key={option.id}
-            onSelect={() => onChange(option.id)}
-            className="gap-2.5 text-caption"
-          >
-            <ThemeBadge accent={option.light.accent} />
-            <span className="flex-1">{option.name}</span>
-            {option.id === presetId && <IconCheck size={14} stroke={2} />}
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuRadioGroup value={presetId} onValueChange={onChange}>
+          {THEME_PRESETS.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.id}
+              value={option.id}
+              compact
+              showCheckIcon={false}
+              className="gap-2.5"
+            >
+              <ThemeBadge accent={option.light.accent} />
+              <span className="flex-1">{option.name}</span>
+              {option.id === presetId && <IconCheck stroke={2} />}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

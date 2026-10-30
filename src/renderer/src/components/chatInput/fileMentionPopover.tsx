@@ -73,7 +73,7 @@ export function FileMentionPopover({
               type="button"
               className={cn(
                 'flex w-full items-center gap-2 rounded-control px-2 py-1 text-left text-ui',
-                index === selectedIndex && 'bg-foreground/7',
+                index === selectedIndex && 'bg-accent-subtle',
               )}
               onMouseDown={(event) => {
                 event.preventDefault();

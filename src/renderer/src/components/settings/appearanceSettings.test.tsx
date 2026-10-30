@@ -180,7 +180,7 @@ describe('AppearanceSettings', () => {
   it('applies a theme preset to both mode slots', () => {
     render(<AppearanceSettings />);
     openThemeMenu();
-    fireEvent.click(screen.getByRole('menuitem', { name: /Nord/ }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Nord/ }));
     const appearance = storedAppearance();
     expect(appearance.light.background).toBe('#eceff4');
     expect(appearance.dark.background).toBe('#2e3440');
@@ -194,7 +194,7 @@ describe('AppearanceSettings', () => {
   it('shows Custom once a theme color is edited', () => {
     render(<AppearanceSettings />);
     openThemeMenu();
-    fireEvent.click(screen.getByRole('menuitem', { name: /GitHub/ }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /GitHub/ }));
     const input = screen.getByLabelText('Background hex value');
     fireEvent.change(input, { target: { value: '#101010' } });
     fireEvent.blur(input);

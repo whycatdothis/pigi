@@ -245,7 +245,7 @@ export default function SessionSwitcher({
         onValueChange={setSelectedValue}
         shouldFilter={false}
         onKeyDown={handleCommandKeyDown}
-        className={cn(OVERLAY_BG, '[&_[data-selected=true]]:bg-foreground/10')}
+        className={OVERLAY_BG}
       >
         <CommandInput
           placeholder="Type freely to fuzzy search sessions"

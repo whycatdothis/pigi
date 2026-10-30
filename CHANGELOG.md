@@ -13,8 +13,10 @@
 - The sidebar reads as a hierarchy: "Projects" is a small semibold label and a
   project name keeps the full foreground colour at regular weight, while its
   sessions are quieter
-- The View menu uses the app's translucent popup and shadcn's item spacing, and
-  its edge is a hairline instead of a faint ring
+- The toolbar's View menu keeps its compact 13px rows, accent-tinted checked
+  item and inline check, now without the extra gap between rows
+- Menus and searchable lists share one selected-row treatment: a tint of the
+  theme accent, with the check beside the label
 - The minimal view's divider is a hairline border, so it keeps one thickness
 
 ## [0.4.26] - 2026-10-29
