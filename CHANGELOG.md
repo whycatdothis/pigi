@@ -11,7 +11,8 @@
 - The user's message bubbles and the working, steer and follow-up bars carry a
   faint tint of the accent instead of the grey surface
 - The sidebar reads as a hierarchy: "Projects" is a small semibold label and a
-  project name is medium weight, while its sessions stay regular
+  project name keeps the full foreground colour at regular weight, while its
+  sessions are quieter
 - The View menu uses the app's translucent popup and shadcn's item spacing, and
   its edge is a hairline instead of a faint ring
 - The minimal view's divider is a hairline border, so it keeps one thickness
