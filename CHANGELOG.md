@@ -14,8 +14,8 @@
 - A code block whose language is not one with a fixed spelling now shows it
   with a capital first letter (`rust` as `Rust`), and a block with no language
   is labelled Text instead of plain text
-- The message minimap draws each line at half its former length, keeping the
-  curve's shape, so the rail reads as a mark on the margin
+- The message minimap's rail is shorter: its widest line is 32px (was 48),
+  and the shortest stays 8px
 
 ### Fixed
 
