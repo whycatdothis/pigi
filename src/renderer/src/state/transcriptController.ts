@@ -94,10 +94,13 @@ export interface SystemNode {
   /** This visual marker occurred inside an active user turn and must not
    *  become a logical turn boundary (for example, automatic compaction). */
   continuesUserTurn?: boolean;
-  /** Which marker this is; `branch` renders as a collapsible card. */
-  kind?: 'branch';
-  /** Long-form body (the branch summary text). */
+  /** Which marker this is; `branch` renders as a collapsible card and
+   *  `custom` as a message an extension injected. */
+  kind?: 'branch' | 'custom';
+  /** Long-form body (the branch summary or the injected message's text). */
   detail?: string;
+  /** Images an injected message carried, as data URLs. */
+  imageSources?: string[];
 }
 
 export type TranscriptNode = UserNode | AssistantNode | ToolNode | SystemNode;
@@ -162,7 +165,16 @@ export interface TranscriptState {
 // SDK event shapes (only types actually used in casts are kept)
 interface SdkMessageStart {
   type: 'message_start';
-  message: { id?: string; role?: string; content?: unknown[]; timestamp?: number | string };
+  message: {
+    id?: string;
+    role?: string;
+    content?: unknown;
+    timestamp?: number | string;
+    /** Custom messages only: the extension that injected it. */
+    customType?: string;
+    /** Custom messages only: false means hidden entirely. */
+    display?: boolean;
+  };
 }
 interface SdkMessageUpdate {
   type: 'message_update';
@@ -252,6 +264,13 @@ export class TranscriptController {
   private static readonly MIN_RENDER_INTERVAL_MS = 16;
   private _compactionReplayCallback: CompactionReplayCallback | null = null;
   private _sessionId: string | null = null;
+  /** Whether the next message_start is the prompt that opened this agent run.
+   *  The SDK emits agent_start before the prompt's message_start. A custom
+   *  message arriving while this is true opened the run; one that arrives
+   *  later was steered into it. (A continuation run can re-emit a queued steer
+   *  as its first prompt, which reads as an opener; that only changes how the
+   *  minimal view groups the card.) */
+  private _runPromptPending = false;
 
   /** Register a callback that fires when compaction ends with queued messages to replay. */
   setCompactionReplayCallback(sessionId: string, callback: CompactionReplayCallback): void {
@@ -326,6 +345,7 @@ export class TranscriptController {
 
   hydrate(messages: unknown[], compactionCount?: number): void {
     this._optimisticUserMessages.clear();
+    this._runPromptPending = false;
     const nodes = this.createNodesFromMessages(messages);
 
     // If the last message is a compaction marker, update it with the count
@@ -393,7 +413,7 @@ export class TranscriptController {
       const parsed = rawMessage as {
         id?: string;
         role?: string;
-        content?: unknown[];
+        content?: unknown;
         summary?: string;
         model?: { name?: string; provider?: string };
         timestamp?: number | string;
@@ -402,6 +422,9 @@ export class TranscriptController {
         pigiPersistedAt?: string;
         stopReason?: string;
         errorMessage?: string;
+        /** Custom messages only. */
+        customType?: string;
+        display?: boolean;
       };
       if (!parsed.role) continue;
 
@@ -448,7 +471,7 @@ export class TranscriptController {
             thinking,
             toolCalls: assistantToolCalls,
             errorMessage: contentError,
-          } = extractAssistantContent(parsed.content);
+          } = extractAssistantContent(Array.isArray(parsed.content) ? parsed.content : undefined);
           const assistantError = parsed.errorMessage || contentError;
           const assistantTimestamp = tryNormalizeTimestamp(parsed.timestamp);
           const persistedAt = tryNormalizeTimestamp(parsed.pigiPersistedAt);
@@ -524,6 +547,16 @@ export class TranscriptController {
           }
           break;
         }
+        case 'custom': {
+          if (parsed.display === false) break;
+          // An extension sets its own customType and shapes its own content, and
+          // the entry keeps no record of whether it was a steer or a new turn,
+          // so a reloaded session treats every one of them as a turn boundary.
+          // The live path knows (see message_start).
+          const node = createCustomSystemNode(parsed.content, parsed.customType, false);
+          if (node) nodes.push(node);
+          break;
+        }
         case 'compactionSummary':
           // Handled above via compactionTimestamp; marker is inserted at the
           // chronological boundary between kept and post-compaction messages.
@@ -550,6 +583,7 @@ export class TranscriptController {
 
   reset(): void {
     this._optimisticUserMessages.clear();
+    this._runPromptPending = false;
     if (this.renderTimer) {
       clearTimeout(this.renderTimer);
       this.renderTimer = null;
@@ -744,12 +778,24 @@ export class TranscriptController {
   // SDK event processing
   // ===========================================================================
 
+  /** True while an agent run owns the transcript, so an event arriving now
+   *  belongs to the current user turn instead of starting a new one. */
+  private isRunActive(): boolean {
+    return (
+      this._state.status === 'streaming' ||
+      this._state.status === 'tool_running' ||
+      this._state.activeAssistantId !== null ||
+      this._state.activeToolCallId !== null
+    );
+  }
+
   processEvent(raw: unknown): void {
     if (!raw || typeof raw !== 'object') return;
     const event = raw as Record<string, unknown>;
     const type = String(event.type ?? '');
     switch (type) {
       case 'agent_start':
+        this._runPromptPending = true;
         this.setState({ status: 'streaming' });
         break;
 
@@ -765,6 +811,7 @@ export class TranscriptController {
         break;
 
       case 'agent_settled':
+        this._runPromptPending = false;
         this.finalizeCurrent();
         // An extension can start a compaction from its agent_settled handler,
         // so compaction_start may arrive first. Keep the compaction busy state
@@ -789,6 +836,25 @@ export class TranscriptController {
       case 'message_start': {
         const startEvent = raw as SdkMessageStart;
         const startMessage = startEvent.message;
+        // Only the first message of an agent run is its prompt; a custom
+        // message that arrives later was steered into the running turn.
+        const opensAgentRun = this._runPromptPending;
+        this._runPromptPending = false;
+        if (startMessage?.role === 'custom') {
+          if (startMessage.display === false) break;
+          // A delivery that opens the run starts a turn. One that arrives into
+          // a running turn is a steer and stays inside it; one injected while
+          // the agent is idle is its own turn, so `opensAgentRun` alone is not
+          // the answer (sendCustomMessage without triggerTurn emits only
+          // message_start/message_end).
+          const node = createCustomSystemNode(
+            startMessage.content,
+            startMessage.customType,
+            !opensAgentRun && this.isRunActive(),
+          );
+          if (node) this.setState({ nodes: [...this._state.nodes, node] });
+          break;
+        }
         if (startMessage?.role === 'user') {
           // Check if this user message was already added optimistically
           const { text, imageSources, filePaths, inlineFileNames } = extractUserContent(
@@ -834,11 +900,7 @@ export class TranscriptController {
         // post-agent compaction. The SDK reason is authoritative for manual.
         const continuesUserTurn =
           compactionEvent.reason !== 'manual' &&
-          (latestNode?.role === 'user' ||
-            this._state.status === 'streaming' ||
-            this._state.status === 'tool_running' ||
-            this._state.activeAssistantId !== null ||
-            this._state.activeToolCallId !== null);
+          (latestNode?.role === 'user' || this.isRunActive());
         this.setState({
           status: 'streaming',
           isCompacting: true,
@@ -1376,8 +1438,16 @@ function areDuplicateNodes(left: TranscriptNode, right: TranscriptNode): boolean
     }
     case 'tool':
       return left.toolCallId === (right as ToolNode).toolCallId;
-    case 'system':
-      return left.text === (right as SystemNode).text;
+    case 'system': {
+      const system = right as SystemNode;
+      // Two injected messages can share a label; the body is what tells them
+      // apart when hydration is merged into a live transcript.
+      return (
+        left.text === system.text &&
+        (left.detail ?? '') === (system.detail ?? '') &&
+        (left.imageSources?.length ?? 0) === (system.imageSources?.length ?? 0)
+      );
+    }
   }
 }
 
@@ -1392,6 +1462,50 @@ function extractText(content: unknown[] | undefined): string {
     }
   }
   return parts.join('\n');
+}
+
+/** An extension-injected message's text: a string, or its text blocks. */
+function customMessageText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  return Array.isArray(content) ? extractText(content) : '';
+}
+
+/** An extension-injected message as a system card, or null when it carries
+ *  nothing to show. The text is kept as written — extensions shape their own
+ *  messages, and guessing at an envelope would drop or reword what one of them
+ *  wrote — and the header is the injected type, the one field every custom
+ *  message has. Images come along the way they do on a user message. */
+function createCustomSystemNode(
+  content: unknown,
+  customType: string | undefined,
+  continuesUserTurn: boolean,
+): SystemNode | null {
+  const detail = customMessageText(content).trim();
+  const imageSources = imageSourcesOf(content);
+  if (!detail && imageSources.length === 0) return null;
+  return {
+    id: nextNodeId(),
+    role: 'system',
+    kind: 'custom',
+    text: customType || 'custom',
+    detail: detail || undefined,
+    imageSources: imageSources.length > 0 ? imageSources : undefined,
+    continuesUserTurn,
+    isLoading: false,
+  };
+}
+
+/** Image blocks as data URLs, the form <img> can show. */
+function imageSourcesOf(content: unknown): string[] {
+  if (!Array.isArray(content)) return [];
+  const sources: string[] = [];
+  for (const block of content) {
+    const parsed = block as { type?: string; data?: string; mimeType?: string };
+    if (parsed.type === 'image' && parsed.data && parsed.mimeType) {
+      sources.push(`data:${parsed.mimeType};base64,${parsed.data}`);
+    }
+  }
+  return sources;
 }
 
 /**
@@ -1416,21 +1530,18 @@ function extractUserContent(content: unknown): {
   }
 
   const textParts: string[] = [];
-  const imageSources: string[] = [];
   for (const block of content) {
     // SDK content blocks are untyped; runtime shape check
-    const parsed = block as { type?: string; text?: string; data?: string; mimeType?: string };
+    const parsed = block as { type?: string; text?: string };
     if (parsed.type === 'text' && parsed.text) {
       textParts.push(parsed.text);
-    } else if (parsed.type === 'image' && parsed.data && parsed.mimeType) {
-      imageSources.push(`data:${parsed.mimeType};base64,${parsed.data}`);
     }
   }
 
   const split = sanitizeUserPromptForDisplay(textParts.join('\n'));
   return {
     text: split.text,
-    imageSources,
+    imageSources: imageSourcesOf(content),
     filePaths: split.filePaths,
     inlineFileNames: split.inlineFileNames,
   };

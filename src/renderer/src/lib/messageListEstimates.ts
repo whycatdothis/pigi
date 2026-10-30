@@ -1,12 +1,14 @@
 import {
   type TranscriptNode,
   type AssistantNode,
+  type SystemNode,
   type ToolNode,
   getToolArgs,
 } from '../state/transcriptController';
 import type { RenderItem } from './readGrouping';
 import {
   BLOCK_CONTENT_MAX_HEIGHT,
+  CUSTOM_MESSAGE_MAX_HEIGHT,
   READ_GROUP_MAX_COLLAPSED_ENTRIES,
   TOOL_BLOCK_LINE_HEIGHT,
 } from './layoutConstants';
@@ -18,6 +20,11 @@ import { parseSkillBlock } from './skillBlock';
 const TOOL_BLOCK_CHROME_HEIGHT = 56;
 /** The "Show more" row, present only when the body is clamped. */
 const TOOL_BLOCK_SHOW_MORE_HEIGHT = 20;
+/** An injected message card: the mono header row plus the card's padding. */
+const CUSTOM_CARD_CHROME_HEIGHT = 38;
+/** Deliberately conservative: mono lines hold more, and over-estimating a row
+ *  costs less than a scroll jump from under-estimating it. */
+const ESTIMATE_CHARS_PER_LINE = 84;
 const TOOL_BLOCK_COMMAND_LINE_HEIGHT = 20;
 const USER_MESSAGE_TOOLBAR_HEIGHT = 24;
 const USER_MESSAGE_LEADING_PADDING = 24;
@@ -25,6 +32,11 @@ const USER_MESSAGE_TRAILING_PADDING = 8;
 const USER_MESSAGE_WRAP_ESTIMATE_WIDTH = 72;
 /** Conservative estimate cap for the user bubble's reduced viewport clamp. */
 const USER_MESSAGE_MAX_ESTIMATE_HEIGHT = 200;
+/** Body line height of a markdown body: --text-body at 1.5, not the mono
+ *  TOOL_BLOCK_LINE_HEIGHT the card used to draw. */
+const CUSTOM_BODY_LINE_HEIGHT = 24;
+/** One row of 64px image thumbnails and the 8px gap above it. */
+const CUSTOM_IMAGE_ROW_HEIGHT = 72;
 
 /** Height estimates for collapsed read-only group */
 const COLLAPSED_GROUP_TRIGGER_HEIGHT = 28;
@@ -61,8 +73,21 @@ function estimateNodeHeight(node: TranscriptNode | undefined): number {
     case 'tool':
       return estimateToolHeight(node);
     case 'system':
-      return 56;
+      return node.kind === 'custom' ? estimateCustomHeight(node) : 56;
   }
+}
+
+function estimateCustomHeight(node: SystemNode): number {
+  const text = node.detail ?? '';
+  // Markdown reflows what the source counts — soft wraps merge into one
+  // paragraph, lists and headings take more than their source lines — so this
+  // proxy is generous on purpose rather than accurate.
+  const lineCount = Math.max(countLines(text), Math.ceil(text.length / ESTIMATE_CHARS_PER_LINE));
+  const bodyHeight = lineCount * CUSTOM_BODY_LINE_HEIGHT;
+  const visibleBody = Math.min(bodyHeight, CUSTOM_MESSAGE_MAX_HEIGHT);
+  const showMore = bodyHeight > CUSTOM_MESSAGE_MAX_HEIGHT ? TOOL_BLOCK_SHOW_MORE_HEIGHT : 0;
+  const images = node.imageSources?.length ? CUSTOM_IMAGE_ROW_HEIGHT : 0;
+  return CUSTOM_CARD_CHROME_HEIGHT + visibleBody + showMore + images;
 }
 
 function estimateUserHeight(text: string): number {
@@ -84,9 +109,13 @@ function estimateUserHeight(text: string): number {
 function estimateAssistantHeight(node: AssistantNode): number {
   const thinkingLineCap = Math.ceil(BLOCK_CONTENT_MAX_HEIGHT / 20) + 4; // lines + header slack
   const thinkingLineCount = Math.min(countLines(node.thinking), thinkingLineCap);
-  const textLength = node.text.length + Math.min(node.thinking.length, thinkingLineCap * 84);
+  const textLength =
+    node.text.length + Math.min(node.thinking.length, thinkingLineCap * ESTIMATE_CHARS_PER_LINE);
   const lineCount = countLines(node.text) + thinkingLineCount;
-  return Math.max(80, Math.max(Math.ceil(textLength / 84), lineCount) * 24 + 56);
+  return Math.max(
+    80,
+    Math.max(Math.ceil(textLength / ESTIMATE_CHARS_PER_LINE), lineCount) * 24 + 56,
+  );
 }
 
 function estimateToolHeight(node: ToolNode): number {

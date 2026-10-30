@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Messages an extension injects appear in the transcript as a card labelled
+  with the customType, its text rendered as markdown and its images as
+  thumbnails, instead of being invisible. A letter from another pi session is
+  one of them
+
+### Fixed
+
+- The minimal view no longer starts a working timer for a slash command or
+  skill before the agent has produced any work, so an extension command that
+  runs on its own is not shown as an endlessly working turn
+
 ## [0.4.28] - 2026-10-30
 
 ### Changed

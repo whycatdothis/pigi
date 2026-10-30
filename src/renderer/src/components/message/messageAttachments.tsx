@@ -6,12 +6,12 @@ import { Dialog, DialogClose, DialogContent, DialogTitle } from '../ui/dialog';
 /** Images and files attached to a sent message, shown inside its bubble under the text. */
 export function MessageAttachments({
   imageSources,
-  filePaths,
-  inlineFileNames,
+  filePaths = [],
+  inlineFileNames = [],
 }: {
   imageSources: string[];
-  filePaths: string[];
-  inlineFileNames: string[];
+  filePaths?: string[];
+  inlineFileNames?: string[];
 }): React.JSX.Element {
   const [viewedImage, setViewedImage] = useState<string | null>(null);
 

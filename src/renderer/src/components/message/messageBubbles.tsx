@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { IconCheck, IconCopy, IconCube, IconPencil, IconTerminal2 } from '@tabler/icons-react';
 import {
   type SystemNode,
@@ -14,7 +14,8 @@ import BranchSummaryCard from './branchSummaryCard';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import MarkdownMessage from './markdownMessage';
 import OverflowClamp from './overflowClamp';
-import { highlightMatches } from '../../lib/highlightMatches';
+import { highlightMatches, useHighlightTextNodes } from '../../lib/highlightMatches';
+import { CUSTOM_MESSAGE_MAX_HEIGHT, MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
 import ShimmerText from './shimmerText';
 import { parseSkillBlock, type ParsedSkillBlock } from '../../lib/skillBlock';
 import {
@@ -23,16 +24,7 @@ import {
 } from '../../lib/referenceChipStyles';
 import { MessageAttachments } from './messageAttachments';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
-
-/** Matches a slash command like `/plannotator-review` or `/review staged`. */
-const SLASH_COMMAND_PATTERN = /^\/([a-z][a-z0-9_-]*)(\s.*)?$/i;
-
-function parseSlashCommand(text: string): { name: string; args: string } | null {
-  if (text.includes('\n')) return null;
-  const match = text.match(SLASH_COMMAND_PATTERN);
-  if (!match) return null;
-  return { name: match[1], args: (match[2] ?? '').trim() };
-}
+import { parseSlashCommand, slashCommandDisplayName } from '../../lib/slashCommands';
 
 /**
  * Shared message bubbles (user / system / toolbar) used by both the classic
@@ -348,7 +340,11 @@ export function UserBubble({
 
   if (slashCommand) {
     return (
-      <CommandBubble name={slashCommand.name} args={slashCommand.args} timestamp={node.sentAt} />
+      <CommandBubble
+        name={slashCommandDisplayName(slashCommand.name)}
+        args={slashCommand.args}
+        timestamp={node.sentAt}
+      />
     );
   }
 
@@ -393,6 +389,16 @@ export function SystemBubble({
   searchQuery: string;
   activeOccurrenceIndex: number | null;
 }): React.JSX.Element {
+  if (node.kind === 'custom') {
+    return (
+      <CustomMessageCard
+        node={node}
+        searchQuery={searchQuery}
+        activeOccurrenceIndex={activeOccurrenceIndex}
+      />
+    );
+  }
+
   if (node.kind === 'branch' && node.detail) {
     return <BranchSummaryCard text={node.detail} />;
   }
@@ -406,6 +412,51 @@ export function SystemBubble({
         {node.isLoading ? <ShimmerText>{label}</ShimmerText> : label}
       </span>
       <div className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+/**
+ * A message an extension injected (a letter from another pi session, for
+ * instance). It wears the tool block's shell — same card, same mono title row —
+ * so an injected note reads as one more piece of work in the transcript rather
+ * than as a card with a design of its own. The header is the injected type and
+ * the body is the content verbatim, the way a tool's arguments and output are.
+ */
+function CustomMessageCard({
+  node,
+  searchQuery,
+  activeOccurrenceIndex,
+}: {
+  node: SystemNode;
+  searchQuery: string;
+  activeOccurrenceIndex: number | null;
+}): React.JSX.Element {
+  const contentRef = useRef<HTMLDivElement>(null);
+  useHighlightTextNodes(contentRef, searchQuery, activeOccurrenceIndex);
+  const body = node.detail ?? '';
+
+  return (
+    <div className="flex justify-start" data-testid="custom-message" ref={contentRef}>
+      <div
+        className="overflow-clip rounded-surface-sm border border-border/65 bg-muted/25 px-3 pt-0 pb-1.5 text-body text-muted-foreground"
+        style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
+      >
+        <div className="-mx-3 px-3 pt-1.5 pb-1.5 font-mono text-code font-medium leading-5 text-foreground">
+          <span className="break-words [overflow-wrap:anywhere]">{node.text}</span>
+        </div>
+        <div className="flex flex-col gap-2">
+          {body && (
+            // A note is read from the top, so the first lines stay — the
+            // delivery boilerplate that follows the text is what the clamp
+            // hides.
+            <OverflowClamp maxHeight={CUSTOM_MESSAGE_MAX_HEIGHT}>
+              <MarkdownMessage text={body} />
+            </OverflowClamp>
+          )}
+          {node.imageSources && <MessageAttachments imageSources={node.imageSources} />}
+        </div>
+      </div>
     </div>
   );
 }

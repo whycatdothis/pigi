@@ -29,6 +29,15 @@ function thinkingWithProse(): NodeItem {
   };
 }
 
+/** A note delivered by another pi session: a card, not prose. */
+function peer(): NodeItem {
+  return {
+    type: 'node',
+    id: 'peer',
+    node: { role: 'system', kind: 'custom', text: 'pigi', detail: 'main moved' } as TranscriptNode,
+  };
+}
+
 const readGroup: RenderItem = { type: 'readGroup', id: 'group', entries: [] };
 
 test('a reply keeps its actions on the last row only', () => {
@@ -93,4 +102,15 @@ test('turn boundaries keep the action band as their spacing', () => {
   // A row that cannot render the band still has to hold its turn boundary.
   expect(rowSpaceFor(readGroup, user, false)).toBe('kind-change');
   expect(rowSpaceFor(readGroup, undefined, false)).toBe('kind-change');
+});
+
+test('a peer note is a card for the rows around it', () => {
+  const text = node('assistant');
+  const tool = node('tool');
+  const note = peer();
+
+  expect(rowSpaceFor(tool, note, false)).toBe('surface');
+  expect(rowSpaceFor(note, note, false)).toBe('surface');
+  expect(rowSpaceFor(text, note, false)).toBe('kind-change');
+  expect(rowSpaceFor(note, text, false)).toBe('kind-change');
 });

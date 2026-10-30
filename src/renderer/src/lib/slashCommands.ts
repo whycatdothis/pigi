@@ -9,12 +9,29 @@ export interface SlashCommand {
   argPlaceholder?: string;
 }
 
+export interface ParsedSlashCommand {
+  name: string;
+  args: string;
+}
+
 export interface SlashCommandMatches {
   builtin: SlashCommand[];
   skill: SlashCommand[];
 }
 
 export const EMPTY_SLASH_MATCHES: SlashCommandMatches = { builtin: [], skill: [] };
+
+/** Matches a slash command like `/plannotator-review` or `/skill:review staged`.
+ *  The colon is part of a skill command's name (`skill:review`). */
+const SLASH_COMMAND_PATTERN = /^\/([a-z][a-z0-9_:-]*)(\s.*)?$/i;
+
+/** The command a single-line message is, or null for ordinary text. */
+export function parseSlashCommand(text: string): ParsedSlashCommand | null {
+  if (text.includes('\n')) return null;
+  const match = text.match(SLASH_COMMAND_PATTERN);
+  if (!match) return null;
+  return { name: match[1], args: (match[2] ?? '').trim() };
+}
 
 /** pi invokes skills as `/skill:<name>`; the UI shows only `<name>`. */
 const SKILL_COMMAND_PREFIX = 'skill:';
