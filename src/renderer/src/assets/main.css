@@ -623,22 +623,45 @@
     display: none;
   }
 
-  /* The sidebar's own scrollbar. Chrome's platform rail widens when hovered
-     or grabbed and no CSS switch turns that expansion off, so the native rail
-     is hidden (`no-scrollbar`) and a 6px rail is drawn over the viewport
-     instead: it keeps one width in every interaction. Sitting beside the
-     masked scroller, it also stays outside the content fade. */
-  .sidebar-rail {
-    width: 6px;
+  /* Chrome's platform rail widens when hovered or grabbed and draws a track,
+     and no CSS switch turns either off. The transcript hides that rail
+     (`no-scrollbar`) and draws just a thumb over the viewport: no track, and
+     the thumb thickens while dragged, as macOS does. It also hides while the
+     list is idle, so a thumb that nearly fills a barely-overflowing list never
+     reads as a track. */
+  .thin-scrollbar {
+    width: 10px;
+    /* Only the thumb is a target: a wheel or a click beside it belongs to the
+       list underneath, as it does with the platform overlay scrollbar. */
+    pointer-events: none;
   }
 
-  .sidebar-rail-thumb {
+  .thin-scrollbar-thumb {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    /* Capsule: the radius clamps to half the width, so the ends stay round
+       however long the thumb gets. The inherited superellipse corner would
+       turn those ends into squarish stubs, so this one opts out. */
     border-radius: var(--radius-full);
+    corner-shape: round;
     background: color-mix(in oklab, var(--foreground) 22%, transparent);
+    opacity: 0;
+    pointer-events: auto;
+    transition:
+      opacity var(--duration-slow) ease-out,
+      width var(--duration-fast) ease-out;
   }
 
-  .sidebar-rail-thumb:hover,
-  .sidebar-rail[data-dragging='true'] .sidebar-rail-thumb {
+  .thin-scrollbar[data-visible='true'] .thin-scrollbar-thumb,
+  .thin-scrollbar-thumb:hover,
+  .thin-scrollbar[data-dragging='true'] .thin-scrollbar-thumb {
+    opacity: 1;
+  }
+
+  .thin-scrollbar[data-dragging='true'] .thin-scrollbar-thumb {
+    width: 12px;
     background: color-mix(in oklab, var(--foreground) 32%, transparent);
   }
 
