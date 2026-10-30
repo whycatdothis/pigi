@@ -3,7 +3,10 @@ import type { Platform } from '../../../shared/platform';
 /** Max height (px) for collapsible thinking content before showing expand button */
 export const BLOCK_CONTENT_MAX_HEIGHT = 300;
 
-/** Max height (px) of an injected message's body before Show more. */
+/** Max height (px) of an injected message's body before Show more. A real
+ *  pi-peer delivery comes to ~180px at the transcript's width, so this only
+ *  folds genuinely long messages; the delivery boilerplate it carries stays
+ *  visible, because nothing is parsed out of the content. */
 export const CUSTOM_MESSAGE_MAX_HEIGHT = 200;
 
 /** Tool block body height (px) while collapsed. Output of bash/read/other

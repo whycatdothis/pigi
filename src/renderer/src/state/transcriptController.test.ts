@@ -71,14 +71,14 @@ function peerStart(content = PEER_DELIVERY): unknown {
   };
 }
 
-function peerNode(controller: TranscriptController): SystemNode | undefined {
+function customSystemNode(controller: TranscriptController): SystemNode | undefined {
   return controller.state.nodes.find(
     (node): node is SystemNode => node.role === 'system' && node.kind === 'custom',
   );
 }
 
-describe('TranscriptController peer messages', () => {
-  it('hydrates a custom message as a system card with its type and content', () => {
+describe('TranscriptController custom messages', () => {
+  it('hydrates a custom message as a card with its type and content', () => {
     const controller = new TranscriptController();
     controller.hydrate([
       {
@@ -90,7 +90,7 @@ describe('TranscriptController peer messages', () => {
       },
     ]);
 
-    expect(peerNode(controller)).toMatchObject({
+    expect(customSystemNode(controller)).toMatchObject({
       role: 'system',
       kind: 'custom',
       text: PEER_TYPE,
@@ -107,7 +107,7 @@ describe('TranscriptController peer messages', () => {
     controller.processEvent(peerStart());
     controller.processEvent({ type: 'message_end', message: { role: 'custom' } });
 
-    expect(peerNode(controller)).toBeDefined();
+    expect(customSystemNode(controller)).toBeDefined();
     expect(controller.state.nodes).toHaveLength(1);
 
     controller.mergeHydratedMessages([
@@ -122,7 +122,7 @@ describe('TranscriptController peer messages', () => {
     controller.processEvent({ type: 'agent_start' });
     controller.processEvent(peerStart());
 
-    expect(peerNode(controller)?.continuesUserTurn).toBe(false);
+    expect(customSystemNode(controller)?.continuesUserTurn).toBe(false);
   });
 
   it('keeps a delivery that steers an already-running turn inside that turn', () => {
@@ -134,7 +134,7 @@ describe('TranscriptController peer messages', () => {
     });
     controller.processEvent(peerStart());
 
-    expect(peerNode(controller)?.continuesUserTurn).toBe(true);
+    expect(customSystemNode(controller)?.continuesUserTurn).toBe(true);
   });
 
   it('shows a message from any extension, labelled by its customType', () => {
@@ -144,7 +144,7 @@ describe('TranscriptController peer messages', () => {
       message: { role: 'custom', customType: 'other-extension', display: true, content: 'x' },
     });
 
-    expect(peerNode(controller)).toMatchObject({
+    expect(customSystemNode(controller)).toMatchObject({
       kind: 'custom',
       text: 'other-extension',
       detail: 'x',
@@ -163,7 +163,7 @@ describe('TranscriptController peer messages', () => {
     // sendCustomMessage without triggerTurn emits only these two events.
     controller.processEvent(peerStart());
 
-    expect(peerNode(controller)?.continuesUserTurn).toBe(false);
+    expect(customSystemNode(controller)?.continuesUserTurn).toBe(false);
   });
 
   it('keeps the images an image-only custom message carries', () => {
@@ -177,7 +177,7 @@ describe('TranscriptController peer messages', () => {
       },
     ]);
 
-    expect(peerNode(controller)).toMatchObject({
+    expect(customSystemNode(controller)).toMatchObject({
       kind: 'custom',
       text: 'screenshot',
       detail: undefined,

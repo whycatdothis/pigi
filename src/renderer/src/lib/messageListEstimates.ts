@@ -32,13 +32,11 @@ const USER_MESSAGE_TRAILING_PADDING = 8;
 const USER_MESSAGE_WRAP_ESTIMATE_WIDTH = 72;
 /** Conservative estimate cap for the user bubble's reduced viewport clamp. */
 const USER_MESSAGE_MAX_ESTIMATE_HEIGHT = 200;
-/** Body lines an injected message shows before Show more. */
-const CUSTOM_BODY_MAX_LINES = Math.floor(
-  (CUSTOM_MESSAGE_MAX_HEIGHT - CUSTOM_CARD_CHROME_HEIGHT - TOOL_BLOCK_SHOW_MORE_HEIGHT) /
-    TOOL_BLOCK_LINE_HEIGHT,
-);
-/** One row of 64px image thumbnails and the gap above it. */
-const CUSTOM_IMAGE_ROW_HEIGHT = 70;
+/** Body line height of a markdown body: --text-body at 1.5, not the mono
+ *  TOOL_BLOCK_LINE_HEIGHT the card used to draw. */
+const CUSTOM_BODY_LINE_HEIGHT = 24;
+/** One row of 64px image thumbnails and the 8px gap above it. */
+const CUSTOM_IMAGE_ROW_HEIGHT = 72;
 
 /** Height estimates for collapsed read-only group */
 const COLLAPSED_GROUP_TRIGGER_HEIGHT = 28;
@@ -81,11 +79,15 @@ function estimateNodeHeight(node: TranscriptNode | undefined): number {
 
 function estimateCustomHeight(node: SystemNode): number {
   const text = node.detail ?? '';
+  // Markdown reflows what the source counts — soft wraps merge into one
+  // paragraph, lists and headings take more than their source lines — so this
+  // proxy is generous on purpose rather than accurate.
   const lineCount = Math.max(countLines(text), Math.ceil(text.length / ESTIMATE_CHARS_PER_LINE));
-  const visibleLines = Math.min(lineCount, CUSTOM_BODY_MAX_LINES);
-  const showMore = lineCount > CUSTOM_BODY_MAX_LINES ? TOOL_BLOCK_SHOW_MORE_HEIGHT : 0;
+  const bodyHeight = lineCount * CUSTOM_BODY_LINE_HEIGHT;
+  const visibleBody = Math.min(bodyHeight, CUSTOM_MESSAGE_MAX_HEIGHT);
+  const showMore = bodyHeight > CUSTOM_MESSAGE_MAX_HEIGHT ? TOOL_BLOCK_SHOW_MORE_HEIGHT : 0;
   const images = node.imageSources?.length ? CUSTOM_IMAGE_ROW_HEIGHT : 0;
-  return CUSTOM_CARD_CHROME_HEIGHT + visibleLines * TOOL_BLOCK_LINE_HEIGHT + showMore + images;
+  return CUSTOM_CARD_CHROME_HEIGHT + visibleBody + showMore + images;
 }
 
 function estimateUserHeight(text: string): number {

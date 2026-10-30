@@ -445,18 +445,17 @@ function CustomMessageCard({
         <div className="-mx-3 px-3 pt-1.5 pb-1.5 font-mono text-code font-medium leading-5 text-foreground">
           <span className="break-words [overflow-wrap:anywhere]">{node.text}</span>
         </div>
-        {body && (
-          // A note is read from the top, so the first lines stay — the delivery
-          // boilerplate that follows the text is what the clamp hides.
-          <OverflowClamp maxHeight={CUSTOM_MESSAGE_MAX_HEIGHT}>
-            <MarkdownMessage text={body} />
-          </OverflowClamp>
-        )}
-        {node.imageSources && (
-          <div className="mt-2">
-            <MessageAttachments imageSources={node.imageSources} />
-          </div>
-        )}
+        <div className="flex flex-col gap-2">
+          {body && (
+            // A note is read from the top, so the first lines stay — the
+            // delivery boilerplate that follows the text is what the clamp
+            // hides.
+            <OverflowClamp maxHeight={CUSTOM_MESSAGE_MAX_HEIGHT}>
+              <MarkdownMessage text={body} />
+            </OverflowClamp>
+          )}
+          {node.imageSources && <MessageAttachments imageSources={node.imageSources} />}
+        </div>
       </div>
     </div>
   );

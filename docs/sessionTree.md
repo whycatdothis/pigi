@@ -798,7 +798,7 @@ await resumeSession(newPath);    // only when the fork wrote a file
 `get_messages` contains one. The controller maps it to:
 
 ```ts
-SystemNode & { kind: 'branch' | 'custom'; detail: string }
+SystemNode & { kind: 'branch' | 'custom'; detail?: string; imageSources?: string[] }
 ```
 
 and `SystemBubble` renders `kind === 'branch'` as a collapsible card and
