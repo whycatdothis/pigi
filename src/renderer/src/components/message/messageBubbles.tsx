@@ -248,7 +248,7 @@ function SkillLinkBubble({
   return (
     <div className="flex justify-end pb-2 pt-6" data-testid="skill-message">
       <div className="group flex max-w-[85%] flex-col items-end">
-        <div className="rounded-surface-lg bg-muted px-3.5 py-1.5 text-body leading-6 text-foreground max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] w-fit">
+        <div className="rounded-surface-lg bg-accent-subtle px-3.5 py-1.5 text-body leading-6 text-foreground max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] w-fit">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <button type="button" className={INTERACTIVE_REFERENCE_CHIP_CLASS}>
@@ -294,7 +294,7 @@ function CommandBubble({
   return (
     <div className="flex justify-end pb-2 pt-6" data-testid="command-message">
       <div className="group flex max-w-[85%] flex-col items-end">
-        <div className="rounded-surface-lg bg-muted px-3.5 py-1.5 text-body leading-6 text-foreground max-w-full w-fit">
+        <div className="rounded-surface-lg bg-accent-subtle px-3.5 py-1.5 text-body leading-6 text-foreground max-w-full w-fit">
           <span className={REFERENCE_CHIP_CLASS}>
             <IconTerminal2 className="size-4 shrink-0" />
             <span className="truncate">{name}</span>
@@ -355,7 +355,7 @@ export function UserBubble({
   return (
     <div className="flex justify-end pb-2 pt-6" data-testid="user-message">
       <div className="group flex max-w-[85%] flex-col items-end">
-        <div className="flex max-w-full w-fit flex-col gap-2 overflow-clip rounded-surface-lg bg-muted px-3.5 py-2">
+        <div className="flex max-w-full w-fit flex-col gap-2 overflow-clip rounded-surface-lg bg-accent-subtle px-3.5 py-2">
           {text && (
             <OverflowClamp
               maxHeight={maxHeight}

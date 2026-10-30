@@ -298,6 +298,35 @@
     margin-bottom: 0;
   }
 
+  /* GFM task lists: the checkbox replaces the marker. Without this the row
+     renders both markers — a disc or number from the list and a native
+     checkbox — and the checkbox keeps the platform's fixed size instead of
+     following the message's text size. */
+  .markdown-body :is(ul, ol).contains-task-list {
+    list-style: none;
+  }
+
+  /* Only the outermost task list drops its padding so its checkboxes line up
+     with the message's text. A nested task list keeps the normal list indent,
+     otherwise every nesting level would collapse onto its parent. */
+  .markdown-body > :is(ul, ol).contains-task-list {
+    padding-left: 0;
+  }
+
+  .markdown-body li.task-list-item {
+    padding-left: 0;
+  }
+
+  /* The checkbox is a direct child in a tight list and sits inside the item's
+     paragraph in a loose one, so this cannot use a child combinator. */
+  .markdown-body li.task-list-item input[type='checkbox'] {
+    width: 1em;
+    height: 1em;
+    margin-right: 0.5em;
+    vertical-align: -0.125em;
+    accent-color: var(--system-accent);
+  }
+
   /* A quote is a container, not an indented paragraph: its text sits on its own
      column, far enough from the 2px rule that the two do not crowd, and the
      inset scales with the body so a larger text size keeps the proportion. */
@@ -488,6 +517,11 @@
      and overflow: hidden clips cell backgrounds to the rounded corners. */
   .markdown-body table {
     width: 100%;
+    /* One step below prose: a dense grid of cells reads larger than a paragraph
+       at the same size, so it takes 0.93em of the message's own text size. The
+       block gap lives on `.markdown-table-wrapper` and stays at --text-body, so
+       the table's smaller size never shrinks the rhythm around it. */
+    font-size: 0.93em;
     /* Rows are data, not prose: a tight line box keeps a multi-row table from
        reading as a stack of paragraphs. */
     line-height: 1.3;
