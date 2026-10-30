@@ -21,6 +21,7 @@ import { useMessageListScrollController } from '../../hooks/useMessageListScroll
 import { useActiveUserMessageIndex } from '../../hooks/useActiveUserMessageIndex';
 import { useMessageSearchController } from '../../hooks/useMessageSearchController';
 import UserMessageMiniMap from './UserMessageMiniMap';
+import { ThinScrollbar } from '../ui/thinScrollbar';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import MinimalView from './minimalView';
 import { analyzeTurn, buildTurns } from '../../lib/minimalTurns';
@@ -58,6 +59,7 @@ export default React.memo(function MessageList({
   // needs containerRef for getScrollElement while the controller needs the
   // virtualizer's totalSize — the refs break that cycle.
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const rowsWrapperRef = useRef<HTMLDivElement>(null);
 
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(() => new Set());
@@ -287,13 +289,14 @@ export default React.memo(function MessageList({
     <div className="relative min-h-0 flex-1">
       <div
         ref={containerRef}
-        className="h-full overflow-y-auto bg-background [overflow-anchor:none] [scrollbar-width:thin] focus:outline-none"
+        className="h-full overflow-y-auto bg-background no-scrollbar [overflow-anchor:none] focus:outline-none"
         data-testid="message-list"
         tabIndex={0}
         aria-label="Message list"
         {...escapeAbortScopeProps}
       >
         <div
+          ref={contentRef}
           className="mx-auto px-5 user-content"
           style={{ maxWidth: `${MESSAGE_LIST_MAX_WIDTH}px` }}
         >
@@ -411,6 +414,14 @@ export default React.memo(function MessageList({
       <div className="pointer-events-none absolute inset-x-0 top-0 h-8 bg-linear-to-b from-background to-transparent" />
       {/* Bottom gradient fade */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-linear-to-t from-background to-transparent" />
+      {/* Above the fades so the thumb never dissolves at its ends. */}
+      <ThinScrollbar
+        viewportRef={containerRef}
+        contentRef={contentRef}
+        onDragStart={suspendAutoScroll}
+        onDragEnd={restoreFollow}
+        className="absolute top-0 right-0.5 bottom-0"
+      />
       {showScrollButton && (
         <button
           type="button"

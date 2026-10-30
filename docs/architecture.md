@@ -118,8 +118,8 @@ One writer, one state, input-only transitions (`useMessageListScrollController`)
   (after layout, before paint). No band, no model: the real DOM end.
 - Only user input changes the state: wheel-up accumulating past
   `MESSAGE_LIST_SCROLL_END_THRESHOLD` disengages; wheel-down that reaches the
-  end re-engages; a scrollbar drag (pointerdown on the container itself)
-  disengages and is re-derived on release; new turn and the scroll-to-bottom
+  end re-engages; a scrollbar thumb drag (the thumb reports its own start and
+  end) disengages and is re-derived on release; new turn and the scroll-to-bottom
   button engage. Scroll events never change the state.
 - The virtualizer runs with the default `anchorTo: 'start'`. Its end-anchor
   mode writes scrollTop by its own model's delta inside its own

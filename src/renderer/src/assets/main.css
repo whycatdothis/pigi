@@ -623,6 +623,53 @@
     display: none;
   }
 
+  /* Chrome's platform rail widens when hovered or grabbed and draws a track,
+     and no CSS switch turns either off. The transcript hides that rail
+     (`no-scrollbar`) and draws just a thumb over the viewport: no track, and
+     the thumb thickens while dragged, as macOS does. It also hides while the
+     list is idle, so a thumb that nearly fills a barely-overflowing list never
+     reads as a track. */
+  .thin-scrollbar {
+    width: 10px;
+    /* Only the thumb is a target: a wheel or a click beside it belongs to the
+       list underneath, as it does with the platform overlay scrollbar. */
+    pointer-events: none;
+  }
+
+  .thin-scrollbar-thumb {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    /* Capsule with tapered tips: the horizontal radius is half the width and
+       the vertical one is shorter, so the ends come to a rounder point than a
+       half-circle. A token cannot say "half the width" here — a radius larger
+       than that makes the browser scale both axes down, which squares the end
+       off — so the percentage stays. The inherited superellipse corner would
+       also square it, hence the opt-out. */
+    border-radius: 50% / 6px;
+    corner-shape: round;
+    background: color-mix(in oklab, var(--foreground) 22%, transparent);
+    opacity: 0;
+    pointer-events: auto;
+    transition:
+      opacity var(--duration-slow) ease-out,
+      width var(--duration-fast) ease-out;
+  }
+
+  .thin-scrollbar[data-visible='true'] .thin-scrollbar-thumb,
+  .thin-scrollbar-thumb:hover,
+  .thin-scrollbar[data-dragging='true'] .thin-scrollbar-thumb {
+    opacity: 1;
+  }
+
+  /* Hover is intent and a drag is the grip on it: both take the same width,
+     so the thumb does not change shape under the hand that grabbed it. */
+  .thin-scrollbar-thumb:hover,
+  .thin-scrollbar[data-dragging='true'] .thin-scrollbar-thumb {
+    width: 12px;
+  }
+
   /* Content bottom fade mask, 16px gradient to transparent */
   .content-fade-bottom {
     mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent);

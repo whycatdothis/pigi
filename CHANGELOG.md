@@ -16,6 +16,11 @@
 - A minimap of six messages or fewer draws its lines at a quarter of the
   column's width, and the rail only takes the width its lines need, so its
   hover area no longer reaches past the lines
+- The message list draws its own scrollbar: no track, an 8px capsule thumb
+  with tapered tips that widens to 12px while hovered or dragged instead of
+  Chrome's platform rail widening with a track, shown while the list scrolls,
+  is hovered or is dragged, and measured by the square root of the visible
+  fraction so a long transcript keeps a thumb worth grabbing
 
 ## [0.4.27] - 2026-10-30
 

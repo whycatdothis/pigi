@@ -75,7 +75,9 @@ const RULES = [
     hint: 'use var(--radius-*)',
     extensions: ['.css'],
     // A shorthand like `0 0 var(--radius-surface-sm)` is fine; a literal is not.
-    skip: (match) => match.includes('var(--radius'),
+    // A percentage is relative to the box rather than a design value, and the
+    // scrollbar thumb needs one to keep its ends round at every width.
+    skip: (match) => match.includes('var(--radius') || match.includes('%'),
   },
 ];
 
