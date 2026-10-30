@@ -44,4 +44,6 @@ and tag must match exactly.
 4. Commit `release: v<version>`.
 5. `git tag -a v<version> -m "v<version>" && git push --follow-tags` (annotated tag
    required; `--follow-tags` skips lightweight tags).
-6. Report the run: `gh run list --workflow release.yml --limit 1`.
+
+Do not monitor the pipeline. Pushing the tag starts the release workflow; report
+that it is running and stop there — no `gh run watch`, no polling for a result.
