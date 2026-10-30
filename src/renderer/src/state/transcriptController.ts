@@ -1,7 +1,6 @@
 import type { EditToolDetails } from '@earendil-works/pi-coding-agent';
 import type { PromptAttachment, PromptInput, StreamBatch } from '../../../shared/ipcContract';
 import { sanitizeUserPromptForDisplay } from '../../../shared/chatAttachments';
-import { parseCustomMessage } from '../lib/customMessage';
 
 /**
  * TranscriptController - manages transcript state for a single session.
@@ -1457,23 +1456,24 @@ function customMessageText(content: unknown): string {
   return Array.isArray(content) ? extractText(content) : '';
 }
 
-/** An extension-injected message as a system card, or null when it has no
- *  body to show. The card's label is the delivery's origin when the content
- *  had a known envelope, and the injected type otherwise, so a message from an
- *  extension we do not know still says where it came from. */
+/** An extension-injected message as a system card, or null when it is empty.
+ *  The content is shown verbatim: extensions shape their own messages, and
+ *  guessing at an envelope would drop or reword what one of them wrote. The
+ *  header is the injected type, which is the one field every custom message
+ *  has. */
 function createCustomSystemNode(
   content: string,
   customType: string | undefined,
   continuesUserTurn: boolean,
 ): SystemNode | null {
-  const { from, body } = parseCustomMessage(content);
-  if (!body) return null;
+  const detail = customMessageText(content).trim();
+  if (!detail) return null;
   return {
     id: nextNodeId(),
     role: 'system',
     kind: 'custom',
-    text: from || customType || '',
-    detail: body,
+    text: customType || 'custom',
+    detail,
     continuesUserTurn,
     isLoading: false,
   };

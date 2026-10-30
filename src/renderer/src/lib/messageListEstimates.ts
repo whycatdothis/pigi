@@ -8,6 +8,7 @@ import type { RenderItem } from './readGrouping';
 import {
   BLOCK_CONTENT_MAX_HEIGHT,
   READ_GROUP_MAX_COLLAPSED_ENTRIES,
+  TOOL_BLOCK_BODY_MAX_HEIGHT,
   TOOL_BLOCK_LINE_HEIGHT,
 } from './layoutConstants';
 import { getToolBlockBodyHeightRange } from './toolDisplay';
@@ -18,6 +19,8 @@ import { parseSkillBlock } from './skillBlock';
 const TOOL_BLOCK_CHROME_HEIGHT = 56;
 /** The "Show more" row, present only when the body is clamped. */
 const TOOL_BLOCK_SHOW_MORE_HEIGHT = 20;
+/** An injected message card: the mono header row plus the card's padding. */
+const CUSTOM_CARD_CHROME_HEIGHT = 38;
 const TOOL_BLOCK_COMMAND_LINE_HEIGHT = 20;
 const USER_MESSAGE_TOOLBAR_HEIGHT = 24;
 const USER_MESSAGE_LEADING_PADDING = 24;
@@ -67,7 +70,10 @@ function estimateNodeHeight(node: TranscriptNode | undefined): number {
 
 function estimateCustomHeight(text: string): number {
   const lineCount = Math.max(countLines(text), Math.ceil(text.length / 84));
-  return Math.max(96, lineCount * 24 + 56);
+  // The body is mono at TOOL_BLOCK_LINE_HEIGHT and clamps behind Show more, so
+  // a long message must not estimate taller than the card can grow.
+  const body = Math.min(lineCount * TOOL_BLOCK_LINE_HEIGHT, TOOL_BLOCK_BODY_MAX_HEIGHT);
+  return Math.max(96, body + CUSTOM_CARD_CHROME_HEIGHT);
 }
 
 function estimateUserHeight(text: string): number {

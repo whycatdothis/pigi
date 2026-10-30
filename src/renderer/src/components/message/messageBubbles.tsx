@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import MarkdownMessage from './markdownMessage';
 import OverflowClamp from './overflowClamp';
 import { highlightMatches, useHighlightTextNodes } from '../../lib/highlightMatches';
-import { MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
+import { MESSAGE_CONTENT_MAX_WIDTH, TOOL_BLOCK_BODY_MAX_HEIGHT } from '../../lib/layoutConstants';
 import ShimmerText from './shimmerText';
 import { parseSkillBlock, type ParsedSkillBlock } from '../../lib/skillBlock';
 import {
@@ -420,8 +420,8 @@ export function SystemBubble({
  * A message an extension injected (a letter from another pi session, for
  * instance). It wears the tool block's shell — same card, same mono title row —
  * so an injected note reads as one more piece of work in the transcript rather
- * than as a card with a design of its own. The body stays prose: a peer writes
- * to be read, not executed.
+ * than as a card with a design of its own. The header is the injected type and
+ * the body is the content verbatim, the way a tool's arguments and output are.
  */
 function CustomMessageCard({
   node,
@@ -434,7 +434,7 @@ function CustomMessageCard({
 }): React.JSX.Element {
   const contentRef = useRef<HTMLDivElement>(null);
   useHighlightTextNodes(contentRef, searchQuery, activeOccurrenceIndex);
-  const from = node.text || 'Extension message';
+  const customType = node.text || 'custom';
 
   return (
     <div className="flex justify-start" data-testid="custom-message" ref={contentRef}>
@@ -442,18 +442,15 @@ function CustomMessageCard({
         className="overflow-clip rounded-surface-sm border border-border/65 bg-muted/25 px-3 pt-0 pb-1.5 text-body text-muted-foreground"
         style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       >
-        <div className="-mx-3 flex items-start gap-1 px-3 pt-1.5 pb-1.5 font-mono text-code font-medium leading-5">
-          <span className="shrink-0 text-muted-foreground">Message from</span>
-          <span
-            className="min-w-0 break-words text-foreground [overflow-wrap:anywhere]"
-            title={from}
-          >
-            {from}
-          </span>
+        <div className="-mx-3 px-3 pt-1.5 pb-1.5 font-mono text-code font-medium leading-5 text-foreground">
+          <span className="break-words [overflow-wrap:anywhere]">{customType}</span>
         </div>
-        <div className="text-body text-foreground">
-          <MarkdownMessage text={node.detail ?? ''} />
-        </div>
+        {/* Like a tool block: the tail stays visible and the button sits above it. */}
+        <OverflowClamp maxHeight={TOOL_BLOCK_BODY_MAX_HEIGHT} tailAnchor>
+          <pre className="font-mono text-code leading-5 whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
+            {node.detail ?? ''}
+          </pre>
+        </OverflowClamp>
       </div>
     </div>
   );

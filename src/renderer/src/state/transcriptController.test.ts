@@ -78,7 +78,7 @@ function peerNode(controller: TranscriptController): SystemNode | undefined {
 }
 
 describe('TranscriptController peer messages', () => {
-  it('hydrates a pi-peer delivery as a system card with the sender and body', () => {
+  it('hydrates a custom message as a system card with its type and content', () => {
     const controller = new TranscriptController();
     controller.hydrate([
       {
@@ -93,8 +93,9 @@ describe('TranscriptController peer messages', () => {
     expect(peerNode(controller)).toMatchObject({
       role: 'system',
       kind: 'custom',
-      text: 'pigi (/Users/mingxin/Programs/pigi)',
-      detail: 'main moved; rebase before you push.',
+      text: PEER_TYPE,
+      // The content is shown verbatim; nothing is parsed out of it.
+      detail: PEER_DELIVERY,
       // The persisted entry has no delivery mode; a reload is a boundary.
       continuesUserTurn: false,
     });
@@ -136,7 +137,7 @@ describe('TranscriptController peer messages', () => {
     expect(peerNode(controller)?.continuesUserTurn).toBe(true);
   });
 
-  it('shows a message from any extension, labelled by its type when the shape is unknown', () => {
+  it('shows a message from any extension, labelled by its customType', () => {
     const controller = new TranscriptController();
     controller.processEvent({
       type: 'message_start',
