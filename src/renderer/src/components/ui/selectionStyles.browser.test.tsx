@@ -1,5 +1,6 @@
 import { beforeEach, expect, test } from 'vitest';
 import { render } from 'vitest-browser-react';
+import { userEvent } from 'vitest/browser';
 import { IconCheck } from '@tabler/icons-react';
 import { applyAppearance } from '../../appearance/applyAppearance';
 import { useSettingsStore } from '../../state/settingsStore';
@@ -26,6 +27,10 @@ test('compact selection rows use caption type and the accent checked state', asy
       </div>
       <div data-testid="tint" style={{ backgroundColor: 'var(--accent-subtle)' }} />
       <div data-testid="accent" style={{ color: 'var(--system-accent)' }} />
+      <div
+        data-testid="hover"
+        style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-foreground)' }}
+      />
     </div>,
   );
 
@@ -33,6 +38,7 @@ test('compact selection rows use caption type and the accent checked state', asy
   const checked = requireElement<HTMLElement>('[data-testid="checked"]', screen.container);
   const tint = requireElement<HTMLElement>('[data-testid="tint"]', screen.container);
   const accent = requireElement<HTMLElement>('[data-testid="accent"]', screen.container);
+  const hoverRef = requireElement<HTMLElement>('[data-testid="hover"]', screen.container);
 
   const uncheckedStyle = getComputedStyle(unchecked);
   const checkedStyle = getComputedStyle(checked);
@@ -50,4 +56,18 @@ test('compact selection rows use caption type and the accent checked state', asy
 
   const check = requireElement<Element>('[data-testid="check"]', screen.container);
   expect(getComputedStyle(check).width).toBe('16px');
+
+  await userEvent.hover(unchecked);
+  // `transition-colors` animates the hover change; poll until it settles.
+  await expect
+    .poll(() => getComputedStyle(unchecked).backgroundColor)
+    .toBe(getComputedStyle(hoverRef).backgroundColor);
+  await expect.poll(() => getComputedStyle(unchecked).color).toBe(getComputedStyle(hoverRef).color);
+
+  // The checked row keeps its accent state under the pointer.
+  await userEvent.hover(checked);
+  await expect
+    .poll(() => getComputedStyle(checked).backgroundColor)
+    .toBe(getComputedStyle(tint).backgroundColor);
+  await expect.poll(() => getComputedStyle(checked).color).toBe(getComputedStyle(accent).color);
 });
