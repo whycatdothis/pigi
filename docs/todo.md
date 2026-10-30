@@ -18,3 +18,12 @@ each write and merging onto what is there.
 
 The temp name is `${path}.tmp` for every instance; with the lock it stops
 mattering, without it each writer should use its own suffix.
+
+## Fold the hand-picked type weights into a few composite roles
+
+The size ramp and the 400/500/600 weight rule are documented, but call sites
+still combine them by hand (`font-semibold text-caption`). When the same
+combination appears a third time, add 2–3 roles — section label, row, page
+title — that bundle size, weight, line height and colour, so a change lands in
+one place. Do not use `h1–h6` as font-size APIs; they describe document
+structure, not visual hierarchy.
