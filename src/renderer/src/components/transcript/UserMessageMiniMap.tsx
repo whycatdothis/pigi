@@ -53,11 +53,11 @@ const UNIFORM_TICK_COUNT = 6;
 
 /**
  * Tick width by position. The curve peaks in the middle, a shape that only reads
- * once there are enough lines to trace it: below seven messages every bar is the
- * full width of the column.
+ * once there are enough lines to trace it: below seven messages every bar is a
+ * quarter of the column, short enough to read as a stack rather than a block.
  */
 function getLineWidth(index: number, total: number, maxWidth: number): number {
-  if (total <= UNIFORM_TICK_COUNT) return Math.round(maxWidth);
+  if (total <= UNIFORM_TICK_COUNT) return Math.round(maxWidth / 4);
 
   if (total <= 10) {
     // Medium count: quadratic curve, center reaches ~80% of max
@@ -151,7 +151,19 @@ export default React.memo(function UserMessageMiniMap({
   }, [userMessages, activeUserMessageIndex]);
 
   const devicePixelRatio = useDevicePixelRatio();
-  const tickLayout = computeTickLayout(devicePixelRatio, userMessages.length, maxLineWidth);
+  // The drawing is only as wide as its widest bar: the trigger is what the mouse
+  // has to hit, and an invisible column four times the width of the rail would
+  // open the panel from empty space.
+  const widestLine = useMemo(
+    () =>
+      userMessages.reduce(
+        (widest, _message, position) =>
+          Math.max(widest, getLineWidth(position, userMessages.length, maxLineWidth)),
+        0,
+      ),
+    [userMessages, maxLineWidth],
+  );
+  const tickLayout = computeTickLayout(devicePixelRatio, userMessages.length, widestLine);
 
   const openPanel = useCallback((): void => {
     setHasOpened(true);

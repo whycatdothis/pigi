@@ -13,6 +13,9 @@
   beside the label
 - The thinking-level flyout keeps the model list's body size on tighter rows
   and enters with a soft fade, so it no longer pops in
+- A minimap of six messages or fewer draws its lines at a quarter of the
+  column's width, and the rail only takes the width its lines need, so its
+  hover area no longer reaches past the lines
 
 ## [0.4.27] - 2026-10-30
 
