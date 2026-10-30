@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- The message list's scrollbar no longer appears on its own: not when a
+  session opens, and not while messages stream in (compact and show-all views
+  included). It appears while you scroll the list yourself — wheel, touch, or
+  keyboard — and stays available on hover and drag
+
 ## [0.4.29] - 2026-10-30
 
 ### Added

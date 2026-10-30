@@ -19,7 +19,12 @@ function ScrollFixture({
   const contentRef = useRef<HTMLDivElement | null>(null);
   return (
     <div className="relative" style={{ width: 200, height: 100 }}>
-      <div ref={viewportRef} data-testid="viewport" className="no-scrollbar h-full overflow-y-auto">
+      <div
+        ref={viewportRef}
+        data-testid="viewport"
+        tabIndex={0}
+        className="no-scrollbar h-full overflow-y-auto"
+      >
         <div ref={contentRef} style={{ height: contentHeight }} />
       </div>
       <ThinScrollbar
@@ -70,15 +75,73 @@ test('draws a proportional capsule thumb once the content overflows, with no tra
   expect(getComputedStyle(thumb).pointerEvents).toBe('auto');
 });
 
-test('mirrors the scroll position and reveals the thumb only while scrolling', async () => {
+test('mirrors the scroll position without revealing the thumb for a programmatic scroll', async () => {
   const screen = await render(<ScrollFixture contentHeight={400} />);
   await expect.element(screen.getByTestId('thin-scrollbar')).toBeVisible();
   const { viewport, thumb } = queryParts(screen.container);
 
+  // Bottom follow, session restore and jump-to-turn all write scrollTop; the
+  // thumb mirrors where it landed, but none of them are the reader.
   viewport.scrollTop = 150;
+  await expect.poll(() => thumb.style.transform).toBe('translateY(25px)');
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  expect(getComputedStyle(thumb).opacity).toBe('0');
+});
+
+test('keeps the thumb hidden while the list scrolls itself', async () => {
+  const screen = await render(<ScrollFixture contentHeight={400} />);
+  await expect.element(screen.getByTestId('thin-scrollbar')).toBeVisible();
+  const { viewport, rail } = queryParts(screen.container);
+
+  // A streaming transcript writes scrollTop on frame after frame. Nothing may
+  // reveal the thumb here, not even once: it would blink on through every
+  // long reply.
+  const reveals: string[] = [];
+  const observer = new MutationObserver(() => reveals.push(rail.dataset.visible ?? ''));
+  observer.observe(rail, { attributes: true, attributeFilter: ['data-visible'] });
+  const startedAt = performance.now();
+  await new Promise<void>((resolve) => {
+    const step = (): void => {
+      viewport.scrollTop = viewport.scrollTop >= 300 ? 0 : viewport.scrollTop + 10;
+      if (performance.now() - startedAt > 1000) resolve();
+      else requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+  observer.disconnect();
+  expect(reveals).toEqual([]);
+});
+
+test('reveals the thumb for the reader’s own scroll and hides it again', async () => {
+  const screen = await render(<ScrollFixture contentHeight={400} />);
+  await expect.element(screen.getByTestId('thin-scrollbar')).toBeVisible();
+  const { viewport, thumb } = queryParts(screen.container);
+
+  await userEvent.wheel(viewport, { delta: { y: 150 } });
   await expect.poll(() => thumb.style.transform).toBe('translateY(25px)');
   await expect.poll(() => getComputedStyle(thumb).opacity).toBe('1');
   await expect.poll(() => getComputedStyle(thumb).opacity, { timeout: 4000 }).toBe('0');
+});
+
+test('reveals the thumb when the focused list is scrolled with the keyboard', async () => {
+  const screen = await render(<ScrollFixture contentHeight={400} />);
+  await expect.element(screen.getByTestId('thin-scrollbar')).toBeVisible();
+  const { viewport, thumb } = queryParts(screen.container);
+
+  viewport.focus();
+  await userEvent.keyboard('{ArrowDown}');
+  await expect.poll(() => thumb.style.transform).not.toBe('translateY(0px)');
+  await expect.poll(() => getComputedStyle(thumb).opacity).toBe('1');
+});
+
+test('reveals the thumb for a touch drag, which never fires wheel', async () => {
+  const screen = await render(<ScrollFixture contentHeight={400} />);
+  await expect.element(screen.getByTestId('thin-scrollbar')).toBeVisible();
+  const { viewport, thumb } = queryParts(screen.container);
+
+  viewport.dispatchEvent(new TouchEvent('touchmove'));
+  viewport.scrollTop = 150;
+  await expect.poll(() => getComputedStyle(thumb).opacity).toBe('1');
 });
 
 test('keeps the thumb up while it is hovered', async () => {

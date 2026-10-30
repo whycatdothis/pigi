@@ -6,6 +6,15 @@ const THUMB_MIN_HEIGHT_PX = 24;
 const MIN_TRACK_FRACTION = 0.1;
 /** Long enough that the thumb is still there when the eye comes back after a flick. */
 const HIDE_DELAY_MS = 1500;
+/**
+ * How recently the reader's own input must have landed for a scroll to count
+ * as theirs. Only needs to bridge an input event to the scroll events it
+ * causes (and the short smooth-scroll animation a single notch can run), so it
+ * stays far below the hide delay.
+ */
+const INPUT_REVEAL_WINDOW_MS = 300;
+/** The keys a focused scroll container scrolls with, and so the reader's own. */
+const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ']);
 
 /**
  * A thumb-only scrollbar drawn over a native scroll container, for places the
@@ -18,8 +27,15 @@ const HIDE_DELAY_MS = 1500;
  * the list as if nothing were drawn there. The scroll listener never measures
  * — geometry is measured by a ResizeObserver and cached — and the thumb moves
  * by transform. macOS sets the expectations for the rest: no track, a thumb
- * that shows while the list scrolls and while it is hovered or dragged, and a
- * wider thumb while dragged.
+ * that shows while the reader scrolls the list and while it is hovered or
+ * dragged, and a wider thumb while dragged.
+ *
+ * "While the reader scrolls" is the strict reading: a scroll only reveals the
+ * thumb when the reader's own input — wheel, touch, a scroll key — just
+ * preceded it. The list also moves on its own — bottom follow during
+ * streaming, session restore, a jump to a turn — and those writes are
+ * indistinguishable from a wheel in the scroll event itself, so going by
+ * scroll alone leaves the thumb on screen through every stream.
  */
 export function ThinScrollbar({
   viewportRef,
@@ -43,6 +59,8 @@ export function ThinScrollbar({
   const dragRef = useRef<{ startY: number; startScrollTop: number } | null>(null);
   const hoveredRef = useRef(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** `performance.now()` of the last wheel, touch drag, or scroll key over the viewport. */
+  const inputAtRef = useRef(Number.NEGATIVE_INFINITY);
   const [mounted, setMounted] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -115,12 +133,30 @@ export function ThinScrollbar({
     const onScroll = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(updateThumb);
+      if (performance.now() - inputAtRef.current > INPUT_REVEAL_WINDOW_MS) return;
       setVisible(true);
       scheduleHide();
     };
+    const onInput = (): void => {
+      inputAtRef.current = performance.now();
+    };
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (SCROLL_KEYS.has(event.key)) onInput();
+    };
     viewport.addEventListener('scroll', onScroll, { passive: true });
+    // Captured, so input a child stops still counts: the event says who is
+    // scrolling, whether or not it reached the list. A touch drag reports
+    // through touchmove — it scrolls the list without ever firing wheel.
+    viewport.addEventListener('wheel', onInput, { capture: true, passive: true });
+    viewport.addEventListener('touchmove', onInput, { capture: true, passive: true });
+    // The list is focusable (aria-label + tabIndex), so the keyboard scrolls
+    // it too; nothing editable lives inside it, so no key here is typing.
+    viewport.addEventListener('keydown', onKeyDown);
     return () => {
       viewport.removeEventListener('scroll', onScroll);
+      viewport.removeEventListener('wheel', onInput, { capture: true });
+      viewport.removeEventListener('touchmove', onInput, { capture: true });
+      viewport.removeEventListener('keydown', onKeyDown);
       cancelAnimationFrame(frame);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
