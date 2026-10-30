@@ -434,7 +434,6 @@ function CustomMessageCard({
 }): React.JSX.Element {
   const contentRef = useRef<HTMLDivElement>(null);
   useHighlightTextNodes(contentRef, searchQuery, activeOccurrenceIndex);
-  const customType = node.text || 'custom';
 
   return (
     <div className="flex justify-start" data-testid="custom-message" ref={contentRef}>
@@ -443,10 +442,11 @@ function CustomMessageCard({
         style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       >
         <div className="-mx-3 px-3 pt-1.5 pb-1.5 font-mono text-code font-medium leading-5 text-foreground">
-          <span className="break-words [overflow-wrap:anywhere]">{customType}</span>
+          <span className="break-words [overflow-wrap:anywhere]">{node.text}</span>
         </div>
-        {/* Like a tool block: the tail stays visible and the button sits above it. */}
-        <OverflowClamp maxHeight={TOOL_BLOCK_BODY_MAX_HEIGHT} tailAnchor>
+        {/* A note is read from the top, so the first lines stay — the delivery
+            boilerplate that follows the text is what the clamp hides. */}
+        <OverflowClamp maxHeight={TOOL_BLOCK_BODY_MAX_HEIGHT}>
           <pre className="font-mono text-code leading-5 whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
             {node.detail ?? ''}
           </pre>

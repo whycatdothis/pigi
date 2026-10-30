@@ -551,11 +551,7 @@ export class TranscriptController {
           // the entry keeps no record of whether it was a steer or a new turn,
           // so a reloaded session treats every one of them as a turn boundary.
           // The live path knows (see message_start).
-          const node = createCustomSystemNode(
-            customMessageText(parsed.content),
-            parsed.customType,
-            false,
-          );
+          const node = createCustomSystemNode(parsed.content, parsed.customType, false);
           if (node) nodes.push(node);
           break;
         }
@@ -780,6 +776,17 @@ export class TranscriptController {
   // SDK event processing
   // ===========================================================================
 
+  /** True while an agent run owns the transcript, so an event arriving now
+   *  belongs to the current user turn instead of starting a new one. */
+  private isRunActive(): boolean {
+    return (
+      this._state.status === 'streaming' ||
+      this._state.status === 'tool_running' ||
+      this._state.activeAssistantId !== null ||
+      this._state.activeToolCallId !== null
+    );
+  }
+
   processEvent(raw: unknown): void {
     if (!raw || typeof raw !== 'object') return;
     const event = raw as Record<string, unknown>;
@@ -833,10 +840,15 @@ export class TranscriptController {
         this._runPromptPending = false;
         if (startMessage?.role === 'custom') {
           if (startMessage.display === false) break;
+          // A delivery that opens the run starts a turn. One that arrives into
+          // a running turn is a steer and stays inside it; one injected while
+          // the agent is idle is its own turn, so `opensAgentRun` alone is not
+          // the answer (sendCustomMessage without triggerTurn emits only
+          // message_start/message_end).
           const node = createCustomSystemNode(
-            customMessageText(startMessage.content),
+            startMessage.content,
             startMessage.customType,
-            !opensAgentRun,
+            !opensAgentRun && this.isRunActive(),
           );
           if (node) this.setState({ nodes: [...this._state.nodes, node] });
           break;
@@ -886,11 +898,7 @@ export class TranscriptController {
         // post-agent compaction. The SDK reason is authoritative for manual.
         const continuesUserTurn =
           compactionEvent.reason !== 'manual' &&
-          (latestNode?.role === 'user' ||
-            this._state.status === 'streaming' ||
-            this._state.status === 'tool_running' ||
-            this._state.activeAssistantId !== null ||
-            this._state.activeToolCallId !== null);
+          (latestNode?.role === 'user' || this.isRunActive());
         this.setState({
           status: 'streaming',
           isCompacting: true,
@@ -1456,13 +1464,14 @@ function customMessageText(content: unknown): string {
   return Array.isArray(content) ? extractText(content) : '';
 }
 
-/** An extension-injected message as a system card, or null when it is empty.
- *  The content is shown verbatim: extensions shape their own messages, and
- *  guessing at an envelope would drop or reword what one of them wrote. The
+/** An extension-injected message as a system card, or null when it has no text
+ *  to show. The content is shown verbatim: extensions shape their own messages,
+ *  and guessing at an envelope would drop or reword what one of them wrote. The
  *  header is the injected type, which is the one field every custom message
- *  has. */
+ *  has. Image blocks are not rendered, so a message that carries only images
+ *  has nothing to show and is dropped. */
 function createCustomSystemNode(
-  content: string,
+  content: unknown,
   customType: string | undefined,
   continuesUserTurn: boolean,
 ): SystemNode | null {

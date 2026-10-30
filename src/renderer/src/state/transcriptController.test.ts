@@ -151,6 +151,21 @@ describe('TranscriptController peer messages', () => {
     });
   });
 
+  it('gives a delivery injected while the agent is idle a turn of its own', () => {
+    const controller = new TranscriptController();
+    controller.processEvent({
+      type: 'message_start',
+      message: { role: 'user', content: [{ type: 'text', text: 'go' }] },
+    });
+    controller.processEvent({ type: 'agent_start' });
+    controller.processEvent({ type: 'agent_end' });
+    controller.processEvent({ type: 'agent_settled' });
+    // sendCustomMessage without triggerTurn emits only these two events.
+    controller.processEvent(peerStart());
+
+    expect(peerNode(controller)?.continuesUserTurn).toBe(false);
+  });
+
   it('ignores a custom message the extension asked not to display', () => {
     const controller = new TranscriptController();
     controller.processEvent({

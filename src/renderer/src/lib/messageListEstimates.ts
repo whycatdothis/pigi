@@ -21,6 +21,11 @@ const TOOL_BLOCK_CHROME_HEIGHT = 56;
 const TOOL_BLOCK_SHOW_MORE_HEIGHT = 20;
 /** An injected message card: the mono header row plus the card's padding. */
 const CUSTOM_CARD_CHROME_HEIGHT = 38;
+/** Body lines a clamped injected message shows before Show more. */
+const CUSTOM_BODY_MAX_LINES = TOOL_BLOCK_BODY_MAX_HEIGHT / TOOL_BLOCK_LINE_HEIGHT;
+/** Deliberately conservative: mono lines hold more, and over-estimating a row
+ *  costs less than a scroll jump from under-estimating it. */
+const ESTIMATE_CHARS_PER_LINE = 84;
 const TOOL_BLOCK_COMMAND_LINE_HEIGHT = 20;
 const USER_MESSAGE_TOOLBAR_HEIGHT = 24;
 const USER_MESSAGE_LEADING_PADDING = 24;
@@ -69,11 +74,10 @@ function estimateNodeHeight(node: TranscriptNode | undefined): number {
 }
 
 function estimateCustomHeight(text: string): number {
-  const lineCount = Math.max(countLines(text), Math.ceil(text.length / 84));
-  // The body is mono at TOOL_BLOCK_LINE_HEIGHT and clamps behind Show more, so
-  // a long message must not estimate taller than the card can grow.
-  const body = Math.min(lineCount * TOOL_BLOCK_LINE_HEIGHT, TOOL_BLOCK_BODY_MAX_HEIGHT);
-  return Math.max(96, body + CUSTOM_CARD_CHROME_HEIGHT);
+  const lineCount = Math.max(countLines(text), Math.ceil(text.length / ESTIMATE_CHARS_PER_LINE));
+  const visibleLines = Math.min(lineCount, CUSTOM_BODY_MAX_LINES);
+  const showMore = lineCount > CUSTOM_BODY_MAX_LINES ? TOOL_BLOCK_SHOW_MORE_HEIGHT : 0;
+  return CUSTOM_CARD_CHROME_HEIGHT + visibleLines * TOOL_BLOCK_LINE_HEIGHT + showMore;
 }
 
 function estimateUserHeight(text: string): number {
@@ -95,9 +99,13 @@ function estimateUserHeight(text: string): number {
 function estimateAssistantHeight(node: AssistantNode): number {
   const thinkingLineCap = Math.ceil(BLOCK_CONTENT_MAX_HEIGHT / 20) + 4; // lines + header slack
   const thinkingLineCount = Math.min(countLines(node.thinking), thinkingLineCap);
-  const textLength = node.text.length + Math.min(node.thinking.length, thinkingLineCap * 84);
+  const textLength =
+    node.text.length + Math.min(node.thinking.length, thinkingLineCap * ESTIMATE_CHARS_PER_LINE);
   const lineCount = countLines(node.text) + thinkingLineCount;
-  return Math.max(80, Math.max(Math.ceil(textLength / 84), lineCount) * 24 + 56);
+  return Math.max(
+    80,
+    Math.max(Math.ceil(textLength / ESTIMATE_CHARS_PER_LINE), lineCount) * 24 + 56,
+  );
 }
 
 function estimateToolHeight(node: ToolNode): number {
