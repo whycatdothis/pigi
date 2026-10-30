@@ -232,7 +232,7 @@ function ThinkingLevelFlyout({
         size="sm"
         disabled={options.length === 0}
         className={cn(
-          'h-8 w-full justify-start gap-2 rounded-control px-1.5 text-body font-normal hover:bg-muted/60 border-0',
+          'w-full justify-start gap-2 rounded-control px-1.5 text-body font-normal hover:bg-muted/60 border-0',
           forceOpen && 'bg-muted/70',
         )}
         aria-haspopup="menu"
@@ -261,7 +261,7 @@ function ThinkingLevelFlyout({
                 role="menuitemradio"
                 aria-checked={level === value}
                 data-state={level === value ? 'checked' : 'unchecked'}
-                className={cn(ACCENT_SELECTION_ROW_CLASS, 'h-8 w-full text-body')}
+                className={cn(ACCENT_SELECTION_ROW_CLASS, 'h-7 w-full text-body')}
                 onClick={() => {
                   onSelect(level);
                 }}

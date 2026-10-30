@@ -18,8 +18,8 @@
 - Menus and searchable lists share one selected-row treatment: a tint of the
   theme accent, the label in the accent, secondary text muted, and the check
   beside the label
-- The thinking-level flyout shares the model list's body size and a soft
-  entrance, so the two panels read as one surface
+- The thinking-level flyout keeps the model list's body size on tighter rows
+  and enters with a soft fade, so it no longer pops in
 - The minimal view's divider is a hairline border, so it keeps one thickness
 
 ## [0.4.26] - 2026-10-29

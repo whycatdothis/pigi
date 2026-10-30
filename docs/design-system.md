@@ -91,9 +91,10 @@ declaration earns nothing.
 `src/renderer/src/components/ui/selectionStyles.ts` carries the checked row:
 the accent tint and accent text, with the check or icon in the accent and
 secondary text muted. Short mode menus (View, Theme) add caption text on a
-28px row; searchable lists and the thinking flyout stay at body size on a
-32px row. Segmented controls keep the muted track and white pill; they are a
-different affordance. Do not introduce a second tint for a selected row.
+28px row; searchable lists stay at body size on their 32px rows and the
+thinking flyout keeps body text on a tighter 28px row. Segmented controls
+keep the muted track and white pill; they are a different affordance. Do not
+introduce a second tint for a selected row.
 
 ## Spacing, elevation, motion
 
