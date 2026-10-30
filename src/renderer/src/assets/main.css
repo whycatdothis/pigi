@@ -641,10 +641,13 @@
     top: 0;
     right: 0;
     width: 8px;
-    /* Capsule: the radius clamps to half the width, so the ends stay round
-       however long the thumb gets. The inherited superellipse corner would
-       turn those ends into squarish stubs, so this one opts out. */
-    border-radius: var(--radius-full);
+    /* Capsule with tapered tips: the horizontal radius is half the width and
+       the vertical one is shorter, so the ends come to a rounder point than a
+       half-circle. A token cannot say "half the width" here — a radius larger
+       than that makes the browser scale both axes down, which squares the end
+       off — so the percentage stays. The inherited superellipse corner would
+       also square it, hence the opt-out. */
+    border-radius: 50% / 6px;
     corner-shape: round;
     background: color-mix(in oklab, var(--foreground) 22%, transparent);
     opacity: 0;
@@ -660,9 +663,11 @@
     opacity: 1;
   }
 
+  /* Hover is intent and a drag is the grip on it: both take the same width,
+     so the thumb does not change shape under the hand that grabbed it. */
+  .thin-scrollbar-thumb:hover,
   .thin-scrollbar[data-dragging='true'] .thin-scrollbar-thumb {
     width: 12px;
-    background: color-mix(in oklab, var(--foreground) 32%, transparent);
   }
 
   /* Content bottom fade mask, 16px gradient to transparent */

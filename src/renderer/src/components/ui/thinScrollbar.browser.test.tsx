@@ -88,6 +88,8 @@ test('keeps the thumb up while it is hovered', async () => {
 
   await userEvent.hover(thumb);
   await expect.poll(() => getComputedStyle(thumb).opacity).toBe('1');
+  // Hovering is intent: the thumb takes its full width before the drag starts.
+  await expect.poll(() => getComputedStyle(thumb).width).toBe('12px');
   // Well past the idle delay: hovering holds it open.
   await new Promise((resolve) => setTimeout(resolve, 2000));
   expect(getComputedStyle(thumb).opacity).toBe('1');
