@@ -3,6 +3,9 @@ import type { Platform } from '../../../shared/platform';
 /** Max height (px) for collapsible thinking content before showing expand button */
 export const BLOCK_CONTENT_MAX_HEIGHT = 300;
 
+/** Max height (px) of an injected message's body before Show more. */
+export const CUSTOM_MESSAGE_MAX_HEIGHT = 200;
+
 /** Tool block body height (px) while collapsed. Output of bash/read/other
  *  tools sizes to content up to MAX_HEIGHT. edit/write bodies also reserve
  *  MIN_HEIGHT_LARGE (filled by the skeleton, so the card never shrinks when the

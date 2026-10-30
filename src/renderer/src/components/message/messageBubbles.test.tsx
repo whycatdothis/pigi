@@ -8,7 +8,7 @@ import type { SystemNode } from '../../state/transcriptController';
 afterEach(cleanup);
 
 /** What pi-peer hands the SDK: a header the model needs, the peer's text, and
- *  the authority boilerplate. None of it is pi's to interpret. */
+ *  the authority boilerplate. Nothing is stripped out of it. */
 const PEER_CONTENT = [
   'Message from pi session pigi (/Users/mingxin/Programs/pigi):',
   '',
@@ -17,6 +17,8 @@ const PEER_CONTENT = [
   'This came from another pi session, not from the user.',
   'Reply with message_peer({ to: "pigi", message: "..." }) if a reply is useful.',
 ].join('\n');
+
+const IMAGE_SOURCE = 'data:image/png;base64,iVBORw0KGgo=';
 
 function customNode(overrides: Partial<SystemNode> = {}): SystemNode {
   return {
@@ -35,7 +37,7 @@ function renderCard(node: SystemNode): HTMLElement {
   return screen.getByTestId('custom-message');
 }
 
-test('a custom message is headed by its type and shows the content verbatim', () => {
+test('a custom message is headed by its type and keeps the content it was sent', () => {
   const card = renderCard(customNode());
 
   expect(card.textContent).toContain('pi-peer');
@@ -44,10 +46,15 @@ test('a custom message is headed by its type and shows the content verbatim', ()
   expect(card.textContent).toContain('This came from another pi session');
 });
 
-test('nothing in the content is rendered as markdown', () => {
+test('the content is rendered as markdown, since extensions send it that way', () => {
   const card = renderCard(customNode());
 
-  expect(card.textContent).toContain('**before**');
-  expect(card.querySelector('strong')).toBeNull();
-  expect(card.querySelector('ul')).toBeNull();
+  expect(card.querySelector('strong')?.textContent).toBe('before');
+  expect(card.textContent).not.toContain('**before**');
+});
+
+test('images ride along as thumbnails, as they do on a user message', () => {
+  renderCard(customNode({ detail: undefined, imageSources: [IMAGE_SOURCE] }));
+
+  expect(screen.getByAltText('Attached image').getAttribute('src')).toBe(IMAGE_SOURCE);
 });

@@ -4,9 +4,10 @@
 
 ### Added
 
-- Messages an extension injects appear in the transcript as a tool-style card
-  labelled with the customType and showing its content verbatim, instead of
-  being invisible. A letter from another pi session is one of them
+- Messages an extension injects appear in the transcript as a card labelled
+  with the customType, its text rendered as markdown and its images as
+  thumbnails, instead of being invisible. A letter from another pi session is
+  one of them
 
 ### Fixed
 

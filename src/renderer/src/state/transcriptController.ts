@@ -99,6 +99,8 @@ export interface SystemNode {
   kind?: 'branch' | 'custom';
   /** Long-form body (the branch summary or the injected message's text). */
   detail?: string;
+  /** Images an injected message carried, as data URLs. */
+  imageSources?: string[];
 }
 
 export type TranscriptNode = UserNode | AssistantNode | ToolNode | SystemNode;
@@ -1440,7 +1442,11 @@ function areDuplicateNodes(left: TranscriptNode, right: TranscriptNode): boolean
       const system = right as SystemNode;
       // Two injected messages can share a label; the body is what tells them
       // apart when hydration is merged into a live transcript.
-      return left.text === system.text && (left.detail ?? '') === (system.detail ?? '');
+      return (
+        left.text === system.text &&
+        (left.detail ?? '') === (system.detail ?? '') &&
+        (left.imageSources?.length ?? 0) === (system.imageSources?.length ?? 0)
+      );
     }
   }
 }
@@ -1464,28 +1470,42 @@ function customMessageText(content: unknown): string {
   return Array.isArray(content) ? extractText(content) : '';
 }
 
-/** An extension-injected message as a system card, or null when it has no text
- *  to show. The content is shown verbatim: extensions shape their own messages,
- *  and guessing at an envelope would drop or reword what one of them wrote. The
- *  header is the injected type, which is the one field every custom message
- *  has. Image blocks are not rendered, so a message that carries only images
- *  has nothing to show and is dropped. */
+/** An extension-injected message as a system card, or null when it carries
+ *  nothing to show. The text is kept as written — extensions shape their own
+ *  messages, and guessing at an envelope would drop or reword what one of them
+ *  wrote — and the header is the injected type, the one field every custom
+ *  message has. Images come along the way they do on a user message. */
 function createCustomSystemNode(
   content: unknown,
   customType: string | undefined,
   continuesUserTurn: boolean,
 ): SystemNode | null {
   const detail = customMessageText(content).trim();
-  if (!detail) return null;
+  const imageSources = imageSourcesOf(content);
+  if (!detail && imageSources.length === 0) return null;
   return {
     id: nextNodeId(),
     role: 'system',
     kind: 'custom',
     text: customType || 'custom',
-    detail,
+    detail: detail || undefined,
+    imageSources: imageSources.length > 0 ? imageSources : undefined,
     continuesUserTurn,
     isLoading: false,
   };
+}
+
+/** Image blocks as data URLs, the form <img> can show. */
+function imageSourcesOf(content: unknown): string[] {
+  if (!Array.isArray(content)) return [];
+  const sources: string[] = [];
+  for (const block of content) {
+    const parsed = block as { type?: string; data?: string; mimeType?: string };
+    if (parsed.type === 'image' && parsed.data && parsed.mimeType) {
+      sources.push(`data:${parsed.mimeType};base64,${parsed.data}`);
+    }
+  }
+  return sources;
 }
 
 /**
@@ -1510,21 +1530,18 @@ function extractUserContent(content: unknown): {
   }
 
   const textParts: string[] = [];
-  const imageSources: string[] = [];
   for (const block of content) {
     // SDK content blocks are untyped; runtime shape check
-    const parsed = block as { type?: string; text?: string; data?: string; mimeType?: string };
+    const parsed = block as { type?: string; text?: string };
     if (parsed.type === 'text' && parsed.text) {
       textParts.push(parsed.text);
-    } else if (parsed.type === 'image' && parsed.data && parsed.mimeType) {
-      imageSources.push(`data:${parsed.mimeType};base64,${parsed.data}`);
     }
   }
 
   const split = sanitizeUserPromptForDisplay(textParts.join('\n'));
   return {
     text: split.text,
-    imageSources,
+    imageSources: imageSourcesOf(content),
     filePaths: split.filePaths,
     inlineFileNames: split.inlineFileNames,
   };

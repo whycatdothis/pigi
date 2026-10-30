@@ -803,7 +803,8 @@ SystemNode & { kind: 'branch' | 'custom'; detail: string }
 
 and `SystemBubble` renders `kind === 'branch'` as a collapsible card and
 `kind === 'custom'` as a message an extension injected (a pi-peer letter, for
-instance; the header is the customType, the body its content verbatim). Keep
+instance; the header is the customType, the body its text as markdown and its
+images as thumbnails, the way a user message shows them). Keep
 `kind: 'compaction'` for the existing compaction marker. Check
 `messageSearchTargets.ts` and `minimalView.tsx` for the new node shape.
 

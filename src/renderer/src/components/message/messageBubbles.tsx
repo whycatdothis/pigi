@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import MarkdownMessage from './markdownMessage';
 import OverflowClamp from './overflowClamp';
 import { highlightMatches, useHighlightTextNodes } from '../../lib/highlightMatches';
-import { MESSAGE_CONTENT_MAX_WIDTH, TOOL_BLOCK_BODY_MAX_HEIGHT } from '../../lib/layoutConstants';
+import { CUSTOM_MESSAGE_MAX_HEIGHT, MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
 import ShimmerText from './shimmerText';
 import { parseSkillBlock, type ParsedSkillBlock } from '../../lib/skillBlock';
 import {
@@ -434,6 +434,7 @@ function CustomMessageCard({
 }): React.JSX.Element {
   const contentRef = useRef<HTMLDivElement>(null);
   useHighlightTextNodes(contentRef, searchQuery, activeOccurrenceIndex);
+  const body = node.detail ?? '';
 
   return (
     <div className="flex justify-start" data-testid="custom-message" ref={contentRef}>
@@ -444,13 +445,18 @@ function CustomMessageCard({
         <div className="-mx-3 px-3 pt-1.5 pb-1.5 font-mono text-code font-medium leading-5 text-foreground">
           <span className="break-words [overflow-wrap:anywhere]">{node.text}</span>
         </div>
-        {/* A note is read from the top, so the first lines stay — the delivery
-            boilerplate that follows the text is what the clamp hides. */}
-        <OverflowClamp maxHeight={TOOL_BLOCK_BODY_MAX_HEIGHT}>
-          <pre className="font-mono text-code leading-5 whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
-            {node.detail ?? ''}
-          </pre>
-        </OverflowClamp>
+        {body && (
+          // A note is read from the top, so the first lines stay — the delivery
+          // boilerplate that follows the text is what the clamp hides.
+          <OverflowClamp maxHeight={CUSTOM_MESSAGE_MAX_HEIGHT}>
+            <MarkdownMessage text={body} />
+          </OverflowClamp>
+        )}
+        {node.imageSources && (
+          <div className="mt-2">
+            <MessageAttachments imageSources={node.imageSources} />
+          </div>
+        )}
       </div>
     </div>
   );

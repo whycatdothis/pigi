@@ -166,6 +166,25 @@ describe('TranscriptController peer messages', () => {
     expect(peerNode(controller)?.continuesUserTurn).toBe(false);
   });
 
+  it('keeps the images an image-only custom message carries', () => {
+    const controller = new TranscriptController();
+    controller.hydrate([
+      {
+        role: 'custom',
+        customType: 'screenshot',
+        display: true,
+        content: [{ type: 'image', data: 'AAAA', mimeType: 'image/png' }],
+      },
+    ]);
+
+    expect(peerNode(controller)).toMatchObject({
+      kind: 'custom',
+      text: 'screenshot',
+      detail: undefined,
+      imageSources: ['data:image/png;base64,AAAA'],
+    });
+  });
+
   it('ignores a custom message the extension asked not to display', () => {
     const controller = new TranscriptController();
     controller.processEvent({

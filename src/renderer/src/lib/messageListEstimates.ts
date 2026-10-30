@@ -1,14 +1,15 @@
 import {
   type TranscriptNode,
   type AssistantNode,
+  type SystemNode,
   type ToolNode,
   getToolArgs,
 } from '../state/transcriptController';
 import type { RenderItem } from './readGrouping';
 import {
   BLOCK_CONTENT_MAX_HEIGHT,
+  CUSTOM_MESSAGE_MAX_HEIGHT,
   READ_GROUP_MAX_COLLAPSED_ENTRIES,
-  TOOL_BLOCK_BODY_MAX_HEIGHT,
   TOOL_BLOCK_LINE_HEIGHT,
 } from './layoutConstants';
 import { getToolBlockBodyHeightRange } from './toolDisplay';
@@ -21,8 +22,6 @@ const TOOL_BLOCK_CHROME_HEIGHT = 56;
 const TOOL_BLOCK_SHOW_MORE_HEIGHT = 20;
 /** An injected message card: the mono header row plus the card's padding. */
 const CUSTOM_CARD_CHROME_HEIGHT = 38;
-/** Body lines a clamped injected message shows before Show more. */
-const CUSTOM_BODY_MAX_LINES = TOOL_BLOCK_BODY_MAX_HEIGHT / TOOL_BLOCK_LINE_HEIGHT;
 /** Deliberately conservative: mono lines hold more, and over-estimating a row
  *  costs less than a scroll jump from under-estimating it. */
 const ESTIMATE_CHARS_PER_LINE = 84;
@@ -33,6 +32,13 @@ const USER_MESSAGE_TRAILING_PADDING = 8;
 const USER_MESSAGE_WRAP_ESTIMATE_WIDTH = 72;
 /** Conservative estimate cap for the user bubble's reduced viewport clamp. */
 const USER_MESSAGE_MAX_ESTIMATE_HEIGHT = 200;
+/** Body lines an injected message shows before Show more. */
+const CUSTOM_BODY_MAX_LINES = Math.floor(
+  (CUSTOM_MESSAGE_MAX_HEIGHT - CUSTOM_CARD_CHROME_HEIGHT - TOOL_BLOCK_SHOW_MORE_HEIGHT) /
+    TOOL_BLOCK_LINE_HEIGHT,
+);
+/** One row of 64px image thumbnails and the gap above it. */
+const CUSTOM_IMAGE_ROW_HEIGHT = 70;
 
 /** Height estimates for collapsed read-only group */
 const COLLAPSED_GROUP_TRIGGER_HEIGHT = 28;
@@ -69,15 +75,17 @@ function estimateNodeHeight(node: TranscriptNode | undefined): number {
     case 'tool':
       return estimateToolHeight(node);
     case 'system':
-      return node.kind === 'custom' ? estimateCustomHeight(node.detail ?? '') : 56;
+      return node.kind === 'custom' ? estimateCustomHeight(node) : 56;
   }
 }
 
-function estimateCustomHeight(text: string): number {
+function estimateCustomHeight(node: SystemNode): number {
+  const text = node.detail ?? '';
   const lineCount = Math.max(countLines(text), Math.ceil(text.length / ESTIMATE_CHARS_PER_LINE));
   const visibleLines = Math.min(lineCount, CUSTOM_BODY_MAX_LINES);
   const showMore = lineCount > CUSTOM_BODY_MAX_LINES ? TOOL_BLOCK_SHOW_MORE_HEIGHT : 0;
-  return CUSTOM_CARD_CHROME_HEIGHT + visibleLines * TOOL_BLOCK_LINE_HEIGHT + showMore;
+  const images = node.imageSources?.length ? CUSTOM_IMAGE_ROW_HEIGHT : 0;
+  return CUSTOM_CARD_CHROME_HEIGHT + visibleLines * TOOL_BLOCK_LINE_HEIGHT + showMore + images;
 }
 
 function estimateUserHeight(text: string): number {
