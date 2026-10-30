@@ -10,11 +10,17 @@
   checkbox follows the message's text size
 - The user's message bubbles and the working, steer and follow-up bars carry a
   faint tint of the accent instead of the grey surface
-- The sidebar reads as a hierarchy: "Projects" is a small semibold label and a
-  project name keeps the full foreground colour at regular weight, while its
-  sessions are quieter
-- The View menu uses the app's translucent popup and shadcn's item spacing, and
-  its edge is a hairline instead of a faint ring
+- The sidebar reads as a hierarchy: "Projects" is a small semibold label, the
+  project rows (folder icon and name) sit at 80% foreground, a step quieter
+  than their sessions, and New chat plus the hover actions keep the full
+  foreground colour
+- The toolbar's View menu keeps its compact 13px rows, accent-tinted checked
+  item and inline check, now without the extra gap between rows
+- Menus and searchable lists share one selected-row treatment: a tint of the
+  theme accent, the label in the accent, secondary text muted, and the check
+  beside the label
+- The thinking-level flyout keeps the model list's body size on tighter rows
+  and enters with a soft fade, so it no longer pops in
 - The minimal view's divider is a hairline border, so it keeps one thickness
 
 ## [0.4.26] - 2026-10-29

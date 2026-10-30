@@ -11,6 +11,7 @@ import {
 } from '../ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Button } from '../ui/button';
+import { ACCENT_SELECTION_ROW_CLASS } from '../ui/selectionStyles';
 import { Separator } from '../ui/separator';
 import { cn } from '../../lib/utils';
 import { modelOptionKey, modelSearchValue, formatModelDetails } from './formatters';
@@ -231,7 +232,7 @@ function ThinkingLevelFlyout({
         size="sm"
         disabled={options.length === 0}
         className={cn(
-          'h-8 w-full justify-start gap-2 rounded-control px-1.5 text-body font-normal hover:bg-muted/60 border-0',
+          'w-full justify-start gap-2 rounded-control px-1.5 text-body font-normal hover:bg-muted/60 border-0',
           forceOpen && 'bg-muted/70',
         )}
         aria-haspopup="menu"
@@ -248,30 +249,26 @@ function ThinkingLevelFlyout({
         <div className="absolute bottom-1 left-full pl-1">
           <div
             role="menu"
-            className="min-w-28 rounded-surface bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10"
+            className="min-w-28 animate-in fade-in-0 zoom-in-95 origin-left rounded-surface bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10"
           >
             {options.map((level) => (
-              <Button
+              <button
                 key={level}
                 ref={(element) => {
                   if (level === value) checkedItemRef.current = element;
                 }}
                 type="button"
-                variant="ghost"
-                size="sm"
                 role="menuitemradio"
                 aria-checked={level === value}
-                className={cn(
-                  'h-7 w-full justify-start gap-2 rounded-control px-2 text-body font-normal',
-                  level === value && 'bg-muted text-foreground',
-                )}
+                data-state={level === value ? 'checked' : 'unchecked'}
+                className={cn(ACCENT_SELECTION_ROW_CLASS, 'h-7 w-full text-body')}
                 onClick={() => {
                   onSelect(level);
                 }}
               >
                 <span>{level}</span>
-                {level === value && <IconCheck data-icon="inline-end" className="ml-auto" />}
-              </Button>
+                {level === value && <IconCheck className="ml-auto" />}
+              </button>
             ))}
           </div>
         </div>

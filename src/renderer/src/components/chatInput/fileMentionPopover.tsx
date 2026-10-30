@@ -72,8 +72,8 @@ export function FileMentionPopover({
               key={path}
               type="button"
               className={cn(
-                'flex w-full items-center gap-2 rounded-control px-2 py-1 text-left text-ui',
-                index === selectedIndex && 'bg-foreground/7',
+                'flex w-full items-center gap-2 rounded-control px-2 py-1 text-left text-ui text-foreground',
+                index === selectedIndex && 'bg-accent-subtle text-[var(--system-accent)]',
               )}
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -82,7 +82,7 @@ export function FileMentionPopover({
               onMouseEnter={() => onHover(index)}
             >
               <FileIcon path={path} />
-              <span className="truncate text-foreground">{path}</span>
+              <span className="truncate">{path}</span>
             </button>
           ))}
         </div>

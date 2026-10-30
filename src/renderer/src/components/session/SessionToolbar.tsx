@@ -1,12 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { IconFilter2, IconTerminal2 } from '@tabler/icons-react';
+import { IconCheck, IconFilter2, IconTerminal2 } from '@tabler/icons-react';
 import { useAppStore } from '../../state/appStore';
 import { useSettingsStore } from '../../state/settingsStore';
 import { isToolBlockViewMode } from '../../../../shared/pigiSettings';
 import {
   SIDEBAR_TOGGLE_CLEARANCE_PX,
   SIDEBAR_TRANSITION_CLASS_NAME,
-  VIBRANCY_OVERLAY_CONTENT,
   sidebarToggleLeft,
 } from '../../lib/layoutConstants';
 import { cn } from '../../lib/utils';
@@ -196,13 +195,7 @@ export default React.memo(function SessionToolbar({
         <DropdownMenuContent
           align="end"
           sideOffset={6}
-          // Radix sets `outline: none` inline on menu content, so the shared
-          // constant's outline cannot draw here. The same 0.5px hairline is
-          // expressed as a ring instead.
-          className={cn(
-            VIBRANCY_OVERLAY_CONTENT,
-            'w-fit min-w-0 p-1 ring-[0.5px] ring-foreground/25',
-          )}
+          className="menu-content w-fit min-w-0 bg-popover/50 backdrop-blur-md"
         >
           <DropdownMenuRadioGroup
             value={toolBlockViewMode}
@@ -215,7 +208,10 @@ export default React.memo(function SessionToolbar({
             <TooltipProvider delayDuration={400}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <DropdownMenuRadioItem value="minimal">Minimal</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="minimal" compact showCheckIcon={false}>
+                    Minimal
+                    {toolBlockViewMode === 'minimal' && <IconCheck />}
+                  </DropdownMenuRadioItem>
                 </TooltipTrigger>
                 <TooltipContent side="left">
                   Minimal activity view: working timer, tool cards, final summary
@@ -223,7 +219,10 @@ export default React.memo(function SessionToolbar({
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <DropdownMenuRadioItem value="compact_read">Compact</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="compact_read" compact showCheckIcon={false}>
+                    Compact
+                    {toolBlockViewMode === 'compact_read' && <IconCheck />}
+                  </DropdownMenuRadioItem>
                 </TooltipTrigger>
                 <TooltipContent side="left">
                   Collapse consecutive read-only tool calls into a single group
@@ -231,7 +230,10 @@ export default React.memo(function SessionToolbar({
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <DropdownMenuRadioItem value="default">Show All</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="default" compact showCheckIcon={false}>
+                    Show All
+                    {toolBlockViewMode === 'default' && <IconCheck />}
+                  </DropdownMenuRadioItem>
                 </TooltipTrigger>
                 <TooltipContent side="left">
                   Display every tool call as an individual expanded block

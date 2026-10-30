@@ -107,8 +107,8 @@ function SlashCommandItem({
     <button
       type="button"
       className={cn(
-        'flex w-full items-center gap-3 rounded-control px-3 py-1.5 text-left text-body',
-        isSelected && 'bg-foreground/7',
+        'flex w-full items-center gap-2 rounded-control px-2 py-1 text-left text-ui',
+        isSelected && 'bg-accent-subtle',
       )}
       onMouseDown={(e) => {
         e.preventDefault();
@@ -116,18 +116,16 @@ function SlashCommandItem({
       }}
       onMouseEnter={onHover}
     >
-      <span className="shrink-0 font-mono text-foreground">
+      <span
+        className={cn(
+          'shrink-0 font-mono',
+          isSelected ? 'text-[var(--system-accent)]' : 'text-foreground',
+        )}
+      >
         /{slashCommandDisplayName(slashCommand.name)}
       </span>
       {slashCommand.source !== 'skill' && (
-        <span
-          className={cn(
-            'min-w-0 truncate',
-            isSelected ? 'text-foreground' : 'text-muted-foreground',
-          )}
-        >
-          {slashCommand.description}
-        </span>
+        <span className="min-w-0 truncate text-muted-foreground">{slashCommand.description}</span>
       )}
     </button>
   );

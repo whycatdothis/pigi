@@ -161,14 +161,14 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "group/command-item relative flex cursor-default items-center gap-2 rounded-control px-1.5 py-1 text-body outline-hidden select-none in-data-[slot=dialog-content]:rounded-control! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-muted data-[selected=true]:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[selected=true]:*:[svg]:text-foreground",
+        "group/command-item relative flex cursor-default items-center gap-2 rounded-control px-1.5 py-1 text-body outline-hidden select-none in-data-[slot=dialog-content]:rounded-control! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent-subtle data-[selected=true]:text-[var(--system-accent)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[selected=true]:*:[svg]:text-[var(--system-accent)]",
         className,
       )}
       {...props}
     >
       {children}
       {showCheckIcon && (
-        <IconCheck className="ml-auto opacity-0 group-has-data-[slot=command-shortcut]/command-item:hidden group-data-[checked=true]/command-item:opacity-100" />
+        <IconCheck className="ml-auto text-[var(--system-accent)] opacity-0 group-has-data-[slot=command-shortcut]/command-item:hidden group-data-[checked=true]/command-item:opacity-100" />
       )}
     </CommandPrimitive.Item>
   );
