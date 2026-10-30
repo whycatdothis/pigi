@@ -27,9 +27,9 @@ function formatTime(timestamp: number): string {
 const HOVER_OPEN_DELAY = 200;
 const HOVER_CLOSE_DELAY = 300;
 const EMPTY_MESSAGE_PREVIEW = 'Empty message';
-const LINE_WIDTH_MAX_CAP = 48;
+const LINE_WIDTH_MAX_CAP = 24;
 const LINE_WIDTH_RIGHT_MARGIN = 8;
-const LINE_WIDTH_MIN_CAP = 8;
+const LINE_WIDTH_MIN_CAP = 4;
 function useDevicePixelRatio(): number {
   const [devicePixelRatio, setDevicePixelRatio] = useState(() => window.devicePixelRatio || 1);
 
@@ -98,7 +98,7 @@ export default React.memo(function UserMessageMiniMap({
   const focusFirstItemRef = useRef(false);
 
   const [maxLineWidth, setMaxLineWidth] = useState(
-    MESSAGE_LIST_HORIZONTAL_PADDING - LINE_WIDTH_RIGHT_MARGIN,
+    (MESSAGE_LIST_HORIZONTAL_PADDING - LINE_WIDTH_RIGHT_MARGIN) / 2,
   );
   // Width affects only this small overlay, not the transcript. Publish the
   // clamped result so widths beyond the cap do not cause React updates.
@@ -108,13 +108,11 @@ export default React.memo(function UserMessageMiniMap({
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return;
       const centerGap = Math.max(0, (entry.contentRect.width - MESSAGE_LIST_MAX_WIDTH) / 2);
-      const availableSpace = centerGap + MESSAGE_LIST_HORIZONTAL_PADDING;
-      setMaxLineWidth(
-        Math.max(
-          LINE_WIDTH_MIN_CAP,
-          Math.min(LINE_WIDTH_MAX_CAP, availableSpace - LINE_WIDTH_RIGHT_MARGIN),
-        ),
-      );
+      // Half of the room the gutter offers, so the rail stays a mark on the
+      // margin: the caps are halved with it, which keeps every line's share of
+      // the curve — and the curve's shape — unchanged.
+      const railSpace = (centerGap + MESSAGE_LIST_HORIZONTAL_PADDING - LINE_WIDTH_RIGHT_MARGIN) / 2;
+      setMaxLineWidth(Math.max(LINE_WIDTH_MIN_CAP, Math.min(LINE_WIDTH_MAX_CAP, railSpace)));
     });
     observer.observe(container);
     return () => observer.disconnect();
