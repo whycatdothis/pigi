@@ -54,10 +54,10 @@ const UNIFORM_TICK_COUNT = 6;
 /**
  * Tick width by position. The curve peaks in the middle, a shape that only reads
  * once there are enough lines to trace it: below seven messages every bar is a
- * quarter of the column, short enough to read as a stack rather than a block.
+ * third of the column, short enough to read as a stack rather than a block.
  */
 function getLineWidth(index: number, total: number, maxWidth: number): number {
-  if (total <= UNIFORM_TICK_COUNT) return Math.round(maxWidth / 4);
+  if (total <= UNIFORM_TICK_COUNT) return Math.round(maxWidth / 3);
 
   if (total <= 10) {
     // Medium count: quadratic curve, center reaches ~80% of max

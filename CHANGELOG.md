@@ -16,6 +16,8 @@
   is labelled Text instead of plain text
 - The message minimap's rail is shorter: its widest line is 32px (was 48),
   and the shortest stays 8px
+- A minimap of six messages or fewer draws its lines at a third of the
+  column's width, where it used to draw them at a quarter
 
 ### Fixed
 
