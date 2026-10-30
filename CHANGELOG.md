@@ -9,6 +9,12 @@
   thumbnails, instead of being invisible. A letter from another pi session is
   one of them
 
+### Changed
+
+- A code block whose language is not one with a fixed spelling now shows it
+  with a capital first letter (`rust` as `Rust`), and a block with no language
+  is labelled Text instead of plain text
+
 ### Fixed
 
 - The minimal view no longer starts a working timer for a slash command or

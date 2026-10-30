@@ -135,7 +135,7 @@ function MarkdownCode({
   return (
     <div className="markdown-code-block">
       <div className="markdown-code-header" data-search-ignore>
-        <span className="markdown-code-label">plain text</span>
+        <span className="markdown-code-label">Text</span>
         <CodeCopyButton code={code} />
       </div>
       <pre>
@@ -162,7 +162,10 @@ function getCodeText(children: ReactNode): string {
 
 function getCodeLanguageLabel(language: string): string {
   const normalizedLanguage = language.toLowerCase();
-  return CODE_LANGUAGE_LABELS[normalizedLanguage] ?? language;
+  return (
+    CODE_LANGUAGE_LABELS[normalizedLanguage] ??
+    `${language.charAt(0).toUpperCase()}${language.slice(1)}`
+  );
 }
 
 // Memoized: the remark/rehype pipeline is expensive, and callers (minimal
