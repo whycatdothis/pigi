@@ -34,7 +34,7 @@ function peer(): NodeItem {
   return {
     type: 'node',
     id: 'peer',
-    node: { role: 'system', kind: 'peer', text: 'pigi', detail: 'main moved' } as TranscriptNode,
+    node: { role: 'system', kind: 'custom', text: 'pigi', detail: 'main moved' } as TranscriptNode,
   };
 }
 

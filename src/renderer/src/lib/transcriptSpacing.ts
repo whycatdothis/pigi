@@ -19,13 +19,13 @@ function isUserItem(item: RenderItem | undefined): boolean {
   return item?.type === 'node' && item.node.role === 'user';
 }
 
-/** Tool cards, read groups and peer messages are one kind of thing: a
+/** Tool cards, read groups and custom messages are one kind of thing: a
  *  bordered surface. */
 function isCardItem(item: RenderItem): boolean {
   return (
     item.type === 'readGroup' ||
     item.node.role === 'tool' ||
-    (item.node.role === 'system' && item.node.kind === 'peer')
+    (item.node.role === 'system' && item.node.kind === 'custom')
   );
 }
 

@@ -4,9 +4,10 @@
 
 ### Added
 
-- Messages sent by another pi session through the pi-peer extension appear in
-  the transcript as a card with the sender and the message, instead of being
-  invisible
+- Messages an extension injects appear in the transcript as a card carrying
+  where they came from and what they say, instead of being invisible: a letter
+  from another pi session shows its sender, and an unknown shape falls back to
+  the injected type with its text intact
 
 ### Fixed
 

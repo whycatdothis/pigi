@@ -101,7 +101,7 @@ function peer(continuesUserTurn: boolean): SystemNode {
   return {
     id: 'peer',
     role: 'system',
-    kind: 'peer',
+    kind: 'custom',
     text: 'pigi',
     detail: 'a note',
     continuesUserTurn,
@@ -115,9 +115,9 @@ test('a steered peer note stays inside the turn, an opening one starts a turn', 
     assistant({ text: 'done', isStreaming: true }),
   ]);
   expect(inside).toHaveLength(1);
-  expect(inside[0].entries).toContainEqual(expect.objectContaining({ kind: 'peer' }));
+  expect(inside[0].entries).toContainEqual(expect.objectContaining({ kind: 'custom' }));
 
   const boundary = buildTurns([user('hello'), peer(false), assistant({ text: 'done' })]);
   expect(boundary).toHaveLength(3);
-  expect(boundary[1].entries[0]).toMatchObject({ kind: 'peer' });
+  expect(boundary[1].entries[0]).toMatchObject({ kind: 'custom' });
 });

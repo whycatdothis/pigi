@@ -1,7 +1,7 @@
 import type { EditToolDetails } from '@earendil-works/pi-coding-agent';
 import type { PromptAttachment, PromptInput, StreamBatch } from '../../../shared/ipcContract';
 import { sanitizeUserPromptForDisplay } from '../../../shared/chatAttachments';
-import { PEER_CUSTOM_TYPE, parsePeerMessage } from '../lib/peerMessage';
+import { parseCustomMessage } from '../lib/customMessage';
 
 /**
  * TranscriptController - manages transcript state for a single session.
@@ -95,10 +95,10 @@ export interface SystemNode {
   /** This visual marker occurred inside an active user turn and must not
    *  become a logical turn boundary (for example, automatic compaction). */
   continuesUserTurn?: boolean;
-  /** Which marker this is; `branch` renders as a collapsible card and `peer`
-   *  as a message from another pi session. */
-  kind?: 'branch' | 'peer';
-  /** Long-form body (the branch summary or the peer message text). */
+  /** Which marker this is; `branch` renders as a collapsible card and
+   *  `custom` as a message an extension injected. */
+  kind?: 'branch' | 'custom';
+  /** Long-form body (the branch summary or the injected message's text). */
   detail?: string;
 }
 
@@ -547,11 +547,16 @@ export class TranscriptController {
           break;
         }
         case 'custom': {
-          if (parsed.customType !== PEER_CUSTOM_TYPE || parsed.display === false) break;
-          // The persisted entry does not record whether the delivery was a
-          // steer or a new turn, so a reloaded session treats every peer note
-          // as a turn boundary. The live path knows (see message_start).
-          const node = createPeerSystemNode(customMessageText(parsed.content), false);
+          if (parsed.display === false) break;
+          // An extension sets its own customType and shapes its own content, and
+          // the entry keeps no record of whether it was a steer or a new turn,
+          // so a reloaded session treats every one of them as a turn boundary.
+          // The live path knows (see message_start).
+          const node = createCustomSystemNode(
+            customMessageText(parsed.content),
+            parsed.customType,
+            false,
+          );
           if (node) nodes.push(node);
           break;
         }
@@ -828,9 +833,10 @@ export class TranscriptController {
         const opensAgentRun = this._runPromptPending;
         this._runPromptPending = false;
         if (startMessage?.role === 'custom') {
-          if (startMessage.customType !== PEER_CUSTOM_TYPE || startMessage.display === false) break;
-          const node = createPeerSystemNode(
+          if (startMessage.display === false) break;
+          const node = createCustomSystemNode(
             customMessageText(startMessage.content),
+            startMessage.customType,
             !opensAgentRun,
           );
           if (node) this.setState({ nodes: [...this._state.nodes, node] });
@@ -1425,7 +1431,7 @@ function areDuplicateNodes(left: TranscriptNode, right: TranscriptNode): boolean
       return left.toolCallId === (right as ToolNode).toolCallId;
     case 'system': {
       const system = right as SystemNode;
-      // Two peer messages can share a sender; the body is what tells them
+      // Two injected messages can share a label; the body is what tells them
       // apart when hydration is merged into a live transcript.
       return left.text === system.text && (left.detail ?? '') === (system.detail ?? '');
     }
@@ -1451,15 +1457,22 @@ function customMessageText(content: unknown): string {
   return Array.isArray(content) ? extractText(content) : '';
 }
 
-/** A peer delivery as a system card, or null when it has no body to show. */
-function createPeerSystemNode(content: string, continuesUserTurn: boolean): SystemNode | null {
-  const { from, body } = parsePeerMessage(content);
+/** An extension-injected message as a system card, or null when it has no
+ *  body to show. The card's label is the delivery's origin when the content
+ *  had a known envelope, and the injected type otherwise, so a message from an
+ *  extension we do not know still says where it came from. */
+function createCustomSystemNode(
+  content: string,
+  customType: string | undefined,
+  continuesUserTurn: boolean,
+): SystemNode | null {
+  const { from, body } = parseCustomMessage(content);
   if (!body) return null;
   return {
     id: nextNodeId(),
     role: 'system',
-    kind: 'peer',
-    text: from,
+    kind: 'custom',
+    text: from || customType || '',
     detail: body,
     continuesUserTurn,
     isLoading: false,

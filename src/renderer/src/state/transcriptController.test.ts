@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { TranscriptController, type SystemNode } from './transcriptController';
-import { PEER_CUSTOM_TYPE } from '../lib/peerMessage';
 
 function imageOnlyUserStart(): unknown {
   return {
@@ -53,6 +52,9 @@ describe('TranscriptController compaction started from agent_settled', () => {
   });
 });
 
+/** The customType pi-peer sets on every delivery. */
+const PEER_TYPE = 'pi-peer';
+
 const PEER_DELIVERY = [
   'Message from pi session pigi (/Users/mingxin/Programs/pigi):',
   '',
@@ -65,13 +67,13 @@ const PEER_DELIVERY = [
 function peerStart(content = PEER_DELIVERY): unknown {
   return {
     type: 'message_start',
-    message: { role: 'custom', customType: PEER_CUSTOM_TYPE, display: true, content },
+    message: { role: 'custom', customType: PEER_TYPE, display: true, content },
   };
 }
 
 function peerNode(controller: TranscriptController): SystemNode | undefined {
   return controller.state.nodes.find(
-    (node): node is SystemNode => node.role === 'system' && node.kind === 'peer',
+    (node): node is SystemNode => node.role === 'system' && node.kind === 'custom',
   );
 }
 
@@ -81,7 +83,7 @@ describe('TranscriptController peer messages', () => {
     controller.hydrate([
       {
         role: 'custom',
-        customType: PEER_CUSTOM_TYPE,
+        customType: PEER_TYPE,
         display: true,
         content: PEER_DELIVERY,
         timestamp: '2026-10-27T15:26:35.387Z',
@@ -90,7 +92,7 @@ describe('TranscriptController peer messages', () => {
 
     expect(peerNode(controller)).toMatchObject({
       role: 'system',
-      kind: 'peer',
+      kind: 'custom',
       text: 'pigi (/Users/mingxin/Programs/pigi)',
       detail: 'main moved; rebase before you push.',
       // The persisted entry has no delivery mode; a reload is a boundary.
@@ -108,7 +110,7 @@ describe('TranscriptController peer messages', () => {
     expect(controller.state.nodes).toHaveLength(1);
 
     controller.mergeHydratedMessages([
-      { role: 'custom', customType: PEER_CUSTOM_TYPE, display: true, content: PEER_DELIVERY },
+      { role: 'custom', customType: PEER_TYPE, display: true, content: PEER_DELIVERY },
     ]);
 
     expect(controller.state.nodes).toHaveLength(1);
@@ -134,17 +136,27 @@ describe('TranscriptController peer messages', () => {
     expect(peerNode(controller)?.continuesUserTurn).toBe(true);
   });
 
-  it('ignores custom messages that are not displayed peer deliveries', () => {
+  it('shows a message from any extension, labelled by its type when the shape is unknown', () => {
     const controller = new TranscriptController();
     controller.processEvent({
       type: 'message_start',
       message: { role: 'custom', customType: 'other-extension', display: true, content: 'x' },
     });
+
+    expect(peerNode(controller)).toMatchObject({
+      kind: 'custom',
+      text: 'other-extension',
+      detail: 'x',
+    });
+  });
+
+  it('ignores a custom message the extension asked not to display', () => {
+    const controller = new TranscriptController();
     controller.processEvent({
       type: 'message_start',
       message: {
         role: 'custom',
-        customType: PEER_CUSTOM_TYPE,
+        customType: PEER_TYPE,
         display: false,
         content: PEER_DELIVERY,
       },

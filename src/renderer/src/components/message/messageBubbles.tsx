@@ -1,12 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  IconCheck,
-  IconCopy,
-  IconCube,
-  IconMessageDots,
-  IconPencil,
-  IconTerminal2,
-} from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconCube, IconPencil, IconTerminal2 } from '@tabler/icons-react';
 import {
   type SystemNode,
   type TranscriptNode,
@@ -396,9 +389,9 @@ export function SystemBubble({
   searchQuery: string;
   activeOccurrenceIndex: number | null;
 }): React.JSX.Element {
-  if (node.kind === 'peer') {
+  if (node.kind === 'custom') {
     return (
-      <PeerMessageCard
+      <CustomMessageCard
         node={node}
         searchQuery={searchQuery}
         activeOccurrenceIndex={activeOccurrenceIndex}
@@ -424,12 +417,13 @@ export function SystemBubble({
 }
 
 /**
- * A message delivered by another pi session (the pi-peer extension). It reads
- * as a note from a colleague rather than as the user's own bubble: the sender
- * is in the header, and the body is the peer's markdown without the delivery
- * boilerplate the model needs.
+ * A message an extension injected (a letter from another pi session, for
+ * instance). It wears the tool block's shell — same card, same mono title row —
+ * so an injected note reads as one more piece of work in the transcript rather
+ * than as a card with a design of its own. The body stays prose: a peer writes
+ * to be read, not executed.
  */
-function PeerMessageCard({
+function CustomMessageCard({
   node,
   searchQuery,
   activeOccurrenceIndex,
@@ -440,24 +434,24 @@ function PeerMessageCard({
 }): React.JSX.Element {
   const contentRef = useRef<HTMLDivElement>(null);
   useHighlightTextNodes(contentRef, searchQuery, activeOccurrenceIndex);
-  const from = node.text || 'Another session';
+  const from = node.text || 'Extension message';
 
   return (
-    <div className="flex justify-start" data-testid="peer-message" ref={contentRef}>
+    <div className="flex justify-start" data-testid="custom-message" ref={contentRef}>
       <div
-        className="w-full overflow-hidden rounded-surface border border-border/65 bg-muted/25"
+        className="overflow-clip rounded-surface-sm border border-border/65 bg-muted/25 px-3 pt-0 pb-1.5 text-body text-muted-foreground"
         style={{ maxWidth: `${MESSAGE_CONTENT_MAX_WIDTH}px` }}
       >
-        <div className="flex items-center gap-2 border-b border-border/60 px-3 py-1.5 text-caption text-muted-foreground">
-          <IconMessageDots className="size-4 shrink-0 text-[var(--system-accent)]" />
-          <span className="shrink-0 font-medium text-foreground" data-search-ignore>
-            Peer message
-          </span>
-          <span className="min-w-0 truncate" title={from}>
+        <div className="-mx-3 flex items-start gap-1 px-3 pt-1.5 pb-1.5 font-mono text-code font-medium leading-5">
+          <span className="shrink-0 text-muted-foreground">Message from</span>
+          <span
+            className="min-w-0 break-words text-foreground [overflow-wrap:anywhere]"
+            title={from}
+          >
             {from}
           </span>
         </div>
-        <div className="px-3 py-2 text-body text-foreground">
+        <div className="text-body text-foreground">
           <MarkdownMessage text={node.detail ?? ''} />
         </div>
       </div>
