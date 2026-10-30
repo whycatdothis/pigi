@@ -73,8 +73,8 @@ export function PathMentionPopover({
               key={entry.path}
               type="button"
               className={cn(
-                'flex w-full items-center gap-2 rounded-control px-2 py-1 text-left text-ui',
-                index === selectedIndex && 'bg-accent-subtle',
+                'flex w-full items-center gap-2 rounded-control px-2 py-1 text-left text-ui text-foreground',
+                index === selectedIndex && 'bg-accent-subtle text-[var(--system-accent)]',
               )}
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -83,7 +83,7 @@ export function PathMentionPopover({
               onMouseEnter={() => onHover(index)}
             >
               {entry.isDirectory ? null : <FileIcon path={entry.path} />}
-              <span className="min-w-0 truncate text-foreground">
+              <span className="min-w-0 truncate">
                 {pathCompletionLabel(token, baseLabel, entry.name)}
               </span>
             </button>

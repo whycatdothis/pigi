@@ -87,13 +87,13 @@ declaration earns nothing.
 
 ## Selection
 
-A menu that chooses one of a few modes uses `COMPACT_SELECTION_ITEM_CLASS`
-(`src/renderer/src/components/ui/selectionStyles.ts`): caption text, a 28px
-row, the accent tint and accent text on the checked item, and the check after
-the label. Searchable lists keep body-size rows and use the same accent tint
-for the keyboard-selected row. Segmented controls keep the muted track and
-white pill; they are a different affordance from a menu. Do not introduce a
-second tint for a selected row.
+`ACCENT_SELECTION_ROW_CLASS` in
+`src/renderer/src/components/ui/selectionStyles.ts` carries the checked row:
+the accent tint and accent text, with the check or icon in the accent and
+secondary text muted. Short mode menus (View, Theme) add caption text on a
+28px row; searchable lists and the thinking flyout stay at body size on a
+32px row. Segmented controls keep the muted track and white pill; they are a
+different affordance. Do not introduce a second tint for a selected row.
 
 ## Spacing, elevation, motion
 

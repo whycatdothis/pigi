@@ -4,7 +4,7 @@ import { IconCheck } from '@tabler/icons-react';
 import { applyAppearance } from '../../appearance/applyAppearance';
 import { useSettingsStore } from '../../state/settingsStore';
 import { requireElement } from '../../testing/domQuery';
-import { COMPACT_SELECTION_ITEM_CLASS } from './selectionStyles';
+import { ACCENT_SELECTION_ROW_CLASS, COMPACT_SELECTION_ITEM_CLASS } from './selectionStyles';
 import '../../assets/main.css';
 
 beforeEach(() => {
@@ -20,6 +20,9 @@ test('compact selection rows use caption type and the accent checked state', asy
       <div data-state="checked" data-testid="checked" className={COMPACT_SELECTION_ITEM_CLASS}>
         Checked
         <IconCheck data-testid="check" />
+      </div>
+      <div data-testid="body" className={`${ACCENT_SELECTION_ROW_CLASS} text-body`}>
+        Body
       </div>
       <div data-testid="tint" style={{ backgroundColor: 'var(--accent-subtle)' }} />
       <div data-testid="accent" style={{ color: 'var(--system-accent)' }} />
@@ -41,6 +44,9 @@ test('compact selection rows use caption type and the accent checked state', asy
   expect(uncheckedStyle.backgroundColor).toBe('rgba(0, 0, 0, 0)');
   expect(checkedStyle.backgroundColor).toBe(getComputedStyle(tint).backgroundColor);
   expect(checkedStyle.color).toBe(getComputedStyle(accent).color);
+
+  const body = requireElement<HTMLElement>('[data-testid="body"]', screen.container);
+  expect(getComputedStyle(body).fontSize).toBe('15px');
 
   const check = requireElement<Element>('[data-testid="check"]', screen.container);
   expect(getComputedStyle(check).width).toBe('16px');

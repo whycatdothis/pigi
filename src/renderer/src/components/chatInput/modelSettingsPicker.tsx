@@ -11,7 +11,7 @@ import {
 } from '../ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Button } from '../ui/button';
-import { COMPACT_SELECTION_ITEM_CLASS } from '../ui/selectionStyles';
+import { ACCENT_SELECTION_ROW_CLASS } from '../ui/selectionStyles';
 import { Separator } from '../ui/separator';
 import { cn } from '../../lib/utils';
 import { modelOptionKey, modelSearchValue, formatModelDetails } from './formatters';
@@ -249,7 +249,7 @@ function ThinkingLevelFlyout({
         <div className="absolute bottom-1 left-full pl-1">
           <div
             role="menu"
-            className="min-w-28 rounded-surface bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10"
+            className="min-w-28 animate-in fade-in-0 zoom-in-95 origin-left rounded-surface bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10"
           >
             {options.map((level) => (
               <button
@@ -261,7 +261,7 @@ function ThinkingLevelFlyout({
                 role="menuitemradio"
                 aria-checked={level === value}
                 data-state={level === value ? 'checked' : 'unchecked'}
-                className={cn(COMPACT_SELECTION_ITEM_CLASS, 'h-7 w-full')}
+                className={cn(ACCENT_SELECTION_ROW_CLASS, 'h-8 w-full text-body')}
                 onClick={() => {
                   onSelect(level);
                 }}

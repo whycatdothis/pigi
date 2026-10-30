@@ -125,14 +125,7 @@ function SlashCommandItem({
         /{slashCommandDisplayName(slashCommand.name)}
       </span>
       {slashCommand.source !== 'skill' && (
-        <span
-          className={cn(
-            'min-w-0 truncate',
-            isSelected ? 'text-foreground' : 'text-muted-foreground',
-          )}
-        >
-          {slashCommand.description}
-        </span>
+        <span className="min-w-0 truncate text-muted-foreground">{slashCommand.description}</span>
       )}
     </button>
   );

@@ -16,7 +16,10 @@
 - The toolbar's View menu keeps its compact 13px rows, accent-tinted checked
   item and inline check, now without the extra gap between rows
 - Menus and searchable lists share one selected-row treatment: a tint of the
-  theme accent, with the check beside the label
+  theme accent, the label in the accent, secondary text muted, and the check
+  beside the label
+- The thinking-level flyout shares the model list's body size and a soft
+  entrance, so the two panels read as one surface
 - The minimal view's divider is a hairline border, so it keeps one thickness
 
 ## [0.4.26] - 2026-10-29
