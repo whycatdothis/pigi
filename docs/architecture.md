@@ -125,7 +125,7 @@ invisible layer also keeps the composer and its draft state alive. Switching
 back resizes the box, which re-glues a following reader.
 
 The tab strip has a width budget, not a viewport breakpoint. At full size it is
-423px: the Chat chip is at most 208px, Files 106px, Diff 100px, plus two 4px
+455px: the Chat chip is at most 240px, Files 106px, Diff 100px, plus two 4px
 gaps. The list is `max-w-full`, not only `w-fit`: with `w-fit` it keeps its
 max-content width and the Chat chip's `shrink` is dead code, so overflow is
 painted into the header spacer. The header's padding queries a wrapper

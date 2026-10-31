@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { IconFolder, IconGitCompare, IconMessageCircle } from '@tabler/icons-react';
+import { IconGitCompare, IconMessageCircle } from '@tabler/icons-react';
+import { FolderClosed } from 'lucide-react';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { WORKSPACE_TABS, isWorkspaceTab, type WorkspaceTab } from '../../lib/workspaceTabs';
 import { cn } from '../../lib/utils';
@@ -19,7 +20,7 @@ const TAB_ITEMS = [
     tab: WORKSPACE_TABS.files,
     label: 'Files',
     shortcutId: 'workspace.files',
-    icon: IconFolder,
+    icon: FolderClosed,
   },
   {
     tab: WORKSPACE_TABS.diff,
@@ -31,7 +32,7 @@ const TAB_ITEMS = [
   tab: WorkspaceTab;
   label: string;
   shortcutId: string;
-  icon: typeof IconMessageCircle;
+  icon: typeof IconMessageCircle | typeof FolderClosed;
 }[];
 
 /**
@@ -134,7 +135,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
               <div
                 key={tab}
                 className={cn(
-                  'group/tab flex h-7 w-full max-w-52 min-w-0 items-center gap-1.5 rounded-control-sm px-2.5 text-caption font-normal @max-[320px]:px-2 @max-[220px]:px-1',
+                  'group/tab flex h-7 w-full max-w-60 min-w-0 items-center gap-1.5 rounded-control-sm px-2.5 text-caption font-normal @max-[320px]:px-2 @max-[220px]:px-1',
                   value === WORKSPACE_TABS.chat
                     ? 'bg-muted text-foreground'
                     : 'text-muted-foreground',
@@ -167,7 +168,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
               className={cn(
                 'group/tab h-7 gap-1.5 px-2.5 text-caption font-normal text-muted-foreground @max-[320px]:px-2 @max-[220px]:px-1',
                 tab === WORKSPACE_TABS.chat
-                  ? 'shrink max-w-52 min-w-36 justify-start @max-[600px]:min-w-0'
+                  ? 'shrink basis-auto w-60 min-w-36 justify-start @max-[600px]:min-w-0'
                   : 'flex-none',
                 isRenamingChat && tab !== WORKSPACE_TABS.chat && '@max-[320px]:hidden',
               )}

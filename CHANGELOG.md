@@ -13,6 +13,11 @@
   load from the project. Double-clicking the Chat tab renames the session. Diff
   is a placeholder for now
 
+### Changed
+
+- The Chat tab is wider (240px) and the Files tab uses the same closed-folder
+  icon as the sidebar's project rows
+
 ### Fixed
 
 - The Files tree has a refresh button; it reloads the root and the expanded
