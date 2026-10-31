@@ -171,11 +171,14 @@ function cacheKey(
 }
 
 function countLines(code: string): number {
-  let lines = 1;
+  if (code.length === 0) return 1;
+  let lineBreaks = 0;
   for (let index = 0; index < code.length; index += 1) {
-    if (code[index] === '\n') lines += 1;
+    if (code[index] === '\n') lineBreaks += 1;
   }
-  return lines;
+  // A trailing newline terminates the last line; counting it as an empty line
+  // would turn the 2,500-line gate into 2,499.
+  return code.endsWith('\n') ? lineBreaks : lineBreaks + 1;
 }
 
 function highlightedStateKey(code: string, language: BundledLanguage, themeName: string): string {

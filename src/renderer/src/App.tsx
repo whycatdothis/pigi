@@ -1762,34 +1762,40 @@ function App(): React.JSX.Element {
               <SettingsPage section={settingsSection} cwd={activeCwd} models={catalogModels} />
             ) : (
               <>
-                {activeSession ? (
-                  <SessionToolbar
-                    key={activeSessionPath}
-                    sessionPath={activeSessionPath ?? ''}
-                    onRenameSession={handleRenameSession}
-                    onOpenTree={() => openTreeDialog(true)}
-                    treeDisabledReason={tree.disabledReason}
-                    terminalOpen={terminalOpen}
-                    onToggleTerminal={toggleTerminal}
-                    terminalShortcutLabel={terminalShortcutLabel}
-                    workspaceTab={workspaceTab}
-                    onSelectWorkspaceTab={handleSelectWorkspaceTab}
-                    shortcutBindings={shortcutBindings}
-                  />
-                ) : workspaceTab === WORKSPACE_TABS.chat ? (
-                  // New chat and the welcome/empty states are single centered
-                  // compositions; the strip keeps the window draggable where
-                  // the toolbar was. Files/Diff keep the header for their tabs.
-                  <div className="h-11 shrink-0 [-webkit-app-region:drag]" />
-                ) : (
-                  <WorkspaceHeader
-                    title={workspaceTitle}
-                    workspaceTab={workspaceTab}
-                    onSelectWorkspaceTab={handleSelectWorkspaceTab}
-                    shortcutBindings={shortcutBindings}
-                    titleInset={workspaceHeaderInset}
-                  />
-                )}
+                {/* The header queries this wrapper's width for its own padding;
+                    its tabs query the header's content width. A container cannot
+                    query itself, so the extra wrapper keeps the narrow padding
+                    from being dead CSS. */}
+                <div className="@container shrink-0">
+                  {activeSession ? (
+                    <SessionToolbar
+                      key={activeSessionPath}
+                      sessionPath={activeSessionPath ?? ''}
+                      onRenameSession={handleRenameSession}
+                      onOpenTree={() => openTreeDialog(true)}
+                      treeDisabledReason={tree.disabledReason}
+                      terminalOpen={terminalOpen}
+                      onToggleTerminal={toggleTerminal}
+                      terminalShortcutLabel={terminalShortcutLabel}
+                      workspaceTab={workspaceTab}
+                      onSelectWorkspaceTab={handleSelectWorkspaceTab}
+                      shortcutBindings={shortcutBindings}
+                    />
+                  ) : workspaceTab === WORKSPACE_TABS.chat ? (
+                    // New chat and the welcome/empty states are single centered
+                    // compositions; the strip keeps the window draggable where
+                    // the toolbar was. Files/Diff keep the header for their tabs.
+                    <div className="h-11 shrink-0 [-webkit-app-region:drag]" />
+                  ) : (
+                    <WorkspaceHeader
+                      title={workspaceTitle}
+                      workspaceTab={workspaceTab}
+                      onSelectWorkspaceTab={handleSelectWorkspaceTab}
+                      shortcutBindings={shortcutBindings}
+                      titleInset={workspaceHeaderInset}
+                    />
+                  )}
+                </div>
                 {workspaceTab === WORKSPACE_TABS.files && (
                   <FilesTab
                     projectPath={activeProject?.path ?? null}

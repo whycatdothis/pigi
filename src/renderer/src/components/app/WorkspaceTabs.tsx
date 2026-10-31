@@ -38,10 +38,13 @@ const TAB_ITEMS = [
  * The main window's fixed views. The shortcut keycap sits in the layout at
  * rest and only becomes visible on hover/focus, so revealing it never moves
  * the other tabs. The @max breakpoints are container widths, not viewport
- * widths: keycaps leave at 420px, labels at 320px (three 36px icons plus the
- * list gaps), and the Chat tab's 36px floor drops at 600px so its title
- * truncates instead of pushing Files/Diff out. SessionToolbar hides its
- * secondary actions at 580px for the same reason.
+ * widths: keycaps leave and the Chat tab's 144px floor drops at 600px so its
+ * title truncates instead of pushing Files/Diff out; labels leave at 320px
+ * (the three icon tabs take about 110px). The list itself is max-w-full:
+ * w-fit alone keeps it at max-content, which would make the Chat chip's shrink
+ * dead code and paint the overflow into the header spacer. SessionToolbar
+ * moves its secondary actions into an overflow menu at 430px for the same
+ * reason.
  */
 const WorkspaceTabs = memo(function WorkspaceTabs({
   value,
@@ -101,8 +104,8 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
   );
 
   // Container thresholds are main-area widths, not viewport widths: below 600
-  // the chat chip may shrink, below 420 the shortcut keycaps go, and below 320
-  // the tabs become icon-only. The header, not this strip, is the container.
+  // the chat chip may shrink and the keycaps go, and below 320 the tabs become
+  // icon-only. The header, not this strip, is the container.
   useEffect(() => {
     if (isRenamingChat || !restoreChatFocusRef.current) return;
     restoreChatFocusRef.current = false;
@@ -117,7 +120,10 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
       }}
       className={cn('min-w-0 gap-0', className)}
     >
-      <TabsList variant="chip" className="min-w-0 [-webkit-app-region:no-drag]">
+      <TabsList
+        variant="chip"
+        className="max-w-full min-w-0 @max-[220px]:gap-0 [-webkit-app-region:no-drag]"
+      >
         {TAB_ITEMS.map(({ tab, label: defaultLabel, shortcutId, icon: Icon }) => {
           const label =
             tab === WORKSPACE_TABS.chat && chatTitle?.trim() ? chatTitle.trim() : defaultLabel;
@@ -128,7 +134,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
               <div
                 key={tab}
                 className={cn(
-                  'group/tab flex h-7 w-full max-w-52 min-w-0 items-center gap-1.5 rounded-control-sm px-2.5 text-caption font-normal @max-[320px]:px-2',
+                  'group/tab flex h-7 w-full max-w-52 min-w-0 items-center gap-1.5 rounded-control-sm px-2.5 text-caption font-normal @max-[320px]:px-2 @max-[220px]:px-1',
                   value === WORKSPACE_TABS.chat
                     ? 'bg-muted text-foreground'
                     : 'text-muted-foreground',
@@ -159,7 +165,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
               }
               onDoubleClick={canRename ? handleStartRename : undefined}
               className={cn(
-                'group/tab h-7 gap-1.5 px-2.5 text-caption font-normal text-muted-foreground @max-[320px]:px-2',
+                'group/tab h-7 gap-1.5 px-2.5 text-caption font-normal text-muted-foreground @max-[320px]:px-2 @max-[220px]:px-1',
                 tab === WORKSPACE_TABS.chat
                   ? 'shrink max-w-52 min-w-36 justify-start @max-[600px]:min-w-0'
                   : 'flex-none',
@@ -172,7 +178,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
                 <Kbd
                   className={cn(
                     COMPACT_KBD_CLASS_NAME,
-                    'shrink-0 opacity-0 transition-opacity group-hover/tab:opacity-100 group-focus-visible/tab:opacity-100 @max-[420px]:hidden',
+                    'shrink-0 opacity-0 transition-opacity group-hover/tab:opacity-100 group-focus-visible/tab:opacity-100 @max-[600px]:hidden',
                   )}
                 >
                   {formatShortcutLabel(binding)}
@@ -205,7 +211,7 @@ export const WorkspaceHeader = memo(function WorkspaceHeader({
   return (
     <div
       className={cn(
-        'flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 px-3 transition-[padding] @container @max-[320px]:px-2 [-webkit-app-region:drag]',
+        'flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 px-3 transition-[padding] @container @max-[320px]:px-2 @max-[220px]:px-1 [-webkit-app-region:drag]',
         SIDEBAR_TRANSITION_CLASS_NAME,
       )}
       style={{ paddingLeft: titleInset }}

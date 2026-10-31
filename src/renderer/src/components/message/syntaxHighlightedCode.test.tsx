@@ -67,3 +67,18 @@ test('highlights a file at the line gate', async () => {
 
   expect(highlighter.codeToTokens).toHaveBeenCalledTimes(1);
 });
+
+test('does not count a trailing newline as an extra line', async () => {
+  render(
+    <SyntaxHighlightedCode
+      code={`${fiveLines}\n`}
+      language="ts"
+      lineNumbers
+      maxHighlightLines={5}
+      maxHighlightLength={100_000}
+    />,
+  );
+  await act(async () => {});
+
+  expect(highlighter.codeToTokens).toHaveBeenCalledTimes(1);
+});

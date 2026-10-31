@@ -126,16 +126,21 @@ back resizes the box, which re-glues a following reader.
 
 The tab strip has a width budget, not a viewport breakpoint. At full size it is
 423px: the Chat chip is at most 208px, Files 106px, Diff 100px, plus two 4px
-gaps. The toolbar header is a container query (`@container`), so the decisions
-follow the main area's width, which is what changes when a sidebar opens. Below
-600px the Chat chip may shrink instead of pushing the strip off the header;
-below 420px the shortcut keycaps are hidden; below 320px all three tabs become
-icon-only (about 122px total) and keep their `aria-label`; Chat keeps its
-full-title `title`. In the
-session toolbar, the tree, terminal and view-mode actions hide below 580px, and
-the right-sidebar toggle below 220px, so the tabs remain hit-testable in a very
-narrow main. Measured at a 430px window (186px main): labels and keycaps are
-gone, each tab is 38px, and all three are clickable.
+gaps. The list is `max-w-full`, not only `w-fit`: with `w-fit` it keeps its
+max-content width and the Chat chip's `shrink` is dead code, so overflow is
+painted into the header spacer. The header's padding queries a wrapper
+container because a container cannot query its own width; the tabs query the
+header's content box. Below 600px the Chat chip may shrink and the shortcut
+keycaps are hidden; below 320px the labels go and each icon tab is 34px (about
+110px total); below 220px padding tightens again to 26px per tab (about 78px).
+Every tab keeps its `aria-label`; Chat keeps its full-title `title`. The session
+toolbar keeps the tree, terminal, view-mode and right-sidebar actions inline
+while there is room; below 430px of header content they move into a `...` menu,
+because the session tree has no other entry point. The right-sidebar toggle
+also hides below 220px, but stays in that menu. Measured at a 430px window
+(186px main): labels and keycaps are gone, each tab is 26px, and all three are
+clickable; at the 680px minimum with both sidebars open (116px main), the tabs
+and the 20px menu still fit.
 
 ## Message List Bottom Follow
 

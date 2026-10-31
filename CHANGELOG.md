@@ -17,9 +17,10 @@
 
 - The Files tree has a refresh button; it reloads the root and the expanded
   folders without collapsing them
-- At narrow main widths the workspace tabs collapse to icons instead of
-  being clipped, and the toolbar's secondary actions step aside so the tabs
-  stay reachable
+- At narrow main widths the workspace tabs shrink and keep their labels before
+  becoming icons, instead of being clipped; when the header is tight the
+  toolbar's secondary actions move into a `...` menu so the session tree,
+  terminal and view mode stay reachable
 - Very large source files (over 2,500 lines or 90k characters) open as plain
   text instead of spending a long frame highlighting them
 - Re-opening a file refreshes its contents, file quotes for paths with spaces
