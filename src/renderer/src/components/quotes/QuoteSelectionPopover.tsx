@@ -182,17 +182,26 @@ function placementStyle(
   return aboveBottom - height >= EDGE_MARGIN_PX ? above(aboveBottom) : below(maximumTop);
 }
 
+/** The quote text when nothing more specific is needed: the selected text itself. */
+function selectedTextAsQuote({ text }: { text: string; range: Range }): string {
+  return text;
+}
+
 /**
- * Floating "Quote" action for text selected in the message list, which turns
- * into a comment editor. Saved quotes go to the session's quote panel.
- * Positioned against the scroll container, which fills the list's wrapper.
+ * Floating "Quote" action for text selected in the message list or a file
+ * view, which turns into a comment editor. Saved quotes go to the session's
+ * quote panel. Positioned against the scroll container, which fills the
+ * view's wrapper.
  */
 export default function QuoteSelectionPopover({
   containerRef,
   sessionPath,
+  formatQuoteText = selectedTextAsQuote,
 }: {
   containerRef: React.RefObject<HTMLDivElement | null>;
   sessionPath: string;
+  /** Turns the measured selection into the text stored on the quote. */
+  formatQuoteText?: (selection: { text: string; range: Range }) => string;
 }): React.JSX.Element | null {
   const [state, setState] = useState<PopoverState | null>(null);
   // While a drag selection is in progress the button waits for pointerup, so
@@ -335,12 +344,15 @@ export default function QuoteSelectionPopover({
   const handleSave = useCallback(
     (comment: string) => {
       if (state) {
-        useAppStore.getState().addQuote(sessionPath, state.text, comment);
+        const quoteText = formatQuoteText({ text: state.text, range: state.range }).trim();
+        if (quoteText) {
+          useAppStore.getState().addQuote(sessionPath, quoteText, comment);
+        }
       }
       window.getSelection()?.removeAllRanges();
       setState(null);
     },
-    [sessionPath, state],
+    [formatQuoteText, sessionPath, state],
   );
 
   const handleCancel = useCallback(() => setState(null), []);

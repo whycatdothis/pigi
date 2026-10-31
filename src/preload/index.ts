@@ -21,6 +21,8 @@ import {
   type PiRequest,
   type PickAttachmentsResult,
   type ChatAttachmentKind,
+  type ProjectDirectoryResult,
+  type ProjectFileResult,
   type ProjectFileSearchResult,
   type PathCompletionResult,
   type ProjectSessionsChunk,
@@ -320,12 +322,24 @@ const piApi = {
     ipcRenderer.invoke(PiChannel.GetGitBranch, cwd),
 
   /** List files visible to git for inline @ references. */
-  searchProjectFiles: (cwd: string, query: string): Promise<ProjectFileSearchResult> =>
-    ipcRenderer.invoke(PiChannel.SearchProjectFiles, cwd, query),
+  searchProjectFiles: (
+    cwd: string,
+    query: string,
+    limit?: number,
+  ): Promise<ProjectFileSearchResult> =>
+    ipcRenderer.invoke(PiChannel.SearchProjectFiles, cwd, query, limit),
 
   /** List directory entries that complete a typed path. */
   completePath: (cwd: string, token: string): Promise<PathCompletionResult> =>
     ipcRenderer.invoke(PiChannel.CompletePath, cwd, token),
+
+  /** List one directory in the workspace file tree. */
+  listProjectDirectory: (cwd: string, path: string): Promise<ProjectDirectoryResult> =>
+    ipcRenderer.invoke(PiChannel.ListProjectDirectory, cwd, path),
+
+  /** Read a project file for the workspace viewer. */
+  readProjectFile: (cwd: string, path: string): Promise<ProjectFileResult> =>
+    ipcRenderer.invoke(PiChannel.ReadProjectFile, cwd, path),
 
   /** Set active project directory from recent projects. */
   setActiveProject: (path: string): Promise<ProjectStateResult> =>

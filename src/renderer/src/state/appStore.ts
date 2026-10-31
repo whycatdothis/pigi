@@ -14,6 +14,7 @@ import type { Platform } from '../../../shared/platform';
 import { createPersistedSessionMap } from '../lib/persistedSessionMap';
 import { parseStoredQuotes, type MessageQuote } from '../lib/messageQuotes';
 import { RIGHT_SIDEBAR_TABS, type RightSidebarTab } from '../lib/rightSidebarTabs';
+import { WORKSPACE_TABS, type WorkspaceTab } from '../lib/workspaceTabs';
 import type { AgentStatus } from './transcriptController';
 
 export type { AgentStatus };
@@ -76,6 +77,13 @@ interface AppState {
   openSettings: () => void;
   closeSettings: () => void;
   setSettingsSection: (section: SettingsSectionId) => void;
+
+  // Workspace views in the main area. The tabs are fixed and never close.
+  workspaceTab: WorkspaceTab;
+  setWorkspaceTab: (tab: WorkspaceTab) => void;
+  /** The file each project last opened in the Files tab, persisted per project. */
+  lastFileByProject: Map<string, string>;
+  setLastFile: (projectPath: string, path: string) => void;
 
   // Bottom terminal panel. `terminalMounted` stays true after first open so the
   // xterm instance (and its PTY) persist while the panel is toggled hidden.
@@ -190,6 +198,14 @@ const storedOpenRightSidebars = createPersistedSessionMap<true>({
   storageKey: RIGHT_SIDEBAR_OPEN_STORAGE_KEY,
   saveDelayMs: 300,
   parse: (value) => (value === true ? true : undefined),
+});
+
+export const LAST_FILE_STORAGE_KEY = 'pigi.lastFileByProject';
+
+const storedLastFiles = createPersistedSessionMap<string>({
+  storageKey: LAST_FILE_STORAGE_KEY,
+  saveDelayMs: 300,
+  parse: (value) => (typeof value === 'string' && value.length > 0 ? value : undefined),
 });
 
 function withRightSidebarOpen(
@@ -323,6 +339,18 @@ export const useAppStore = create<AppState>((set) => ({
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
   setSettingsSection: (settingsSection) => set({ settingsSection }),
+
+  // Workspace views
+  workspaceTab: WORKSPACE_TABS.chat,
+  setWorkspaceTab: (workspaceTab) => set({ workspaceTab }),
+  lastFileByProject: storedLastFiles.load(),
+  setLastFile: (projectPath, path) =>
+    set((state) => {
+      if (state.lastFileByProject.get(projectPath) === path) return {};
+      const lastFileByProject = new Map(state.lastFileByProject);
+      lastFileByProject.set(projectPath, path);
+      return { lastFileByProject };
+    }),
 
   // Bottom terminal panel
   terminalOpen: false,
@@ -512,5 +540,8 @@ useAppStore.subscribe((state, previous) => {
   }
   if (state.openRightSidebarSessions !== previous.openRightSidebarSessions) {
     storedOpenRightSidebars.save(state.openRightSidebarSessions);
+  }
+  if (state.lastFileByProject !== previous.lastFileByProject) {
+    storedLastFiles.save(state.lastFileByProject);
   }
 });

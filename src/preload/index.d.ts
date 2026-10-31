@@ -8,6 +8,8 @@ import type {
   PickAttachmentsResult,
   ChatAttachmentKind,
   ProjectSessionsChunk,
+  ProjectDirectoryResult,
+  ProjectFileResult,
   ProjectFileSearchResult,
   PathCompletionResult,
   ProjectStateResult,
@@ -34,8 +36,14 @@ interface PiApi {
   // Project directories
   getProjects: () => Promise<ProjectStateResult>;
   getGitBranch: (cwd: string) => Promise<GitBranchResult>;
-  searchProjectFiles: (cwd: string, query: string) => Promise<ProjectFileSearchResult>;
+  searchProjectFiles: (
+    cwd: string,
+    query: string,
+    limit?: number,
+  ) => Promise<ProjectFileSearchResult>;
   completePath: (cwd: string, token: string) => Promise<PathCompletionResult>;
+  listProjectDirectory: (cwd: string, path: string) => Promise<ProjectDirectoryResult>;
+  readProjectFile: (cwd: string, path: string) => Promise<ProjectFileResult>;
   setActiveProject: (path: string) => Promise<ProjectStateResult>;
   openProjectDirectory: () => Promise<ProjectStateResult>;
   removeProject: (path: string) => Promise<ProjectStateResult>;

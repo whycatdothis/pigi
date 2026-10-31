@@ -119,6 +119,23 @@ export type PathCompletionResult =
   | { success: true; entries: PathCompletionEntry[] }
   | { success: false; error: string };
 
+/** One child of a directory in the workspace file tree. */
+export interface ProjectDirectoryEntry {
+  name: string;
+  /** Path relative to the project root, `/` separated. */
+  path: string;
+  isDirectory: boolean;
+}
+
+export type ProjectDirectoryResult =
+  | { success: true; entries: ProjectDirectoryEntry[]; truncated: boolean }
+  | { success: false; error: string };
+
+/** A text file read for the workspace file viewer. */
+export type ProjectFileResult =
+  | { success: true; content: string; size: number; truncated: boolean }
+  | { success: false; error: string };
+
 export interface ProjectState {
   recentProjects: ProjectDirectory[];
   activeProject: ProjectDirectory | null;
@@ -466,6 +483,10 @@ export enum PiChannel {
   SearchProjectFiles = 'pi:search_project_files',
   /** renderer → main: list directory entries for inline path completion */
   CompletePath = 'pi:complete_path',
+  /** renderer → main: list one directory in the workspace file tree */
+  ListProjectDirectory = 'pi:list_project_directory',
+  /** renderer → main: read a project file for the workspace viewer */
+  ReadProjectFile = 'pi:read_project_file',
   /** renderer → main: the app theme, so window materials follow it */
   SetAppearanceTheme = 'pi:set_appearance_theme',
   /** renderer → main: apply appearance/chat slices to pigi's settings */

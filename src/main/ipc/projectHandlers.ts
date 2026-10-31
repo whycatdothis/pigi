@@ -11,6 +11,7 @@ import {
 import { getGitBranch } from '../projects/gitStatus';
 import { searchProjectFiles } from '../projects/projectFileSearch';
 import { completePath } from '../projects/pathCompletion';
+import { listProjectDirectory, readProjectFile } from '../projects/projectFiles';
 
 function projectStateResult(): ProjectStateResult {
   return {
@@ -26,11 +27,38 @@ export function registerProjectHandlers(): void {
     return getGitBranch(cwd);
   });
 
-  ipcMain.handle(PiChannel.SearchProjectFiles, async (_event, cwd: string, query: string) => {
+  ipcMain.handle(
+    PiChannel.SearchProjectFiles,
+    async (_event, cwd: string, query: string, limit?: number) => {
+      if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+        return { success: false, error: 'cwd must be a non-empty string' };
+      }
+      return searchProjectFiles(
+        cwd,
+        typeof query === 'string' ? query : '',
+        typeof limit === 'number' ? limit : undefined,
+      );
+    },
+  );
+
+  ipcMain.handle(PiChannel.ListProjectDirectory, async (_event, cwd: string, path: string) => {
     if (typeof cwd !== 'string' || cwd.trim().length === 0) {
       return { success: false, error: 'cwd must be a non-empty string' };
     }
-    return searchProjectFiles(cwd, typeof query === 'string' ? query : '');
+    if (typeof path !== 'string') {
+      return { success: false, error: 'path must be a string' };
+    }
+    return listProjectDirectory(cwd, path);
+  });
+
+  ipcMain.handle(PiChannel.ReadProjectFile, async (_event, cwd: string, path: string) => {
+    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+      return { success: false, error: 'cwd must be a non-empty string' };
+    }
+    if (typeof path !== 'string' || path.length === 0) {
+      return { success: false, error: 'path must be a non-empty string' };
+    }
+    return readProjectFile(cwd, path);
   });
 
   ipcMain.handle(PiChannel.CompletePath, async (_event, cwd: string, token: string) => {

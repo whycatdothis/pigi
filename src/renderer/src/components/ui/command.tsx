@@ -34,6 +34,8 @@ function CommandDialog({
   className,
   showCloseButton = false,
   showOverlay = true,
+  overlayClassName,
+  container,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string;
@@ -41,6 +43,8 @@ function CommandDialog({
   className?: string;
   showCloseButton?: boolean;
   showOverlay?: boolean;
+  overlayClassName?: string;
+  container?: HTMLElement | null;
 }) {
   return (
     <Dialog {...props}>
@@ -52,6 +56,8 @@ function CommandDialog({
         className={cn('top-1/3 translate-y-0 overflow-hidden rounded-surface! p-0', className)}
         showCloseButton={showCloseButton}
         showOverlay={showOverlay}
+        overlayClassName={overlayClassName}
+        container={container}
       >
         {children}
       </DialogContent>

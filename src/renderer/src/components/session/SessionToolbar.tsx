@@ -1,5 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { IconCheck, IconFilter2, IconTerminal2 } from '@tabler/icons-react';
+import type { ShortcutBinding } from '../../../../shared/ipcContract';
+import type { WorkspaceTab } from '../../lib/workspaceTabs';
+import WorkspaceTabs from '../app/WorkspaceTabs';
 import { useAppStore } from '../../state/appStore';
 import { useSettingsStore } from '../../state/settingsStore';
 import { isToolBlockViewMode } from '../../../../shared/pigiSettings';
@@ -27,7 +30,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 
 interface SessionToolbarProps {
   sessionPath: string;
-  onRename?: (sessionPath: string, name: string) => void;
   onOpenTree: () => void;
   /** Non-null while the tree cannot be used (compacting, summarizing). */
   treeDisabledReason?: string | null;
@@ -35,16 +37,21 @@ interface SessionToolbarProps {
   onToggleTerminal: () => void;
   /** Formatted shortcut (e.g. "⌘ J") shown in the terminal button tooltip. */
   terminalShortcutLabel: string;
+  workspaceTab: WorkspaceTab;
+  onSelectWorkspaceTab: (tab: WorkspaceTab) => void;
+  shortcutBindings: Map<string, ShortcutBinding> | null;
 }
 
 export default React.memo(function SessionToolbar({
   sessionPath,
-  onRename,
   onOpenTree,
   treeDisabledReason,
   terminalOpen,
   onToggleTerminal,
   terminalShortcutLabel,
+  workspaceTab,
+  onSelectWorkspaceTab,
+  shortcutBindings,
 }: SessionToolbarProps): React.JSX.Element {
   const title = useAppStore(
     useCallback(
@@ -60,7 +67,7 @@ export default React.memo(function SessionToolbar({
       [sessionPath],
     ),
   );
-  // With the sidebar hidden, the title starts after the traffic lights and the sidebar toggle.
+  // With the sidebar hidden, the tabs start after the traffic lights and the sidebar toggle.
   const titleInset = useAppStore((state) =>
     state.sidebarExpanded
       ? undefined
@@ -75,39 +82,7 @@ export default React.memo(function SessionToolbar({
   const [displayTitle, skipNextAnimation] = useTypewriter(title);
   useRenameSuppress(sessionPath, skipNextAnimation);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState('');
   const [treeTooltipOpen, setTreeTooltipOpen] = useState(false);
-
-  const handleStartRename = useCallback(() => {
-    setEditValue(title);
-    setIsEditing(true);
-  }, [title]);
-
-  const handleFinishRename = useCallback(() => {
-    const trimmed = editValue.trim();
-    if (trimmed && trimmed !== title && onRename) {
-      skipNextAnimation();
-      onRename(sessionPath, trimmed);
-    }
-    setIsEditing(false);
-  }, [editValue, title, onRename, sessionPath, skipNextAnimation]);
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      if (event.nativeEvent.isComposing || event.key === 'Process') {
-        return;
-      }
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        handleFinishRename();
-      } else if (event.key === 'Escape') {
-        event.preventDefault();
-        setIsEditing(false);
-      }
-    },
-    [handleFinishRename],
-  );
 
   return (
     <div
@@ -117,28 +92,13 @@ export default React.memo(function SessionToolbar({
       )}
       style={{ paddingLeft: titleInset }}
     >
-      <div className="flex min-w-0 max-w-[33%] items-center [-webkit-app-region:no-drag]">
-        {isEditing ? (
-          <input
-            type="text"
-            value={editValue}
-            onChange={(event) => setEditValue(event.target.value)}
-            onBlur={handleFinishRename}
-            onKeyDown={handleKeyDown}
-            autoFocus
-            size={editValue.length || 1}
-            className="min-w-0 max-w-full bg-transparent text-body font-medium text-foreground outline-none caret-foreground"
-          />
-        ) : (
-          <span
-            className="truncate text-body font-medium text-foreground cursor-default"
-            title={title}
-            onDoubleClick={handleStartRename}
-          >
-            {displayTitle}
-          </span>
-        )}
-      </div>
+      <WorkspaceTabs
+        value={workspaceTab}
+        onChange={onSelectWorkspaceTab}
+        shortcutBindings={shortcutBindings}
+        chatTitle={displayTitle}
+        className="shrink-0"
+      />
 
       <div className="flex-1" />
 

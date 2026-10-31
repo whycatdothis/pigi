@@ -19,6 +19,12 @@ interface SyntaxHighlightedCodeProps {
    * instead of on every chunk.
    */
   isStreaming?: boolean;
+  /**
+   * Draw a line-number column (file viewer). Each line also carries
+   * `data-source-line`, which is how a text selection maps back to source
+   * lines for a quote.
+   */
+  lineNumbers?: boolean;
 }
 
 interface HighlightedToken {
@@ -36,7 +42,9 @@ interface HighlightedState {
   lines: HighlightedLine[] | null;
 }
 
-const MAX_HIGHLIGHTED_CODE_LENGTH = 80_000;
+// Covers large source files (e.g. App.tsx at ~84k); minified or generated
+// files above this stay plain instead of blocking the renderer.
+const MAX_HIGHLIGHTED_CODE_LENGTH = 250_000;
 const MAX_HIGHLIGHT_CACHE_SIZE = 100;
 const MAX_TOKENIZED_LINE_LENGTH = 2_000;
 const STREAMING_HIGHLIGHT_THROTTLE_MS = 60;
@@ -75,6 +83,28 @@ function normalizeLanguage(language: string): BundledLanguage | null {
     return null;
   }
   return normalized;
+}
+
+function codeLineClassName(lineNumbers: boolean): string {
+  return lineNumbers
+    ? 'flex min-h-5 min-w-full w-max leading-5'
+    : 'block min-h-5 [content-visibility:auto] [contain-intrinsic-size:auto_20px]';
+}
+
+function codeClassName(lineNumbers: boolean): string {
+  return `block min-w-full w-max bg-transparent p-0 font-mono text-code${lineNumbers ? ' leading-5' : ''}`;
+}
+
+/** A sticky gutter cell, so horizontal scrolling never hides the line numbers. */
+function SourceLineNumber({ lineNumber }: { lineNumber: number }): React.JSX.Element {
+  return (
+    <span
+      aria-hidden="true"
+      className="sticky left-0 z-10 w-14 shrink-0 select-none bg-background pr-3 text-right text-muted-foreground tabular-nums"
+    >
+      {lineNumber}
+    </span>
+  );
 }
 
 function tokenStyle(token: HighlightedToken): CSSProperties {
@@ -229,6 +259,7 @@ export default function SyntaxHighlightedCode({
   code,
   language,
   isStreaming = false,
+  lineNumbers = false,
 }: SyntaxHighlightedCodeProps): React.JSX.Element {
   const resolvedAppearance = useResolvedAppearance();
   const codeThemeId = useSettingsStore((state) => state.appearance.codeTheme);
@@ -277,21 +308,36 @@ export default function SyntaxHighlightedCode({
   const highlightedLineNodes = useMemo(() => {
     if (highlightedLines === null) return null;
     const lines = isAppendOfSource ? highlightedLines.slice(0, -1) : highlightedLines;
-    return lines.map((line, lineIndex) => (
-      <span
-        key={lineIndex}
-        // Skip layout/paint/raster for lines clipped by the clamp or scrolled
-        // out of view; they render lazily when revealed.
-        className="block min-h-5 [content-visibility:auto] [contain-intrinsic-size:auto_20px]"
-      >
-        {line.map((token, tokenIndex) => (
-          <span key={tokenIndex} style={tokenStyle(token)}>
-            {token.content}
-          </span>
-        ))}
+    return lines.map((line, lineIndex) => {
+      const tokens = line.map((token, tokenIndex) => (
+        <span key={tokenIndex} style={tokenStyle(token)}>
+          {token.content}
+        </span>
+      ));
+      return (
+        <span
+          key={lineIndex}
+          data-source-line={lineNumbers ? lineIndex + 1 : undefined}
+          // Skip layout/paint/raster for lines clipped by the clamp or scrolled
+          // out of view; they render lazily when revealed.
+          className={codeLineClassName(lineNumbers)}
+        >
+          {lineNumbers && <SourceLineNumber lineNumber={lineIndex + 1} />}
+          {lineNumbers ? <span className="min-w-0 whitespace-pre">{tokens}</span> : tokens}
+        </span>
+      );
+    });
+  }, [highlightedLines, isAppendOfSource, lineNumbers]);
+
+  const plainLineNodes = useMemo(() => {
+    if (!lineNumbers) return null;
+    return code.split('\n').map((line, lineIndex) => (
+      <span key={lineIndex} data-source-line={lineIndex + 1} className={codeLineClassName(true)}>
+        <SourceLineNumber lineNumber={lineIndex + 1} />
+        <span className="min-w-0 whitespace-pre">{line}</span>
       </span>
     ));
-  }, [highlightedLines, isAppendOfSource]);
+  }, [code, lineNumbers]);
 
   useEffect(() => {
     let cancelled = false;
@@ -328,7 +374,7 @@ export default function SyntaxHighlightedCode({
 
   if (!highlightedLines) {
     return (
-      <code className="block min-w-full w-max bg-transparent p-0 font-mono text-code">{code}</code>
+      <code className={codeClassName(lineNumbers)}>{lineNumbers ? plainLineNodes : code}</code>
     );
   }
 
@@ -342,12 +388,12 @@ export default function SyntaxHighlightedCode({
     // Content diverged (not a simple append); avoid showing a mismatched
     // highlight and fall back to plain until the next highlight lands.
     return (
-      <code className="block min-w-full w-max bg-transparent p-0 font-mono text-code">{code}</code>
+      <code className={codeClassName(lineNumbers)}>{lineNumbers ? plainLineNodes : code}</code>
     );
   }
 
   return (
-    <code className="block min-w-full w-max bg-transparent p-0 font-mono text-code">
+    <code className={codeClassName(lineNumbers)}>
       {highlightedLineNodes}
       {plainTail !== '' && <span className="block whitespace-pre-wrap">{plainTail}</span>}
     </code>

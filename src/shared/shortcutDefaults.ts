@@ -57,6 +57,26 @@ export const SHORTCUT_DEFAULTS: ShortcutEntry[] = [
     defaultBinding: { key: ']', meta: true, shift: true },
   },
   {
+    id: 'workspace.chat',
+    label: 'Chat tab',
+    defaultBinding: { key: '1', meta: true },
+  },
+  {
+    id: 'workspace.files',
+    label: 'Files tab',
+    defaultBinding: { key: '2', meta: true },
+  },
+  {
+    id: 'workspace.diff',
+    label: 'Diff tab',
+    defaultBinding: { key: '3', meta: true },
+  },
+  {
+    id: 'files.search',
+    label: 'Find file',
+    defaultBinding: { key: 'p', meta: true },
+  },
+  {
     id: 'quotes.send',
     label: 'Send quotes',
     defaultBinding: { key: 'Enter', meta: true },

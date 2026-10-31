@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { QUOTES_STORAGE_KEY, RIGHT_SIDEBAR_OPEN_STORAGE_KEY, useAppStore } from './appStore';
+import {
+  LAST_FILE_STORAGE_KEY,
+  QUOTES_STORAGE_KEY,
+  RIGHT_SIDEBAR_OPEN_STORAGE_KEY,
+  useAppStore,
+} from './appStore';
 
 const backgroundPath = '/sessions/background.jsonl';
 const activePath = '/sessions/active.jsonl';
@@ -143,5 +148,36 @@ describe('quotes', () => {
     store.addQuote(activePath, 'again', '');
     store.setSessionQuotes(activePath, []);
     expect(useAppStore.getState().quotesBySession.has(activePath)).toBe(false);
+  });
+});
+
+describe('last opened file', () => {
+  beforeEach(() => {
+    useAppStore.setState({ lastFileByProject: new Map() });
+  });
+
+  it('remembers one file per project and persists it', () => {
+    vi.useFakeTimers();
+    try {
+      useAppStore.getState().setLastFile('/project-a', 'src/a.ts');
+      useAppStore.getState().setLastFile('/project-b', 'README.md');
+      expect([...useAppStore.getState().lastFileByProject.entries()]).toEqual([
+        ['/project-a', 'src/a.ts'],
+        ['/project-b', 'README.md'],
+      ]);
+
+      vi.runAllTimers();
+      const stored: unknown = JSON.parse(localStorage.getItem(LAST_FILE_STORAGE_KEY) ?? '{}');
+      expect(stored).toMatchObject({
+        '/project-a': { value: 'src/a.ts' },
+        '/project-b': { value: 'README.md' },
+      });
+
+      useAppStore.setState({ lastFileByProject: new Map() });
+      vi.runAllTimers();
+      expect(localStorage.getItem(LAST_FILE_STORAGE_KEY)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

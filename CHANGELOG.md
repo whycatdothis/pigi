@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- The main window has fixed Chat, Files and Diff tabs (⌘1/⌘2/⌘3, shown on
+  hover). Files puts the project tree in the sidebar with file icons and a
+  ⌘P file search, shows source with line numbers or rendered markdown, quotes
+  a selected line range (`@src/app.ts:L10-L20`) or a rendered markdown passage
+  (`@docs/readme.md > passage`), and remembers each project's last opened
+  file. Diff is a placeholder for now
+
 ### Fixed
 
 - The terminal no longer shows a faint horizontal line along its top and

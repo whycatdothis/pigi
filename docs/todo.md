@@ -19,6 +19,11 @@ each write and merging onto what is there.
 The temp name is `${path}.tmp` for every instance; with the lock it stops
 mattering, without it each writer should use its own suffix.
 
+## Build the Diff tab
+
+The third workspace tab is a placeholder. It needs the active project's changed
+files and their diffs, and a way to quote from them like the Files tab does.
+
 ## Fold the hand-picked type weights into a few composite roles
 
 The size ramp and the 400/500/600 weight rule are documented, but call sites

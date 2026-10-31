@@ -3,7 +3,8 @@ import { app } from 'electron';
 import { FileFinder, findBinary } from '@ff-labs/fff-node';
 import type { ProjectFileSearchResult } from '../../shared/ipcContract';
 
-const MAX_MATCHES = 20;
+const DEFAULT_MAX_MATCHES = 20;
+const MAX_MATCHES = 200;
 /**
  * Each finder keeps an index and a file watcher alive. Only the active
  * project needs one: a cold scan is ~150ms per 100k files, so caching more
@@ -76,6 +77,7 @@ function getFinder(cwd: string): FileFinder {
 export async function searchProjectFiles(
   cwd: string,
   query: string,
+  limit: number = DEFAULT_MAX_MATCHES,
 ): Promise<ProjectFileSearchResult> {
   if (!cwd || cwd.trim().length === 0) {
     return { success: false, error: 'cwd must be a non-empty string' };
@@ -93,7 +95,10 @@ export async function searchProjectFiles(
       const scan = await finder.waitForScan(INITIAL_SCAN_WAIT_MS);
       if (!scan.ok) return { success: false, error: scan.error };
     }
-    const result = finder.fileSearch(trimmed, { pageSize: MAX_MATCHES });
+    const pageSize = Number.isFinite(limit)
+      ? Math.max(1, Math.min(Math.trunc(limit), MAX_MATCHES))
+      : DEFAULT_MAX_MATCHES;
+    const result = finder.fileSearch(trimmed, { pageSize });
     if (!result.ok) return { success: false, error: result.error };
     return { success: true, files: result.value.items.map((item) => item.relativePath) };
   } catch (error) {
