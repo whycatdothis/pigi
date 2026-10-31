@@ -25,10 +25,6 @@ interface SyntaxHighlightedCodeProps {
    * lines for a quote.
    */
   lineNumbers?: boolean;
-  /** Longest code string to tokenize; larger inputs stay plain. */
-  maxHighlightLength?: number;
-  /** Most lines to tokenize; dense files can be short in characters and huge in spans. */
-  maxHighlightLines?: number;
 }
 
 interface HighlightedToken {
@@ -40,21 +36,20 @@ interface HighlightedToken {
 type HighlightedLine = HighlightedToken[];
 
 interface HighlightedState {
-  key: string;
   /** The exact code string these lines were highlighted from. */
   source: string;
   lines: HighlightedLine[] | null;
 }
 
-// Chat code blocks are usually small; a larger block is more likely to be
-// generated and not worth blocking the renderer for. The file viewer opts into
-// a higher limit for real source files.
-const MAX_HIGHLIGHTED_CODE_LENGTH = 80_000;
-const MAX_HIGHLIGHT_CACHE_SIZE = 100;
+// Chat and the file viewer share one budget: 90k covers App.tsx (~86k, 2,091
+// lines), and 2,500 lines bounds the span count when many short lines fit under
+// the character cap. Sharing it keeps the cache key independent of the caller.
+const MAX_HIGHLIGHTED_CODE_LENGTH = 90_000;
+const MAX_HIGHLIGHTED_LINES = 2_500;
+const MAX_HIGHLIGHT_CACHE_SIZE = 8;
 const MAX_TOKENIZED_LINE_LENGTH = 2_000;
 const STREAMING_HIGHLIGHT_THROTTLE_MS = 60;
 const TOKENIZE_TIME_LIMIT_MS = 250;
-const HIGHLIGHT_STATE_KEY_SEPARATOR = ':';
 const FONT_STYLE_ITALIC = 1;
 const FONT_STYLE_BOLD = 2;
 const FONT_STYLE_UNDERLINE = 4;
@@ -160,14 +155,8 @@ function tokenStyle(token: HighlightedToken): CSSProperties {
   return style;
 }
 
-function cacheKey(
-  code: string,
-  language: BundledLanguage,
-  themeName: string,
-  maxHighlightLength: number,
-  maxHighlightLines: number,
-): string {
-  return `${maxHighlightLength}\n${maxHighlightLines}\n${themeName}\n${language}\n${code}`;
+function cacheKey(code: string, language: BundledLanguage, themeName: string): string {
+  return `${themeName}\n${language}\n${code}`;
 }
 
 function countLines(code: string): number {
@@ -181,18 +170,6 @@ function countLines(code: string): number {
   return code.endsWith('\n') ? lineBreaks : lineBreaks + 1;
 }
 
-function highlightedStateKey(code: string, language: BundledLanguage, themeName: string): string {
-  return [themeName, language, code.length, hashString(code)].join(HIGHLIGHT_STATE_KEY_SEPARATOR);
-}
-
-function hashString(value: string): string {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = Math.imul(31, hash) + value.charCodeAt(index);
-  }
-  return (hash >>> 0).toString(36);
-}
-
 function cacheHighlightedCode(
   code: string,
   language: BundledLanguage,
@@ -200,25 +177,14 @@ function cacheHighlightedCode(
   background: string,
   surface: string,
   codeThemeId: string,
-  maxHighlightLength: number,
-  maxHighlightLines: number,
 ): Promise<HighlightedLine[] | null> {
-  const key = cacheKey(code, language, themeName, maxHighlightLength, maxHighlightLines);
+  const key = cacheKey(code, language, themeName);
   const cached = highlightedCodeCache.get(key);
   if (cached) {
     return cached;
   }
 
-  const highlighted = highlightCode(
-    code,
-    language,
-    themeName,
-    background,
-    surface,
-    codeThemeId,
-    maxHighlightLength,
-    maxHighlightLines,
-  );
+  const highlighted = highlightCode(code, language, themeName, background, surface, codeThemeId);
   highlightedCodeCache.set(key, highlighted);
   if (highlightedCodeCache.size > MAX_HIGHLIGHT_CACHE_SIZE) {
     const oldestKey = highlightedCodeCache.keys().next().value;
@@ -236,10 +202,8 @@ async function highlightCode(
   background: string,
   surface: string,
   codeThemeId: string,
-  maxHighlightLength: number,
-  maxHighlightLines: number,
 ): Promise<HighlightedLine[] | null> {
-  if (code.length > maxHighlightLength || countLines(code) > maxHighlightLines) {
+  if (code.length > MAX_HIGHLIGHTED_CODE_LENGTH || countLines(code) > MAX_HIGHLIGHTED_LINES) {
     return null;
   }
 
@@ -317,8 +281,6 @@ export default function SyntaxHighlightedCode({
   language,
   isStreaming = false,
   lineNumbers = false,
-  maxHighlightLength = MAX_HIGHLIGHTED_CODE_LENGTH,
-  maxHighlightLines = Number.POSITIVE_INFINITY,
 }: SyntaxHighlightedCodeProps): React.JSX.Element {
   const resolvedAppearance = useResolvedAppearance();
   const codeThemeId = useSettingsStore((state) => state.appearance.codeTheme);
@@ -339,13 +301,6 @@ export default function SyntaxHighlightedCode({
     code,
     isStreaming,
     STREAMING_HIGHLIGHT_THROTTLE_MS,
-  );
-  const currentHighlightKey = useMemo(
-    () =>
-      normalizedLanguage
-        ? highlightedStateKey(highlightInput, normalizedLanguage, codeTheme.name)
-        : null,
-    [highlightInput, normalizedLanguage, codeTheme.name],
   );
   const [highlightedState, setHighlightedState] = useState<HighlightedState | null>(null);
   // Stale-while-revalidate: keep the last successful highlight on screen while
@@ -391,7 +346,7 @@ export default function SyntaxHighlightedCode({
   useEffect(() => {
     let cancelled = false;
 
-    if (!normalizedLanguage || !currentHighlightKey) {
+    if (!normalizedLanguage) {
       return () => {
         cancelled = true;
       };
@@ -404,32 +359,22 @@ export default function SyntaxHighlightedCode({
       codeTheme.background,
       codeTheme.surface,
       codeThemeId,
-      maxHighlightLength,
-      maxHighlightLines,
     )
       .then((lines) => {
         if (!cancelled) {
-          setHighlightedState({ key: currentHighlightKey, source: highlightInput, lines });
+          setHighlightedState({ source: highlightInput, lines });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setHighlightedState({ key: currentHighlightKey, source: highlightInput, lines: null });
+          setHighlightedState({ source: highlightInput, lines: null });
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [
-    highlightInput,
-    currentHighlightKey,
-    normalizedLanguage,
-    codeTheme,
-    codeThemeId,
-    maxHighlightLength,
-    maxHighlightLines,
-  ]);
+  }, [highlightInput, normalizedLanguage, codeTheme, codeThemeId]);
 
   if (!highlightedLines) {
     return (

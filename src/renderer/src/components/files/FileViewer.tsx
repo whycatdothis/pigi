@@ -13,17 +13,6 @@ import { SpinningIcon } from '../ui/spinningIcon';
 
 /** A text view with this many lines is already well past reading; the rest is cut and announced. */
 const MAX_RENDERED_LINES = 5000;
-/**
- * App.tsx (~86k, 2,091 lines) is the large file we keep coloured. Its
- * highlighting has measured 190ms for one warm task, but 480-640ms end to end
- * after a reload. A 100k dense TSX measured ~420ms, and a 2,499-line / 85k
- * dense TS measured ~748ms (30k spans, 389ms longest task), so both limits
- * are needed: characters bound tokenization, lines bound the span/DOM count.
- * The line limit still admits this ~0.8s worst case; past ~2k lines the span
- * count dominates, so raising the character cap would not help.
- */
-const MAX_HIGHLIGHTED_FILE_LENGTH = 90_000;
-const MAX_HIGHLIGHTED_FILE_LINES = 2500;
 
 type FileState =
   | { status: 'loading' }
@@ -217,13 +206,7 @@ export default function FileViewer({
                 </div>
               ) : (
                 <div className="w-max min-w-full px-3 py-3 font-mono">
-                  <SyntaxHighlightedCode
-                    code={source.content}
-                    language={language}
-                    lineNumbers
-                    maxHighlightLength={MAX_HIGHLIGHTED_FILE_LENGTH}
-                    maxHighlightLines={MAX_HIGHLIGHTED_FILE_LINES}
-                  />
+                  <SyntaxHighlightedCode code={source.content} language={language} lineNumbers />
                 </div>
               )}
             </>

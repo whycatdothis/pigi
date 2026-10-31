@@ -21,12 +21,11 @@ vi.mock('shiki/bundle/full', () => ({
   }),
 }));
 
-const sixLines = Array.from({ length: 6 }, (_, index) => `const value${index} = ${index};`).join(
-  '\n',
-);
-const fiveLines = Array.from({ length: 5 }, (_, index) => `const value${index} = ${index};`).join(
-  '\n',
-);
+const lineAtGate = Array.from(
+  { length: 2_500 },
+  (_, index) => `const value${index} = ${index};`,
+).join('\n');
+const linePastGate = `${lineAtGate}\nconst extra = true;`;
 
 beforeEach(() => {
   installSystemAppearance({ dark: false });
@@ -38,46 +37,22 @@ afterEach(() => {
 });
 
 test('keeps a file plain when it is past the line gate', async () => {
-  render(
-    <SyntaxHighlightedCode
-      code={sixLines}
-      language="ts"
-      lineNumbers
-      maxHighlightLines={5}
-      maxHighlightLength={100_000}
-    />,
-  );
+  render(<SyntaxHighlightedCode code={linePastGate} language="ts" lineNumbers />);
   await act(async () => {});
 
   expect(highlighter.codeToTokens).not.toHaveBeenCalled();
-  expect(document.querySelectorAll('[data-source-line]')).toHaveLength(6);
+  expect(document.querySelectorAll('[data-source-line]')).toHaveLength(2_501);
 });
 
 test('highlights a file at the line gate', async () => {
-  render(
-    <SyntaxHighlightedCode
-      code={fiveLines}
-      language="ts"
-      lineNumbers
-      maxHighlightLines={5}
-      maxHighlightLength={100_000}
-    />,
-  );
+  render(<SyntaxHighlightedCode code={lineAtGate} language="ts" lineNumbers />);
   await act(async () => {});
 
   expect(highlighter.codeToTokens).toHaveBeenCalledTimes(1);
 });
 
 test('does not count a trailing newline as an extra line', async () => {
-  render(
-    <SyntaxHighlightedCode
-      code={`${fiveLines}\n`}
-      language="ts"
-      lineNumbers
-      maxHighlightLines={5}
-      maxHighlightLength={100_000}
-    />,
-  );
+  render(<SyntaxHighlightedCode code={`${lineAtGate}\n`} language="ts" lineNumbers />);
   await act(async () => {});
 
   expect(highlighter.codeToTokens).toHaveBeenCalledTimes(1);
