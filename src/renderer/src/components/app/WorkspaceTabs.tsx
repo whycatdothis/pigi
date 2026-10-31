@@ -40,8 +40,9 @@ const TAB_ITEMS = [
  * rest and only becomes visible on hover/focus, so revealing it never moves
  * the other tabs. The @max breakpoints are container widths, not viewport
  * widths: keycaps leave and the Chat tab's 144px floor drops at 600px so its
- * title truncates instead of pushing Files/Diff out; labels leave at 320px
- * (the three icon tabs take about 110px). The list itself is max-w-full:
+ * title truncates instead of pushing Files/Diff out; at 320px labels leave and
+ * the Chat chip drops its 240px preferred width, so all three icon tabs take
+ * about 110px. The list itself is max-w-full:
  * w-fit alone keeps it at max-content, which would make the Chat chip's shrink
  * dead code and paint the overflow into the header spacer. SessionToolbar
  * moves its secondary actions into an overflow menu at 430px for the same
@@ -168,7 +169,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
               className={cn(
                 'group/tab h-7 gap-1.5 px-2.5 text-caption font-normal text-muted-foreground @max-[320px]:px-2 @max-[220px]:px-1',
                 tab === WORKSPACE_TABS.chat
-                  ? 'shrink basis-auto w-60 min-w-36 justify-start @max-[600px]:min-w-0'
+                  ? 'shrink basis-auto w-60 min-w-36 justify-start @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none'
                   : 'flex-none',
                 isRenamingChat && tab !== WORKSPACE_TABS.chat && '@max-[320px]:hidden',
               )}
