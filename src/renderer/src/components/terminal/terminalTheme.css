@@ -60,6 +60,16 @@
 }
 
 /*
+ * Paint the viewport with the app background. xterm leaves this black (#000 in
+ * its own stylesheet) and relies on the canvas covering it; at a fractional
+ * devicePixelRatio (page zoom, scaled display) the integer-sized canvas misses
+ * a device pixel at the top and bottom, which showed up as two hairlines.
+ */
+.xterm .xterm-viewport {
+  background-color: var(--background);
+}
+
+/*
  * Round xterm's scrollbar slider. xterm ships the VS Code-style custom
  * scrollbar (a `.slider` at the right edge) and only sets its size and color,
  * leaving the corners square. Pill it to match the app; leave the width alone.

@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- The terminal no longer shows a faint horizontal line along its top and
+  bottom edges when the window's zoom is not 100%
 - The message list's scrollbar no longer appears on its own: not when a
   session opens, and not while messages stream in (compact and show-all views
   included). It appears while you scroll the list yourself — wheel, touch, or
