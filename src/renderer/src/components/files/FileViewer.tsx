@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconAlertTriangle, IconLoader2 } from '@tabler/icons-react';
-import { cn } from '../../lib/utils';
+import { cn, formatFileSize } from '../../lib/utils';
 import { formatFileContentQuote, formatFileLineQuote } from '../../lib/fileQuotes';
 import { isMarkdownPath, languageForPath } from '../../lib/fileLanguage';
 import { sourceLineRangeFromSelection } from '../../lib/sourceLineSelection';
@@ -13,6 +13,14 @@ import { SpinningIcon } from '../ui/spinningIcon';
 
 /** A text view with this many lines is already well past reading; the rest is cut and announced. */
 const MAX_RENDERED_LINES = 5000;
+/**
+ * App.tsx (~84k, 2,092 lines) is the large file we keep coloured; warm dev-app
+ * runs highlight it in ~190ms. A 100k dense TSX measured ~420ms and a
+ * 5,000-line file reaches ~55k spans, so both limits are needed: characters
+ * bound tokenization, lines bound the span/DOM count.
+ */
+const MAX_HIGHLIGHTED_FILE_LENGTH = 90_000;
+const MAX_HIGHLIGHTED_FILE_LINES = 2500;
 
 type FileState =
   | { status: 'loading' }
@@ -86,17 +94,25 @@ function FileStateMessage({
 export default function FileViewer({
   projectPath,
   filePath,
+  fileRevision,
   sessionPath,
+  onOpenFile,
 }: {
   projectPath: string;
   filePath: string;
+  fileRevision: number;
   sessionPath: string | null;
+  onOpenFile: (path: string) => void;
 }): React.JSX.Element {
   const [fileState, setFileState] = useState<FileState>({ status: 'loading' });
   const [viewMode, setViewMode] = useState<ViewMode>('preview');
   const containerRef = useRef<HTMLDivElement>(null);
   const isMarkdown = isMarkdownPath(filePath);
   const language = languageForPath(filePath);
+  const markdownProjectFile = useMemo(
+    () => ({ projectPath, filePath, onOpenFile }),
+    [filePath, onOpenFile, projectPath],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -121,7 +137,7 @@ export default function FileViewer({
     return () => {
       cancelled = true;
     };
-  }, [projectPath, filePath]);
+  }, [projectPath, filePath, fileRevision]);
 
   const source = useMemo(() => {
     if (fileState.status !== 'ready') {
@@ -154,7 +170,7 @@ export default function FileViewer({
 
   const notice =
     fileState.status === 'ready' && fileState.truncated
-      ? `Showing the first 2 MB of this file.`
+      ? `Showing a truncated view of this ${formatFileSize(fileState.size)} file.`
       : source.hiddenLines > 0
         ? `Showing the first ${MAX_RENDERED_LINES.toLocaleString()} of ${source.totalLines.toLocaleString()} lines.`
         : null;
@@ -194,11 +210,17 @@ export default function FileViewer({
                   className="user-content mx-auto w-full px-6 py-6"
                   style={{ maxWidth: `${MESSAGE_LIST_MAX_WIDTH}px` }}
                 >
-                  <MarkdownMessage text={fileState.content} />
+                  <MarkdownMessage text={source.content} projectFile={markdownProjectFile} />
                 </div>
               ) : (
                 <div className="w-max min-w-full px-3 py-3 font-mono">
-                  <SyntaxHighlightedCode code={source.content} language={language} lineNumbers />
+                  <SyntaxHighlightedCode
+                    code={source.content}
+                    language={language}
+                    lineNumbers
+                    maxHighlightLength={MAX_HIGHLIGHTED_FILE_LENGTH}
+                    maxHighlightLines={MAX_HIGHLIGHTED_FILE_LINES}
+                  />
                 </div>
               )}
             </>

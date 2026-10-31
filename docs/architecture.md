@@ -109,6 +109,34 @@ transitions (a chevron rotating) are exempt. To check an animation, record a
 trace with the `blink.animations` category and look for `compositeFailed: 0` on
 its `Animation` event.
 
+## Workspace Tabs
+
+The main area has three fixed tabs: Chat, Files and Diff. They never close;
+⌘1/⌘2/⌘3 switch them and the keycaps appear on hover or focus. The Chat tab
+carries the session title (double-click to rename), so the toolbar has no
+separate title. Welcome and new-chat screens hide the header but keep an
+invisible 44px drag strip; no-session Files/Diff use `WorkspaceHeader`, which
+hosts the tabs without session actions. Files and Diff mount on selection and
+unmount on leave. Chat stays mounted and laid out while another tab shows,
+with only its paint skipped (`invisible absolute inset-0`). Do not replace that
+with `display: none`: it collapses every virtual transcript row to zero height,
+so a reader following the bottom comes back off the bottom by about 146px. The
+invisible layer also keeps the composer and its draft state alive. Switching
+back resizes the box, which re-glues a following reader.
+
+The tab strip has a width budget, not a viewport breakpoint. At full size it is
+423px: the Chat chip is at most 208px, Files 106px, Diff 100px, plus two 4px
+gaps. The toolbar header is a container query (`@container`), so the decisions
+follow the main area's width, which is what changes when a sidebar opens. Below
+600px the Chat chip may shrink instead of pushing the strip off the header;
+below 420px the shortcut keycaps are hidden; below 320px all three tabs become
+icon-only (about 122px total) and keep their `aria-label`; Chat keeps its
+full-title `title`. In the
+session toolbar, the tree, terminal and view-mode actions hide below 580px, and
+the right-sidebar toggle below 220px, so the tabs remain hit-testable in a very
+narrow main. Measured at a 430px window (186px main): labels and keycaps are
+gone, each tab is 38px, and all three are clickable.
+
 ## Message List Bottom Follow
 
 One writer, one state, input-only transitions (`useMessageListScrollController`):
@@ -669,8 +697,9 @@ src/
 └── renderer/
     └── src/
         ├── components/           # One directory per surface, no loose files
-        │   ├── app/              # theme provider, sign-in, menus
+        │   ├── app/              # workspace tabs/header, sign-in, menus
         │   ├── chatInput/        # composer: Tiptap editor, reference chips, pickers
+        │   ├── files/            # file tree, source/markdown viewer, search palette, diff placeholder
         │   ├── message/          # one message: bubbles, markdown, tools, diff
         │   ├── quotes/           # selection quote popover, quotes tab
         │   ├── rightSidebar/     # tabbed right sidebar

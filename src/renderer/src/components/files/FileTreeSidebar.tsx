@@ -4,6 +4,7 @@ import {
   IconFolder,
   IconFolderOpen,
   IconLoader2,
+  IconRefresh,
   IconSearch,
   IconSettings,
 } from '@tabler/icons-react';
@@ -66,6 +67,7 @@ export default memo(function FileTreeSidebar({
   const [error, setError] = useState<string | null>(null);
   const loadedDirectoriesRef = useRef<Set<string>>(new Set());
   const pendingDirectoriesRef = useRef<Map<string, Promise<void>>>(new Map());
+  const refreshGenerationRef = useRef(0);
 
   const loadDirectory = useCallback(
     (path: string): Promise<void> => {
@@ -77,23 +79,31 @@ export default memo(function FileTreeSidebar({
         return pending;
       }
 
+      const generation = refreshGenerationRef.current;
       setLoadingDirectories((previous) => new Set(previous).add(path));
       const request = window.piApi
         .listProjectDirectory(projectPath, path)
         .then((result) => {
+          if (generation !== refreshGenerationRef.current) return;
           if (!result.success) {
             setError(result.error);
             return;
           }
           loadedDirectoriesRef.current.add(path);
+          setError(null);
           setDirectories((previous) => {
             const next = new Map(previous);
             next.set(path, { entries: result.entries, truncated: result.truncated });
             return next;
           });
         })
-        .catch(() => setError('Unable to read this folder'))
+        .catch(() => {
+          if (generation === refreshGenerationRef.current) {
+            setError('Unable to read this folder');
+          }
+        })
         .finally(() => {
+          if (generation !== refreshGenerationRef.current) return;
           pendingDirectoriesRef.current.delete(path);
           setLoadingDirectories((previous) => {
             if (!previous.has(path)) return previous;
@@ -169,6 +179,19 @@ export default memo(function FileTreeSidebar({
     },
     [expandedDirectories, loadDirectory],
   );
+
+  const refreshDirectories = useCallback(() => {
+    refreshGenerationRef.current += 1;
+    loadedDirectoriesRef.current.clear();
+    pendingDirectoriesRef.current.clear();
+    setDirectories(new Map());
+    setLoadingDirectories(new Set());
+    setError(null);
+    void loadDirectory('');
+    for (const path of expandedDirectories) {
+      if (path) void loadDirectory(path);
+    }
+  }, [expandedDirectories, loadDirectory]);
 
   function renderDirectory(path: string, depth: number): React.JSX.Element[] | null {
     const content = directories.get(path);
@@ -257,11 +280,20 @@ export default memo(function FileTreeSidebar({
         <div className="flex min-w-0 items-center gap-1.5 px-2 pb-1">
           <IconFolder size={15} className="shrink-0 text-muted-foreground" />
           <span
-            className="truncate text-body font-medium text-sidebar-foreground/80"
+            className="min-w-0 flex-1 truncate text-body font-medium text-sidebar-foreground/80"
             title={projectPath}
           >
             {projectName}
           </span>
+          <button
+            type="button"
+            aria-label="Refresh files"
+            title="Refresh files"
+            onClick={refreshDirectories}
+            className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground [-webkit-app-region:no-drag]"
+          >
+            <IconRefresh size={14} />
+          </button>
         </div>
         <button
           type="button"

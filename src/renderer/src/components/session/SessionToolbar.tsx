@@ -30,6 +30,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 
 interface SessionToolbarProps {
   sessionPath: string;
+  onRenameSession: (sessionPath: string, name: string) => void;
   onOpenTree: () => void;
   /** Non-null while the tree cannot be used (compacting, summarizing). */
   treeDisabledReason?: string | null;
@@ -44,6 +45,7 @@ interface SessionToolbarProps {
 
 export default React.memo(function SessionToolbar({
   sessionPath,
+  onRenameSession,
   onOpenTree,
   treeDisabledReason,
   terminalOpen,
@@ -82,12 +84,17 @@ export default React.memo(function SessionToolbar({
   const [displayTitle, skipNextAnimation] = useTypewriter(title);
   useRenameSuppress(sessionPath, skipNextAnimation);
 
+  const handleRenameChat = useCallback(
+    (name: string) => onRenameSession(sessionPath, name),
+    [onRenameSession, sessionPath],
+  );
+
   const [treeTooltipOpen, setTreeTooltipOpen] = useState(false);
 
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center gap-2 px-3 h-11 border-b-[0.5px] border-foreground/27 transition-[padding] [-webkit-app-region:drag]',
+        'flex shrink-0 items-center gap-2 px-3 h-11 border-b-[0.5px] border-foreground/27 transition-[padding] @container @max-[320px]:px-2 [-webkit-app-region:drag]',
         SIDEBAR_TRANSITION_CLASS_NAME,
       )}
       style={{ paddingLeft: titleInset }}
@@ -97,112 +104,118 @@ export default React.memo(function SessionToolbar({
         onChange={onSelectWorkspaceTab}
         shortcutBindings={shortcutBindings}
         chatTitle={displayTitle}
-        className="shrink-0"
+        chatRenameTitle={title}
+        onRenameChat={handleRenameChat}
+        className="min-w-0 shrink"
       />
 
       <div className="flex-1" />
 
-      <TooltipProvider delayDuration={400}>
-        <Tooltip open={treeTooltipOpen} onOpenChange={setTreeTooltipOpen}>
-          <TooltipTrigger asChild>
+      {/* The tree/terminal/view actions would push the tabs off the header below
+          this width; at the smallest widths the right-sidebar toggle would too. */}
+      <div className="flex items-center gap-2 @max-[580px]:hidden">
+        <TooltipProvider delayDuration={400}>
+          <Tooltip open={treeTooltipOpen} onOpenChange={setTreeTooltipOpen}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Session tree"
+                onClick={onOpenTree}
+                disabled={Boolean(treeDisabledReason)}
+                className="flex items-center justify-center rounded p-1 text-muted-foreground transition-colors size-7 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50 [-webkit-app-region:no-drag]"
+              >
+                <SessionTreeIcon size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="gap-3">
+              <span>{treeDisabledReason ?? 'Session tree'}</span>
+              <SessionTreeHelpButton onBeforeOpen={() => setTreeTooltipOpen(false)} />
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider delayDuration={400}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Toggle terminal"
+                aria-pressed={terminalOpen}
+                onClick={onToggleTerminal}
+                className={`flex items-center justify-center rounded p-1 transition-colors size-7 hover:bg-muted [-webkit-app-region:no-drag] ${terminalOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <IconTerminal2 size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Toggle terminal
+              {terminalShortcutLabel && <Kbd>{terminalShortcutLabel}</Kbd>}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <button
               type="button"
-              aria-label="Session tree"
-              onClick={onOpenTree}
-              disabled={Boolean(treeDisabledReason)}
-              className="flex items-center justify-center rounded p-1 text-muted-foreground transition-colors size-7 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50 [-webkit-app-region:no-drag]"
+              title="View mode"
+              className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors size-7 [-webkit-app-region:no-drag]"
             >
-              <SessionTreeIcon size={16} />
+              <IconFilter2 size={16} />
             </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="gap-3">
-            <span>{treeDisabledReason ?? 'Session tree'}</span>
-            <SessionTreeHelpButton onBeforeOpen={() => setTreeTooltipOpen(false)} />
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      <TooltipProvider delayDuration={400}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              aria-label="Toggle terminal"
-              aria-pressed={terminalOpen}
-              onClick={onToggleTerminal}
-              className={`flex items-center justify-center rounded p-1 transition-colors size-7 hover:bg-muted [-webkit-app-region:no-drag] ${terminalOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            sideOffset={6}
+            className="menu-content w-fit min-w-0 bg-popover/50 backdrop-blur-md"
+          >
+            <DropdownMenuRadioGroup
+              value={toolBlockViewMode}
+              onValueChange={(value) => {
+                if (isToolBlockViewMode(value)) {
+                  setToolBlockViewMode(value);
+                }
+              }}
             >
-              <IconTerminal2 size={16} />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            Toggle terminal
-            {terminalShortcutLabel && <Kbd>{terminalShortcutLabel}</Kbd>}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            title="View mode"
-            className="flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors size-7 [-webkit-app-region:no-drag]"
-          >
-            <IconFilter2 size={16} />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          sideOffset={6}
-          className="menu-content w-fit min-w-0 bg-popover/50 backdrop-blur-md"
-        >
-          <DropdownMenuRadioGroup
-            value={toolBlockViewMode}
-            onValueChange={(value) => {
-              if (isToolBlockViewMode(value)) {
-                setToolBlockViewMode(value);
-              }
-            }}
-          >
-            <TooltipProvider delayDuration={400}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuRadioItem value="minimal" compact showCheckIcon={false}>
-                    Minimal
-                    {toolBlockViewMode === 'minimal' && <IconCheck />}
-                  </DropdownMenuRadioItem>
-                </TooltipTrigger>
-                <TooltipContent side="left">
-                  Minimal activity view: working timer, tool cards, final summary
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuRadioItem value="compact_read" compact showCheckIcon={false}>
-                    Compact
-                    {toolBlockViewMode === 'compact_read' && <IconCheck />}
-                  </DropdownMenuRadioItem>
-                </TooltipTrigger>
-                <TooltipContent side="left">
-                  Collapse consecutive read-only tool calls into a single group
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuRadioItem value="default" compact showCheckIcon={false}>
-                    Show All
-                    {toolBlockViewMode === 'default' && <IconCheck />}
-                  </DropdownMenuRadioItem>
-                </TooltipTrigger>
-                <TooltipContent side="left">
-                  Display every tool call as an individual expanded block
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+              <TooltipProvider delayDuration={400}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuRadioItem value="minimal" compact showCheckIcon={false}>
+                      Minimal
+                      {toolBlockViewMode === 'minimal' && <IconCheck />}
+                    </DropdownMenuRadioItem>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    Minimal activity view: working timer, tool cards, final summary
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuRadioItem value="compact_read" compact showCheckIcon={false}>
+                      Compact
+                      {toolBlockViewMode === 'compact_read' && <IconCheck />}
+                    </DropdownMenuRadioItem>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    Collapse consecutive read-only tool calls into a single group
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuRadioItem value="default" compact showCheckIcon={false}>
+                      Show All
+                      {toolBlockViewMode === 'default' && <IconCheck />}
+                    </DropdownMenuRadioItem>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    Display every tool call as an individual expanded block
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       <TooltipProvider delayDuration={400}>
         <Tooltip>
@@ -212,7 +225,7 @@ export default React.memo(function SessionToolbar({
               aria-label="Toggle right sidebar"
               aria-pressed={rightSidebarOpen}
               onClick={() => toggleRightSidebar(sessionPath)}
-              className={`relative flex items-center justify-center rounded p-1 transition-colors size-7 hover:bg-muted [-webkit-app-region:no-drag] ${rightSidebarOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`relative flex items-center justify-center rounded p-1 transition-colors size-7 hover:bg-muted @max-[220px]:hidden [-webkit-app-region:no-drag] ${rightSidebarOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               <PanelIcon side="right" />
               {/* Pending quotes are otherwise invisible while the sidebar is closed. */}

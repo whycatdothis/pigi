@@ -5,14 +5,25 @@ import remarkGfm from 'remark-gfm';
 import CodeCopyButton from './codeCopyButton';
 import MermaidDiagram from './mermaidDiagram';
 import SyntaxHighlightedCode from './syntaxHighlightedCode';
+import { localFileUrl } from '../../lib/chatAttachments';
 import { isFenceClosed } from '../../lib/markdownFence';
+import { resolveProjectFileReference } from '../../lib/projectFileLinks';
 
 const MERMAID_LANGUAGE = 'mermaid';
+
+interface MarkdownProjectFile {
+  projectPath: string;
+  /** Path of the markdown file, relative to the project root. */
+  filePath: string;
+  onOpenFile: (path: string) => void;
+}
 
 interface MarkdownMessageProps {
   text: string;
   /** Whether the message is still arriving, which puts code blocks on a highlight throttle. */
   isStreaming?: boolean;
+  /** Resolve relative links and images when rendering a project file. */
+  projectFile?: MarkdownProjectFile;
 }
 
 const LANGUAGE_CLASS_PREFIX = 'language-';
@@ -56,19 +67,65 @@ const MarkdownSourceContext = createContext('');
 // would remount every element of the message.
 const MarkdownStreamingContext = createContext(false);
 
-const markdownComponents: Components = {
-  a: ({ href, children }) => (
+const MarkdownProjectFileContext = createContext<MarkdownProjectFile | null>(null);
+
+function MarkdownLink({ href, children }: React.ComponentProps<'a'>): React.JSX.Element {
+  const projectFile = useContext(MarkdownProjectFileContext);
+  const target =
+    projectFile && href
+      ? resolveProjectFileReference(projectFile.projectPath, projectFile.filePath, href)
+      : null;
+
+  return (
     <a
       href={href}
       rel="noreferrer"
       onClick={(e) => {
+        if (!href) {
+          e.preventDefault();
+          return;
+        }
+        if (href.startsWith('#')) return;
         e.preventDefault();
-        if (href) window.piApi.openExternal(href);
+        if (target && projectFile) {
+          projectFile.onOpenFile(target.path);
+          return;
+        }
+        window.piApi.openExternal(href);
       }}
     >
       {children}
     </a>
-  ),
+  );
+}
+
+function MarkdownImage({
+  src,
+  alt,
+  title,
+  width,
+  height,
+}: React.ComponentProps<'img'> & ExtraProps): React.JSX.Element {
+  const projectFile = useContext(MarkdownProjectFileContext);
+  const target =
+    projectFile && src
+      ? resolveProjectFileReference(projectFile.projectPath, projectFile.filePath, src)
+      : null;
+
+  return (
+    <img
+      src={target ? localFileUrl(target.absolutePath) : src}
+      alt={alt ?? ''}
+      title={title}
+      width={width}
+      height={height}
+    />
+  );
+}
+
+const markdownComponents: Components = {
+  a: MarkdownLink,
+  img: MarkdownImage,
   // Scroll wrapper so wide tables overflow horizontally instead of
   // stretching the message layout.
   table: ({ children }) => (
@@ -174,18 +231,21 @@ function getCodeLanguageLabel(language: string): string {
 export default memo(function MarkdownMessage({
   text,
   isStreaming = false,
+  projectFile,
 }: MarkdownMessageProps): React.JSX.Element {
   return (
     <div className="markdown-body">
       <MarkdownStreamingContext.Provider value={isStreaming}>
         <MarkdownSourceContext.Provider value={text}>
-          <Markdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeSanitize]}
-            components={markdownComponents}
-          >
-            {text}
-          </Markdown>
+          <MarkdownProjectFileContext.Provider value={projectFile ?? null}>
+            <Markdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeSanitize]}
+              components={markdownComponents}
+            >
+              {text}
+            </Markdown>
+          </MarkdownProjectFileContext.Provider>
         </MarkdownSourceContext.Provider>
       </MarkdownStreamingContext.Provider>
     </div>

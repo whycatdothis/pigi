@@ -50,6 +50,13 @@ export function cn(...inputs: ClassValue[]): string {
   return mergeClassName(clsx(inputs));
 }
 
+/** Human-readable file size for attachments and file notices. */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 /**
  * Format a date string as a relative time (e.g. "2h", "3d", "now").
  */

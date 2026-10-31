@@ -24,6 +24,29 @@ mattering, without it each writer should use its own suffix.
 The third workspace tab is a placeholder. It needs the active project's changed
 files and their diffs, and a way to quote from them like the Files tab does.
 
+## Bound the file viewer's DOM by lines, not characters
+
+The viewer now highlights only under 90k characters and 2,500 lines. That
+removes the worst case: a 5,000-line dense file falls back to plain, about
+15,000 nodes and a 167ms warm render, instead of producing about 65k nodes and
+long tasks over 500ms. A 100k dense TSX still measured about 420ms before the
+cap, and 84k App.tsx / 2,092 lines highlights in about 187ms warm; cold runs
+have measured 340–500ms, so treat these as order-of-magnitude. A 2,500-line
+dense file can still cost a long frame, and 5,000 plain lines still render every
+row. Tokenizing only a prefix would leave the rest plain; real windowing would
+also have to keep line-range quoting working across the whole file.
+
+The char cap still creates a cliff: 84k App.tsx highlights while a slightly
+larger file falls back to plain. Revisit it with the line budget and a warm
+measurement at the boundary.
+
+## Land directory links and anchors in the markdown preview
+
+Relative links open files now, but a link to a directory shows the file-read
+error, and `other.md#L10` drops the anchor. Opening a directory means expanding
+the file tree; opening a line anchor means carrying a target line into the
+viewer.
+
 ## Fold the hand-picked type weights into a few composite roles
 
 The size ramp and the 400/500/600 weight rule are documented, but call sites

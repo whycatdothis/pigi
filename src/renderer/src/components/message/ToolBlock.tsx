@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { cn } from '../../lib/utils';
 import { type ToolNode, getToolArgs } from '../../state/transcriptController';
 import { MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
+import { localFileUrl } from '../../lib/chatAttachments';
 import SyntaxHighlightedCode from './syntaxHighlightedCode';
 import DiffView from './DiffView';
 import type { EditEntry, DiffLine } from '../../lib/diffUtils';
@@ -358,7 +359,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
           {timeout !== undefined && <span data-search-ignore>Timeout {timeout}s</span>}
         </div>
       </div>
-      {imagePath && <ImagePreview src={`local-file://${imagePath}`} alt={imagePath} />}
+      {imagePath && <ImagePreview src={localFileUrl(imagePath)} alt={imagePath} />}
     </>
   );
 }

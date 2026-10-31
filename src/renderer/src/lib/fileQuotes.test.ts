@@ -13,6 +13,10 @@ describe('formatFileLineQuote', () => {
   it('orders a selection made bottom-up', () => {
     expect(formatFileLineQuote('src/app.ts', 50, 30)).toBe('@src/app.ts:L30-L50');
   });
+
+  it('quotes paths with spaces without breaking the reference', () => {
+    expect(formatFileLineQuote('docs/my notes.md', 3, 5)).toBe('@"docs/my notes.md":L3-L5');
+  });
 });
 
 describe('formatFileContentQuote', () => {
@@ -26,5 +30,9 @@ describe('formatFileContentQuote', () => {
     expect(formatFileContentQuote('docs/readme.md', 'first\n\nthird')).toBe(
       '@docs/readme.md > first\n>\n> third',
     );
+  });
+
+  it('quotes markdown paths with spaces', () => {
+    expect(formatFileContentQuote('docs/my notes.md', 'Hello')).toBe('@"docs/my notes.md" > Hello');
   });
 });

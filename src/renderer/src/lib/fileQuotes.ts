@@ -1,11 +1,14 @@
+import { formatFileReference } from './chatReferences';
+
 /** A path as a pi file reference, relative to the project root. */
 export function formatFileLineQuote(path: string, startLine: number, endLine: number): string {
   const first = Math.min(startLine, endLine);
   const last = Math.max(startLine, endLine);
+  const reference = formatFileReference(path);
   if (last === first) {
-    return `@${path}:L${first}`;
+    return `${reference}:L${first}`;
   }
-  return `@${path}:L${first}-L${last}`;
+  return `${reference}:L${first}-L${last}`;
 }
 
 /**
@@ -15,7 +18,7 @@ export function formatFileLineQuote(path: string, startLine: number, endLine: nu
 export function formatFileContentQuote(path: string, text: string): string {
   const lines = text.split('\n');
   return [
-    `@${path} > ${lines[0] ?? ''}`,
+    `${formatFileReference(path)} > ${lines[0] ?? ''}`,
     ...lines.slice(1).map((line) => (line ? `> ${line}` : '>')),
   ].join('\n');
 }

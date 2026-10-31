@@ -223,14 +223,17 @@ export default function QuoteSelectionPopover({
         return anchor && !sameAnchor(anchor, previous.anchor) ? { ...previous, anchor } : previous;
       }
       const next = measureSelection(container);
-      return previous &&
-        next &&
-        next.text === previous.text &&
-        sameAnchor(next.anchor, previous.anchor)
+      // Selections that cannot be turned into a quote (for example, a range
+      // that starts in the file viewer's truncation notice) must not offer a
+      // button: saving it would silently discard the comment.
+      if (!next || !formatQuoteText({ text: next.text, range: next.range }).trim()) {
+        return null;
+      }
+      return previous && next.text === previous.text && sameAnchor(next.anchor, previous.anchor)
         ? previous
         : next;
     });
-  }, [containerRef]);
+  }, [containerRef, formatQuoteText]);
 
   useEffect(() => {
     const container = containerRef.current;

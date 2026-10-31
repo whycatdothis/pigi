@@ -224,6 +224,9 @@ function App(): React.JSX.Element {
   // Resolved when the palette opens: a ref cannot be read during render, and
   // the palette portals into the main area rather than the whole window.
   const [fileSearchContainer, setFileSearchContainer] = useState<HTMLElement | null>(null);
+  // Re-opening the current file bumps this revision, so the viewer re-reads it
+  // instead of showing what the agent changed since it was opened.
+  const [fileRevision, setFileRevision] = useState(0);
 
   const activeSession = activeSessionPath ? (sessions.get(activeSessionPath) ?? null) : null;
   const activeProjectPath = activeProject?.path ?? null;
@@ -1315,6 +1318,7 @@ function App(): React.JSX.Element {
     const project = store.activeProject;
     if (!project) return;
     store.setLastFile(project.path, path);
+    setFileRevision((revision) => revision + 1);
     store.setWorkspaceTab(WORKSPACE_TABS.files);
     store.setSidebarExpanded(true);
   }, []);
@@ -1762,6 +1766,7 @@ function App(): React.JSX.Element {
                   <SessionToolbar
                     key={activeSessionPath}
                     sessionPath={activeSessionPath ?? ''}
+                    onRenameSession={handleRenameSession}
                     onOpenTree={() => openTreeDialog(true)}
                     treeDisabledReason={tree.disabledReason}
                     terminalOpen={terminalOpen}
@@ -1785,103 +1790,89 @@ function App(): React.JSX.Element {
                     titleInset={workspaceHeaderInset}
                   />
                 )}
-                {workspaceTab === WORKSPACE_TABS.files ? (
+                {workspaceTab === WORKSPACE_TABS.files && (
                   <FilesTab
                     projectPath={activeProject?.path ?? null}
                     filePath={selectedFilePath}
+                    fileRevision={fileRevision}
                     sessionPath={activeSessionPath}
                     findFileShortcut={shortcutBindings?.get('files.search')}
                     onFindFile={handleOpenFileSearch}
+                    onOpenFile={handleOpenFile}
                     onOpenProject={handleOpenProject}
                   />
-                ) : workspaceTab === WORKSPACE_TABS.diff ? (
-                  <GitDiffTab />
-                ) : activeSession ? (
-                  <div className="relative min-h-0 flex-1 overflow-hidden">
-                    <div className={chatLayoutClassName} style={chatLayoutStyle}>
-                      <MessageList
-                        key={activeSessionPath ?? 'draft'}
-                        ref={messageListRef}
-                        nodes={transcript.nodes}
-                        sessionPath={activeSessionPath ?? ''}
-                      />
-                      <div className="relative z-10 shrink-0">
-                        {/* Flow anchor for the absolutely positioned queue. Its height is
+                )}
+                {workspaceTab === WORKSPACE_TABS.diff && <GitDiffTab />}
+                {/* Kept mounted and laid out while another tab shows, with only
+                    its paint skipped: `display: none` collapses every measured
+                    row, so a transcript that grew meanwhile came back off the
+                    bottom. Laid out, the virtualizer measures real rows, the
+                    composer keeps its state, and switching back resizes the
+                    box, which re-glues a reader who was following. The sidebar
+                    collapses to zero width for the same reason. */}
+                <div
+                  className={cn(
+                    'flex min-h-0 flex-col',
+                    workspaceTab === WORKSPACE_TABS.chat ? 'flex-1' : 'invisible absolute inset-0',
+                  )}
+                >
+                  {activeSession ? (
+                    <div className="relative min-h-0 flex-1 overflow-hidden">
+                      <div className={chatLayoutClassName} style={chatLayoutStyle}>
+                        <MessageList
+                          key={activeSessionPath ?? 'draft'}
+                          ref={messageListRef}
+                          nodes={transcript.nodes}
+                          sessionPath={activeSessionPath ?? ''}
+                        />
+                        <div className="relative z-10 shrink-0">
+                          {/* Flow anchor for the absolutely positioned queue. Its height is
                       the bars' visible rise (computed, not measured), so the list
                       viewport shrinks smoothly above them instead of being covered.
                       The queue's -mb-14 lets ChatInput (DOM-later, z-10) overlap
                       its bottom padding — the "grow out from behind" effect. */}
-                        <div
-                          className="relative z-10 shrink-0 transition-[height] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] reduce-motion:transition-none"
-                          style={{ height: queueBarCount * STREAMING_QUEUE_BAR_STEP_PX }}
-                        >
-                          <div className="absolute inset-x-0 bottom-0">
-                            <StreamingQueue
-                              isStreaming={isSessionBusy}
-                              queuedSteering={transcript.queuedSteering}
-                              queuedFollowUp={transcript.queuedFollowUp}
-                              onEditQueuedMessage={handleEditQueuedMessage}
-                              busyLabel={branchSummaryBusy ? 'Summarizing branch...' : undefined}
-                            />
+                          <div
+                            className="relative z-10 shrink-0 transition-[height] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] reduce-motion:transition-none"
+                            style={{ height: queueBarCount * STREAMING_QUEUE_BAR_STEP_PX }}
+                          >
+                            <div className="absolute inset-x-0 bottom-0">
+                              <StreamingQueue
+                                isStreaming={isSessionBusy}
+                                queuedSteering={transcript.queuedSteering}
+                                queuedFollowUp={transcript.queuedFollowUp}
+                                onEditQueuedMessage={handleEditQueuedMessage}
+                                busyLabel={branchSummaryBusy ? 'Summarizing branch...' : undefined}
+                              />
+                            </div>
                           </div>
-                        </div>
-                        <ChatInput
-                          ref={chatInputRef}
-                          onSend={handleSend}
-                          onFollowUp={handleFollowUp}
-                          onAbort={handleAbort}
-                          onSlashCommand={handleSlashCommand}
-                          isStreaming={isSessionBusy}
-                          gitBranch={gitBranch}
-                          restoreInputs={restoreInputs}
-                          onRestoredInputs={handleRestoredInputs}
-                          onRefreshGitBranch={refreshGitBranch}
-                          session={activeSession}
-                          modelOptions={activeSessionPath ? modelOptions : []}
-                          thinkingLevelOptions={activeSessionPath ? thinkingLevelOptions : []}
-                          skillOptions={activeSessionPath ? skillOptions : []}
-                          onSelectModel={handleSelectModel}
-                          onSelectThinkingLevel={handleSelectThinkingLevel}
-                          onRequestModelRefresh={handleRequestModelRefresh}
-                          userHistory={userHistory}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : isDraftChat ? (
-                  <div className="relative min-h-0 flex-1 overflow-hidden">
-                    <div className={chatLayoutClassName} style={chatLayoutStyle}>
-                      {isDraftEmpty ? (
-                        <div className="relative z-10 flex flex-1 flex-col">
                           <ChatInput
                             ref={chatInputRef}
                             onSend={handleSend}
                             onFollowUp={handleFollowUp}
                             onAbort={handleAbort}
                             onSlashCommand={handleSlashCommand}
-                            isStreaming={isDraftSpawning}
+                            isStreaming={isSessionBusy}
                             gitBranch={gitBranch}
                             restoreInputs={restoreInputs}
                             onRestoredInputs={handleRestoredInputs}
                             onRefreshGitBranch={refreshGitBranch}
-                            session={draftSession}
-                            modelOptions={modelOptions}
-                            thinkingLevelOptions={thinkingLevelOptions}
-                            skillOptions={skillOptions}
+                            session={activeSession}
+                            modelOptions={activeSessionPath ? modelOptions : []}
+                            thinkingLevelOptions={activeSessionPath ? thinkingLevelOptions : []}
+                            skillOptions={activeSessionPath ? skillOptions : []}
                             onSelectModel={handleSelectModel}
                             onSelectThinkingLevel={handleSelectThinkingLevel}
                             onRequestModelRefresh={handleRequestModelRefresh}
-                            userHistory={draftUserHistory}
-                            isNewSession
-                            recentProjects={recentProjects}
-                            activeProject={activeProject}
-                            onSelectProject={handleSelectProject}
+                            userHistory={userHistory}
                           />
                         </div>
-                      ) : (
-                        <>
-                          <MessageList nodes={draftState.nodes} sessionPath="" />
-                          <div className="relative z-10 shrink-0">
+                      </div>
+                    </div>
+                  ) : isDraftChat ? (
+                    <div className="relative min-h-0 flex-1 overflow-hidden">
+                      <div className={chatLayoutClassName} style={chatLayoutStyle}>
+                        {isDraftEmpty ? (
+                          <div className="relative z-10 flex flex-1 flex-col">
                             <ChatInput
                               ref={chatInputRef}
                               onSend={handleSend}
@@ -1901,39 +1892,69 @@ function App(): React.JSX.Element {
                               onSelectThinkingLevel={handleSelectThinkingLevel}
                               onRequestModelRefresh={handleRequestModelRefresh}
                               userHistory={draftUserHistory}
+                              isNewSession
+                              recentProjects={recentProjects}
+                              activeProject={activeProject}
+                              onSelectProject={handleSelectProject}
                             />
                           </div>
-                        </>
-                      )}
+                        ) : (
+                          <>
+                            <MessageList nodes={draftState.nodes} sessionPath="" />
+                            <div className="relative z-10 shrink-0">
+                              <ChatInput
+                                ref={chatInputRef}
+                                onSend={handleSend}
+                                onFollowUp={handleFollowUp}
+                                onAbort={handleAbort}
+                                onSlashCommand={handleSlashCommand}
+                                isStreaming={isDraftSpawning}
+                                gitBranch={gitBranch}
+                                restoreInputs={restoreInputs}
+                                onRestoredInputs={handleRestoredInputs}
+                                onRefreshGitBranch={refreshGitBranch}
+                                session={draftSession}
+                                modelOptions={modelOptions}
+                                thinkingLevelOptions={thinkingLevelOptions}
+                                skillOptions={skillOptions}
+                                onSelectModel={handleSelectModel}
+                                onSelectThinkingLevel={handleSelectThinkingLevel}
+                                onRequestModelRefresh={handleRequestModelRefresh}
+                                userHistory={draftUserHistory}
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ) : recentProjects.length === 0 ? (
-                  <Empty>
-                    <EmptyHeader>
-                      <EmptyTitle className="text-xl">{WELCOME_TITLE}</EmptyTitle>
-                      <EmptyDescription>
-                        Open a project to get started
-                        <br />
-                        {/* TODO: Use Ctrl instead of ⌘ on Windows/Linux */}
-                        <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-caption ml-1 min-w-6">
-                          {'\u2318'}
-                        </kbd>
-                        <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-caption ml-1 min-w-6">
-                          o
-                        </kbd>
-                      </EmptyDescription>
-                    </EmptyHeader>
-                  </Empty>
-                ) : (
-                  <Empty>
-                    <EmptyHeader>
-                      <EmptyTitle className="text-xl">{WELCOME_TITLE}</EmptyTitle>
-                      <EmptyDescription>
-                        Select a session from the sidebar to get started.
-                      </EmptyDescription>
-                    </EmptyHeader>
-                  </Empty>
-                )}
+                  ) : recentProjects.length === 0 ? (
+                    <Empty>
+                      <EmptyHeader>
+                        <EmptyTitle className="text-xl">{WELCOME_TITLE}</EmptyTitle>
+                        <EmptyDescription>
+                          Open a project to get started
+                          <br />
+                          {/* TODO: Use Ctrl instead of ⌘ on Windows/Linux */}
+                          <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-caption ml-1 min-w-6">
+                            {'\u2318'}
+                          </kbd>
+                          <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-caption ml-1 min-w-6">
+                            o
+                          </kbd>
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
+                  ) : (
+                    <Empty>
+                      <EmptyHeader>
+                        <EmptyTitle className="text-xl">{WELCOME_TITLE}</EmptyTitle>
+                        <EmptyDescription>
+                          Select a session from the sidebar to get started.
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
+                  )}
+                </div>
               </>
             )}
             {terminalMounted && (

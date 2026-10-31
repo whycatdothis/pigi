@@ -18,7 +18,12 @@ function isHiddenDirectory(name: string): boolean {
   return name === '.git';
 }
 
-/** Resolve a project-relative path, or null when it escapes the project root. */
+/**
+ * Resolve a project-relative path, or null when it escapes the project root.
+ * This is lexical containment; readdir/stat still follow symlinks, so a link
+ * inside the project can point outside. The viewer is local and read-only and
+ * the agent can read those paths anyway, so this is not a trust boundary.
+ */
 function resolveInsideProject(projectPath: string, path: string): string | null {
   if (projectPath.trim().length === 0 || path.includes('\0')) {
     return null;
@@ -100,9 +105,9 @@ export async function readProjectFile(
 
     const length = Math.min(stats.size, MAX_FILE_BYTES);
     const buffer = Buffer.alloc(length);
+    let offset = 0;
     const handle = await open(filePath, 'r');
     try {
-      let offset = 0;
       while (offset < length) {
         const { bytesRead } = await handle.read(buffer, offset, length - offset, offset);
         if (bytesRead === 0) break;
@@ -112,13 +117,16 @@ export async function readProjectFile(
       await handle.close();
     }
 
-    if (buffer.includes(0)) {
+    // The file can shrink between stat and read; only inspect the bytes that
+    // were actually returned, not the zero-filled rest of the buffer.
+    const content = buffer.subarray(0, offset);
+    if (content.includes(0)) {
       return { success: false, error: 'This file looks binary and cannot be shown as text.' };
     }
 
     return {
       success: true,
-      content: buffer.toString('utf8'),
+      content: content.toString('utf8'),
       size: stats.size,
       truncated: stats.size > MAX_FILE_BYTES,
     };

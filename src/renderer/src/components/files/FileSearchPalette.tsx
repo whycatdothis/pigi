@@ -124,6 +124,7 @@ const FileSearchPalette = memo(function FileSearchPalette({
     <CommandDialog
       open={open}
       onOpenChange={handleOpenChange}
+      modal={false}
       title="Find file"
       description="Search the active project's files"
       container={container}

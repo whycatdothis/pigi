@@ -16,7 +16,7 @@ export function sourceLineRangeFromSelection(range: Range): { start: number; end
 }
 
 function lineNumberAt(node: Node): number | null {
-  const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+  const element = node instanceof Element ? node : node.parentElement;
   const line = element?.closest('[data-source-line]');
   const value = line?.getAttribute('data-source-line');
   if (!value) return null;

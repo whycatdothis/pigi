@@ -18,6 +18,7 @@ import {
   MAX_PASTED_IMAGE_BYTES,
   MAX_PROMPT_ATTACHMENTS,
 } from '../../../shared/chatAttachments';
+import { formatFileSize } from './utils';
 
 export { MAX_PROMPT_ATTACHMENTS, displayFileName };
 
@@ -174,12 +175,6 @@ export function toPromptAttachments(attachments: ChatAttachment[]): PromptAttach
     path: attachment.path,
     data: attachment.data,
   }));
-}
-
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /** Title for a message that may consist only of attachments. */

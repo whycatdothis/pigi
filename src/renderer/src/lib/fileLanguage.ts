@@ -60,7 +60,6 @@ const LANGUAGE_BY_EXTENSION: Record<string, string> = {
   toml: 'toml',
   ts: 'typescript',
   tsx: 'tsx',
-  txt: 'text',
   vue: 'vue',
   xml: 'xml',
   yaml: 'yaml',
@@ -73,7 +72,6 @@ const LANGUAGE_BY_FILE_NAME: Record<string, string> = {
   dockerfile: 'docker',
   makefile: 'make',
   'cmakelists.txt': 'cmake',
-  '.gitignore': 'text',
   '.npmrc': 'ini',
   '.prettierrc': 'json',
 };

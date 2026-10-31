@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { IconFolder, IconGitCompare, IconMessageCircle } from '@tabler/icons-react';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { WORKSPACE_TABS, isWorkspaceTab, type WorkspaceTab } from '../../lib/workspaceTabs';
@@ -37,13 +37,19 @@ const TAB_ITEMS = [
 /**
  * The main window's fixed views. The shortcut keycap sits in the layout at
  * rest and only becomes visible on hover/focus, so revealing it never moves
- * the other tabs.
+ * the other tabs. The @max breakpoints are container widths, not viewport
+ * widths: keycaps leave at 420px, labels at 320px (three 36px icons plus the
+ * list gaps), and the Chat tab's 36px floor drops at 600px so its title
+ * truncates instead of pushing Files/Diff out. SessionToolbar hides its
+ * secondary actions at 580px for the same reason.
  */
 const WorkspaceTabs = memo(function WorkspaceTabs({
   value,
   onChange,
   shortcutBindings,
   chatTitle,
+  chatRenameTitle,
+  onRenameChat,
   className,
 }: {
   value: WorkspaceTab;
@@ -51,44 +57,122 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
   shortcutBindings: Map<string, ShortcutBinding> | null;
   /** The open session's title, shown in the Chat tab instead of the word "Chat". */
   chatTitle?: string;
+  /** The unanimated title to start a rename from, while the tab shows `chatTitle`. */
+  chatRenameTitle?: string;
+  onRenameChat?: (name: string) => void;
   className?: string;
 }): React.JSX.Element {
+  const [isRenamingChat, setIsRenamingChat] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const chatTabRef = useRef<HTMLButtonElement>(null);
+  const restoreChatFocusRef = useRef(false);
+  const chatName = (chatRenameTitle?.trim() || chatTitle?.trim()) ?? '';
+
+  const handleStartRename = useCallback(() => {
+    if (!onRenameChat || !chatName) return;
+    setRenameValue(chatName);
+    setIsRenamingChat(true);
+  }, [chatName, onRenameChat]);
+
+  const handleFinishRename = useCallback(() => {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== chatName) {
+      onRenameChat?.(trimmed);
+    }
+    setIsRenamingChat(false);
+  }, [chatName, onRenameChat, renameValue]);
+
+  const handleRenameKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.nativeEvent.isComposing || event.key === 'Process') {
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        restoreChatFocusRef.current = true;
+        handleFinishRename();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        restoreChatFocusRef.current = true;
+        setIsRenamingChat(false);
+      }
+    },
+    [handleFinishRename],
+  );
+
+  // Container thresholds are main-area widths, not viewport widths: below 600
+  // the chat chip may shrink, below 420 the shortcut keycaps go, and below 320
+  // the tabs become icon-only. The header, not this strip, is the container.
+  useEffect(() => {
+    if (isRenamingChat || !restoreChatFocusRef.current) return;
+    restoreChatFocusRef.current = false;
+    chatTabRef.current?.focus();
+  }, [isRenamingChat]);
+
   return (
     <Tabs
       value={value}
       onValueChange={(next) => {
         if (isWorkspaceTab(next)) onChange(next);
       }}
-      className={cn('gap-0', className)}
+      className={cn('min-w-0 gap-0', className)}
     >
-      <TabsList variant="chip" className="[-webkit-app-region:no-drag]">
+      <TabsList variant="chip" className="min-w-0 [-webkit-app-region:no-drag]">
         {TAB_ITEMS.map(({ tab, label: defaultLabel, shortcutId, icon: Icon }) => {
           const label =
             tab === WORKSPACE_TABS.chat && chatTitle?.trim() ? chatTitle.trim() : defaultLabel;
           const binding = shortcutBindings?.get(shortcutId);
+          const canRename = tab === WORKSPACE_TABS.chat && Boolean(onRenameChat && chatName);
+          if (tab === WORKSPACE_TABS.chat && isRenamingChat) {
+            return (
+              <div
+                key={tab}
+                className={cn(
+                  'group/tab flex h-7 w-full max-w-52 min-w-0 items-center gap-1.5 rounded-control-sm px-2.5 text-caption font-normal @max-[320px]:px-2',
+                  value === WORKSPACE_TABS.chat
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground',
+                )}
+              >
+                <Icon size={13} className="opacity-70" />
+                <input
+                  type="text"
+                  value={renameValue}
+                  onChange={(event) => setRenameValue(event.target.value)}
+                  onBlur={handleFinishRename}
+                  onKeyDown={handleRenameKeyDown}
+                  aria-label="Rename chat"
+                  autoFocus
+                  className="min-w-0 flex-1 bg-transparent outline-none caret-foreground"
+                />
+              </div>
+            );
+          }
           return (
             <TabsTrigger
               key={tab}
+              ref={tab === WORKSPACE_TABS.chat ? chatTabRef : undefined}
               value={tab}
+              title={tab === WORKSPACE_TABS.chat ? label : undefined}
               aria-label={
                 binding ? `${label} tab (${formatShortcutLabel(binding)})` : `${label} tab`
               }
+              onDoubleClick={canRename ? handleStartRename : undefined}
               className={cn(
-                'group/tab h-7 flex-none gap-1.5 px-2.5 text-caption font-normal text-muted-foreground',
-                tab === WORKSPACE_TABS.chat &&
-                  chatTitle?.trim() &&
-                  // The session title caps at 33% of the toolbar; 2/3 of that is
-                  // about 208px at the default window.
-                  'max-w-52 min-w-36 justify-start',
+                'group/tab h-7 gap-1.5 px-2.5 text-caption font-normal text-muted-foreground @max-[320px]:px-2',
+                tab === WORKSPACE_TABS.chat
+                  ? 'shrink max-w-52 min-w-36 justify-start @max-[600px]:min-w-0'
+                  : 'flex-none',
+                isRenamingChat && tab !== WORKSPACE_TABS.chat && '@max-[320px]:hidden',
               )}
             >
               <Icon size={13} className="opacity-70" />
-              <span className="min-w-0 truncate">{label}</span>
+              <span className="min-w-0 truncate @max-[320px]:hidden">{label}</span>
               {binding && (
                 <Kbd
                   className={cn(
                     COMPACT_KBD_CLASS_NAME,
-                    'shrink-0 opacity-0 transition-opacity group-hover/tab:opacity-100 group-focus-visible/tab:opacity-100',
+                    'shrink-0 opacity-0 transition-opacity group-hover/tab:opacity-100 group-focus-visible/tab:opacity-100 @max-[420px]:hidden',
                   )}
                 >
                   {formatShortcutLabel(binding)}
@@ -121,7 +205,7 @@ export const WorkspaceHeader = memo(function WorkspaceHeader({
   return (
     <div
       className={cn(
-        'flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 px-3 transition-[padding] [-webkit-app-region:drag]',
+        'flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 px-3 transition-[padding] @container @max-[320px]:px-2 [-webkit-app-region:drag]',
         SIDEBAR_TRANSITION_CLASS_NAME,
       )}
       style={{ paddingLeft: titleInset }}
@@ -131,7 +215,7 @@ export const WorkspaceHeader = memo(function WorkspaceHeader({
         onChange={onSelectWorkspaceTab}
         shortcutBindings={shortcutBindings}
         chatTitle={title}
-        className="shrink-0"
+        className="min-w-0 shrink"
       />
       <div className="flex-1" />
     </div>

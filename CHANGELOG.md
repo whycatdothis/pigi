@@ -9,10 +9,21 @@
   ⌘P file search, shows source with line numbers or rendered markdown, quotes
   a selected line range (`@src/app.ts:L10-L20`) or a rendered markdown passage
   (`@docs/readme.md > passage`), and remembers each project's last opened
-  file. Diff is a placeholder for now
+  file. Relative markdown links open their target in Files and relative images
+  load from the project. Double-clicking the Chat tab renames the session. Diff
+  is a placeholder for now
 
 ### Fixed
 
+- The Files tree has a refresh button; it reloads the root and the expanded
+  folders without collapsing them
+- At narrow main widths the workspace tabs collapse to icons instead of
+  being clipped, and the toolbar's secondary actions step aside so the tabs
+  stay reachable
+- Very large source files (over 2,500 lines or 90k characters) open as plain
+  text instead of spending a long frame highlighting them
+- Re-opening a file refreshes its contents, file quotes for paths with spaces
+  keep the path intact, and the ⌘P file palette leaves the sidebar usable
 - The terminal no longer shows a faint horizontal line along its top and
   bottom edges when the window's zoom is not 100%
 - The message list's scrollbar no longer appears on its own: not when a

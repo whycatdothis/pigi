@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   bundledLanguages,
   createHighlighter,
@@ -25,6 +25,10 @@ interface SyntaxHighlightedCodeProps {
    * lines for a quote.
    */
   lineNumbers?: boolean;
+  /** Longest code string to tokenize; larger inputs stay plain. */
+  maxHighlightLength?: number;
+  /** Most lines to tokenize; dense files can be short in characters and huge in spans. */
+  maxHighlightLines?: number;
 }
 
 interface HighlightedToken {
@@ -42,9 +46,10 @@ interface HighlightedState {
   lines: HighlightedLine[] | null;
 }
 
-// Covers large source files (e.g. App.tsx at ~84k); minified or generated
-// files above this stay plain instead of blocking the renderer.
-const MAX_HIGHLIGHTED_CODE_LENGTH = 250_000;
+// Chat code blocks are usually small; a larger block is more likely to be
+// generated and not worth blocking the renderer for. The file viewer opts into
+// a higher limit for real source files.
+const MAX_HIGHLIGHTED_CODE_LENGTH = 80_000;
 const MAX_HIGHLIGHT_CACHE_SIZE = 100;
 const MAX_TOKENIZED_LINE_LENGTH = 2_000;
 const STREAMING_HIGHLIGHT_THROTTLE_MS = 60;
@@ -86,6 +91,8 @@ function normalizeLanguage(language: string): BundledLanguage | null {
 }
 
 function codeLineClassName(lineNumbers: boolean): string {
+  // Line rows keep content-visibility off: with the w-max rows and sticky
+  // gutter it showed no reliable gain, and the cost is dominated by line count.
   return lineNumbers
     ? 'flex min-h-5 min-w-full w-max leading-5'
     : 'block min-h-5 [content-visibility:auto] [contain-intrinsic-size:auto_20px]';
@@ -106,6 +113,26 @@ function SourceLineNumber({ lineNumber }: { lineNumber: number }): React.JSX.Ele
     </span>
   );
 }
+
+function plainSourceLineNodes(code: string): React.JSX.Element[] {
+  return code.split('\n').map((line, lineIndex) => (
+    <span key={lineIndex} data-source-line={lineIndex + 1} className={codeLineClassName(true)}>
+      <SourceLineNumber lineNumber={lineIndex + 1} />
+      <span className="min-w-0 whitespace-pre">{line}</span>
+    </span>
+  ));
+}
+
+// The plain fallback can be 5,000 rows. Memoizing the built elements keeps a
+// re-render (theme, parent state) from rebuilding the whole list, while still
+// doing no work on the highlighted path.
+const PlainSourceLines = memo(function PlainSourceLines({
+  code,
+}: {
+  code: string;
+}): React.JSX.Element {
+  return <>{plainSourceLineNodes(code)}</>;
+});
 
 function tokenStyle(token: HighlightedToken): CSSProperties {
   const style: CSSProperties = {};
@@ -133,8 +160,22 @@ function tokenStyle(token: HighlightedToken): CSSProperties {
   return style;
 }
 
-function cacheKey(code: string, language: BundledLanguage, themeName: string): string {
-  return `${themeName}\n${language}\n${code}`;
+function cacheKey(
+  code: string,
+  language: BundledLanguage,
+  themeName: string,
+  maxHighlightLength: number,
+  maxHighlightLines: number,
+): string {
+  return `${maxHighlightLength}\n${maxHighlightLines}\n${themeName}\n${language}\n${code}`;
+}
+
+function countLines(code: string): number {
+  let lines = 1;
+  for (let index = 0; index < code.length; index += 1) {
+    if (code[index] === '\n') lines += 1;
+  }
+  return lines;
 }
 
 function highlightedStateKey(code: string, language: BundledLanguage, themeName: string): string {
@@ -156,14 +197,25 @@ function cacheHighlightedCode(
   background: string,
   surface: string,
   codeThemeId: string,
+  maxHighlightLength: number,
+  maxHighlightLines: number,
 ): Promise<HighlightedLine[] | null> {
-  const key = cacheKey(code, language, themeName);
+  const key = cacheKey(code, language, themeName, maxHighlightLength, maxHighlightLines);
   const cached = highlightedCodeCache.get(key);
   if (cached) {
     return cached;
   }
 
-  const highlighted = highlightCode(code, language, themeName, background, surface, codeThemeId);
+  const highlighted = highlightCode(
+    code,
+    language,
+    themeName,
+    background,
+    surface,
+    codeThemeId,
+    maxHighlightLength,
+    maxHighlightLines,
+  );
   highlightedCodeCache.set(key, highlighted);
   if (highlightedCodeCache.size > MAX_HIGHLIGHT_CACHE_SIZE) {
     const oldestKey = highlightedCodeCache.keys().next().value;
@@ -181,8 +233,10 @@ async function highlightCode(
   background: string,
   surface: string,
   codeThemeId: string,
+  maxHighlightLength: number,
+  maxHighlightLines: number,
 ): Promise<HighlightedLine[] | null> {
-  if (code.length > MAX_HIGHLIGHTED_CODE_LENGTH) {
+  if (code.length > maxHighlightLength || countLines(code) > maxHighlightLines) {
     return null;
   }
 
@@ -260,6 +314,8 @@ export default function SyntaxHighlightedCode({
   language,
   isStreaming = false,
   lineNumbers = false,
+  maxHighlightLength = MAX_HIGHLIGHTED_CODE_LENGTH,
+  maxHighlightLines = Number.POSITIVE_INFINITY,
 }: SyntaxHighlightedCodeProps): React.JSX.Element {
   const resolvedAppearance = useResolvedAppearance();
   const codeThemeId = useSettingsStore((state) => state.appearance.codeTheme);
@@ -329,16 +385,6 @@ export default function SyntaxHighlightedCode({
     });
   }, [highlightedLines, isAppendOfSource, lineNumbers]);
 
-  const plainLineNodes = useMemo(() => {
-    if (!lineNumbers) return null;
-    return code.split('\n').map((line, lineIndex) => (
-      <span key={lineIndex} data-source-line={lineIndex + 1} className={codeLineClassName(true)}>
-        <SourceLineNumber lineNumber={lineIndex + 1} />
-        <span className="min-w-0 whitespace-pre">{line}</span>
-      </span>
-    ));
-  }, [code, lineNumbers]);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -355,6 +401,8 @@ export default function SyntaxHighlightedCode({
       codeTheme.background,
       codeTheme.surface,
       codeThemeId,
+      maxHighlightLength,
+      maxHighlightLines,
     )
       .then((lines) => {
         if (!cancelled) {
@@ -370,11 +418,21 @@ export default function SyntaxHighlightedCode({
     return () => {
       cancelled = true;
     };
-  }, [highlightInput, currentHighlightKey, normalizedLanguage, codeTheme, codeThemeId]);
+  }, [
+    highlightInput,
+    currentHighlightKey,
+    normalizedLanguage,
+    codeTheme,
+    codeThemeId,
+    maxHighlightLength,
+    maxHighlightLines,
+  ]);
 
   if (!highlightedLines) {
     return (
-      <code className={codeClassName(lineNumbers)}>{lineNumbers ? plainLineNodes : code}</code>
+      <code className={codeClassName(lineNumbers)}>
+        {lineNumbers ? <PlainSourceLines code={code} /> : code}
+      </code>
     );
   }
 
@@ -388,7 +446,9 @@ export default function SyntaxHighlightedCode({
     // Content diverged (not a simple append); avoid showing a mismatched
     // highlight and fall back to plain until the next highlight lands.
     return (
-      <code className={codeClassName(lineNumbers)}>{lineNumbers ? plainLineNodes : code}</code>
+      <code className={codeClassName(lineNumbers)}>
+        {lineNumbers ? <PlainSourceLines code={code} /> : code}
+      </code>
     );
   }
 

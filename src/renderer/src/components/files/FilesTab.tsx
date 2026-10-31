@@ -20,16 +20,20 @@ import FileViewer from './FileViewer';
 export default function FilesTab({
   projectPath,
   filePath,
+  fileRevision,
   sessionPath,
   findFileShortcut,
   onFindFile,
+  onOpenFile,
   onOpenProject,
 }: {
   projectPath: string | null;
   filePath: string | null;
+  fileRevision: number;
   sessionPath: string | null;
   findFileShortcut: ShortcutBinding | undefined;
   onFindFile: () => void;
+  onOpenFile: (path: string) => void;
   onOpenProject: () => void;
 }): React.JSX.Element {
   if (!projectPath) {
@@ -84,7 +88,9 @@ export default function FilesTab({
       key={`${projectPath}:${filePath}`}
       projectPath={projectPath}
       filePath={filePath}
+      fileRevision={fileRevision}
       sessionPath={sessionPath}
+      onOpenFile={onOpenFile}
     />
   );
 }

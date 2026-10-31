@@ -35,6 +35,7 @@ import {
 import { createPigiSettingsOwner } from './pigiSettingsOwner';
 import { parsePigiSettingsChange } from '../shared/pigiSettings';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 configureDebugPanel();
 installMainDebugHandle({ piAgent: getPiAgentDebugSnapshot });
@@ -65,7 +66,9 @@ app.whenReady().then(() => {
   });
 
   protocol.handle('local-file', (request) =>
-    net.fetch('file://' + decodeURIComponent(request.url.slice('local-file://'.length))),
+    net.fetch(
+      pathToFileURL(decodeURIComponent(request.url.slice('local-file://'.length))).toString(),
+    ),
   );
 
   initializeShellEnv();

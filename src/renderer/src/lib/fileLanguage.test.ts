@@ -11,9 +11,11 @@ describe('languageForPath', () => {
     expect(languageForPath('config/package.json')).toBe('json');
   });
 
-  it('returns an empty language for unknown extensions', () => {
+  it('returns an empty language for unknown extensions and plain text', () => {
     expect(languageForPath('assets/logo.bin')).toBe('');
     expect(languageForPath('LICENSE')).toBe('');
+    expect(languageForPath('notes.txt')).toBe('');
+    expect(languageForPath('.gitignore')).toBe('');
   });
 });
 

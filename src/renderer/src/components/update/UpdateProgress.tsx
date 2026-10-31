@@ -17,7 +17,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { IconCheck, IconLoader } from '@tabler/icons-react';
 import type { UpdateStatus } from '../../../../shared/ipcContract';
 import { UP_TO_DATE_CLOSE_SECONDS } from '../../../../shared/updateWindow';
-import { formatFileSize } from '../../lib/chatAttachments';
+import { formatFileSize } from '../../lib/utils';
 import { Button } from '../ui/button';
 import { SpinningIcon } from '../ui/spinningIcon';
 import appIconUrl from '../../assets/appIcon.png';

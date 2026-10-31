@@ -3,9 +3,9 @@ import { IconPaperclip, IconPhoto, IconPlus, IconX } from '@tabler/icons-react';
 import type { ChatAttachmentKind } from '../../../../shared/ipcContract';
 import { InputGroupButton } from '../ui/input-group';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { cn } from '../../lib/utils';
+import { cn, formatFileSize } from '../../lib/utils';
 import { FileIcon } from '../fileIcon';
-import { displayFileName, formatFileSize, type ChatAttachment } from '../../lib/chatAttachments';
+import { displayFileName, type ChatAttachment } from '../../lib/chatAttachments';
 
 export function AttachmentPickerButton({
   onPick,
