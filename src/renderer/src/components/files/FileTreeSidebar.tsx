@@ -4,7 +4,6 @@ import {
   IconFolder,
   IconFolderOpen,
   IconLoader2,
-  IconRefresh,
   IconSearch,
   IconSettings,
 } from '@tabler/icons-react';
@@ -44,7 +43,13 @@ interface FileTreeSidebarProps {
   onOpenFile: (path: string) => void;
   onFindFile: () => void;
   onOpenSettings: () => void;
+  onActiveFileChanged: () => void;
   shortcutBindings: Map<string, ShortcutBinding> | null;
+}
+
+function parentDirectory(path: string): string {
+  const separator = path.lastIndexOf('/');
+  return separator === -1 ? '' : path.slice(0, separator);
 }
 
 /**
@@ -59,6 +64,7 @@ export default memo(function FileTreeSidebar({
   onOpenFile,
   onFindFile,
   onOpenSettings,
+  onActiveFileChanged,
   shortcutBindings,
 }: FileTreeSidebarProps): React.JSX.Element {
   const [directories, setDirectories] = useState<Map<string, DirectoryContent>>(() => new Map());
@@ -67,24 +73,26 @@ export default memo(function FileTreeSidebar({
   const [error, setError] = useState<string | null>(null);
   const loadedDirectoriesRef = useRef<Set<string>>(new Set());
   const pendingDirectoriesRef = useRef<Map<string, Promise<void>>>(new Map());
-  const refreshGenerationRef = useRef(0);
+  const requestIdRef = useRef(0);
+  const requestIdByDirectoryRef = useRef<Map<string, number>>(new Map());
 
   const loadDirectory = useCallback(
-    (path: string): Promise<void> => {
-      if (loadedDirectoriesRef.current.has(path)) {
+    (path: string, force = false): Promise<void> => {
+      if (!force && loadedDirectoriesRef.current.has(path)) {
         return Promise.resolve();
       }
       const pending = pendingDirectoriesRef.current.get(path);
-      if (pending) {
+      if (pending && !force) {
         return pending;
       }
 
-      const generation = refreshGenerationRef.current;
+      const requestId = ++requestIdRef.current;
+      requestIdByDirectoryRef.current.set(path, requestId);
       setLoadingDirectories((previous) => new Set(previous).add(path));
       const request = window.piApi
         .listProjectDirectory(projectPath, path)
         .then((result) => {
-          if (generation !== refreshGenerationRef.current) return;
+          if (requestIdByDirectoryRef.current.get(path) !== requestId) return;
           if (!result.success) {
             setError(result.error);
             return;
@@ -96,14 +104,65 @@ export default memo(function FileTreeSidebar({
             next.set(path, { entries: result.entries, truncated: result.truncated });
             return next;
           });
+
+          // A directory can disappear while it is expanded or cached. Drop it
+          // and its descendants so a recreated directory starts collapsed and
+          // is read again instead of showing its previous contents.
+          const removedDirectories = new Set<string>();
+          for (const loaded of loadedDirectoriesRef.current) {
+            if (loaded === path || parentDirectory(loaded) !== path) continue;
+            if (result.entries.some((entry) => entry.path === loaded && entry.isDirectory)) {
+              continue;
+            }
+            for (const candidate of loadedDirectoriesRef.current) {
+              if (candidate === loaded || candidate.startsWith(`${loaded}/`)) {
+                removedDirectories.add(candidate);
+              }
+            }
+          }
+          if (removedDirectories.size > 0) {
+            for (const removed of removedDirectories) {
+              loadedDirectoriesRef.current.delete(removed);
+              requestIdByDirectoryRef.current.delete(removed);
+              pendingDirectoriesRef.current.delete(removed);
+            }
+            setDirectories((previous) => {
+              let next: Map<string, DirectoryContent> | null = null;
+              for (const removed of removedDirectories) {
+                if (!previous.has(removed)) continue;
+                next ??= new Map(previous);
+                next.delete(removed);
+              }
+              return next ?? previous;
+            });
+            setExpandedDirectories((previous) => {
+              let next: Set<string> | null = null;
+              for (const removed of removedDirectories) {
+                if (!previous.has(removed)) continue;
+                next ??= new Set(previous);
+                next.delete(removed);
+              }
+              return next ?? previous;
+            });
+            setLoadingDirectories((previous) => {
+              let next: Set<string> | null = null;
+              for (const removed of removedDirectories) {
+                if (!previous.has(removed)) continue;
+                next ??= new Set(previous);
+                next.delete(removed);
+              }
+              return next ?? previous;
+            });
+          }
         })
         .catch(() => {
-          if (generation === refreshGenerationRef.current) {
+          if (requestIdByDirectoryRef.current.get(path) === requestId) {
             setError('Unable to read this folder');
           }
         })
         .finally(() => {
-          if (generation !== refreshGenerationRef.current) return;
+          if (requestIdByDirectoryRef.current.get(path) !== requestId) return;
+          requestIdByDirectoryRef.current.delete(path);
           pendingDirectoriesRef.current.delete(path);
           setLoadingDirectories((previous) => {
             if (!previous.has(path)) return previous;
@@ -117,6 +176,28 @@ export default memo(function FileTreeSidebar({
     },
     [projectPath],
   );
+
+  useEffect(() => {
+    return window.piApi.onProjectFilesChanged((change) => {
+      if (change.cwd !== projectPath) return;
+      for (const directory of change.directories) {
+        void loadDirectory(directory, true);
+      }
+      if (change.filePath && change.filePath === selectedFilePath) {
+        onActiveFileChanged();
+      }
+    });
+  }, [loadDirectory, onActiveFileChanged, projectPath, selectedFilePath]);
+
+  useEffect(() => {
+    window.piApi.watchProjectFiles(projectPath, ['', ...expandedDirectories], selectedFilePath);
+  }, [expandedDirectories, projectPath, selectedFilePath]);
+
+  useEffect(() => {
+    return () => {
+      window.piApi.watchProjectFiles(projectPath, [], null);
+    };
+  }, [projectPath]);
 
   useEffect(() => {
     void loadDirectory('');
@@ -165,7 +246,7 @@ export default memo(function FileTreeSidebar({
   const toggleDirectory = useCallback(
     (path: string) => {
       if (!expandedDirectories.has(path)) {
-        void loadDirectory(path);
+        void loadDirectory(path, true);
       }
       setExpandedDirectories((previous) => {
         const next = new Set(previous);
@@ -179,19 +260,6 @@ export default memo(function FileTreeSidebar({
     },
     [expandedDirectories, loadDirectory],
   );
-
-  const refreshDirectories = useCallback(() => {
-    refreshGenerationRef.current += 1;
-    loadedDirectoriesRef.current.clear();
-    pendingDirectoriesRef.current.clear();
-    setDirectories(new Map());
-    setLoadingDirectories(new Set());
-    setError(null);
-    void loadDirectory('');
-    for (const path of expandedDirectories) {
-      if (path) void loadDirectory(path);
-    }
-  }, [expandedDirectories, loadDirectory]);
 
   function renderDirectory(path: string, depth: number): React.JSX.Element[] | null {
     const content = directories.get(path);
@@ -285,15 +353,6 @@ export default memo(function FileTreeSidebar({
           >
             {projectName}
           </span>
-          <button
-            type="button"
-            aria-label="Refresh files"
-            title="Refresh files"
-            onClick={refreshDirectories}
-            className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground [-webkit-app-region:no-drag]"
-          >
-            <IconRefresh size={14} />
-          </button>
         </div>
         <button
           type="button"

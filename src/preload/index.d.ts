@@ -10,6 +10,7 @@ import type {
   ProjectSessionsChunk,
   ProjectDirectoryResult,
   ProjectFileResult,
+  ProjectFilesChanged,
   ProjectFileSearchResult,
   PathCompletionResult,
   ProjectStateResult,
@@ -43,6 +44,8 @@ interface PiApi {
   ) => Promise<ProjectFileSearchResult>;
   completePath: (cwd: string, token: string) => Promise<PathCompletionResult>;
   listProjectDirectory: (cwd: string, path: string) => Promise<ProjectDirectoryResult>;
+  watchProjectFiles: (cwd: string, directories: string[], filePath: string | null) => void;
+  onProjectFilesChanged: (callback: (change: ProjectFilesChanged) => void) => () => void;
   readProjectFile: (cwd: string, path: string) => Promise<ProjectFileResult>;
   setActiveProject: (path: string) => Promise<ProjectStateResult>;
   openProjectDirectory: () => Promise<ProjectStateResult>;

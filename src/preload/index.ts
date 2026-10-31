@@ -23,6 +23,7 @@ import {
   type ChatAttachmentKind,
   type ProjectDirectoryResult,
   type ProjectFileResult,
+  type ProjectFilesChanged,
   type ProjectFileSearchResult,
   type PathCompletionResult,
   type ProjectSessionsChunk,
@@ -340,6 +341,20 @@ const piApi = {
   /** Read a project file for the workspace viewer. */
   readProjectFile: (cwd: string, path: string): Promise<ProjectFileResult> =>
     ipcRenderer.invoke(PiChannel.ReadProjectFile, cwd, path),
+
+  /** Replace the directories and active file watched for the Files workspace. */
+  watchProjectFiles: (cwd: string, directories: string[], filePath: string | null): void => {
+    ipcRenderer.send(PiChannel.WatchProjectFiles, cwd, directories, filePath);
+  },
+
+  /** Subscribe to Files workspace filesystem changes. */
+  onProjectFilesChanged: (callback: (change: ProjectFilesChanged) => void): (() => void) => {
+    const handler = (_: Electron.IpcRendererEvent, change: ProjectFilesChanged): void => {
+      callback(change);
+    };
+    ipcRenderer.on(PiChannel.ProjectFilesChanged, handler);
+    return () => ipcRenderer.removeListener(PiChannel.ProjectFilesChanged, handler);
+  },
 
   /** Set active project directory from recent projects. */
   setActiveProject: (path: string): Promise<ProjectStateResult> =>

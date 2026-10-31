@@ -12,6 +12,7 @@ import { getGitBranch } from '../projects/gitStatus';
 import { searchProjectFiles } from '../projects/projectFileSearch';
 import { completePath } from '../projects/pathCompletion';
 import { listProjectDirectory, readProjectFile } from '../projects/projectFiles';
+import { setProjectFileWatch } from '../projects/projectFileWatch';
 
 function projectStateResult(): ProjectStateResult {
   return {
@@ -60,6 +61,21 @@ export function registerProjectHandlers(): void {
     }
     return readProjectFile(cwd, path);
   });
+
+  ipcMain.on(
+    PiChannel.WatchProjectFiles,
+    (_event, cwd: unknown, directories: unknown, filePath: unknown) => {
+      if (typeof cwd !== 'string' || cwd.trim().length === 0) return;
+      if (
+        !Array.isArray(directories) ||
+        !directories.every((directory): directory is string => typeof directory === 'string')
+      ) {
+        return;
+      }
+      if (filePath !== null && typeof filePath !== 'string') return;
+      setProjectFileWatch(cwd, directories, filePath);
+    },
+  );
 
   ipcMain.handle(PiChannel.CompletePath, async (_event, cwd: string, token: string) => {
     if (typeof cwd !== 'string' || cwd.trim().length === 0) {

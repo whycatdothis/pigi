@@ -142,6 +142,31 @@ also hides below 220px, but stays in that menu. Measured at a 430px window
 clickable; at the 680px minimum with both sidebars open (116px main), the tabs
 and the 20px menu still fit.
 
+### Files freshness
+
+The Files tree has no refresh button. The renderer sends the root, every
+expanded directory and the active file to main; main watches the union of those
+directories with one non-recursive `fs.watch` each, adding the active file's
+parent when that directory is collapsed. A watched event names a child path:
+`rename` reloads the parent's listing, `change` only matters when the child is
+the active file. Events are coalesced for 80ms, so a build creating thousands
+of files produces one IPC message and one `readdir` per affected directory, not
+one per event. Idle watches do no polling; closing the tab, switching project
+or closing the window closes them.
+
+The watch set is intentionally bounded by what is on screen, plus the one open
+file. A recursive project watch would cover directories the tree will never
+expand and behaves differently across platforms; watching only expanded
+directories keeps the count at the number the user opened. Reloads reuse the
+request-generation guard, so a slow earlier `readdir` cannot overwrite a newer
+one. Directories that disappear are dropped with their descendants, and
+reopening one always rereads it.
+
+When the active file event arrives, `fileRevision` bumps and the existing
+viewer effect rereads the file through the same 2MB/text/binary path. This is
+why edits appear without reopening; a deleted file reports `This file no
+longer exists.` instead of keeping the old contents.
+
 ## Message List Bottom Follow
 
 One writer, one state, input-only transitions (`useMessageListScrollController`):

@@ -24,7 +24,7 @@ function isHiddenDirectory(name: string): boolean {
  * inside the project can point outside. The viewer is local and read-only and
  * the agent can read those paths anyway, so this is not a trust boundary.
  */
-function resolveInsideProject(projectPath: string, path: string): string | null {
+export function resolveProjectPath(projectPath: string, path: string): string | null {
   if (projectPath.trim().length === 0 || path.includes('\0')) {
     return null;
   }
@@ -48,11 +48,15 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+function isMissingFileError(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'ENOENT';
+}
+
 export async function listProjectDirectory(
   projectPath: string,
   path: string,
 ): Promise<ProjectDirectoryResult> {
-  const directory = resolveInsideProject(projectPath, path);
+  const directory = resolveProjectPath(projectPath, path);
   if (!directory) {
     return { success: false, error: 'The path is outside the project.' };
   }
@@ -92,7 +96,7 @@ export async function readProjectFile(
   projectPath: string,
   path: string,
 ): Promise<ProjectFileResult> {
-  const filePath = resolveInsideProject(projectPath, path);
+  const filePath = resolveProjectPath(projectPath, path);
   if (!filePath) {
     return { success: false, error: 'The path is outside the project.' };
   }
@@ -131,6 +135,9 @@ export async function readProjectFile(
       truncated: stats.size > MAX_FILE_BYTES,
     };
   } catch (error) {
+    if (isMissingFileError(error)) {
+      return { success: false, error: 'This file no longer exists.' };
+    }
     return { success: false, error: errorMessage(error, 'Unable to read this file') };
   }
 }

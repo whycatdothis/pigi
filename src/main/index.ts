@@ -24,6 +24,7 @@ import {
   setUpdateStatusObserver,
 } from './ipc/updateManager';
 import { stopProjectFileSearch } from './projects/projectFileSearch';
+import { stopProjectFileWatch } from './projects/projectFileWatch';
 import { PiChannel } from '../shared/ipcContract';
 import { configureDebugPanel, installMainDebugHandle } from './debugConfig';
 import { initializeShellEnv } from './processes/shellEnvResolver';
@@ -131,6 +132,7 @@ app.on('before-quit', () => {
   stopAllProcesses();
   stopTerminalProcess();
   stopProjectFileSearch();
+  stopProjectFileWatch();
 });
 
 /**
@@ -143,5 +145,6 @@ function openMainWindow(settingsPath: string, backgroundColor: string): void {
   const win = createMainWindow({ settingsPath, backgroundColor });
   win.on('closed', () => {
     stopTerminalProcess();
+    stopProjectFileWatch();
   });
 }

@@ -136,6 +136,15 @@ export type ProjectFileResult =
   | { success: true; content: string; size: number; truncated: boolean }
   | { success: false; error: string };
 
+/** A filesystem change the Files workspace needs to reread. */
+export interface ProjectFilesChanged {
+  cwd: string;
+  /** Project-relative directories whose immediate entries changed. */
+  directories: string[];
+  /** The active file, when its contents or path changed. */
+  filePath: string | null;
+}
+
 export interface ProjectState {
   recentProjects: ProjectDirectory[];
   activeProject: ProjectDirectory | null;
@@ -485,6 +494,10 @@ export enum PiChannel {
   CompletePath = 'pi:complete_path',
   /** renderer → main: list one directory in the workspace file tree */
   ListProjectDirectory = 'pi:list_project_directory',
+  /** renderer → main: replace the watched directories and active file for a project */
+  WatchProjectFiles = 'pi:watch_project_files',
+  /** main → renderer: a watched directory or the active file changed */
+  ProjectFilesChanged = 'pi:project_files_changed',
   /** renderer → main: read a project file for the workspace viewer */
   ReadProjectFile = 'pi:read_project_file',
   /** renderer → main: the app theme, so window materials follow it */

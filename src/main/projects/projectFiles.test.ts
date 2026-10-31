@@ -95,6 +95,13 @@ describe('readProjectFile', () => {
     expect(result.error).toContain('binary');
   });
 
+  it('reports a deleted file clearly', async () => {
+    await expect(readProjectFile(root, 'missing.txt')).resolves.toEqual({
+      success: false,
+      error: 'This file no longer exists.',
+    });
+  });
+
   it('refuses directories and paths outside the project', async () => {
     await expect(readProjectFile(root, 'src')).resolves.toEqual({
       success: false,

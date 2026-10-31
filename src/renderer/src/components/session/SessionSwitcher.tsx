@@ -32,6 +32,8 @@ interface SessionSwitcherProps {
   onSwitch: (sessionPath: string) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Portal target; the main area when opened from the app. */
+  container?: HTMLElement | null;
   /** If true, preselect the second item (previous session) on open */
   autoSelectPrevious?: boolean;
 }
@@ -59,6 +61,7 @@ export default function SessionSwitcher({
   onSwitch,
   open,
   onOpenChange,
+  container,
   autoSelectPrevious = false,
 }: SessionSwitcherProps): React.JSX.Element {
   const [query, setQuery] = useState('');
@@ -237,7 +240,11 @@ export default function SessionSwitcher({
       onOpenChange={handleOpenChange}
       title="Session switcher"
       description="Search and switch sessions"
-      className={cn('top-4 left-[calc(50%+8rem)] translate-y-0 backdrop-blur-xs', OVERLAY_BG)}
+      container={container}
+      className={cn(
+        'absolute top-[54px] left-1/2 -translate-x-1/2 translate-y-0 backdrop-blur-xs',
+        OVERLAY_BG,
+      )}
       showOverlay={false}
     >
       <Command

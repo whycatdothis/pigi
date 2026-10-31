@@ -1,35 +1,55 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import '../../testing/jsdomSetup';
 import FileTreeSidebar from './FileTreeSidebar';
 import { SidebarProvider } from '../ui/sidebar';
+import type { ProjectFilesChanged } from '../../../../shared/ipcContract';
 
 const originalPiApi = window.piApi;
+let changeListener: ((change: ProjectFilesChanged) => void) | null = null;
 
 afterEach(() => {
-  window.piApi = originalPiApi;
   cleanup();
+  changeListener = null;
+  window.piApi = originalPiApi;
 });
 
-function renderSidebar(listProjectDirectory: typeof window.piApi.listProjectDirectory): void {
-  window.piApi = { ...originalPiApi, listProjectDirectory };
+function renderSidebar(
+  listProjectDirectory: typeof window.piApi.listProjectDirectory,
+  onActiveFileChanged: () => void = vi.fn(),
+  selectedFilePath: string | null = null,
+): { watchProjectFiles: ReturnType<typeof vi.fn>; onActiveFileChanged: () => void } {
+  const watchProjectFiles = vi.fn();
+  window.piApi = {
+    ...originalPiApi,
+    listProjectDirectory,
+    watchProjectFiles,
+    onProjectFilesChanged: (callback) => {
+      changeListener = callback;
+      return () => {
+        changeListener = null;
+      };
+    },
+  };
   render(
     <SidebarProvider>
       <FileTreeSidebar
         projectPath="/repo"
         projectName="repo"
-        selectedFilePath={null}
+        selectedFilePath={selectedFilePath}
         onOpenFile={vi.fn()}
         onFindFile={vi.fn()}
         onOpenSettings={vi.fn()}
+        onActiveFileChanged={onActiveFileChanged}
         shortcutBindings={null}
       />
     </SidebarProvider>,
   );
+  return { watchProjectFiles, onActiveFileChanged };
 }
 
-describe('FileTreeSidebar refresh', () => {
+describe('FileTreeSidebar automatic updates', () => {
   it('reloads the root and shows files created since the first load', async () => {
     const listProjectDirectory = vi
       .fn()
@@ -50,11 +70,34 @@ describe('FileTreeSidebar refresh', () => {
     renderSidebar(listProjectDirectory);
     expect(await screen.findByText('old.txt')).toBeInTheDocument();
     expect(screen.queryByText('new.txt')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Refresh files' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh files' }));
+    await act(async () => {
+      changeListener?.({ cwd: '/repo', directories: [''], filePath: null });
+    });
 
     expect(await screen.findByText('new.txt')).toBeInTheDocument();
     expect(screen.getByText('old.txt')).toBeInTheDocument();
     expect(listProjectDirectory).toHaveBeenCalledTimes(2);
+  });
+
+  it('reloads the active file only when the change names it', async () => {
+    const listProjectDirectory = vi.fn().mockResolvedValue({
+      success: true,
+      entries: [],
+      truncated: false,
+    });
+
+    const { onActiveFileChanged } = renderSidebar(listProjectDirectory, undefined, 'src/app.ts');
+
+    await act(async () => {
+      changeListener?.({ cwd: '/repo', directories: [], filePath: 'src/other.ts' });
+    });
+    expect(onActiveFileChanged).not.toHaveBeenCalled();
+
+    await act(async () => {
+      changeListener?.({ cwd: '/repo', directories: [], filePath: 'src/app.ts' });
+    });
+    expect(onActiveFileChanged).toHaveBeenCalledTimes(1);
   });
 });

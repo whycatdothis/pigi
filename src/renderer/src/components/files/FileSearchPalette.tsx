@@ -129,7 +129,7 @@ const FileSearchPalette = memo(function FileSearchPalette({
       description="Search the active project's files"
       container={container}
       overlayClassName="absolute inset-0"
-      className="absolute top-[15%] left-1/2 w-[calc(100%-2rem)] max-w-[550px] -translate-x-1/2 translate-y-0"
+      className="absolute top-[54px] left-1/2 w-[calc(100%-2rem)] max-w-[550px] -translate-x-1/2 translate-y-0"
     >
       <Command value={selectedValue} onValueChange={setSelectedValue} shouldFilter={false}>
         <CommandInput
@@ -137,7 +137,7 @@ const FileSearchPalette = memo(function FileSearchPalette({
           value={query}
           onValueChange={setQuery}
           autoFocus
-          inputGroupClassName="h-11"
+          inputGroupClassName="h-9"
         />
         <CommandList className="max-h-[min(24rem,60vh)] pt-1">
           {results.length === 0 ? (
@@ -152,7 +152,7 @@ const FileSearchPalette = memo(function FileSearchPalette({
                     value={file}
                     onSelect={() => handleSelect(file)}
                     showCheckIcon={false}
-                    className="px-2 py-1.5"
+                    className="px-2 py-1"
                   >
                     <FileIcon path={file} />
                     <span className="min-w-0 flex-1 truncate text-body">{name}</span>

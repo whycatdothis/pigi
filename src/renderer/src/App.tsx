@@ -220,6 +220,9 @@ function App(): React.JSX.Element {
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [switcherAutoPreselect, setSwitcherAutoPreselect] = useState(false);
+  // The switcher is rendered outside <main>, so resolve the portal target when
+  // it opens rather than reading mainRef during render.
+  const [switcherContainer, setSwitcherContainer] = useState<HTMLElement | null>(null);
   const [fileSearchOpen, setFileSearchOpen] = useState(false);
   // Resolved when the palette opens: a ref cannot be read during render, and
   // the palette portals into the main area rather than the whole window.
@@ -1323,6 +1326,10 @@ function App(): React.JSX.Element {
     store.setSidebarExpanded(true);
   }, []);
 
+  const handleActiveFileChanged = useCallback(() => {
+    setFileRevision((revision) => revision + 1);
+  }, []);
+
   const handleOpenFileSearch = useCallback(() => {
     closeSettings();
     setFileSearchContainer(mainRef.current);
@@ -1359,12 +1366,14 @@ function App(): React.JSX.Element {
       },
       'navigation.openSwitcher': () => {
         closeSettings();
+        setSwitcherContainer(mainRef.current);
         setSwitcherAutoPreselect(false);
         setSwitcherOpen(true);
       },
       'navigation.closeOrSelectSwitcher': () => {
         // Ctrl+Tab: preselect previous session so immediate release switches
         closeSettings();
+        setSwitcherContainer(mainRef.current);
         setSwitcherAutoPreselect(true);
         setSwitcherOpen(true);
       },
@@ -1715,6 +1724,7 @@ function App(): React.JSX.Element {
                   onOpenFile={handleOpenFile}
                   onFindFile={handleOpenFileSearch}
                   onOpenSettings={openSettings}
+                  onActiveFileChanged={handleActiveFileChanged}
                   shortcutBindings={shortcutBindings}
                 />
               ) : (
@@ -2030,6 +2040,7 @@ function App(): React.JSX.Element {
             }}
             open={switcherOpen}
             onOpenChange={setSwitcherOpen}
+            container={switcherContainer}
             autoSelectPrevious={switcherAutoPreselect}
           />
 
