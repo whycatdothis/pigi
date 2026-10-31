@@ -129,7 +129,7 @@ const FileSearchPalette = memo(function FileSearchPalette({
       description="Search the active project's files"
       container={container}
       overlayClassName="absolute inset-0"
-      className="absolute top-[54px] left-1/2 w-[calc(100%-2rem)] max-w-[550px] -translate-x-1/2 translate-y-0"
+      className="absolute top-2 left-1/2 w-[calc(100%-2rem)] max-w-[550px] -translate-x-1/2 translate-y-0"
     >
       <Command value={selectedValue} onValueChange={setSelectedValue} shouldFilter={false}>
         <CommandInput

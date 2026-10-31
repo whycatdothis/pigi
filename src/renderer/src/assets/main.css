@@ -358,7 +358,7 @@
     background: var(--muted);
     padding: 10px 14px;
     font-family: var(--font-mono);
-    font-size: calc(14px * var(--app-font-code-scale, 1));
+    font-size: var(--text-code);
     line-height: 1.6;
     color: var(--foreground);
   }

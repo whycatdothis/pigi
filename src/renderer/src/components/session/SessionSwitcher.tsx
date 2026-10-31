@@ -242,7 +242,7 @@ export default function SessionSwitcher({
       description="Search and switch sessions"
       container={container}
       className={cn(
-        'absolute top-[54px] left-1/2 -translate-x-1/2 translate-y-0 backdrop-blur-xs',
+        'absolute top-2 left-1/2 -translate-x-1/2 translate-y-0 backdrop-blur-xs',
         OVERLAY_BG,
       )}
       showOverlay={false}

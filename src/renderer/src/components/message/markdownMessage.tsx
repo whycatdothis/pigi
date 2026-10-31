@@ -234,7 +234,7 @@ export default memo(function MarkdownMessage({
   projectFile,
 }: MarkdownMessageProps): React.JSX.Element {
   return (
-    <div className="markdown-body">
+    <div className="markdown-body text-body">
       <MarkdownStreamingContext.Provider value={isStreaming}>
         <MarkdownSourceContext.Provider value={text}>
           <MarkdownProjectFileContext.Provider value={projectFile ?? null}>

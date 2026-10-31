@@ -17,14 +17,17 @@
 
 - The Chat tab is wider (240px) and the Files tab uses the same closed-folder
   icon as the sidebar's project rows
-- The file palette and session switcher sit just below the header, and the
-  palette's search field and rows are more compact
+- The file palette and session switcher sit near the top of the window,
+  inside the title-bar padding, and the palette's search field and rows are
+  more compact
 
 ### Fixed
 
 - The Files tree and the open file follow filesystem changes automatically:
   new, renamed and deleted entries reload their folder, edits reread the
   active file, and the refresh button is gone
+- Markdown previews use the same body and code-block type sizes as messages
+  and the source viewer
 - At narrow main widths the workspace tabs shrink and keep their labels before
   becoming icons, instead of being clipped; when the header is tight the
   toolbar's secondary actions move into a `...` menu so the session tree,
