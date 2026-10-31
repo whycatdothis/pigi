@@ -1722,7 +1722,6 @@ function App(): React.JSX.Element {
                   projectName={activeProject.name}
                   selectedFilePath={selectedFilePath}
                   onOpenFile={handleOpenFile}
-                  onFindFile={handleOpenFileSearch}
                   onOpenSettings={openSettings}
                   onActiveFileChanged={handleActiveFileChanged}
                   shortcutBindings={shortcutBindings}

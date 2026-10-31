@@ -20,6 +20,8 @@
 - The file palette and session switcher sit near the top of the window,
   inside the title-bar padding, and the palette's search field and rows are
   more compact
+- The Files sidebar uses the Chat sidebar's folder icons and shows a larger
+  project name with a compact ⌘P find-file hint below it
 
 ### Fixed
 

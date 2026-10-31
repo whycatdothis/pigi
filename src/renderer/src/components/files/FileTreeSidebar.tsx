@@ -1,12 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import {
-  IconChevronRight,
-  IconFolder,
-  IconFolderOpen,
-  IconLoader2,
-  IconSearch,
-  IconSettings,
-} from '@tabler/icons-react';
+import { IconChevronRight, IconLoader2, IconSettings } from '@tabler/icons-react';
+import { FolderClosed, FolderOpen } from 'lucide-react';
 import type { ProjectDirectoryEntry, ShortcutBinding } from '../../../../shared/ipcContract';
 import { cn } from '../../lib/utils';
 import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
@@ -41,7 +35,6 @@ interface FileTreeSidebarProps {
   projectName: string;
   selectedFilePath: string | null;
   onOpenFile: (path: string) => void;
-  onFindFile: () => void;
   onOpenSettings: () => void;
   onActiveFileChanged: () => void;
   shortcutBindings: Map<string, ShortcutBinding> | null;
@@ -62,7 +55,6 @@ export default memo(function FileTreeSidebar({
   projectName,
   selectedFilePath,
   onOpenFile,
-  onFindFile,
   onOpenSettings,
   onActiveFileChanged,
   shortcutBindings,
@@ -285,9 +277,9 @@ export default memo(function FileTreeSidebar({
                 )}
               />
               {isExpanded ? (
-                <IconFolderOpen size={16} className="shrink-0 text-muted-foreground" />
+                <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
               ) : (
-                <IconFolder size={16} className="shrink-0 text-muted-foreground" />
+                <FolderClosed className="size-4 shrink-0 text-muted-foreground" />
               )}
               <span className="truncate">{entry.name}</span>
               {loadingDirectories.has(entry.path) && (
@@ -341,32 +333,24 @@ export default memo(function FileTreeSidebar({
 
   return (
     <ShadcnSidebar collapsible="none" data-testid="file-tree-sidebar" className="w-full">
-      <SidebarHeader style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+      <SidebarHeader className="pb-0" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
         <div className="flex h-10 items-start justify-end">
           <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
         </div>
-        <div className="flex min-w-0 items-center gap-1.5 px-2 pb-1">
-          <IconFolder size={15} className="shrink-0 text-muted-foreground" />
+        <div className="flex min-w-0 flex-col gap-0.5 px-2 pb-1">
           <span
-            className="min-w-0 flex-1 truncate text-body font-medium text-sidebar-foreground/80"
+            className="min-w-0 truncate text-lg font-medium text-sidebar-foreground/80"
             title={projectPath}
           >
             {projectName}
           </span>
+          <div className="flex items-center gap-1 text-caption text-muted-foreground">
+            {findFileBinding && (
+              <Kbd className={COMPACT_KBD_CLASS_NAME}>{formatShortcutLabel(findFileBinding)}</Kbd>
+            )}
+            <span>{findFileBinding ? 'to find file' : 'Find file'}</span>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={onFindFile}
-          className="mx-2 mb-1 flex h-7 items-center gap-2 rounded-control border border-foreground/10 bg-muted/40 px-2 text-body text-muted-foreground transition-colors hover:bg-muted hover:text-foreground [-webkit-app-region:no-drag]"
-        >
-          <IconSearch size={14} className="shrink-0" />
-          <span>Find file</span>
-          {findFileBinding && (
-            <Kbd className={cn(COMPACT_KBD_CLASS_NAME, 'ml-auto')}>
-              {formatShortcutLabel(findFileBinding)}
-            </Kbd>
-          )}
-        </button>
       </SidebarHeader>
 
       <SidebarContent className="min-h-0 overflow-hidden">

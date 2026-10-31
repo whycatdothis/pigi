@@ -39,7 +39,6 @@ function renderSidebar(
         projectName="repo"
         selectedFilePath={selectedFilePath}
         onOpenFile={vi.fn()}
-        onFindFile={vi.fn()}
         onOpenSettings={vi.fn()}
         onActiveFileChanged={onActiveFileChanged}
         shortcutBindings={null}
