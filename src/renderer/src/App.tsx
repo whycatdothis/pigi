@@ -96,6 +96,7 @@ import { WorkspaceHeader } from './components/app/WorkspaceTabs';
 import FileSearchPalette from './components/files/FileSearchPalette';
 import FilesTab from './components/files/FilesTab';
 import FileTreeSidebar from './components/files/FileTreeSidebar';
+import GitDiffSidebar from './components/files/GitDiffSidebar';
 import GitDiffTab from './components/files/GitDiffTab';
 import SessionSwitcher from './components/session/SessionSwitcher';
 import { SidebarProvider } from './components/ui/sidebar';
@@ -124,6 +125,7 @@ import {
   SIDEBAR_TRANSITION_CLASS_NAME,
 } from './lib/layoutConstants';
 import { usePanelResize } from './hooks/usePanelResize';
+import { useGitDiffWorkspace } from './hooks/useGitDiffWorkspace';
 const WELCOME_TITLE = 'Welcome to pigi';
 
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
@@ -233,6 +235,10 @@ function App(): React.JSX.Element {
 
   const activeSession = activeSessionPath ? (sessions.get(activeSessionPath) ?? null) : null;
   const activeProjectPath = activeProject?.path ?? null;
+  const gitDiffWorkspace = useGitDiffWorkspace({
+    cwd: activeProjectPath,
+    enabled: workspaceTab === WORKSPACE_TABS.diff,
+  });
   const activeCwd = activeSession?.cwd ?? activeProjectPath ?? window.piApi.getCwd();
   const findSessionByPath = useCallback(
     (path: string): PiSessionInfo | undefined => {
@@ -1726,6 +1732,13 @@ function App(): React.JSX.Element {
                   onActiveFileChanged={handleActiveFileChanged}
                   shortcutBindings={shortcutBindings}
                 />
+              ) : workspaceTab === WORKSPACE_TABS.diff && activeProject ? (
+                <GitDiffSidebar
+                  key={activeProject.path}
+                  projectName={activeProject.name}
+                  workspace={gitDiffWorkspace}
+                  shortcutBindings={shortcutBindings}
+                />
               ) : (
                 // Sidebar is memoized and App re-renders on every streaming update:
                 // pass only stable props (store values, useCallback), no inline functions or objects.
@@ -1817,7 +1830,14 @@ function App(): React.JSX.Element {
                     onOpenProject={handleOpenProject}
                   />
                 )}
-                {workspaceTab === WORKSPACE_TABS.diff && <GitDiffTab />}
+                {workspaceTab === WORKSPACE_TABS.diff && (
+                  <GitDiffTab
+                    projectPath={activeProjectPath}
+                    sessionPath={activeSessionPath}
+                    workspace={gitDiffWorkspace}
+                    onOpenProject={handleOpenProject}
+                  />
+                )}
                 {/* Kept mounted and laid out while another tab shows, with only
                     its paint skipped: `display: none` collapses every measured
                     row, so a transcript that grew meanwhile came back off the

@@ -4,6 +4,8 @@ import type {
   PiCommand,
   PiPush,
   GitBranchResult,
+  GitDiffFileResult,
+  GitDiffSummaryResult,
   ModelCatalogSnapshot,
   PickAttachmentsResult,
   ChatAttachmentKind,
@@ -37,6 +39,14 @@ interface PiApi {
   // Project directories
   getProjects: () => Promise<ProjectStateResult>;
   getGitBranch: (cwd: string) => Promise<GitBranchResult>;
+  getGitDiffSummary: (cwd: string, base?: string | null) => Promise<GitDiffSummaryResult>;
+  getGitDiffFile: (
+    cwd: string,
+    base: string,
+    path: string,
+    oldPath: string | null,
+    untracked: boolean,
+  ) => Promise<GitDiffFileResult>;
   searchProjectFiles: (
     cwd: string,
     query: string,

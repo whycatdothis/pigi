@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- The Diff tab compares the project against a branch, a remote branch or the
+  working tree, lists changed files as a tree, a Git status view or the commit
+  list, shows one file's unified diff at a time, and quotes diff lines into the
+  chat (`@src/app.ts:L10-L20`) like the Files tab does
+
 ## [0.4.30] - 2026-11-01
 
 ### Added
@@ -10,8 +19,7 @@
   a selected line range (`@src/app.ts:L10-L20`) or a rendered markdown passage
   (`@docs/readme.md > passage`), and remembers each project's last opened
   file. Relative markdown links open their target in Files and relative images
-  load from the project. Double-clicking the Chat tab renames the session. Diff
-  is a placeholder for now
+  load from the project. Double-clicking the Chat tab renames the session.
 
 ### Changed
 

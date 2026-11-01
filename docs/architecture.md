@@ -167,6 +167,35 @@ viewer effect rereads the file through the same 2MB/text/binary path. This is
 why edits appear without reopening; a deleted file reports `This file no
 longer exists.` instead of keeping the old contents.
 
+### Diff tab
+
+The Diff tab answers one question: what changed between a chosen base and the
+working tree. Main runs the git commands (`gitDiff.ts`, 6s timeout each) and
+the renderer only draws. Two IPC calls: the summary (branch, base label,
+merge-base, branches, last 100 commits, and the changed-file list with +/-
+counts and porcelain status) and one file's patch, fetched lazily only for the
+selected file. Comparing merge-base..HEAD plus the working tree in one patch
+means a file shows committed and uncommitted edits together, which is what a
+reviewer of "changes since main" wants.
+
+The default base is the first of `origin/main`, `origin/master`, `main`,
+`master`, the current branch, the upstream, then `HEAD`, because the common
+case is "what did I do since main" and every fallback still produces a useful
+answer. The base is deliberately not persisted per project: a branch selected
+in one repo rarely exists in another. Untracked files have no diff, so their
+patch is synthesized as a new-file diff from the file's content. Patches are
+capped at 1.5M characters or 5,000 lines with a `truncated` notice, so a
+minified bundle cannot freeze the renderer.
+
+The sidebar offers the same file list three ways — tree (folders, collapsed
+per directory), Git status (Changes / Untracked / Committed) and commits
+(clicking a commit re-bases the comparison onto it). The viewer is one unified
+patch with sticky old/new line gutters. Quoting reuses the Files popover, gated
+to line rows (`data-diff-line`): added and context rows carry new-file line
+numbers and quote as `@src/app.ts:L10-L20`, while a selection touching deleted
+rows has no post-change number to point at and falls back to carrying the
+text.
+
 ## Message List Bottom Follow
 
 One writer, one state, input-only transitions (`useMessageListScrollController`):
@@ -729,7 +758,7 @@ src/
         ├── components/           # One directory per surface, no loose files
         │   ├── app/              # workspace tabs/header, sign-in, menus
         │   ├── chatInput/        # composer: Tiptap editor, reference chips, pickers
-        │   ├── files/            # file tree, source/markdown viewer, search palette, diff placeholder
+        │   ├── files/            # file tree, source/markdown viewer, search palette, git diff sidebar/viewer
         │   ├── message/          # one message: bubbles, markdown, tools, diff
         │   ├── quotes/           # selection quote popover, quotes tab
         │   ├── rightSidebar/     # tabbed right sidebar

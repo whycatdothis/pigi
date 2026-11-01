@@ -9,6 +9,7 @@ import {
   setActiveProject,
 } from '../projects/projectStore';
 import { getGitBranch } from '../projects/gitStatus';
+import { getGitDiffFile, getGitDiffSummary } from '../projects/gitDiff';
 import { searchProjectFiles } from '../projects/projectFileSearch';
 import { completePath } from '../projects/pathCompletion';
 import { listProjectDirectory, readProjectFile } from '../projects/projectFiles';
@@ -27,6 +28,48 @@ export function registerProjectHandlers(): void {
   ipcMain.handle(PiChannel.GetGitBranch, async (_event, cwd: string) => {
     return getGitBranch(cwd);
   });
+
+  ipcMain.handle(PiChannel.GetGitDiffSummary, async (_event, cwd: unknown, base: unknown) => {
+    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+      return { success: false, error: 'cwd must be a non-empty string' };
+    }
+    if (base !== null && base !== undefined && typeof base !== 'string') {
+      return { success: false, error: 'base must be a string or null' };
+    }
+    return getGitDiffSummary(cwd, typeof base === 'string' ? base : null);
+  });
+
+  ipcMain.handle(
+    PiChannel.GetGitDiffFile,
+    async (
+      _event,
+      cwd: unknown,
+      base: unknown,
+      path: unknown,
+      oldPath: unknown,
+      untracked: unknown,
+    ) => {
+      if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+        return { success: false, error: 'cwd must be a non-empty string' };
+      }
+      if (typeof base !== 'string' || base.length === 0) {
+        return { success: false, error: 'base must be a non-empty string' };
+      }
+      if (typeof path !== 'string' || path.length === 0) {
+        return { success: false, error: 'path must be a non-empty string' };
+      }
+      if (oldPath !== null && oldPath !== undefined && typeof oldPath !== 'string') {
+        return { success: false, error: 'oldPath must be a string or null' };
+      }
+      return getGitDiffFile(
+        cwd,
+        base,
+        path,
+        typeof oldPath === 'string' ? oldPath : null,
+        untracked === true,
+      );
+    },
+  );
 
   ipcMain.handle(
     PiChannel.SearchProjectFiles,

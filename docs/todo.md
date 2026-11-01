@@ -19,11 +19,6 @@ each write and merging onto what is there.
 The temp name is `${path}.tmp` for every instance; with the lock it stops
 mattering, without it each writer should use its own suffix.
 
-## Build the Diff tab
-
-The third workspace tab is a placeholder. It needs the active project's changed
-files and their diffs, and a way to quote from them like the Files tab does.
-
 ## Reserve a minimum width for the main area
 
 At 560px and below the right sidebar's always-allowed width wins, leaving the

@@ -154,6 +154,63 @@ export type GitBranchResult =
   | { success: true; branch: string | null; detached: boolean }
   | { success: false; error?: string };
 
+export type GitDiffFileStatus =
+  | 'added'
+  | 'modified'
+  | 'deleted'
+  | 'renamed'
+  | 'copied'
+  | 'typechanged'
+  | 'conflicted'
+  | 'untracked';
+
+export interface GitDiffFile {
+  path: string;
+  /** The pre-rename path, when Git detected a rename or copy. */
+  oldPath: string | null;
+  status: GitDiffFileStatus;
+  /** Raw porcelain status for uncommitted changes, e.g. " M" or "??". */
+  workingTreeStatus: string | null;
+  additions: number;
+  deletions: number;
+  binary: boolean;
+}
+
+export interface GitDiffBranch {
+  name: string;
+  current: boolean;
+  local: boolean;
+}
+
+export interface GitDiffCommit {
+  hash: string;
+  shortHash: string;
+  subject: string;
+  author: string;
+  date: string;
+}
+
+export interface GitDiffSummary {
+  branch: string | null;
+  detached: boolean;
+  /** The ref or hash the comparison starts from. */
+  base: string;
+  baseLabel: string;
+  /** The commit both sides share; file diffs run from this commit. */
+  mergeBase: string;
+  branches: GitDiffBranch[];
+  commits: GitDiffCommit[];
+  files: GitDiffFile[];
+}
+
+export type GitDiffSummaryResult =
+  | { success: true; summary: GitDiffSummary }
+  | { success: false; error: string };
+
+export type GitDiffFileResult =
+  | { success: true; patch: string; truncated: boolean }
+  | { success: false; error: string };
+
 export type ProjectStateResult =
   | ({ success: true } & ProjectState)
   | { success: false; error?: string; canceled?: boolean };
@@ -474,6 +531,10 @@ export enum PiChannel {
   ProjectSessionsChunk = 'pi:project_sessions_chunk',
   /** renderer → main: get current git branch for a cwd */
   GetGitBranch = 'pi:get_git_branch',
+  /** renderer → main: list changed files and commits for the Diff tab */
+  GetGitDiffSummary = 'pi:get_git_diff_summary',
+  /** renderer → main: read one changed file's unified diff */
+  GetGitDiffFile = 'pi:get_git_diff_file',
   /** renderer → main: remove a project from recent projects list */
   RemoveProject = 'pi:remove_project',
   /** renderer → main: reorder recent projects */

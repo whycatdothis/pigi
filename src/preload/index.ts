@@ -15,6 +15,8 @@ import {
   type ControlPortMessage,
   type DataPortMessage,
   type GitBranchResult,
+  type GitDiffFileResult,
+  type GitDiffSummaryResult,
   type ModelCatalogSnapshot,
   type PiCommand,
   type PiPush,
@@ -321,6 +323,20 @@ const piApi = {
   /** Get current git branch for a project directory. */
   getGitBranch: (cwd: string): Promise<GitBranchResult> =>
     ipcRenderer.invoke(PiChannel.GetGitBranch, cwd),
+
+  /** List changed files and commits for the Diff workspace. */
+  getGitDiffSummary: (cwd: string, base?: string | null): Promise<GitDiffSummaryResult> =>
+    ipcRenderer.invoke(PiChannel.GetGitDiffSummary, cwd, base ?? null),
+
+  /** Read one changed file's unified diff. */
+  getGitDiffFile: (
+    cwd: string,
+    base: string,
+    path: string,
+    oldPath: string | null,
+    untracked: boolean,
+  ): Promise<GitDiffFileResult> =>
+    ipcRenderer.invoke(PiChannel.GetGitDiffFile, cwd, base, path, oldPath, untracked),
 
   /** List files visible to git for inline @ references. */
   searchProjectFiles: (
