@@ -21,7 +21,7 @@
   inside the title-bar padding, and the palette's search field and rows are
   more compact
 - The Files sidebar uses the Chat sidebar's folder icons and shows a larger
-  project name with a compact ⌘P find-file hint below it
+  project name with an info icon that reveals the ⌘P hint on hover
 
 ### Fixed
 

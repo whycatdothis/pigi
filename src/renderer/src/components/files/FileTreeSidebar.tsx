@@ -1,10 +1,11 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { IconChevronRight, IconLoader2, IconSettings } from '@tabler/icons-react';
-import { FolderClosed, FolderOpen } from 'lucide-react';
+import { FolderClosed, FolderOpen, Info } from 'lucide-react';
 import type { ProjectDirectoryEntry, ShortcutBinding } from '../../../../shared/ipcContract';
 import { cn } from '../../lib/utils';
 import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
 import { COMPACT_KBD_CLASS_NAME, MENU_ROW_KBD_CLASS_NAME, Kbd } from '../ui/kbd';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { SpinningIcon } from '../ui/spinningIcon';
 import {
   Sidebar as ShadcnSidebar,
@@ -337,19 +338,34 @@ export default memo(function FileTreeSidebar({
         <div className="flex h-10 items-start justify-end">
           <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
         </div>
-        <div className="flex min-w-0 flex-col gap-0.5 px-2 pb-1">
+        <div className="flex min-w-0 items-center gap-1.5 px-2 pb-1">
           <span
             className="min-w-0 truncate text-lg font-medium text-sidebar-foreground/80"
             title={projectPath}
           >
             {projectName}
           </span>
-          <div className="flex items-center gap-1 text-caption text-muted-foreground">
-            {findFileBinding && (
-              <Kbd className={COMPACT_KBD_CLASS_NAME}>{formatShortcutLabel(findFileBinding)}</Kbd>
-            )}
-            <span>{findFileBinding ? 'to find file' : 'Find file'}</span>
-          </div>
+          {findFileBinding && (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    tabIndex={0}
+                    aria-label="Find file shortcut"
+                    className="ml-auto inline-flex shrink-0 items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden [-webkit-app-region:no-drag]"
+                  >
+                    <Info className="size-3.5" aria-hidden="true" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <Kbd className={COMPACT_KBD_CLASS_NAME}>
+                    {formatShortcutLabel(findFileBinding)}
+                  </Kbd>
+                  <span>to find file</span>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </SidebarHeader>
 
