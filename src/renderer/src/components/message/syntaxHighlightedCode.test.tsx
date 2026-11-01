@@ -57,3 +57,10 @@ test('does not count a trailing newline as an extra line', async () => {
 
   expect(highlighter.codeToTokens).toHaveBeenCalledTimes(1);
 });
+
+test('keeps code plain when it is past the character gate', async () => {
+  render(<SyntaxHighlightedCode code={'x'.repeat(90_001)} language="ts" />);
+  await act(async () => {});
+
+  expect(highlighter.codeToTokens).not.toHaveBeenCalled();
+});
