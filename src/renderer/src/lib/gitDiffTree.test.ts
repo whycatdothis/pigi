@@ -36,6 +36,23 @@ describe('buildGitDiffTree', () => {
     expect(components.path).toBe('src/components');
   });
 
+  it('compacts directories that only hold one directory', () => {
+    const tree = buildGitDiffTree([
+      file('src/main/java/com/example/App.java'),
+      file('src/main/java/com/example/util/Strings.java'),
+      file('src/test/java/com/example/AppTest.java'),
+    ]);
+
+    const [src] = tree.directories;
+    expect(src.name).toBe('src');
+    expect(src.directories.map((child) => [child.name, child.path])).toEqual([
+      ['main/java/com/example', 'src/main/java/com/example'],
+      ['test/java/com/example', 'src/test/java/com/example'],
+    ]);
+    const [main] = src.directories;
+    expect(main.directories.map((child) => child.name)).toEqual(['util']);
+  });
+
   it('sorts numbered directory names numerically', () => {
     const tree = buildGitDiffTree([file('v10/a.ts'), file('v2/a.ts'), file('V1/a.ts')]);
     expect(tree.directories.map((child) => child.name)).toEqual(['V1', 'v2', 'v10']);

@@ -1766,20 +1766,24 @@ function App(): React.JSX.Element {
             </div>
           </div>
 
+          {/* Outside <main>: its overflow-hidden clipped the half over the
+              sidebar, and the diff viewer's sticky gutters painted over the rest. */}
+          {sidebarExpanded && (
+            <div className="relative z-20 w-0 shrink-0">
+              <div
+                aria-label="Resize sidebar"
+                role="separator"
+                aria-orientation="vertical"
+                className="absolute inset-y-0 -left-1 w-2 cursor-col-resize"
+                onPointerDown={handleSidebarResizeStart}
+              />
+            </div>
+          )}
           <main
             ref={mainRef}
             className="group/terminal-layout relative flex min-w-0 flex-1 flex-col overflow-hidden border-l-[0.5px] border-foreground/27 bg-background"
             style={terminalLayoutStyle}
           >
-            {sidebarExpanded && (
-              <div
-                aria-label="Resize sidebar"
-                role="separator"
-                aria-orientation="vertical"
-                className="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize"
-                onPointerDown={handleSidebarResizeStart}
-              />
-            )}
             {settingsOpen ? (
               <SettingsPage section={settingsSection} cwd={activeCwd} models={catalogModels} />
             ) : (

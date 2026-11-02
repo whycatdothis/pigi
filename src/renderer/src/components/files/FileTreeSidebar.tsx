@@ -98,6 +98,17 @@ export default memo(function FileTreeSidebar({
             return next;
           });
 
+          // A directory that only holds one directory renders compacted with
+          // it (com/example/app), so the child has to be open and read too.
+          // Expanding it also puts it on the watch list.
+          const [onlyEntry] = result.entries;
+          if (!result.truncated && result.entries.length === 1 && onlyEntry.isDirectory) {
+            setExpandedDirectories((previous) =>
+              previous.has(onlyEntry.path) ? previous : new Set(previous).add(onlyEntry.path),
+            );
+            void loadDirectory(onlyEntry.path);
+          }
+
           // A directory can disappear while it is expanded or cached. Drop it
           // and its descendants so a recreated directory starts collapsed and
           // is read again instead of showing its previous contents.
@@ -261,6 +272,15 @@ export default memo(function FileTreeSidebar({
       const paddingLeft = `${depth * INDENT_STEP_PX + 6}px`;
       if (entry.isDirectory) {
         const isExpanded = expandedDirectories.has(entry.path);
+        let label = entry.name;
+        let leafPath = entry.path;
+        for (;;) {
+          const leaf = directories.get(leafPath);
+          const [onlyEntry] = leaf?.entries ?? [];
+          if (!leaf || leaf.truncated || leaf.entries.length !== 1 || !onlyEntry.isDirectory) break;
+          label = `${label}/${onlyEntry.name}`;
+          leafPath = onlyEntry.path;
+        }
         return (
           <li key={entry.path}>
             <button
@@ -282,8 +302,8 @@ export default memo(function FileTreeSidebar({
               ) : (
                 <FolderClosed className="size-4 shrink-0 text-muted-foreground" />
               )}
-              <span className="truncate">{entry.name}</span>
-              {loadingDirectories.has(entry.path) && (
+              <span className="truncate">{label}</span>
+              {loadingDirectories.has(leafPath) && (
                 <SpinningIcon className="ml-auto">
                   <IconLoader2 size={12} className="text-muted-foreground" />
                 </SpinningIcon>
@@ -291,8 +311,8 @@ export default memo(function FileTreeSidebar({
             </button>
             {isExpanded && (
               <>
-                <ul>{renderDirectory(entry.path, depth + 1)}</ul>
-                {directories.get(entry.path)?.truncated && (
+                <ul>{renderDirectory(leafPath, depth + 1)}</ul>
+                {directories.get(leafPath)?.truncated && (
                   <div
                     className="py-1 pr-2 text-caption text-muted-foreground"
                     style={{ paddingLeft: `${(depth + 1) * INDENT_STEP_PX + 6}px` }}

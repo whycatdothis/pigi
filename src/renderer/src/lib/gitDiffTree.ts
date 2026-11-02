@@ -19,8 +19,16 @@ function compareNames(left: string, right: string): number {
 }
 
 function toTree(directory: MutableDirectory): GitDiffTreeDirectory {
+  // A directory that only holds one directory (Java's com/example/app) is
+  // shown as one row, the way IDEs compact package paths.
+  let name = directory.name;
+  while (directory.path && directory.files.length === 0 && directory.directories.size === 1) {
+    const [child] = directory.directories.values();
+    name = `${name}/${child.name}`;
+    directory = child;
+  }
   return {
-    name: directory.name,
+    name,
     path: directory.path,
     directories: [...directory.directories.values()]
       .sort((left, right) => compareNames(left.name, right.name))

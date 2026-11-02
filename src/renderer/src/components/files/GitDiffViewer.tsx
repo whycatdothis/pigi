@@ -3,10 +3,12 @@ import { IconLoader2, IconRefresh } from '@tabler/icons-react';
 import type { GitDiffFile } from '../../../../shared/ipcContract';
 import { formatFileContentQuote, formatFileLineQuote } from '../../lib/fileQuotes';
 import { GIT_DIFF_STATUS_LABELS } from '../../lib/gitDiffLabels';
-import { parseGitPatch } from '../../lib/gitDiffPatch';
+import { languageForPath } from '../../lib/fileLanguage';
+import { parseGitPatch, type GitDiffPatchLine } from '../../lib/gitDiffPatch';
 import { cn } from '../../lib/utils';
 import { getGitDiffFile } from '../../services/piAgentClient';
 import { FileIcon } from '../fileIcon';
+import { tokenStyle, useHighlightedLines, type HighlightedLine } from '../message/codeHighlighting';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import { SpinningIcon } from '../ui/spinningIcon';
 
@@ -48,8 +50,63 @@ function newLineRange(container: HTMLElement, range: Range): { start: number; en
   return sawRow && start !== Infinity ? { start, end } : null;
 }
 
-function PatchLines({ patch }: { patch: string }): React.JSX.Element {
+type SourceLine = GitDiffPatchLine & { kind: 'add' | 'remove' | 'context' };
+
+function isSourceLine(line: GitDiffPatchLine): line is SourceLine {
+  return line.kind === 'add' || line.kind === 'remove' || line.kind === 'context';
+}
+
+/**
+ * Each side of the patch is highlighted as one text, so a token that spans
+ * lines (a block comment, a template string) keeps its colour. Context rows
+ * take the new side's tokens.
+ */
+function useSideTokens(
+  lines: readonly GitDiffPatchLine[],
+  language: string,
+): Map<GitDiffPatchLine, HighlightedLine> {
+  const sides = useMemo(() => {
+    const oldSide: SourceLine[] = [];
+    const newSide: SourceLine[] = [];
+    for (const line of lines) {
+      if (!isSourceLine(line)) continue;
+      if (line.kind === 'remove') oldSide.push(line);
+      else newSide.push(line);
+    }
+    return { oldSide, newSide };
+  }, [lines]);
+  const oldText = useMemo(() => sides.oldSide.map((line) => line.text).join('\n'), [sides]);
+  const newText = useMemo(() => sides.newSide.map((line) => line.text).join('\n'), [sides]);
+  const oldTokens = useHighlightedLines(oldText, sides.oldSide.length > 0 ? language : '');
+  const newTokens = useHighlightedLines(newText, sides.newSide.length > 0 ? language : '');
+
+  return useMemo(() => {
+    const tokens = new Map<GitDiffPatchLine, HighlightedLine>();
+    for (const [side, sideTokens] of [
+      [sides.oldSide, oldTokens],
+      [sides.newSide, newTokens],
+    ] as const) {
+      // A token count that disagrees with the rows means shiki split the text
+      // differently; plain rows are safer than shifted colours.
+      if (!sideTokens || sideTokens.length !== side.length) continue;
+      side.forEach((line, index) => tokens.set(line, sideTokens[index]));
+    }
+    return tokens;
+  }, [sides, oldTokens, newTokens]);
+}
+
+function PatchLines({ patch, path }: { patch: string; path: string }): React.JSX.Element {
   const lines = useMemo(() => parseGitPatch(patch), [patch]);
+  const tokens = useSideTokens(lines, languageForPath(path));
+  // A file that was only added (or only deleted) is one colour already; the
+  // +/- column, the empty number column and the hunk header add nothing.
+  const onlyKind = useMemo(() => {
+    const kinds = new Set(lines.filter(isSourceLine).map((line) => line.kind));
+    if (kinds.size !== 1) return null;
+    const [kind] = kinds;
+    return kind === 'context' ? null : kind;
+  }, [lines]);
+
   if (lines.length === 0) {
     return (
       <div className="flex h-full items-center justify-center px-6 text-caption text-muted-foreground">
@@ -62,6 +119,7 @@ function PatchLines({ patch }: { patch: string }): React.JSX.Element {
     <div className="w-max min-w-full py-1 font-mono text-code-compact leading-5">
       {lines.map((line, index) => {
         if (line.kind === 'hunk') {
+          if (onlyKind) return null;
           return (
             <div key={index} className="bg-muted/40 px-3 py-0.5 text-caption text-muted-foreground">
               {line.text}
@@ -76,6 +134,7 @@ function PatchLines({ patch }: { patch: string }): React.JSX.Element {
           );
         }
 
+        const lineTokens = tokens.get(line);
         return (
           <div
             key={index}
@@ -83,16 +142,42 @@ function PatchLines({ patch }: { patch: string }): React.JSX.Element {
             data-new-line={line.newLineNumber ?? undefined}
             className={cn('flex min-h-5 w-max min-w-full', LINE_STYLES[line.kind])}
           >
-            <span className="sticky left-0 z-10 w-10 shrink-0 select-none bg-inherit pr-2 text-right text-muted-foreground tabular-nums">
-              {line.oldLineNumber ?? ''}
+            {onlyKind !== 'add' && (
+              <span
+                className={cn(
+                  'sticky left-0 z-10 w-10 shrink-0 select-none bg-inherit pr-2 text-right text-muted-foreground tabular-nums',
+                  onlyKind === 'remove' && 'border-r-[0.5px] border-foreground/15',
+                )}
+              >
+                {line.oldLineNumber ?? ''}
+              </span>
+            )}
+            {onlyKind !== 'remove' && (
+              <span
+                className={cn(
+                  'sticky z-10 w-10 shrink-0 select-none border-r-[0.5px] border-foreground/15 bg-inherit pr-2 text-right text-muted-foreground tabular-nums',
+                  onlyKind === 'add' ? 'left-0' : 'left-10',
+                )}
+              >
+                {line.newLineNumber ?? ''}
+              </span>
+            )}
+            {onlyKind ? (
+              <span className="w-2 shrink-0" />
+            ) : (
+              <span className="w-4 shrink-0 select-none text-center opacity-50">
+                {PREFIX[line.kind]}
+              </span>
+            )}
+            <span className="whitespace-pre pr-8">
+              {lineTokens
+                ? lineTokens.map((token, tokenIndex) => (
+                    <span key={tokenIndex} style={tokenStyle(token)}>
+                      {token.content}
+                    </span>
+                  ))
+                : line.text}
             </span>
-            <span className="sticky left-10 z-10 w-10 shrink-0 select-none border-r-[0.5px] border-foreground/15 bg-inherit pr-2 text-right text-muted-foreground tabular-nums">
-              {line.newLineNumber ?? ''}
-            </span>
-            <span className="w-4 shrink-0 select-none text-center opacity-50">
-              {PREFIX[line.kind]}
-            </span>
-            <span className="whitespace-pre pr-8">{line.text}</span>
           </div>
         );
       })}
@@ -224,7 +309,7 @@ export default function GitDiffViewer({
                   This diff is too large to show in full.
                 </div>
               )}
-              <PatchLines patch={patchState.patch} />
+              <PatchLines patch={patchState.patch} path={file.path} />
             </>
           )}
         </div>

@@ -162,6 +162,13 @@ request-generation guard, so a slow earlier `readdir` cannot overwrite a newer
 one. Directories that disappear are dropped with their descendants, and
 reopening one always rereads it.
 
+A listing that holds exactly one directory (and is not truncated) expands and
+reads that child too, and the row renders the chain compacted
+(`main/java/com/example`). Expanding the children rather than only reading
+them keeps them on the watch set, so a sibling created inside the chain splits
+the row back apart. A collapsed directory that was never read cannot be
+compacted yet; its label grows when it is first opened.
+
 When the active file event arrives, `fileRevision` bumps and the existing
 viewer effect rereads the file through the same 2MB/text/binary path. This is
 why edits appear without reopening; a deleted file reports `This file no
@@ -188,9 +195,14 @@ capped at 1.5M characters or 5,000 lines with a `truncated` notice, so a
 minified bundle cannot freeze the renderer.
 
 The sidebar offers the same file list three ways — tree (folders, collapsed
-per directory), Git status (Changes / Untracked / Committed) and commits
-(clicking a commit re-bases the comparison onto it). The viewer is one unified
-patch with sticky old/new line gutters. Quoting reuses the Files popover, gated
+per directory, a directory holding only one directory compacted into one row
+like `main/java/com/example`), Git status (Changes / Untracked / Committed) and
+commits (clicking a commit re-bases the comparison onto it). The viewer is one
+unified patch with sticky old/new line gutters. Each side (old: removed +
+context, new: added + context) is highlighted as one text through the shared
+shiki budget, so multi-line tokens keep their colour across rows; a file that
+is only added or only deleted drops the +/- column, the empty gutter and the
+hunk header. Quoting reuses the Files popover, gated
 to line rows (`data-diff-line`): added and context rows carry new-file line
 numbers and quote as `@src/app.ts:L10-L20`, while a selection touching deleted
 rows has no post-change number to point at and falls back to carrying the
