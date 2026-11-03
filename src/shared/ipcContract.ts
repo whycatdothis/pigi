@@ -169,8 +169,10 @@ export interface GitDiffFile {
   /** The pre-rename path, when Git detected a rename or copy. */
   oldPath: string | null;
   status: GitDiffFileStatus;
-  /** The working tree or index still differs from HEAD for this file. */
-  uncommitted: boolean;
+  /** The index differs from HEAD for this file. */
+  staged: boolean;
+  /** The working tree differs from the index (untracked files included). */
+  unstaged: boolean;
   additions: number;
   deletions: number;
   binary: boolean;

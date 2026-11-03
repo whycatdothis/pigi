@@ -89,7 +89,7 @@ describe('getGitDiffSummary', () => {
     expect(result.summary.branch).toBe('main');
     expect(result.summary.base).toBe('main');
     expect(result.summary.defaultBase).toBe('main');
-    expect(result.summary.files.map((file) => [file.path, file.status, file.uncommitted])).toEqual([
+    expect(result.summary.files.map((file) => [file.path, file.status, file.unstaged])).toEqual([
       ['a.txt', 'modified', true],
       ['moved-to.txt', 'renamed', true],
       ['new.txt', 'untracked', true],
@@ -206,7 +206,7 @@ describe('a project in a subdirectory of its repository', () => {
     const result = await getGitDiffSummary(project, { kind: 'branch', base: 'HEAD~1' });
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(result.summary.files.map((file) => [file.path, file.status, file.uncommitted])).toEqual([
+    expect(result.summary.files.map((file) => [file.path, file.status, file.unstaged])).toEqual([
       ['new.txt', 'untracked', true],
       ['src/x.txt', 'modified', true],
     ]);
@@ -245,5 +245,41 @@ describe('a project in a subdirectory of its repository', () => {
 
     const files = await getGitCommitFiles(project, 'HEAD~1');
     expect(files).toMatchObject({ success: true, files: [{ path: 'src/x.txt' }] });
+  });
+});
+
+describe('staged and unstaged changes', () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(join(tmpdir(), 'pigi-git-diff-staged-'));
+    await git(root, 'init', '-q', '-b', 'main');
+    await writeFile(join(root, 'both.txt'), 'one\n');
+    await writeFile(join(root, 'staged.txt'), 'one\n');
+    await writeFile(join(root, 'unstaged.txt'), 'one\n');
+    await git(root, 'add', '.');
+    await git(root, 'commit', '-qm', 'one');
+    await writeFile(join(root, 'both.txt'), 'one\ntwo\n');
+    await writeFile(join(root, 'staged.txt'), 'one\ntwo\n');
+    await git(root, 'add', 'both.txt', 'staged.txt');
+    await writeFile(join(root, 'both.txt'), 'one\ntwo\nthree\n');
+    await writeFile(join(root, 'unstaged.txt'), 'one\ntwo\n');
+    await writeFile(join(root, 'new.txt'), 'new\n');
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('marks each file by where its changes sit, a partly staged file as both', async () => {
+    const result = await getGitDiffSummary(root, { kind: 'uncommitted' });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.summary.files.map((file) => [file.path, file.staged, file.unstaged])).toEqual([
+      ['both.txt', true, true],
+      ['new.txt', false, true],
+      ['staged.txt', true, false],
+      ['unstaged.txt', false, true],
+    ]);
   });
 });

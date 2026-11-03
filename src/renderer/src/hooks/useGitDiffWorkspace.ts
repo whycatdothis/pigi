@@ -10,15 +10,7 @@ export type GitDiffMode = GitDiffScope['kind'];
 export type GitDiffView = 'tree' | 'status' | 'commits';
 export type GitDiffLayout = 'unified' | 'split';
 /** The collapsible groups of the Git status and Commits views. */
-export type GitDiffSection =
-  | 'changes'
-  | 'untracked'
-  | 'committed'
-  | 'branchCommits'
-  | 'baseCommits';
-
-/** Committed work is already reviewed more often than not; what is in flight leads. */
-const INITIALLY_COLLAPSED: ReadonlySet<GitDiffSection> = new Set(['committed']);
+export type GitDiffSection = 'staged' | 'unstaged' | 'branchCommits' | 'baseCommits';
 
 /** A file in the base comparison (`commit: null`) or in one commit. */
 export interface GitDiffSelection {
@@ -74,7 +66,9 @@ export function useGitDiffWorkspace({
   const [requestedBase, setRequestedBase] = useState<string | null>(null);
   const [selection, setSelection] = useState<GitDiffSelection | null>(null);
   const [view, setView] = useState<GitDiffView>('tree');
-  const scopeMode: GitDiffMode = view === 'tree' ? mode : 'branch';
+  // Git status is the working tree against HEAD; Commits lists the branch.
+  const scopeMode: GitDiffMode =
+    view === 'tree' ? mode : view === 'status' ? 'uncommitted' : 'branch';
   // The Commits view lists the branch's own commits, so it ignores a picked base.
   const scopeBase = view === 'commits' ? null : requestedBase;
   const [layout, setLayout] = useState<GitDiffLayout>('unified');
@@ -82,8 +76,9 @@ export function useGitDiffWorkspace({
   const [commitFiles, setCommitFiles] = useState<ReadonlyMap<string, GitCommitFiles>>(
     () => new Map(),
   );
-  const [collapsedSections, setCollapsedSections] =
-    useState<ReadonlySet<GitDiffSection>>(INITIALLY_COLLAPSED);
+  const [collapsedSections, setCollapsedSections] = useState<ReadonlySet<GitDiffSection>>(
+    () => new Set(),
+  );
   const [revision, setRevision] = useState(0);
   const requestId = useRef(0);
   const openCommitRef = useRef<string | null>(null);

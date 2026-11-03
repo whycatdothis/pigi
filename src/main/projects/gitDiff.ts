@@ -301,7 +301,8 @@ async function changedFiles(
         path: entry.path,
         oldPath: entry.oldPath,
         status: normalizeStatus(entry.code),
-        uncommitted: false,
+        staged: false,
+        unstaged: false,
         additions: fileStats?.additions ?? 0,
         deletions: fileStats?.deletions ?? 0,
         binary: fileStats?.binary ?? false,
@@ -499,11 +500,16 @@ export async function getGitDiffSummary(
     return { success: false, error: gitError(changes.error, 'Unable to read the diff.') };
   }
 
-  const files = changes.files.map((file) => ({
-    ...file,
-    status: file.status === 'added' && untracked.has(file.path) ? 'untracked' : file.status,
-    uncommitted: statuses.has(file.path) || (file.oldPath !== null && statuses.has(file.oldPath)),
-  }));
+  const files = changes.files.map((file) => {
+    // Porcelain `XY`: X is the index against HEAD, Y the working tree against the index.
+    const codes = [statuses.get(file.path), file.oldPath ? statuses.get(file.oldPath) : undefined];
+    return {
+      ...file,
+      status: file.status === 'added' && untracked.has(file.path) ? 'untracked' : file.status,
+      staged: codes.some((code) => code !== undefined && code[0] !== ' ' && code[0] !== '?'),
+      unstaged: codes.some((code) => code !== undefined && code[1] !== ' '),
+    };
+  });
 
   const [branches, baseLabel, defaultBaseName] = await Promise.all([
     branchesPending,

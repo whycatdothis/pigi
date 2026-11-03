@@ -284,20 +284,11 @@ function StatusView({
   workspace: GitDiffWorkspace;
 }): React.JSX.Element {
   const groups: { section: GitDiffSection; label: string; files: GitDiffFile[] }[] = [
+    { section: 'staged', label: 'Staged', files: summary.files.filter((file) => file.staged) },
     {
-      section: 'changes',
-      label: 'Changes',
-      files: summary.files.filter((file) => file.uncommitted && file.status !== 'untracked'),
-    },
-    {
-      section: 'untracked',
-      label: 'Untracked',
-      files: summary.files.filter((file) => file.status === 'untracked'),
-    },
-    {
-      section: 'committed',
-      label: 'Committed',
-      files: summary.files.filter((file) => !file.uncommitted),
+      section: 'unstaged',
+      label: 'Unstaged',
+      files: summary.files.filter((file) => file.unstaged),
     },
   ];
 
@@ -472,7 +463,11 @@ const GitDiffSidebar = memo(function GitDiffSidebar({
           </span>
         </div>
         <span className="truncate px-2 pb-2 text-ui text-muted-foreground">
-          {summary?.branch ?? (summary?.detached ? 'Detached HEAD' : 'No branch')}
+          {summary
+            ? (summary.branch ?? (summary.detached ? 'Detached HEAD' : 'No branch'))
+            : status === 'error'
+              ? null
+              : 'Loading…'}
         </span>
 
         <div className="-mx-2 flex flex-col gap-2 border-t-[0.5px] border-foreground/15 p-2 [-webkit-app-region:no-drag]">
@@ -494,7 +489,7 @@ const GitDiffSidebar = memo(function GitDiffSidebar({
               </button>
             ))}
           </div>
-          {/* Git status needs a base and Commits lists the branch, so only the tree offers the other modes. */}
+          {/* Git status and Commits each have a fixed comparison; only the tree offers modes. */}
           {view === 'tree' && (
             <GitDiffModeMenu
               mode={mode}

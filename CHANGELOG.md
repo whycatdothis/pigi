@@ -5,8 +5,8 @@
 ### Added
 
 - The Diff tab compares the project against a branch, a commit or any ref
-  (`HEAD~3`), lists changed files as a tree, a Git status view or the commit
-  history, where opening a commit shows that commit's own changes. Diffs are
+  (`HEAD~3`), lists changed files as a tree, as staged and unstaged
+  (Git status) or by commit, where opening a commit shows that commit's own changes. Diffs are
   syntax highlighted, unified or side by side, expand the unchanged lines
   between changes or show the whole file, and quote lines into the chat
   (`@src/app.ts:L10-L20`) like the Files tab does. A file moved without
@@ -14,8 +14,8 @@
   without a `+` on every line
 - The Diff tab refreshes on its own once the agent changes files, however it
   changes them, and when you come back to the window
-- The Diff tab's Git status and Commits groups fold open and closed; Committed
-  starts folded, and empty groups still show
+- The Diff tab's Git status and Commits groups fold open and closed, and empty
+  groups still show
 - The Diff tab shows all changes since the repository's main branch (whatever
   it is called), only the uncommitted changes, or only the last commit
 - Commits in the Diff tab show how long ago they were made (`2h ago`)

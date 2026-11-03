@@ -236,7 +236,9 @@ real patch. Patches are capped at 1.5M characters or 5,000 lines with a
 
 The sidebar offers three views: tree (folders, a directory holding only one
 directory compacted into one row like `main/java/com/example`), Git status
-(Changes / Untracked / Committed, against the same base) and commits. Opening
+(the working tree against HEAD as Staged / Unstaged, untracked files counted as
+unstaged and a partly staged file in both, each showing its whole diff
+against HEAD) and commits. Only the tree takes a mode and a base. Opening
 a commit lists its files and shows one commit against its first parent; a root
 commit diffs against the empty tree. The selection is `{ commit, path }`, with
 `commit: null` for the base comparison, because the same path can be picked
