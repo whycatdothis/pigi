@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useSyncExternalStore, type RefObject }
 import { toast } from 'sonner';
 import { TranscriptController, type TranscriptState } from '../state/transcriptController';
 import { useAppStore } from '../state/appStore';
+import { notifyProjectActivity } from '../lib/projectActivity';
 import {
   onPush,
   onStreamBatch,
@@ -107,6 +108,12 @@ function syncSessionState(sessionPath: string, controller: TranscriptController)
     });
 }
 
+function notifyIfFilesMayHaveChanged(sessionPath: string, event: AgentSessionEvent): void {
+  if (event.type !== 'tool_execution_end' && event.type !== 'agent_end') return;
+  const cwd = useAppStore.getState().sessions.get(sessionPath)?.cwd;
+  if (cwd) notifyProjectActivity(cwd);
+}
+
 function refreshProjectSessionsIfFirstAssistantMessage(
   sessionPath: string,
   event: AgentSessionEvent,
@@ -162,6 +169,7 @@ function ensureSessionSubscription(sessionPath: string, controller: TranscriptCo
         controller.processEvent(pushMessage.event);
         useAppStore.getState().updateSession(sessionPath, { status: controller.state.status });
         refreshProjectSessionsIfFirstAssistantMessage(sessionPath, pushMessage.event);
+        notifyIfFilesMayHaveChanged(sessionPath, pushMessage.event);
         break;
 
       case 'error':

@@ -191,7 +191,16 @@ export default function GitDiffBody({
     () => (newContent === null ? null : splitFileLines(newContent)),
     [newContent],
   );
-  const [expanded, setExpanded] = useState<ReadonlySet<number>>(() => new Set());
+  // Gaps are numbered by hunk, so a refreshed patch starts collapsed rather
+  // than opening whichever gap now carries an old number.
+  const [expansion, setExpansion] = useState<{ patch: string; hunks: ReadonlySet<number> }>(() => ({
+    patch,
+    hunks: new Set(),
+  }));
+  const expanded = useMemo(
+    () => (expansion.patch === patch ? expansion.hunks : new Set<number>()),
+    [expansion, patch],
+  );
   const tokens = useDiffTokens(lines, newContent, languageForPath(file.path));
   const rows = useMemo(
     () => buildDiffRows(lines, newFileLines, wholeFile ? 'all' : expanded),
@@ -217,7 +226,7 @@ export default function GitDiffBody({
   }
 
   const expand = (hunkIndex: number): void =>
-    setExpanded((previous) => new Set(previous).add(hunkIndex));
+    setExpansion({ patch, hunks: new Set(expanded).add(hunkIndex) });
 
   if (layout === 'split' && !onlyKind) {
     return (

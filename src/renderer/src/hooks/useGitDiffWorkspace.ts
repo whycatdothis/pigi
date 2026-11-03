@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GitDiffFile, GitDiffSummary } from '../../../shared/ipcContract';
+import { onProjectActivity } from '../lib/projectActivity';
 import { getGitCommitFiles, getGitDiffSummary } from '../services/piAgentClient';
+
+/** An agent run fires many tool ends; one summary after they settle is enough. */
+const AUTO_REFRESH_DELAY_MS = 500;
 
 export type GitDiffView = 'tree' | 'status' | 'commits';
 export type GitDiffLayout = 'unified' | 'split';
@@ -62,6 +66,21 @@ export function useGitDiffWorkspace({
   const [revision, setRevision] = useState(0);
   const requestId = useRef(0);
   const openCommitRef = useRef<string | null>(null);
+  // Automatic refreshes stay quiet (no spinner, a failure keeps the last
+  // summary) and never overlap: a trigger during a load reruns once after it,
+  // because on a large repository one summary takes seconds.
+  const quietRef = useRef(false);
+  const loadingRef = useRef(false);
+  const pendingRef = useRef(false);
+
+  const quietRefresh = useCallback(() => {
+    if (loadingRef.current) {
+      pendingRef.current = true;
+      return;
+    }
+    quietRef.current = true;
+    setRevision((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     // Deferred so the effect body does not set state synchronously, which the
@@ -92,13 +111,26 @@ export function useGitDiffWorkspace({
     // react-hooks/set-state-in-effect rule rejects.
     queueMicrotask(() => {
       if (cancelled) return;
-      setStatus('loading');
-      setError(null);
+      const quiet = quietRef.current;
+      quietRef.current = false;
+      pendingRef.current = false;
+      loadingRef.current = true;
+      if (!quiet) {
+        setStatus('loading');
+        setError(null);
+      }
+      const settle = (): boolean => {
+        if (cancelled || id !== requestId.current) return false;
+        loadingRef.current = false;
+        if (pendingRef.current) queueMicrotask(quietRefresh);
+        return true;
+      };
 
       getGitDiffSummary(cwd, requestedBase)
         .then((result) => {
-          if (cancelled || id !== requestId.current) return;
+          if (!settle()) return;
           if (!result.success) {
+            if (quiet) return;
             setSummary(null);
             setStatus('error');
             setError(result.error);
@@ -114,7 +146,7 @@ export function useGitDiffWorkspace({
           setStatus('ready');
         })
         .catch(() => {
-          if (cancelled || id !== requestId.current) return;
+          if (!settle() || quiet) return;
           setSummary(null);
           setStatus('error');
           setError('Unable to read this diff.');
@@ -123,9 +155,30 @@ export function useGitDiffWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [cwd, enabled, requestedBase, revision]);
+  }, [cwd, enabled, requestedBase, revision, quietRefresh]);
+
+  // Agent tool calls change files in any way (bash, scripts), and edits made
+  // elsewhere land while the window is in the background, so both refresh.
+  useEffect(() => {
+    if (!enabled || !cwd) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = (): void => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(quietRefresh, AUTO_REFRESH_DELAY_MS);
+    };
+    const unsubscribe = onProjectActivity((activityCwd) => {
+      if (activityCwd === cwd) schedule();
+    });
+    window.addEventListener('focus', schedule);
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+      window.removeEventListener('focus', schedule);
+    };
+  }, [cwd, enabled, quietRefresh]);
 
   const beginSelection = useCallback(() => {
+    quietRef.current = false;
     setSelection(null);
     setStatus('loading');
     setError(null);
@@ -146,7 +199,10 @@ export function useGitDiffWorkspace({
     beginSelection();
   }, [beginSelection]);
 
-  const refresh = useCallback(() => setRevision((value) => value + 1), []);
+  const refresh = useCallback(() => {
+    quietRef.current = false;
+    setRevision((value) => value + 1);
+  }, []);
 
   const showCommit = useCallback((commit: string, files: GitDiffFile[]) => {
     if (openCommitRef.current !== commit || !files[0]) return;

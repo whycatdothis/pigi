@@ -72,7 +72,9 @@ async function runGit(
   env?: NodeJS.ProcessEnv,
 ): Promise<GitCommandResult> {
   try {
-    const { stdout } = await execFileAsync(GIT_EXECUTABLE, [...args], {
+    // These reads run while an agent may be committing; without this flag
+    // `status`/`diff` refresh the index and can take `index.lock` from it.
+    const { stdout } = await execFileAsync(GIT_EXECUTABLE, ['--no-optional-locks', ...args], {
       cwd,
       env,
       timeout: GIT_TIMEOUT_MS,
@@ -214,29 +216,21 @@ function parseCommitLog(output: string): GitDiffCommit[] {
 }
 
 /**
- * Runs `task` against a throwaway copy of the index in which the untracked
- * files under `paths` are marked intent-to-add. `git diff <commit>` then sees
+ * Runs `task` against a throwaway copy of the index in which `untracked` are
+ * marked intent-to-add. `git diff <commit>` then sees
  * them as new files: a moved file pairs with its deleted original as a rename,
  * and a new file gets real line counts and a real patch. The real index is
  * never written.
  */
 async function withIntentToAdd<T>(
   cwd: string,
-  paths: readonly string[],
-  task: (env: NodeJS.ProcessEnv | undefined, untracked: Set<string>) => Promise<T>,
+  untracked: ReadonlySet<string>,
+  task: (env: NodeJS.ProcessEnv | undefined) => Promise<T>,
 ): Promise<T> {
-  const untrackedResult = await runGit(cwd, [
-    'ls-files',
-    '--others',
-    '--exclude-standard',
-    '-z',
-    '--',
-    ...paths,
-  ]);
-  const untracked = new Set(untrackedResult.stdout.split('\0').filter(Boolean));
+  if (untracked.size === 0) return task(undefined);
   const indexResult = await runGit(cwd, ['rev-parse', '--git-path', 'index']);
   const indexPath = indexResult.stdout.trim();
-  if (untracked.size === 0 || !indexResult.ok || !indexPath) return task(undefined, untracked);
+  if (!indexResult.ok || !indexPath) return task(undefined);
 
   const directory = await mkdtemp(join(tmpdir(), 'pigi-git-index-'));
   try {
@@ -247,7 +241,7 @@ async function withIntentToAdd<T>(
     } catch {
       // No index to copy (a fresh clone mid-checkout): an empty one would make
       // every tracked file look deleted, so diff without the untracked files.
-      return await task(undefined, untracked);
+      return await task(undefined);
     }
     await writeFile(pathspecFile, [...untracked].join('\0'));
     const env = { ...process.env, GIT_INDEX_FILE: temporaryIndex };
@@ -256,10 +250,22 @@ async function withIntentToAdd<T>(
       ['add', '--intent-to-add', `--pathspec-from-file=${pathspecFile}`, '--pathspec-file-nul'],
       env,
     );
-    return await task(added.ok ? env : undefined, untracked);
+    return await task(added.ok ? env : undefined);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+}
+
+async function untrackedAmong(cwd: string, paths: readonly string[]): Promise<Set<string>> {
+  const result = await runGit(cwd, [
+    'ls-files',
+    '--others',
+    '--exclude-standard',
+    '-z',
+    '--',
+    ...paths,
+  ]);
+  return new Set(result.stdout.split('\0').filter(Boolean));
 }
 
 async function changedFiles(
@@ -293,32 +299,44 @@ async function changedFiles(
   };
 }
 
+/**
+ * A monorepo can carry ~90k remote branches; the picker lists the most
+ * recently committed ones, and any other can still be typed in.
+ */
+const MAX_REMOTE_BRANCHES = 200;
+
+function parseBranchRefs(output: string, prefix: string): string[] {
+  return output
+    .split('\n')
+    .filter((ref) => ref.startsWith(prefix))
+    .map((ref) => ref.slice(prefix.length))
+    .filter((name) => name && name !== 'HEAD' && !name.endsWith('/HEAD'));
+}
+
 async function listBranches(cwd: string, currentBranch: string | null): Promise<GitDiffBranch[]> {
-  const result = await runGit(cwd, [
-    'for-each-ref',
-    '--format=%(refname)',
-    'refs/heads',
-    'refs/remotes',
+  const [localResult, remoteResult] = await Promise.all([
+    runGit(cwd, ['for-each-ref', '--format=%(refname)', 'refs/heads']),
+    runGit(cwd, [
+      'for-each-ref',
+      '--sort=-committerdate',
+      `--count=${MAX_REMOTE_BRANCHES}`,
+      '--format=%(refname)',
+      'refs/remotes',
+    ]),
   ]);
-  if (!result.ok) return [];
-
-  const branches: GitDiffBranch[] = [];
-  for (const ref of result.stdout.split('\n')) {
-    if (!ref) continue;
-    const local = ref.startsWith('refs/heads/');
-    const remote = ref.startsWith('refs/remotes/');
-    if (!local && !remote) continue;
-    const name = ref.slice(local ? 'refs/heads/'.length : 'refs/remotes/'.length);
-    if (!name || name === 'HEAD' || name.endsWith('/HEAD')) continue;
-    branches.push({ name, current: name === currentBranch, local });
-  }
-
-  branches.sort((left, right) => {
-    if (left.current !== right.current) return left.current ? -1 : 1;
-    if (left.local !== right.local) return left.local ? -1 : 1;
-    return left.name.localeCompare(right.name);
-  });
-  return branches;
+  const local = parseBranchRefs(localResult.stdout, 'refs/heads/')
+    .map((name) => ({ name, current: name === currentBranch, local: true }))
+    .sort((left, right) =>
+      left.current !== right.current
+        ? left.current
+          ? -1
+          : 1
+        : left.name.localeCompare(right.name),
+    );
+  const remote = parseBranchRefs(remoteResult.stdout, 'refs/remotes/')
+    .sort((left, right) => left.localeCompare(right))
+    .map((name) => ({ name, current: false, local: false }));
+  return [...local, ...remote];
 }
 
 async function defaultBase(
@@ -355,6 +373,16 @@ export async function getGitDiffSummary(
     return { success: false, error: 'This project has no commits yet.' };
   }
   const head = headResult.stdout.trim();
+  // Listing untracked files is the slow part on a big repository (2s on a
+  // 170k-file tree), so `status` is the only command that does it, and it
+  // starts first so the rest of the summary runs beside it.
+  const statusPending = runGit(cwd, [
+    'status',
+    '--porcelain=v1',
+    '-z',
+    '--untracked-files=all',
+    '--',
+  ]);
 
   const branchResult = await runGit(cwd, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
   const branch = branchResult.ok && branchResult.stdout.trim() ? branchResult.stdout.trim() : null;
@@ -367,25 +395,27 @@ export async function getGitDiffSummary(
   const upstream =
     upstreamResult.ok && upstreamResult.stdout.trim() ? upstreamResult.stdout.trim() : null;
 
-  const branches = await listBranches(cwd, branch);
+  const branchesPending = listBranches(cwd, branch);
   const base = requestedBase?.trim() || (await defaultBase(cwd, branch, upstream));
   const baseCommit = await commitFor(cwd, base);
   if (!baseCommit) {
     return { success: false, error: 'That branch or commit no longer exists.' };
   }
 
+  // A branch or tag keeps its name; `HEAD~3` or a SHA shows as the commit it names.
+  const labelPending =
+    base === 'HEAD'
+      ? Promise.resolve(base)
+      : runGit(cwd, ['rev-parse', '--symbolic-full-name', base]).then((result) =>
+          result.ok && result.stdout.trim() ? base : shortHash(cwd, baseCommit),
+        );
   const mergeBaseResult = await runGit(cwd, ['merge-base', baseCommit, head]);
   const mergeBase =
     mergeBaseResult.ok && mergeBaseResult.stdout.trim()
       ? mergeBaseResult.stdout.trim()
       : baseCommit;
 
-  const [changes, statusResult, branchLog, baseLog] = await Promise.all([
-    withIntentToAdd(cwd, [], async (env, untracked) => {
-      const result = await changedFiles(cwd, ['diff', mergeBase, '--'], env);
-      return { result, untracked };
-    }),
-    runGit(cwd, ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--']),
+  const logs = Promise.all([
     runGit(cwd, [
       'log',
       `--max-count=${MAX_BRANCH_COMMITS}`,
@@ -395,23 +425,29 @@ export async function getGitDiffSummary(
     ]),
     runGit(cwd, ['log', `--max-count=${MAX_BASE_COMMITS}`, COMMIT_LOG_FORMAT, mergeBase, '--']),
   ]);
-
-  if (!changes.result.ok || !statusResult.ok) {
-    const error = changes.result.ok ? statusResult.error : changes.result.error;
-    return { success: false, error: gitError(error, 'Unable to read the diff.') };
+  const statusResult = await statusPending;
+  if (!statusResult.ok) {
+    return { success: false, error: gitError(statusResult.error, 'Unable to read the diff.') };
+  }
+  const statuses = parsePorcelainStatus(statusResult.stdout);
+  const untracked = new Set(
+    [...statuses].filter(([, status]) => status === '??').map(([path]) => path),
+  );
+  const changes = await withIntentToAdd(cwd, untracked, (env) =>
+    changedFiles(cwd, ['diff', mergeBase, '--'], env),
+  );
+  const [branchLog, baseLog] = await logs;
+  if (!changes.ok) {
+    return { success: false, error: gitError(changes.error, 'Unable to read the diff.') };
   }
 
-  const statuses = parsePorcelainStatus(statusResult.stdout);
-  const files = changes.result.files.map((file) => ({
+  const files = changes.files.map((file) => ({
     ...file,
-    status: file.status === 'added' && changes.untracked.has(file.path) ? 'untracked' : file.status,
+    status: file.status === 'added' && untracked.has(file.path) ? 'untracked' : file.status,
     uncommitted: statuses.has(file.path) || (file.oldPath !== null && statuses.has(file.oldPath)),
   }));
 
-  const baseLabel =
-    base === 'HEAD' || branches.some((candidate) => candidate.name === base)
-      ? base
-      : await shortHash(cwd, baseCommit);
+  const [branches, baseLabel] = await Promise.all([branchesPending, labelPending]);
 
   return {
     success: true,
@@ -514,7 +550,7 @@ export async function getGitDiffFile(
   const flags = ['--no-color', '--no-ext-diff', '--find-renames', '--unified=3', '-p'];
   const result =
     source.kind === 'base'
-      ? await withIntentToAdd(cwd, paths, (env) =>
+      ? await withIntentToAdd(cwd, await untrackedAmong(cwd, paths), (env) =>
           runGit(cwd, ['diff', ...flags, commit, '--', ...paths], env),
         )
       : await (async () => {

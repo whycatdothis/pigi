@@ -12,6 +12,8 @@
   (`@src/app.ts:L10-L20`) like the Files tab does. A file moved without
   `git add` shows as a rename, and a newly added file is shown in green
   without a `+` on every line
+- The Diff tab refreshes on its own once the agent changes files, however it
+  changes them, and when you come back to the window
 - The Files and Diff trees compact a directory that only holds one directory
   into one row (`main/java/com/example`)
 

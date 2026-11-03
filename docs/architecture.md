@@ -189,9 +189,28 @@ shows committed and uncommitted edits together, which is what a reviewer of
 The default base is the first of `origin/main`, `origin/master`, `main`,
 `master`, the current branch, the upstream, then `HEAD`, because the common
 case is "what did I do since main" and every fallback still produces a useful
-answer. The base picker also takes any commit or typed ref (`HEAD~3`, a SHA, a
-tag). The base is deliberately not persisted per project: a branch selected in
+answer. The base picker lists branches and commits on separate tabs and takes
+any typed ref (`HEAD~3`, a SHA, a tag); it lists every local branch but only
+the 200 most recently committed remote branches, because a monorepo can carry
+~90k. The base is deliberately not persisted per project: a branch selected in
 one repo rarely exists in another.
+
+Every git call passes `--no-optional-locks`, so a summary never takes
+`index.lock` from an agent that is committing. On a 170k-file repository the
+summary costs about 3s, two thirds of it listing untracked files, so `status`
+is the only command that lists them and it starts first, with the branch list,
+logs and merge-base running beside it.
+
+The tab refreshes itself, quietly (no spinner, a failed refresh keeps the last
+summary), 500ms after an agent in the project finishes any tool call or run,
+and when the window regains focus. Any tool counts, because agents change files
+through bash and scripts as often as through edit/write. A trigger that lands
+during a load runs one more load after it instead of a second one beside it.
+Polling a fingerprint, as Plannotator does, was rejected: its fingerprint is a
+`status -uall` plus a diff, 2.7s per probe on the same repository, so a
+5-second poll would keep git busy half the time. What the triggers miss
+(another process writing while the window has focus) is left to the refresh
+button.
 
 Untracked files are diffed through a throwaway copy of the index in which they
 are marked intent-to-add (`git add -N`); the real index is never written.
@@ -218,8 +237,9 @@ lines that replaced it, and wrap instead of scrolling so the two halves never
 need synchronized horizontal scroll. The new side is highlighted as the whole
 new file when it fits the shared shiki budget, so expanded lines are already
 coloured; the old side is the patch's removed and context lines as one text.
-Rows stay invisible until highlighting lands, a refresh keeps the patch on
-screen until the new one arrives, and the loading state fades in late, so a
+Rows stay invisible until highlighting lands, a refresh keeps the patch and
+scroll position on screen until the new one arrives (expanded gaps collapse
+when the patch changes, since they are numbered by hunk), and the loading state fades in late, so a
 tab switch goes from blank to the coloured diff in one step. A file that is
 only added or only deleted drops the +/- column, the empty gutter and the gap
 rows. Quoting reuses the Files popover, gated to line cells

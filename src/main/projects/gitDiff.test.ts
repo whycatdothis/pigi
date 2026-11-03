@@ -119,6 +119,11 @@ describe('getGitDiffSummary', () => {
 
     expect(result.summary.commits.map((commit) => commit.subject)).toEqual(['three', 'two']);
     expect(result.summary.baseCommits.map((commit) => commit.subject)).toEqual(['one']);
+    expect(result.summary.baseLabel).toMatch(/^[0-9a-f]{7,}$/);
+
+    await git(root, 'tag', 'v1', 'HEAD~2');
+    const tagged = await getGitDiffSummary(root, 'v1');
+    expect(tagged.success && tagged.summary.baseLabel).toBe('v1');
 
     const diff = await getGitDiffFile(
       root,

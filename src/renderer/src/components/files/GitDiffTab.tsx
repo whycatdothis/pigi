@@ -146,7 +146,6 @@ export default function GitDiffTab({
       layout={workspace.layout}
       onLayoutChange={workspace.setLayout}
       sessionPath={sessionPath}
-      onRefresh={workspace.refresh}
     />
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { IconArrowRight, IconFileText, IconLoader2, IconRefresh } from '@tabler/icons-react';
+import { IconArrowRight, IconFileText, IconLoader2 } from '@tabler/icons-react';
 import type { GitDiffFile, GitDiffSource } from '../../../../shared/ipcContract';
 import type { GitDiffLayout } from '../../hooks/useGitDiffWorkspace';
 import { formatFileContentQuote, formatFileLineQuote } from '../../lib/fileQuotes';
@@ -79,7 +79,6 @@ export default function GitDiffViewer({
   layout,
   onLayoutChange,
   sessionPath,
-  onRefresh,
 }: {
   projectPath: string;
   source: GitDiffSource;
@@ -88,7 +87,6 @@ export default function GitDiffViewer({
   layout: GitDiffLayout;
   onLayoutChange: (layout: GitDiffLayout) => void;
   sessionPath: string | null;
-  onRefresh: () => void;
 }): React.JSX.Element {
   const [patchState, setPatchState] = useState<PatchState>({ status: 'loading' });
   const [wholeFile, setWholeFile] = useState(false);
@@ -199,15 +197,6 @@ export default function GitDiffViewer({
           )}
         >
           <IconFileText size={14} />
-        </button>
-        <button
-          type="button"
-          aria-label="Refresh diff"
-          title="Refresh diff"
-          onClick={onRefresh}
-          className="flex size-6 shrink-0 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
-          <IconRefresh size={14} />
         </button>
       </div>
 
