@@ -19,7 +19,7 @@ export default function SegmentedToggle<T extends string>({
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
-            'h-5 rounded-control-sm px-2 text-caption leading-none transition-colors',
+            'h-5 rounded-control-sm px-2 text-ui leading-none transition-colors',
             value === option.value
               ? 'bg-background text-foreground shadow-xs'
               : 'text-muted-foreground hover:text-foreground',

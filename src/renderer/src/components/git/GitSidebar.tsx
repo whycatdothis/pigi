@@ -493,7 +493,7 @@ const GitSidebar = memo(function GitSidebar({
                 aria-pressed={view === item.value}
                 onClick={() => workspace.setView(item.value)}
                 className={cn(
-                  'h-6 flex-1 rounded-control-sm px-1 text-caption leading-none whitespace-nowrap transition-colors',
+                  'h-6 flex-1 rounded-control-sm px-1 text-ui leading-none whitespace-nowrap transition-colors',
                   view === item.value
                     ? 'bg-background text-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground',

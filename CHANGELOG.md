@@ -7,10 +7,11 @@
 - The Git tab (until now the Diff placeholder) compares the project against a
   branch, a commit or any ref (`HEAD~3`), lists changed files as staged and
   unstaged (Git status), against the chosen base (Diff), or by commit, as a
-  tree or a flat list, where opening a commit shows that commit's own changes. Diffs are syntax highlighted,
-  unified or side by side, expand the unchanged lines between changes or show
-  the whole file, and quote lines into the chat (`@src/app.ts:L10-L20`) like
-  the Files tab does. A file moved without `git add` shows as a rename, and a
+  tree or a flat list, where opening a commit shows that commit's own changes.
+  Diffs are syntax highlighted with the changed words marked, unified or side
+  by side, expand the unchanged lines between changes or show the whole file,
+  and quote lines into the chat (`@src/app.ts:L10-L20`) like the Files tab
+  does. A file moved without `git add` shows as a rename, and a
   newly added file is shown in green without a `+` on every line
 - The Git tab refreshes on its own once the agent changes files, however it
   changes them, and when you come back to the window

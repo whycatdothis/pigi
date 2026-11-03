@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { buildDiffRows, pairSplitRows, parseGitPatch, splitFileLines } from './gitDiffPatch';
+import {
+  buildDiffRows,
+  changedRanges,
+  pairSplitRows,
+  parseGitPatch,
+  splitFileLines,
+  type GitDiffSourceLine,
+} from './gitDiffPatch';
 
 const PATCH = [
   'diff --git a/src/a.ts b/src/a.ts',
@@ -92,5 +99,48 @@ describe('pairSplitRows', () => {
       [null, 'added'],
       ['three', 'three'],
     ]);
+  });
+});
+
+describe('changedRanges', () => {
+  const marked = (body: string[]): [string, string[]][] => {
+    const lines = parseGitPatch(['@@ -1,9 +1,9 @@', ...body].join('\n'));
+    const ranges = changedRanges(lines);
+    return lines
+      .filter((line): line is GitDiffSourceLine => ranges.has(line as GitDiffSourceLine))
+      .map((line) => [
+        line.text,
+        (ranges.get(line) ?? []).map(([start, end]) => line.text.slice(start, end)),
+      ]);
+  };
+
+  it('marks the words that changed in a replaced line', () => {
+    expect(marked(['-const total = price * 2;', '+const total = price * 3;'])).toEqual([
+      ['const total = price * 2;', ['2']],
+      ['const total = price * 3;', ['3']],
+    ]);
+  });
+
+  it('pairs a run of removed lines with the added lines in order', () => {
+    expect(
+      marked(['-let a = 1;', '-let b = 2;', '+let a = 10;', '+let b = 20;', '+extra']),
+    ).toEqual([
+      ['let a = 1;', ['1']],
+      ['let b = 2;', ['2']],
+      ['let a = 10;', ['10']],
+      ['let b = 20;', ['20']],
+    ]);
+  });
+
+  it('leaves leading whitespace unmarked when only the indent changed besides a word', () => {
+    expect(marked(['-  return value;', '+    return result;'])).toEqual([
+      ['  return value;', ['value']],
+      ['    return result;', ['result']],
+    ]);
+  });
+
+  it('marks nothing in a rewritten line or across context', () => {
+    expect(marked(['-alpha beta gamma', '+completely different words'])).toEqual([]);
+    expect(marked(['-one two', ' middle', '+one three'])).toEqual([]);
   });
 });

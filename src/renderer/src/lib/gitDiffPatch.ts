@@ -1,3 +1,5 @@
+import { diffWordsWithSpace } from 'diff';
+
 export interface GitDiffSourceLine {
   kind: 'context' | 'add' | 'remove';
   text: string;
@@ -193,4 +195,97 @@ export function pairSplitRows(rows: readonly GitDiffRow[]): GitDiffSplitRow[] {
   }
   flush();
   return paired;
+}
+
+/** A changed span of one line's text, `[start, end)`. */
+export type ChangedRange = readonly [number, number];
+
+// Past this a word diff of one line is slow (minified code) and unreadable anyway.
+const MAX_WORD_DIFF_LINE_LENGTH = 500;
+// Below this share of unchanged text the line was rewritten, and marking
+// nearly all of it says no more than the row colour already does.
+const MIN_UNCHANGED_SHARE = 0.4;
+
+/**
+ * The words that changed between each removed line and the added line facing
+ * it (the same pairing as side by side), keyed by line. Leading whitespace is
+ * never marked, so a re-indented line only marks what else changed.
+ */
+export function changedRanges(
+  lines: readonly GitDiffPatchLine[],
+): Map<GitDiffSourceLine, ChangedRange[]> {
+  const ranges = new Map<GitDiffSourceLine, ChangedRange[]>();
+  let removed: GitDiffSourceLine[] = [];
+  let added: GitDiffSourceLine[] = [];
+  const flush = (): void => {
+    for (let index = 0; index < Math.min(removed.length, added.length); index += 1) {
+      const pair = wordRanges(removed[index].text, added[index].text);
+      if (!pair) continue;
+      ranges.set(removed[index], pair.old);
+      ranges.set(added[index], pair.new);
+    }
+    removed = [];
+    added = [];
+  };
+  for (const line of lines) {
+    if (line.kind === 'remove') {
+      // A removed line after added ones starts a new run.
+      if (added.length > 0) flush();
+      removed.push(line);
+    } else if (line.kind === 'add') {
+      added.push(line);
+    } else {
+      flush();
+    }
+  }
+  flush();
+  return ranges;
+}
+
+function wordRanges(
+  oldText: string,
+  newText: string,
+): { old: ChangedRange[]; new: ChangedRange[] } | null {
+  if (
+    oldText === newText ||
+    oldText.length > MAX_WORD_DIFF_LINE_LENGTH ||
+    newText.length > MAX_WORD_DIFF_LINE_LENGTH
+  ) {
+    return null;
+  }
+  const oldRanges: ChangedRange[] = [];
+  const newRanges: ChangedRange[] = [];
+  let oldOffset = 0;
+  let newOffset = 0;
+  let unchanged = 0;
+  const oldIndent = leadingWhitespace(oldText);
+  const newIndent = leadingWhitespace(newText);
+  // `diffWords` reports an unchanged part with the new side's whitespace, which
+  // shifts every old offset after a re-indent; with whitespace as tokens both
+  // sides' parts are exact.
+  for (const part of diffWordsWithSpace(oldText, newText)) {
+    const length = part.value.length;
+    if (part.removed) {
+      pushRange(oldRanges, Math.max(oldOffset, oldIndent), oldOffset + length);
+      oldOffset += length;
+    } else if (part.added) {
+      pushRange(newRanges, Math.max(newOffset, newIndent), newOffset + length);
+      newOffset += length;
+    } else {
+      unchanged += part.value.trim().length;
+      oldOffset += length;
+      newOffset += length;
+    }
+  }
+  const longer = Math.max(oldText.trim().length, newText.trim().length);
+  if (longer === 0 || unchanged / longer < MIN_UNCHANGED_SHARE) return null;
+  return { old: oldRanges, new: newRanges };
+}
+
+function pushRange(ranges: ChangedRange[], start: number, end: number): void {
+  if (start < end) ranges.push([start, end]);
+}
+
+function leadingWhitespace(text: string): number {
+  return text.length - text.trimStart().length;
 }

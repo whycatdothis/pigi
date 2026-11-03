@@ -5,10 +5,12 @@ import type { GitDiffLayout } from '../../hooks/useGitWorkspace';
 import { languageForPath } from '../../lib/fileLanguage';
 import {
   buildDiffRows,
+  changedRanges,
   isSourceLine,
   pairSplitRows,
   parseGitPatch,
   splitFileLines,
+  type ChangedRange,
   type GitDiffGapRow,
   type GitDiffPatchLine,
   type GitDiffSourceLine,
@@ -105,19 +107,78 @@ function useDiffTokens(
   }, [sides, wholeNewFile, oldTokens, newTokens]);
 }
 
+const MARK_STYLES = {
+  add: 'bg-success-fg/20',
+  remove: 'bg-danger-fg/20',
+  context: '',
+} as const;
+
+/** The highlighted pieces of `start..end` of a line, cut out of its tokens. */
+function tokenPieces(
+  tokens: HighlightedLine,
+  start: number,
+  end: number,
+  keyPrefix: string,
+): React.JSX.Element[] {
+  const pieces: React.JSX.Element[] = [];
+  let offset = 0;
+  tokens.forEach((token, index) => {
+    const tokenEnd = offset + token.content.length;
+    const from = Math.max(start, offset);
+    const to = Math.min(end, tokenEnd);
+    if (from < to) {
+      pieces.push(
+        <span key={`${keyPrefix}-${index}`} style={tokenStyle(token)}>
+          {token.content.slice(from - offset, to - offset)}
+        </span>,
+      );
+    }
+    offset = tokenEnd;
+  });
+  return pieces;
+}
+
 function LineText({
   line,
   tokens,
+  changed,
   wrap,
 }: {
   line: GitDiffSourceLine;
   tokens: DiffTokens;
+  changed: readonly ChangedRange[] | undefined;
   wrap: boolean;
 }): React.JSX.Element {
   const lineTokens =
     line.kind === 'remove'
       ? tokens.old.get(line.oldLineNumber ?? 0)
       : tokens.new.get(line.newLineNumber ?? 0);
+  const text = line.text;
+  // Ranges index the patch text; tokens that do not spell it out cannot be cut by them.
+  const marks =
+    changed &&
+    (!lineTokens ||
+      lineTokens.reduce((length, token) => length + token.content.length, 0) === text.length)
+      ? changed
+      : [];
+  const piece = (start: number, end: number, key: string): React.ReactNode =>
+    lineTokens ? tokenPieces(lineTokens, start, end, key) : text.slice(start, end);
+
+  const content: React.ReactNode[] = [];
+  let offset = 0;
+  marks.forEach(([start, end], index) => {
+    if (offset < start) content.push(piece(offset, start, `plain-${index}`));
+    content.push(
+      <span key={`mark-${index}`} className={MARK_STYLES[line.kind]}>
+        {piece(start, end, `mark-${index}`)}
+      </span>,
+    );
+    offset = end;
+  });
+  if (offset < text.length || content.length === 0) {
+    content.push(piece(offset, text.length, 'tail'));
+  }
+
   return (
     <span
       className={cn(
@@ -125,13 +186,7 @@ function LineText({
         wrap ? 'flex-1 whitespace-pre-wrap wrap-break-word' : 'whitespace-pre',
       )}
     >
-      {lineTokens
-        ? lineTokens.map((token, index) => (
-            <span key={index} style={tokenStyle(token)}>
-              {token.content}
-            </span>
-          ))
-        : line.text}
+      {content}
     </span>
   );
 }
@@ -210,6 +265,7 @@ const GitDiffBody = memo(function GitDiffBody({
     [expansion, patch],
   );
   const tokens = useDiffTokens(lines, newContent, languageForPath(file.path));
+  const changed = useMemo(() => changedRanges(lines), [lines]);
   useEffect(() => {
     if (tokens.settled) onSettled?.(id);
   }, [tokens.settled, onSettled, id]);
@@ -272,7 +328,7 @@ const GitDiffBody = memo(function GitDiffBody({
                     <span className="w-4 shrink-0 select-none text-center opacity-50">
                       {PREFIX[line.kind]}
                     </span>
-                    <LineText line={line} tokens={tokens} wrap />
+                    <LineText line={line} tokens={tokens} changed={changed.get(line)} wrap />
                   </div>
                 ) : (
                   <div
@@ -340,7 +396,7 @@ const GitDiffBody = memo(function GitDiffBody({
                 {PREFIX[row.kind]}
               </span>
             )}
-            <LineText line={row} tokens={tokens} wrap={false} />
+            <LineText line={row} tokens={tokens} changed={changed.get(row)} wrap={false} />
           </div>
         );
       })}
