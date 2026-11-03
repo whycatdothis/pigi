@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { IconGitCommit, IconSelector } from '@tabler/icons-react';
+import { useEffect, useRef, useState } from 'react';
+import { IconSelector } from '@tabler/icons-react';
 import type { GitDiffCommit, GitDiffSummary } from '../../../../shared/ipcContract';
 import {
   Command,
@@ -11,6 +11,7 @@ import {
 } from '../ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { formatTimeAgo } from '../../lib/utils';
 
 type PickerTab = 'branches' | 'commits';
@@ -18,6 +19,9 @@ const PICKER_TABS: { value: PickerTab; label: string }[] = [
   { value: 'branches', label: 'Branches' },
   { value: 'commits', label: 'Commits' },
 ];
+
+/** Long enough that scanning the list does not pop a tooltip over every row. */
+const COMMIT_TOOLTIP_DELAY_MS = 1500;
 
 function CommitItem({
   commit,
@@ -36,11 +40,19 @@ function CommitItem({
       data-checked={checked ? true : undefined}
       onSelect={() => onSelect(commit.hash)}
     >
-      <IconGitCommit className="text-muted-foreground" />
-      <span className="min-w-0 flex-1 truncate">{commit.subject}</span>
-      <span className="shrink-0 text-2xs whitespace-nowrap text-muted-foreground">
-        <span className="font-mono">{commit.shortHash}</span> · {formatTimeAgo(commit.date, now)}
-      </span>
+      {/* On the content, not the item: cmdk's item overrides the trigger's pointer handlers. */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="truncate">{commit.subject}</span>
+            <span className="flex justify-between gap-2 text-2xs text-muted-foreground">
+              <span className="font-mono">{commit.shortHash}</span>
+              <span>{formatTimeAgo(commit.date, now)}</span>
+            </span>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="right">{commit.subject}</TooltipContent>
+      </Tooltip>
     </CommandItem>
   );
 }
@@ -64,6 +76,15 @@ export default function GitBasePicker({
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<PickerTab>('branches');
   const [openedAt, setOpenedAt] = useState(Date.now);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // cmdk scrolls its selection into view before the filtered rows settle,
+  // which leaves the best match above the fold; start each result at the top.
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => listRef.current?.scrollTo(0, 0));
+    return () => cancelAnimationFrame(frame);
+  }, [open, query, tab]);
   const branches = summary?.branches ?? [];
   const commits = [...(summary?.commits ?? []), ...(summary?.baseCommits ?? [])];
   const typed = query.trim();
@@ -125,7 +146,7 @@ export default function GitBasePicker({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-80 min-w-(--radix-popover-trigger-width) gap-0 p-0"
+        className="w-96 min-w-(--radix-popover-trigger-width) gap-0 p-0"
       >
         <Command>
           <CommandInput
@@ -150,21 +171,23 @@ export default function GitBasePicker({
               ))}
             </TabsList>
           </Tabs>
-          <CommandList className="max-h-64">
+          <CommandList ref={listRef} className="max-h-64">
             <CommandEmpty>{tab === 'commits' ? 'No commits.' : 'No branches.'}</CommandEmpty>
             {tab === 'branches' && branchGroup(true)}
             {tab === 'branches' && branchGroup(false)}
             {tab === 'commits' && (
               <CommandGroup>
-                {commits.map((commit) => (
-                  <CommitItem
-                    key={commit.hash}
-                    commit={commit}
-                    checked={commit.hash === base}
-                    now={openedAt}
-                    onSelect={pick}
-                  />
-                ))}
+                <TooltipProvider delayDuration={COMMIT_TOOLTIP_DELAY_MS}>
+                  {commits.map((commit) => (
+                    <CommitItem
+                      key={commit.hash}
+                      commit={commit}
+                      checked={commit.hash === base}
+                      now={openedAt}
+                      onSelect={pick}
+                    />
+                  ))}
+                </TooltipProvider>
               </CommandGroup>
             )}
             {typed && (
