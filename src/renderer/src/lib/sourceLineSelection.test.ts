@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { sourceLineRangeFromSelection } from './sourceLineSelection';
+import { diffLinesFromSelection, sourceLineRangeFromSelection } from './sourceLineSelection';
 
 function buildSource(): HTMLElement {
   const root = document.createElement('div');
@@ -49,5 +49,81 @@ describe('sourceLineRangeFromSelection', () => {
     range.setStart(root, 0);
     range.setEnd(root, 1);
     expect(sourceLineRangeFromSelection(range)).toBeNull();
+  });
+});
+
+describe('diffLinesFromSelection', () => {
+  type Cell = [kind: string, text: string, newLine?: number];
+  const cell = ([kind, text, newLine]: Cell, side?: string): string =>
+    `<div data-diff-line data-diff-kind="${kind}"${side ? ` data-diff-side="${side}"` : ''}${
+      newLine === undefined ? '' : ` data-new-line="${newLine}"`
+    }><span>${newLine ?? ''}</span><span data-diff-text>${text}</span></div>`;
+
+  function build(html: string): HTMLElement {
+    const root = document.createElement('div');
+    root.innerHTML = html;
+    document.body.append(root);
+    return root;
+  }
+
+  const textAt = (root: HTMLElement, index: number): Text => {
+    const text = root.querySelectorAll('[data-diff-text]')[index]?.firstChild;
+    if (!(text instanceof Text)) throw new Error(`no text at ${index}`);
+    return text;
+  };
+
+  const select = (root: HTMLElement, from: number, to: number): Range => {
+    const range = document.createRange();
+    range.setStart(textAt(root, from), 1);
+    range.setEnd(textAt(root, to), 1);
+    return range;
+  };
+
+  const brief = (root: HTMLElement, range: Range): string[] =>
+    diffLinesFromSelection(root, range).map(
+      (line) => `${line.kind}:${line.text}:${line.newLineNumber ?? '-'}`,
+    );
+
+  it('reads whole unified lines with their kind and new line number', () => {
+    const root = build(
+      [cell(['context', 'keep', 1]), cell(['remove', 'old']), cell(['add', 'new', 2])].join(''),
+    );
+    expect(brief(root, select(root, 0, 2))).toEqual([
+      'context:keep:1',
+      'remove:old:-',
+      'add:new:2',
+    ]);
+  });
+
+  it('keeps a side-by-side selection in the column it starts in', () => {
+    // Each row is old cell then new cell, so a drag down one column crosses the other in the DOM.
+    const rows: [Cell, Cell][] = [
+      [
+        ['remove', 'old one'],
+        ['add', 'new one', 1],
+      ],
+      [
+        ['remove', 'old two'],
+        ['add', 'new two', 2],
+      ],
+      [
+        ['context', 'same', 3],
+        ['context', 'same', 3],
+      ],
+    ];
+    const root = build(
+      rows.map(([left, right]) => `<div>${cell(left, 'old')}${cell(right, 'new')}</div>`).join(''),
+    );
+    // Text indexes: 0 old one, 1 new one, 2 old two, 3 new two, 4 same (old), 5 same (new).
+    expect(brief(root, select(root, 0, 4))).toEqual([
+      'remove:old one:-',
+      'remove:old two:-',
+      'context:same:3',
+    ]);
+    expect(brief(root, select(root, 1, 5))).toEqual([
+      'add:new one:1',
+      'add:new two:2',
+      'context:same:3',
+    ]);
   });
 });

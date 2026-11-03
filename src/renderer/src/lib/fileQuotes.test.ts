@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatFileContentQuote, formatFileLineQuote } from './fileQuotes';
+import { formatFileContentQuote, formatFileDiffQuote, formatFileLineQuote } from './fileQuotes';
 
 describe('formatFileLineQuote', () => {
   it('quotes a single source line', () => {
@@ -34,5 +34,24 @@ describe('formatFileContentQuote', () => {
 
   it('quotes markdown paths with spaces', () => {
     expect(formatFileContentQuote('docs/my notes.md', 'Hello')).toBe('@"docs/my notes.md" > Hello');
+  });
+});
+
+describe('formatFileDiffQuote', () => {
+  it('quotes lines as a unified diff under what they were compared with', () => {
+    expect(
+      formatFileDiffQuote('src/app.ts', 'diff against origin/main', [
+        { kind: 'remove', text: 'const timeout = 5000;' },
+        { kind: 'add', text: 'const timeout = 8000;' },
+        { kind: 'context', text: 'retry(fetchUser);' },
+      ]),
+    ).toBe(
+      [
+        '@src/app.ts, diff against origin/main:',
+        '-const timeout = 5000;',
+        '+const timeout = 8000;',
+        ' retry(fetchUser);',
+      ].join('\n'),
+    );
   });
 });

@@ -141,6 +141,7 @@ const GitTab = memo(function GitTab({
     <GitDiffViewer
       projectPath={projectPath}
       source={source}
+      baseLabel={summary.baseLabel}
       compareLabel={
         selection?.commit
           ? `${commit?.shortHash ?? selection.commit.slice(0, 7)} ${commit?.subject ?? ''}`.trim()

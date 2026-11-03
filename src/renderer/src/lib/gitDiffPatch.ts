@@ -34,6 +34,12 @@ export type GitDiffSplitRow =
   | GitDiffGapRow
   | { kind: 'meta'; text: string };
 
+export const DIFF_LINE_PREFIX = {
+  add: '+',
+  remove: '-',
+  context: ' ',
+} as const satisfies Record<GitDiffSourceLine['kind'], string>;
+
 const HUNK_PATTERN = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@ ?(.*)$/;
 
 export function isSourceLine(line: { kind: string }): line is GitDiffSourceLine {

@@ -4,7 +4,8 @@ import { ChevronsUpDown } from 'lucide-react';
 import type { GitDiffFile, GitDiffSource } from '../../../../shared/ipcContract';
 import type { GitDiffLayout } from '../../hooks/useGitWorkspace';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
-import { formatFileContentQuote, formatFileLineQuote } from '../../lib/fileQuotes';
+import { formatFileDiffQuote, formatFileLineQuote } from '../../lib/fileQuotes';
+import { diffLinesFromSelection } from '../../lib/sourceLineSelection';
 import { GIT_DIFF_STATUS_LABELS } from '../../lib/gitDiffLabels';
 import { cn } from '../../lib/utils';
 import { getGitDiffFile } from '../../services/piAgentClient';
@@ -56,22 +57,6 @@ function isInsideDiffLine(node: Node): boolean {
   return element?.closest('[data-diff-line]') !== null;
 }
 
-/** New-file line numbers of the rows a selection touches, or null if it hits a deleted row. */
-function newLineRange(container: HTMLElement, range: Range): { start: number; end: number } | null {
-  let start = Infinity;
-  let end = -Infinity;
-  let sawRow = false;
-  for (const row of container.querySelectorAll<HTMLDivElement>('[data-diff-line]')) {
-    if (!range.intersectsNode(row)) continue;
-    sawRow = true;
-    const value = row.dataset.newLine;
-    if (value === undefined) return null;
-    start = Math.min(start, Number(value));
-    end = Math.max(end, Number(value));
-  }
-  return sawRow && start !== Infinity ? { start, end } : null;
-}
-
 const LAYOUTS: readonly { value: GitDiffLayout; label: string }[] = [
   { value: 'unified', label: 'Unified' },
   { value: 'split', label: 'Split' },
@@ -81,6 +66,7 @@ export default function GitDiffViewer({
   projectPath,
   source,
   compareLabel,
+  baseLabel,
   file,
   layout,
   onLayoutChange,
@@ -89,6 +75,8 @@ export default function GitDiffViewer({
   projectPath: string;
   source: GitDiffSource;
   compareLabel: string;
+  /** What a base diff compares with (`origin/main`, `HEAD`), for quotes of deleted lines. */
+  baseLabel: string;
   file: GitDiffFile;
   layout: GitDiffLayout;
   onLayoutChange: (layout: GitDiffLayout) => void;
@@ -165,23 +153,27 @@ export default function GitDiffViewer({
   }, [shownPath]);
 
   const formatQuoteText = useCallback(
-    ({ text, range }: { text: string; range: Range }): string => {
+    ({ range }: { range: Range }): string => {
       if (!isInsideDiffLine(range.startContainer) || !isInsideDiffLine(range.endContainer)) {
         return '';
       }
-      // Added and context rows carry the file's post-change line numbers, so
-      // they quote like the Files viewer. A selection that touches deleted
-      // rows has no such number, and a commit's numbers point into a file the
-      // agent cannot open, so both carry the text instead.
-      if (!shownPath) return '';
-      const lines =
-        containerRef.current && sourceKind === 'base'
-          ? newLineRange(containerRef.current, range)
-          : null;
-      if (lines) return formatFileLineQuote(shownPath, lines.start, lines.end);
-      return formatFileContentQuote(shownPath, text);
+      if (!shownPath || !containerRef.current) return '';
+      const lines = diffLinesFromSelection(containerRef.current, range);
+      if (lines.length === 0) return '';
+      // Added and context rows carry the working tree's line numbers, so they
+      // quote like the Files viewer. Deleted rows have none, and a commit's
+      // numbers point into a file the agent cannot open.
+      const numbers = lines.map((line) => line.newLineNumber);
+      if (sourceKind === 'base' && numbers.every((number) => number !== null)) {
+        return formatFileLineQuote(shownPath, Math.min(...numbers), Math.max(...numbers));
+      }
+      const scope =
+        sourceKind === 'base'
+          ? `diff against ${baseLabel}`
+          : `diff in commit ${sourceRef.slice(0, 7)}`;
+      return formatFileDiffQuote(shownPath, scope, lines);
     },
-    [shownPath, sourceKind],
+    [shownPath, sourceKind, sourceRef, baseLabel],
   );
 
   const renamed = file.oldPath !== null && file.oldPath !== file.path;

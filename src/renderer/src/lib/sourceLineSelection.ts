@@ -1,3 +1,5 @@
+import type { GitDiffSourceLine } from './gitDiffPatch';
+
 /**
  * The source lines a DOM selection covers in the file viewer. Every rendered
  * line carries `data-source-line`, so the range's boundary nodes locate the
@@ -22,4 +24,37 @@ function lineNumberAt(node: Node): number | null {
   if (!value) return null;
   const lineNumber = Number(value);
   return Number.isInteger(lineNumber) && lineNumber > 0 ? lineNumber : null;
+}
+
+export interface SelectedDiffLine {
+  kind: GitDiffSourceLine['kind'];
+  text: string;
+  newLineNumber: number | null;
+}
+
+function diffKind(value: string | undefined): GitDiffSourceLine['kind'] | null {
+  return value === 'add' || value === 'remove' || value === 'context' ? value : null;
+}
+
+/**
+ * The whole lines a selection touches, in order. Side by side, only the column
+ * the selection starts in counts, so a drag down one side never picks up the
+ * other.
+ */
+export function diffLinesFromSelection(container: HTMLElement, range: Range): SelectedDiffLine[] {
+  const start = range.startContainer;
+  const startElement = start instanceof Element ? start : start.parentElement;
+  const side = startElement?.closest<HTMLElement>('[data-diff-line]')?.dataset.diffSide;
+  const lines: SelectedDiffLine[] = [];
+  for (const row of container.querySelectorAll<HTMLElement>('[data-diff-line]')) {
+    if (!range.intersectsNode(row) || row.dataset.diffSide !== side) continue;
+    const kind = diffKind(row.dataset.diffKind);
+    if (!kind) continue;
+    lines.push({
+      kind,
+      text: row.querySelector('[data-diff-text]')?.textContent ?? '',
+      newLineNumber: row.dataset.newLine === undefined ? null : Number(row.dataset.newLine),
+    });
+  }
+  return lines;
 }

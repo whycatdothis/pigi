@@ -266,10 +266,15 @@ as it does in the chat. A file that is
 only added or only deleted drops the +/- column, the empty gutter and the gap
 rows. Quoting reuses the Files popover, gated to line cells
 (`data-diff-line`): added and context lines carry new-file line numbers and
-quote as `@src/app.ts:L10-L20`, while a selection touching deleted lines has
-no post-change number to point at and falls back to carrying the text, as
-does any quote from a commit, whose line numbers point into a file the agent
-cannot open. The Diff components are memoized and the workspace object is
+quote as `@src/app.ts:L10-L20`. A selection touching deleted lines has no
+post-change number to point at, and a commit's numbers point into a file the
+agent cannot open, so both quote the whole touched lines as a unified diff
+under what they were compared with (`@src/app.ts, diff against origin/main:`,
+then `-old` / `+new`); plain text there read as the file's current content.
+Side by side, a drag stays in the column it starts in: the other column's
+cells sit between this column's in the DOM, so the body marks the starting
+side on mousedown and makes the other `select-none`, and
+`diffLinesFromSelection` only reads that side. The Diff components are memoized and the workspace object is
 stable, because App re-renders on every streamed agent batch and a body holds
 thousands of rows.
 

@@ -6,6 +6,7 @@ import { languageForPath } from '../../lib/fileLanguage';
 import {
   buildDiffRows,
   changedRanges,
+  DIFF_LINE_PREFIX,
   isSourceLine,
   pairSplitRows,
   parseGitPatch,
@@ -27,12 +28,6 @@ const LINE_STYLES = {
   add: 'bg-success-bg text-success-fg',
   remove: 'bg-danger-bg text-danger-fg',
   context: 'bg-background text-foreground',
-} as const;
-
-const PREFIX = {
-  add: '+',
-  remove: '-',
-  context: ' ',
 } as const;
 
 const GUTTER_CLASS_NAME =
@@ -181,6 +176,7 @@ function LineText({
 
   return (
     <span
+      data-diff-text
       className={cn(
         'min-w-0 pr-4',
         wrap ? 'flex-1 whitespace-pre-wrap wrap-break-word' : 'whitespace-pre',
@@ -297,9 +293,22 @@ const GitDiffBody = memo(function GitDiffBody({
 
   if (layout === 'split' && !onlyKind) {
     return (
+      // A drag stays in the column it starts in: the other column's rows sit
+      // between this column's rows in the DOM, so without this a selection
+      // down one side swallows the other.
       <div
+        onMouseDown={(event) => {
+          const cell =
+            event.target instanceof Element
+              ? event.target.closest<HTMLElement>('[data-diff-side]')
+              : null;
+          const side = cell?.dataset.diffSide;
+          if (side) event.currentTarget.dataset.selectSide = side;
+          else delete event.currentTarget.dataset.selectSide;
+        }}
         className={cn(
           'w-full py-1 font-mono text-code-compact leading-5',
+          'data-[select-side=new]:**:data-[diff-side=old]:select-none data-[select-side=old]:**:data-[diff-side=new]:select-none',
           !tokens.settled && 'invisible',
         )}
       >
@@ -315,6 +324,8 @@ const GitDiffBody = memo(function GitDiffBody({
                   <div
                     key={side}
                     data-diff-line
+                    data-diff-kind={line.kind}
+                    data-diff-side={side === 0 ? 'old' : 'new'}
                     data-new-line={line.newLineNumber ?? undefined}
                     className={cn(
                       'flex min-w-0',
@@ -326,7 +337,7 @@ const GitDiffBody = memo(function GitDiffBody({
                       {side === 0 ? line.oldLineNumber : line.newLineNumber}
                     </span>
                     <span className="w-4 shrink-0 select-none text-center opacity-50">
-                      {PREFIX[line.kind]}
+                      {DIFF_LINE_PREFIX[line.kind]}
                     </span>
                     <LineText line={line} tokens={tokens} changed={changed.get(line)} wrap />
                   </div>
@@ -364,6 +375,7 @@ const GitDiffBody = memo(function GitDiffBody({
           <div
             key={index}
             data-diff-line
+            data-diff-kind={row.kind}
             data-new-line={row.newLineNumber ?? undefined}
             className={cn('flex min-h-5 w-max min-w-full', LINE_STYLES[row.kind])}
           >
@@ -393,7 +405,7 @@ const GitDiffBody = memo(function GitDiffBody({
               <span className="w-2 shrink-0" />
             ) : (
               <span className="w-4 shrink-0 select-none text-center opacity-50">
-                {PREFIX[row.kind]}
+                {DIFF_LINE_PREFIX[row.kind]}
               </span>
             )}
             <LineText line={row} tokens={tokens} changed={changed.get(row)} wrap={false} />
