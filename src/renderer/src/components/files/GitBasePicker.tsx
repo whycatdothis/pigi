@@ -117,7 +117,6 @@ export default function GitBasePicker({
           disabled={disabled}
           className="flex h-7 w-full min-w-0 items-center gap-1.5 rounded-control border border-input px-2 text-left text-body transition-colors hover:bg-accent disabled:opacity-50"
         >
-          <span className="shrink-0 text-caption text-muted-foreground">vs</span>
           <span className="min-w-0 flex-1 truncate">
             {summary?.baseLabel ?? base ?? 'Loading…'}
           </span>

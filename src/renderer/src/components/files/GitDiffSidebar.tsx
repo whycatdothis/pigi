@@ -30,10 +30,6 @@ const ROW_IDLE_CLASS_NAME =
   'text-sidebar-foreground/80 hover:bg-accent hover:text-accent-foreground';
 const ROW_SELECTED_CLASS_NAME = 'bg-accent-subtle text-[var(--system-accent)]';
 
-/** A row of header controls below the view tabs, divided from the one above by an edge-to-edge rule. */
-const LAYER_CLASS_NAME =
-  '-mx-2 border-t-[0.5px] border-foreground/27 px-2 py-2 [-webkit-app-region:no-drag]';
-
 const VIEW_LABELS: { value: GitDiffView; label: string }[] = [
   { value: 'tree', label: 'Tree' },
   { value: 'status', label: 'Git status' },
@@ -455,22 +451,22 @@ export default function GitDiffSidebar({
   return (
     <ShadcnSidebar collapsible="none" data-testid="git-diff-sidebar" className="w-full">
       <SidebarHeader
-        className="gap-0 pb-0"
+        className="gap-0 border-b-[0.5px] border-foreground/15 pb-0"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
         <div className="flex h-10 items-start justify-end">
           <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
         </div>
-        <div className="flex min-w-0 items-center gap-1.5 px-2">
+        <div className="mt-2 flex min-w-0 items-center gap-1.5 px-2">
           <span className="min-w-0 truncate text-lg font-medium text-sidebar-foreground/80">
             {projectName}
           </span>
         </div>
-        <span className="truncate px-2 text-ui text-muted-foreground">
+        <span className="truncate px-2 pb-2 text-ui text-muted-foreground">
           {summary?.branch ?? (summary?.detached ? 'Detached HEAD' : 'No branch')}
         </span>
 
-        <div className="py-2 [-webkit-app-region:no-drag]">
+        <div className="-mx-2 flex flex-col gap-2 border-t-[0.5px] border-foreground/15 p-2 [-webkit-app-region:no-drag]">
           <div className="flex items-center gap-0.5 rounded-control bg-foreground/7 p-0.5">
             {VIEW_LABELS.map((item) => (
               <button
@@ -489,10 +485,8 @@ export default function GitDiffSidebar({
               </button>
             ))}
           </div>
-        </div>
-        {/* Git status needs a base and Commits lists the branch, so only the tree offers the other modes. */}
-        {view === 'tree' && (
-          <div className={LAYER_CLASS_NAME}>
+          {/* Git status needs a base and Commits lists the branch, so only the tree offers the other modes. */}
+          {view === 'tree' && (
             <GitDiffModeMenu
               mode={mode}
               defaultBase={summary?.defaultBase ?? null}
@@ -500,18 +494,21 @@ export default function GitDiffSidebar({
               disabled={disabled}
               onSelect={workspace.selectMode}
             />
-          </div>
-        )}
-        {mode === 'branch' && view !== 'commits' && (
-          <div className={LAYER_CLASS_NAME}>
-            <GitBasePicker
-              summary={summary}
-              base={base}
-              disabled={disabled}
-              onSelect={workspace.selectBase}
-            />
-          </div>
-        )}
+          )}
+          {mode === 'branch' && view !== 'commits' && (
+            <div className="flex items-center gap-2">
+              <span className="shrink-0 text-caption whitespace-nowrap text-muted-foreground">
+                Compare vs
+              </span>
+              <GitBasePicker
+                summary={summary}
+                base={base}
+                disabled={disabled}
+                onSelect={workspace.selectBase}
+              />
+            </div>
+          )}
+        </div>
       </SidebarHeader>
 
       <SidebarContent className="min-h-0 overflow-hidden">
