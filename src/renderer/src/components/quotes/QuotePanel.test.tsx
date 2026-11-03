@@ -61,6 +61,21 @@ describe('QuotePanel send shortcut', () => {
     expect(onSend).toHaveBeenCalledWith('Global comment:\nOverall fine.');
   });
 
+  it('takes a global comment with no quotes and stays open after sending', async () => {
+    useAppStore.setState({ quotesBySession: new Map() });
+    const onSend = renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Add global comment' }));
+    const editor = screen.getByRole('textbox', { name: 'Quote comment' });
+    fireEvent.change(editor, { target: { value: 'Look at the tests.' } });
+    fireEvent.keyDown(editor, { key: 'Enter' });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Send/ }));
+    });
+    expect(onSend).toHaveBeenCalledWith('Global comment:\nLook at the tests.');
+    expect(useAppStore.getState().openRightSidebarSessions.get(SESSION_PATH)).toBe(true);
+  });
+
   it('sends quotes added after the panel mounted', () => {
     // The shortcut handler is registered once, so it must read the current
     // quotes rather than the empty list the panel mounted with.

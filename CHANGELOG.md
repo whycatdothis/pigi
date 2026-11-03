@@ -14,11 +14,20 @@
   without a `+` on every line
 - The Diff tab refreshes on its own once the agent changes files, however it
   changes them, and when you come back to the window
+- The Diff tab's Git status and Commits groups fold open and closed; Committed
+  starts folded, and empty groups still show
 - The Files and Diff trees compact a directory that only holds one directory
   into one row (`main/java/com/example`)
 
+### Changed
+
+- Sending quotes keeps the quote sidebar open, a global comment can be sent
+  without any quote, and sending from the Diff tab switches to the chat
+
 ### Fixed
 
+- The Files and Diff tabs move up with the terminal instead of being covered
+  by it
 - The sidebar resize handle is grabbable along its whole height and full
   width; half of it was clipped, and in the Diff tab the line gutters covered
   the rest

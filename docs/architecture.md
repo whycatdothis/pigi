@@ -208,9 +208,9 @@ through bash and scripts as often as through edit/write. A trigger that lands
 during a load runs one more load after it instead of a second one beside it.
 Polling a fingerprint, as Plannotator does, was rejected: its fingerprint is a
 `status -uall` plus a diff, 2.7s per probe on the same repository, so a
-5-second poll would keep git busy half the time. What the triggers miss
-(another process writing while the window has focus) is left to the refresh
-button.
+5-second poll would keep git busy half the time. There is no refresh button:
+what the triggers miss (another process writing while the window has focus)
+shows up the next time the window regains focus.
 
 Untracked files are diffed through a throwaway copy of the index in which they
 are marked intent-to-add (`git add -N`); the real index is never written.

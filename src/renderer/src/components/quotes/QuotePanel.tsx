@@ -170,7 +170,8 @@ const GlobalCommentCard = React.memo(function GlobalCommentCard({
 /**
  * The right sidebar's quotes tab: the session's collected quotes. Sending
  * turns them, and the global comment after them, into one plain-text message
- * (see formatQuotesMessage) and clears both.
+ * (see formatQuotesMessage) and clears both; the panel stays open for the
+ * next round.
  */
 export default React.memo(function QuotePanel({
   sessionPath,
@@ -197,7 +198,6 @@ export default React.memo(function QuotePanel({
     store.setGlobalComment(sessionPath, '');
     try {
       await onSend(formatQuotesMessage(sentQuotes, sentGlobalComment));
-      store.setRightSidebarOpen(sessionPath, false);
     } catch (error) {
       console.error('Failed to send quotes:', error);
       const addedWhileSending = useAppStore.getState().quotesBySession.get(sessionPath) ?? [];
@@ -228,24 +228,24 @@ export default React.memo(function QuotePanel({
   return (
     <div className="flex h-full w-full flex-col" data-testid="quote-panel">
       <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-width:thin]">
-        {quotes.length === 0 && !hasGlobalComment ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center text-caption leading-5 text-muted-foreground">
-            <IconQuote className="size-5" />
-            Select text in a message, then choose Quote to comment on it.
-          </div>
-        ) : (
-          // A reading column, so a wide sidebar does not stretch quotes into long lines.
-          <div className="mx-auto flex max-w-160 flex-col gap-2">
-            {quotes.length > 0 && (
-              <ol className="flex flex-col gap-2">
-                {quotes.map((quote) => (
-                  <QuoteCard key={quote.id} quote={quote} sessionPath={sessionPath} />
-                ))}
-              </ol>
-            )}
-            <GlobalCommentCard sessionPath={sessionPath} />
-          </div>
-        )}
+        {/* A reading column, so a wide sidebar does not stretch quotes into long lines. */}
+        <div className="mx-auto flex max-w-160 flex-col gap-2">
+          {quotes.length > 0 ? (
+            <ol className="flex flex-col gap-2">
+              {quotes.map((quote) => (
+                <QuoteCard key={quote.id} quote={quote} sessionPath={sessionPath} />
+              ))}
+            </ol>
+          ) : (
+            !hasGlobalComment && (
+              <div className="flex flex-col items-center gap-2 px-4 pt-8 pb-2 text-center text-caption leading-5 text-muted-foreground">
+                <IconQuote className="size-5" />
+                Select text in a message, file or diff, then choose Quote to comment on it.
+              </div>
+            )
+          )}
+          <GlobalCommentCard sessionPath={sessionPath} />
+        </div>
       </div>
 
       <div className="flex shrink-0 justify-center border-t-[0.5px] border-foreground/27 p-3">

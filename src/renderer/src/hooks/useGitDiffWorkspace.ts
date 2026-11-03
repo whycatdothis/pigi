@@ -8,6 +8,16 @@ const AUTO_REFRESH_DELAY_MS = 500;
 
 export type GitDiffView = 'tree' | 'status' | 'commits';
 export type GitDiffLayout = 'unified' | 'split';
+/** The collapsible groups of the Git status and Commits views. */
+export type GitDiffSection =
+  | 'changes'
+  | 'untracked'
+  | 'committed'
+  | 'branchCommits'
+  | 'baseCommits';
+
+/** Committed work is already reviewed more often than not; what is in flight leads. */
+const INITIALLY_COLLAPSED: ReadonlySet<GitDiffSection> = new Set(['committed']);
 
 /** A file in the base comparison (`commit: null`) or in one commit. */
 export interface GitDiffSelection {
@@ -31,13 +41,14 @@ export interface GitDiffWorkspace {
   /** The commit expanded in the Commits view. */
   openCommit: string | null;
   commitFiles: ReadonlyMap<string, GitCommitFiles>;
+  collapsedSections: ReadonlySet<GitDiffSection>;
+  toggleSection: (section: GitDiffSection) => void;
   selectBase: (base: string) => void;
   resetBase: () => void;
   select: (selection: GitDiffSelection) => void;
   setView: (view: GitDiffView) => void;
   setLayout: (layout: GitDiffLayout) => void;
   toggleCommit: (commit: string) => void;
-  refresh: () => void;
 }
 
 /**
@@ -63,6 +74,8 @@ export function useGitDiffWorkspace({
   const [commitFiles, setCommitFiles] = useState<ReadonlyMap<string, GitCommitFiles>>(
     () => new Map(),
   );
+  const [collapsedSections, setCollapsedSections] =
+    useState<ReadonlySet<GitDiffSection>>(INITIALLY_COLLAPSED);
   const [revision, setRevision] = useState(0);
   const requestId = useRef(0);
   const openCommitRef = useRef<string | null>(null);
@@ -199,9 +212,12 @@ export function useGitDiffWorkspace({
     beginSelection();
   }, [beginSelection]);
 
-  const refresh = useCallback(() => {
-    quietRef.current = false;
-    setRevision((value) => value + 1);
+  const toggleSection = useCallback((section: GitDiffSection) => {
+    setCollapsedSections((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(section)) next.add(section);
+      return next;
+    });
   }, []);
 
   const showCommit = useCallback((commit: string, files: GitDiffFile[]) => {
@@ -261,12 +277,13 @@ export function useGitDiffWorkspace({
     layout,
     openCommit,
     commitFiles,
+    collapsedSections,
+    toggleSection,
     selectBase,
     resetBase,
     select: setSelection,
     setView,
     setLayout,
     toggleCommit,
-    refresh,
   };
 }

@@ -871,10 +871,12 @@ function App(): React.JSX.Element {
   useEffect(() => {
     handleSendRef.current = handleSend;
   });
-  const handleSendQuotes = useCallback(
-    (message: string): Promise<void> => handleSendRef.current(message),
-    [],
-  );
+  const handleSendQuotes = useCallback((message: string): Promise<void> => {
+    // A diff review ends in the chat, where the agent answers it.
+    const store = useAppStore.getState();
+    if (store.workspaceTab === WORKSPACE_TABS.diff) store.setWorkspaceTab(WORKSPACE_TABS.chat);
+    return handleSendRef.current(message);
+  }, []);
 
   const handleFollowUp = useCallback(
     async (message: string, attachments: ChatAttachment[] = []): Promise<void> => {
@@ -1658,16 +1660,16 @@ function App(): React.JSX.Element {
   const queueBarCount =
     1 + (isSessionBusy ? transcript.queuedSteering.length + transcript.queuedFollowUp.length : 0);
 
-  // Reserve the terminal's height in the chat layout so the message list's
+  // Reserve the terminal's height in the workspace layout so the message list's
   // actual scroll viewport ends above the input. Match the drawer timing,
   // and resize immediately during dragging. No transform on the input means
   // its fixed-position menus retain the window as their containing block.
-  const chatLayoutClassName = `absolute inset-x-0 top-0 flex flex-col transition-[bottom] reduce-motion:transition-none group-data-[panel-resizing]/terminal-layout:transition-none ${
+  const workspaceLayoutClassName = `absolute inset-x-0 top-0 flex flex-col transition-[bottom] reduce-motion:transition-none group-data-[panel-resizing]/terminal-layout:transition-none ${
     terminalOpen
       ? 'duration-[340ms] ease-[cubic-bezier(0.32,0.72,0,1)]'
       : 'duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)]'
   }`;
-  const chatLayoutStyle = { bottom: terminalOpen ? TERMINAL_HEIGHT_VALUE : 0 };
+  const workspaceLayoutStyle = { bottom: terminalOpen ? TERMINAL_HEIGHT_VALUE : 0 };
   const terminalLayoutStyle: React.CSSProperties & { [TERMINAL_HEIGHT_PROPERTY]: string } = {
     [TERMINAL_HEIGHT_PROPERTY]: `${terminalHeight}px`,
   };
@@ -1822,25 +1824,33 @@ function App(): React.JSX.Element {
                     />
                   )}
                 </div>
-                {workspaceTab === WORKSPACE_TABS.files && (
-                  <FilesTab
-                    projectPath={activeProject?.path ?? null}
-                    filePath={selectedFilePath}
-                    fileRevision={fileRevision}
-                    sessionPath={activeSessionPath}
-                    findFileShortcut={shortcutBindings?.get('files.search')}
-                    onFindFile={handleOpenFileSearch}
-                    onOpenFile={handleOpenFile}
-                    onOpenProject={handleOpenProject}
-                  />
-                )}
-                {workspaceTab === WORKSPACE_TABS.diff && (
-                  <GitDiffTab
-                    projectPath={activeProjectPath}
-                    sessionPath={activeSessionPath}
-                    workspace={gitDiffWorkspace}
-                    onOpenProject={handleOpenProject}
-                  />
+                {workspaceTab !== WORKSPACE_TABS.chat && (
+                  // Same terminal reservation as the chat below, so the drawer
+                  // pushes the viewer up instead of covering its bottom.
+                  <div className="relative min-h-0 flex-1 overflow-hidden">
+                    <div className={workspaceLayoutClassName} style={workspaceLayoutStyle}>
+                      {workspaceTab === WORKSPACE_TABS.files && (
+                        <FilesTab
+                          projectPath={activeProject?.path ?? null}
+                          filePath={selectedFilePath}
+                          fileRevision={fileRevision}
+                          sessionPath={activeSessionPath}
+                          findFileShortcut={shortcutBindings?.get('files.search')}
+                          onFindFile={handleOpenFileSearch}
+                          onOpenFile={handleOpenFile}
+                          onOpenProject={handleOpenProject}
+                        />
+                      )}
+                      {workspaceTab === WORKSPACE_TABS.diff && (
+                        <GitDiffTab
+                          projectPath={activeProjectPath}
+                          sessionPath={activeSessionPath}
+                          workspace={gitDiffWorkspace}
+                          onOpenProject={handleOpenProject}
+                        />
+                      )}
+                    </div>
+                  </div>
                 )}
                 {/* Kept mounted and laid out while another tab shows, with only
                     its paint skipped: `display: none` collapses every measured
@@ -1857,7 +1867,7 @@ function App(): React.JSX.Element {
                 >
                   {activeSession ? (
                     <div className="relative min-h-0 flex-1 overflow-hidden">
-                      <div className={chatLayoutClassName} style={chatLayoutStyle}>
+                      <div className={workspaceLayoutClassName} style={workspaceLayoutStyle}>
                         <MessageList
                           key={activeSessionPath ?? 'draft'}
                           ref={messageListRef}
@@ -1909,7 +1919,7 @@ function App(): React.JSX.Element {
                     </div>
                   ) : isDraftChat ? (
                     <div className="relative min-h-0 flex-1 overflow-hidden">
-                      <div className={chatLayoutClassName} style={chatLayoutStyle}>
+                      <div className={workspaceLayoutClassName} style={workspaceLayoutStyle}>
                         {isDraftEmpty ? (
                           <div className="relative z-10 flex flex-1 flex-col">
                             <ChatInput
