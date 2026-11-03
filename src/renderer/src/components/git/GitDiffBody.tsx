@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { IconArrowsVertical } from '@tabler/icons-react';
+import { ChevronsUpDown } from 'lucide-react';
 import type { GitDiffFile } from '../../../../shared/ipcContract';
-import type { GitDiffLayout } from '../../hooks/useGitDiffWorkspace';
+import type { GitDiffLayout } from '../../hooks/useGitWorkspace';
 import { languageForPath } from '../../lib/fileLanguage';
 import {
   buildDiffRows,
@@ -154,7 +154,7 @@ function GapRow({
       className={cn(className, 'transition-colors hover:bg-muted hover:text-foreground')}
       onClick={onExpand}
     >
-      <IconArrowsVertical size={13} className="shrink-0" />
+      <ChevronsUpDown size={13} className="shrink-0" />
       <span className="shrink-0">
         {row.hiddenLines} unmodified {row.hiddenLines === 1 ? 'line' : 'lines'}
       </span>

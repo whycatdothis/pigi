@@ -58,7 +58,7 @@ function CommitItem({
 }
 
 /**
- * What the Diff tab compares against: a branch, a recent commit, or any ref
+ * What the Git tab compares against: a branch, a recent commit, or any ref
  * typed into the search (a SHA, `HEAD~3`, a tag).
  */
 export default function GitBasePicker({

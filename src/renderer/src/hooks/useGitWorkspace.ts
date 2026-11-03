@@ -7,13 +7,15 @@ import { getGitCommitFiles, getGitDiffSummary } from '../services/piAgentClient'
 const AUTO_REFRESH_DELAY_MS = 500;
 
 export type GitDiffMode = GitDiffScope['kind'];
-export type GitDiffView = 'tree' | 'status' | 'commits';
+export type GitView = 'status' | 'diff' | 'commits';
+/** How the Git status and Diff views list files. */
+export type GitFileList = 'tree' | 'flat';
 export type GitDiffLayout = 'unified' | 'split';
 /** The collapsible groups of the Git status and Commits views. */
-export type GitDiffSection = 'staged' | 'unstaged' | 'branchCommits' | 'baseCommits';
+export type GitSection = 'staged' | 'unstaged' | 'branchCommits' | 'baseCommits';
 
 /** A file in the base comparison (`commit: null`) or in one commit. */
-export interface GitDiffSelection {
+export interface GitSelection {
   commit: string | null;
   path: string;
 }
@@ -23,52 +25,55 @@ export type GitCommitFiles =
   | { status: 'ready'; files: GitDiffFile[] }
   | { status: 'error'; error: string };
 
-export interface GitDiffWorkspace {
+export interface GitWorkspace {
   status: 'idle' | 'loading' | 'ready' | 'error';
   error: string | null;
   summary: GitDiffSummary | null;
-  /** The mode in effect: the chosen one in the tree view; Git status and Commits always compare against a base. */
+  /** The mode in effect: the chosen one in the Diff view; Git status and Commits have a fixed one. */
   mode: GitDiffMode;
   base: string | null;
-  selection: GitDiffSelection | null;
-  view: GitDiffView;
+  selection: GitSelection | null;
+  view: GitView;
+  fileList: GitFileList;
   layout: GitDiffLayout;
   /** The commit expanded in the Commits view. */
   openCommit: string | null;
   commitFiles: ReadonlyMap<string, GitCommitFiles>;
-  collapsedSections: ReadonlySet<GitDiffSection>;
-  toggleSection: (section: GitDiffSection) => void;
+  collapsedSections: ReadonlySet<GitSection>;
+  toggleSection: (section: GitSection) => void;
   selectMode: (mode: GitDiffMode) => void;
   selectBase: (base: string) => void;
   resetBase: () => void;
-  select: (selection: GitDiffSelection) => void;
-  setView: (view: GitDiffView) => void;
+  select: (selection: GitSelection) => void;
+  setView: (view: GitView) => void;
+  setFileList: (fileList: GitFileList) => void;
   setLayout: (layout: GitDiffLayout) => void;
   toggleCommit: (commit: string) => void;
 }
 
 /**
- * The Diff tab's comparison state. The selected base is deliberately not
+ * The Git tab's comparison state. The selected base is deliberately not
  * persisted: switching projects should start from that project's upstream,
  * not from a ref that may not exist there.
  */
-export function useGitDiffWorkspace({
+export function useGitWorkspace({
   cwd,
   enabled,
 }: {
   cwd: string | null;
   enabled: boolean;
-}): GitDiffWorkspace {
+}): GitWorkspace {
   const [summary, setSummary] = useState<GitDiffSummary | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<GitDiffMode>('branch');
   const [requestedBase, setRequestedBase] = useState<string | null>(null);
-  const [selection, setSelection] = useState<GitDiffSelection | null>(null);
-  const [view, setView] = useState<GitDiffView>('tree');
+  const [selection, setSelection] = useState<GitSelection | null>(null);
+  const [view, setView] = useState<GitView>('status');
+  const [fileList, setFileList] = useState<GitFileList>('tree');
   // Git status is the working tree against HEAD; Commits lists the branch.
   const scopeMode: GitDiffMode =
-    view === 'tree' ? mode : view === 'status' ? 'uncommitted' : 'branch';
+    view === 'diff' ? mode : view === 'status' ? 'uncommitted' : 'branch';
   // The Commits view lists the branch's own commits, so it ignores a picked base.
   const scopeBase = view === 'commits' ? null : requestedBase;
   const [layout, setLayout] = useState<GitDiffLayout>('unified');
@@ -76,7 +81,7 @@ export function useGitDiffWorkspace({
   const [commitFiles, setCommitFiles] = useState<ReadonlyMap<string, GitCommitFiles>>(
     () => new Map(),
   );
-  const [collapsedSections, setCollapsedSections] = useState<ReadonlySet<GitDiffSection>>(
+  const [collapsedSections, setCollapsedSections] = useState<ReadonlySet<GitSection>>(
     () => new Set(),
   );
   const [revision, setRevision] = useState(0);
@@ -109,7 +114,7 @@ export function useGitDiffWorkspace({
     setStatus('idle');
     setRequestedBase(null);
     setSelection(null);
-    setView('tree');
+    setView('status');
     setOpenCommit(null);
     setCommitFiles(new Map());
   }
@@ -199,7 +204,7 @@ export function useGitDiffWorkspace({
 
   // A commit's file belongs to the Commits view; elsewhere it would show with no row selected.
   const changeView = useCallback(
-    (next: GitDiffView) => {
+    (next: GitView) => {
       setView(next);
       if (next === 'commits') return;
       setSelection((previous) => {
@@ -244,7 +249,7 @@ export function useGitDiffWorkspace({
     beginSelection();
   }, [beginSelection]);
 
-  const toggleSection = useCallback((section: GitDiffSection) => {
+  const toggleSection = useCallback((section: GitSection) => {
     setCollapsedSections((previous) => {
       const next = new Set(previous);
       if (!next.delete(section)) next.add(section);
@@ -311,6 +316,7 @@ export function useGitDiffWorkspace({
       base,
       selection,
       view,
+      fileList,
       layout,
       openCommit,
       commitFiles,
@@ -321,6 +327,7 @@ export function useGitDiffWorkspace({
       resetBase,
       select: setSelection,
       setView: changeView,
+      setFileList,
       setLayout,
       toggleCommit,
     }),
@@ -332,6 +339,7 @@ export function useGitDiffWorkspace({
       base,
       selection,
       view,
+      fileList,
       layout,
       openCommit,
       commitFiles,

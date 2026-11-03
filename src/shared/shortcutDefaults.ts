@@ -67,8 +67,8 @@ export const SHORTCUT_DEFAULTS: ShortcutEntry[] = [
     defaultBinding: { key: '2', meta: true },
   },
   {
-    id: 'workspace.diff',
-    label: 'Diff tab',
+    id: 'workspace.git',
+    label: 'Git tab',
     defaultBinding: { key: '3', meta: true },
   },
   {

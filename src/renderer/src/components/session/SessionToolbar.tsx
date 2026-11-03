@@ -14,7 +14,7 @@ import {
 import { cn } from '../../lib/utils';
 import { useTypewriter } from '../../hooks/useTypewriter';
 import { useRenameSuppress } from '../../hooks/useRenameSuppress';
-import { getSessionTitle } from '../sidebar/utils';
+import { getSessionTitle, isSessionRunning } from '../sidebar/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,6 +134,13 @@ export default React.memo(function SessionToolbar({
       ? undefined
       : sidebarToggleLeft(state.platform) + SIDEBAR_TOGGLE_CLEARANCE_PX,
   );
+  const chatActivity = useAppStore((state) =>
+    isSessionRunning(sessionPath, state.sessions)
+      ? 'running'
+      : state.unreadSessionPaths.has(sessionPath)
+        ? 'unread'
+        : null,
+  );
   const hasQuotes = useAppStore((state) => state.quotesBySession.has(sessionPath));
   const rightSidebarOpen = useAppStore((state) => state.openRightSidebarSessions.has(sessionPath));
   const toggleRightSidebar = useAppStore((state) => state.toggleRightSidebar);
@@ -153,7 +160,7 @@ export default React.memo(function SessionToolbar({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center gap-2 px-3 h-11 border-b-[0.5px] border-foreground/27 transition-[padding] @container @max-[320px]:px-2 @max-[220px]:px-1 [-webkit-app-region:drag]',
+        'flex shrink-0 items-center gap-2 pr-3 h-11 border-b-[0.5px] border-foreground/27 transition-[padding] @container @max-[320px]:pr-2 @max-[220px]:pr-1 [-webkit-app-region:drag]',
         SIDEBAR_TRANSITION_CLASS_NAME,
       )}
       style={{ paddingLeft: titleInset }}
@@ -164,6 +171,7 @@ export default React.memo(function SessionToolbar({
         shortcutBindings={shortcutBindings}
         chatTitle={displayTitle}
         chatRenameTitle={title}
+        chatActivity={chatActivity}
         onRenameChat={handleRenameChat}
         className="min-w-0 shrink"
       />

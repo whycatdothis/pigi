@@ -1,12 +1,13 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { IconGitCompare, IconMessageCircle } from '@tabler/icons-react';
-import { FolderClosed } from 'lucide-react';
+import { IconLoader2, IconMessageCircle } from '@tabler/icons-react';
+import { FolderOpen, GitBranch } from 'lucide-react';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { WORKSPACE_TABS, isWorkspaceTab, type WorkspaceTab } from '../../lib/workspaceTabs';
 import { cn } from '../../lib/utils';
 import { SIDEBAR_TRANSITION_CLASS_NAME } from '../../lib/layoutConstants';
 import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
 import { COMPACT_KBD_CLASS_NAME, Kbd } from '../ui/kbd';
+import { SpinningIcon } from '../ui/spinningIcon';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 
 const TAB_ITEMS = [
@@ -20,33 +21,37 @@ const TAB_ITEMS = [
     tab: WORKSPACE_TABS.files,
     label: 'Files',
     shortcutId: 'workspace.files',
-    icon: FolderClosed,
+    icon: FolderOpen,
   },
   {
-    tab: WORKSPACE_TABS.diff,
-    label: 'Diff',
-    shortcutId: 'workspace.diff',
-    icon: IconGitCompare,
+    tab: WORKSPACE_TABS.git,
+    label: 'Git',
+    shortcutId: 'workspace.git',
+    icon: GitBranch,
   },
 ] as const satisfies readonly {
   tab: WorkspaceTab;
   label: string;
   shortcutId: string;
-  icon: typeof IconMessageCircle | typeof FolderClosed;
+  icon: typeof IconMessageCircle | typeof FolderOpen;
 }[];
 
+const TAB_CLASS_NAME =
+  'h-8 gap-1.5 px-3 text-body font-normal text-foreground dark:text-foreground @max-[320px]:px-2 @max-[220px]:px-1';
+
+// The header has no left padding of its own; Chat's left margin keeps the
+// active chip off the header edge, and the title sits where it does unselected.
+// 272px plus the 8px margin is the 280px Chat takes.
+const CHAT_TAB_CLASS_NAME =
+  'ml-2 pl-2 w-68 min-w-36 shrink basis-auto justify-start @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none';
+
 /**
- * The main window's fixed views. The shortcut keycap sits in the layout at
- * rest and only becomes visible on hover/focus, so revealing it never moves
- * the other tabs. The @max breakpoints are container widths, not viewport
- * widths: keycaps leave and the Chat tab's 144px floor drops at 600px so its
- * title truncates instead of pushing Files/Diff out; at 320px labels leave and
- * the Chat chip drops its 240px preferred width, so all three icon tabs take
- * about 110px. The list itself is max-w-full:
- * w-fit alone keeps it at max-content, which would make the Chat chip's shrink
- * dead code and paint the overflow into the header spacer. SessionToolbar
- * moves its secondary actions into an overflow menu at 430px for the same
- * reason.
+ * The main window's fixed views. Chat carries no icon so its title gets the
+ * room, at a fixed 280px so Files and Git keep their place whatever the title.
+ * Files and Git reserve room for their keycaps, shown on hover or focus. The
+ * @max breakpoints are container (header) widths, not viewport widths: below
+ * 600px Chat may shrink and the keycaps go, at 500px Files and Git drop their labels, at 320px Chat
+ * swaps its title for an icon, and at 220px padding tightens.
  */
 const WorkspaceTabs = memo(function WorkspaceTabs({
   value,
@@ -54,6 +59,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
   shortcutBindings,
   chatTitle,
   chatRenameTitle,
+  chatActivity = null,
   onRenameChat,
   className,
 }: {
@@ -64,6 +70,8 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
   chatTitle?: string;
   /** The unanimated title to start a rename from, while the tab shows `chatTitle`. */
   chatRenameTitle?: string;
+  /** Replaces the Chat tab's icon while another tab is open: the agent is running, or finished unseen. */
+  chatActivity?: 'running' | 'unread' | null;
   onRenameChat?: (name: string) => void;
   className?: string;
 }): React.JSX.Element {
@@ -105,14 +113,24 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
     [handleFinishRename],
   );
 
-  // Container thresholds are main-area widths, not viewport widths: below 600
-  // the chat chip may shrink and the keycaps go, and below 320 the tabs become
-  // icon-only. The header, not this strip, is the container.
   useEffect(() => {
     if (isRenamingChat || !restoreChatFocusRef.current) return;
     restoreChatFocusRef.current = false;
     chatTabRef.current?.focus();
   }, [isRenamingChat]);
+
+  const chatStatus =
+    value === WORKSPACE_TABS.chat ? null : chatActivity === 'running' ? (
+      <SpinningIcon className="animate-[spin_1.8s_linear_infinite]">
+        <IconLoader2 size={14} aria-label="Running" />
+      </SpinningIcon>
+    ) : chatActivity === 'unread' ? (
+      <span
+        role="status"
+        aria-label="Finished"
+        className="size-2 shrink-0 rounded-full bg-[var(--system-accent)]"
+      />
+    ) : null;
 
   return (
     <Tabs
@@ -127,22 +145,22 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
         className="max-w-full min-w-0 @max-[220px]:gap-0 [-webkit-app-region:no-drag]"
       >
         {TAB_ITEMS.map(({ tab, label: defaultLabel, shortcutId, icon: Icon }) => {
-          const label =
-            tab === WORKSPACE_TABS.chat && chatTitle?.trim() ? chatTitle.trim() : defaultLabel;
+          const isChat = tab === WORKSPACE_TABS.chat;
+          const label = isChat && chatTitle?.trim() ? chatTitle.trim() : defaultLabel;
           const binding = shortcutBindings?.get(shortcutId);
-          const canRename = tab === WORKSPACE_TABS.chat && Boolean(onRenameChat && chatName);
-          if (tab === WORKSPACE_TABS.chat && isRenamingChat) {
+          const canRename = isChat && Boolean(onRenameChat && chatName);
+          if (isChat && isRenamingChat) {
             return (
               <div
                 key={tab}
                 className={cn(
-                  'group/tab flex h-7 w-full max-w-60 min-w-0 items-center gap-1.5 rounded-control-sm px-2.5 text-caption font-normal @max-[320px]:px-2 @max-[220px]:px-1',
-                  value === WORKSPACE_TABS.chat
-                    ? 'bg-muted text-foreground'
-                    : 'text-muted-foreground',
+                  TAB_CLASS_NAME,
+                  CHAT_TAB_CLASS_NAME,
+                  'flex items-center rounded-control-sm',
+                  'text-foreground',
+                  value === WORKSPACE_TABS.chat && 'bg-muted',
                 )}
               >
-                <Icon size={13} className="opacity-70" />
                 <input
                   type="text"
                   value={renameValue}
@@ -159,24 +177,36 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
           return (
             <TabsTrigger
               key={tab}
-              ref={tab === WORKSPACE_TABS.chat ? chatTabRef : undefined}
+              ref={isChat ? chatTabRef : undefined}
               value={tab}
-              title={tab === WORKSPACE_TABS.chat ? label : undefined}
               aria-label={
                 binding ? `${label} tab (${formatShortcutLabel(binding)})` : `${label} tab`
               }
               onDoubleClick={canRename ? handleStartRename : undefined}
               className={cn(
-                'group/tab h-7 gap-1.5 px-2.5 text-caption font-normal text-muted-foreground @max-[320px]:px-2 @max-[220px]:px-1',
-                tab === WORKSPACE_TABS.chat
-                  ? 'shrink basis-auto w-60 min-w-36 justify-start @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none'
-                  : 'flex-none',
-                isRenamingChat && tab !== WORKSPACE_TABS.chat && '@max-[320px]:hidden',
+                'group/tab',
+                TAB_CLASS_NAME,
+                isChat ? CHAT_TAB_CLASS_NAME : 'flex-none',
+                isRenamingChat && !isChat && '@max-[320px]:hidden',
               )}
             >
-              <Icon size={13} className="opacity-70" />
-              <span className="min-w-0 truncate @max-[320px]:hidden">{label}</span>
-              {binding && (
+              {isChat ? (
+                <>
+                  {chatStatus}
+                  <Icon size={16} className="hidden @max-[320px]:inline" />
+                </>
+              ) : (
+                <Icon size={16} />
+              )}
+              <span
+                className={cn(
+                  'min-w-0 truncate',
+                  isChat ? '@max-[320px]:hidden' : '@max-[500px]:hidden',
+                )}
+              >
+                {label}
+              </span>
+              {!isChat && binding && (
                 <Kbd
                   className={cn(
                     COMPACT_KBD_CLASS_NAME,
@@ -196,7 +226,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
 
 export default WorkspaceTabs;
 
-/** Header for a no-session Files/Diff view, where the tabs are still needed to leave it. */
+/** Header for a no-session Files/Git view, where the tabs are still needed to leave it. */
 export const WorkspaceHeader = memo(function WorkspaceHeader({
   title,
   workspaceTab,
@@ -213,7 +243,7 @@ export const WorkspaceHeader = memo(function WorkspaceHeader({
   return (
     <div
       className={cn(
-        'flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 px-3 transition-[padding] @container @max-[320px]:px-2 @max-[220px]:px-1 [-webkit-app-region:drag]',
+        'flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 pr-3 transition-[padding] @container @max-[320px]:pr-2 @max-[220px]:pr-1 [-webkit-app-region:drag]',
         SIDEBAR_TRANSITION_CLASS_NAME,
       )}
       style={{ paddingLeft: titleInset }}

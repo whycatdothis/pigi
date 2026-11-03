@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { IconFolderOpen, IconGitCompare, IconLoader2 } from '@tabler/icons-react';
 import type { GitDiffSource } from '../../../../shared/ipcContract';
-import type { GitDiffWorkspace } from '../../hooks/useGitDiffWorkspace';
+import type { GitWorkspace } from '../../hooks/useGitWorkspace';
 import { Button } from '../ui/button';
 import {
   Empty,
@@ -34,10 +34,10 @@ function CenteredLoading({ label }: { label: string }): React.JSX.Element {
   );
 }
 
-/** The Diff tab: one file's diff at a time, chosen from the sidebar. */
+/** The Git tab: one file's diff at a time, chosen from the sidebar. */
 // App re-renders on every streamed agent batch; the workspace and the other
-// props are stable, so the Diff tab skips those renders.
-const GitDiffTab = memo(function GitDiffTab({
+// props are stable, so the Git tab skips those renders.
+const GitTab = memo(function GitTab({
   projectPath,
   sessionPath,
   workspace,
@@ -45,7 +45,7 @@ const GitDiffTab = memo(function GitDiffTab({
 }: {
   projectPath: string | null;
   sessionPath: string | null;
-  workspace: GitDiffWorkspace;
+  workspace: GitWorkspace;
   onOpenProject: () => void;
 }): React.JSX.Element {
   if (!projectPath) {
@@ -158,4 +158,4 @@ const GitDiffTab = memo(function GitDiffTab({
   );
 });
 
-export default GitDiffTab;
+export default GitTab;

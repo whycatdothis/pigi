@@ -2,7 +2,7 @@
 export const WORKSPACE_TABS = {
   chat: 'chat',
   files: 'files',
-  diff: 'diff',
+  git: 'git',
 } as const;
 
 export type WorkspaceTab = (typeof WORKSPACE_TABS)[keyof typeof WORKSPACE_TABS];

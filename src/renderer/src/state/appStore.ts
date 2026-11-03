@@ -158,6 +158,27 @@ interface AppState {
   clearSessionRenamed: (sessionPath: string) => void;
 }
 
+/**
+ * A finished run counts as seen once its session is open in the Chat tab; on
+ * Files or Git it stays unread, which is what the Chat tab's dot shows.
+ */
+function markSeen(
+  state: AppState,
+  sessionPath: string | null,
+  workspaceTab: WorkspaceTab,
+): Partial<AppState> {
+  if (
+    sessionPath === null ||
+    workspaceTab !== WORKSPACE_TABS.chat ||
+    !state.unreadSessionPaths.has(sessionPath)
+  ) {
+    return {};
+  }
+  const unreadSessionPaths = new Set(state.unreadSessionPaths);
+  unreadSessionPaths.delete(sessionPath);
+  return { unreadSessionPaths };
+}
+
 function isAgentBusy(status: AgentStatus): boolean {
   return status === 'streaming' || status === 'tool_running';
 }
@@ -288,14 +309,10 @@ export const useAppStore = create<AppState>((set) => ({
     }),
 
   setActiveSession: (activeSessionPath) =>
-    set((state) => {
-      if (activeSessionPath === null || !state.unreadSessionPaths.has(activeSessionPath)) {
-        return { activeSessionPath };
-      }
-      const unreadSessionPaths = new Set(state.unreadSessionPaths);
-      unreadSessionPaths.delete(activeSessionPath);
-      return { activeSessionPath, unreadSessionPaths };
-    }),
+    set((state) => ({
+      activeSessionPath,
+      ...markSeen(state, activeSessionPath, state.workspaceTab),
+    })),
 
   updateSession: (sessionPath, updates) =>
     set((state) => {
@@ -309,7 +326,7 @@ export const useAppStore = create<AppState>((set) => ({
         updates.status !== undefined &&
         isAgentBusy(existing.status) &&
         !isAgentBusy(updates.status) &&
-        sessionPath !== state.activeSessionPath;
+        (sessionPath !== state.activeSessionPath || state.workspaceTab !== WORKSPACE_TABS.chat);
       if (!finishedUnseen || state.unreadSessionPaths.has(sessionPath)) {
         return { sessions };
       }
@@ -342,7 +359,11 @@ export const useAppStore = create<AppState>((set) => ({
 
   // Workspace views
   workspaceTab: WORKSPACE_TABS.chat,
-  setWorkspaceTab: (workspaceTab) => set({ workspaceTab }),
+  setWorkspaceTab: (workspaceTab) =>
+    set((state) => ({
+      workspaceTab,
+      ...markSeen(state, state.activeSessionPath, workspaceTab),
+    })),
   lastFileByProject: storedLastFiles.load(),
   setLastFile: (projectPath, path) =>
     set((state) => {

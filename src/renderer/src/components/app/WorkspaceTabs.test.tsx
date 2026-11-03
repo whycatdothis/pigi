@@ -7,6 +7,19 @@ import WorkspaceTabs from './WorkspaceTabs';
 afterEach(cleanup);
 
 describe('WorkspaceTabs', () => {
+  it("shows the agent's activity on the Chat tab only while another tab is open", () => {
+    const props = { onChange: vi.fn(), shortcutBindings: null, chatTitle: 'Chat' };
+    const { rerender } = render(<WorkspaceTabs {...props} value="files" chatActivity="running" />);
+    expect(screen.getByLabelText('Running')).toBeInTheDocument();
+
+    rerender(<WorkspaceTabs {...props} value="git" chatActivity="unread" />);
+    expect(screen.queryByLabelText('Running')).toBeNull();
+    expect(screen.getByRole('status', { name: 'Finished' })).toBeInTheDocument();
+
+    rerender(<WorkspaceTabs {...props} value="chat" chatActivity="running" />);
+    expect(screen.queryByLabelText('Running')).toBeNull();
+  });
+
   it('renames the chat from a double-click on the Chat tab', () => {
     const onRenameChat = vi.fn();
     render(
@@ -21,8 +34,6 @@ describe('WorkspaceTabs', () => {
     );
 
     const tab = screen.getByRole('tab', { name: 'Old title tab' });
-    expect(tab).toHaveAttribute('title', 'Old title');
-    expect(screen.getByRole('tab', { name: 'Files tab' })).not.toHaveAttribute('title');
     fireEvent.doubleClick(tab);
     const input = screen.getByRole('textbox', { name: 'Rename chat' });
     expect(input).toHaveValue('Old title');
@@ -97,8 +108,6 @@ describe('WorkspaceTabs', () => {
     );
 
     const tab = screen.getByRole('tab', { name: 'Old title tab' });
-    expect(tab).toHaveAttribute('title', 'Old title');
-    expect(screen.getByRole('tab', { name: 'Files tab' })).not.toHaveAttribute('title');
     fireEvent.doubleClick(tab);
     const input = screen.getByRole('textbox', { name: 'Rename chat' });
     fireEvent.change(input, { target: { value: 'New title' } });

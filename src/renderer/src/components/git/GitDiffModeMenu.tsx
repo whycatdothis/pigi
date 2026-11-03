@@ -1,5 +1,5 @@
 import { IconChevronDown } from '@tabler/icons-react';
-import type { GitDiffMode } from '../../hooks/useGitDiffWorkspace';
+import type { GitDiffMode } from '../../hooks/useGitWorkspace';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +22,7 @@ function modeLabel(mode: GitDiffMode, base: string | null): string {
 }
 
 /**
- * What the Diff tab shows. The button names the base in use, which the picker
+ * What the Git tab shows. The button names the base in use, which the picker
  * can change; the menu offers the default branch, which choosing it restores.
  */
 export default function GitDiffModeMenu({

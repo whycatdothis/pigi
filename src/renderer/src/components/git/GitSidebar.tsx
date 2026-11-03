@@ -8,11 +8,12 @@ import type {
   ShortcutBinding,
 } from '../../../../shared/ipcContract';
 import type {
-  GitDiffSection,
-  GitDiffSelection,
-  GitDiffView,
-  GitDiffWorkspace,
-} from '../../hooks/useGitDiffWorkspace';
+  GitFileList,
+  GitSection,
+  GitSelection,
+  GitView,
+  GitWorkspace,
+} from '../../hooks/useGitWorkspace';
 import { GIT_DIFF_STATUS_BADGES } from '../../lib/gitDiffLabels';
 import { buildGitDiffTree, type GitDiffTreeDirectory } from '../../lib/gitDiffTree';
 import { cn, formatTimeAgo } from '../../lib/utils';
@@ -22,6 +23,7 @@ import { SpinningIcon } from '../ui/spinningIcon';
 import { Sidebar as ShadcnSidebar, SidebarContent, SidebarHeader } from '../ui/sidebar';
 import GitBasePicker from './GitBasePicker';
 import GitDiffModeMenu from './GitDiffModeMenu';
+import SegmentedToggle from './SegmentedToggle';
 
 const INDENT_STEP_PX = 12;
 const ROW_CLASS_NAME =
@@ -30,9 +32,9 @@ const ROW_IDLE_CLASS_NAME =
   'text-sidebar-foreground/80 hover:bg-accent hover:text-accent-foreground';
 const ROW_SELECTED_CLASS_NAME = 'bg-accent-subtle text-[var(--system-accent)]';
 
-const VIEW_LABELS: { value: GitDiffView; label: string }[] = [
-  { value: 'tree', label: 'Tree' },
+const VIEW_LABELS: { value: GitView; label: string }[] = [
   { value: 'status', label: 'Git status' },
+  { value: 'diff', label: 'Diff' },
   { value: 'commits', label: 'Commits' },
 ];
 
@@ -162,16 +164,19 @@ function DirectoryTree({
   );
 }
 
-function TreeView({
-  summary,
+/** List items for `files`, as folders or as one flat list; the caller supplies the `<ul>`. */
+function FileList({
+  files,
+  fileList,
   selectedPath,
   onSelectFile,
 }: {
-  summary: GitDiffSummary;
+  files: GitDiffFile[];
+  fileList: GitFileList;
   selectedPath: string | null;
   onSelectFile: (path: string) => void;
 }): React.JSX.Element {
-  const tree = useMemo(() => buildGitDiffTree(summary.files), [summary.files]);
+  const tree = useMemo(() => buildGitDiffTree(files), [files]);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 
   function toggleDirectory(path: string): void {
@@ -186,16 +191,25 @@ function TreeView({
     });
   }
 
-  if (summary.files.length === 0) {
+  if (fileList === 'flat') {
     return (
-      <p className="px-2 py-3 text-caption text-muted-foreground">
-        No changes against {summary.baseLabel}.
-      </p>
+      <>
+        {files.map((file) => (
+          <FileRow
+            key={file.path}
+            file={file}
+            depth={0}
+            showDirectory
+            selected={file.path === selectedPath}
+            onSelect={() => onSelectFile(file.path)}
+          />
+        ))}
+      </>
     );
   }
 
   return (
-    <ul>
+    <>
       {tree.directories.map((directory) => (
         <DirectoryTree
           key={directory.path}
@@ -217,15 +231,16 @@ function TreeView({
           onSelect={() => onSelectFile(file.path)}
         />
       ))}
-    </ul>
+    </>
   );
 }
 
-function isSelected(
-  selection: GitDiffSelection | null,
-  commit: string | null,
-  path: string,
-): boolean {
+const FILE_LISTS: readonly { value: GitFileList; label: string }[] = [
+  { value: 'tree', label: 'Tree' },
+  { value: 'flat', label: 'Flatten' },
+];
+
+function isSelected(selection: GitSelection | null, commit: string | null, path: string): boolean {
   return selection?.commit === commit && selection.path === path;
 }
 
@@ -238,13 +253,13 @@ function Section({
   workspace,
   children,
 }: {
-  section: GitDiffSection;
+  section: GitSection;
   label: string;
   count: number;
   /** The list stops at a cap and more exist past it. */
   more?: boolean;
   emptyText: string;
-  workspace: GitDiffWorkspace;
+  workspace: GitWorkspace;
   children: React.ReactNode;
 }): React.JSX.Element {
   const open = !workspace.collapsedSections.has(section);
@@ -281,16 +296,19 @@ function StatusView({
   workspace,
 }: {
   summary: GitDiffSummary;
-  workspace: GitDiffWorkspace;
+  workspace: GitWorkspace;
 }): React.JSX.Element {
-  const groups: { section: GitDiffSection; label: string; files: GitDiffFile[] }[] = [
-    { section: 'staged', label: 'Staged', files: summary.files.filter((file) => file.staged) },
-    {
-      section: 'unstaged',
-      label: 'Unstaged',
-      files: summary.files.filter((file) => file.unstaged),
-    },
-  ];
+  const groups = useMemo(
+    (): { section: GitSection; label: string; files: GitDiffFile[] }[] => [
+      { section: 'staged', label: 'Staged', files: summary.files.filter((file) => file.staged) },
+      {
+        section: 'unstaged',
+        label: 'Unstaged',
+        files: summary.files.filter((file) => file.unstaged),
+      },
+    ],
+    [summary.files],
+  );
 
   return (
     <div className="pb-2">
@@ -303,16 +321,12 @@ function StatusView({
           emptyText={`No ${group.label.toLowerCase()} files.`}
           workspace={workspace}
         >
-          {group.files.map((file) => (
-            <FileRow
-              key={file.path}
-              file={file}
-              depth={0}
-              showDirectory
-              selected={isSelected(workspace.selection, null, file.path)}
-              onSelect={() => workspace.select({ commit: null, path: file.path })}
-            />
-          ))}
+          <FileList
+            files={group.files}
+            fileList={workspace.fileList}
+            selectedPath={workspace.selection?.commit === null ? workspace.selection.path : null}
+            onSelectFile={(path) => workspace.select({ commit: null, path })}
+          />
         </Section>
       ))}
     </div>
@@ -326,7 +340,7 @@ function CommitRow({
 }: {
   commit: GitDiffCommit;
   now: number;
-  workspace: GitDiffWorkspace;
+  workspace: GitWorkspace;
 }): React.JSX.Element {
   const open = workspace.openCommit === commit.hash;
   const files = workspace.commitFiles.get(commit.hash);
@@ -395,7 +409,7 @@ function CommitsView({
   workspace,
 }: {
   summary: GitDiffSummary;
-  workspace: GitDiffWorkspace;
+  workspace: GitWorkspace;
 }): React.JSX.Element {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -433,14 +447,14 @@ function CommitsView({
 }
 
 // App re-renders on every streamed agent batch; the workspace and the other
-// props are stable, so the Diff tab skips those renders.
-const GitDiffSidebar = memo(function GitDiffSidebar({
+// props are stable, so the Git tab skips those renders.
+const GitSidebar = memo(function GitSidebar({
   projectName,
   workspace,
   shortcutBindings,
 }: {
   projectName: string;
-  workspace: GitDiffWorkspace;
+  workspace: GitWorkspace;
   shortcutBindings: Map<string, ShortcutBinding> | null;
 }): React.JSX.Element {
   const { summary, status, error, base, selection, mode } = workspace;
@@ -449,7 +463,7 @@ const GitDiffSidebar = memo(function GitDiffSidebar({
   const disabled = loading && !summary;
 
   return (
-    <ShadcnSidebar collapsible="none" data-testid="git-diff-sidebar" className="w-full">
+    <ShadcnSidebar collapsible="none" data-testid="git-sidebar" className="w-full">
       <SidebarHeader
         className="gap-0 border-b-[0.5px] border-foreground/15 pb-0"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
@@ -489,8 +503,8 @@ const GitDiffSidebar = memo(function GitDiffSidebar({
               </button>
             ))}
           </div>
-          {/* Git status and Commits each have a fixed comparison; only the tree offers modes. */}
-          {view === 'tree' && (
+          {/* Git status and Commits each have a fixed comparison; only Diff offers modes. */}
+          {view === 'diff' && (
             <GitDiffModeMenu
               mode={mode}
               defaultBase={summary?.defaultBase ?? null}
@@ -515,7 +529,16 @@ const GitDiffSidebar = memo(function GitDiffSidebar({
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="min-h-0 overflow-hidden">
+      <SidebarContent className="min-h-0 gap-0 overflow-hidden">
+        {view !== 'commits' && (
+          <div className="flex justify-end px-2 pt-2">
+            <SegmentedToggle
+              options={FILE_LISTS}
+              value={workspace.fileList}
+              onChange={workspace.setFileList}
+            />
+          </div>
+        )}
         <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto no-scrollbar px-1 pb-3">
           {status === 'error' && (
             <div className="mx-1 mb-2 rounded-control bg-destructive/10 px-2 py-2 text-caption text-destructive">
@@ -537,13 +560,22 @@ const GitDiffSidebar = memo(function GitDiffSidebar({
               Loading changes…
             </div>
           )}
-          {summary && view === 'tree' && (
-            <TreeView
-              summary={summary}
-              selectedPath={selection?.commit === null ? selection.path : null}
-              onSelectFile={(path) => workspace.select({ commit: null, path })}
-            />
-          )}
+          {summary &&
+            view === 'diff' &&
+            (summary.files.length === 0 ? (
+              <p className="px-2 py-3 text-caption text-muted-foreground">
+                No changes against {summary.baseLabel}.
+              </p>
+            ) : (
+              <ul>
+                <FileList
+                  files={summary.files}
+                  fileList={workspace.fileList}
+                  selectedPath={selection?.commit === null ? selection.path : null}
+                  onSelectFile={(path) => workspace.select({ commit: null, path })}
+                />
+              </ul>
+            ))}
           {summary && view === 'status' && <StatusView summary={summary} workspace={workspace} />}
           {summary && view === 'commits' && <CommitsView summary={summary} workspace={workspace} />}
         </div>
@@ -552,4 +584,4 @@ const GitDiffSidebar = memo(function GitDiffSidebar({
   );
 });
 
-export default GitDiffSidebar;
+export default GitSidebar;

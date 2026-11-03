@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useEffectEvent, useState } from 'react';
-import { IconPencil, IconPlus, IconQuote, IconTrash } from '@tabler/icons-react';
+import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { useAppStore } from '../../state/appStore';
@@ -229,26 +229,24 @@ export default React.memo(function QuotePanel({
     <div className="flex h-full w-full flex-col" data-testid="quote-panel">
       <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-width:thin]">
         {/* A reading column, so a wide sidebar does not stretch quotes into long lines. */}
-        <div className="mx-auto flex max-w-160 flex-col gap-2">
-          {quotes.length > 0 ? (
+        <div className="mx-auto flex min-h-full max-w-160 flex-col gap-2">
+          {quotes.length > 0 && (
             <ol className="flex flex-col gap-2">
               {quotes.map((quote) => (
                 <QuoteCard key={quote.id} quote={quote} sessionPath={sessionPath} />
               ))}
             </ol>
-          ) : (
-            !hasGlobalComment && (
-              <div className="flex flex-col items-center gap-2 px-4 pt-8 pb-2 text-center text-caption leading-5 text-muted-foreground">
-                <IconQuote className="size-5" />
-                Select text in a message, file or diff, then choose Quote to comment on it.
-              </div>
-            )
           )}
           <GlobalCommentCard sessionPath={sessionPath} />
+          {quotes.length === 0 && !hasGlobalComment && (
+            <div className="flex flex-1 items-center justify-center px-4 pb-10 text-center text-caption leading-5 text-muted-foreground">
+              Select text in a message, file or diff, then choose Quote to comment on it.
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="flex shrink-0 justify-center border-t-[0.5px] border-foreground/27 p-3">
+      <div className="flex shrink-0 justify-center border-t-[0.5px] border-foreground/27 px-3 py-2">
         <Button
           type="button"
           className="w-3/5 max-w-60"

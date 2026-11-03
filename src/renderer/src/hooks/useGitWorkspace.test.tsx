@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * When the Diff tab refreshes on its own: after agent activity in its project
+ * When the Git tab refreshes on its own: after agent activity in its project
  * settles, or when the window comes back, quietly and never two at a time.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,7 +12,7 @@ import type {
 } from '../../../shared/ipcContract';
 import '../testing/jsdomSetup';
 import { notifyProjectActivity } from '../lib/projectActivity';
-import { useGitDiffWorkspace } from './useGitDiffWorkspace';
+import { useGitWorkspace } from './useGitWorkspace';
 
 const CWD = '/repo';
 
@@ -81,14 +81,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function openTab(): Promise<{ result: { current: ReturnType<typeof useGitDiffWorkspace> } }> {
-  const hook = renderHook(() => useGitDiffWorkspace({ cwd: CWD, enabled: true }));
+async function openTab(): Promise<{ result: { current: ReturnType<typeof useGitWorkspace> } }> {
+  const hook = renderHook(() => useGitWorkspace({ cwd: CWD, enabled: true }));
   await wait(0);
   await answer({ success: true, summary: summary('a.txt') });
   return hook;
 }
 
-describe('useGitDiffWorkspace auto refresh', () => {
+describe('useGitWorkspace auto refresh', () => {
   it('refreshes once after agent activity in its project settles, without a spinner', async () => {
     const { result } = await openTab();
 
@@ -138,11 +138,14 @@ describe('useGitDiffWorkspace auto refresh', () => {
   });
 });
 
-describe('useGitDiffWorkspace project and view changes', () => {
+describe('useGitWorkspace project and view changes', () => {
   it('asks a newly opened project for its own default base, not the old pick', async () => {
-    const hook = renderHook(({ cwd }) => useGitDiffWorkspace({ cwd, enabled: true }), {
+    const hook = renderHook(({ cwd }) => useGitWorkspace({ cwd, enabled: true }), {
       initialProps: { cwd: CWD },
     });
+    await wait(0);
+    await answer({ success: true, summary: summary('a.txt') });
+    act(() => hook.result.current.setView('diff'));
     await wait(0);
     await answer({ success: true, summary: summary('a.txt') });
     act(() => hook.result.current.selectBase('feature'));
@@ -152,13 +155,17 @@ describe('useGitDiffWorkspace project and view changes', () => {
     requests = [];
     hook.rerender({ cwd: '/other' });
     await wait(0);
-    expect(requests).toEqual([['/other', { kind: 'branch', base: null }]]);
+    expect(requests).toEqual([['/other', { kind: 'uncommitted' }]]);
+    await answer({ success: true, summary: summary('a.txt') });
+    act(() => hook.result.current.setView('diff'));
+    await wait(0);
+    expect(requests[1]).toEqual(['/other', { kind: 'branch', base: null }]);
   });
 
   it("leaves a commit's file when switching away from the Commits view", async () => {
     const { result } = await openTab();
     act(() => result.current.select({ commit: 'c1', path: 'x.txt' }));
-    act(() => result.current.setView('status'));
+    act(() => result.current.setView('diff'));
     expect(result.current.selection).toEqual({ commit: null, path: 'a.txt' });
   });
 });

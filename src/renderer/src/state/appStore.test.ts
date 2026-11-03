@@ -23,6 +23,7 @@ describe('unread sessions', () => {
       sessions: new Map(),
       activeSessionPath: null,
       unreadSessionPaths: new Set(),
+      workspaceTab: 'chat',
     });
     const store = useAppStore.getState();
     store.addSession(backgroundPath, '/project');
@@ -57,6 +58,26 @@ describe('unread sessions', () => {
   it('does not mark the session the user is viewing', () => {
     finishRun(activePath);
     expect(useAppStore.getState().unreadSessionPaths.size).toBe(0);
+  });
+
+  it('marks the open session finishing while Files or Diff is shown, until Chat is', () => {
+    const store = useAppStore.getState();
+    store.setWorkspaceTab('files');
+    finishRun(activePath);
+    expect(useAppStore.getState().unreadSessionPaths.has(activePath)).toBe(true);
+
+    store.setWorkspaceTab('git');
+    expect(useAppStore.getState().unreadSessionPaths.has(activePath)).toBe(true);
+    store.setWorkspaceTab('chat');
+    expect(useAppStore.getState().unreadSessionPaths.has(activePath)).toBe(false);
+  });
+
+  it('keeps the mark when a session is opened outside the Chat tab', () => {
+    finishRun(backgroundPath);
+    const store = useAppStore.getState();
+    store.setWorkspaceTab('files');
+    store.setActiveSession(backgroundPath);
+    expect(useAppStore.getState().unreadSessionPaths.has(backgroundPath)).toBe(true);
   });
 
   it('does not mark a session that was never running', () => {

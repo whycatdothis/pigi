@@ -193,7 +193,7 @@ export interface GitDiffCommit {
 }
 
 /**
- * What the Diff tab shows: everything since a base (the default branch unless
+ * What the Git tab shows: everything since a base (the default branch unless
  * one is picked), only what is not committed yet, or only the last commit.
  */
 export type GitDiffScope =
@@ -563,7 +563,7 @@ export enum PiChannel {
   ProjectSessionsChunk = 'pi:project_sessions_chunk',
   /** renderer → main: get current git branch for a cwd */
   GetGitBranch = 'pi:get_git_branch',
-  /** renderer → main: list changed files and commits for the Diff tab */
+  /** renderer → main: list changed files and commits for the Git tab */
   GetGitDiffSummary = 'pi:get_git_diff_summary',
   /** renderer → main: read one changed file's unified diff */
   GetGitDiffFile = 'pi:get_git_diff_file',

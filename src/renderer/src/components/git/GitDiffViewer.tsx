@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { IconArrowRight, IconFileText, IconLoader2 } from '@tabler/icons-react';
+import { IconArrowRight, IconLoader2 } from '@tabler/icons-react';
+import { ChevronsUpDown } from 'lucide-react';
 import type { GitDiffFile, GitDiffSource } from '../../../../shared/ipcContract';
-import type { GitDiffLayout } from '../../hooks/useGitDiffWorkspace';
+import type { GitDiffLayout } from '../../hooks/useGitWorkspace';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
 import { formatFileContentQuote, formatFileLineQuote } from '../../lib/fileQuotes';
 import { GIT_DIFF_STATUS_LABELS } from '../../lib/gitDiffLabels';
@@ -10,7 +11,9 @@ import { getGitDiffFile } from '../../services/piAgentClient';
 import { FileIcon } from '../fileIcon';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import { SpinningIcon } from '../ui/spinningIcon';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import GitDiffBody from './GitDiffBody';
+import SegmentedToggle from './SegmentedToggle';
 
 interface LoadedPatch {
   id: number;
@@ -73,35 +76,6 @@ const LAYOUTS: readonly { value: GitDiffLayout; label: string }[] = [
   { value: 'unified', label: 'Unified' },
   { value: 'split', label: 'Split' },
 ];
-
-function LayoutToggle({
-  value,
-  onChange,
-}: {
-  value: GitDiffLayout;
-  onChange: (layout: GitDiffLayout) => void;
-}): React.JSX.Element {
-  return (
-    <div className="flex h-6 shrink-0 items-center gap-0.5 rounded-control bg-muted p-0.5">
-      {LAYOUTS.map((layout) => (
-        <button
-          key={layout.value}
-          type="button"
-          aria-pressed={value === layout.value}
-          onClick={() => onChange(layout.value)}
-          className={cn(
-            'h-5 rounded-control-sm px-2 text-caption leading-none transition-colors',
-            value === layout.value
-              ? 'bg-background text-foreground shadow-xs'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {layout.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export default function GitDiffViewer({
   projectPath,
@@ -249,21 +223,36 @@ export default function GitDiffViewer({
         >
           {compareLabel}
         </span>
-        <LayoutToggle value={layout} onChange={onLayoutChange} />
-        <button
-          type="button"
-          aria-label="Show whole file"
-          aria-pressed={wholeFile}
-          title={wholeFile ? 'Show changes only' : 'Show whole file'}
-          disabled={!canShowWholeFile}
-          onClick={() => setWholeFilePath(wholeFile ? null : file.path)}
-          className={cn(
-            'flex size-6 shrink-0 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
-            wholeFile && 'bg-accent text-foreground',
-          )}
-        >
-          <IconFileText size={14} />
-        </button>
+        <SegmentedToggle options={LAYOUTS} value={layout} onChange={onLayoutChange} />
+        <TooltipProvider delayDuration={400}>
+          <Tooltip>
+            {/* On the wrapper, so a disabled button still explains itself. */}
+            <TooltipTrigger asChild>
+              <span className="flex shrink-0">
+                <button
+                  type="button"
+                  aria-label="Show whole file"
+                  aria-pressed={wholeFile}
+                  disabled={!canShowWholeFile}
+                  onClick={() => setWholeFilePath(wholeFile ? null : file.path)}
+                  className={cn(
+                    'flex size-6 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
+                    wholeFile && 'bg-accent text-foreground',
+                  )}
+                >
+                  <ChevronsUpDown size={14} />
+                </button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {!canShowWholeFile
+                ? 'The whole file is not available for this diff'
+                : wholeFile
+                  ? 'Show changes only'
+                  : 'Show the whole file'}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <div className="relative min-h-0 flex-1">

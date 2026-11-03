@@ -71,7 +71,7 @@ export const STREAMING_QUEUE_BAR_STEP_PX = 33;
 
 export const SIDEBAR_DEFAULT_WIDTH = 244;
 export const SIDEBAR_MIN_WIDTH = 220;
-/** Wide enough for the Diff tab's file paths. */
+/** Wide enough for the Git tab's file paths. */
 export const SIDEBAR_MAX_WIDTH = 480;
 export const SIDEBAR_WIDTH_PROPERTY = '--sidebar-width';
 
@@ -91,8 +91,8 @@ export const RIGHT_SIDEBAR_WIDTH_PROPERTY = '--right-sidebar-width';
  *  `trafficLightPosition` x 16, three 12px lights with 8px gaps). */
 export const SIDEBAR_TOGGLE_LEFT_MAC_PX = 76;
 export const SIDEBAR_TOGGLE_LEFT_PX = 8;
-/** Toggle button width (28px) plus an 8px gap before the toolbar title. */
-export const SIDEBAR_TOGGLE_CLEARANCE_PX = 36;
+/** Toggle button width; the Chat tab's own left border is the gap after it. */
+export const SIDEBAR_TOGGLE_CLEARANCE_PX = 28;
 
 /** Shared by the sidebar width and the toolbar title inset so both move in step. */
 export const SIDEBAR_TRANSITION_CLASS_NAME =

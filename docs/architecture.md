@@ -111,12 +111,15 @@ its `Animation` event.
 
 ## Workspace Tabs
 
-The main area has three fixed tabs: Chat, Files and Diff. They never close;
-⌘1/⌘2/⌘3 switch them and the keycaps appear on hover or focus. The Chat tab
-carries the session title (double-click to rename), so the toolbar has no
-separate title. Welcome and new-chat screens hide the header but keep an
-invisible 44px drag strip; no-session Files/Diff use `WorkspaceHeader`, which
-hosts the tabs without session actions. Files and Diff mount on selection and
+The main area has three fixed tabs: Chat, Files and Git. They never close;
+⌘1/⌘2/⌘3 switch them; Files and Git show their keycap on hover or
+focus. The Chat
+tab carries the session title (double-click to rename), so the toolbar has no
+separate title. While another tab is open, the Chat tab shows a spinner while
+the agent runs and a dot once it finishes unseen (`unreadSessionPaths`, which
+only clears when the session is shown in Chat). Welcome and new-chat screens hide the header but keep an
+invisible 44px drag strip; no-session Files/Git use `WorkspaceHeader`, which
+hosts the tabs without session actions. Files and Git mount on selection and
 unmount on leave. Chat stays mounted and laid out while another tab shows,
 with only its paint skipped (`invisible absolute inset-0`). Do not replace that
 with `display: none`: it collapses every virtual transcript row to zero height,
@@ -124,23 +127,20 @@ so a reader following the bottom comes back off the bottom by about 146px. The
 invisible layer also keeps the composer and its draft state alive. Switching
 back resizes the box, which re-glues a following reader.
 
-The tab strip has a width budget, not a viewport breakpoint. At full size it is
-455px: the Chat chip is at most 240px, Files 106px, Diff 100px, plus two 4px
-gaps. The list is `max-w-full`, not only `w-fit`: with `w-fit` it keeps its
-max-content width and the Chat chip's `shrink` is dead code, so overflow is
-painted into the header spacer. The header's padding queries a wrapper
-container because a container cannot query its own width; the tabs query the
-header's content box. Below 600px the Chat chip may shrink and the shortcut
-keycaps are hidden; below 320px the labels go and each icon tab is 34px (about
-110px total); below 220px padding tightens again to 26px per tab (about 78px).
-Every tab keeps its `aria-label`; Chat keeps its full-title `title`. The session
+The tabs are 32px chips in the 44px header, 15px text, the active one on a
+muted fill. Chat has no icon, so its title gets the room, at a fixed 280px so
+Files and Git sit in the same place whatever the title is. Chat shows no
+keycap; Files and Git reserve room for theirs. The list is
+`max-w-full`, not only `w-fit`: with `w-fit` it keeps its max-content width and
+the Chat chip's `shrink` is dead code. The tabs query the header's content box,
+not the viewport: below 600px the Chat chip may shrink and the keycaps go, below 500px Files and
+Git drop their labels, below 320px Chat swaps its title for an icon (each tab
+32px), and below 220px padding tightens to 24px per tab (about 72px for all
+three). Every tab keeps its `aria-label`. The session
 toolbar keeps the tree, terminal, view-mode and right-sidebar actions inline
 while there is room; below 430px of header content they move into a `...` menu,
 because the session tree has no other entry point. The right-sidebar toggle
-also hides below 220px, but stays in that menu. Measured at a 430px window
-(186px main): labels and keycaps are gone, each tab is 26px, and all three are
-clickable; at the 680px minimum with both sidebars open (116px main), the tabs
-and the 20px menu still fit.
+also hides below 220px, but stays in that menu.
 
 ### Files freshness
 
@@ -174,9 +174,9 @@ viewer effect rereads the file through the same 2MB/text/binary path. This is
 why edits appear without reopening; a deleted file reports `This file no
 longer exists.` instead of keeping the old contents.
 
-### Diff tab
+### Git tab
 
-The Diff tab has three modes, as in Plannotator: all changes since a base (the
+The Git tab has three modes, as in Plannotator: all changes since a base (the
 default branch unless another is picked), uncommitted changes (a base of
 `HEAD`), and the last commit (read as one commit, like an opened commit). The
 modes live in the tree view; Git status and Commits always use the first, and
@@ -234,11 +234,12 @@ deletion and an untracked file), and a new file gets real line counts and a
 real patch. Patches are capped at 1.5M characters or 5,000 lines with a
 `truncated` notice, so a minified bundle cannot freeze the renderer.
 
-The sidebar offers three views: tree (folders, a directory holding only one
-directory compacted into one row like `main/java/com/example`), Git status
-(the working tree against HEAD as Staged / Unstaged, untracked files counted as
-unstaged and a partly staged file in both, each showing its whole diff
-against HEAD) and commits. Only the tree takes a mode and a base. Opening
+The sidebar offers three views: Git status, the default (the working tree
+against HEAD as Staged / Unstaged, untracked files counted as unstaged and a
+partly staged file in both, each showing its whole diff against HEAD), Diff
+(against the chosen mode and base, the only view that takes them) and commits.
+Git status and Diff list files as a tree (a directory holding only one
+directory compacted into one row like `main/java/com/example`) or flattened. Opening
 a commit lists its files and shows one commit against its first parent; a root
 commit diffs against the empty tree. The selection is `{ commit, path }`, with
 `commit: null` for the base comparison, because the same path can be picked
@@ -259,7 +260,7 @@ screen and replaces it once its highlighting lands, so switching files never
 paints a blank or uncoloured frame (it used to: 120–240ms blank while the
 patch was read and highlighted). A refresh keeps the scroll position; expanded
 gaps collapse when the patch changes, since they are numbered by hunk. The
-first load's spinner fades in late. Files and Diff scrollers keep their bottom
+first load's spinner fades in late. Files and Git scrollers keep their bottom
 line in place when they shrink, so the terminal opening pushes the content up
 as it does in the chat. A file that is
 only added or only deleted drops the +/- column, the empty gutter and the gap

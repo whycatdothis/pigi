@@ -96,8 +96,8 @@ import { WorkspaceHeader } from './components/app/WorkspaceTabs';
 import FileSearchPalette from './components/files/FileSearchPalette';
 import FilesTab from './components/files/FilesTab';
 import FileTreeSidebar from './components/files/FileTreeSidebar';
-import GitDiffSidebar from './components/files/GitDiffSidebar';
-import GitDiffTab from './components/files/GitDiffTab';
+import GitSidebar from './components/git/GitSidebar';
+import GitTab from './components/git/GitTab';
 import SessionSwitcher from './components/session/SessionSwitcher';
 import { SidebarProvider } from './components/ui/sidebar';
 import { SidebarToggle } from './components/sidebar/sidebarToggle';
@@ -125,7 +125,7 @@ import {
   SIDEBAR_TRANSITION_CLASS_NAME,
 } from './lib/layoutConstants';
 import { usePanelResize } from './hooks/usePanelResize';
-import { useGitDiffWorkspace } from './hooks/useGitDiffWorkspace';
+import { useGitWorkspace } from './hooks/useGitWorkspace';
 const WELCOME_TITLE = 'Welcome to pigi';
 
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
@@ -235,9 +235,9 @@ function App(): React.JSX.Element {
 
   const activeSession = activeSessionPath ? (sessions.get(activeSessionPath) ?? null) : null;
   const activeProjectPath = activeProject?.path ?? null;
-  const gitDiffWorkspace = useGitDiffWorkspace({
+  const gitWorkspace = useGitWorkspace({
     cwd: activeProjectPath,
-    enabled: workspaceTab === WORKSPACE_TABS.diff,
+    enabled: workspaceTab === WORKSPACE_TABS.git,
   });
   const activeCwd = activeSession?.cwd ?? activeProjectPath ?? window.piApi.getCwd();
   const findSessionByPath = useCallback(
@@ -874,7 +874,7 @@ function App(): React.JSX.Element {
   const handleSendQuotes = useCallback((message: string): Promise<void> => {
     // A diff review ends in the chat, where the agent answers it.
     const store = useAppStore.getState();
-    if (store.workspaceTab === WORKSPACE_TABS.diff) store.setWorkspaceTab(WORKSPACE_TABS.chat);
+    if (store.workspaceTab === WORKSPACE_TABS.git) store.setWorkspaceTab(WORKSPACE_TABS.chat);
     return handleSendRef.current(message);
   }, []);
 
@@ -1354,9 +1354,9 @@ function App(): React.JSX.Element {
         closeSettings();
         handleSelectWorkspaceTab(WORKSPACE_TABS.files);
       },
-      'workspace.diff': () => {
+      'workspace.git': () => {
         closeSettings();
-        handleSelectWorkspaceTab(WORKSPACE_TABS.diff);
+        handleSelectWorkspaceTab(WORKSPACE_TABS.git);
       },
       'files.search': () => {
         handleOpenFileSearch();
@@ -1734,11 +1734,11 @@ function App(): React.JSX.Element {
                   onActiveFileChanged={handleActiveFileChanged}
                   shortcutBindings={shortcutBindings}
                 />
-              ) : workspaceTab === WORKSPACE_TABS.diff && activeProject ? (
-                <GitDiffSidebar
+              ) : workspaceTab === WORKSPACE_TABS.git && activeProject ? (
+                <GitSidebar
                   key={activeProject.path}
                   projectName={activeProject.name}
-                  workspace={gitDiffWorkspace}
+                  workspace={gitWorkspace}
                   shortcutBindings={shortcutBindings}
                 />
               ) : (
@@ -1812,7 +1812,7 @@ function App(): React.JSX.Element {
                   ) : workspaceTab === WORKSPACE_TABS.chat ? (
                     // New chat and the welcome/empty states are single centered
                     // compositions; the strip keeps the window draggable where
-                    // the toolbar was. Files/Diff keep the header for their tabs.
+                    // the toolbar was. Files/Git keep the header for their tabs.
                     <div className="h-11 shrink-0 [-webkit-app-region:drag]" />
                   ) : (
                     <WorkspaceHeader
@@ -1841,11 +1841,11 @@ function App(): React.JSX.Element {
                           onOpenProject={handleOpenProject}
                         />
                       )}
-                      {workspaceTab === WORKSPACE_TABS.diff && (
-                        <GitDiffTab
+                      {workspaceTab === WORKSPACE_TABS.git && (
+                        <GitTab
                           projectPath={activeProjectPath}
                           sessionPath={activeSessionPath}
-                          workspace={gitDiffWorkspace}
+                          workspace={gitWorkspace}
                           onOpenProject={handleOpenProject}
                         />
                       )}
