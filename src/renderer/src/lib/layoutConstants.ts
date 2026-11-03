@@ -71,7 +71,8 @@ export const STREAMING_QUEUE_BAR_STEP_PX = 33;
 
 export const SIDEBAR_DEFAULT_WIDTH = 244;
 export const SIDEBAR_MIN_WIDTH = 220;
-export const SIDEBAR_MAX_WIDTH = 360;
+/** Wide enough for the Diff tab's file paths. */
+export const SIDEBAR_MAX_WIDTH = 480;
 export const SIDEBAR_WIDTH_PROPERTY = '--sidebar-width';
 
 /** Tabbed right sidebar (see components/rightSidebar). */

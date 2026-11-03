@@ -10,6 +10,7 @@ import SyntaxHighlightedCode from '../message/syntaxHighlightedCode';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
+import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
 
 /** A text view with this many lines is already well past reading; the rest is cut and announced. */
 const MAX_RENDERED_LINES = 5000;
@@ -99,6 +100,7 @@ export default function FileViewer({
   const [fileState, setFileState] = useState<FileState>({ status: 'loading' });
   const [viewMode, setViewMode] = useState<ViewMode>('preview');
   const containerRef = useRef<HTMLDivElement>(null);
+  useBottomAnchoredScroll(containerRef);
   const isMarkdown = isMarkdownPath(filePath);
   const language = languageForPath(filePath);
   const markdownProjectFile = useMemo(

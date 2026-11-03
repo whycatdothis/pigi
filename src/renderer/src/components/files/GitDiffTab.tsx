@@ -110,9 +110,11 @@ export default function GitDiffTab({
           </EmptyMedia>
           <EmptyTitle>No changes</EmptyTitle>
           <EmptyDescription>
-            {summary.base === 'HEAD'
+            {workspace.mode === 'uncommitted'
               ? 'The working tree matches HEAD.'
-              : `No changes against ${summary.baseLabel}.`}
+              : workspace.mode === 'lastCommit'
+                ? 'The last commit changes no files.'
+                : `No changes against ${summary.baseLabel}.`}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -131,16 +133,19 @@ export default function GitDiffTab({
 
   const source: GitDiffSource = selection?.commit
     ? { kind: 'commit', commit: selection.commit }
-    : { kind: 'base', base: summary.mergeBase };
+    : summary.source;
   return (
     <GitDiffViewer
-      key={`${selection?.commit ?? summary.mergeBase}:${selectedFile.path}`}
       projectPath={projectPath}
       source={source}
       compareLabel={
         selection?.commit
           ? `${commit?.shortHash ?? selection.commit.slice(0, 7)} ${commit?.subject ?? ''}`.trim()
-          : `vs ${summary.baseLabel}`
+          : workspace.mode === 'uncommitted'
+            ? 'Uncommitted changes'
+            : workspace.mode === 'lastCommit'
+              ? `Last commit ${summary.baseLabel}`
+              : `vs ${summary.baseLabel}`
       }
       file={selectedFile}
       layout={workspace.layout}

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { IconChevronRight, IconGitBranch, IconLoader2 } from '@tabler/icons-react';
+import { useEffect, useMemo, useState } from 'react';
+import { IconChevronRight, IconLoader2 } from '@tabler/icons-react';
 import { FolderClosed, FolderOpen } from 'lucide-react';
 import type {
   GitDiffCommit,
@@ -15,12 +15,13 @@ import type {
 } from '../../hooks/useGitDiffWorkspace';
 import { GIT_DIFF_STATUS_BADGES } from '../../lib/gitDiffLabels';
 import { buildGitDiffTree, type GitDiffTreeDirectory } from '../../lib/gitDiffTree';
-import { cn } from '../../lib/utils';
+import { cn, formatTimeAgo } from '../../lib/utils';
 import { SidebarToggle } from '../sidebar/sidebarToggle';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { Sidebar as ShadcnSidebar, SidebarContent, SidebarHeader } from '../ui/sidebar';
 import GitBasePicker from './GitBasePicker';
+import GitDiffModeMenu from './GitDiffModeMenu';
 
 const INDENT_STEP_PX = 12;
 const ROW_CLASS_NAME =
@@ -28,6 +29,10 @@ const ROW_CLASS_NAME =
 const ROW_IDLE_CLASS_NAME =
   'text-sidebar-foreground/80 hover:bg-accent hover:text-accent-foreground';
 const ROW_SELECTED_CLASS_NAME = 'bg-accent-subtle text-[var(--system-accent)]';
+
+/** A row of header controls below the view tabs, divided from the one above by an edge-to-edge rule. */
+const LAYER_CLASS_NAME =
+  '-mx-2 border-t-[0.5px] border-foreground/27 px-2 py-2 [-webkit-app-region:no-drag]';
 
 const VIEW_LABELS: { value: GitDiffView; label: string }[] = [
   { value: 'tree', label: 'Tree' },
@@ -37,13 +42,6 @@ const VIEW_LABELS: { value: GitDiffView; label: string }[] = [
 
 function fileName(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1);
-}
-
-function formatCommitDate(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? ''
-    : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function parentPath(path: string): string {
@@ -330,9 +328,11 @@ function StatusView({
 
 function CommitRow({
   commit,
+  now,
   workspace,
 }: {
   commit: GitDiffCommit;
+  now: number;
   workspace: GitDiffWorkspace;
 }): React.JSX.Element {
   const open = workspace.openCommit === commit.hash;
@@ -358,10 +358,12 @@ function CommitRow({
         />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="truncate text-body text-sidebar-foreground/80">{commit.subject}</span>
-          <span className="text-2xs text-muted-foreground">
-            <span className="font-mono">{commit.shortHash}</span>
-            {commit.date ? ` · ${formatCommitDate(commit.date)}` : ''}
-            {commit.author ? ` · ${commit.author}` : ''}
+          <span className="flex gap-2 text-2xs text-muted-foreground">
+            <span className="min-w-0 flex-1 truncate">
+              <span className="font-mono">{commit.shortHash}</span>
+              {commit.author ? ` · ${commit.author}` : ''}
+            </span>
+            <span className="shrink-0">{formatTimeAgo(commit.date, now)}</span>
           </span>
         </span>
       </button>
@@ -402,6 +404,12 @@ function CommitsView({
   summary: GitDiffSummary;
   workspace: GitDiffWorkspace;
 }): React.JSX.Element {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   return (
     <div className="pb-2">
       <Section
@@ -412,7 +420,7 @@ function CommitsView({
         workspace={workspace}
       >
         {summary.commits.map((commit) => (
-          <CommitRow key={commit.hash} commit={commit} workspace={workspace} />
+          <CommitRow key={commit.hash} commit={commit} now={now} workspace={workspace} />
         ))}
       </Section>
       <Section
@@ -423,7 +431,7 @@ function CommitsView({
         workspace={workspace}
       >
         {summary.baseCommits.map((commit) => (
-          <CommitRow key={commit.hash} commit={commit} workspace={workspace} />
+          <CommitRow key={commit.hash} commit={commit} now={now} workspace={workspace} />
         ))}
       </Section>
     </div>
@@ -439,8 +447,10 @@ export default function GitDiffSidebar({
   workspace: GitDiffWorkspace;
   shortcutBindings: Map<string, ShortcutBinding> | null;
 }): React.JSX.Element {
-  const { summary, status, error, base, selection, view } = workspace;
+  const { summary, status, error, base, selection, mode } = workspace;
   const loading = status === 'loading';
+  const view = workspace.view;
+  const disabled = loading && !summary;
 
   return (
     <ShadcnSidebar collapsible="none" data-testid="git-diff-sidebar" className="w-full">
@@ -456,24 +466,12 @@ export default function GitDiffSidebar({
             {projectName}
           </span>
         </div>
-        <span className="flex min-w-0 items-center gap-1 px-2 pb-2 text-caption text-muted-foreground">
-          <IconGitBranch size={12} className="shrink-0" />
-          <span className="truncate">
-            {summary?.branch ?? (summary?.detached ? 'Detached HEAD' : 'No branch')}
-          </span>
+        <span className="truncate px-2 text-ui text-muted-foreground">
+          {summary?.branch ?? (summary?.detached ? 'Detached HEAD' : 'No branch')}
         </span>
 
-        <div className="flex items-center px-2 pb-2 [-webkit-app-region:no-drag]">
-          <GitBasePicker
-            summary={summary}
-            base={base}
-            disabled={loading && !summary}
-            onSelect={workspace.selectBase}
-          />
-        </div>
-
-        {summary && (
-          <div className="mx-2 mb-2 flex items-center gap-0.5 rounded-control bg-foreground/7 p-0.5 [-webkit-app-region:no-drag]">
+        <div className="py-2 [-webkit-app-region:no-drag]">
+          <div className="flex items-center gap-0.5 rounded-control bg-foreground/7 p-0.5">
             {VIEW_LABELS.map((item) => (
               <button
                 key={item.value}
@@ -490,6 +488,28 @@ export default function GitDiffSidebar({
                 {item.label}
               </button>
             ))}
+          </div>
+        </div>
+        {/* Git status needs a base and Commits lists the branch, so only the tree offers the other modes. */}
+        {view === 'tree' && (
+          <div className={LAYER_CLASS_NAME}>
+            <GitDiffModeMenu
+              mode={mode}
+              defaultBase={summary?.defaultBase ?? null}
+              baseLabel={summary?.baseLabel ?? null}
+              disabled={disabled}
+              onSelect={workspace.selectMode}
+            />
+          </div>
+        )}
+        {mode === 'branch' && view !== 'commits' && (
+          <div className={LAYER_CLASS_NAME}>
+            <GitBasePicker
+              summary={summary}
+              base={base}
+              disabled={disabled}
+              onSelect={workspace.selectBase}
+            />
           </div>
         )}
       </SidebarHeader>

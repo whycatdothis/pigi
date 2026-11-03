@@ -176,8 +176,13 @@ longer exists.` instead of keeping the old contents.
 
 ### Diff tab
 
-The Diff tab answers one question: what changed between a chosen base and the
-working tree. Main runs the git commands (`gitDiff.ts`, 6s timeout each) and
+The Diff tab has three modes, as in Plannotator: all changes since a base (the
+default branch unless another is picked), uncommitted changes (a base of
+`HEAD`), and the last commit (read as one commit, like an opened commit). The
+modes live in the tree view; Git status and Commits always use the first, and
+Commits always against the default branch, since it lists the branch's own
+commits. Only the first shows the base picker, and the summary
+skips the branch list and logs in the other two. Main runs the git commands (`gitDiff.ts`, 6s timeout each) and
 the renderer only draws. Three IPC calls: the summary (branch, base label,
 merge-base, branches, the commits since the merge-base and 30 below it, and
 the changed-file list with +/- counts), one file's patch, fetched only for the
@@ -186,10 +191,10 @@ Comparing merge-base..HEAD plus the working tree in one patch means a file
 shows committed and uncommitted edits together, which is what a reviewer of
 "changes since main" wants.
 
-The default base is the first of `origin/main`, `origin/master`, `main`,
-`master`, the current branch, the upstream, then `HEAD`, because the common
-case is "what did I do since main" and every fallback still produces a useful
-answer. The base picker lists branches and commits on separate tabs and takes
+The default base is the branch `origin/HEAD` points at, so a monorepo's
+`trunk` is found by name; then `origin/main`, `origin/master`, `main`,
+`master`, the upstream and `HEAD`, because the common case is "what did I do
+since main" and every fallback still produces a useful answer. The base picker lists branches and commits on separate tabs and takes
 any typed ref (`HEAD~3`, a SHA, a tag); it lists every local branch but only
 the 200 most recently committed remote branches, because a monorepo can carry
 ~90k. The base is deliberately not persisted per project: a branch selected in
@@ -237,10 +242,14 @@ lines that replaced it, and wrap instead of scrolling so the two halves never
 need synchronized horizontal scroll. The new side is highlighted as the whole
 new file when it fits the shared shiki budget, so expanded lines are already
 coloured; the old side is the patch's removed and context lines as one text.
-Rows stay invisible until highlighting lands, a refresh keeps the patch and
-scroll position on screen until the new one arrives (expanded gaps collapse
-when the patch changes, since they are numbered by hunk), and the loading state fades in late, so a
-tab switch goes from blank to the coloured diff in one step. A file that is
+A new patch, from another file or a refresh, renders hidden beside the one on
+screen and replaces it once its highlighting lands, so switching files never
+paints a blank or uncoloured frame (it used to: 120–240ms blank while the
+patch was read and highlighted). A refresh keeps the scroll position; expanded
+gaps collapse when the patch changes, since they are numbered by hunk. The
+first load's spinner fades in late. Files and Diff scrollers keep their bottom
+line in place when they shrink, so the terminal opening pushes the content up
+as it does in the chat. A file that is
 only added or only deleted drops the +/- column, the empty gutter and the gap
 rows. Quoting reuses the Files popover, gated to line cells
 (`data-diff-line`): added and context lines carry new-file line numbers and

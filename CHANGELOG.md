@@ -16,6 +16,9 @@
   changes them, and when you come back to the window
 - The Diff tab's Git status and Commits groups fold open and closed; Committed
   starts folded, and empty groups still show
+- The Diff tab shows all changes since the repository's main branch (whatever
+  it is called), only the uncommitted changes, or only the last commit
+- Commits in the Diff tab show how long ago they were made (`2h ago`)
 - The Files and Diff trees compact a directory that only holds one directory
   into one row (`main/java/com/example`)
 
@@ -27,7 +30,9 @@
 ### Fixed
 
 - The Files and Diff tabs move up with the terminal instead of being covered
-  by it
+  by it, wherever they are scrolled
+- Switching files in the Diff tab no longer flashes blank
+- The sidebar can be dragged wider, so long file paths fit
 - The sidebar resize handle is grabbable along its whole height and full
   width; half of it was clipped, and in the Diff tab the line gutters covered
   the rest

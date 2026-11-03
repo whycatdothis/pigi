@@ -84,3 +84,9 @@ export function formatRelativeTime(value: string, now: number): string {
 
   return 'now';
 }
+
+/** `formatRelativeTime` read as an age: "2h ago", "now". */
+export function formatTimeAgo(value: string, now: number): string {
+  const age = formatRelativeTime(value, now);
+  return age === 'now' || age === '' ? age : `${age} ago`;
+}

@@ -17,6 +17,7 @@ import {
   type GitBranchResult,
   type GitCommitFilesResult,
   type GitDiffFileResult,
+  type GitDiffScope,
   type GitDiffSource,
   type GitDiffSummaryResult,
   type ModelCatalogSnapshot,
@@ -327,8 +328,8 @@ const piApi = {
     ipcRenderer.invoke(PiChannel.GetGitBranch, cwd),
 
   /** List changed files and commits for the Diff workspace. */
-  getGitDiffSummary: (cwd: string, base?: string | null): Promise<GitDiffSummaryResult> =>
-    ipcRenderer.invoke(PiChannel.GetGitDiffSummary, cwd, base ?? null),
+  getGitDiffSummary: (cwd: string, scope: GitDiffScope): Promise<GitDiffSummaryResult> =>
+    ipcRenderer.invoke(PiChannel.GetGitDiffSummary, cwd, scope),
 
   /** Read one changed file's unified diff. */
   getGitDiffFile: (

@@ -17,6 +17,7 @@ import type {
   GitCommitFilesResult,
   GitDiffFileResult,
   GitDiffSource,
+  GitDiffScope,
   GitDiffSummaryResult,
   ProjectSessionsChunk,
   ProjectStateResult,
@@ -82,9 +83,9 @@ export async function getGitBranch(cwd: string): Promise<GitBranchResult> {
 
 export async function getGitDiffSummary(
   cwd: string,
-  base?: string | null,
+  scope: GitDiffScope,
 ): Promise<GitDiffSummaryResult> {
-  return window.piApi.getGitDiffSummary(cwd, base);
+  return window.piApi.getGitDiffSummary(cwd, scope);
 }
 
 export async function getGitDiffFile(

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { IconArrowRight, IconFileText, IconLoader2 } from '@tabler/icons-react';
 import type { GitDiffFile, GitDiffSource } from '../../../../shared/ipcContract';
 import type { GitDiffLayout } from '../../hooks/useGitDiffWorkspace';
+import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
 import { formatFileContentQuote, formatFileLineQuote } from '../../lib/fileQuotes';
 import { GIT_DIFF_STATUS_LABELS } from '../../lib/gitDiffLabels';
 import { cn } from '../../lib/utils';
@@ -11,10 +12,41 @@ import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import { SpinningIcon } from '../ui/spinningIcon';
 import GitDiffBody from './GitDiffBody';
 
-type PatchState =
-  | { status: 'loading' }
-  | { status: 'ready'; patch: string; truncated: boolean; newContent: string | null }
-  | { status: 'error'; error: string };
+interface LoadedPatch {
+  id: number;
+  file: GitDiffFile;
+  patch: string;
+  truncated: boolean;
+  newContent: string | null;
+}
+
+/**
+ * `shown` is on screen; `incoming` renders hidden beside it until its
+ * highlighting lands and then takes its place, so switching files or picking
+ * up a refresh never paints a blank or uncoloured frame.
+ */
+interface PatchState {
+  shown: LoadedPatch | null;
+  incoming: LoadedPatch | null;
+  error: string | null;
+}
+
+const EMPTY_PATCH_STATE: PatchState = { shown: null, incoming: null, error: null };
+let nextPatchId = 0;
+
+function samePatch(
+  loaded: LoadedPatch | null,
+  file: GitDiffFile,
+  patch: { patch: string; truncated: boolean; newContent: string | null },
+): boolean {
+  return (
+    loaded !== null &&
+    loaded.file.path === file.path &&
+    loaded.patch === patch.patch &&
+    loaded.truncated === patch.truncated &&
+    loaded.newContent === patch.newContent
+  );
+}
 
 function isInsideDiffLine(node: Node): boolean {
   const element = node instanceof Element ? node : node.parentElement;
@@ -88,15 +120,16 @@ export default function GitDiffViewer({
   onLayoutChange: (layout: GitDiffLayout) => void;
   sessionPath: string | null;
 }): React.JSX.Element {
-  const [patchState, setPatchState] = useState<PatchState>({ status: 'loading' });
-  const [wholeFile, setWholeFile] = useState(false);
+  const [patchState, setPatchState] = useState<PatchState>(EMPTY_PATCH_STATE);
+  // The path whose whole file is open, so another file starts with changes only.
+  const [wholeFilePath, setWholeFilePath] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  useBottomAnchoredScroll(containerRef);
   const sourceKind = source.kind;
   const sourceRef = source.kind === 'base' ? source.base : source.commit;
 
-  // A summary refresh hands in a new `file` object and reads the patch again.
-  // The patch on screen stays until the new one arrives, and an unchanged
-  // result keeps the old state, so a refresh never flashes.
+  // A summary refresh hands in a new `file` object and reads the patch again;
+  // an unchanged result keeps the state.
   useEffect(() => {
     let cancelled = false;
     const request: GitDiffSource =
@@ -107,30 +140,55 @@ export default function GitDiffViewer({
       .then((result) => {
         if (cancelled) return;
         if (!result.success) {
-          setPatchState({ status: 'error', error: result.error });
+          setPatchState({ ...EMPTY_PATCH_STATE, error: result.error });
           return;
         }
-        setPatchState((previous) =>
-          previous.status === 'ready' &&
-          previous.patch === result.patch &&
-          previous.newContent === result.newContent &&
-          previous.truncated === result.truncated
-            ? previous
-            : {
-                status: 'ready',
-                patch: result.patch,
-                truncated: result.truncated,
-                newContent: result.newContent,
-              },
-        );
+        setPatchState((previous) => {
+          if (
+            samePatch(previous.incoming ?? (previous.error ? null : previous.shown), file, result)
+          ) {
+            return previous;
+          }
+          if (samePatch(previous.shown, file, result)) {
+            return { ...previous, incoming: null, error: null };
+          }
+          const incoming = {
+            id: (nextPatchId += 1),
+            file,
+            patch: result.patch,
+            truncated: result.truncated,
+            newContent: result.newContent,
+          };
+          return { shown: previous.error ? null : previous.shown, incoming, error: null };
+        });
       })
       .catch(() => {
-        if (!cancelled) setPatchState({ status: 'error', error: 'Unable to read this diff.' });
+        if (!cancelled) {
+          setPatchState({ ...EMPTY_PATCH_STATE, error: 'Unable to read this diff.' });
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [projectPath, sourceKind, sourceRef, file]);
+
+  const promote = useCallback((id: number) => {
+    setPatchState((previous) =>
+      previous.incoming?.id === id
+        ? { shown: previous.incoming, incoming: null, error: null }
+        : previous,
+    );
+  }, []);
+
+  const { shown, incoming, error } = patchState;
+  const shownPath = shown?.file.path;
+  // Another file starts at its top; a refresh of the same file keeps its place.
+  const scrolledPathRef = useRef(shownPath);
+  useLayoutEffect(() => {
+    if (scrolledPathRef.current === shownPath) return;
+    scrolledPathRef.current = shownPath;
+    containerRef.current?.scrollTo(0, 0);
+  }, [shownPath]);
 
   const formatQuoteText = useCallback(
     ({ text, range }: { text: string; range: Range }): string => {
@@ -140,15 +198,19 @@ export default function GitDiffViewer({
       // Added and context rows carry the file's post-change line numbers, so
       // they quote like the Files viewer. A selection that touches deleted
       // rows has no such number and falls back to carrying the text.
+      if (!shownPath) return '';
       const lines = containerRef.current ? newLineRange(containerRef.current, range) : null;
-      if (lines) return formatFileLineQuote(file.path, lines.start, lines.end);
-      return formatFileContentQuote(file.path, text);
+      if (lines) return formatFileLineQuote(shownPath, lines.start, lines.end);
+      return formatFileContentQuote(shownPath, text);
     },
-    [file.path],
+    [shownPath],
   );
 
   const renamed = file.oldPath !== null && file.oldPath !== file.path;
-  const canShowWholeFile = patchState.status === 'ready' && patchState.newContent !== null;
+  const current = incoming ?? shown;
+  const canShowWholeFile =
+    !error && current?.file.path === file.path && current.newContent !== null;
+  const wholeFile = canShowWholeFile && wholeFilePath === file.path;
 
   return (
     <div className="@container flex min-h-0 flex-1 flex-col">
@@ -190,7 +252,7 @@ export default function GitDiffViewer({
           aria-pressed={wholeFile}
           title={wholeFile ? 'Show changes only' : 'Show whole file'}
           disabled={!canShowWholeFile}
-          onClick={() => setWholeFile((value) => !value)}
+          onClick={() => setWholeFilePath(wholeFile ? null : file.path)}
           className={cn(
             'flex size-6 shrink-0 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
             wholeFile && 'bg-accent text-foreground',
@@ -206,9 +268,9 @@ export default function GitDiffViewer({
           tabIndex={0}
           aria-label="Diff content"
           data-testid="git-diff-viewer"
-          className="h-full overflow-auto bg-background select-text outline-none"
+          className="relative h-full overflow-auto bg-background select-text outline-none"
         >
-          {patchState.status === 'loading' && (
+          {!shown && !error && (
             // Fades in late, so a quick load never flashes a spinner.
             <div className="flex h-full animate-in items-center justify-center gap-2 text-caption text-muted-foreground delay-300 fade-in-0 fill-mode-backwards">
               <SpinningIcon>
@@ -217,27 +279,41 @@ export default function GitDiffViewer({
               Loading diff…
             </div>
           )}
-          {patchState.status === 'error' && (
+          {error && (
             <div className="flex h-full items-center justify-center px-6 text-center text-caption text-danger-fg">
-              {patchState.error}
+              {error}
             </div>
           )}
-          {patchState.status === 'ready' && (
-            <>
-              {patchState.truncated && (
-                <div className="border-b-[0.5px] border-foreground/27 px-4 py-1.5 text-caption text-muted-foreground">
-                  This diff is too large to show in full.
-                </div>
-              )}
-              <GitDiffBody
-                file={file}
-                patch={patchState.patch}
-                newContent={patchState.newContent}
-                layout={layout}
-                wholeFile={wholeFile}
-              />
-            </>
-          )}
+          {!error &&
+            [shown, incoming].map(
+              (loaded) =>
+                loaded && (
+                  // Keyed by id in one parent, so promotion restyles the
+                  // highlighted body instead of mounting it again.
+                  <div
+                    key={loaded.id}
+                    aria-hidden={loaded === incoming || undefined}
+                    className={cn(
+                      loaded === incoming &&
+                        'pointer-events-none invisible absolute inset-x-0 top-0 h-full overflow-hidden',
+                    )}
+                  >
+                    {loaded.truncated && (
+                      <div className="border-b-[0.5px] border-foreground/27 px-4 py-1.5 text-caption text-muted-foreground">
+                        This diff is too large to show in full.
+                      </div>
+                    )}
+                    <GitDiffBody
+                      file={loaded.file}
+                      patch={loaded.patch}
+                      newContent={loaded.newContent}
+                      layout={layout}
+                      wholeFile={wholeFilePath === loaded.file.path}
+                      onSettled={loaded === incoming ? () => promote(loaded.id) : undefined}
+                    />
+                  </div>
+                ),
+            )}
         </div>
         {sessionPath && (
           <QuoteSelectionPopover

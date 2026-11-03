@@ -81,13 +81,14 @@ describe('getGitDiffSummary', () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it('defaults to the current branch and lists working-tree changes', async () => {
-    const result = await getGitDiffSummary(root);
+  it('defaults to the main branch and lists working-tree changes', async () => {
+    const result = await getGitDiffSummary(root, { kind: 'branch', base: null });
     expect(result.success).toBe(true);
     if (!result.success) return;
 
     expect(result.summary.branch).toBe('main');
     expect(result.summary.base).toBe('main');
+    expect(result.summary.defaultBase).toBe('main');
     expect(result.summary.files.map((file) => [file.path, file.status, file.uncommitted])).toEqual([
       ['a.txt', 'modified', true],
       ['moved-to.txt', 'renamed', true],
@@ -113,7 +114,7 @@ describe('getGitDiffSummary', () => {
   });
 
   it('compares against a commit and reads that file diff', async () => {
-    const result = await getGitDiffSummary(root, 'HEAD~2');
+    const result = await getGitDiffSummary(root, { kind: 'branch', base: 'HEAD~2' });
     expect(result.success).toBe(true);
     if (!result.success) return;
 
@@ -122,32 +123,35 @@ describe('getGitDiffSummary', () => {
     expect(result.summary.baseLabel).toMatch(/^[0-9a-f]{7,}$/);
 
     await git(root, 'tag', 'v1', 'HEAD~2');
-    const tagged = await getGitDiffSummary(root, 'v1');
+    const tagged = await getGitDiffSummary(root, { kind: 'branch', base: 'v1' });
     expect(tagged.success && tagged.summary.baseLabel).toBe('v1');
 
-    const diff = await getGitDiffFile(
-      root,
-      { kind: 'base', base: result.summary.mergeBase },
-      'a.txt',
-      null,
-    );
+    const diff = await getGitDiffFile(root, result.summary.source, 'a.txt', null);
     expect(diff.success).toBe(true);
     if (!diff.success) return;
     expect(diff.patch).toContain('+two');
     expect(diff.patch).toContain('+three');
   });
 
-  it('builds a patch for an untracked file', async () => {
-    const result = await getGitDiffSummary(root, 'HEAD');
+  it('lists only the last commit, read as that commit', async () => {
+    const result = await getGitDiffSummary(root, { kind: 'lastCommit' });
     expect(result.success).toBe(true);
     if (!result.success) return;
 
-    const diff = await getGitDiffFile(
-      root,
-      { kind: 'base', base: result.summary.mergeBase },
-      'new.txt',
-      null,
-    );
+    // The working-tree edit to a.txt and the unstaged move are not part of it.
+    expect(result.summary.files.map((file) => [file.path, file.status])).toEqual([
+      ['moved-from.txt', 'added'],
+    ]);
+    expect(result.summary.source).toEqual({ kind: 'commit', commit: result.summary.base });
+    expect(result.summary.branches).toEqual([]);
+  });
+
+  it('builds a patch for an untracked file', async () => {
+    const result = await getGitDiffSummary(root, { kind: 'uncommitted' });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    const diff = await getGitDiffFile(root, result.summary.source, 'new.txt', null);
     expect(diff).toMatchObject({ success: true });
     if (!diff.success) return;
     expect(diff.patch).toContain('new file mode 100644');

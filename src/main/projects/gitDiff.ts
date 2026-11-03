@@ -10,6 +10,7 @@ import type {
   GitDiffFile,
   GitDiffFileResult,
   GitDiffFileStatus,
+  GitDiffScope,
   GitDiffSource,
   GitDiffSummaryResult,
 } from '../../shared/ipcContract';
@@ -339,25 +340,32 @@ async function listBranches(cwd: string, currentBranch: string | null): Promise<
   return [...local, ...remote];
 }
 
-async function defaultBase(
-  cwd: string,
-  branch: string | null,
-  upstream: string | null,
-): Promise<string> {
+/**
+ * The branch "All changes since" compares against. `origin/HEAD` names the
+ * remote's default branch whatever it is called (a monorepo's `trunk`); the
+ * usual names cover clones where it was never set.
+ */
+async function defaultBase(cwd: string): Promise<string> {
+  const remoteHead = await runGit(cwd, ['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD']);
   const candidates = ['origin/main', 'origin/master', 'main', 'master'];
-  if (branch) candidates.push(branch);
-  if (upstream) candidates.push(upstream);
-  candidates.push('HEAD');
-
-  for (const candidate of [...new Set(candidates)]) {
+  if (remoteHead.ok && remoteHead.stdout.startsWith('refs/remotes/')) {
+    candidates.unshift(remoteHead.stdout.trim().slice('refs/remotes/'.length));
+  }
+  for (const candidate of candidates) {
     if (await commitFor(cwd, candidate)) return candidate;
   }
-  return 'HEAD';
+  const upstream = await runGit(cwd, [
+    'rev-parse',
+    '--abbrev-ref',
+    '--symbolic-full-name',
+    '@{upstream}',
+  ]);
+  return upstream.ok && upstream.stdout.trim() ? upstream.stdout.trim() : 'HEAD';
 }
 
 export async function getGitDiffSummary(
   cwd: string,
-  requestedBase?: string | null,
+  scope: GitDiffScope,
 ): Promise<GitDiffSummaryResult> {
   if (!cwd || cwd.trim().length === 0) {
     return { success: false, error: 'The project path is missing.' };
@@ -373,6 +381,36 @@ export async function getGitDiffSummary(
     return { success: false, error: 'This project has no commits yet.' };
   }
   const head = headResult.stdout.trim();
+  const branchResult = await runGit(cwd, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
+  const branch = branchResult.ok && branchResult.stdout.trim() ? branchResult.stdout.trim() : null;
+  const defaultBasePending = defaultBase(cwd);
+
+  if (scope.kind === 'lastCommit') {
+    const parent = await firstParent(cwd, head);
+    const [changes, baseLabel] = await Promise.all([
+      changedFiles(cwd, commitRange(head, parent), undefined),
+      shortHash(cwd, head),
+    ]);
+    if (!changes.ok) {
+      return { success: false, error: gitError(changes.error, 'Unable to read the diff.') };
+    }
+    return {
+      success: true,
+      summary: {
+        branch,
+        detached: branch === null,
+        base: head,
+        baseLabel,
+        defaultBase: await defaultBasePending,
+        source: { kind: 'commit', commit: head },
+        branches: [],
+        commits: [],
+        baseCommits: [],
+        files: changes.files.sort((left, right) => left.path.localeCompare(right.path)),
+      },
+    };
+  }
+
   // Listing untracked files is the slow part on a big repository (2s on a
   // 170k-file tree), so `status` is the only command that does it, and it
   // starts first so the rest of the summary runs beside it.
@@ -384,19 +422,9 @@ export async function getGitDiffSummary(
     '--',
   ]);
 
-  const branchResult = await runGit(cwd, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
-  const branch = branchResult.ok && branchResult.stdout.trim() ? branchResult.stdout.trim() : null;
-  const upstreamResult = await runGit(cwd, [
-    'rev-parse',
-    '--abbrev-ref',
-    '--symbolic-full-name',
-    '@{upstream}',
-  ]);
-  const upstream =
-    upstreamResult.ok && upstreamResult.stdout.trim() ? upstreamResult.stdout.trim() : null;
-
-  const branchesPending = listBranches(cwd, branch);
-  const base = requestedBase?.trim() || (await defaultBase(cwd, branch, upstream));
+  const branchScope = scope.kind === 'branch';
+  const branchesPending = branchScope ? listBranches(cwd, branch) : Promise.resolve([]);
+  const base = branchScope ? scope.base?.trim() || (await defaultBasePending) : 'HEAD';
   const baseCommit = await commitFor(cwd, base);
   if (!baseCommit) {
     return { success: false, error: 'That branch or commit no longer exists.' };
@@ -415,15 +443,21 @@ export async function getGitDiffSummary(
       ? mergeBaseResult.stdout.trim()
       : baseCommit;
 
+  const noLog = Promise.resolve<GitCommandResult>({ ok: true, stdout: '', error: '' });
+  // Only the branch scope has a Commits view and a base picker to fill.
   const logs = Promise.all([
-    runGit(cwd, [
-      'log',
-      `--max-count=${MAX_BRANCH_COMMITS}`,
-      COMMIT_LOG_FORMAT,
-      `${mergeBase}..HEAD`,
-      '--',
-    ]),
-    runGit(cwd, ['log', `--max-count=${MAX_BASE_COMMITS}`, COMMIT_LOG_FORMAT, mergeBase, '--']),
+    branchScope
+      ? runGit(cwd, [
+          'log',
+          `--max-count=${MAX_BRANCH_COMMITS}`,
+          COMMIT_LOG_FORMAT,
+          `${mergeBase}..HEAD`,
+          '--',
+        ])
+      : noLog,
+    branchScope
+      ? runGit(cwd, ['log', `--max-count=${MAX_BASE_COMMITS}`, COMMIT_LOG_FORMAT, mergeBase, '--'])
+      : noLog,
   ]);
   const statusResult = await statusPending;
   if (!statusResult.ok) {
@@ -447,7 +481,11 @@ export async function getGitDiffSummary(
     uncommitted: statuses.has(file.path) || (file.oldPath !== null && statuses.has(file.oldPath)),
   }));
 
-  const [branches, baseLabel] = await Promise.all([branchesPending, labelPending]);
+  const [branches, baseLabel, defaultBaseName] = await Promise.all([
+    branchesPending,
+    labelPending,
+    defaultBasePending,
+  ]);
 
   return {
     success: true,
@@ -456,7 +494,8 @@ export async function getGitDiffSummary(
       detached: branch === null,
       base,
       baseLabel,
-      mergeBase,
+      defaultBase: defaultBaseName,
+      source: { kind: 'base', base: mergeBase },
       branches,
       commits: branchLog.ok ? parseCommitLog(branchLog.stdout) : [],
       baseCommits: baseLog.ok ? parseCommitLog(baseLog.stdout) : [],

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { IconArrowsVertical } from '@tabler/icons-react';
 import type { GitDiffFile } from '../../../../shared/ipcContract';
 import type { GitDiffLayout } from '../../hooks/useGitDiffWorkspace';
@@ -179,12 +179,15 @@ export default function GitDiffBody({
   newContent,
   layout,
   wholeFile,
+  onSettled,
 }: {
   file: GitDiffFile;
   patch: string;
   newContent: string | null;
   layout: GitDiffLayout;
   wholeFile: boolean;
+  /** Called once highlighting has landed and the body can be shown. */
+  onSettled?: () => void;
 }): React.JSX.Element {
   const lines = useMemo(() => parseGitPatch(patch), [patch]);
   const newFileLines = useMemo(
@@ -202,6 +205,9 @@ export default function GitDiffBody({
     [expansion, patch],
   );
   const tokens = useDiffTokens(lines, newContent, languageForPath(file.path));
+  useEffect(() => {
+    if (tokens.settled) onSettled?.();
+  }, [tokens.settled, onSettled]);
   const rows = useMemo(
     () => buildDiffRows(lines, newFileLines, wholeFile ? 'all' : expanded),
     [lines, newFileLines, wholeFile, expanded],

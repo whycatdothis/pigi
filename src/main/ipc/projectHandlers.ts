@@ -1,5 +1,10 @@
 import { dialog, ipcMain } from 'electron';
-import { PiChannel, type GitDiffSource, type ProjectStateResult } from '../../shared/ipcContract';
+import {
+  PiChannel,
+  type GitDiffScope,
+  type GitDiffSource,
+  type ProjectStateResult,
+} from '../../shared/ipcContract';
 import { getMainWindow } from '../windows/createMainWindow';
 import {
   addRecentProject,
@@ -14,6 +19,15 @@ import { searchProjectFiles } from '../projects/projectFileSearch';
 import { completePath } from '../projects/pathCompletion';
 import { listProjectDirectory, readProjectFile } from '../projects/projectFiles';
 import { setProjectFileWatch } from '../projects/projectFileWatch';
+
+function parseGitDiffScope(value: unknown): GitDiffScope | null {
+  if (typeof value !== 'object' || value === null || !('kind' in value)) return null;
+  if (value.kind === 'uncommitted' || value.kind === 'lastCommit') return { kind: value.kind };
+  if (value.kind !== 'branch') return null;
+  const base = 'base' in value ? value.base : null;
+  if (base === null || base === undefined) return { kind: 'branch', base: null };
+  return typeof base === 'string' ? { kind: 'branch', base } : null;
+}
 
 function parseGitDiffSource(value: unknown): GitDiffSource | null {
   if (typeof value !== 'object' || value === null || !('kind' in value)) return null;
@@ -45,14 +59,15 @@ export function registerProjectHandlers(): void {
     return getGitBranch(cwd);
   });
 
-  ipcMain.handle(PiChannel.GetGitDiffSummary, async (_event, cwd: unknown, base: unknown) => {
+  ipcMain.handle(PiChannel.GetGitDiffSummary, async (_event, cwd: unknown, scope: unknown) => {
     if (typeof cwd !== 'string' || cwd.trim().length === 0) {
       return { success: false, error: 'cwd must be a non-empty string' };
     }
-    if (base !== null && base !== undefined && typeof base !== 'string') {
-      return { success: false, error: 'base must be a string or null' };
+    const diffScope = parseGitDiffScope(scope);
+    if (!diffScope) {
+      return { success: false, error: 'scope must be branch, uncommitted or lastCommit' };
     }
-    return getGitDiffSummary(cwd, typeof base === 'string' ? base : null);
+    return getGitDiffSummary(cwd, diffScope);
   });
 
   ipcMain.handle(

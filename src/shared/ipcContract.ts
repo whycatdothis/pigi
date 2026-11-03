@@ -190,14 +190,26 @@ export interface GitDiffCommit {
   date: string;
 }
 
+/**
+ * What the Diff tab shows: everything since a base (the default branch unless
+ * one is picked), only what is not committed yet, or only the last commit.
+ */
+export type GitDiffScope =
+  | { kind: 'branch'; base: string | null }
+  | { kind: 'uncommitted' }
+  | { kind: 'lastCommit' };
+
 export interface GitDiffSummary {
   branch: string | null;
   detached: boolean;
   /** The ref or hash the comparison starts from. */
   base: string;
   baseLabel: string;
-  /** The commit both sides share; file diffs run from this commit. */
-  mergeBase: string;
+  /** The repository's main branch, preferring the remote's (`origin/main`, `origin/trunk`). */
+  defaultBase: string;
+  /** How each file's patch is read. */
+  source: GitDiffSource;
+  /** Only filled for the branch scope, where a base can be picked. */
   branches: GitDiffBranch[];
   /** Commits on HEAD since the merge-base, newest first. */
   commits: GitDiffCommit[];

@@ -10,7 +10,8 @@ import {
   CommandList,
 } from '../ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { cn } from '../../lib/utils';
+import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
+import { formatTimeAgo } from '../../lib/utils';
 
 type PickerTab = 'branches' | 'commits';
 const PICKER_TABS: { value: PickerTab; label: string }[] = [
@@ -21,10 +22,12 @@ const PICKER_TABS: { value: PickerTab; label: string }[] = [
 function CommitItem({
   commit,
   checked,
+  now,
   onSelect,
 }: {
   commit: GitDiffCommit;
   checked: boolean;
+  now: number;
   onSelect: (hash: string) => void;
 }): React.JSX.Element {
   return (
@@ -34,8 +37,10 @@ function CommitItem({
       onSelect={() => onSelect(commit.hash)}
     >
       <IconGitCommit className="text-muted-foreground" />
-      <span className="min-w-0 truncate">{commit.subject}</span>
-      <span className="shrink-0 font-mono text-2xs text-muted-foreground">{commit.shortHash}</span>
+      <span className="min-w-0 flex-1 truncate">{commit.subject}</span>
+      <span className="shrink-0 text-2xs whitespace-nowrap text-muted-foreground">
+        <span className="font-mono">{commit.shortHash}</span> · {formatTimeAgo(commit.date, now)}
+      </span>
     </CommandItem>
   );
 }
@@ -58,6 +63,7 @@ export default function GitBasePicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<PickerTab>('branches');
+  const [openedAt, setOpenedAt] = useState(Date.now);
   const branches = summary?.branches ?? [];
   const commits = [...(summary?.commits ?? []), ...(summary?.baseCommits ?? [])];
   const typed = query.trim();
@@ -95,9 +101,13 @@ export default function GitBasePicker({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) setQuery('');
+        if (!next) {
+          setQuery('');
+          return;
+        }
+        setOpenedAt(Date.now());
         // Reopen on the tab that holds the current base.
-        else setTab(commits.some((commit) => commit.hash === base) ? 'commits' : 'branches');
+        setTab(commits.some((commit) => commit.hash === base) ? 'commits' : 'branches');
       }}
     >
       <PopoverTrigger asChild>
@@ -105,7 +115,7 @@ export default function GitBasePicker({
           type="button"
           aria-label="Compare against"
           disabled={disabled}
-          className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-control border border-input px-2 text-left text-body transition-colors hover:bg-accent disabled:opacity-50 [-webkit-app-region:no-drag]"
+          className="flex h-7 w-full min-w-0 items-center gap-1.5 rounded-control border border-input px-2 text-left text-body transition-colors hover:bg-accent disabled:opacity-50"
         >
           <span className="shrink-0 text-caption text-muted-foreground">vs</span>
           <span className="min-w-0 flex-1 truncate">
@@ -114,46 +124,35 @@ export default function GitBasePicker({
           <IconSelector size={14} className="shrink-0 text-muted-foreground" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-80 gap-0 p-0">
+      <PopoverContent
+        align="start"
+        className="w-80 min-w-(--radix-popover-trigger-width) gap-0 p-0"
+      >
         <Command>
           <CommandInput
             autoFocus
             value={query}
+            inputGroupClassName="h-7"
             onValueChange={setQuery}
-            placeholder="Branch, commit, or a ref like HEAD~3"
           />
-          <div className="flex items-center gap-0.5 border-b border-border px-2 py-1.5">
-            {PICKER_TABS.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                aria-pressed={tab === item.value}
-                onClick={() => setTab(item.value)}
-                className={cn(
-                  'h-6 rounded-control-sm px-2 text-caption leading-none transition-colors',
-                  tab === item.value
-                    ? 'bg-accent text-foreground'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <CommandList className="max-h-80">
+          <Tabs
+            value={tab}
+            onValueChange={(value) => {
+              const next = PICKER_TABS.find((item) => item.value === value);
+              if (next) setTab(next.value);
+            }}
+            className="border-b border-border px-1 py-1.5"
+          >
+            <TabsList className="w-full">
+              {PICKER_TABS.map((item) => (
+                <TabsTrigger key={item.value} value={item.value} className="text-caption">
+                  {item.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          <CommandList className="max-h-64">
             <CommandEmpty>{tab === 'commits' ? 'No commits.' : 'No branches.'}</CommandEmpty>
-            {tab === 'branches' && (
-              <CommandGroup>
-                <CommandItem
-                  value="HEAD uncommitted working tree"
-                  data-checked={base === 'HEAD' ? true : undefined}
-                  onSelect={() => pick('HEAD')}
-                >
-                  <span className="min-w-0 truncate">HEAD</span>
-                  <span className="shrink-0 text-2xs text-muted-foreground">uncommitted only</span>
-                </CommandItem>
-              </CommandGroup>
-            )}
             {tab === 'branches' && branchGroup(true)}
             {tab === 'branches' && branchGroup(false)}
             {tab === 'commits' && (
@@ -163,6 +162,7 @@ export default function GitBasePicker({
                     key={commit.hash}
                     commit={commit}
                     checked={commit.hash === base}
+                    now={openedAt}
                     onSelect={pick}
                   />
                 ))}

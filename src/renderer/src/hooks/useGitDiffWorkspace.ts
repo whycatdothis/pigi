@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GitDiffFile, GitDiffSummary } from '../../../shared/ipcContract';
+import type { GitDiffFile, GitDiffScope, GitDiffSummary } from '../../../shared/ipcContract';
 import { onProjectActivity } from '../lib/projectActivity';
 import { getGitCommitFiles, getGitDiffSummary } from '../services/piAgentClient';
 
 /** An agent run fires many tool ends; one summary after they settle is enough. */
 const AUTO_REFRESH_DELAY_MS = 500;
 
+export type GitDiffMode = GitDiffScope['kind'];
 export type GitDiffView = 'tree' | 'status' | 'commits';
 export type GitDiffLayout = 'unified' | 'split';
 /** The collapsible groups of the Git status and Commits views. */
@@ -34,6 +35,8 @@ export interface GitDiffWorkspace {
   status: 'idle' | 'loading' | 'ready' | 'error';
   error: string | null;
   summary: GitDiffSummary | null;
+  /** The mode in effect: the chosen one in the tree view; Git status and Commits always compare against a base. */
+  mode: GitDiffMode;
   base: string | null;
   selection: GitDiffSelection | null;
   view: GitDiffView;
@@ -43,6 +46,7 @@ export interface GitDiffWorkspace {
   commitFiles: ReadonlyMap<string, GitCommitFiles>;
   collapsedSections: ReadonlySet<GitDiffSection>;
   toggleSection: (section: GitDiffSection) => void;
+  selectMode: (mode: GitDiffMode) => void;
   selectBase: (base: string) => void;
   resetBase: () => void;
   select: (selection: GitDiffSelection) => void;
@@ -66,9 +70,13 @@ export function useGitDiffWorkspace({
   const [summary, setSummary] = useState<GitDiffSummary | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<GitDiffMode>('branch');
   const [requestedBase, setRequestedBase] = useState<string | null>(null);
   const [selection, setSelection] = useState<GitDiffSelection | null>(null);
   const [view, setView] = useState<GitDiffView>('tree');
+  const scopeMode: GitDiffMode = view === 'tree' ? mode : 'branch';
+  // The Commits view lists the branch's own commits, so it ignores a picked base.
+  const scopeBase = view === 'commits' ? null : requestedBase;
   const [layout, setLayout] = useState<GitDiffLayout>('unified');
   const [openCommit, setOpenCommit] = useState<string | null>(null);
   const [commitFiles, setCommitFiles] = useState<ReadonlyMap<string, GitCommitFiles>>(
@@ -139,7 +147,9 @@ export function useGitDiffWorkspace({
         return true;
       };
 
-      getGitDiffSummary(cwd, requestedBase)
+      const scope: GitDiffScope =
+        scopeMode === 'branch' ? { kind: 'branch', base: scopeBase } : { kind: scopeMode };
+      getGitDiffSummary(cwd, scope)
         .then((result) => {
           if (!settle()) return;
           if (!result.success) {
@@ -168,7 +178,7 @@ export function useGitDiffWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [cwd, enabled, requestedBase, revision, quietRefresh]);
+  }, [cwd, enabled, scopeMode, scopeBase, revision, quietRefresh]);
 
   // Agent tool calls change files in any way (bash, scripts), and edits made
   // elsewhere land while the window is in the background, so both refresh.
@@ -196,6 +206,17 @@ export function useGitDiffWorkspace({
     setStatus('loading');
     setError(null);
   }, []);
+
+  const selectMode = useCallback(
+    (next: GitDiffMode) => {
+      setMode(next);
+      // "All changes since <default branch>" means that branch, even after another was picked.
+      setRequestedBase(null);
+      setRevision((value) => value + 1);
+      beginSelection();
+    },
+    [beginSelection],
+  );
 
   const selectBase = useCallback(
     (base: string) => {
@@ -271,6 +292,7 @@ export function useGitDiffWorkspace({
     status,
     error,
     summary,
+    mode: scopeMode,
     base: summary?.base ?? requestedBase,
     selection,
     view,
@@ -279,6 +301,7 @@ export function useGitDiffWorkspace({
     commitFiles,
     collapsedSections,
     toggleSection,
+    selectMode,
     selectBase,
     resetBase,
     select: setSelection,

@@ -6,6 +6,7 @@ import type {
   GitBranchResult,
   GitCommitFilesResult,
   GitDiffFileResult,
+  GitDiffScope,
   GitDiffSource,
   GitDiffSummaryResult,
   ModelCatalogSnapshot,
@@ -41,7 +42,7 @@ interface PiApi {
   // Project directories
   getProjects: () => Promise<ProjectStateResult>;
   getGitBranch: (cwd: string) => Promise<GitBranchResult>;
-  getGitDiffSummary: (cwd: string, base?: string | null) => Promise<GitDiffSummaryResult>;
+  getGitDiffSummary: (cwd: string, scope: GitDiffScope) => Promise<GitDiffSummaryResult>;
   getGitDiffFile: (
     cwd: string,
     source: GitDiffSource,
