@@ -97,6 +97,10 @@ export function tokenStyle(token: HighlightedToken): CSSProperties {
   return style;
 }
 
+export function isWithinHighlightBudget(code: string): boolean {
+  return code.length <= MAX_HIGHLIGHTED_CODE_LENGTH && countLines(code) <= MAX_HIGHLIGHTED_LINES;
+}
+
 function cacheKey(code: string, language: BundledLanguage, themeName: string): string {
   return `${themeName}\n${language}\n${code}`;
 }
@@ -145,7 +149,7 @@ async function highlightCode(
   surface: string,
   codeThemeId: string,
 ): Promise<HighlightedLine[] | null> {
-  if (code.length > MAX_HIGHLIGHTED_CODE_LENGTH || countLines(code) > MAX_HIGHLIGHTED_LINES) {
+  if (!isWithinHighlightBudget(code)) {
     return null;
   }
 
@@ -197,10 +201,15 @@ export function useCodeTheme(): {
 }
 
 /**
- * Token lines for a finished piece of code, or null while they compute, when
- * the language is unknown, or when the code is over the highlight budget.
+ * Token lines for a finished piece of code. While new code highlights, the
+ * lines of the previous code stay (stale-while-revalidate); `settled` turns
+ * true once any highlight has landed, or at once when there is nothing to
+ * highlight. `lines` is null for an unknown language or code over the budget.
  */
-export function useHighlightedLines(code: string, language: string): HighlightedLine[] | null {
+export function useHighlightedLines(
+  code: string,
+  language: string,
+): { lines: HighlightedLine[] | null; settled: boolean } {
   const codeTheme = useCodeTheme();
   const normalizedLanguage = useMemo(() => normalizeLanguage(language), [language]);
   const [highlightedState, setHighlightedState] = useState<HighlightedState | null>(null);
@@ -227,5 +236,6 @@ export function useHighlightedLines(code: string, language: string): Highlighted
     };
   }, [code, normalizedLanguage, codeTheme]);
 
-  return normalizedLanguage && highlightedState?.source === code ? highlightedState.lines : null;
+  if (!normalizedLanguage) return { lines: null, settled: true };
+  return { lines: highlightedState?.lines ?? null, settled: highlightedState !== null };
 }

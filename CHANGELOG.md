@@ -4,12 +4,14 @@
 
 ### Added
 
-- The Diff tab compares the project against a branch, a remote branch or the
-  working tree, lists changed files as a tree, a Git status view or the commit
-  list, shows one file's unified diff at a time, and quotes diff lines into the
-  chat (`@src/app.ts:L10-L20`) like the Files tab does. Diffs are syntax
-  highlighted, and a newly added file is shown in green without a `+` on every
-  line
+- The Diff tab compares the project against a branch, a commit or any ref
+  (`HEAD~3`), lists changed files as a tree, a Git status view or the commit
+  history, where opening a commit shows that commit's own changes. Diffs are
+  syntax highlighted, unified or side by side, expand the unchanged lines
+  between changes or show the whole file, and quote lines into the chat
+  (`@src/app.ts:L10-L20`) like the Files tab does. A file moved without
+  `git add` shows as a rename, and a newly added file is shown in green
+  without a `+` on every line
 - The Files and Diff trees compact a directory that only holds one directory
   into one row (`main/java/com/example`)
 

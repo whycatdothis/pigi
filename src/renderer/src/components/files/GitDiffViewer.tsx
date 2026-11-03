@@ -1,33 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { IconLoader2, IconRefresh } from '@tabler/icons-react';
-import type { GitDiffFile } from '../../../../shared/ipcContract';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { IconArrowRight, IconFileText, IconLoader2, IconRefresh } from '@tabler/icons-react';
+import type { GitDiffFile, GitDiffSource } from '../../../../shared/ipcContract';
+import type { GitDiffLayout } from '../../hooks/useGitDiffWorkspace';
 import { formatFileContentQuote, formatFileLineQuote } from '../../lib/fileQuotes';
 import { GIT_DIFF_STATUS_LABELS } from '../../lib/gitDiffLabels';
-import { languageForPath } from '../../lib/fileLanguage';
-import { parseGitPatch, type GitDiffPatchLine } from '../../lib/gitDiffPatch';
 import { cn } from '../../lib/utils';
 import { getGitDiffFile } from '../../services/piAgentClient';
 import { FileIcon } from '../fileIcon';
-import { tokenStyle, useHighlightedLines, type HighlightedLine } from '../message/codeHighlighting';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import { SpinningIcon } from '../ui/spinningIcon';
+import GitDiffBody from './GitDiffBody';
 
 type PatchState =
   | { status: 'loading' }
-  | { status: 'ready'; patch: string; truncated: boolean }
+  | { status: 'ready'; patch: string; truncated: boolean; newContent: string | null }
   | { status: 'error'; error: string };
-
-const LINE_STYLES = {
-  add: 'bg-success-bg text-success-fg',
-  remove: 'bg-danger-bg text-danger-fg',
-  context: 'bg-background text-foreground',
-} as const;
-
-const PREFIX = {
-  add: '+',
-  remove: '-',
-  context: ' ',
-} as const;
 
 function isInsideDiffLine(node: Node): boolean {
   const element = node instanceof Element ? node : node.parentElement;
@@ -50,183 +37,102 @@ function newLineRange(container: HTMLElement, range: Range): { start: number; en
   return sawRow && start !== Infinity ? { start, end } : null;
 }
 
-type SourceLine = GitDiffPatchLine & { kind: 'add' | 'remove' | 'context' };
+const LAYOUTS: readonly { value: GitDiffLayout; label: string }[] = [
+  { value: 'unified', label: 'Unified' },
+  { value: 'split', label: 'Split' },
+];
 
-function isSourceLine(line: GitDiffPatchLine): line is SourceLine {
-  return line.kind === 'add' || line.kind === 'remove' || line.kind === 'context';
-}
-
-/**
- * Each side of the patch is highlighted as one text, so a token that spans
- * lines (a block comment, a template string) keeps its colour. Context rows
- * take the new side's tokens.
- */
-function useSideTokens(
-  lines: readonly GitDiffPatchLine[],
-  language: string,
-): Map<GitDiffPatchLine, HighlightedLine> {
-  const sides = useMemo(() => {
-    const oldSide: SourceLine[] = [];
-    const newSide: SourceLine[] = [];
-    for (const line of lines) {
-      if (!isSourceLine(line)) continue;
-      if (line.kind === 'remove') oldSide.push(line);
-      else newSide.push(line);
-    }
-    return { oldSide, newSide };
-  }, [lines]);
-  const oldText = useMemo(() => sides.oldSide.map((line) => line.text).join('\n'), [sides]);
-  const newText = useMemo(() => sides.newSide.map((line) => line.text).join('\n'), [sides]);
-  const oldTokens = useHighlightedLines(oldText, sides.oldSide.length > 0 ? language : '');
-  const newTokens = useHighlightedLines(newText, sides.newSide.length > 0 ? language : '');
-
-  return useMemo(() => {
-    const tokens = new Map<GitDiffPatchLine, HighlightedLine>();
-    for (const [side, sideTokens] of [
-      [sides.oldSide, oldTokens],
-      [sides.newSide, newTokens],
-    ] as const) {
-      // A token count that disagrees with the rows means shiki split the text
-      // differently; plain rows are safer than shifted colours.
-      if (!sideTokens || sideTokens.length !== side.length) continue;
-      side.forEach((line, index) => tokens.set(line, sideTokens[index]));
-    }
-    return tokens;
-  }, [sides, oldTokens, newTokens]);
-}
-
-function PatchLines({ patch, path }: { patch: string; path: string }): React.JSX.Element {
-  const lines = useMemo(() => parseGitPatch(patch), [patch]);
-  const tokens = useSideTokens(lines, languageForPath(path));
-  // A file that was only added (or only deleted) is one colour already; the
-  // +/- column, the empty number column and the hunk header add nothing.
-  const onlyKind = useMemo(() => {
-    const kinds = new Set(lines.filter(isSourceLine).map((line) => line.kind));
-    if (kinds.size !== 1) return null;
-    const [kind] = kinds;
-    return kind === 'context' ? null : kind;
-  }, [lines]);
-
-  if (lines.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center px-6 text-caption text-muted-foreground">
-        This file has no textual diff.
-      </div>
-    );
-  }
-
+function LayoutToggle({
+  value,
+  onChange,
+}: {
+  value: GitDiffLayout;
+  onChange: (layout: GitDiffLayout) => void;
+}): React.JSX.Element {
   return (
-    <div className="w-max min-w-full py-1 font-mono text-code-compact leading-5">
-      {lines.map((line, index) => {
-        if (line.kind === 'hunk') {
-          if (onlyKind) return null;
-          return (
-            <div key={index} className="bg-muted/40 px-3 py-0.5 text-caption text-muted-foreground">
-              {line.text}
-            </div>
-          );
-        }
-        if (line.kind === 'meta') {
-          return (
-            <div key={index} className="px-3 py-0.5 text-caption text-muted-foreground">
-              {line.text}
-            </div>
-          );
-        }
-
-        const lineTokens = tokens.get(line);
-        return (
-          <div
-            key={index}
-            data-diff-line
-            data-new-line={line.newLineNumber ?? undefined}
-            className={cn('flex min-h-5 w-max min-w-full', LINE_STYLES[line.kind])}
-          >
-            {onlyKind !== 'add' && (
-              <span
-                className={cn(
-                  'sticky left-0 z-10 w-10 shrink-0 select-none bg-inherit pr-2 text-right text-muted-foreground tabular-nums',
-                  onlyKind === 'remove' && 'border-r-[0.5px] border-foreground/15',
-                )}
-              >
-                {line.oldLineNumber ?? ''}
-              </span>
-            )}
-            {onlyKind !== 'remove' && (
-              <span
-                className={cn(
-                  'sticky z-10 w-10 shrink-0 select-none border-r-[0.5px] border-foreground/15 bg-inherit pr-2 text-right text-muted-foreground tabular-nums',
-                  onlyKind === 'add' ? 'left-0' : 'left-10',
-                )}
-              >
-                {line.newLineNumber ?? ''}
-              </span>
-            )}
-            {onlyKind ? (
-              <span className="w-2 shrink-0" />
-            ) : (
-              <span className="w-4 shrink-0 select-none text-center opacity-50">
-                {PREFIX[line.kind]}
-              </span>
-            )}
-            <span className="whitespace-pre pr-8">
-              {lineTokens
-                ? lineTokens.map((token, tokenIndex) => (
-                    <span key={tokenIndex} style={tokenStyle(token)}>
-                      {token.content}
-                    </span>
-                  ))
-                : line.text}
-            </span>
-          </div>
-        );
-      })}
+    <div className="flex h-6 shrink-0 items-center gap-0.5 rounded-control bg-muted p-0.5">
+      {LAYOUTS.map((layout) => (
+        <button
+          key={layout.value}
+          type="button"
+          aria-pressed={value === layout.value}
+          onClick={() => onChange(layout.value)}
+          className={cn(
+            'h-5 rounded-control-sm px-2 text-caption leading-none transition-colors',
+            value === layout.value
+              ? 'bg-background text-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {layout.label}
+        </button>
+      ))}
     </div>
   );
 }
 
 export default function GitDiffViewer({
   projectPath,
-  base,
-  baseLabel,
+  source,
+  compareLabel,
   file,
+  layout,
+  onLayoutChange,
   sessionPath,
   onRefresh,
 }: {
   projectPath: string;
-  base: string;
-  baseLabel: string;
+  source: GitDiffSource;
+  compareLabel: string;
   file: GitDiffFile;
+  layout: GitDiffLayout;
+  onLayoutChange: (layout: GitDiffLayout) => void;
   sessionPath: string | null;
   onRefresh: () => void;
 }): React.JSX.Element {
   const [patchState, setPatchState] = useState<PatchState>({ status: 'loading' });
+  const [wholeFile, setWholeFile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const sourceKind = source.kind;
+  const sourceRef = source.kind === 'base' ? source.base : source.commit;
 
+  // A summary refresh hands in a new `file` object and reads the patch again.
+  // The patch on screen stays until the new one arrives, and an unchanged
+  // result keeps the old state, so a refresh never flashes.
   useEffect(() => {
     let cancelled = false;
-    // Deferred so the effect body does not set state synchronously, which the
-    // react-hooks/set-state-in-effect rule rejects.
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setPatchState({ status: 'loading' });
-      getGitDiffFile(projectPath, base, file.path, file.oldPath, file.status === 'untracked')
-        .then((result) => {
-          if (cancelled) return;
-          setPatchState(
-            result.success
-              ? { status: 'ready', patch: result.patch, truncated: result.truncated }
-              : { status: 'error', error: result.error },
-          );
-        })
-        .catch(() => {
-          if (!cancelled) setPatchState({ status: 'error', error: 'Unable to read this diff.' });
-        });
-    });
+    const request: GitDiffSource =
+      sourceKind === 'base'
+        ? { kind: 'base', base: sourceRef }
+        : { kind: 'commit', commit: sourceRef };
+    getGitDiffFile(projectPath, request, file.path, file.oldPath)
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.success) {
+          setPatchState({ status: 'error', error: result.error });
+          return;
+        }
+        setPatchState((previous) =>
+          previous.status === 'ready' &&
+          previous.patch === result.patch &&
+          previous.newContent === result.newContent &&
+          previous.truncated === result.truncated
+            ? previous
+            : {
+                status: 'ready',
+                patch: result.patch,
+                truncated: result.truncated,
+                newContent: result.newContent,
+              },
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setPatchState({ status: 'error', error: 'Unable to read this diff.' });
+      });
     return () => {
       cancelled = true;
     };
-  }, [projectPath, base, file]);
+  }, [projectPath, sourceKind, sourceRef, file]);
 
   const formatQuoteText = useCallback(
     ({ text, range }: { text: string; range: Range }): string => {
@@ -243,33 +149,57 @@ export default function GitDiffViewer({
     [file.path],
   );
 
+  const renamed = file.oldPath !== null && file.oldPath !== file.path;
+  const canShowWholeFile = patchState.status === 'ready' && patchState.newContent !== null;
+
   return (
     <div className="@container flex min-h-0 flex-1 flex-col">
       <div className="flex h-9 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 px-3">
         <FileIcon path={file.path} className="size-4" />
         <span
-          className="min-w-0 flex-1 truncate text-caption text-muted-foreground"
-          title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-caption text-muted-foreground"
+          title={renamed ? `${file.oldPath} → ${file.path}` : file.path}
         >
-          {file.path}
+          {renamed && (
+            <>
+              <span className="min-w-0 truncate line-through decoration-foreground/30">
+                {file.oldPath}
+              </span>
+              <IconArrowRight size={12} className="shrink-0" />
+            </>
+          )}
+          <span className="min-w-0 truncate text-foreground/80">{file.path}</span>
         </span>
         <span className="shrink-0 text-caption text-muted-foreground">
           {GIT_DIFF_STATUS_LABELS[file.status]}
         </span>
-        {file.status === 'untracked' ? (
-          <span className="shrink-0 text-2xs text-success-fg">new</span>
-        ) : (
-          <>
-            <span className="shrink-0 text-2xs text-success-fg">+{file.additions}</span>
-            <span className="shrink-0 text-2xs text-danger-fg">-{file.deletions}</span>
-          </>
+        {!file.binary && (
+          <span className="flex shrink-0 gap-1 text-2xs tabular-nums">
+            <span className="text-success-fg">+{file.additions}</span>
+            <span className="text-danger-fg">-{file.deletions}</span>
+          </span>
         )}
         <span
-          className="hidden max-w-40 shrink-0 truncate text-2xs text-muted-foreground @[900px]:inline"
-          title={`Compared with ${baseLabel}`}
+          className="hidden max-w-48 shrink-0 truncate text-2xs text-muted-foreground @[900px]:inline"
+          title={compareLabel}
         >
-          vs {baseLabel}
+          {compareLabel}
         </span>
+        <LayoutToggle value={layout} onChange={onLayoutChange} />
+        <button
+          type="button"
+          aria-label="Show whole file"
+          aria-pressed={wholeFile}
+          title={wholeFile ? 'Show changes only' : 'Show whole file'}
+          disabled={!canShowWholeFile}
+          onClick={() => setWholeFile((value) => !value)}
+          className={cn(
+            'flex size-6 shrink-0 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
+            wholeFile && 'bg-accent text-foreground',
+          )}
+        >
+          <IconFileText size={14} />
+        </button>
         <button
           type="button"
           aria-label="Refresh diff"
@@ -290,7 +220,8 @@ export default function GitDiffViewer({
           className="h-full overflow-auto bg-background select-text outline-none"
         >
           {patchState.status === 'loading' && (
-            <div className="flex h-full items-center justify-center gap-2 text-caption text-muted-foreground">
+            // Fades in late, so a quick load never flashes a spinner.
+            <div className="flex h-full animate-in items-center justify-center gap-2 text-caption text-muted-foreground delay-300 fade-in-0 fill-mode-backwards">
               <SpinningIcon>
                 <IconLoader2 size={14} />
               </SpinningIcon>
@@ -309,7 +240,13 @@ export default function GitDiffViewer({
                   This diff is too large to show in full.
                 </div>
               )}
-              <PatchLines patch={patchState.patch} path={file.path} />
+              <GitDiffBody
+                file={file}
+                patch={patchState.patch}
+                newContent={patchState.newContent}
+                layout={layout}
+                wholeFile={wholeFile}
+              />
             </>
           )}
         </div>

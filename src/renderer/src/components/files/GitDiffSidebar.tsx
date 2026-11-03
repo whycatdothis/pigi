@@ -1,22 +1,25 @@
 import { useMemo, useState } from 'react';
-import {
-  IconChevronRight,
-  IconGitBranch,
-  IconGitCommit,
-  IconLoader2,
-  IconRefresh,
-} from '@tabler/icons-react';
+import { IconChevronRight, IconGitBranch, IconLoader2, IconRefresh } from '@tabler/icons-react';
 import { FolderClosed, FolderOpen } from 'lucide-react';
-import type { GitDiffFile, GitDiffSummary, ShortcutBinding } from '../../../../shared/ipcContract';
-import type { GitDiffView, GitDiffWorkspace } from '../../hooks/useGitDiffWorkspace';
+import type {
+  GitDiffCommit,
+  GitDiffFile,
+  GitDiffSummary,
+  ShortcutBinding,
+} from '../../../../shared/ipcContract';
+import type {
+  GitDiffSelection,
+  GitDiffView,
+  GitDiffWorkspace,
+} from '../../hooks/useGitDiffWorkspace';
 import { GIT_DIFF_STATUS_BADGES } from '../../lib/gitDiffLabels';
 import { buildGitDiffTree, type GitDiffTreeDirectory } from '../../lib/gitDiffTree';
 import { cn } from '../../lib/utils';
 import { SidebarToggle } from '../sidebar/sidebarToggle';
 import { FileIcon } from '../fileIcon';
-import { NativeSelect, NativeSelectOptGroup, NativeSelectOption } from '../ui/native-select';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { Sidebar as ShadcnSidebar, SidebarContent, SidebarHeader } from '../ui/sidebar';
+import GitBasePicker from './GitBasePicker';
 
 const INDENT_STEP_PX = 12;
 const ROW_CLASS_NAME =
@@ -42,19 +45,26 @@ function formatCommitDate(value: string): string {
     : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function parentPath(path: string): string {
+  const separator = path.lastIndexOf('/');
+  return separator === -1 ? '' : path.slice(0, separator);
+}
+
 function FileRow({
   file,
   depth,
-  label,
+  showDirectory,
   selected,
   onSelect,
 }: {
   file: GitDiffFile;
   depth: number;
-  label: string;
+  /** Flat lists name the file and dim its folder; the tree already shows folders. */
+  showDirectory: boolean;
   selected: boolean;
-  onSelect: (path: string) => void;
+  onSelect: () => void;
 }): React.JSX.Element {
+  const directory = showDirectory ? parentPath(file.path) : '';
   return (
     <li>
       <button
@@ -63,17 +73,20 @@ function FileRow({
         style={{ paddingLeft: `${depth * INDENT_STEP_PX + 6}px` }}
         className={cn(ROW_CLASS_NAME, selected ? ROW_SELECTED_CLASS_NAME : ROW_IDLE_CLASS_NAME)}
         title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
-        onClick={() => onSelect(file.path)}
+        onClick={onSelect}
       >
         <span className="size-3 shrink-0" />
         <FileIcon path={file.path} className="size-4" />
-        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <span className="min-w-0 flex-1 truncate">
+          {fileName(file.path)}
+          {directory && (
+            <span className="ml-1.5 text-caption text-muted-foreground">{directory}</span>
+          )}
+        </span>
         <span className="shrink-0 text-2xs text-muted-foreground">
           {GIT_DIFF_STATUS_BADGES[file.status]}
         </span>
-        {file.status === 'untracked' ? (
-          <span className="shrink-0 text-2xs text-success-fg">new</span>
-        ) : file.binary ? (
+        {file.binary ? (
           <span className="shrink-0 text-2xs text-muted-foreground">binary</span>
         ) : (
           <span className="flex shrink-0 gap-1 text-2xs tabular-nums">
@@ -143,9 +156,9 @@ function DirectoryTree({
               key={file.path}
               file={file}
               depth={depth + 1}
-              label={fileName(file.path)}
+              showDirectory={false}
               selected={file.path === selectedPath}
-              onSelect={onSelectFile}
+              onSelect={() => onSelectFile(file.path)}
             />
           ))}
         </ul>
@@ -204,30 +217,45 @@ function TreeView({
           key={file.path}
           file={file}
           depth={0}
-          label={fileName(file.path)}
+          showDirectory={false}
           selected={file.path === selectedPath}
-          onSelect={onSelectFile}
+          onSelect={() => onSelectFile(file.path)}
         />
       ))}
     </ul>
   );
 }
 
+function isSelected(
+  selection: GitDiffSelection | null,
+  commit: string | null,
+  path: string,
+): boolean {
+  return selection?.commit === commit && selection.path === path;
+}
+
+function SectionLabel({ label, count }: { label: string; count?: number }): React.JSX.Element {
+  return (
+    <div className="flex items-center justify-between px-2 pt-2 pb-1 text-caption text-muted-foreground">
+      <span>{label}</span>
+      {count !== undefined && <span className="tabular-nums">{count}</span>}
+    </div>
+  );
+}
+
 function StatusView({
   summary,
-  selectedPath,
-  onSelectFile,
+  selection,
+  onSelect,
 }: {
   summary: GitDiffSummary;
-  selectedPath: string | null;
-  onSelectFile: (path: string) => void;
+  selection: GitDiffSelection | null;
+  onSelect: (selection: GitDiffSelection) => void;
 }): React.JSX.Element {
   const groups = [
     {
       label: 'Changes',
-      files: summary.files.filter(
-        (file) => file.status !== 'untracked' && file.workingTreeStatus !== null,
-      ),
+      files: summary.files.filter((file) => file.uncommitted && file.status !== 'untracked'),
     },
     {
       label: 'Untracked',
@@ -235,16 +263,14 @@ function StatusView({
     },
     {
       label: 'Committed',
-      files: summary.files.filter(
-        (file) => file.status !== 'untracked' && file.workingTreeStatus === null,
-      ),
+      files: summary.files.filter((file) => !file.uncommitted),
     },
   ].filter((group) => group.files.length > 0);
 
   if (groups.length === 0) {
     return (
       <p className="px-2 py-3 text-caption text-muted-foreground">
-        No working-tree changes against {summary.baseLabel}.
+        No changes against {summary.baseLabel}.
       </p>
     );
   }
@@ -253,19 +279,16 @@ function StatusView({
     <div className="pb-2">
       {groups.map((group) => (
         <div key={group.label}>
-          <div className="flex items-center justify-between px-2 pt-2 pb-1 text-caption text-muted-foreground">
-            <span>{group.label}</span>
-            <span>{group.files.length}</span>
-          </div>
+          <SectionLabel label={group.label} count={group.files.length} />
           <ul>
             {group.files.map((file) => (
               <FileRow
                 key={file.path}
                 file={file}
                 depth={0}
-                label={file.path}
-                selected={file.path === selectedPath}
-                onSelect={onSelectFile}
+                showDirectory
+                selected={isSelected(selection, null, file.path)}
+                onSelect={() => onSelect({ commit: null, path: file.path })}
               />
             ))}
           </ul>
@@ -275,49 +298,103 @@ function StatusView({
   );
 }
 
+function CommitRow({
+  commit,
+  workspace,
+}: {
+  commit: GitDiffCommit;
+  workspace: GitDiffWorkspace;
+}): React.JSX.Element {
+  const open = workspace.openCommit === commit.hash;
+  const files = workspace.commitFiles.get(commit.hash);
+  return (
+    <li>
+      <button
+        type="button"
+        aria-expanded={open}
+        className={cn(
+          'flex w-full items-start gap-1.5 rounded-control px-1.5 py-1.5 text-left transition-colors hover:bg-accent',
+          workspace.selection?.commit === commit.hash && 'bg-accent-subtle',
+        )}
+        title={`${commit.hash}\n${commit.subject}\n${commit.author}`}
+        onClick={() => workspace.toggleCommit(commit.hash)}
+      >
+        <IconChevronRight
+          size={12}
+          className={cn(
+            'mt-1 shrink-0 text-muted-foreground transition-transform',
+            open && 'rotate-90',
+          )}
+        />
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate text-body text-sidebar-foreground/80">{commit.subject}</span>
+          <span className="text-2xs text-muted-foreground">
+            <span className="font-mono">{commit.shortHash}</span>
+            {commit.date ? ` · ${formatCommitDate(commit.date)}` : ''}
+            {commit.author ? ` · ${commit.author}` : ''}
+          </span>
+        </span>
+      </button>
+      {open && (
+        <ul className="pb-1">
+          {files?.status === 'loading' && (
+            <li className="flex items-center gap-2 py-1 pl-7 text-caption text-muted-foreground">
+              <SpinningIcon>
+                <IconLoader2 size={12} />
+              </SpinningIcon>
+              Loading files…
+            </li>
+          )}
+          {files?.status === 'error' && (
+            <li className="py-1 pl-7 text-caption text-danger-fg">{files.error}</li>
+          )}
+          {files?.status === 'ready' &&
+            files.files.map((file) => (
+              <FileRow
+                key={file.path}
+                file={file}
+                depth={1}
+                showDirectory
+                selected={isSelected(workspace.selection, commit.hash, file.path)}
+                onSelect={() => workspace.select({ commit: commit.hash, path: file.path })}
+              />
+            ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 function CommitsView({
   summary,
-  onSelectBase,
-  onChangeView,
+  workspace,
 }: {
   summary: GitDiffSummary;
-  onSelectBase: (base: string) => void;
-  onChangeView: (view: GitDiffView) => void;
+  workspace: GitDiffWorkspace;
 }): React.JSX.Element {
   return (
     <div className="pb-2">
-      <div className="px-2 pt-2 pb-1 text-caption text-muted-foreground">
-        {summary.commits.length} commits since {summary.baseLabel}
-      </div>
+      <SectionLabel label="On this branch" count={summary.commits.length} />
       {summary.commits.length === 0 ? (
-        <p className="px-2 py-2 text-caption text-muted-foreground">
+        <p className="px-2 pb-1 text-caption text-muted-foreground">
           No commits since {summary.baseLabel}.
         </p>
       ) : (
         <ul>
           {summary.commits.map((commit) => (
-            <li key={commit.hash}>
-              <button
-                type="button"
-                className="flex w-full flex-col gap-0.5 rounded-control px-2 py-1.5 text-left transition-colors hover:bg-accent"
-                title={`${commit.hash}\n${commit.subject}\n${commit.author}`}
-                onClick={() => {
-                  onSelectBase(commit.hash);
-                  onChangeView('tree');
-                }}
-              >
-                <span className="flex min-w-0 items-center gap-1.5 text-body text-sidebar-foreground/80">
-                  <IconGitCommit size={13} className="shrink-0 text-muted-foreground" />
-                  <span className="truncate">{commit.subject}</span>
-                </span>
-                <span className="pl-[19px] text-2xs text-muted-foreground">
-                  {commit.shortHash}
-                  {commit.date ? ` · ${formatCommitDate(commit.date)}` : ''}
-                </span>
-              </button>
-            </li>
+            <CommitRow key={commit.hash} commit={commit} workspace={workspace} />
           ))}
         </ul>
+      )}
+      {summary.baseCommits.length > 0 && (
+        <>
+          <SectionLabel label={`In ${summary.baseLabel}`} />
+          <ul>
+            {summary.baseCommits.map((commit) => (
+              <CommitRow key={commit.hash} commit={commit} workspace={workspace} />
+            ))}
+          </ul>
+        </>
       )}
     </div>
   );
@@ -332,70 +409,37 @@ export default function GitDiffSidebar({
   workspace: GitDiffWorkspace;
   shortcutBindings: Map<string, ShortcutBinding> | null;
 }): React.JSX.Element {
-  const { summary, status, error, base, selectedPath, view } = workspace;
-  const branches = summary?.branches ?? [];
-  const localBranches = branches.filter((branch) => branch.local);
-  const remoteBranches = branches.filter((branch) => !branch.local);
-  const baseInBranches = branches.some((branch) => branch.name === base);
-  const baseIsHead = base === 'HEAD';
+  const { summary, status, error, base, selection, view } = workspace;
   const loading = status === 'loading';
 
   return (
     <ShadcnSidebar collapsible="none" data-testid="git-diff-sidebar" className="w-full">
-      <SidebarHeader className="pb-0" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+      <SidebarHeader
+        className="gap-0 pb-0"
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+      >
         <div className="flex h-10 items-start justify-end">
           <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
         </div>
-        <div className="flex min-w-0 items-center gap-1.5 px-2 pb-1">
+        <div className="flex min-w-0 items-center gap-1.5 px-2">
           <span className="min-w-0 truncate text-lg font-medium text-sidebar-foreground/80">
             {projectName}
           </span>
         </div>
-        <div className="px-2 pb-1">
-          <span className="flex min-w-0 items-center gap-1 text-caption text-muted-foreground">
-            <IconGitBranch size={12} className="shrink-0" />
-            <span className="truncate">
-              {summary?.branch ?? (summary?.detached ? 'Detached HEAD' : 'No branch')}
-            </span>
+        <span className="flex min-w-0 items-center gap-1 px-2 pb-2 text-caption text-muted-foreground">
+          <IconGitBranch size={12} className="shrink-0" />
+          <span className="truncate">
+            {summary?.branch ?? (summary?.detached ? 'Detached HEAD' : 'No branch')}
           </span>
-        </div>
+        </span>
 
         <div className="flex items-center gap-1 px-2 pb-2 [-webkit-app-region:no-drag]">
-          <NativeSelect
-            size="sm"
-            aria-label="Compare against"
-            className="min-w-0 flex-1"
-            value={base ?? ''}
-            disabled={loading || (!summary && branches.length === 0)}
-            onChange={(event) => workspace.selectBase(event.target.value)}
-          >
-            {!base && <NativeSelectOption value="">Loading…</NativeSelectOption>}
-            <NativeSelectOption value="HEAD">Working tree (HEAD)</NativeSelectOption>
-            {!baseInBranches && base && !baseIsHead && (
-              <NativeSelectOption value={base}>
-                {summary?.baseLabel ?? base.slice(0, 8)}
-              </NativeSelectOption>
-            )}
-            {localBranches.length > 0 && (
-              <NativeSelectOptGroup label="Local branches">
-                {localBranches.map((branch) => (
-                  <NativeSelectOption key={branch.name} value={branch.name}>
-                    {branch.name}
-                    {branch.current ? ' (current)' : ''}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelectOptGroup>
-            )}
-            {remoteBranches.length > 0 && (
-              <NativeSelectOptGroup label="Remote branches">
-                {remoteBranches.map((branch) => (
-                  <NativeSelectOption key={branch.name} value={branch.name}>
-                    {branch.name}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelectOptGroup>
-            )}
-          </NativeSelect>
+          <GitBasePicker
+            summary={summary}
+            base={base}
+            disabled={loading && !summary}
+            onSelect={workspace.selectBase}
+          />
           <button
             type="button"
             aria-label="Refresh diff"
@@ -415,7 +459,7 @@ export default function GitDiffSidebar({
         </div>
 
         {summary && (
-          <div className="mx-2 mb-2 flex items-center gap-0.5 rounded-control bg-muted p-0.5">
+          <div className="mx-2 mb-2 flex items-center gap-0.5 rounded-control bg-muted p-0.5 [-webkit-app-region:no-drag]">
             {VIEW_LABELS.map((item) => (
               <button
                 key={item.value}
@@ -451,7 +495,7 @@ export default function GitDiffSidebar({
             </div>
           )}
           {!summary && status !== 'error' && (
-            <div className="flex items-center gap-2 px-2 py-2 text-caption text-muted-foreground">
+            <div className="flex animate-in items-center gap-2 px-2 py-2 text-caption text-muted-foreground delay-300 fade-in-0 fill-mode-backwards">
               <SpinningIcon>
                 <IconLoader2 size={13} />
               </SpinningIcon>
@@ -461,24 +505,14 @@ export default function GitDiffSidebar({
           {summary && view === 'tree' && (
             <TreeView
               summary={summary}
-              selectedPath={selectedPath}
-              onSelectFile={workspace.selectFile}
+              selectedPath={selection?.commit === null ? selection.path : null}
+              onSelectFile={(path) => workspace.select({ commit: null, path })}
             />
           )}
           {summary && view === 'status' && (
-            <StatusView
-              summary={summary}
-              selectedPath={selectedPath}
-              onSelectFile={workspace.selectFile}
-            />
+            <StatusView summary={summary} selection={selection} onSelect={workspace.select} />
           )}
-          {summary && view === 'commits' && (
-            <CommitsView
-              summary={summary}
-              onSelectBase={workspace.selectBase}
-              onChangeView={workspace.setView}
-            />
-          )}
+          {summary && view === 'commits' && <CommitsView summary={summary} workspace={workspace} />}
         </div>
       </SidebarContent>
     </ShadcnSidebar>

@@ -1,21 +1,38 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { GitDiffSummary } from '../../../shared/ipcContract';
-import { getGitDiffSummary } from '../services/piAgentClient';
+import type { GitDiffFile, GitDiffSummary } from '../../../shared/ipcContract';
+import { getGitCommitFiles, getGitDiffSummary } from '../services/piAgentClient';
 
-export const GIT_DIFF_VIEWS = ['tree', 'status', 'commits'] as const;
-export type GitDiffView = (typeof GIT_DIFF_VIEWS)[number];
+export type GitDiffView = 'tree' | 'status' | 'commits';
+export type GitDiffLayout = 'unified' | 'split';
+
+/** A file in the base comparison (`commit: null`) or in one commit. */
+export interface GitDiffSelection {
+  commit: string | null;
+  path: string;
+}
+
+export type GitCommitFiles =
+  | { status: 'loading' }
+  | { status: 'ready'; files: GitDiffFile[] }
+  | { status: 'error'; error: string };
 
 export interface GitDiffWorkspace {
   status: 'idle' | 'loading' | 'ready' | 'error';
   error: string | null;
   summary: GitDiffSummary | null;
   base: string | null;
-  selectedPath: string | null;
+  selection: GitDiffSelection | null;
   view: GitDiffView;
+  layout: GitDiffLayout;
+  /** The commit expanded in the Commits view. */
+  openCommit: string | null;
+  commitFiles: ReadonlyMap<string, GitCommitFiles>;
   selectBase: (base: string) => void;
   resetBase: () => void;
-  selectFile: (path: string) => void;
+  select: (selection: GitDiffSelection) => void;
   setView: (view: GitDiffView) => void;
+  setLayout: (layout: GitDiffLayout) => void;
+  toggleCommit: (commit: string) => void;
   refresh: () => void;
 }
 
@@ -35,10 +52,16 @@ export function useGitDiffWorkspace({
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [requestedBase, setRequestedBase] = useState<string | null>(null);
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [selection, setSelection] = useState<GitDiffSelection | null>(null);
   const [view, setView] = useState<GitDiffView>('tree');
+  const [layout, setLayout] = useState<GitDiffLayout>('unified');
+  const [openCommit, setOpenCommit] = useState<string | null>(null);
+  const [commitFiles, setCommitFiles] = useState<ReadonlyMap<string, GitCommitFiles>>(
+    () => new Map(),
+  );
   const [revision, setRevision] = useState(0);
   const requestId = useRef(0);
+  const openCommitRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Deferred so the effect body does not set state synchronously, which the
@@ -50,8 +73,11 @@ export function useGitDiffWorkspace({
       setError(null);
       setStatus('idle');
       setRequestedBase(null);
-      setSelectedPath(null);
+      setSelection(null);
       setView('tree');
+      setOpenCommit(null);
+      openCommitRef.current = null;
+      setCommitFiles(new Map());
     });
     return () => {
       cancelled = true;
@@ -78,12 +104,13 @@ export function useGitDiffWorkspace({
             setError(result.error);
             return;
           }
+          const { files } = result.summary;
           setSummary(result.summary);
-          setSelectedPath((previous) =>
-            previous && result.summary.files.some((file) => file.path === previous)
-              ? previous
-              : (result.summary.files[0]?.path ?? null),
-          );
+          setSelection((previous) => {
+            if (previous?.commit) return previous;
+            if (previous && files.some((file) => file.path === previous.path)) return previous;
+            return files[0] ? { commit: null, path: files[0].path } : null;
+          });
           setStatus('ready');
         })
         .catch(() => {
@@ -99,7 +126,7 @@ export function useGitDiffWorkspace({
   }, [cwd, enabled, requestedBase, revision]);
 
   const beginSelection = useCallback(() => {
-    setSelectedPath(null);
+    setSelection(null);
     setStatus('loading');
     setError(null);
   }, []);
@@ -121,17 +148,69 @@ export function useGitDiffWorkspace({
 
   const refresh = useCallback(() => setRevision((value) => value + 1), []);
 
+  const showCommit = useCallback((commit: string, files: GitDiffFile[]) => {
+    if (openCommitRef.current !== commit || !files[0]) return;
+    setSelection((previous) =>
+      previous?.commit === commit ? previous : { commit, path: files[0].path },
+    );
+  }, []);
+
+  // Commits never change, so their file lists are read once per project.
+  const toggleCommit = useCallback(
+    (commit: string) => {
+      if (!cwd) return;
+      const next = openCommitRef.current === commit ? null : commit;
+      openCommitRef.current = next;
+      setOpenCommit(next);
+      if (!next) return;
+
+      const cached = commitFiles.get(commit);
+      if (cached?.status === 'ready') {
+        showCommit(commit, cached.files);
+        return;
+      }
+      if (cached?.status === 'loading') return;
+      setCommitFiles((previous) => new Map(previous).set(commit, { status: 'loading' }));
+      getGitCommitFiles(cwd, commit)
+        .then((result) => {
+          setCommitFiles((previous) =>
+            new Map(previous).set(
+              commit,
+              result.success
+                ? { status: 'ready', files: result.files }
+                : { status: 'error', error: result.error },
+            ),
+          );
+          if (result.success) showCommit(commit, result.files);
+        })
+        .catch(() => {
+          setCommitFiles((previous) =>
+            new Map(previous).set(commit, {
+              status: 'error',
+              error: 'Unable to read this commit.',
+            }),
+          );
+        });
+    },
+    [commitFiles, cwd, showCommit],
+  );
+
   return {
     status,
     error,
     summary,
     base: summary?.base ?? requestedBase,
-    selectedPath,
+    selection,
     view,
+    layout,
+    openCommit,
+    commitFiles,
     selectBase,
     resetBase,
-    selectFile: setSelectedPath,
+    select: setSelection,
     setView,
+    setLayout,
+    toggleCommit,
     refresh,
   };
 }

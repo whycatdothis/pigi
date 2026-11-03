@@ -1,4 +1,5 @@
 import { IconFolderOpen, IconGitCompare, IconLoader2 } from '@tabler/icons-react';
+import type { GitDiffSource } from '../../../../shared/ipcContract';
 import type { GitDiffWorkspace } from '../../hooks/useGitDiffWorkspace';
 import { Button } from '../ui/button';
 import {
@@ -12,9 +13,18 @@ import {
 import { SpinningIcon } from '../ui/spinningIcon';
 import GitDiffViewer from './GitDiffViewer';
 
+function CenteredMessage({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-caption text-muted-foreground">
+      {children}
+    </div>
+  );
+}
+
+/** Fades in late, so a load that finishes quickly never flashes a spinner. */
 function CenteredLoading({ label }: { label: string }): React.JSX.Element {
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-caption text-muted-foreground">
+    <div className="flex min-h-0 flex-1 animate-in items-center justify-center gap-2 text-caption text-muted-foreground delay-300 fade-in-0 fill-mode-backwards">
       <SpinningIcon>
         <IconLoader2 size={14} />
       </SpinningIcon>
@@ -55,8 +65,18 @@ export default function GitDiffTab({
     );
   }
 
-  const { summary, status, error, selectedPath } = workspace;
-  const selectedFile = summary?.files.find((file) => file.path === selectedPath) ?? null;
+  const { summary, status, error, selection, commitFiles } = workspace;
+  const commit = selection?.commit
+    ? (summary?.commits.find((item) => item.hash === selection.commit) ??
+      summary?.baseCommits.find((item) => item.hash === selection.commit))
+    : undefined;
+  const commitState = selection?.commit ? commitFiles.get(selection.commit) : undefined;
+  const files = selection?.commit
+    ? commitState?.status === 'ready'
+      ? commitState.files
+      : []
+    : (summary?.files ?? []);
+  const selectedFile = files.find((file) => file.path === selection?.path) ?? null;
 
   if (status === 'error') {
     return (
@@ -81,7 +101,7 @@ export default function GitDiffTab({
     return <CenteredLoading label="Loading changes…" />;
   }
 
-  if (summary.files.length === 0) {
+  if (summary.files.length === 0 && !selection?.commit) {
     return (
       <Empty className="border-0">
         <EmptyHeader>
@@ -100,16 +120,31 @@ export default function GitDiffTab({
   }
 
   if (!selectedFile) {
+    if (commitState?.status === 'error') {
+      return <CenteredMessage>{commitState.error}</CenteredMessage>;
+    }
+    if (commitState?.status === 'ready') {
+      return <CenteredMessage>This commit changes no files.</CenteredMessage>;
+    }
     return <CenteredLoading label="Loading changes…" />;
   }
 
+  const source: GitDiffSource = selection?.commit
+    ? { kind: 'commit', commit: selection.commit }
+    : { kind: 'base', base: summary.mergeBase };
   return (
     <GitDiffViewer
-      key={`${summary.mergeBase}:${selectedFile.path}`}
+      key={`${selection?.commit ?? summary.mergeBase}:${selectedFile.path}`}
       projectPath={projectPath}
-      base={summary.mergeBase}
-      baseLabel={summary.baseLabel}
+      source={source}
+      compareLabel={
+        selection?.commit
+          ? `${commit?.shortHash ?? selection.commit.slice(0, 7)} ${commit?.subject ?? ''}`.trim()
+          : `vs ${summary.baseLabel}`
+      }
       file={selectedFile}
+      layout={workspace.layout}
+      onLayoutChange={workspace.setLayout}
       sessionPath={sessionPath}
       onRefresh={workspace.refresh}
     />

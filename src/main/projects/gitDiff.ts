@@ -1,11 +1,16 @@
 import { execFile } from 'node:child_process';
+import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 import type {
+  GitCommitFilesResult,
   GitDiffBranch,
   GitDiffCommit,
   GitDiffFile,
   GitDiffFileResult,
   GitDiffFileStatus,
+  GitDiffSource,
   GitDiffSummaryResult,
 } from '../../shared/ipcContract';
 import { readProjectFile, resolveProjectPath } from './projectFiles';
@@ -15,9 +20,11 @@ const execFileAsync = promisify(execFile);
 const GIT_EXECUTABLE = 'git';
 const GIT_TIMEOUT_MS = 6000;
 const GIT_MAX_BUFFER_BYTES = 16 * 1024 * 1024;
-const MAX_COMMITS = 100;
+const MAX_BRANCH_COMMITS = 100;
+const MAX_BASE_COMMITS = 30;
 const MAX_PATCH_CHARS = 1_500_000;
 const MAX_PATCH_LINES = 5000;
+const MAX_CONTENT_CHARS = 2 * 1024 * 1024;
 
 interface GitCommandResult {
   ok: boolean;
@@ -59,10 +66,15 @@ function gitError(error: string, fallback: string): string {
   return fallback;
 }
 
-async function runGit(cwd: string, args: readonly string[]): Promise<GitCommandResult> {
+async function runGit(
+  cwd: string,
+  args: readonly string[],
+  env?: NodeJS.ProcessEnv,
+): Promise<GitCommandResult> {
   try {
     const { stdout } = await execFileAsync(GIT_EXECUTABLE, [...args], {
       cwd,
+      env,
       timeout: GIT_TIMEOUT_MS,
       windowsHide: true,
       maxBuffer: GIT_MAX_BUFFER_BYTES,
@@ -180,6 +192,8 @@ export function parseNumStat(output: string): Map<string, NumStatEntry> {
   return stats;
 }
 
+const COMMIT_LOG_FORMAT = '--format=%H%x1f%h%x1f%s%x1f%an%x1f%aI';
+
 function parseCommitLog(output: string): GitDiffCommit[] {
   return output
     .split('\n')
@@ -197,6 +211,86 @@ function parseCommitLog(output: string): GitDiffCommit[] {
         },
       ];
     });
+}
+
+/**
+ * Runs `task` against a throwaway copy of the index in which the untracked
+ * files under `paths` are marked intent-to-add. `git diff <commit>` then sees
+ * them as new files: a moved file pairs with its deleted original as a rename,
+ * and a new file gets real line counts and a real patch. The real index is
+ * never written.
+ */
+async function withIntentToAdd<T>(
+  cwd: string,
+  paths: readonly string[],
+  task: (env: NodeJS.ProcessEnv | undefined, untracked: Set<string>) => Promise<T>,
+): Promise<T> {
+  const untrackedResult = await runGit(cwd, [
+    'ls-files',
+    '--others',
+    '--exclude-standard',
+    '-z',
+    '--',
+    ...paths,
+  ]);
+  const untracked = new Set(untrackedResult.stdout.split('\0').filter(Boolean));
+  const indexResult = await runGit(cwd, ['rev-parse', '--git-path', 'index']);
+  const indexPath = indexResult.stdout.trim();
+  if (untracked.size === 0 || !indexResult.ok || !indexPath) return task(undefined, untracked);
+
+  const directory = await mkdtemp(join(tmpdir(), 'pigi-git-index-'));
+  try {
+    const temporaryIndex = join(directory, 'index');
+    const pathspecFile = join(directory, 'paths');
+    try {
+      await copyFile(isAbsolute(indexPath) ? indexPath : join(cwd, indexPath), temporaryIndex);
+    } catch {
+      // No index to copy (a fresh clone mid-checkout): an empty one would make
+      // every tracked file look deleted, so diff without the untracked files.
+      return await task(undefined, untracked);
+    }
+    await writeFile(pathspecFile, [...untracked].join('\0'));
+    const env = { ...process.env, GIT_INDEX_FILE: temporaryIndex };
+    const added = await runGit(
+      cwd,
+      ['add', '--intent-to-add', `--pathspec-from-file=${pathspecFile}`, '--pathspec-file-nul'],
+      env,
+    );
+    return await task(added.ok ? env : undefined, untracked);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+async function changedFiles(
+  cwd: string,
+  range: readonly string[],
+  env: NodeJS.ProcessEnv | undefined,
+): Promise<{ ok: true; files: GitDiffFile[] } | { ok: false; error: string }> {
+  const flags = ['--no-ext-diff', '--find-renames', '-z'];
+  const [nameStatus, numStat] = await Promise.all([
+    runGit(cwd, [...range.slice(0, 1), ...flags, '--name-status', ...range.slice(1)], env),
+    runGit(cwd, [...range.slice(0, 1), ...flags, '--numstat', ...range.slice(1)], env),
+  ]);
+  if (!nameStatus.ok || !numStat.ok) {
+    return { ok: false, error: nameStatus.error || numStat.error };
+  }
+  const stats = parseNumStat(numStat.stdout);
+  return {
+    ok: true,
+    files: parseNameStatus(nameStatus.stdout).map((entry) => {
+      const fileStats = stats.get(entry.path);
+      return {
+        path: entry.path,
+        oldPath: entry.oldPath,
+        status: normalizeStatus(entry.code),
+        uncommitted: false,
+        additions: fileStats?.additions ?? 0,
+        deletions: fileStats?.deletions ?? 0,
+        binary: fileStats?.binary ?? false,
+      };
+    }),
+  };
 }
 
 async function listBranches(cwd: string, currentBranch: string | null): Promise<GitDiffBranch[]> {
@@ -286,62 +380,33 @@ export async function getGitDiffSummary(
       ? mergeBaseResult.stdout.trim()
       : baseCommit;
 
-  const [nameStatusResult, numStatResult, statusResult, untrackedResult, logResult] =
-    await Promise.all([
-      runGit(cwd, [
-        'diff',
-        '--no-ext-diff',
-        '--find-renames',
-        '--name-status',
-        '-z',
-        mergeBase,
-        '--',
-      ]),
-      runGit(cwd, ['diff', '--no-ext-diff', '--find-renames', '--numstat', '-z', mergeBase, '--']),
-      runGit(cwd, ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--']),
-      runGit(cwd, ['ls-files', '--others', '--exclude-standard', '-z', '--']),
-      runGit(cwd, [
-        'log',
-        `--max-count=${MAX_COMMITS}`,
-        '--format=%H%x1f%h%x1f%s%x1f%an%x1f%aI',
-        `${mergeBase}..HEAD`,
-        '--',
-      ]),
-    ]);
+  const [changes, statusResult, branchLog, baseLog] = await Promise.all([
+    withIntentToAdd(cwd, [], async (env, untracked) => {
+      const result = await changedFiles(cwd, ['diff', mergeBase, '--'], env);
+      return { result, untracked };
+    }),
+    runGit(cwd, ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--']),
+    runGit(cwd, [
+      'log',
+      `--max-count=${MAX_BRANCH_COMMITS}`,
+      COMMIT_LOG_FORMAT,
+      `${mergeBase}..HEAD`,
+      '--',
+    ]),
+    runGit(cwd, ['log', `--max-count=${MAX_BASE_COMMITS}`, COMMIT_LOG_FORMAT, mergeBase, '--']),
+  ]);
 
-  if (!nameStatusResult.ok || !numStatResult.ok || !statusResult.ok || !untrackedResult.ok) {
-    return { success: false, error: gitError(nameStatusResult.error, 'Unable to read the diff.') };
+  if (!changes.result.ok || !statusResult.ok) {
+    const error = changes.result.ok ? statusResult.error : changes.result.error;
+    return { success: false, error: gitError(error, 'Unable to read the diff.') };
   }
 
   const statuses = parsePorcelainStatus(statusResult.stdout);
-  const stats = parseNumStat(numStatResult.stdout);
-  const files = new Map<string, GitDiffFile>();
-
-  for (const entry of parseNameStatus(nameStatusResult.stdout)) {
-    const fileStats = stats.get(entry.path);
-    files.set(entry.path, {
-      path: entry.path,
-      oldPath: entry.oldPath,
-      status: normalizeStatus(entry.code),
-      workingTreeStatus: statuses.get(entry.path) ?? null,
-      additions: fileStats?.additions ?? 0,
-      deletions: fileStats?.deletions ?? 0,
-      binary: fileStats?.binary ?? false,
-    });
-  }
-
-  for (const path of untrackedResult.stdout.split('\0')) {
-    if (!path || files.has(path)) continue;
-    files.set(path, {
-      path,
-      oldPath: null,
-      status: 'untracked',
-      workingTreeStatus: '??',
-      additions: 0,
-      deletions: 0,
-      binary: false,
-    });
-  }
+  const files = changes.result.files.map((file) => ({
+    ...file,
+    status: file.status === 'added' && changes.untracked.has(file.path) ? 'untracked' : file.status,
+    uncommitted: statuses.has(file.path) || (file.oldPath !== null && statuses.has(file.oldPath)),
+  }));
 
   const baseLabel =
     base === 'HEAD' || branches.some((candidate) => candidate.name === base)
@@ -357,27 +422,11 @@ export async function getGitDiffSummary(
       baseLabel,
       mergeBase,
       branches,
-      commits: logResult.ok ? parseCommitLog(logResult.stdout) : [],
-      files: [...files.values()].sort((left, right) => left.path.localeCompare(right.path)),
+      commits: branchLog.ok ? parseCommitLog(branchLog.stdout) : [],
+      baseCommits: baseLog.ok ? parseCommitLog(baseLog.stdout) : [],
+      files: files.sort((left, right) => left.path.localeCompare(right.path)),
     },
   };
-}
-
-export function createUntrackedPatch(path: string, content: string): string {
-  const lines = content.split('\n');
-  if (lines[lines.length - 1] === '') lines.pop();
-
-  const header = [
-    `diff --git a/${path} b/${path}`,
-    'new file mode 100644',
-    '--- /dev/null',
-    `+++ b/${path}`,
-  ];
-  if (lines.length === 0) return `${header.join('\n')}\n`;
-
-  const body = lines.map((line) => `+${line}`);
-  if (!content.endsWith('\n')) body.push('\\ No newline at end of file');
-  return [...header, `@@ -0,0 +1,${lines.length} @@`, ...body].join('\n') + '\n';
 }
 
 function limitPatch(patch: string): { patch: string; truncated: boolean } {
@@ -395,12 +444,56 @@ function limitPatch(patch: string): { patch: string; truncated: boolean } {
   return { patch: limited, truncated };
 }
 
+/** The commit to diff a commit against, or null for a root commit. */
+async function firstParent(cwd: string, commit: string): Promise<string | null> {
+  return commitFor(cwd, `${commit}^1`);
+}
+
+/** `git diff` args for one commit; a root commit diffs against the empty tree. */
+function commitRange(commit: string, parent: string | null): string[] {
+  return parent
+    ? ['diff', parent, commit, '--']
+    : ['diff-tree', '-r', '--root', '--no-commit-id', commit, '--'];
+}
+
+export async function getGitCommitFiles(cwd: string, ref: string): Promise<GitCommitFilesResult> {
+  const commit = await commitFor(cwd, ref);
+  if (!commit) {
+    return { success: false, error: 'That commit no longer exists.' };
+  }
+  const result = await changedFiles(
+    cwd,
+    commitRange(commit, await firstParent(cwd, commit)),
+    undefined,
+  );
+  if (!result.ok) {
+    return { success: false, error: gitError(result.error, 'Unable to read this commit.') };
+  }
+  return { success: true, files: result.files };
+}
+
+async function readNewContent(
+  cwd: string,
+  source: GitDiffSource,
+  commit: string,
+  path: string,
+): Promise<string | null> {
+  if (source.kind === 'base') {
+    const file = await readProjectFile(cwd, path);
+    return file.success && !file.truncated ? file.content : null;
+  }
+  const result = await runGit(cwd, ['show', `${commit}:${path}`]);
+  if (!result.ok || result.stdout.length > MAX_CONTENT_CHARS || result.stdout.includes('\0')) {
+    return null;
+  }
+  return result.stdout;
+}
+
 export async function getGitDiffFile(
   cwd: string,
-  base: string,
+  source: GitDiffSource,
   path: string,
   oldPath: string | null,
-  untracked: boolean,
 ): Promise<GitDiffFileResult> {
   if (!cwd || cwd.trim().length === 0 || !path) {
     return { success: false, error: 'The file path is missing.' };
@@ -412,37 +505,32 @@ export async function getGitDiffFile(
     return { success: false, error: 'The path is outside the project.' };
   }
 
-  if (untracked) {
-    const file = await readProjectFile(cwd, path);
-    if (!file.success) return file;
-    const limited = limitPatch(createUntrackedPatch(path, file.content));
-    return {
-      success: true,
-      patch: limited.patch,
-      truncated: file.truncated || limited.truncated,
-    };
-  }
-
-  const baseCommit = await commitFor(cwd, base);
-  if (!baseCommit) {
+  const commit = await commitFor(cwd, source.kind === 'base' ? source.base : source.commit);
+  if (!commit) {
     return { success: false, error: 'That branch or commit no longer exists.' };
   }
 
   const paths = oldPath && oldPath !== path ? [oldPath, path] : [path];
-  const result = await runGit(cwd, [
-    'diff',
-    '--no-color',
-    '--no-ext-diff',
-    '--find-renames',
-    '--unified=3',
-    baseCommit,
-    '--',
-    ...paths,
-  ]);
+  const flags = ['--no-color', '--no-ext-diff', '--find-renames', '--unified=3', '-p'];
+  const result =
+    source.kind === 'base'
+      ? await withIntentToAdd(cwd, paths, (env) =>
+          runGit(cwd, ['diff', ...flags, commit, '--', ...paths], env),
+        )
+      : await (async () => {
+          const [command, ...range] = commitRange(commit, await firstParent(cwd, commit));
+          return runGit(cwd, [command, ...flags, ...range, ...paths]);
+        })();
   if (!result.ok) {
     return { success: false, error: gitError(result.error, 'Unable to read this diff.') };
   }
 
+  const deleted = /^deleted file mode /m.test(result.stdout);
   const limited = limitPatch(result.stdout);
-  return { success: true, patch: limited.patch, truncated: limited.truncated };
+  return {
+    success: true,
+    patch: limited.patch,
+    truncated: limited.truncated,
+    newContent: deleted ? null : await readNewContent(cwd, source, commit, path),
+  };
 }

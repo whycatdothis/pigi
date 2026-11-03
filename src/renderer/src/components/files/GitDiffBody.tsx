@@ -1,0 +1,329 @@
+import { useMemo, useState } from 'react';
+import { IconArrowsVertical } from '@tabler/icons-react';
+import type { GitDiffFile } from '../../../../shared/ipcContract';
+import type { GitDiffLayout } from '../../hooks/useGitDiffWorkspace';
+import { languageForPath } from '../../lib/fileLanguage';
+import {
+  buildDiffRows,
+  isSourceLine,
+  pairSplitRows,
+  parseGitPatch,
+  splitFileLines,
+  type GitDiffGapRow,
+  type GitDiffPatchLine,
+  type GitDiffSourceLine,
+} from '../../lib/gitDiffPatch';
+import { cn } from '../../lib/utils';
+import {
+  isWithinHighlightBudget,
+  tokenStyle,
+  useHighlightedLines,
+  type HighlightedLine,
+} from '../message/codeHighlighting';
+
+const LINE_STYLES = {
+  add: 'bg-success-bg text-success-fg',
+  remove: 'bg-danger-bg text-danger-fg',
+  context: 'bg-background text-foreground',
+} as const;
+
+const PREFIX = {
+  add: '+',
+  remove: '-',
+  context: ' ',
+} as const;
+
+const GUTTER_CLASS_NAME =
+  'w-10 shrink-0 select-none bg-inherit pr-2 text-right text-muted-foreground tabular-nums';
+
+interface DiffTokens {
+  old: ReadonlyMap<number, HighlightedLine>;
+  new: ReadonlyMap<number, HighlightedLine>;
+  settled: boolean;
+}
+
+function tokensByNumber(
+  sideLines: readonly GitDiffSourceLine[],
+  tokens: HighlightedLine[] | null,
+  numberOf: (line: GitDiffSourceLine) => number | null,
+): Map<number, HighlightedLine> {
+  const byNumber = new Map<number, HighlightedLine>();
+  // A count that disagrees with the rows means shiki split the text
+  // differently; plain rows are safer than shifted colours.
+  if (!tokens || tokens.length !== sideLines.length) return byNumber;
+  sideLines.forEach((line, index) => {
+    const number = numberOf(line);
+    if (number !== null) byNumber.set(number, tokens[index]);
+  });
+  return byNumber;
+}
+
+/**
+ * The old side is the patch's removed and context lines highlighted as one
+ * text; the new side is the whole new file when it fits the budget, so
+ * expanded lines and multi-line tokens keep their colours. Tokens are keyed by
+ * line number on each side.
+ */
+function useDiffTokens(
+  lines: readonly GitDiffPatchLine[],
+  newContent: string | null,
+  language: string,
+): DiffTokens {
+  const sides = useMemo(() => {
+    const oldSide: GitDiffSourceLine[] = [];
+    const newSide: GitDiffSourceLine[] = [];
+    for (const line of lines) {
+      if (!isSourceLine(line)) continue;
+      if (line.kind !== 'add') oldSide.push(line);
+      if (line.kind !== 'remove') newSide.push(line);
+    }
+    return { oldSide, newSide };
+  }, [lines]);
+  const wholeNewFile = newContent !== null && isWithinHighlightBudget(newContent);
+  const oldText = useMemo(() => sides.oldSide.map((line) => line.text).join('\n'), [sides]);
+  const newText = useMemo(
+    () => (wholeNewFile ? newContent : sides.newSide.map((line) => line.text).join('\n')),
+    [newContent, sides, wholeNewFile],
+  );
+  const hasRemoved = sides.oldSide.some((line) => line.kind === 'remove');
+  const oldTokens = useHighlightedLines(oldText, hasRemoved ? language : '');
+  const newTokens = useHighlightedLines(newText, sides.newSide.length > 0 ? language : '');
+
+  return useMemo(() => {
+    let newByNumber: Map<number, HighlightedLine>;
+    if (wholeNewFile) {
+      newByNumber = new Map();
+      newTokens.lines?.forEach((tokens, index) => newByNumber.set(index + 1, tokens));
+    } else {
+      newByNumber = tokensByNumber(sides.newSide, newTokens.lines, (line) => line.newLineNumber);
+    }
+    return {
+      old: tokensByNumber(sides.oldSide, oldTokens.lines, (line) => line.oldLineNumber),
+      new: newByNumber,
+      settled: oldTokens.settled && newTokens.settled,
+    };
+  }, [sides, wholeNewFile, oldTokens, newTokens]);
+}
+
+function LineText({
+  line,
+  tokens,
+  wrap,
+}: {
+  line: GitDiffSourceLine;
+  tokens: DiffTokens;
+  wrap: boolean;
+}): React.JSX.Element {
+  const lineTokens =
+    line.kind === 'remove'
+      ? tokens.old.get(line.oldLineNumber ?? 0)
+      : tokens.new.get(line.newLineNumber ?? 0);
+  return (
+    <span
+      className={cn(
+        'min-w-0 pr-4',
+        wrap ? 'flex-1 whitespace-pre-wrap wrap-break-word' : 'whitespace-pre',
+      )}
+    >
+      {lineTokens
+        ? lineTokens.map((token, index) => (
+            <span key={index} style={tokenStyle(token)}>
+              {token.content}
+            </span>
+          ))
+        : line.text}
+    </span>
+  );
+}
+
+function GapRow({
+  row,
+  onExpand,
+}: {
+  row: GitDiffGapRow;
+  onExpand: () => void;
+}): React.JSX.Element {
+  const className =
+    'flex min-h-6 w-full items-center gap-2 bg-muted/40 px-3 text-left font-sans text-caption text-muted-foreground';
+  if (row.hiddenLines === 0) {
+    return <div className={className}>{row.text}</div>;
+  }
+  return (
+    <button
+      type="button"
+      className={cn(className, 'transition-colors hover:bg-muted hover:text-foreground')}
+      onClick={onExpand}
+    >
+      <IconArrowsVertical size={13} className="shrink-0" />
+      <span className="shrink-0">
+        {row.hiddenLines} unmodified {row.hiddenLines === 1 ? 'line' : 'lines'}
+      </span>
+      {row.text && <span className="truncate font-mono opacity-70">{row.text}</span>}
+    </button>
+  );
+}
+
+function MetaRow({ text }: { text: string }): React.JSX.Element {
+  return <div className="px-3 py-0.5 text-caption text-muted-foreground">{text}</div>;
+}
+
+/**
+ * One file's patch, unified or side by side. Gaps between hunks expand from
+ * the new file, which is also why the whole file can be shown. Rows stay
+ * invisible until highlighting lands, so they never flash from plain to
+ * coloured.
+ */
+export default function GitDiffBody({
+  file,
+  patch,
+  newContent,
+  layout,
+  wholeFile,
+}: {
+  file: GitDiffFile;
+  patch: string;
+  newContent: string | null;
+  layout: GitDiffLayout;
+  wholeFile: boolean;
+}): React.JSX.Element {
+  const lines = useMemo(() => parseGitPatch(patch), [patch]);
+  const newFileLines = useMemo(
+    () => (newContent === null ? null : splitFileLines(newContent)),
+    [newContent],
+  );
+  const [expanded, setExpanded] = useState<ReadonlySet<number>>(() => new Set());
+  const tokens = useDiffTokens(lines, newContent, languageForPath(file.path));
+  const rows = useMemo(
+    () => buildDiffRows(lines, newFileLines, wholeFile ? 'all' : expanded),
+    [lines, newFileLines, wholeFile, expanded],
+  );
+  // A file that was only added (or only deleted) is one colour already; the
+  // +/- column, the empty number column and the gap rows add nothing.
+  const onlyKind = useMemo(() => {
+    const kinds = new Set(lines.filter(isSourceLine).map((line) => line.kind));
+    if (kinds.size !== 1) return null;
+    const [kind] = kinds;
+    return kind === 'context' ? null : kind;
+  }, [lines]);
+
+  if (lines.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center px-6 text-caption text-muted-foreground">
+        {file.status === 'renamed'
+          ? 'Renamed without changes to its content.'
+          : 'This file has no textual diff.'}
+      </div>
+    );
+  }
+
+  const expand = (hunkIndex: number): void =>
+    setExpanded((previous) => new Set(previous).add(hunkIndex));
+
+  if (layout === 'split' && !onlyKind) {
+    return (
+      <div
+        className={cn(
+          'w-full py-1 font-mono text-code-compact leading-5',
+          !tokens.settled && 'invisible',
+        )}
+      >
+        {pairSplitRows(rows).map((row, index) => {
+          if (row.kind === 'gap') {
+            return <GapRow key={index} row={row} onExpand={() => expand(row.hunkIndex)} />;
+          }
+          if (row.kind === 'meta') return <MetaRow key={index} text={row.text} />;
+          return (
+            <div key={index} className="grid min-h-5 grid-cols-2">
+              {[row.left, row.right].map((line, side) =>
+                line ? (
+                  <div
+                    key={side}
+                    data-diff-line
+                    data-new-line={line.newLineNumber ?? undefined}
+                    className={cn(
+                      'flex min-w-0',
+                      LINE_STYLES[line.kind],
+                      side === 0 && 'border-r-[0.5px] border-foreground/15',
+                    )}
+                  >
+                    <span className={GUTTER_CLASS_NAME}>
+                      {side === 0 ? line.oldLineNumber : line.newLineNumber}
+                    </span>
+                    <span className="w-4 shrink-0 select-none text-center opacity-50">
+                      {PREFIX[line.kind]}
+                    </span>
+                    <LineText line={line} tokens={tokens} wrap />
+                  </div>
+                ) : (
+                  <div
+                    key={side}
+                    className={cn(
+                      'bg-muted/50',
+                      side === 0 && 'border-r-[0.5px] border-foreground/15',
+                    )}
+                  />
+                ),
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        'w-max min-w-full py-1 font-mono text-code-compact leading-5',
+        !tokens.settled && 'invisible',
+      )}
+    >
+      {rows.map((row, index) => {
+        if (row.kind === 'gap') {
+          if (onlyKind) return null;
+          return <GapRow key={index} row={row} onExpand={() => expand(row.hunkIndex)} />;
+        }
+        if (row.kind === 'meta') return <MetaRow key={index} text={row.text} />;
+        return (
+          <div
+            key={index}
+            data-diff-line
+            data-new-line={row.newLineNumber ?? undefined}
+            className={cn('flex min-h-5 w-max min-w-full', LINE_STYLES[row.kind])}
+          >
+            {onlyKind !== 'add' && (
+              <span
+                className={cn(
+                  GUTTER_CLASS_NAME,
+                  'sticky left-0 z-10',
+                  onlyKind === 'remove' && 'border-r-[0.5px] border-foreground/15',
+                )}
+              >
+                {row.oldLineNumber ?? ''}
+              </span>
+            )}
+            {onlyKind !== 'remove' && (
+              <span
+                className={cn(
+                  GUTTER_CLASS_NAME,
+                  'sticky z-10 border-r-[0.5px] border-foreground/15',
+                  onlyKind === 'add' ? 'left-0' : 'left-10',
+                )}
+              >
+                {row.newLineNumber ?? ''}
+              </span>
+            )}
+            {onlyKind ? (
+              <span className="w-2 shrink-0" />
+            ) : (
+              <span className="w-4 shrink-0 select-none text-center opacity-50">
+                {PREFIX[row.kind]}
+              </span>
+            )}
+            <LineText line={row} tokens={tokens} wrap={false} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}

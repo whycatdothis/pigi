@@ -14,7 +14,9 @@ import type {
   PiCommand,
   PiPush,
   GitBranchResult,
+  GitCommitFilesResult,
   GitDiffFileResult,
+  GitDiffSource,
   GitDiffSummaryResult,
   ProjectSessionsChunk,
   ProjectStateResult,
@@ -87,12 +89,18 @@ export async function getGitDiffSummary(
 
 export async function getGitDiffFile(
   cwd: string,
-  base: string,
+  source: GitDiffSource,
   path: string,
   oldPath: string | null,
-  untracked: boolean,
 ): Promise<GitDiffFileResult> {
-  return window.piApi.getGitDiffFile(cwd, base, path, oldPath, untracked);
+  return window.piApi.getGitDiffFile(cwd, source, path, oldPath);
+}
+
+export async function getGitCommitFiles(
+  cwd: string,
+  commit: string,
+): Promise<GitCommitFilesResult> {
+  return window.piApi.getGitCommitFiles(cwd, commit);
 }
 
 export async function setActiveProject(path: string): Promise<ProjectStateResult> {

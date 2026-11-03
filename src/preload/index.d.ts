@@ -4,7 +4,9 @@ import type {
   PiCommand,
   PiPush,
   GitBranchResult,
+  GitCommitFilesResult,
   GitDiffFileResult,
+  GitDiffSource,
   GitDiffSummaryResult,
   ModelCatalogSnapshot,
   PickAttachmentsResult,
@@ -42,11 +44,11 @@ interface PiApi {
   getGitDiffSummary: (cwd: string, base?: string | null) => Promise<GitDiffSummaryResult>;
   getGitDiffFile: (
     cwd: string,
-    base: string,
+    source: GitDiffSource,
     path: string,
     oldPath: string | null,
-    untracked: boolean,
   ) => Promise<GitDiffFileResult>;
+  getGitCommitFiles: (cwd: string, commit: string) => Promise<GitCommitFilesResult>;
   searchProjectFiles: (
     cwd: string,
     query: string,

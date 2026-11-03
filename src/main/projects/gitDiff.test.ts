@@ -1,11 +1,11 @@
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  createUntrackedPatch,
+  getGitCommitFiles,
   getGitDiffFile,
   getGitDiffSummary,
   parseNameStatus,
@@ -54,13 +54,6 @@ describe('git diff parsers', () => {
       ['c.txt', { additions: 1, deletions: 0, binary: false }],
     ]);
   });
-
-  it('builds a new-file patch and marks a missing final newline', () => {
-    const patch = createUntrackedPatch('notes/new file.txt', 'one\ntwo');
-    expect(patch).toContain('+++ b/notes/new file.txt');
-    expect(patch).toContain('@@ -0,0 +1,2 @@');
-    expect(patch).toContain('+one\n+two\n\\ No newline at end of file');
-  });
 });
 
 describe('getGitDiffSummary', () => {
@@ -77,6 +70,11 @@ describe('getGitDiffSummary', () => {
     await git(root, 'commit', '-qm', 'two');
     await writeFile(join(root, 'a.txt'), 'one\ntwo\nthree\n');
     await writeFile(join(root, 'new.txt'), 'new\n');
+    await writeFile(join(root, 'moved-from.txt'), 'a\nb\nc\nd\ne\n');
+    await git(root, 'add', 'moved-from.txt');
+    await git(root, 'commit', '-qm', 'three');
+    // Moved without `git add`: Git itself reports a deletion and an untracked file.
+    await rename(join(root, 'moved-from.txt'), join(root, 'moved-to.txt'));
   });
 
   afterAll(async () => {
@@ -90,22 +88,44 @@ describe('getGitDiffSummary', () => {
 
     expect(result.summary.branch).toBe('main');
     expect(result.summary.base).toBe('main');
-    expect(result.summary.files.map((file) => [file.path, file.status])).toEqual([
-      ['a.txt', 'modified'],
-      ['new.txt', 'untracked'],
+    expect(result.summary.files.map((file) => [file.path, file.status, file.uncommitted])).toEqual([
+      ['a.txt', 'modified', true],
+      ['moved-to.txt', 'renamed', true],
+      ['new.txt', 'untracked', true],
     ]);
-    expect(result.summary.files[0].workingTreeStatus).toBe(' M');
+    expect(result.summary.files[1].oldPath).toBe('moved-from.txt');
+    expect(result.summary.files[2].additions).toBe(1);
+  });
+
+  it('reads an unstaged move as a rename without touching the real index', async () => {
+    const indexBefore = await readFile(join(root, '.git', 'index'));
+    const diff = await getGitDiffFile(
+      root,
+      { kind: 'base', base: 'HEAD' },
+      'moved-to.txt',
+      'moved-from.txt',
+    );
+    expect(diff).toMatchObject({ success: true, newContent: 'a\nb\nc\nd\ne\n' });
+    if (!diff.success) return;
+    expect(diff.patch).toContain('rename from moved-from.txt');
+    expect(diff.patch).toContain('rename to moved-to.txt');
+    expect(await readFile(join(root, '.git', 'index'))).toEqual(indexBefore);
   });
 
   it('compares against a commit and reads that file diff', async () => {
-    const result = await getGitDiffSummary(root, 'HEAD~1');
+    const result = await getGitDiffSummary(root, 'HEAD~2');
     expect(result.success).toBe(true);
     if (!result.success) return;
 
-    expect(result.summary.commits.map((commit) => commit.subject)).toEqual(['two']);
-    expect(result.summary.files.map((file) => file.path)).toEqual(['a.txt', 'new.txt']);
+    expect(result.summary.commits.map((commit) => commit.subject)).toEqual(['three', 'two']);
+    expect(result.summary.baseCommits.map((commit) => commit.subject)).toEqual(['one']);
 
-    const diff = await getGitDiffFile(root, result.summary.mergeBase, 'a.txt', null, false);
+    const diff = await getGitDiffFile(
+      root,
+      { kind: 'base', base: result.summary.mergeBase },
+      'a.txt',
+      null,
+    );
     expect(diff.success).toBe(true);
     if (!diff.success) return;
     expect(diff.patch).toContain('+two');
@@ -117,10 +137,32 @@ describe('getGitDiffSummary', () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
 
-    const diff = await getGitDiffFile(root, result.summary.mergeBase, 'new.txt', null, true);
+    const diff = await getGitDiffFile(
+      root,
+      { kind: 'base', base: result.summary.mergeBase },
+      'new.txt',
+      null,
+    );
     expect(diff).toMatchObject({ success: true });
     if (!diff.success) return;
     expect(diff.patch).toContain('new file mode 100644');
     expect(diff.patch).toContain('+new');
+  });
+
+  it('lists and diffs one commit against its parent, including the root commit', async () => {
+    const files = await getGitCommitFiles(root, 'HEAD~1');
+    expect(files).toMatchObject({ success: true, files: [{ path: 'a.txt', additions: 1 }] });
+
+    const rootCommit = await getGitCommitFiles(root, 'HEAD~2');
+    expect(rootCommit).toMatchObject({
+      success: true,
+      files: [{ path: 'a.txt', status: 'added' }],
+    });
+
+    const diff = await getGitDiffFile(root, { kind: 'commit', commit: 'HEAD~1' }, 'a.txt', null);
+    expect(diff).toMatchObject({ success: true, newContent: 'one\ntwo\n' });
+    if (!diff.success) return;
+    expect(diff.patch).toContain('+two');
+    expect(diff.patch).not.toContain('+three');
   });
 });

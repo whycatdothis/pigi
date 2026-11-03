@@ -169,8 +169,8 @@ export interface GitDiffFile {
   /** The pre-rename path, when Git detected a rename or copy. */
   oldPath: string | null;
   status: GitDiffFileStatus;
-  /** Raw porcelain status for uncommitted changes, e.g. " M" or "??". */
-  workingTreeStatus: string | null;
+  /** The working tree or index still differs from HEAD for this file. */
+  uncommitted: boolean;
   additions: number;
   deletions: number;
   binary: boolean;
@@ -199,16 +199,32 @@ export interface GitDiffSummary {
   /** The commit both sides share; file diffs run from this commit. */
   mergeBase: string;
   branches: GitDiffBranch[];
+  /** Commits on HEAD since the merge-base, newest first. */
   commits: GitDiffCommit[];
+  /** History from the merge-base down, newest first. */
+  baseCommits: GitDiffCommit[];
   files: GitDiffFile[];
 }
+
+/** What a file diff compares: the merge-base against the working tree, or one commit against its first parent. */
+export type GitDiffSource = { kind: 'base'; base: string } | { kind: 'commit'; commit: string };
+
+export type GitCommitFilesResult =
+  | { success: true; files: GitDiffFile[] }
+  | { success: false; error: string };
 
 export type GitDiffSummaryResult =
   | { success: true; summary: GitDiffSummary }
   | { success: false; error: string };
 
 export type GitDiffFileResult =
-  | { success: true; patch: string; truncated: boolean }
+  | {
+      success: true;
+      patch: string;
+      truncated: boolean;
+      /** The file after the change, for expanding unchanged lines; null when deleted, binary or too large. */
+      newContent: string | null;
+    }
   | { success: false; error: string };
 
 export type ProjectStateResult =
@@ -535,6 +551,8 @@ export enum PiChannel {
   GetGitDiffSummary = 'pi:get_git_diff_summary',
   /** renderer → main: read one changed file's unified diff */
   GetGitDiffFile = 'pi:get_git_diff_file',
+  /** renderer → main: list the files one commit changed */
+  GetGitCommitFiles = 'pi:get_git_commit_files',
   /** renderer → main: remove a project from recent projects list */
   RemoveProject = 'pi:remove_project',
   /** renderer → main: reorder recent projects */

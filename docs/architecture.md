@@ -178,35 +178,54 @@ longer exists.` instead of keeping the old contents.
 
 The Diff tab answers one question: what changed between a chosen base and the
 working tree. Main runs the git commands (`gitDiff.ts`, 6s timeout each) and
-the renderer only draws. Two IPC calls: the summary (branch, base label,
-merge-base, branches, last 100 commits, and the changed-file list with +/-
-counts and porcelain status) and one file's patch, fetched lazily only for the
-selected file. Comparing merge-base..HEAD plus the working tree in one patch
-means a file shows committed and uncommitted edits together, which is what a
-reviewer of "changes since main" wants.
+the renderer only draws. Three IPC calls: the summary (branch, base label,
+merge-base, branches, the commits since the merge-base and 30 below it, and
+the changed-file list with +/- counts), one file's patch, fetched only for the
+selected file, and one commit's file list, fetched when that commit is opened.
+Comparing merge-base..HEAD plus the working tree in one patch means a file
+shows committed and uncommitted edits together, which is what a reviewer of
+"changes since main" wants.
 
 The default base is the first of `origin/main`, `origin/master`, `main`,
 `master`, the current branch, the upstream, then `HEAD`, because the common
 case is "what did I do since main" and every fallback still produces a useful
-answer. The base is deliberately not persisted per project: a branch selected
-in one repo rarely exists in another. Untracked files have no diff, so their
-patch is synthesized as a new-file diff from the file's content. Patches are
-capped at 1.5M characters or 5,000 lines with a `truncated` notice, so a
-minified bundle cannot freeze the renderer.
+answer. The base picker also takes any commit or typed ref (`HEAD~3`, a SHA, a
+tag). The base is deliberately not persisted per project: a branch selected in
+one repo rarely exists in another.
 
-The sidebar offers the same file list three ways — tree (folders, collapsed
-per directory, a directory holding only one directory compacted into one row
-like `main/java/com/example`), Git status (Changes / Untracked / Committed) and
-commits (clicking a commit re-bases the comparison onto it). The viewer is one
-unified patch with sticky old/new line gutters. Each side (old: removed +
-context, new: added + context) is highlighted as one text through the shared
-shiki budget, so multi-line tokens keep their colour across rows; a file that
-is only added or only deleted drops the +/- column, the empty gutter and the
-hunk header. Quoting reuses the Files popover, gated
-to line rows (`data-diff-line`): added and context rows carry new-file line
-numbers and quote as `@src/app.ts:L10-L20`, while a selection touching deleted
-rows has no post-change number to point at and falls back to carrying the
-text.
+Untracked files are diffed through a throwaway copy of the index in which they
+are marked intent-to-add (`git add -N`); the real index is never written.
+`git diff <merge-base>` then treats them as new files, so a file moved without
+`git add` pairs with its deleted original as a rename (Git alone reports a
+deletion and an untracked file), and a new file gets real line counts and a
+real patch. Patches are capped at 1.5M characters or 5,000 lines with a
+`truncated` notice, so a minified bundle cannot freeze the renderer.
+
+The sidebar offers three views: tree (folders, a directory holding only one
+directory compacted into one row like `main/java/com/example`), Git status
+(Changes / Untracked / Committed, against the same base) and commits. Opening
+a commit lists its files and shows one commit against its first parent; a root
+commit diffs against the empty tree. The selection is `{ commit, path }`, with
+`commit: null` for the base comparison, because the same path can be picked
+from both.
+
+The patch response carries the file after the change (the working-tree file,
+or `<commit>:<path>`), which is what expands the unchanged lines between
+hunks and shows the whole file; it is null for deleted, binary or over-2MB
+files, and then only the hunk headers show. The viewer draws the patch unified
+or side by side; split rows pair each run of removed lines with the added
+lines that replaced it, and wrap instead of scrolling so the two halves never
+need synchronized horizontal scroll. The new side is highlighted as the whole
+new file when it fits the shared shiki budget, so expanded lines are already
+coloured; the old side is the patch's removed and context lines as one text.
+Rows stay invisible until highlighting lands, a refresh keeps the patch on
+screen until the new one arrives, and the loading state fades in late, so a
+tab switch goes from blank to the coloured diff in one step. A file that is
+only added or only deleted drops the +/- column, the empty gutter and the gap
+rows. Quoting reuses the Files popover, gated to line cells
+(`data-diff-line`): added and context lines carry new-file line numbers and
+quote as `@src/app.ts:L10-L20`, while a selection touching deleted lines has
+no post-change number to point at and falls back to carrying the text.
 
 ## Message List Bottom Follow
 
