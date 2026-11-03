@@ -115,11 +115,10 @@ interface AppState {
   /** An empty comment removes it. */
   setGlobalComment: (sessionPath: string, comment: string) => void;
 
-  // Sessions whose right sidebar is open (closed ones are absent), persisted.
-  openRightSidebarSessions: Map<string, true>;
+  rightSidebarOpen: boolean;
   rightSidebarTab: RightSidebarTab;
-  setRightSidebarOpen: (sessionPath: string, open: boolean) => void;
-  toggleRightSidebar: (sessionPath: string) => void;
+  setRightSidebarOpen: (open: boolean) => void;
+  toggleRightSidebar: () => void;
   setRightSidebarTab: (tab: RightSidebarTab) => void;
 
   // Tool block view mode and diagram theme live in the settings store
@@ -213,14 +212,6 @@ const storedGlobalComments = createPersistedSessionMap<string>({
   parse: (value) => (typeof value === 'string' && value.trim() ? value : undefined),
 });
 
-export const RIGHT_SIDEBAR_OPEN_STORAGE_KEY = 'pigi.openRightSidebarSessions';
-
-const storedOpenRightSidebars = createPersistedSessionMap<true>({
-  storageKey: RIGHT_SIDEBAR_OPEN_STORAGE_KEY,
-  saveDelayMs: 300,
-  parse: (value) => (value === true ? true : undefined),
-});
-
 export const LAST_FILE_STORAGE_KEY = 'pigi.lastFileByProject';
 
 const storedLastFiles = createPersistedSessionMap<string>({
@@ -228,20 +219,6 @@ const storedLastFiles = createPersistedSessionMap<string>({
   saveDelayMs: 300,
   parse: (value) => (typeof value === 'string' && value.length > 0 ? value : undefined),
 });
-
-function withRightSidebarOpen(
-  openRightSidebarSessions: Map<string, true>,
-  sessionPath: string,
-  open: boolean,
-): Map<string, true> {
-  const next = new Map(openRightSidebarSessions);
-  if (open) {
-    next.set(sessionPath, true);
-  } else {
-    next.delete(sessionPath);
-  }
-  return next;
-}
 
 function withSessionQuotes(
   quotesBySession: Map<string, MessageQuote[]>,
@@ -400,11 +377,7 @@ export const useAppStore = create<AppState>((set) => ({
       const quotes = [...(state.quotesBySession.get(sessionPath) ?? []), quote];
       return {
         quotesBySession: withSessionQuotes(state.quotesBySession, sessionPath, quotes),
-        openRightSidebarSessions: withRightSidebarOpen(
-          state.openRightSidebarSessions,
-          sessionPath,
-          true,
-        ),
+        rightSidebarOpen: true,
         rightSidebarTab: RIGHT_SIDEBAR_TABS.quotes,
       };
     }),
@@ -439,24 +412,10 @@ export const useAppStore = create<AppState>((set) => ({
     }),
 
   // Right sidebar
-  openRightSidebarSessions: storedOpenRightSidebars.load(),
+  rightSidebarOpen: false,
   rightSidebarTab: RIGHT_SIDEBAR_TABS.quotes,
-  setRightSidebarOpen: (sessionPath, open) =>
-    set((state) => ({
-      openRightSidebarSessions: withRightSidebarOpen(
-        state.openRightSidebarSessions,
-        sessionPath,
-        open,
-      ),
-    })),
-  toggleRightSidebar: (sessionPath) =>
-    set((state) => ({
-      openRightSidebarSessions: withRightSidebarOpen(
-        state.openRightSidebarSessions,
-        sessionPath,
-        !state.openRightSidebarSessions.has(sessionPath),
-      ),
-    })),
+  setRightSidebarOpen: (open) => set({ rightSidebarOpen: open }),
+  toggleRightSidebar: () => set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
   setRightSidebarTab: (tab) => set({ rightSidebarTab: tab }),
 
   // Platform
@@ -558,9 +517,6 @@ useAppStore.subscribe((state, previous) => {
   }
   if (state.globalCommentBySession !== previous.globalCommentBySession) {
     storedGlobalComments.save(state.globalCommentBySession);
-  }
-  if (state.openRightSidebarSessions !== previous.openRightSidebarSessions) {
-    storedOpenRightSidebars.save(state.openRightSidebarSessions);
   }
   if (state.lastFileByProject !== previous.lastFileByProject) {
     storedLastFiles.save(state.lastFileByProject);

@@ -593,12 +593,10 @@ measure any of it (see `docs/testing.md`).
 
 `components/rightSidebar/RightSidebar.tsx` is a tabbed panel toggled from the
 session toolbar. Tabs are listed in `lib/rightSidebarTabs.ts`; the active tab
-lives in the app store (`rightSidebarTab`). Whether it is open is kept per
-session (`openRightSidebarSessions`, persisted like the drafts, under
-`pigi.openRightSidebarSessions`), so a new session starts with it closed
-instead of inheriting another session's open sidebar on its first message. The
-active tab is still global; a second tab should decide whether it follows the
-session too.
+lives in the app store (`rightSidebarTab`). Whether it is open is one flag for
+every session (`rightSidebarOpen`), like the left sidebar and the terminal: it
+starts closed on launch, adding a quote opens it, and switching sessions keeps
+it as it is.
 A new view adds a tab id there, a trigger and a `TabsContent` in the sidebar.
 
 ## Quotes

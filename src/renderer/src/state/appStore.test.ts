@@ -1,11 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  LAST_FILE_STORAGE_KEY,
-  QUOTES_STORAGE_KEY,
-  RIGHT_SIDEBAR_OPEN_STORAGE_KEY,
-  useAppStore,
-} from './appStore';
+import { LAST_FILE_STORAGE_KEY, QUOTES_STORAGE_KEY, useAppStore } from './appStore';
 
 const backgroundPath = '/sessions/background.jsonl';
 const activePath = '/sessions/active.jsonl';
@@ -95,40 +90,25 @@ describe('quotes', () => {
     );
 
   beforeEach(() => {
-    useAppStore.setState({ quotesBySession: new Map(), openRightSidebarSessions: new Map() });
+    useAppStore.setState({ quotesBySession: new Map(), rightSidebarOpen: false });
   });
 
-  it('adds quotes per session and opens that session sidebar', () => {
+  it('adds quotes per session and opens the right sidebar', () => {
     const store = useAppStore.getState();
     store.addQuote(activePath, 'first', 'a');
     store.addQuote(activePath, 'second', '');
     expect(quotesOf(activePath)).toEqual(['first|a', 'second|']);
-    expect(useAppStore.getState().openRightSidebarSessions.has(activePath)).toBe(true);
-    expect(useAppStore.getState().openRightSidebarSessions.has(backgroundPath)).toBe(false);
+    expect(useAppStore.getState().rightSidebarOpen).toBe(true);
     store.addQuote(backgroundPath, 'other', 'b');
     expect(quotesOf(backgroundPath)).toEqual(['other|b']);
   });
 
-  it('keeps the right sidebar open state per session and persists it', () => {
-    vi.useFakeTimers();
-    try {
-      const store = useAppStore.getState();
-      store.toggleRightSidebar(activePath);
-      vi.runAllTimers();
-      expect(useAppStore.getState().openRightSidebarSessions.has(activePath)).toBe(true);
-      expect(useAppStore.getState().openRightSidebarSessions.has(backgroundPath)).toBe(false);
-      const stored: unknown = JSON.parse(
-        localStorage.getItem(RIGHT_SIDEBAR_OPEN_STORAGE_KEY) ?? '{}',
-      );
-      expect(stored).toMatchObject({ [activePath]: { value: true } });
-
-      store.toggleRightSidebar(activePath);
-      vi.runAllTimers();
-      expect(useAppStore.getState().openRightSidebarSessions.size).toBe(0);
-      expect(localStorage.getItem(RIGHT_SIDEBAR_OPEN_STORAGE_KEY)).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
+  it('opens and closes one right sidebar for every session', () => {
+    const store = useAppStore.getState();
+    store.toggleRightSidebar();
+    expect(useAppStore.getState().rightSidebarOpen).toBe(true);
+    store.toggleRightSidebar();
+    expect(useAppStore.getState().rightSidebarOpen).toBe(false);
   });
 
   it('updates and removes a quote by id', () => {

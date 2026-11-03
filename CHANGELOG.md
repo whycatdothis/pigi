@@ -30,6 +30,8 @@
 
 ### Changed
 
+- The right sidebar is open or closed for every session alike instead of
+  per session, and starts closed on launch
 - The Chat, Files and Git tabs are taller with larger text, and the chat
   title has more room
 - Sending quotes keeps the quote sidebar open, a global comment can be sent

@@ -136,7 +136,7 @@ const GlobalCommentCard = React.memo(function GlobalCommentCard({
     return (
       <button
         type="button"
-        className="flex h-8 items-center justify-center gap-1.5 rounded-control text-caption text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+        className="flex h-8 items-center justify-center gap-1.5 self-center rounded-control bg-muted px-3 text-caption text-foreground transition-colors hover:bg-foreground/10"
         onClick={() => setEditing(true)}
       >
         <IconPlus className="size-4" />
@@ -216,7 +216,7 @@ export default React.memo(function QuotePanel({
   // sends when the sidebar is open and the Send button can be seen.
   const handleShortcut = useEffectEvent((event: KeyboardEvent) => {
     if (!sendShortcut || event.isComposing || !bindingMatches(sendShortcut, event)) return;
-    if (!canSend || !useAppStore.getState().openRightSidebarSessions.has(sessionPath)) return;
+    if (!canSend || !useAppStore.getState().rightSidebarOpen) return;
     event.preventDefault();
     void handleSend();
   });
@@ -230,18 +230,24 @@ export default React.memo(function QuotePanel({
       <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-width:thin]">
         {/* A reading column, so a wide sidebar does not stretch quotes into long lines. */}
         <div className="mx-auto flex min-h-full max-w-160 flex-col gap-2">
-          {quotes.length > 0 && (
-            <ol className="flex flex-col gap-2">
-              {quotes.map((quote) => (
-                <QuoteCard key={quote.id} quote={quote} sessionPath={sessionPath} />
-              ))}
-            </ol>
-          )}
-          <GlobalCommentCard sessionPath={sessionPath} />
-          {quotes.length === 0 && !hasGlobalComment && (
-            <div className="flex flex-1 items-center justify-center px-4 pb-10 text-center text-caption leading-5 text-muted-foreground">
-              Select text in a message, file or diff, then choose Quote to comment on it.
+          {quotes.length === 0 && !hasGlobalComment ? (
+            <div className="flex flex-1 flex-col justify-center gap-3 pb-10">
+              <p className="px-4 text-center text-caption leading-5 text-muted-foreground">
+                Select text in a message, file or diff, then choose Quote to comment on it, or:
+              </p>
+              <GlobalCommentCard sessionPath={sessionPath} />
             </div>
+          ) : (
+            <>
+              {quotes.length > 0 && (
+                <ol className="flex flex-col gap-2">
+                  {quotes.map((quote) => (
+                    <QuoteCard key={quote.id} quote={quote} sessionPath={sessionPath} />
+                  ))}
+                </ol>
+              )}
+              <GlobalCommentCard sessionPath={sessionPath} />
+            </>
           )}
         </div>
       </div>

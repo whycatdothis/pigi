@@ -18,7 +18,7 @@ describe('QuotePanel send shortcut', () => {
   beforeEach(() => {
     useAppStore.setState({
       quotesBySession: new Map([[SESSION_PATH, [{ id: 'a', text: 'quoted', comment: '' }]]]),
-      openRightSidebarSessions: new Map([[SESSION_PATH, true]]),
+      rightSidebarOpen: true,
       globalCommentBySession: new Map(),
     });
   });
@@ -73,18 +73,18 @@ describe('QuotePanel send shortcut', () => {
       fireEvent.click(screen.getByRole('button', { name: /^Send/ }));
     });
     expect(onSend).toHaveBeenCalledWith('Global comment:\nLook at the tests.');
-    expect(useAppStore.getState().openRightSidebarSessions.get(SESSION_PATH)).toBe(true);
+    expect(useAppStore.getState().rightSidebarOpen).toBe(true);
   });
 
   it('sends quotes added after the panel mounted', () => {
     // The shortcut handler is registered once, so it must read the current
     // quotes rather than the empty list the panel mounted with.
-    useAppStore.setState({ quotesBySession: new Map(), openRightSidebarSessions: new Map() });
+    useAppStore.setState({ quotesBySession: new Map(), rightSidebarOpen: false });
     const onSend = renderPanel();
     act(() => {
       useAppStore.setState({
         quotesBySession: new Map([[SESSION_PATH, [{ id: 'a', text: 'quoted', comment: '' }]]]),
-        openRightSidebarSessions: new Map([[SESSION_PATH, true]]),
+        rightSidebarOpen: true,
       });
     });
     fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
@@ -94,7 +94,7 @@ describe('QuotePanel send shortcut', () => {
   it('ignores the shortcut while the sidebar is closed or on a plain Enter', () => {
     const onSend = renderPanel();
     fireEvent.keyDown(window, { key: 'Enter' });
-    useAppStore.setState({ openRightSidebarSessions: new Map() });
+    useAppStore.setState({ rightSidebarOpen: false });
     fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
     expect(onSend).not.toHaveBeenCalled();
   });

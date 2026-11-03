@@ -194,9 +194,7 @@ function App(): React.JSX.Element {
       toggleTerminal: state.toggleTerminal,
       terminalHeight: state.terminalHeight,
       sidebarExpanded: state.sidebarExpanded,
-      rightSidebarOpen:
-        state.activeSessionPath !== null &&
-        state.openRightSidebarSessions.has(state.activeSessionPath),
+      rightSidebarOpen: state.activeSessionPath !== null && state.rightSidebarOpen,
       platform: state.platform,
       settingsOpen: state.settingsOpen,
       settingsSection: state.settingsSection,
@@ -540,12 +538,7 @@ function App(): React.JSX.Element {
     size: rightSidebarWidth,
     getBounds: () => ({ minimum: RIGHT_SIDEBAR_MIN_WIDTH, maximum: rightSidebarMaxWidth() }),
     onCommit: setRightSidebarWidth,
-    onCollapsedChange: (collapsed) => {
-      const { activeSessionPath: sessionPath, setRightSidebarOpen } = useAppStore.getState();
-      if (sessionPath) {
-        setRightSidebarOpen(sessionPath, !collapsed);
-      }
-    },
+    onCollapsedChange: (collapsed) => useAppStore.getState().setRightSidebarOpen(!collapsed),
   });
 
   const refreshProjectSessions = useCallback(
