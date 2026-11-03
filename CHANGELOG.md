@@ -19,6 +19,8 @@
 - The Diff tab shows all changes since the repository's main branch (whatever
   it is called), only the uncommitted changes, or only the last commit
 - Commits in the Diff tab show how long ago they were made (`2h ago`)
+- A project that is a folder inside a bigger repository shows only its own
+  changes in the Diff tab
 - The Files and Diff trees compact a directory that only holds one directory
   into one row (`main/java/com/example`)
 

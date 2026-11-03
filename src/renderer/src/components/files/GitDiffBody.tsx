@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { IconArrowsVertical } from '@tabler/icons-react';
 import type { GitDiffFile } from '../../../../shared/ipcContract';
 import type { GitDiffLayout } from '../../hooks/useGitDiffWorkspace';
@@ -173,7 +173,11 @@ function MetaRow({ text }: { text: string }): React.JSX.Element {
  * invisible until highlighting lands, so they never flash from plain to
  * coloured.
  */
-export default function GitDiffBody({
+// The viewer re-renders on every selection, refresh and sidebar view change;
+// without this the body already on screen re-rendered too (280–400ms for a
+// 750-row patch in dev, on the way to every file switch).
+const GitDiffBody = memo(function GitDiffBody({
+  id,
   file,
   patch,
   newContent,
@@ -181,13 +185,14 @@ export default function GitDiffBody({
   wholeFile,
   onSettled,
 }: {
+  id: number;
   file: GitDiffFile;
   patch: string;
   newContent: string | null;
   layout: GitDiffLayout;
   wholeFile: boolean;
-  /** Called once highlighting has landed and the body can be shown. */
-  onSettled?: () => void;
+  /** Called with `id` once highlighting has landed and the body can be shown. */
+  onSettled?: (id: number) => void;
 }): React.JSX.Element {
   const lines = useMemo(() => parseGitPatch(patch), [patch]);
   const newFileLines = useMemo(
@@ -206,8 +211,8 @@ export default function GitDiffBody({
   );
   const tokens = useDiffTokens(lines, newContent, languageForPath(file.path));
   useEffect(() => {
-    if (tokens.settled) onSettled?.();
-  }, [tokens.settled, onSettled]);
+    if (tokens.settled) onSettled?.(id);
+  }, [tokens.settled, onSettled, id]);
   const rows = useMemo(
     () => buildDiffRows(lines, newFileLines, wholeFile ? 'all' : expanded),
     [lines, newFileLines, wholeFile, expanded],
@@ -341,4 +346,6 @@ export default function GitDiffBody({
       })}
     </div>
   );
-}
+});
+
+export default GitDiffBody;

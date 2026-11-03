@@ -5,7 +5,11 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
-import type { GitDiffSummary, GitDiffSummaryResult } from '../../../shared/ipcContract';
+import type {
+  GitDiffScope,
+  GitDiffSummary,
+  GitDiffSummaryResult,
+} from '../../../shared/ipcContract';
 import '../testing/jsdomSetup';
 import { notifyProjectActivity } from '../lib/projectActivity';
 import { useGitDiffWorkspace } from './useGitDiffWorkspace';
@@ -22,6 +26,7 @@ function summary(path: string): GitDiffSummary {
     source: { kind: 'base', base: 'abc' },
     branches: [],
     commits: [],
+    moreCommits: false,
     baseCommits: [],
     files: [
       {
@@ -39,6 +44,7 @@ function summary(path: string): GitDiffSummary {
 
 /** Each call waits until the test answers it. */
 let answers: ((result: GitDiffSummaryResult) => void)[] = [];
+let requests: [string, GitDiffScope][] = [];
 
 async function answer(result: GitDiffSummaryResult): Promise<void> {
   const next = answers.shift();
@@ -58,9 +64,11 @@ async function wait(ms: number): Promise<void> {
 beforeEach(() => {
   vi.useFakeTimers();
   answers = [];
+  requests = [];
   vi.stubGlobal('piApi', {
-    getGitDiffSummary: () =>
+    getGitDiffSummary: (cwd: string, scope: GitDiffScope) =>
       new Promise<GitDiffSummaryResult>((resolve) => {
+        requests.push([cwd, scope]);
         answers.push(resolve);
       }),
   });
@@ -126,5 +134,30 @@ describe('useGitDiffWorkspace auto refresh', () => {
     expect(result.current.status).toBe('ready');
     expect(result.current.error).toBeNull();
     expect(result.current.summary?.files[0].path).toBe('a.txt');
+  });
+});
+
+describe('useGitDiffWorkspace project and view changes', () => {
+  it('asks a newly opened project for its own default base, not the old pick', async () => {
+    const hook = renderHook(({ cwd }) => useGitDiffWorkspace({ cwd, enabled: true }), {
+      initialProps: { cwd: CWD },
+    });
+    await wait(0);
+    await answer({ success: true, summary: summary('a.txt') });
+    act(() => hook.result.current.selectBase('feature'));
+    await wait(0);
+    await answer({ success: true, summary: summary('a.txt') });
+
+    requests = [];
+    hook.rerender({ cwd: '/other' });
+    await wait(0);
+    expect(requests).toEqual([['/other', { kind: 'branch', base: null }]]);
+  });
+
+  it("leaves a commit's file when switching away from the Commits view", async () => {
+    const { result } = await openTab();
+    act(() => result.current.select({ commit: 'c1', path: 'x.txt' }));
+    act(() => result.current.setView('status'));
+    expect(result.current.selection).toEqual({ commit: null, path: 'a.txt' });
   });
 });

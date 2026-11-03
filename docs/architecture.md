@@ -200,16 +200,25 @@ the 200 most recently committed remote branches, because a monorepo can carry
 ~90k. The base is deliberately not persisted per project: a branch selected in
 one repo rarely exists in another.
 
+A project that is a folder inside a bigger repository (a monorepo package)
+shows only its own changes, with paths relative to the project: `diff
+--relative`, `status`/`log` limited to `.`, `show <commit>:./<path>`. Quotes
+then read `@src/app.ts:L10` from the project the agent runs in, and `status`
+scans only the folder (0.8s instead of 3s in a monorepo package).
+
 Every git call passes `--no-optional-locks`, so a summary never takes
-`index.lock` from an agent that is committing. On a 170k-file repository the
+`index.lock` from an agent that is committing, and
+`diff.suppressBlankEmpty=false`, so a user setting cannot print an empty
+context line as `""`, which the patch parser reads as the end of the hunk. On a 170k-file repository the
 summary costs about 3s, two thirds of it listing untracked files, so `status`
 is the only command that lists them and it starts first, with the branch list,
 logs and merge-base running beside it.
 
 The tab refreshes itself, quietly (no spinner, a failed refresh keeps the last
 summary), 500ms after an agent in the project finishes any tool call or run,
-and when the window regains focus. Any tool counts, because agents change files
-through bash and scripts as often as through edit/write. A trigger that lands
+and when the window regains focus. Any tool but the read-only built-ins
+(`read`, `grep`, `find`, `ls`) counts, because agents change files through
+bash and scripts as often as through edit/write. A trigger that lands
 during a load runs one more load after it instead of a second one beside it.
 Polling a fingerprint, as Plannotator does, was rejected: its fingerprint is a
 `status -uall` plus a diff, 2.7s per probe on the same repository, so a
@@ -235,8 +244,9 @@ from both.
 
 The patch response carries the file after the change (the working-tree file,
 or `<commit>:<path>`), which is what expands the unchanged lines between
-hunks and shows the whole file; it is null for deleted, binary or over-2MB
-files, and then only the hunk headers show. The viewer draws the patch unified
+hunks and shows the whole file; it is null for deleted, binary, over-2MB or
+over-5,000-line files, since both draw every line they show, and then only
+the hunk headers show. The viewer draws the patch unified
 or side by side; split rows pair each run of removed lines with the added
 lines that replaced it, and wrap instead of scrolling so the two halves never
 need synchronized horizontal scroll. The new side is highlighted as the whole
@@ -254,7 +264,11 @@ only added or only deleted drops the +/- column, the empty gutter and the gap
 rows. Quoting reuses the Files popover, gated to line cells
 (`data-diff-line`): added and context lines carry new-file line numbers and
 quote as `@src/app.ts:L10-L20`, while a selection touching deleted lines has
-no post-change number to point at and falls back to carrying the text.
+no post-change number to point at and falls back to carrying the text, as
+does any quote from a commit, whose line numbers point into a file the agent
+cannot open. The Diff components are memoized and the workspace object is
+stable, because App re-renders on every streamed agent batch and a body holds
+thousands of rows.
 
 ## Message List Bottom Follow
 

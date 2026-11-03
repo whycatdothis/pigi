@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GitDiffFile, GitDiffScope, GitDiffSummary } from '../../../shared/ipcContract';
 import { onProjectActivity } from '../lib/projectActivity';
 import { getGitCommitFiles, getGitDiffSummary } from '../services/piAgentClient';
@@ -103,25 +103,23 @@ export function useGitDiffWorkspace({
     setRevision((value) => value + 1);
   }, []);
 
+  // Reset while rendering, not in an effect: the load below must already see
+  // the new project's state, or it first asks the new repository for the old
+  // base (seconds of git that cannot be cancelled).
+  const [stateCwd, setStateCwd] = useState(cwd);
+  if (stateCwd !== cwd) {
+    setStateCwd(cwd);
+    setSummary(null);
+    setError(null);
+    setStatus('idle');
+    setRequestedBase(null);
+    setSelection(null);
+    setView('tree');
+    setOpenCommit(null);
+    setCommitFiles(new Map());
+  }
   useEffect(() => {
-    // Deferred so the effect body does not set state synchronously, which the
-    // react-hooks/set-state-in-effect rule rejects.
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setSummary(null);
-      setError(null);
-      setStatus('idle');
-      setRequestedBase(null);
-      setSelection(null);
-      setView('tree');
-      setOpenCommit(null);
-      openCommitRef.current = null;
-      setCommitFiles(new Map());
-    });
-    return () => {
-      cancelled = true;
-    };
+    openCommitRef.current = null;
   }, [cwd]);
 
   useEffect(() => {
@@ -159,10 +157,14 @@ export function useGitDiffWorkspace({
             setError(result.error);
             return;
           }
-          const { files } = result.summary;
+          const { files, commits, baseCommits } = result.summary;
           setSummary(result.summary);
           setSelection((previous) => {
-            if (previous?.commit) return previous;
+            const commit = previous?.commit;
+            // A commit a rebase dropped no longer has a row to come back to.
+            if (commit && [...commits, ...baseCommits].some((entry) => entry.hash === commit)) {
+              return previous;
+            }
             if (previous && files.some((file) => file.path === previous.path)) return previous;
             return files[0] ? { commit: null, path: files[0].path } : null;
           });
@@ -199,6 +201,20 @@ export function useGitDiffWorkspace({
       window.removeEventListener('focus', schedule);
     };
   }, [cwd, enabled, quietRefresh]);
+
+  // A commit's file belongs to the Commits view; elsewhere it would show with no row selected.
+  const changeView = useCallback(
+    (next: GitDiffView) => {
+      setView(next);
+      if (next === 'commits') return;
+      setSelection((previous) => {
+        if (!previous?.commit) return previous;
+        const first = summary?.files[0];
+        return first ? { commit: null, path: first.path } : null;
+      });
+    },
+    [summary],
+  );
 
   const beginSelection = useCallback(() => {
     quietRef.current = false;
@@ -288,25 +304,49 @@ export function useGitDiffWorkspace({
     [commitFiles, cwd, showCommit],
   );
 
-  return {
-    status,
-    error,
-    summary,
-    mode: scopeMode,
-    base: summary?.base ?? requestedBase,
-    selection,
-    view,
-    layout,
-    openCommit,
-    commitFiles,
-    collapsedSections,
-    toggleSection,
-    selectMode,
-    selectBase,
-    resetBase,
-    select: setSelection,
-    setView,
-    setLayout,
-    toggleCommit,
-  };
+  // App passes this to memoized components; a fresh object every render
+  // would re-render the whole tab on each streamed agent batch.
+  const base = summary?.base ?? requestedBase;
+  return useMemo(
+    () => ({
+      status,
+      error,
+      summary,
+      mode: scopeMode,
+      base,
+      selection,
+      view,
+      layout,
+      openCommit,
+      commitFiles,
+      collapsedSections,
+      toggleSection,
+      selectMode,
+      selectBase,
+      resetBase,
+      select: setSelection,
+      setView: changeView,
+      setLayout,
+      toggleCommit,
+    }),
+    [
+      status,
+      error,
+      summary,
+      scopeMode,
+      base,
+      selection,
+      view,
+      layout,
+      openCommit,
+      commitFiles,
+      collapsedSections,
+      toggleSection,
+      selectMode,
+      selectBase,
+      resetBase,
+      changeView,
+      toggleCommit,
+    ],
+  );
 }

@@ -63,3 +63,21 @@ combination appears a third time, add 2–3 roles — section label, row, page
 title — that bundle size, weight, line height and colour, so a change lands in
 one place. Do not use `h1–h6` as font-size APIs; they describe document
 structure, not visual hierarchy.
+
+## Diff tab: degrade instead of failing on huge changes
+
+Two edge cases end in an error instead of a partial view: thousands of
+untracked files that are not ignored (each gets an intent-to-add numstat and
+the summary can pass the 6s timeout), and a patch larger than the 16MB
+`maxBuffer`. Both should show what fits with a notice, as the 5,000-line patch
+cap already does.
+
+## Diff tab: fewer git processes per summary
+
+A summary starts about 17 git processes. The three serial `rev-parse` /
+`symbolic-ref` calls at the start could be one, and `defaultBase`'s up to five
+serial `rev-parse --verify` calls one `for-each-ref`. Tens of milliseconds
+against a 2s `status` on a monorepo, so only worth it alongside other work
+there. In the same area: `commitRange` returning `{ command, args }` would drop
+the `range.slice(0, 1)` splicing in `changedFiles` and the IIFE in
+`getGitDiffFile`.

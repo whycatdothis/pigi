@@ -108,8 +108,12 @@ function syncSessionState(sessionPath: string, controller: TranscriptController)
     });
 }
 
+/** Built-in tools that never write; every other tool, bash included, may. */
+const READ_ONLY_TOOLS: ReadonlySet<string> = new Set(['read', 'grep', 'find', 'ls']);
+
 function notifyIfFilesMayHaveChanged(sessionPath: string, event: AgentSessionEvent): void {
-  if (event.type !== 'tool_execution_end' && event.type !== 'agent_end') return;
+  const toolMayWrite = event.type === 'tool_execution_end' && !READ_ONLY_TOOLS.has(event.toolName);
+  if (!toolMayWrite && event.type !== 'agent_end') return;
   const cwd = useAppStore.getState().sessions.get(sessionPath)?.cwd;
   if (cwd) notifyProjectActivity(cwd);
 }

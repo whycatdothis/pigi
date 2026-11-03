@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -173,5 +173,77 @@ describe('getGitDiffSummary', () => {
     if (!diff.success) return;
     expect(diff.patch).toContain('+two');
     expect(diff.patch).not.toContain('+three');
+  });
+});
+
+describe('a project in a subdirectory of its repository', () => {
+  let root: string;
+  let project: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(join(tmpdir(), 'pigi-git-diff-sub-'));
+    project = join(root, 'app');
+    await git(root, 'init', '-q', '-b', 'main');
+    await mkdir(join(project, 'src'), { recursive: true });
+    await writeFile(join(project, 'src', 'x.txt'), 'one\n');
+    await writeFile(join(root, 'outside.txt'), 'one\n');
+    await git(root, 'add', '.');
+    await git(root, 'commit', '-qm', 'one');
+    await writeFile(join(project, 'src', 'x.txt'), 'one\ntwo\n');
+    await git(root, 'add', '.');
+    await git(root, 'commit', '-qm', 'two');
+    await writeFile(join(project, 'src', 'x.txt'), 'one\ntwo\nthree\n');
+    await writeFile(join(project, 'new.txt'), 'new\n');
+    await writeFile(join(root, 'outside.txt'), 'one\ntwo\n');
+    await writeFile(join(root, 'outside-new.txt'), 'new\n');
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('lists only the project, with project-relative paths', async () => {
+    const result = await getGitDiffSummary(project, { kind: 'branch', base: 'HEAD~1' });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.summary.files.map((file) => [file.path, file.status, file.uncommitted])).toEqual([
+      ['new.txt', 'untracked', true],
+      ['src/x.txt', 'modified', true],
+    ]);
+  });
+
+  it('reads patches and contents by project-relative path', async () => {
+    const working = await getGitDiffFile(
+      project,
+      { kind: 'base', base: 'HEAD~1' },
+      'src/x.txt',
+      null,
+    );
+    expect(working).toMatchObject({ success: true, newContent: 'one\ntwo\nthree\n' });
+    if (!working.success) return;
+    expect(working.patch).toContain('+three');
+
+    const untracked = await getGitDiffFile(
+      project,
+      { kind: 'base', base: 'HEAD' },
+      'new.txt',
+      null,
+    );
+    expect(untracked).toMatchObject({ success: true });
+    if (!untracked.success) return;
+    expect(untracked.patch).toContain('+new');
+
+    const commit = await getGitDiffFile(
+      project,
+      { kind: 'commit', commit: 'HEAD' },
+      'src/x.txt',
+      null,
+    );
+    expect(commit).toMatchObject({ success: true, newContent: 'one\ntwo\n' });
+    if (!commit.success) return;
+    expect(commit.patch).toContain('+two');
+
+    const files = await getGitCommitFiles(project, 'HEAD~1');
+    expect(files).toMatchObject({ success: true, files: [{ path: 'src/x.txt' }] });
   });
 });

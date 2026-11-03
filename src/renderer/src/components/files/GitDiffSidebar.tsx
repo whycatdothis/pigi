@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { IconChevronRight, IconLoader2 } from '@tabler/icons-react';
 import { FolderClosed, FolderOpen } from 'lucide-react';
 import type {
@@ -233,6 +233,7 @@ function Section({
   section,
   label,
   count,
+  more = false,
   emptyText,
   workspace,
   children,
@@ -240,6 +241,8 @@ function Section({
   section: GitDiffSection;
   label: string;
   count: number;
+  /** The list stops at a cap and more exist past it. */
+  more?: boolean;
   emptyText: string;
   workspace: GitDiffWorkspace;
   children: React.ReactNode;
@@ -258,7 +261,10 @@ function Section({
           className={cn('shrink-0 transition-transform', open && 'rotate-90')}
         />
         <span className="min-w-0 flex-1 truncate">{label}</span>
-        <span className="tabular-nums">{count}</span>
+        <span className="tabular-nums">
+          {count}
+          {more && '+'}
+        </span>
       </button>
       {open &&
         (count === 0 ? (
@@ -412,6 +418,7 @@ function CommitsView({
         section="branchCommits"
         label="On this branch"
         count={summary.commits.length}
+        more={summary.moreCommits}
         emptyText={`No commits since ${summary.baseLabel}.`}
         workspace={workspace}
       >
@@ -434,7 +441,9 @@ function CommitsView({
   );
 }
 
-export default function GitDiffSidebar({
+// App re-renders on every streamed agent batch; the workspace and the other
+// props are stable, so the Diff tab skips those renders.
+const GitDiffSidebar = memo(function GitDiffSidebar({
   projectName,
   workspace,
   shortcutBindings,
@@ -546,4 +555,6 @@ export default function GitDiffSidebar({
       </SidebarContent>
     </ShadcnSidebar>
   );
-}
+});
+
+export default GitDiffSidebar;

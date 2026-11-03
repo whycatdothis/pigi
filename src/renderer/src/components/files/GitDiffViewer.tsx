@@ -197,13 +197,17 @@ export default function GitDiffViewer({
       }
       // Added and context rows carry the file's post-change line numbers, so
       // they quote like the Files viewer. A selection that touches deleted
-      // rows has no such number and falls back to carrying the text.
+      // rows has no such number, and a commit's numbers point into a file the
+      // agent cannot open, so both carry the text instead.
       if (!shownPath) return '';
-      const lines = containerRef.current ? newLineRange(containerRef.current, range) : null;
+      const lines =
+        containerRef.current && sourceKind === 'base'
+          ? newLineRange(containerRef.current, range)
+          : null;
       if (lines) return formatFileLineQuote(shownPath, lines.start, lines.end);
       return formatFileContentQuote(shownPath, text);
     },
-    [shownPath],
+    [shownPath, sourceKind],
   );
 
   const renamed = file.oldPath !== null && file.oldPath !== file.path;
@@ -304,12 +308,13 @@ export default function GitDiffViewer({
                       </div>
                     )}
                     <GitDiffBody
+                      id={loaded.id}
                       file={loaded.file}
                       patch={loaded.patch}
                       newContent={loaded.newContent}
                       layout={layout}
                       wholeFile={wholeFilePath === loaded.file.path}
-                      onSettled={loaded === incoming ? () => promote(loaded.id) : undefined}
+                      onSettled={loaded === incoming ? promote : undefined}
                     />
                   </div>
                 ),

@@ -211,8 +211,10 @@ export interface GitDiffSummary {
   source: GitDiffSource;
   /** Only filled for the branch scope, where a base can be picked. */
   branches: GitDiffBranch[];
-  /** Commits on HEAD since the merge-base, newest first. */
+  /** Commits on HEAD since the merge-base, newest first, capped. */
   commits: GitDiffCommit[];
+  /** More commits exist past the cap. */
+  moreCommits: boolean;
   /** History from the merge-base down, newest first. */
   baseCommits: GitDiffCommit[];
   files: GitDiffFile[];

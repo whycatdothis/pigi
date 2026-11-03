@@ -75,14 +75,20 @@ async function runGit(
   try {
     // These reads run while an agent may be committing; without this flag
     // `status`/`diff` refresh the index and can take `index.lock` from it.
-    const { stdout } = await execFileAsync(GIT_EXECUTABLE, ['--no-optional-locks', ...args], {
-      cwd,
-      env,
-      timeout: GIT_TIMEOUT_MS,
-      windowsHide: true,
-      maxBuffer: GIT_MAX_BUFFER_BYTES,
-      encoding: 'utf8',
-    });
+    // suppressBlankEmpty would print an empty context line as "" instead of
+    // " ", which the patch parser reads as the end of the hunk.
+    const { stdout } = await execFileAsync(
+      GIT_EXECUTABLE,
+      ['--no-optional-locks', '-c', 'diff.suppressBlankEmpty=false', ...args],
+      {
+        cwd,
+        env,
+        timeout: GIT_TIMEOUT_MS,
+        windowsHide: true,
+        maxBuffer: GIT_MAX_BUFFER_BYTES,
+        encoding: 'utf8',
+      },
+    );
     return { ok: true, stdout, error: '' };
   } catch (error) {
     return { ok: false, stdout: '', error: errorText(error) };
@@ -121,8 +127,12 @@ function normalizeStatus(code: string): GitDiffFileStatus {
   }
 }
 
-/** `git status --porcelain=v1 -z`: a rename is followed by its old path. */
-export function parsePorcelainStatus(output: string): Map<string, string> {
+/**
+ * `git status --porcelain=v1 -z`: a rename is followed by its old path. Paths
+ * are relative to the repository root, so `prefix` (the project's directory in
+ * the repository, `rev-parse --show-prefix`) is cut to match the rest.
+ */
+export function parsePorcelainStatus(output: string, prefix = ''): Map<string, string> {
   const statuses = new Map<string, string>();
   const entries = output.split('\0');
   for (let index = 0; index < entries.length; index += 1) {
@@ -130,11 +140,11 @@ export function parsePorcelainStatus(output: string): Map<string, string> {
     if (!entry) continue;
     const status = entry.slice(0, 2);
     const path = entry.slice(3);
-    if (!path) continue;
     if (status[0] === 'R' || status[0] === 'C' || status[1] === 'R' || status[1] === 'C') {
       index += 1;
     }
-    statuses.set(path, status);
+    if (!path.startsWith(prefix) || path.length === prefix.length) continue;
+    statuses.set(path.slice(prefix.length), status);
   }
   return statuses;
 }
@@ -274,7 +284,7 @@ async function changedFiles(
   range: readonly string[],
   env: NodeJS.ProcessEnv | undefined,
 ): Promise<{ ok: true; files: GitDiffFile[] } | { ok: false; error: string }> {
-  const flags = ['--no-ext-diff', '--find-renames', '-z'];
+  const flags = ['--no-ext-diff', '--find-renames', '--relative', '-z'];
   const [nameStatus, numStat] = await Promise.all([
     runGit(cwd, [...range.slice(0, 1), ...flags, '--name-status', ...range.slice(1)], env),
     runGit(cwd, [...range.slice(0, 1), ...flags, '--numstat', ...range.slice(1)], env),
@@ -381,6 +391,9 @@ export async function getGitDiffSummary(
     return { success: false, error: 'This project has no commits yet.' };
   }
   const head = headResult.stdout.trim();
+  const prefixPending = runGit(cwd, ['rev-parse', '--show-prefix']).then((result) =>
+    result.stdout.trim(),
+  );
   const branchResult = await runGit(cwd, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
   const branch = branchResult.ok && branchResult.stdout.trim() ? branchResult.stdout.trim() : null;
   const defaultBasePending = defaultBase(cwd);
@@ -405,6 +418,7 @@ export async function getGitDiffSummary(
         source: { kind: 'commit', commit: head },
         branches: [],
         commits: [],
+        moreCommits: false,
         baseCommits: [],
         files: changes.files.sort((left, right) => left.path.localeCompare(right.path)),
       },
@@ -420,6 +434,7 @@ export async function getGitDiffSummary(
     '-z',
     '--untracked-files=all',
     '--',
+    '.',
   ]);
 
   const branchScope = scope.kind === 'branch';
@@ -449,21 +464,29 @@ export async function getGitDiffSummary(
     branchScope
       ? runGit(cwd, [
           'log',
-          `--max-count=${MAX_BRANCH_COMMITS}`,
+          `--max-count=${MAX_BRANCH_COMMITS + 1}`,
           COMMIT_LOG_FORMAT,
           `${mergeBase}..HEAD`,
           '--',
+          '.',
         ])
       : noLog,
     branchScope
-      ? runGit(cwd, ['log', `--max-count=${MAX_BASE_COMMITS}`, COMMIT_LOG_FORMAT, mergeBase, '--'])
+      ? runGit(cwd, [
+          'log',
+          `--max-count=${MAX_BASE_COMMITS}`,
+          COMMIT_LOG_FORMAT,
+          mergeBase,
+          '--',
+          '.',
+        ])
       : noLog,
   ]);
   const statusResult = await statusPending;
   if (!statusResult.ok) {
     return { success: false, error: gitError(statusResult.error, 'Unable to read the diff.') };
   }
-  const statuses = parsePorcelainStatus(statusResult.stdout);
+  const statuses = parsePorcelainStatus(statusResult.stdout, await prefixPending);
   const untracked = new Set(
     [...statuses].filter(([, status]) => status === '??').map(([path]) => path),
   );
@@ -471,6 +494,7 @@ export async function getGitDiffSummary(
     changedFiles(cwd, ['diff', mergeBase, '--'], env),
   );
   const [branchLog, baseLog] = await logs;
+  const branchCommits = branchLog.ok ? parseCommitLog(branchLog.stdout) : [];
   if (!changes.ok) {
     return { success: false, error: gitError(changes.error, 'Unable to read the diff.') };
   }
@@ -497,7 +521,8 @@ export async function getGitDiffSummary(
       defaultBase: defaultBaseName,
       source: { kind: 'base', base: mergeBase },
       branches,
-      commits: branchLog.ok ? parseCommitLog(branchLog.stdout) : [],
+      commits: branchCommits.slice(0, MAX_BRANCH_COMMITS),
+      moreCommits: branchCommits.length > MAX_BRANCH_COMMITS,
       baseCommits: baseLog.ok ? parseCommitLog(baseLog.stdout) : [],
       files: files.sort((left, right) => left.path.localeCompare(right.path)),
     },
@@ -547,21 +572,38 @@ export async function getGitCommitFiles(cwd: string, ref: string): Promise<GitCo
   return { success: true, files: result.files };
 }
 
+/**
+ * The file after the change, for expanding gaps and the whole-file view; null
+ * past `MAX_PATCH_LINES`, because both render every line they show.
+ */
 async function readNewContent(
   cwd: string,
   source: GitDiffSource,
   commit: string,
   path: string,
 ): Promise<string | null> {
+  let content: string;
   if (source.kind === 'base') {
     const file = await readProjectFile(cwd, path);
-    return file.success && !file.truncated ? file.content : null;
+    if (!file.success || file.truncated) return null;
+    content = file.content;
+  } else {
+    // `./` makes Git resolve the path against the project, not the repository root.
+    const result = await runGit(cwd, ['show', `${commit}:./${path}`]);
+    if (!result.ok || result.stdout.length > MAX_CONTENT_CHARS || result.stdout.includes('\0')) {
+      return null;
+    }
+    content = result.stdout;
   }
-  const result = await runGit(cwd, ['show', `${commit}:${path}`]);
-  if (!result.ok || result.stdout.length > MAX_CONTENT_CHARS || result.stdout.includes('\0')) {
-    return null;
+  return lineCount(content) > MAX_PATCH_LINES ? null : content;
+}
+
+function lineCount(text: string): number {
+  let count = 1;
+  for (let index = text.indexOf('\n'); index !== -1; index = text.indexOf('\n', index + 1)) {
+    count += 1;
   }
-  return result.stdout;
+  return count;
 }
 
 export async function getGitDiffFile(
@@ -586,7 +628,14 @@ export async function getGitDiffFile(
   }
 
   const paths = oldPath && oldPath !== path ? [oldPath, path] : [path];
-  const flags = ['--no-color', '--no-ext-diff', '--find-renames', '--unified=3', '-p'];
+  const flags = [
+    '--no-color',
+    '--no-ext-diff',
+    '--find-renames',
+    '--relative',
+    '--unified=3',
+    '-p',
+  ];
   const result =
     source.kind === 'base'
       ? await withIntentToAdd(cwd, await untrackedAmong(cwd, paths), (env) =>
