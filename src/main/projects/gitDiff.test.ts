@@ -344,6 +344,19 @@ describe('staged and unstaged changes', () => {
       'unstaged.txt',
     ]);
   });
+
+  it("says why staging failed in git's words", async () => {
+    const lock = join(root, '.git', 'index.lock');
+    await writeFile(lock, '');
+    try {
+      const result = await setGitStaged(root, true);
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      expect(result.error).toMatch(/^Unable to stage the changes: Unable to create .*index\.lock/);
+    } finally {
+      await rm(lock);
+    }
+  });
 });
 
 describe('long files', () => {

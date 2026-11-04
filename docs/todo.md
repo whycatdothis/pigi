@@ -87,3 +87,13 @@ left alone because the gain is small there:
   change: ~90ms per refresh (~210ms with an untracked file's index copy). It
   needs the working-tree file's `mtime` and `size` in the summary; the +/-
   counts alone are not enough, since replacing one line keeps them.
+
+## Git tab: a selection's quote check walks every diff line
+
+While text is selected, `QuoteSelectionPopover` calls `formatQuoteText` on
+every scroll frame only to learn whether the selection quotes, and the Git
+viewer's `diffLinesFromSelection` answers by testing every `[data-diff-line]`
+against the range: up to 5,000 rows plus a second body while a patch swaps
+in, a millisecond or two per frame. Walking from the start row to the end row
+would cost only the selected lines; the popover could also take a cheap
+`canQuote` check and format only on click.

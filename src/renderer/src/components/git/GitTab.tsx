@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { IconFolderOpen, IconGitCompare, IconLoader2 } from '@tabler/icons-react';
-import type { GitDiffSource } from '../../../../shared/ipcContract';
-import type { GitWorkspace } from '../../hooks/useGitWorkspace';
+import type { GitDiffCommit, GitDiffSource } from '../../../../shared/ipcContract';
+import type { GitDiffMode, GitSelection, GitWorkspace } from '../../hooks/useGitWorkspace';
 import { Button } from '../ui/button';
 import {
   Empty,
@@ -32,6 +32,23 @@ function CenteredLoading({ label }: { label: string }): React.JSX.Element {
       {label}
     </div>
   );
+}
+
+/** What the open diff compares, for the viewer's header. */
+function compareLabel(
+  selection: GitSelection | null,
+  commit: GitDiffCommit | undefined,
+  mode: GitDiffMode,
+  baseLabel: string,
+): string {
+  if (selection?.list === 'commit') {
+    return `${commit?.shortHash ?? selection.commit.slice(0, 7)} ${commit?.subject ?? ''}`.trim();
+  }
+  if (selection?.list === 'staged') return 'Staged changes';
+  if (selection?.list === 'unstaged') return 'Unstaged changes';
+  if (mode === 'uncommitted') return 'Uncommitted changes';
+  if (mode === 'lastCommit') return `Last commit ${baseLabel}`;
+  return `vs ${baseLabel}`;
 }
 
 /** The Git tab: one file's diff at a time, chosen from the sidebar. */
@@ -153,19 +170,7 @@ const GitTab = memo(function GitTab({
       projectPath={projectPath}
       source={source}
       baseLabel={summary.baseLabel}
-      compareLabel={
-        selectedCommit
-          ? `${commit?.shortHash ?? selectedCommit.slice(0, 7)} ${commit?.subject ?? ''}`.trim()
-          : list === 'staged'
-            ? 'Staged changes'
-            : list === 'unstaged'
-              ? 'Unstaged changes'
-              : workspace.mode === 'uncommitted'
-                ? 'Uncommitted changes'
-                : workspace.mode === 'lastCommit'
-                  ? `Last commit ${summary.baseLabel}`
-                  : `vs ${summary.baseLabel}`
-      }
+      compareLabel={compareLabel(selection, commit, workspace.mode, summary.baseLabel)}
       file={selectedFile}
       layout={workspace.layout}
       onLayoutChange={workspace.setLayout}

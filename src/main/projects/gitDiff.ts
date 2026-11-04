@@ -689,13 +689,10 @@ export async function setGitStaged(cwd: string, staged: boolean): Promise<GitSta
     staged ? ['add', '--all', '--', '.'] : ['restore', '--staged', '--', '.'],
   );
   if (!result.ok) {
-    return {
-      success: false,
-      error: gitError(
-        result.error,
-        staged ? 'Unable to stage the changes.' : 'Unable to unstage the changes.',
-      ),
-    };
+    // Git's own first line names the cause, such as another process holding `index.lock`.
+    const cause = result.error.split('\n')[0].replace(/^(fatal|error): /, '');
+    const action = staged ? 'Unable to stage the changes' : 'Unable to unstage the changes';
+    return { success: false, error: cause ? `${action}: ${cause}` : `${action}.` };
   }
   return { success: true };
 }

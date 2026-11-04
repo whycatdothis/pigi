@@ -42,6 +42,29 @@ function fitsView(selection: GitSelection, view: GitView): boolean {
   return selection.list === 'files' || (view === 'commits' && selection.list === 'commit');
 }
 
+/**
+ * The selection as the current list shows it: the picked file while it is
+ * listed, else the first one. Derived when rendering, because a cached
+ * summary shows before any load could correct a stored pick.
+ */
+function shownSelection(
+  selection: GitSelection | null,
+  summary: GitDiffSummary,
+  view: GitView,
+): GitSelection | null {
+  if (selection && fitsView(selection, view)) {
+    if (isListed(selection, summary)) return selection;
+    // Staging moves the file to the other group; follow it there.
+    if (selection.list === 'staged' || selection.list === 'unstaged') {
+      const other = selection.list === 'staged' ? 'unstaged' : 'staged';
+      if (summary[other].some((file) => file.path === selection.path)) {
+        return { list: other, path: selection.path };
+      }
+    }
+  }
+  return firstFile(summary, view === 'status');
+}
+
 function firstFile(summary: GitDiffSummary, statusLists: boolean): GitSelection | null {
   if (statusLists) {
     const list = summary.staged[0] ? 'staged' : 'unstaged';
@@ -97,7 +120,11 @@ export function useGitWorkspace({
   cwd: string | null;
   enabled: boolean;
 }): GitWorkspace {
-  const [loaded, setLoaded] = useState<{ scope: string; summary: GitDiffSummary } | null>(null);
+  // The last summary of each scope, so switching views shows it at once and
+  // refreshes it quietly instead of waiting seconds on a big repository. The
+  // ref lets the load read it without depending on it; both change together.
+  const [summaries, setSummaries] = useState<ReadonlyMap<string, GitDiffSummary>>(() => new Map());
+  const summariesRef = useRef(summaries);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<GitDiffMode>('branch');
@@ -108,14 +135,13 @@ export function useGitWorkspace({
   // Git status is the working tree against HEAD; Commits lists the branch.
   const scopeMode: GitDiffMode =
     view === 'diff' ? mode : view === 'status' ? 'uncommitted' : 'branch';
-  // The Commits view lists the branch's own commits, so it ignores a picked base.
-  const scopeBase = view === 'commits' ? null : requestedBase;
-  // A summary belongs to the scope that asked for it: right after a view
-  // switch the last one would show, say, "No commits since HEAD" from the
-  // working-tree summary until the branch loads.
   const scopeKind: GitDiffScope['kind'] = view === 'status' ? 'status' : scopeMode;
+  // Only the Diff view's branch mode compares against a picked base.
+  const scopeBase = view === 'diff' && scopeKind === 'branch' ? requestedBase : null;
+  // A summary belongs to the scope that asked for it: another scope's would
+  // show, say, "No commits since HEAD" in the Commits view.
   const scopeKey = `${scopeKind} ${scopeBase ?? ''}`;
-  const summary = loaded?.scope === scopeKey ? loaded.summary : null;
+  const summary = summaries.get(scopeKey) ?? null;
   const [layout, setLayout] = useState<GitDiffLayout>('unified');
   const [openCommit, setOpenCommit] = useState<string | null>(null);
   const [commitFiles, setCommitFiles] = useState<ReadonlyMap<string, GitCommitFiles>>(
@@ -151,7 +177,7 @@ export function useGitWorkspace({
   const [stateCwd, setStateCwd] = useState(cwd);
   if (stateCwd !== cwd) {
     setStateCwd(cwd);
-    setLoaded(null);
+    setSummaries(new Map());
     setError(null);
     setStatus('idle');
     setRequestedBase(null);
@@ -162,7 +188,16 @@ export function useGitWorkspace({
   }
   useEffect(() => {
     openCommitRef.current = null;
+    summariesRef.current = new Map();
   }, [cwd]);
+
+  const storeSummary = useCallback((key: string, next: GitDiffSummary | null) => {
+    const map = new Map(summariesRef.current);
+    if (next) map.set(key, next);
+    else map.delete(key);
+    summariesRef.current = map;
+    setSummaries(map);
+  }, []);
 
   useEffect(() => {
     if (!enabled || !cwd) return;
@@ -172,12 +207,14 @@ export function useGitWorkspace({
     // react-hooks/set-state-in-effect rule rejects.
     queueMicrotask(() => {
       if (cancelled) return;
-      const quiet = quietRef.current;
+      // A cached summary stays on screen, and an error from another scope goes.
+      const cached = summariesRef.current.has(scopeKey);
+      const quiet = quietRef.current || cached;
       quietRef.current = false;
       pendingRef.current = false;
       loadingRef.current = true;
-      if (!quiet) {
-        setStatus('loading');
+      if (cached || !quiet) {
+        setStatus(cached ? 'ready' : 'loading');
         setError(null);
       }
       const settle = (): boolean => {
@@ -196,22 +233,19 @@ export function useGitWorkspace({
           summaryMs.current = Date.now() - startedAt;
           if (!result.success) {
             if (quiet) return;
-            setLoaded(null);
+            storeSummary(scopeKey, null);
             setStatus('error');
             setError(result.error);
             return;
           }
-          setLoaded({ scope: scopeKey, summary: result.summary });
-          setSelection((previous) =>
-            previous && isListed(previous, result.summary)
-              ? previous
-              : firstFile(result.summary, scopeKind === 'status'),
-          );
+          storeSummary(scopeKey, result.summary);
+          // Kept, so a file shown without a click still follows a stage.
+          setSelection((previous) => previous ?? firstFile(result.summary, scopeKind === 'status'));
           setStatus('ready');
         })
         .catch(() => {
           if (!settle() || quiet) return;
-          setLoaded(null);
+          storeSummary(scopeKey, null);
           setStatus('error');
           setError('Unable to read this diff.');
         });
@@ -219,11 +253,11 @@ export function useGitWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [cwd, enabled, scopeKind, scopeBase, scopeKey, revision, quietRefresh]);
+  }, [cwd, enabled, scopeKind, scopeBase, scopeKey, revision, quietRefresh, storeSummary]);
 
-  // Agent tool calls change files in any way (bash, scripts), and edits made
-  // elsewhere land while the window is in the background, so both refresh:
-  // the first at once, the rest at most once per interval, the last never lost.
+  // Agent tool calls change files in any way (bash, scripts): the first
+  // refreshes at once, the rest at most once per interval, the last never
+  // lost. Coming back to the window is rare, so it refreshes at once.
   useEffect(() => {
     if (!enabled || !cwd) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -241,24 +275,17 @@ export function useGitWorkspace({
     const unsubscribe = onProjectActivity((activityCwd) => {
       if (activityCwd === cwd) schedule();
     });
-    window.addEventListener('focus', schedule);
+    window.addEventListener('focus', quietRefresh);
     return () => {
       if (timer) clearTimeout(timer);
       unsubscribe();
-      window.removeEventListener('focus', schedule);
+      window.removeEventListener('focus', quietRefresh);
     };
   }, [cwd, enabled, quietRefresh]);
 
-  // A file from another view's list would show with no row selected.
-  const changeView = useCallback(
-    (next: GitView) => {
-      setView(next);
-      setSelection((previous) => {
-        if (previous && fitsView(previous, next)) return previous;
-        return summary ? firstFile(summary, next === 'status') : null;
-      });
-    },
-    [summary],
+  const shown = useMemo(
+    () => (summary ? shownSelection(selection, summary, view) : null),
+    [selection, summary, view],
   );
 
   const setStaged = useCallback(
@@ -280,11 +307,11 @@ export function useGitWorkspace({
     [cwd, quietRefresh],
   );
 
-  const beginSelection = useCallback(() => {
+  // A picked comparison loads with a spinner and shows its errors, even if a
+  // quiet refresh was about to run.
+  const reload = useCallback(() => {
     quietRef.current = false;
-    setSelection(null);
-    setStatus('loading');
-    setError(null);
+    setRevision((value) => value + 1);
   }, []);
 
   const selectMode = useCallback(
@@ -292,26 +319,23 @@ export function useGitWorkspace({
       setMode(next);
       // "All changes since <default branch>" means that branch, even after another was picked.
       setRequestedBase(null);
-      setRevision((value) => value + 1);
-      beginSelection();
+      reload();
     },
-    [beginSelection],
+    [reload],
   );
 
   const selectBase = useCallback(
     (base: string) => {
       setRequestedBase(base);
-      setRevision((value) => value + 1);
-      beginSelection();
+      reload();
     },
-    [beginSelection],
+    [reload],
   );
 
   const resetBase = useCallback(() => {
     setRequestedBase(null);
-    setRevision((value) => value + 1);
-    beginSelection();
-  }, [beginSelection]);
+    reload();
+  }, [reload]);
 
   const toggleSection = useCallback((section: GitSection) => {
     setCollapsedSections((previous) => {
@@ -380,7 +404,7 @@ export function useGitWorkspace({
       summary,
       mode: scopeMode,
       base,
-      selection,
+      selection: shown,
       view,
       fileList,
       layout,
@@ -394,7 +418,7 @@ export function useGitWorkspace({
       selectBase,
       resetBase,
       select: setSelection,
-      setView: changeView,
+      setView,
       setFileList,
       setLayout,
       toggleCommit,
@@ -405,7 +429,7 @@ export function useGitWorkspace({
       summary,
       scopeMode,
       base,
-      selection,
+      shown,
       view,
       fileList,
       layout,
@@ -418,7 +442,6 @@ export function useGitWorkspace({
       selectMode,
       selectBase,
       resetBase,
-      changeView,
       toggleCommit,
     ],
   );

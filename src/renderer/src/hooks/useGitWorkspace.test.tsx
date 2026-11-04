@@ -148,6 +148,17 @@ describe('useGitWorkspace auto refresh', () => {
     expect(answers).toHaveLength(1);
   });
 
+  it('refreshes at once when the window comes back, whatever the interval', async () => {
+    await openTab();
+    notifyProjectActivity(CWD);
+    await wait(0);
+    await answer({ success: true, summary: summary('a.txt') });
+
+    window.dispatchEvent(new Event('focus'));
+    await wait(0);
+    expect(answers).toHaveLength(1);
+  });
+
   it('keeps the last summary when an automatic refresh fails', async () => {
     const { result } = await openTab();
 
@@ -178,8 +189,13 @@ describe('useGitWorkspace staging', () => {
     // Not held back by the auto-refresh interval.
     expect(answers).toHaveLength(1);
 
+    // The file follows to the Staged group, not to whatever is first there.
     const staged = summary('a.txt');
-    await answer({ success: true, summary: { ...staged, staged: staged.unstaged, unstaged: [] } });
+    const other = summary('0.txt').files;
+    await answer({
+      success: true,
+      summary: { ...staged, staged: [...other, ...staged.unstaged], unstaged: [] },
+    });
     expect(result.current.selection).toEqual({ list: 'staged', path: 'a.txt' });
   });
 });
@@ -219,8 +235,28 @@ describe('useGitWorkspace project and view changes', () => {
 
   it("leaves a commit's file when switching away from the Commits view", async () => {
     const { result } = await openTab();
+    act(() => result.current.setView('commits'));
+    await wait(0);
+    await answer({ success: true, summary: summary('a.txt') });
     act(() => result.current.select({ list: 'commit', commit: 'c1', path: 'x.txt' }));
     act(() => result.current.setView('diff'));
     expect(result.current.selection).toEqual({ list: 'files', path: 'a.txt' });
+  });
+
+  it("shows a view's last summary at once and refreshes it quietly", async () => {
+    const { result } = await openTab();
+    act(() => result.current.setView('commits'));
+    await wait(0);
+    await answer({ success: true, summary: summary('b.txt') });
+
+    act(() => result.current.setView('status'));
+    expect(result.current.summary?.unstaged[0].path).toBe('a.txt');
+    await wait(0);
+    expect(result.current.status).toBe('ready');
+    expect(requests.at(-1)).toEqual([CWD, { kind: 'status' }]);
+
+    await answer({ success: false, error: 'timed out' });
+    expect(result.current.status).toBe('ready');
+    expect(result.current.summary?.unstaged[0].path).toBe('a.txt');
   });
 });

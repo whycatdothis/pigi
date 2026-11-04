@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { ChevronsUpDown } from 'lucide-react';
-import type { GitDiffFile } from '../../../../shared/ipcContract';
+import { MAX_DIFF_LINES, type GitDiffFile } from '../../../../shared/ipcContract';
 import type { GitDiffLayout } from '../../hooks/useGitWorkspace';
 import { languageForPath } from '../../lib/fileLanguage';
 import {
@@ -199,6 +199,18 @@ function GapRow({
   if (row.hiddenLines === 0) {
     return <div className={className}>{row.text}</div>;
   }
+  const content = (
+    <>
+      <span className="shrink-0">
+        {row.hiddenLines} unmodified {row.hiddenLines === 1 ? 'line' : 'lines'}
+      </span>
+      {row.text && <span className="truncate font-mono opacity-70">{row.text}</span>}
+    </>
+  );
+  // Expanding renders every line at once; past the patch's own cap that stalls.
+  if (row.hiddenLines > MAX_DIFF_LINES) {
+    return <div className={className}>{content}</div>;
+  }
   return (
     <button
       type="button"
@@ -206,10 +218,7 @@ function GapRow({
       onClick={onExpand}
     >
       <ChevronsUpDown size={13} className="shrink-0" />
-      <span className="shrink-0">
-        {row.hiddenLines} unmodified {row.hiddenLines === 1 ? 'line' : 'lines'}
-      </span>
-      {row.text && <span className="truncate font-mono opacity-70">{row.text}</span>}
+      {content}
     </button>
   );
 }

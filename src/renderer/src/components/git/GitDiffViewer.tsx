@@ -24,6 +24,8 @@ import SegmentedToggle from './SegmentedToggle';
 interface LoadedPatch {
   id: number;
   file: GitDiffFile;
+  /** The staged and unstaged halves of one file are different diffs. */
+  sourceKind: GitDiffSource['kind'];
   patch: string;
   truncated: boolean;
   newContent: string | null;
@@ -135,6 +137,7 @@ export default function GitDiffViewer({
           const incoming = {
             id: (nextPatchId += 1),
             file,
+            sourceKind,
             patch: result.patch,
             truncated: result.truncated,
             newContent: result.newContent,
@@ -165,12 +168,13 @@ export default function GitDiffViewer({
   const { shown, incoming, error } = patchState;
   const shownPath = shown?.file.path;
   // Another file starts at its top; a refresh of the same file keeps its place.
-  const scrolledPathRef = useRef(shownPath);
+  const shownKey = shown ? `${shown.sourceKind} ${shown.file.path}` : undefined;
+  const scrolledKeyRef = useRef(shownKey);
   useLayoutEffect(() => {
-    if (scrolledPathRef.current === shownPath) return;
-    scrolledPathRef.current = shownPath;
+    if (scrolledKeyRef.current === shownKey) return;
+    scrolledKeyRef.current = shownKey;
     containerRef.current?.scrollTo(0, 0);
-  }, [shownPath]);
+  }, [shownKey]);
 
   const formatQuoteText = useCallback(
     ({ range }: { range: Range }): string => {
@@ -183,10 +187,16 @@ export default function GitDiffViewer({
       // Added and context rows carry the working tree's line numbers, so they
       // quote like the Files viewer. Deleted rows have none, and the numbers
       // of a commit or the index point into a file the agent cannot open.
+      // A selection across a collapsed gap is not one range of the file.
       const numbers = lines.map((line) => line.newLineNumber);
+      const first = numbers[0];
       const workingTree = sourceKind === 'base' || sourceKind === 'unstaged';
-      if (workingTree && numbers.every((number) => number !== null)) {
-        return formatFileLineQuote(shownPath, Math.min(...numbers), Math.max(...numbers));
+      if (
+        workingTree &&
+        first !== null &&
+        numbers.every((number, index) => number === first + index)
+      ) {
+        return formatFileLineQuote(shownPath, first, first + numbers.length - 1);
       }
       const scope =
         sourceKind === 'base'

@@ -21,8 +21,8 @@
   unstages everything in it
 - The Git tab refreshes on its own once the agent changes files, however it
   changes them (at most every 5 seconds during a run, less often in a large
-  repository where reading the changes takes seconds, and not for commands
-  that only read), and when you come back to the window
+  repository where reading the changes takes seconds), and at once when you
+  come back to the window
 - The Git tab's Git status and Commits groups fold open and closed, and empty
   groups still show
 - The Git tab's Diff view shows all changes since the repository's main branch

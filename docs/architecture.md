@@ -224,17 +224,25 @@ no longer needs.
 
 The tab refreshes itself, quietly (no spinner, a failed refresh keeps the last
 summary) when an agent in the project finishes a tool call or a run, and when
-the window regains focus. Triggers are throttled, not debounced: the first
-refreshes at once, later ones at most every 5 seconds or four times the last
-summary's duration, whichever is longer, and the last is never dropped. A
-debounce never fires while a long run keeps calling tools, and a fixed
-interval would keep git busy for most of a run where a summary takes seconds. Any tool but the read-only
-built-ins (`read`, `grep`, `find`, `ls`) and a read-only bash command (the
-same `isReadOnlyBashCommand` the chat's read groups use) counts, because
-agents change files through bash and scripts as often as through edit/write.
-The end event carries no arguments, so the bash command comes from the tool
-node the transcript kept. A trigger that lands during a load runs one more
-load after it instead of a second one beside it.
+the window regains focus. Agent triggers are throttled, not debounced: the
+first refreshes at once, later ones at most every 5 seconds or four times the
+last summary's duration, whichever is longer, and the last is never dropped.
+A debounce never fires while a long run keeps calling tools, and a fixed
+interval would keep git busy for most of a run where a summary takes seconds.
+Focus is rare and means the user wants to see the result, so it refreshes at
+once. Any tool but the read-only built-ins (`read`, `grep`, `find`, `ls`)
+counts, every bash command included: agents change files through bash as
+often as through edit/write, and guessing from the command text (the chat's
+`isReadOnlyBashCommand`, which only reads the first word) passed `cat > f
+<<EOF` and `ls && rm` as reads. A trigger that lands during a load runs one
+more load after it instead of a second one beside it.
+
+Each scope's last summary is kept until the project changes, so switching
+views shows it at once and refreshes it quietly; a scope's summary never
+shows in another, where Commits would read "No commits since HEAD" from Git
+status. The selected file is derived from the shown summary while
+rendering: the picked file while it is listed (or, after staging, the same
+path in the other group), else the first one.
 Polling a fingerprint, as Plannotator does, was rejected: its fingerprint is a
 `status -uall` plus a diff, 2.7s per probe on the same repository, so a
 5-second poll would keep git busy half the time. There is no refresh button:
@@ -247,7 +255,9 @@ are marked intent-to-add (`git add -N`); the real index is never written.
 `git add` pairs with its deleted original as a rename (Git alone reports a
 deletion and an untracked file), and a new file gets real line counts and a
 real patch. Patches are capped at 1.5M characters or 5,000 lines with a
-`truncated` notice, so a minified bundle cannot freeze the renderer.
+`truncated` notice, so a minified bundle cannot freeze the renderer; the
+same 5,000 lines cap the whole-file view and a single collapsed gap, which
+otherwise renders every line at once.
 
 The sidebar offers three views: Git status (the default), Diff (against the
 chosen mode and base, the only view that takes them) and commits. Git status
