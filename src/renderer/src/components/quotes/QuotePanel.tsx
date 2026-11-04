@@ -136,7 +136,7 @@ const GlobalCommentCard = React.memo(function GlobalCommentCard({
     return (
       <button
         type="button"
-        className="flex h-8 items-center justify-center gap-1.5 self-center rounded-control px-3 text-caption font-medium text-foreground transition-colors hover:bg-accent"
+        className="flex h-8 items-center justify-center gap-1.5 self-center rounded-control px-3 text-caption font-medium text-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
         onClick={() => setEditing(true)}
       >
         <IconPlus className="size-4" />
