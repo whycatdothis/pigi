@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- A collapsed project shows a dot when one of its hidden sessions has
+  finished unread
+
+### Changed
+
+- The welcome page shows the pigi icon and Open project / New chat buttons
+  with their shortcuts
+- Projects remember whether they are expanded or collapsed across restarts
+
 ## [0.5.0] - 2026-11-04
 
 ### Added

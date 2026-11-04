@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { IconFolderPlus, IconMessageCirclePlus, IconTrash } from '@tabler/icons-react';
 import { FolderClosed, FolderOpen } from 'lucide-react';
 import type { PiSessionInfo, ProjectDirectory } from '../../../../shared/ipcContract';
-import type { SessionEntry } from '../../state/appStore';
+import { useAppStore, type SessionEntry } from '../../state/appStore';
 import { cn } from '../../lib/utils';
 import { SidebarMenu, SidebarMenuAction, SidebarMenuButton, SidebarMenuItem } from '../ui/sidebar';
 import {
@@ -57,6 +57,16 @@ function ProjectItem({
   isDragOver,
 }: ProjectItemProps): React.JSX.Element {
   const rowRef = useRef<HTMLDivElement>(null);
+  // Sessions pinned visible while collapsed show their own dot.
+  const hasHiddenUnread = useAppStore(
+    (state) =>
+      !isExpanded &&
+      projectSessions.some(
+        (session) =>
+          state.unreadSessionPaths.has(session.path) &&
+          !visibleWhenCollapsedSessionIds.has(session.id),
+      ),
+  );
 
   const handleDragStart = useCallback(
     (e: React.DragEvent) => {
@@ -103,6 +113,14 @@ function ProjectItem({
               <span>{project.name}</span>
             </SidebarMenuButton>
           </div>
+          {/* Sits in the hover action's slot, lined up with the session rows' dots. */}
+          {hasHiddenUnread && (
+            <span
+              role="status"
+              aria-label="Unread"
+              className="pointer-events-none absolute top-3 right-2 size-2 rounded-full bg-[var(--system-accent)] transition-opacity group-hover/project:opacity-0"
+            />
+          )}
           <SidebarMenuAction
             title={`${NEW_PROJECT_SESSION_LABEL} in ${project.name}`}
             onClick={onNewSession}

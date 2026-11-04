@@ -93,6 +93,7 @@ import RightSidebar from './components/rightSidebar/RightSidebar';
 import StreamingQueue from './components/transcript/StreamingQueue';
 import LoginDialog from './components/app/LoginDialog';
 import { WorkspaceHeader } from './components/app/WorkspaceTabs';
+import { WelcomeScreen } from './components/app/WelcomeScreen';
 import FileSearchPalette from './components/files/FileSearchPalette';
 import FilesTab from './components/files/FilesTab';
 import FileTreeSidebar from './components/files/FileTreeSidebar';
@@ -102,7 +103,6 @@ import SessionSwitcher from './components/session/SessionSwitcher';
 import { SidebarProvider } from './components/ui/sidebar';
 import { SidebarToggle } from './components/sidebar/sidebarToggle';
 import { cn } from './lib/utils';
-import { Empty, EmptyTitle, EmptyDescription, EmptyHeader } from './components/ui/empty';
 import { ESCAPE_ABORT_SCOPE_SELECTOR } from './lib/focusScopes';
 import { getProjectSessions } from './lib/projectSessions';
 import { WORKSPACE_TABS, type WorkspaceTab } from './lib/workspaceTabs';
@@ -126,7 +126,6 @@ import {
 } from './lib/layoutConstants';
 import { usePanelResize } from './hooks/usePanelResize';
 import { useGitWorkspace } from './hooks/useGitWorkspace';
-const WELCOME_TITLE = 'Welcome to pigi';
 
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
 function extractUserHistory(nodes: TranscriptNode[]): string[] {
@@ -1970,32 +1969,13 @@ function App(): React.JSX.Element {
                         )}
                       </div>
                     </div>
-                  ) : recentProjects.length === 0 ? (
-                    <Empty>
-                      <EmptyHeader>
-                        <EmptyTitle className="text-xl">{WELCOME_TITLE}</EmptyTitle>
-                        <EmptyDescription>
-                          Open a project to get started
-                          <br />
-                          {/* TODO: Use Ctrl instead of ⌘ on Windows/Linux */}
-                          <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-caption ml-1 min-w-6">
-                            {'\u2318'}
-                          </kbd>
-                          <kbd className="inline-flex items-center justify-center rounded border border-border bg-muted px-2 py-0 font-mono text-caption ml-1 min-w-6">
-                            o
-                          </kbd>
-                        </EmptyDescription>
-                      </EmptyHeader>
-                    </Empty>
                   ) : (
-                    <Empty>
-                      <EmptyHeader>
-                        <EmptyTitle className="text-xl">{WELCOME_TITLE}</EmptyTitle>
-                        <EmptyDescription>
-                          Select a session from the sidebar to get started.
-                        </EmptyDescription>
-                      </EmptyHeader>
-                    </Empty>
+                    <WelcomeScreen
+                      hasProjects={recentProjects.length > 0}
+                      shortcutBindings={shortcutBindings}
+                      onOpenProject={handleOpenProject}
+                      onNewSession={handleNewSession}
+                    />
                   )}
                 </div>
               </>

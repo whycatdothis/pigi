@@ -33,6 +33,19 @@ import type { SidebarProps } from './types';
 import { ProjectList } from './projectList';
 import { getProjectSessions as getOrderedProjectSessions } from '../../lib/projectSessions';
 
+const EXPANDED_PROJECTS_STORAGE_KEY = 'pigi.expandedProjects';
+
+function loadExpandedProjects(): Set<string> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(EXPANDED_PROJECTS_STORAGE_KEY) ?? '[]');
+    return Array.isArray(parsed)
+      ? new Set(parsed.filter((path): path is string => typeof path === 'string'))
+      : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
 export default memo(function Sidebar({
   sessions,
   selectedSessionPath,
@@ -53,7 +66,10 @@ export default memo(function Sidebar({
   onInstallUpdate,
   onOpenSettings,
 }: SidebarProps): React.JSX.Element {
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [expandedProjects, setExpandedProjects] = useState(loadExpandedProjects);
+  useEffect(() => {
+    localStorage.setItem(EXPANDED_PROJECTS_STORAGE_KEY, JSON.stringify([...expandedProjects]));
+  }, [expandedProjects]);
   const [visibleWhenCollapsedSessionIds, setVisibleWhenCollapsedSessionIds] = useState<
     Record<string, Set<string>>
   >({});
