@@ -3,16 +3,18 @@ import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
-import type {
-  GitCommitFilesResult,
-  GitDiffBranch,
-  GitDiffCommit,
-  GitDiffFile,
-  GitDiffFileResult,
-  GitDiffFileStatus,
-  GitDiffScope,
-  GitDiffSource,
-  GitDiffSummaryResult,
+import {
+  MAX_DIFF_LINES,
+  type GitCommitFilesResult,
+  type GitDiffBranch,
+  type GitDiffCommit,
+  type GitDiffFile,
+  type GitDiffFileResult,
+  type GitDiffFileStatus,
+  type GitDiffScope,
+  type GitDiffSource,
+  type GitDiffSummaryResult,
+  type GitStageResult,
 } from '../../shared/ipcContract';
 import { readProjectFile, resolveProjectPath } from './projectFiles';
 
@@ -24,7 +26,6 @@ const GIT_MAX_BUFFER_BYTES = 16 * 1024 * 1024;
 const MAX_BRANCH_COMMITS = 100;
 const MAX_BASE_COMMITS = 30;
 const MAX_PATCH_CHARS = 1_500_000;
-const MAX_PATCH_LINES = 5000;
 const MAX_CONTENT_CHARS = 2 * 1024 * 1024;
 
 interface GitCommandResult {
@@ -279,11 +280,13 @@ async function untrackedAmong(cwd: string, paths: readonly string[]): Promise<Se
   return new Set(result.stdout.split('\0').filter(Boolean));
 }
 
+type ChangedFiles = { ok: true; files: GitDiffFile[] } | { ok: false; error: string };
+
 async function changedFiles(
   cwd: string,
   range: readonly string[],
   env: NodeJS.ProcessEnv | undefined,
-): Promise<{ ok: true; files: GitDiffFile[] } | { ok: false; error: string }> {
+): Promise<ChangedFiles> {
   const flags = ['--no-ext-diff', '--find-renames', '--relative', '-z'];
   const [nameStatus, numStat] = await Promise.all([
     runGit(cwd, [...range.slice(0, 1), ...flags, '--name-status', ...range.slice(1)], env),
@@ -301,8 +304,6 @@ async function changedFiles(
         path: entry.path,
         oldPath: entry.oldPath,
         status: normalizeStatus(entry.code),
-        staged: false,
-        unstaged: false,
         additions: fileStats?.additions ?? 0,
         deletions: fileStats?.deletions ?? 0,
         binary: fileStats?.binary ?? false,
@@ -421,7 +422,9 @@ export async function getGitDiffSummary(
         commits: [],
         moreCommits: false,
         baseCommits: [],
-        files: changes.files.sort((left, right) => left.path.localeCompare(right.path)),
+        files: sortedFiles(changes.files),
+        staged: [],
+        unstaged: [],
       },
     };
   }
@@ -491,25 +494,36 @@ export async function getGitDiffSummary(
   const untracked = new Set(
     [...statuses].filter(([, status]) => status === '??').map(([path]) => path),
   );
-  const changes = await withIntentToAdd(cwd, untracked, (env) =>
-    changedFiles(cwd, ['diff', mergeBase, '--'], env),
+  // Each Git status list is its own diff, so a partly staged file shows each half.
+  const indexLists = scope.kind === 'uncommitted';
+  const noFiles = Promise.resolve<ChangedFiles>({ ok: true, files: [] });
+  const stagedPending = indexLists
+    ? changedFiles(cwd, ['diff', '--cached', head, '--'], undefined)
+    : noFiles;
+  const [changes, unstaged] = await withIntentToAdd(cwd, untracked, (env) =>
+    Promise.all([
+      changedFiles(cwd, ['diff', mergeBase, '--'], env),
+      indexLists ? changedFiles(cwd, ['diff', '--'], env) : noFiles,
+    ]),
   );
+  const staged = await stagedPending;
   const [branchLog, baseLog] = await logs;
   const branchCommits = branchLog.ok ? parseCommitLog(branchLog.stdout) : [];
-  if (!changes.ok) {
-    return { success: false, error: gitError(changes.error, 'Unable to read the diff.') };
+  for (const result of [changes, unstaged, staged]) {
+    if (!result.ok) {
+      return { success: false, error: gitError(result.error, 'Unable to read the diff.') };
+    }
   }
-
-  const files = changes.files.map((file) => {
-    // Porcelain `XY`: X is the index against HEAD, Y the working tree against the index.
-    const codes = [statuses.get(file.path), file.oldPath ? statuses.get(file.oldPath) : undefined];
-    return {
-      ...file,
-      status: file.status === 'added' && untracked.has(file.path) ? 'untracked' : file.status,
-      staged: codes.some((code) => code !== undefined && code[0] !== ' ' && code[0] !== '?'),
-      unstaged: codes.some((code) => code !== undefined && code[1] !== ' '),
-    };
-  });
+  const listed = (result: ChangedFiles): GitDiffFile[] =>
+    result.ok
+      ? sortedFiles(
+          result.files.map((file) =>
+            file.status === 'added' && untracked.has(file.path)
+              ? { ...file, status: 'untracked' }
+              : file,
+          ),
+        )
+      : [];
 
   const [branches, baseLabel, defaultBaseName] = await Promise.all([
     branchesPending,
@@ -530,9 +544,15 @@ export async function getGitDiffSummary(
       commits: branchCommits.slice(0, MAX_BRANCH_COMMITS),
       moreCommits: branchCommits.length > MAX_BRANCH_COMMITS,
       baseCommits: baseLog.ok ? parseCommitLog(baseLog.stdout) : [],
-      files: files.sort((left, right) => left.path.localeCompare(right.path)),
+      files: listed(changes),
+      staged: listed(staged),
+      unstaged: listed(unstaged),
     },
   };
+}
+
+function sortedFiles(files: GitDiffFile[]): GitDiffFile[] {
+  return files.sort((left, right) => left.path.localeCompare(right.path));
 }
 
 function limitPatch(patch: string): { patch: string; truncated: boolean } {
@@ -543,8 +563,8 @@ function limitPatch(patch: string): { patch: string; truncated: boolean } {
     truncated = true;
   }
   const lines = limited.split('\n');
-  if (lines.length > MAX_PATCH_LINES) {
-    limited = lines.slice(0, MAX_PATCH_LINES).join('\n');
+  if (lines.length > MAX_DIFF_LINES) {
+    limited = lines.slice(0, MAX_DIFF_LINES).join('\n');
     truncated = true;
   }
   return { patch: limited, truncated };
@@ -578,38 +598,24 @@ export async function getGitCommitFiles(cwd: string, ref: string): Promise<GitCo
   return { success: true, files: result.files };
 }
 
-/**
- * The file after the change, for expanding gaps and the whole-file view; null
- * past `MAX_PATCH_LINES`, because both render every line they show.
- */
+/** The file after the change, for expanding gaps and the whole-file view. */
 async function readNewContent(
   cwd: string,
-  source: GitDiffSource,
-  commit: string,
+  revision: string | null,
   path: string,
 ): Promise<string | null> {
-  let content: string;
-  if (source.kind === 'base') {
+  if (revision === null) {
     const file = await readProjectFile(cwd, path);
-    if (!file.success || file.truncated) return null;
-    content = file.content;
+    return file.success && !file.truncated ? file.content : null;
   } else {
-    // `./` makes Git resolve the path against the project, not the repository root.
-    const result = await runGit(cwd, ['show', `${commit}:./${path}`]);
+    // `./` makes Git resolve the path against the project, not the repository root;
+    // an empty revision (`:./path`) reads the index.
+    const result = await runGit(cwd, ['show', `${revision}:./${path}`]);
     if (!result.ok || result.stdout.length > MAX_CONTENT_CHARS || result.stdout.includes('\0')) {
       return null;
     }
-    content = result.stdout;
+    return result.stdout;
   }
-  return lineCount(content) > MAX_PATCH_LINES ? null : content;
-}
-
-function lineCount(text: string): number {
-  let count = 1;
-  for (let index = text.indexOf('\n'); index !== -1; index = text.indexOf('\n', index + 1)) {
-    count += 1;
-  }
-  return count;
 }
 
 export async function getGitDiffFile(
@@ -628,7 +634,9 @@ export async function getGitDiffFile(
     return { success: false, error: 'The path is outside the project.' };
   }
 
-  const commit = await commitFor(cwd, source.kind === 'base' ? source.base : source.commit);
+  const ref =
+    source.kind === 'base' ? source.base : source.kind === 'commit' ? source.commit : 'HEAD';
+  const commit = await commitFor(cwd, ref);
   if (!commit) {
     return { success: false, error: 'That branch or commit no longer exists.' };
   }
@@ -642,15 +650,21 @@ export async function getGitDiffFile(
     '--unified=3',
     '-p',
   ];
-  const result =
-    source.kind === 'base'
-      ? await withIntentToAdd(cwd, await untrackedAmong(cwd, paths), (env) =>
-          runGit(cwd, ['diff', ...flags, commit, '--', ...paths], env),
-        )
-      : await (async () => {
-          const [command, ...range] = commitRange(commit, await firstParent(cwd, commit));
-          return runGit(cwd, [command, ...flags, ...range, ...paths]);
-        })();
+  const againstWorkingTree = async (range: string[]): Promise<GitCommandResult> =>
+    withIntentToAdd(cwd, await untrackedAmong(cwd, paths), (env) =>
+      runGit(cwd, ['diff', ...flags, ...range, '--', ...paths], env),
+    );
+  let result: GitCommandResult;
+  if (source.kind === 'base') {
+    result = await againstWorkingTree([commit]);
+  } else if (source.kind === 'unstaged') {
+    result = await againstWorkingTree([]);
+  } else if (source.kind === 'staged') {
+    result = await runGit(cwd, ['diff', ...flags, '--cached', commit, '--', ...paths]);
+  } else {
+    const [command, ...range] = commitRange(commit, await firstParent(cwd, commit));
+    result = await runGit(cwd, [command, ...flags, ...range, ...paths]);
+  }
   if (!result.ok) {
     return { success: false, error: gitError(result.error, 'Unable to read this diff.') };
   }
@@ -661,6 +675,47 @@ export async function getGitDiffFile(
     success: true,
     patch: limited.patch,
     truncated: limited.truncated,
-    newContent: deleted ? null : await readNewContent(cwd, source, commit, path),
+    newContent:
+      deleted || limited.truncated
+        ? null
+        : await readNewContent(cwd, newRevision(source, commit), path),
   };
+}
+
+/** Where the file after the change lives: the working tree (null), the index (''), or a commit. */
+function newRevision(source: GitDiffSource, commit: string): string | null {
+  switch (source.kind) {
+    case 'base':
+    case 'unstaged':
+      return null;
+    case 'staged':
+      return '';
+    case 'commit':
+      return commit;
+  }
+}
+
+/**
+ * Stages every change in the project (untracked files included), or takes
+ * every staged change back out of the index. `.` keeps a project in a
+ * subdirectory from touching the rest of its repository.
+ */
+export async function setGitStaged(cwd: string, staged: boolean): Promise<GitStageResult> {
+  if (!cwd || cwd.trim().length === 0) {
+    return { success: false, error: 'The project path is missing.' };
+  }
+  const result = await runGit(
+    cwd,
+    staged ? ['add', '--all', '--', '.'] : ['restore', '--staged', '--', '.'],
+  );
+  if (!result.ok) {
+    return {
+      success: false,
+      error: gitError(
+        result.error,
+        staged ? 'Unable to stage the changes.' : 'Unable to unstage the changes.',
+      ),
+    };
+  }
+  return { success: true };
 }

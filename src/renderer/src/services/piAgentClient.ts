@@ -15,6 +15,7 @@ import type {
   PiPush,
   GitBranchResult,
   GitCommitFilesResult,
+  GitStageResult,
   GitDiffFileResult,
   GitDiffSource,
   GitDiffScope,
@@ -102,6 +103,10 @@ export async function getGitCommitFiles(
   commit: string,
 ): Promise<GitCommitFilesResult> {
   return window.piApi.getGitCommitFiles(cwd, commit);
+}
+
+export async function setGitStaged(cwd: string, staged: boolean): Promise<GitStageResult> {
+  return window.piApi.setGitStaged(cwd, staged);
 }
 
 export async function setActiveProject(path: string): Promise<ProjectStateResult> {

@@ -215,11 +215,17 @@ is the only command that lists them and it starts first, with the branch list,
 logs and merge-base running beside it.
 
 The tab refreshes itself, quietly (no spinner, a failed refresh keeps the last
-summary), 500ms after an agent in the project finishes any tool call or run,
-and when the window regains focus. Any tool but the read-only built-ins
-(`read`, `grep`, `find`, `ls`) counts, because agents change files through
-bash and scripts as often as through edit/write. A trigger that lands
-during a load runs one more load after it instead of a second one beside it.
+summary) when an agent in the project finishes a tool call or a run, and when
+the window regains focus. Triggers are throttled, not debounced: the first
+refreshes at once, later ones at most every 5 seconds, and the last is never
+dropped; a debounce never fires while a long run keeps calling tools, and one
+summary is ~17 git processes on a big repository. Any tool but the read-only
+built-ins (`read`, `grep`, `find`, `ls`) and a read-only bash command (the
+same `isReadOnlyBashCommand` the chat's read groups use) counts, because
+agents change files through bash and scripts as often as through edit/write.
+The end event carries no arguments, so the bash command comes from the tool
+node the transcript kept. A trigger that lands during a load runs one more
+load after it instead of a second one beside it.
 Polling a fingerprint, as Plannotator does, was rejected: its fingerprint is a
 `status -uall` plus a diff, 2.7s per probe on the same repository, so a
 5-second poll would keep git busy half the time. There is no refresh button:
@@ -234,22 +240,31 @@ deletion and an untracked file), and a new file gets real line counts and a
 real patch. Patches are capped at 1.5M characters or 5,000 lines with a
 `truncated` notice, so a minified bundle cannot freeze the renderer.
 
-The sidebar offers three views: Git status, the default (the working tree
-against HEAD as Staged / Unstaged, untracked files counted as unstaged and a
-partly staged file in both, each showing its whole diff against HEAD), Diff
-(against the chosen mode and base, the only view that takes them) and commits.
-Git status and Diff list files as a tree (a directory holding only one
-directory compacted into one row like `main/java/com/example`) or flattened. Opening
-a commit lists its files and shows one commit against its first parent; a root
-commit diffs against the empty tree. The selection is `{ commit, path }`, with
-`commit: null` for the base comparison, because the same path can be picked
-from both.
+The sidebar offers three views: Git status (the default), Diff (against the
+chosen mode and base, the only view that takes them) and commits. Git status
+is two diffs, not labels on one: Staged is `git diff --cached` (the index
+against HEAD) and Unstaged is `git diff` (the working tree against the index,
+untracked files included). A partly staged file shows each half in its own
+group, and a change staged and then undone in the working tree still shows,
+which one HEAD-to-working-tree diff split by porcelain `XY` codes got wrong.
+A button at the right of each group stages or unstages everything (`git add --all --
+.` / `git restore --staged -- .`, `.` so a project inside a bigger repository
+only touches itself) and refreshes at once, outside the auto-refresh
+interval. Git status and Diff list files as a tree (a directory holding only
+one directory compacted into one row like `main/java/com/example`) or
+flattened. Opening a commit lists its files and shows one commit against its
+first parent; a root commit diffs against the empty tree. The selection names
+the list it came from (`files`, `staged`, `unstaged` or a `commit`), because
+the same path can be in several, and each list's file has its own diff.
 
 The patch response carries the file after the change (the working-tree file,
-or `<commit>:<path>`), which is what expands the unchanged lines between
-hunks and shows the whole file; it is null for deleted, binary, over-2MB or
-over-5,000-line files, since both draw every line they show, and then only
-the hunk headers show. The viewer draws the patch unified
+the index's `:<path>` for Staged, or `<commit>:<path>`), which is what expands the unchanged lines between
+hunks and shows the whole file. It is null for deleted, binary or over-2MB
+files, and when the patch was truncated: the last gap would start where the
+patch was cut and show the changes after it as unmodified lines. Then only
+the hunk headers show. Gaps expand in a file of any length, but the whole
+file is offered only up to `MAX_DIFF_LINES` (5,000), since it draws every
+line. The viewer draws the patch unified
 or side by side; split rows pair each run of removed lines with the added
 lines that replaced it, and wrap instead of scrolling so the two halves never
 need synchronized horizontal scroll. The new side is highlighted as the whole

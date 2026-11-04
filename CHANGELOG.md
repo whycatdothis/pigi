@@ -13,10 +13,15 @@
   and quote lines into the chat (`@src/app.ts:L10-L20`) like the Files tab
   does; deleted lines and lines from a commit are quoted as a diff, so the
   agent knows they are not in the file as it is now, and a side-by-side
-  selection stays in the column it starts in. A file moved without `git add` shows as a rename, and a
-  newly added file is shown in green without a `+` on every line
+  selection stays in the column it starts in. A file moved without `git add`
+  shows as a rename, and a newly added file is shown in green without a `+`
+  on every line
+- Git status shows staged and unstaged changes as separate diffs, so a partly
+  staged file shows each half, and a button beside each group stages or
+  unstages everything in it
 - The Git tab refreshes on its own once the agent changes files, however it
-  changes them, and when you come back to the window
+  changes them (at most every 5 seconds during a run, and not for commands
+  that only read), and when you come back to the window
 - The Git tab's Git status and Commits groups fold open and closed, and empty
   groups still show
 - The Git tab's Diff view shows all changes since the repository's main branch
@@ -32,6 +37,8 @@
 
 ### Changed
 
+- The Diff tab is now the Git tab; a custom shortcut set for it goes back to
+  the default ⌘3
 - The right sidebar is open or closed for every session alike instead of
   per session, and starts closed on launch
 - The Chat, Files and Git tabs are taller with larger text, and the chat

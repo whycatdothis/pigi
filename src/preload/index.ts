@@ -16,6 +16,7 @@ import {
   type DataPortMessage,
   type GitBranchResult,
   type GitCommitFilesResult,
+  type GitStageResult,
   type GitDiffFileResult,
   type GitDiffScope,
   type GitDiffSource,
@@ -343,6 +344,10 @@ const piApi = {
   /** List the files one commit changed. */
   getGitCommitFiles: (cwd: string, commit: string): Promise<GitCommitFilesResult> =>
     ipcRenderer.invoke(PiChannel.GetGitCommitFiles, cwd, commit),
+
+  /** Stage every change in the project, or unstage every staged one. */
+  setGitStaged: (cwd: string, staged: boolean): Promise<GitStageResult> =>
+    ipcRenderer.invoke(PiChannel.SetGitStaged, cwd, staged),
 
   /** List files visible to git for inline @ references. */
   searchProjectFiles: (

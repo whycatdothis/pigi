@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { IconChevronRight, IconLoader2 } from '@tabler/icons-react';
-import { FolderClosed, FolderOpen } from 'lucide-react';
+import { FolderClosed, FolderOpen, Minus, Plus } from 'lucide-react';
 import type {
   GitDiffCommit,
   GitDiffFile,
@@ -20,6 +20,7 @@ import { cn, formatTimeAgo } from '../../lib/utils';
 import { SidebarToggle } from '../sidebar/sidebarToggle';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { Sidebar as ShadcnSidebar, SidebarContent, SidebarHeader } from '../ui/sidebar';
 import GitBasePicker from './GitBasePicker';
 import GitDiffModeMenu from './GitDiffModeMenu';
@@ -240,8 +241,15 @@ const FILE_LISTS: readonly { value: GitFileList; label: string }[] = [
   { value: 'flat', label: 'Flatten' },
 ];
 
-function isSelected(selection: GitSelection | null, commit: string | null, path: string): boolean {
-  return selection?.commit === commit && selection.path === path;
+/** The selected path, when the selection is in `list` (and in `commit`, for a commit's files). */
+function selectedPathIn(
+  selection: GitSelection | null,
+  list: GitSelection['list'],
+  commit?: string,
+): string | null {
+  if (!selection || selection.list !== list) return null;
+  if (selection.list === 'commit' && selection.commit !== commit) return null;
+  return selection.path;
 }
 
 function Section({
@@ -250,6 +258,7 @@ function Section({
   count,
   more = false,
   emptyText,
+  action,
   workspace,
   children,
 }: {
@@ -259,28 +268,38 @@ function Section({
   /** The list stops at a cap and more exist past it. */
   more?: boolean;
   emptyText: string;
+  /** A button for the whole group, at the right end of its header. */
+  action?: React.ReactNode;
   workspace: GitWorkspace;
   children: React.ReactNode;
 }): React.JSX.Element {
   const open = !workspace.collapsedSections.has(section);
   return (
     <div>
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => workspace.toggleSection(section)}
-        className="flex w-full items-center gap-1 rounded-control px-1.5 pt-2 pb-1 text-left text-caption text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <IconChevronRight
-          size={12}
-          className={cn('shrink-0 transition-transform', open && 'rotate-90')}
-        />
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        <span className="tabular-nums">
-          {count}
-          {more && '+'}
-        </span>
-      </button>
+      <div className="flex items-center pt-2 pb-1">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => workspace.toggleSection(section)}
+          className="flex min-w-0 flex-1 items-center gap-1 rounded-control px-1.5 text-left text-caption text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <IconChevronRight
+            size={12}
+            className={cn('shrink-0 transition-transform', open && 'rotate-90')}
+          />
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="truncate">{label}</span>
+            {count > 0 && (
+              // bg-muted is the sidebar's own color, so the pill would not show.
+              <span className="shrink-0 rounded-full bg-foreground/10 px-1.5 py-px text-2xs leading-4">
+                {count}
+                {more && '+'}
+              </span>
+            )}
+          </span>
+        </button>
+        {action}
+      </div>
       {open &&
         (count === 0 ? (
           <p className="py-1 pr-2 pl-6 text-caption text-muted-foreground/70">{emptyText}</p>
@@ -298,38 +317,67 @@ function StatusView({
   summary: GitDiffSummary;
   workspace: GitWorkspace;
 }): React.JSX.Element {
-  const groups = useMemo(
-    (): { section: GitSection; label: string; files: GitDiffFile[] }[] => [
-      { section: 'staged', label: 'Staged', files: summary.files.filter((file) => file.staged) },
-      {
-        section: 'unstaged',
-        label: 'Unstaged',
-        files: summary.files.filter((file) => file.unstaged),
-      },
-    ],
-    [summary.files],
-  );
+  const groups: {
+    section: 'staged' | 'unstaged';
+    label: string;
+    files: GitDiffFile[];
+    action: string;
+    icon: React.ReactNode;
+  }[] = [
+    {
+      section: 'staged',
+      label: 'Staged',
+      files: summary.staged,
+      action: 'Unstage all',
+      icon: <Minus className="size-3.5" />,
+    },
+    {
+      section: 'unstaged',
+      label: 'Unstaged',
+      files: summary.unstaged,
+      action: 'Stage all',
+      icon: <Plus className="size-3.5" />,
+    },
+  ];
 
   return (
-    <div className="pb-2">
-      {groups.map((group) => (
-        <Section
-          key={group.section}
-          section={group.section}
-          label={group.label}
-          count={group.files.length}
-          emptyText={`No ${group.label.toLowerCase()} files.`}
-          workspace={workspace}
-        >
-          <FileList
-            files={group.files}
-            fileList={workspace.fileList}
-            selectedPath={workspace.selection?.commit === null ? workspace.selection.path : null}
-            onSelectFile={(path) => workspace.select({ commit: null, path })}
-          />
-        </Section>
-      ))}
-    </div>
+    <TooltipProvider delayDuration={400}>
+      <div className="pb-2">
+        {groups.map((group) => (
+          <Section
+            key={group.section}
+            section={group.section}
+            label={group.label}
+            count={group.files.length}
+            emptyText={`No ${group.label.toLowerCase()} files.`}
+            action={
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={group.action}
+                    disabled={group.files.length === 0 || workspace.staging}
+                    onClick={() => workspace.setStaged(group.section === 'unstaged')}
+                    className="mr-1 flex size-5 shrink-0 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    {group.icon}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{group.action}</TooltipContent>
+              </Tooltip>
+            }
+            workspace={workspace}
+          >
+            <FileList
+              files={group.files}
+              fileList={workspace.fileList}
+              selectedPath={selectedPathIn(workspace.selection, group.section)}
+              onSelectFile={(path) => workspace.select({ list: group.section, path })}
+            />
+          </Section>
+        ))}
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -351,7 +399,7 @@ function CommitRow({
         aria-expanded={open}
         className={cn(
           'flex w-full items-start gap-1.5 rounded-control px-1.5 py-1.5 text-left transition-colors hover:bg-accent',
-          workspace.selection?.commit === commit.hash && 'bg-accent-subtle',
+          selectedPathIn(workspace.selection, 'commit', commit.hash) !== null && 'bg-accent-subtle',
         )}
         title={`${commit.hash}\n${commit.subject}\n${commit.author}`}
         onClick={() => workspace.toggleCommit(commit.hash)}
@@ -394,8 +442,10 @@ function CommitRow({
                 file={file}
                 depth={1}
                 showDirectory
-                selected={isSelected(workspace.selection, commit.hash, file.path)}
-                onSelect={() => workspace.select({ commit: commit.hash, path: file.path })}
+                selected={selectedPathIn(workspace.selection, 'commit', commit.hash) === file.path}
+                onSelect={() =>
+                  workspace.select({ list: 'commit', commit: commit.hash, path: file.path })
+                }
               />
             ))}
         </ul>
@@ -464,10 +514,7 @@ const GitSidebar = memo(function GitSidebar({
 
   return (
     <ShadcnSidebar collapsible="none" data-testid="git-sidebar" className="w-full">
-      <SidebarHeader
-        className="gap-0 border-b-[0.5px] border-foreground/15 pb-0"
-        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-      >
+      <SidebarHeader className="gap-0 border-b-[0.5px] border-foreground/15 pb-0 [-webkit-app-region:drag]">
         <div className="flex h-10 items-start justify-end">
           <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
         </div>
@@ -571,8 +618,8 @@ const GitSidebar = memo(function GitSidebar({
                 <FileList
                   files={summary.files}
                   fileList={workspace.fileList}
-                  selectedPath={selection?.commit === null ? selection.path : null}
-                  onSelectFile={(path) => workspace.select({ commit: null, path })}
+                  selectedPath={selectedPathIn(selection, 'files')}
+                  onSelectFile={(path) => workspace.select({ list: 'files', path })}
                 />
               </ul>
             ))}

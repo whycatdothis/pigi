@@ -14,7 +14,12 @@ import {
   setActiveProject,
 } from '../projects/projectStore';
 import { getGitBranch } from '../projects/gitStatus';
-import { getGitCommitFiles, getGitDiffFile, getGitDiffSummary } from '../projects/gitDiff';
+import {
+  getGitCommitFiles,
+  getGitDiffFile,
+  getGitDiffSummary,
+  setGitStaged,
+} from '../projects/gitDiff';
 import { searchProjectFiles } from '../projects/projectFileSearch';
 import { completePath } from '../projects/pathCompletion';
 import { listProjectDirectory, readProjectFile } from '../projects/projectFiles';
@@ -31,6 +36,7 @@ function parseGitDiffScope(value: unknown): GitDiffScope | null {
 
 function parseGitDiffSource(value: unknown): GitDiffSource | null {
   if (typeof value !== 'object' || value === null || !('kind' in value)) return null;
+  if (value.kind === 'staged' || value.kind === 'unstaged') return { kind: value.kind };
   if (value.kind === 'base' && 'base' in value && typeof value.base === 'string' && value.base) {
     return { kind: 'base', base: value.base };
   }
@@ -78,7 +84,7 @@ export function registerProjectHandlers(): void {
       }
       const diffSource = parseGitDiffSource(source);
       if (!diffSource) {
-        return { success: false, error: 'source must be a base or a commit' };
+        return { success: false, error: 'source must be a base, a commit, staged or unstaged' };
       }
       if (typeof path !== 'string' || path.length === 0) {
         return { success: false, error: 'path must be a non-empty string' };
@@ -98,6 +104,16 @@ export function registerProjectHandlers(): void {
       return { success: false, error: 'commit must be a non-empty string' };
     }
     return getGitCommitFiles(cwd, commit);
+  });
+
+  ipcMain.handle(PiChannel.SetGitStaged, async (_event, cwd: unknown, staged: unknown) => {
+    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+      return { success: false, error: 'cwd must be a non-empty string' };
+    }
+    if (typeof staged !== 'boolean') {
+      return { success: false, error: 'staged must be a boolean' };
+    }
+    return setGitStaged(cwd, staged);
   });
 
   ipcMain.handle(

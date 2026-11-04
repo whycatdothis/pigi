@@ -179,6 +179,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
               key={tab}
               ref={isChat ? chatTabRef : undefined}
               value={tab}
+              title={isChat ? label : undefined}
               aria-label={
                 binding ? `${label} tab (${formatShortcutLabel(binding)})` : `${label} tab`
               }

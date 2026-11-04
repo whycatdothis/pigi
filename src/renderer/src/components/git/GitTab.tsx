@@ -69,16 +69,21 @@ const GitTab = memo(function GitTab({
   }
 
   const { summary, status, error, selection, commitFiles } = workspace;
-  const commit = selection?.commit
-    ? (summary?.commits.find((item) => item.hash === selection.commit) ??
-      summary?.baseCommits.find((item) => item.hash === selection.commit))
+  const selectedCommit = selection?.list === 'commit' ? selection.commit : null;
+  const commit = selectedCommit
+    ? (summary?.commits.find((item) => item.hash === selectedCommit) ??
+      summary?.baseCommits.find((item) => item.hash === selectedCommit))
     : undefined;
-  const commitState = selection?.commit ? commitFiles.get(selection.commit) : undefined;
-  const files = selection?.commit
-    ? commitState?.status === 'ready'
-      ? commitState.files
-      : []
-    : (summary?.files ?? []);
+  const commitState = selectedCommit ? commitFiles.get(selectedCommit) : undefined;
+  const files =
+    selection?.list === 'commit'
+      ? commitState?.status === 'ready'
+        ? commitState.files
+        : []
+      : summary
+        ? summary[selection?.list ?? 'files']
+        : [];
+  const statusView = workspace.view === 'status';
   const selectedFile = files.find((file) => file.path === selection?.path) ?? null;
 
   if (status === 'error') {
@@ -104,7 +109,10 @@ const GitTab = memo(function GitTab({
     return <CenteredLoading label="Loading changes…" />;
   }
 
-  if (summary.files.length === 0 && !selection?.commit) {
+  const noChanges = statusView
+    ? summary.staged.length === 0 && summary.unstaged.length === 0
+    : summary.files.length === 0 && !selectedCommit;
+  if (noChanges) {
     return (
       <Empty className="border-0">
         <EmptyHeader>
@@ -113,7 +121,7 @@ const GitTab = memo(function GitTab({
           </EmptyMedia>
           <EmptyTitle>No changes</EmptyTitle>
           <EmptyDescription>
-            {workspace.mode === 'uncommitted'
+            {statusView || workspace.mode === 'uncommitted'
               ? 'The working tree matches HEAD.'
               : workspace.mode === 'lastCommit'
                 ? 'The last commit changes no files.'
@@ -134,22 +142,29 @@ const GitTab = memo(function GitTab({
     return <CenteredLoading label="Loading changes…" />;
   }
 
-  const source: GitDiffSource = selection?.commit
-    ? { kind: 'commit', commit: selection.commit }
-    : summary.source;
+  const list = selection?.list ?? 'files';
+  const source: GitDiffSource = selectedCommit
+    ? { kind: 'commit', commit: selectedCommit }
+    : list === 'staged' || list === 'unstaged'
+      ? { kind: list }
+      : summary.source;
   return (
     <GitDiffViewer
       projectPath={projectPath}
       source={source}
       baseLabel={summary.baseLabel}
       compareLabel={
-        selection?.commit
-          ? `${commit?.shortHash ?? selection.commit.slice(0, 7)} ${commit?.subject ?? ''}`.trim()
-          : workspace.mode === 'uncommitted'
-            ? 'Uncommitted changes'
-            : workspace.mode === 'lastCommit'
-              ? `Last commit ${summary.baseLabel}`
-              : `vs ${summary.baseLabel}`
+        selectedCommit
+          ? `${commit?.shortHash ?? selectedCommit.slice(0, 7)} ${commit?.subject ?? ''}`.trim()
+          : list === 'staged'
+            ? 'Staged changes'
+            : list === 'unstaged'
+              ? 'Unstaged changes'
+              : workspace.mode === 'uncommitted'
+                ? 'Uncommitted changes'
+                : workspace.mode === 'lastCommit'
+                  ? `Last commit ${summary.baseLabel}`
+                  : `vs ${summary.baseLabel}`
       }
       file={selectedFile}
       layout={workspace.layout}

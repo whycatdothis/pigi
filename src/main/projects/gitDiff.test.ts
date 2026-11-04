@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { GitDiffFile } from '../../shared/ipcContract';
 import {
   getGitCommitFiles,
   getGitDiffFile,
@@ -11,6 +12,7 @@ import {
   parseNameStatus,
   parseNumStat,
   parsePorcelainStatus,
+  setGitStaged,
 } from './gitDiff';
 
 const execFileAsync = promisify(execFile);
@@ -89,10 +91,10 @@ describe('getGitDiffSummary', () => {
     expect(result.summary.branch).toBe('main');
     expect(result.summary.base).toBe('main');
     expect(result.summary.defaultBase).toBe('main');
-    expect(result.summary.files.map((file) => [file.path, file.status, file.unstaged])).toEqual([
-      ['a.txt', 'modified', true],
-      ['moved-to.txt', 'renamed', true],
-      ['new.txt', 'untracked', true],
+    expect(result.summary.files.map((file) => [file.path, file.status])).toEqual([
+      ['a.txt', 'modified'],
+      ['moved-to.txt', 'renamed'],
+      ['new.txt', 'untracked'],
     ]);
     expect(result.summary.files[1].oldPath).toBe('moved-from.txt');
     expect(result.summary.files[2].additions).toBe(1);
@@ -206,9 +208,9 @@ describe('a project in a subdirectory of its repository', () => {
     const result = await getGitDiffSummary(project, { kind: 'branch', base: 'HEAD~1' });
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(result.summary.files.map((file) => [file.path, file.status, file.unstaged])).toEqual([
-      ['new.txt', 'untracked', true],
-      ['src/x.txt', 'modified', true],
+    expect(result.summary.files.map((file) => [file.path, file.status])).toEqual([
+      ['new.txt', 'untracked'],
+      ['src/x.txt', 'modified'],
     ]);
   });
 
@@ -255,14 +257,17 @@ describe('staged and unstaged changes', () => {
     root = await mkdtemp(join(tmpdir(), 'pigi-git-diff-staged-'));
     await git(root, 'init', '-q', '-b', 'main');
     await writeFile(join(root, 'both.txt'), 'one\n');
+    await writeFile(join(root, 'reverted.txt'), 'one\n');
     await writeFile(join(root, 'staged.txt'), 'one\n');
     await writeFile(join(root, 'unstaged.txt'), 'one\n');
     await git(root, 'add', '.');
     await git(root, 'commit', '-qm', 'one');
     await writeFile(join(root, 'both.txt'), 'one\ntwo\n');
+    await writeFile(join(root, 'reverted.txt'), 'one\ntwo\n');
     await writeFile(join(root, 'staged.txt'), 'one\ntwo\n');
-    await git(root, 'add', 'both.txt', 'staged.txt');
+    await git(root, 'add', 'both.txt', 'reverted.txt', 'staged.txt');
     await writeFile(join(root, 'both.txt'), 'one\ntwo\nthree\n');
+    await writeFile(join(root, 'reverted.txt'), 'one\n');
     await writeFile(join(root, 'unstaged.txt'), 'one\ntwo\n');
     await writeFile(join(root, 'new.txt'), 'new\n');
   });
@@ -271,15 +276,95 @@ describe('staged and unstaged changes', () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it('marks each file by where its changes sit, a partly staged file as both', async () => {
+  it('lists the index against HEAD and the working tree against the index', async () => {
     const result = await getGitDiffSummary(root, { kind: 'uncommitted' });
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(result.summary.files.map((file) => [file.path, file.staged, file.unstaged])).toEqual([
-      ['both.txt', true, true],
-      ['new.txt', false, true],
-      ['staged.txt', true, false],
-      ['unstaged.txt', false, true],
+    const list = (files: GitDiffFile[]): [string, string, number, number][] =>
+      files.map((file) => [file.path, file.status, file.additions, file.deletions]);
+    // A change staged and then undone in the working tree is in both lists, not in neither.
+    expect(list(result.summary.staged)).toEqual([
+      ['both.txt', 'modified', 1, 0],
+      ['reverted.txt', 'modified', 1, 0],
+      ['staged.txt', 'modified', 1, 0],
     ]);
+    expect(list(result.summary.unstaged)).toEqual([
+      ['both.txt', 'modified', 1, 0],
+      ['new.txt', 'untracked', 1, 0],
+      ['reverted.txt', 'modified', 0, 1],
+      ['unstaged.txt', 'modified', 1, 0],
+    ]);
+  });
+
+  it('reads each half of a partly staged file, with the matching new content', async () => {
+    const staged = await getGitDiffFile(root, { kind: 'staged' }, 'both.txt', null);
+    const unstaged = await getGitDiffFile(root, { kind: 'unstaged' }, 'both.txt', null);
+    expect(staged).toMatchObject({ success: true, newContent: 'one\ntwo\n' });
+    expect(unstaged).toMatchObject({ success: true, newContent: 'one\ntwo\nthree\n' });
+    if (!staged.success || !unstaged.success) return;
+    expect(staged.patch).toContain('+two');
+    expect(staged.patch).not.toContain('+three');
+    expect(unstaged.patch).toContain('+three');
+    expect(unstaged.patch).not.toContain('+two');
+  });
+
+  it('stages everything, untracked files included, and unstages it again', async () => {
+    expect(await setGitStaged(root, true)).toEqual({ success: true });
+    let result = await getGitDiffSummary(root, { kind: 'uncommitted' });
+    if (!result.success) throw new Error(result.error);
+    expect(result.summary.unstaged).toEqual([]);
+    expect(result.summary.staged.map((file) => file.path)).toEqual([
+      'both.txt',
+      'new.txt',
+      'staged.txt',
+      'unstaged.txt',
+    ]);
+
+    expect(await setGitStaged(root, false)).toEqual({ success: true });
+    result = await getGitDiffSummary(root, { kind: 'uncommitted' });
+    if (!result.success) throw new Error(result.error);
+    expect(result.summary.staged).toEqual([]);
+    expect(result.summary.unstaged.map((file) => file.path)).toEqual([
+      'both.txt',
+      'new.txt',
+      'staged.txt',
+      'unstaged.txt',
+    ]);
+  });
+});
+
+describe('long files', () => {
+  let root: string;
+  const numbered = (count: number, label: string): string =>
+    Array.from({ length: count }, (_, index) => `${label} ${index + 1}`).join('\n') + '\n';
+
+  beforeAll(async () => {
+    root = await mkdtemp(join(tmpdir(), 'pigi-git-diff-long-'));
+    await git(root, 'init', '-q', '-b', 'main');
+    await writeFile(join(root, 'rewritten.txt'), numbered(3000, 'old'));
+    await writeFile(join(root, 'long.txt'), numbered(6000, 'line'));
+    await git(root, 'add', '.');
+    await git(root, 'commit', '-qm', 'base');
+    await writeFile(join(root, 'rewritten.txt'), numbered(3000, 'new'));
+    await writeFile(
+      join(root, 'long.txt'),
+      numbered(6000, 'line').replace('line 3000\n', 'changed\n'),
+    );
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('leaves out the new file when the patch is cut, so no gap runs over changes', async () => {
+    const diff = await getGitDiffFile(root, { kind: 'base', base: 'HEAD' }, 'rewritten.txt', null);
+    expect(diff).toMatchObject({ success: true, truncated: true, newContent: null });
+  });
+
+  it('keeps the new file of a long file with a small patch, for expanding gaps', async () => {
+    const diff = await getGitDiffFile(root, { kind: 'base', base: 'HEAD' }, 'long.txt', null);
+    expect(diff).toMatchObject({ success: true, truncated: false });
+    if (!diff.success) return;
+    expect(diff.newContent?.split('\n')).toHaveLength(6001);
   });
 });

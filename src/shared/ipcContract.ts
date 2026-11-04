@@ -169,10 +169,6 @@ export interface GitDiffFile {
   /** The pre-rename path, when Git detected a rename or copy. */
   oldPath: string | null;
   status: GitDiffFileStatus;
-  /** The index differs from HEAD for this file. */
-  staged: boolean;
-  /** The working tree differs from the index (untracked files included). */
-  unstaged: boolean;
   additions: number;
   deletions: number;
   binary: boolean;
@@ -220,10 +216,23 @@ export interface GitDiffSummary {
   /** History from the merge-base down, newest first. */
   baseCommits: GitDiffCommit[];
   files: GitDiffFile[];
+  /** Git status: the index against HEAD. Only filled for the uncommitted scope. */
+  staged: GitDiffFile[];
+  /** Git status: the working tree against the index, untracked files included. Uncommitted scope only. */
+  unstaged: GitDiffFile[];
 }
 
-/** What a file diff compares: the merge-base against the working tree, or one commit against its first parent. */
-export type GitDiffSource = { kind: 'base'; base: string } | { kind: 'commit'; commit: string };
+/**
+ * What a file diff compares: the merge-base against the working tree, one
+ * commit against its first parent, or one side of the index.
+ */
+export type GitDiffSource =
+  | { kind: 'base'; base: string }
+  | { kind: 'commit'; commit: string }
+  | { kind: 'staged' }
+  | { kind: 'unstaged' };
+
+export type GitStageResult = { success: true } | { success: false; error: string };
 
 export type GitCommitFilesResult =
   | { success: true; files: GitDiffFile[] }
@@ -233,12 +242,19 @@ export type GitDiffSummaryResult =
   | { success: true; summary: GitDiffSummary }
   | { success: false; error: string };
 
+/** Lines a diff renders at most: a longer patch is cut, and a longer file is not offered whole. */
+export const MAX_DIFF_LINES = 5000;
+
 export type GitDiffFileResult =
   | {
       success: true;
       patch: string;
       truncated: boolean;
-      /** The file after the change, for expanding unchanged lines; null when deleted, binary or too large. */
+      /**
+       * The file after the change, for expanding unchanged lines; null when
+       * deleted, binary, too large, or the patch is truncated (its last gap
+       * would run over changes the patch left out).
+       */
       newContent: string | null;
     }
   | { success: false; error: string };
@@ -569,6 +585,8 @@ export enum PiChannel {
   GetGitDiffFile = 'pi:get_git_diff_file',
   /** renderer → main: list the files one commit changed */
   GetGitCommitFiles = 'pi:get_git_commit_files',
+  /** renderer → main: stage, or unstage, every change in the project */
+  SetGitStaged = 'pi:set_git_staged',
   /** renderer → main: remove a project from recent projects list */
   RemoveProject = 'pi:remove_project',
   /** renderer → main: reorder recent projects */

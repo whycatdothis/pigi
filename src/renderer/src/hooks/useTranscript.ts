@@ -8,9 +8,15 @@
  */
 import { useCallback, useEffect, useMemo, useSyncExternalStore, type RefObject } from 'react';
 import { toast } from 'sonner';
-import { TranscriptController, type TranscriptState } from '../state/transcriptController';
+import {
+  TranscriptController,
+  getToolArgs,
+  type ToolNode,
+  type TranscriptState,
+} from '../state/transcriptController';
 import { useAppStore } from '../state/appStore';
 import { notifyProjectActivity } from '../lib/projectActivity';
+import { isReadOnlyBashCommand } from '../lib/readOnlyCommand';
 import {
   onPush,
   onStreamBatch,
@@ -108,11 +114,32 @@ function syncSessionState(sessionPath: string, controller: TranscriptController)
     });
 }
 
-/** Built-in tools that never write; every other tool, bash included, may. */
+/** Built-in tools that never write; bash only when its command is read-only, as the read groups judge it. */
 const READ_ONLY_TOOLS: ReadonlySet<string> = new Set(['read', 'grep', 'find', 'ls']);
 
-function notifyIfFilesMayHaveChanged(sessionPath: string, event: AgentSessionEvent): void {
-  const toolMayWrite = event.type === 'tool_execution_end' && !READ_ONLY_TOOLS.has(event.toolName);
+function isReadOnlyToolCall(
+  controller: TranscriptController,
+  toolCallId: string,
+  toolName: string,
+): boolean {
+  if (READ_ONLY_TOOLS.has(toolName)) return true;
+  if (toolName !== 'bash') return false;
+  // The end event carries no arguments; the tool node kept them from the start.
+  const node = controller.state.nodes.find(
+    (item): item is ToolNode => item.role === 'tool' && item.toolCallId === toolCallId,
+  );
+  const command = node ? getToolArgs(node)?.command : undefined;
+  return typeof command === 'string' && isReadOnlyBashCommand(command);
+}
+
+function notifyIfFilesMayHaveChanged(
+  sessionPath: string,
+  controller: TranscriptController,
+  event: AgentSessionEvent,
+): void {
+  const toolMayWrite =
+    event.type === 'tool_execution_end' &&
+    !isReadOnlyToolCall(controller, event.toolCallId, event.toolName);
   if (!toolMayWrite && event.type !== 'agent_end') return;
   const cwd = useAppStore.getState().sessions.get(sessionPath)?.cwd;
   if (cwd) notifyProjectActivity(cwd);
@@ -173,7 +200,7 @@ function ensureSessionSubscription(sessionPath: string, controller: TranscriptCo
         controller.processEvent(pushMessage.event);
         useAppStore.getState().updateSession(sessionPath, { status: controller.state.status });
         refreshProjectSessionsIfFirstAssistantMessage(sessionPath, pushMessage.event);
-        notifyIfFilesMayHaveChanged(sessionPath, pushMessage.event);
+        notifyIfFilesMayHaveChanged(sessionPath, controller, pushMessage.event);
         break;
 
       case 'error':

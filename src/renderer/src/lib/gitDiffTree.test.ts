@@ -10,8 +10,6 @@ function file(path: string): GitDiffFile {
     additions: 1,
     deletions: 0,
     binary: false,
-    staged: false,
-    unstaged: false,
   };
 }
 

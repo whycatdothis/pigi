@@ -34,6 +34,8 @@ describe('WorkspaceTabs', () => {
     );
 
     const tab = screen.getByRole('tab', { name: 'Old title tab' });
+    expect(tab).toHaveAttribute('title', 'Old title');
+    expect(screen.getByRole('tab', { name: 'Files tab' })).not.toHaveAttribute('title');
     fireEvent.doubleClick(tab);
     const input = screen.getByRole('textbox', { name: 'Rename chat' });
     expect(input).toHaveValue('Old title');

@@ -5,6 +5,7 @@ import type {
   PiPush,
   GitBranchResult,
   GitCommitFilesResult,
+  GitStageResult,
   GitDiffFileResult,
   GitDiffScope,
   GitDiffSource,
@@ -50,6 +51,7 @@ interface PiApi {
     oldPath: string | null,
   ) => Promise<GitDiffFileResult>;
   getGitCommitFiles: (cwd: string, commit: string) => Promise<GitCommitFilesResult>;
+  setGitStaged: (cwd: string, staged: boolean) => Promise<GitStageResult>;
   searchProjectFiles: (
     cwd: string,
     query: string,

@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { IconArrowRight, IconLoader2 } from '@tabler/icons-react';
 import { ChevronsUpDown } from 'lucide-react';
-import type { GitDiffFile, GitDiffSource } from '../../../../shared/ipcContract';
+import {
+  MAX_DIFF_LINES,
+  type GitDiffFile,
+  type GitDiffSource,
+} from '../../../../shared/ipcContract';
 import type { GitDiffLayout } from '../../hooks/useGitWorkspace';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
 import { formatFileDiffQuote, formatFileLineQuote } from '../../lib/fileQuotes';
+import { splitFileLines } from '../../lib/gitDiffPatch';
 import { diffLinesFromSelection } from '../../lib/sourceLineSelection';
 import { GIT_DIFF_STATUS_LABELS } from '../../lib/gitDiffLabels';
 import { cn } from '../../lib/utils';
@@ -57,6 +62,16 @@ function isInsideDiffLine(node: Node): boolean {
   return element?.closest('[data-diff-line]') !== null;
 }
 
+/**
+ * A refresh that fails (a timeout while the agent keeps git busy) keeps the
+ * file's diff on screen, as a failed summary refresh keeps the list; only a
+ * file with nothing shown yet shows the error.
+ */
+function failedPatchState(previous: PatchState, file: GitDiffFile, error: string): PatchState {
+  if (previous.shown?.file.path === file.path) return { ...previous, incoming: null };
+  return { ...EMPTY_PATCH_STATE, error };
+}
+
 const LAYOUTS: readonly { value: GitDiffLayout; label: string }[] = [
   { value: 'unified', label: 'Unified' },
   { value: 'split', label: 'Split' },
@@ -88,7 +103,8 @@ export default function GitDiffViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   useBottomAnchoredScroll(containerRef);
   const sourceKind = source.kind;
-  const sourceRef = source.kind === 'base' ? source.base : source.commit;
+  const sourceRef =
+    source.kind === 'base' ? source.base : source.kind === 'commit' ? source.commit : '';
 
   // A summary refresh hands in a new `file` object and reads the patch again;
   // an unchanged result keeps the state.
@@ -97,12 +113,14 @@ export default function GitDiffViewer({
     const request: GitDiffSource =
       sourceKind === 'base'
         ? { kind: 'base', base: sourceRef }
-        : { kind: 'commit', commit: sourceRef };
+        : sourceKind === 'commit'
+          ? { kind: 'commit', commit: sourceRef }
+          : { kind: sourceKind };
     getGitDiffFile(projectPath, request, file.path, file.oldPath)
       .then((result) => {
         if (cancelled) return;
         if (!result.success) {
-          setPatchState({ ...EMPTY_PATCH_STATE, error: result.error });
+          setPatchState((previous) => failedPatchState(previous, file, result.error));
           return;
         }
         setPatchState((previous) => {
@@ -126,7 +144,9 @@ export default function GitDiffViewer({
       })
       .catch(() => {
         if (!cancelled) {
-          setPatchState({ ...EMPTY_PATCH_STATE, error: 'Unable to read this diff.' });
+          setPatchState((previous) =>
+            failedPatchState(previous, file, 'Unable to read this diff.'),
+          );
         }
       });
     return () => {
@@ -161,16 +181,19 @@ export default function GitDiffViewer({
       const lines = diffLinesFromSelection(containerRef.current, range);
       if (lines.length === 0) return '';
       // Added and context rows carry the working tree's line numbers, so they
-      // quote like the Files viewer. Deleted rows have none, and a commit's
-      // numbers point into a file the agent cannot open.
+      // quote like the Files viewer. Deleted rows have none, and the numbers
+      // of a commit or the index point into a file the agent cannot open.
       const numbers = lines.map((line) => line.newLineNumber);
-      if (sourceKind === 'base' && numbers.every((number) => number !== null)) {
+      const workingTree = sourceKind === 'base' || sourceKind === 'unstaged';
+      if (workingTree && numbers.every((number) => number !== null)) {
         return formatFileLineQuote(shownPath, Math.min(...numbers), Math.max(...numbers));
       }
       const scope =
         sourceKind === 'base'
           ? `diff against ${baseLabel}`
-          : `diff in commit ${sourceRef.slice(0, 7)}`;
+          : sourceKind === 'commit'
+            ? `diff in commit ${sourceRef.slice(0, 7)}`
+            : `${sourceKind} diff`;
       return formatFileDiffQuote(shownPath, scope, lines);
     },
     [shownPath, sourceKind, sourceRef, baseLabel],
@@ -178,8 +201,13 @@ export default function GitDiffViewer({
 
   const renamed = file.oldPath !== null && file.oldPath !== file.path;
   const current = incoming ?? shown;
-  const canShowWholeFile =
-    !error && current?.file.path === file.path && current.newContent !== null;
+  const currentContent = current?.newContent ?? null;
+  // Gaps expand from any file; the whole file renders every line, so only up to the cap.
+  const fitsWholeFile = useMemo(
+    () => currentContent !== null && splitFileLines(currentContent).length <= MAX_DIFF_LINES,
+    [currentContent],
+  );
+  const canShowWholeFile = !error && current?.file.path === file.path && fitsWholeFile;
   const wholeFile = canShowWholeFile && wholeFilePath === file.path;
 
   return (

@@ -74,10 +74,11 @@ cap already does.
 
 ## Git tab: fewer git processes per summary
 
-A summary starts about 17 git processes. The three serial `rev-parse` /
+A summary starts about 17 git processes (21 for Git status, whose Staged and
+Unstaged lists are two more diffs). The three serial `rev-parse` /
 `symbolic-ref` calls at the start could be one, and `defaultBase`'s up to five
 serial `rev-parse --verify` calls one `for-each-ref`. Tens of milliseconds
 against a 2s `status` on a monorepo, so only worth it alongside other work
 there. In the same area: `commitRange` returning `{ command, args }` would drop
-the `range.slice(0, 1)` splicing in `changedFiles` and the IIFE in
+the `range.slice(0, 1)` splicing in `changedFiles` and the destructuring in
 `getGitDiffFile`.
