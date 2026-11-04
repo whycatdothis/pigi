@@ -5,12 +5,16 @@ import { onProjectActivity } from '../lib/projectActivity';
 import { getGitCommitFiles, getGitDiffSummary, setGitStaged } from '../services/piAgentClient';
 
 /**
- * Agent activity refreshes at most this often: a run fires a tool end every
- * few hundred ms, and on a large repository one summary is ~17 git processes.
+ * Agent activity refreshes at most this often, or every `SUMMARY_COST_FACTOR`
+ * times the last summary's duration if longer: a run fires a tool end every
+ * few hundred ms, and on a big repository a summary takes seconds, so a fixed
+ * interval would keep git busy most of the run; 4x caps it near a quarter.
  */
 const AUTO_REFRESH_INTERVAL_MS = 5000;
+const SUMMARY_COST_FACTOR = 4;
 
-export type GitDiffMode = GitDiffScope['kind'];
+/** The Diff view's modes; Git status has a scope of its own. */
+export type GitDiffMode = Exclude<GitDiffScope['kind'], 'status'>;
 export type GitView = 'status' | 'diff' | 'commits';
 /** How the Git status and Diff views list files. */
 export type GitFileList = 'tree' | 'flat';
@@ -38,8 +42,8 @@ function fitsView(selection: GitSelection, view: GitView): boolean {
   return selection.list === 'files' || (view === 'commits' && selection.list === 'commit');
 }
 
-function firstFile(summary: GitDiffSummary, view: GitView): GitSelection | null {
-  if (view === 'status') {
+function firstFile(summary: GitDiffSummary, statusLists: boolean): GitSelection | null {
+  if (statusLists) {
     const list = summary.staged[0] ? 'staged' : 'unstaged';
     const file = summary[list][0];
     return file ? { list, path: file.path } : null;
@@ -109,7 +113,8 @@ export function useGitWorkspace({
   // A summary belongs to the scope that asked for it: right after a view
   // switch the last one would show, say, "No commits since HEAD" from the
   // working-tree summary until the branch loads.
-  const scopeKey = `${scopeMode} ${scopeBase ?? ''}`;
+  const scopeKind: GitDiffScope['kind'] = view === 'status' ? 'status' : scopeMode;
+  const scopeKey = `${scopeKind} ${scopeBase ?? ''}`;
   const summary = loaded?.scope === scopeKey ? loaded.summary : null;
   const [layout, setLayout] = useState<GitDiffLayout>('unified');
   const [openCommit, setOpenCommit] = useState<string | null>(null);
@@ -122,10 +127,7 @@ export function useGitWorkspace({
   const [revision, setRevision] = useState(0);
   const [staging, setStaging] = useState(false);
   const requestId = useRef(0);
-  const viewRef = useRef(view);
-  useEffect(() => {
-    viewRef.current = view;
-  }, [view]);
+  const summaryMs = useRef(0);
   const openCommitRef = useRef<string | null>(null);
   // Automatic refreshes stay quiet (no spinner, a failure keeps the last
   // summary) and never overlap: a trigger during a load reruns once after it,
@@ -186,10 +188,12 @@ export function useGitWorkspace({
       };
 
       const scope: GitDiffScope =
-        scopeMode === 'branch' ? { kind: 'branch', base: scopeBase } : { kind: scopeMode };
+        scopeKind === 'branch' ? { kind: 'branch', base: scopeBase } : { kind: scopeKind };
+      const startedAt = Date.now();
       getGitDiffSummary(cwd, scope)
         .then((result) => {
           if (!settle()) return;
+          summaryMs.current = Date.now() - startedAt;
           if (!result.success) {
             if (quiet) return;
             setLoaded(null);
@@ -201,7 +205,7 @@ export function useGitWorkspace({
           setSelection((previous) =>
             previous && isListed(previous, result.summary)
               ? previous
-              : firstFile(result.summary, viewRef.current),
+              : firstFile(result.summary, scopeKind === 'status'),
           );
           setStatus('ready');
         })
@@ -215,7 +219,7 @@ export function useGitWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [cwd, enabled, scopeMode, scopeBase, scopeKey, revision, quietRefresh]);
+  }, [cwd, enabled, scopeKind, scopeBase, scopeKey, revision, quietRefresh]);
 
   // Agent tool calls change files in any way (bash, scripts), and edits made
   // elsewhere land while the window is in the background, so both refresh:
@@ -226,7 +230,8 @@ export function useGitWorkspace({
     let lastRefresh = -Infinity;
     const schedule = (): void => {
       if (timer) return;
-      const wait = Math.max(0, lastRefresh + AUTO_REFRESH_INTERVAL_MS - Date.now());
+      const interval = Math.max(AUTO_REFRESH_INTERVAL_MS, SUMMARY_COST_FACTOR * summaryMs.current);
+      const wait = Math.max(0, lastRefresh + interval - Date.now());
       timer = setTimeout(() => {
         timer = null;
         lastRefresh = Date.now();
@@ -250,7 +255,7 @@ export function useGitWorkspace({
       setView(next);
       setSelection((previous) => {
         if (previous && fitsView(previous, next)) return previous;
-        return summary ? firstFile(summary, next) : null;
+        return summary ? firstFile(summary, next === 'status') : null;
       });
     },
     [summary],

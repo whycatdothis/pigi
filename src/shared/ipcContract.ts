@@ -190,12 +190,14 @@ export interface GitDiffCommit {
 
 /**
  * What the Git tab shows: everything since a base (the default branch unless
- * one is picked), only what is not committed yet, or only the last commit.
+ * one is picked), only what is not committed yet, only the last commit, or
+ * Git status (the staged and unstaged lists, nothing else).
  */
 export type GitDiffScope =
   | { kind: 'branch'; base: string | null }
   | { kind: 'uncommitted' }
-  | { kind: 'lastCommit' };
+  | { kind: 'lastCommit' }
+  | { kind: 'status' };
 
 export interface GitDiffSummary {
   branch: string | null;
@@ -203,22 +205,24 @@ export interface GitDiffSummary {
   /** The ref or hash the comparison starts from. */
   base: string;
   baseLabel: string;
-  /** The repository's main branch, preferring the remote's (`origin/main`, `origin/trunk`). */
-  defaultBase: string;
+  /**
+   * The repository's main branch, preferring the remote's (`origin/main`,
+   * `origin/trunk`); null for Git status, which has no mode menu to name it in.
+   */
+  defaultBase: string | null;
   /** How each file's patch is read. */
   source: GitDiffSource;
-  /** Only filled for the branch scope, where a base can be picked. */
-  branches: GitDiffBranch[];
   /** Commits on HEAD since the merge-base, newest first, capped. */
   commits: GitDiffCommit[];
   /** More commits exist past the cap. */
   moreCommits: boolean;
   /** History from the merge-base down, newest first. */
   baseCommits: GitDiffCommit[];
+  /** Empty for Git status, which lists `staged` and `unstaged` instead. */
   files: GitDiffFile[];
-  /** Git status: the index against HEAD. Only filled for the uncommitted scope. */
+  /** The index against HEAD. Only filled for Git status. */
   staged: GitDiffFile[];
-  /** Git status: the working tree against the index, untracked files included. Uncommitted scope only. */
+  /** The working tree against the index, untracked files included. Only filled for Git status. */
   unstaged: GitDiffFile[];
 }
 
@@ -231,6 +235,10 @@ export type GitDiffSource =
   | { kind: 'commit'; commit: string }
   | { kind: 'staged' }
   | { kind: 'unstaged' };
+
+export type GitBranchListResult =
+  | { success: true; branches: GitDiffBranch[] }
+  | { success: false; error: string };
 
 export type GitStageResult = { success: true } | { success: false; error: string };
 
@@ -585,6 +593,8 @@ export enum PiChannel {
   GetGitDiffFile = 'pi:get_git_diff_file',
   /** renderer → main: list the files one commit changed */
   GetGitCommitFiles = 'pi:get_git_commit_files',
+  /** renderer → main: list branches for the Git tab's base picker */
+  ListGitBranches = 'pi:list_git_branches',
   /** renderer → main: stage, or unstage, every change in the project */
   SetGitStaged = 'pi:set_git_staged',
   /** renderer → main: remove a project from recent projects list */

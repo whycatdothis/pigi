@@ -20,7 +20,8 @@
   staged file shows each half, and a button beside each group stages or
   unstages everything in it
 - The Git tab refreshes on its own once the agent changes files, however it
-  changes them (at most every 5 seconds during a run, and not for commands
+  changes them (at most every 5 seconds during a run, less often in a large
+  repository where reading the changes takes seconds, and not for commands
   that only read), and when you come back to the window
 - The Git tab's Git status and Commits groups fold open and closed, and empty
   groups still show

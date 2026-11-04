@@ -72,13 +72,18 @@ the summary can pass the 6s timeout), and a patch larger than the 16MB
 `maxBuffer`. Both should show what fits with a notice, as the 5,000-line patch
 cap already does.
 
-## Git tab: fewer git processes per summary
+## Git tab: low-yield git work, measured
 
-A summary starts about 17 git processes (21 for Git status, whose Staged and
-Unstaged lists are two more diffs). The three serial `rev-parse` /
-`symbolic-ref` calls at the start could be one, and `defaultBase`'s up to five
-serial `rev-parse --verify` calls one `for-each-ref`. Tens of milliseconds
-against a 2s `status` on a monorepo, so only worth it alongside other work
-there. In the same area: `commitRange` returning `{ command, args }` would drop
-the `range.slice(0, 1)` splicing in `changedFiles` and the destructuring in
-`getGitDiffFile`.
+On one 170k-file repository a summary is about 2.2s, 1.8s of it `ls-files
+--others` walking the tree for untracked files, which only a user-enabled
+`core.fsmonitor` plus `core.untrackedCache` would cut (passing them with `-c`
+does not help: the cache is only kept by writing the index). Measured and
+left alone because the gain is small there:
+
+- Merging the serial `rev-parse` / `symbolic-ref` calls at the start: ~20ms
+  per process saved. `commitRange` returning `{ command, args }` would drop the
+  `range.slice(0, 1)` splicing in `changedFiles`; do both if touching that code.
+- Skipping the patch re-read on a summary refresh when the file did not
+  change: ~90ms per refresh (~210ms with an untracked file's index copy). It
+  needs the working-tree file's `mtime` and `size` in the summary; the +/-
+  counts alone are not enough, since replacing one line keeps them.

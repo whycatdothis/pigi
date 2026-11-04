@@ -14,6 +14,7 @@ import type {
   PiCommand,
   PiPush,
   GitBranchResult,
+  GitBranchListResult,
   GitCommitFilesResult,
   GitStageResult,
   GitDiffFileResult,
@@ -103,6 +104,10 @@ export async function getGitCommitFiles(
   commit: string,
 ): Promise<GitCommitFilesResult> {
   return window.piApi.getGitCommitFiles(cwd, commit);
+}
+
+export async function listGitBranches(cwd: string): Promise<GitBranchListResult> {
+  return window.piApi.listGitBranches(cwd);
 }
 
 export async function setGitStaged(cwd: string, staged: boolean): Promise<GitStageResult> {

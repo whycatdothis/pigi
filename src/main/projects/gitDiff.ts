@@ -5,6 +5,7 @@ import { isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 import {
   MAX_DIFF_LINES,
+  type GitBranchListResult,
   type GitCommitFilesResult,
   type GitDiffBranch,
   type GitDiffCommit,
@@ -13,6 +14,7 @@ import {
   type GitDiffFileStatus,
   type GitDiffScope,
   type GitDiffSource,
+  type GitDiffSummary,
   type GitDiffSummaryResult,
   type GitStageResult,
 } from '../../shared/ipcContract';
@@ -126,28 +128,6 @@ function normalizeStatus(code: string): GitDiffFileStatus {
     default:
       return 'modified';
   }
-}
-
-/**
- * `git status --porcelain=v1 -z`: a rename is followed by its old path. Paths
- * are relative to the repository root, so `prefix` (the project's directory in
- * the repository, `rev-parse --show-prefix`) is cut to match the rest.
- */
-export function parsePorcelainStatus(output: string, prefix = ''): Map<string, string> {
-  const statuses = new Map<string, string>();
-  const entries = output.split('\0');
-  for (let index = 0; index < entries.length; index += 1) {
-    const entry = entries[index];
-    if (!entry) continue;
-    const status = entry.slice(0, 2);
-    const path = entry.slice(3);
-    if (status[0] === 'R' || status[0] === 'C' || status[1] === 'R' || status[1] === 'C') {
-      index += 1;
-    }
-    if (!path.startsWith(prefix) || path.length === prefix.length) continue;
-    statuses.set(path.slice(prefix.length), status);
-  }
-  return statuses;
 }
 
 /** `git diff --name-status -z`: `R100\0old\0new\0` for a rename. */
@@ -313,8 +293,9 @@ async function changedFiles(
 }
 
 /**
- * A monorepo can carry ~90k remote branches; the picker lists the most
- * recently committed ones, and any other can still be typed in.
+ * A large repository can carry tens of thousands of remote branches; the
+ * picker lists the most recently committed ones, and any other can still be
+ * typed in.
  */
 const MAX_REMOTE_BRANCHES = 200;
 
@@ -353,8 +334,22 @@ async function listBranches(cwd: string, currentBranch: string | null): Promise<
 }
 
 /**
+ * The base picker's branches, read when it opens rather than with every
+ * summary: sorting the remote ones by commit date reads every branch's tip
+ * commit, which grows with the branch count.
+ */
+export async function listGitBranches(cwd: string): Promise<GitBranchListResult> {
+  if (!cwd || cwd.trim().length === 0) {
+    return { success: false, error: 'The project path is missing.' };
+  }
+  const branchResult = await runGit(cwd, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
+  const current = branchResult.ok && branchResult.stdout.trim() ? branchResult.stdout.trim() : null;
+  return { success: true, branches: await listBranches(cwd, current) };
+}
+
+/**
  * The branch "All changes since" compares against. `origin/HEAD` names the
- * remote's default branch whatever it is called (a monorepo's `trunk`); the
+ * remote's default branch whatever it is called (`trunk`, `develop`); the
  * usual names cover clones where it was never set.
  */
 async function defaultBase(cwd: string): Promise<string> {
@@ -393,11 +388,48 @@ export async function getGitDiffSummary(
     return { success: false, error: 'This project has no commits yet.' };
   }
   const head = headResult.stdout.trim();
-  const prefixPending = runGit(cwd, ['rev-parse', '--show-prefix']).then((result) =>
-    result.stdout.trim(),
-  );
   const branchResult = await runGit(cwd, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
   const branch = branchResult.ok && branchResult.stdout.trim() ? branchResult.stdout.trim() : null;
+  const summaryOf = (
+    fields: Omit<GitDiffSummary, 'branch' | 'detached'>,
+  ): GitDiffSummaryResult => ({
+    success: true,
+    summary: { branch, detached: branch === null, ...fields },
+  });
+
+  // Listing untracked files walks the whole tree and is the slow part on a
+  // big repository. `ls-files` lists them without the extra pass over tracked
+  // files `status` makes, starts first so the rest runs beside it, and prints
+  // paths relative to the project like `--relative`.
+  if (scope.kind === 'status') {
+    const untrackedPending = untrackedAmong(cwd, ['.']);
+    // Each list is its own diff, so a partly staged file shows each half.
+    const stagedPending = changedFiles(cwd, ['diff', '--cached', head, '--'], undefined);
+    const untracked = await untrackedPending;
+    const unstaged = await withIntentToAdd(cwd, untracked, (env) =>
+      changedFiles(cwd, ['diff', '--'], env),
+    );
+    const staged = await stagedPending;
+    if (!staged.ok) {
+      return { success: false, error: gitError(staged.error, 'Unable to read the diff.') };
+    }
+    if (!unstaged.ok) {
+      return { success: false, error: gitError(unstaged.error, 'Unable to read the diff.') };
+    }
+    return summaryOf({
+      base: 'HEAD',
+      baseLabel: 'HEAD',
+      defaultBase: null,
+      source: { kind: 'base', base: head },
+      commits: [],
+      moreCommits: false,
+      baseCommits: [],
+      files: [],
+      staged: sortedFiles(staged.files),
+      unstaged: listedUntracked(unstaged.files, untracked),
+    });
+  }
+
   const defaultBasePending = defaultBase(cwd);
 
   if (scope.kind === 'lastCommit') {
@@ -409,146 +441,94 @@ export async function getGitDiffSummary(
     if (!changes.ok) {
       return { success: false, error: gitError(changes.error, 'Unable to read the diff.') };
     }
-    return {
-      success: true,
-      summary: {
-        branch,
-        detached: branch === null,
-        base: head,
-        baseLabel,
-        defaultBase: await defaultBasePending,
-        source: { kind: 'commit', commit: head },
-        branches: [],
-        commits: [],
-        moreCommits: false,
-        baseCommits: [],
-        files: sortedFiles(changes.files),
-        staged: [],
-        unstaged: [],
-      },
-    };
-  }
-
-  // Listing untracked files is the slow part on a big repository (2s on a
-  // 170k-file tree), so `status` is the only command that does it, and it
-  // starts first so the rest of the summary runs beside it.
-  const statusPending = runGit(cwd, [
-    'status',
-    '--porcelain=v1',
-    '-z',
-    '--untracked-files=all',
-    '--',
-    '.',
-  ]);
-
-  const branchScope = scope.kind === 'branch';
-  const branchesPending = branchScope ? listBranches(cwd, branch) : Promise.resolve([]);
-  const base = branchScope ? scope.base?.trim() || (await defaultBasePending) : 'HEAD';
-  const baseCommit = await commitFor(cwd, base);
-  if (!baseCommit) {
-    return { success: false, error: 'That branch or commit no longer exists.' };
-  }
-
-  // A branch or tag keeps its name; `HEAD~3` or a SHA shows as the commit it names.
-  const labelPending =
-    base === 'HEAD'
-      ? Promise.resolve(base)
-      : runGit(cwd, ['rev-parse', '--symbolic-full-name', base]).then((result) =>
-          result.ok && result.stdout.trim() ? base : shortHash(cwd, baseCommit),
-        );
-  const mergeBaseResult = await runGit(cwd, ['merge-base', baseCommit, head]);
-  const mergeBase =
-    mergeBaseResult.ok && mergeBaseResult.stdout.trim()
-      ? mergeBaseResult.stdout.trim()
-      : baseCommit;
-
-  const noLog = Promise.resolve<GitCommandResult>({ ok: true, stdout: '', error: '' });
-  // Only the branch scope has a Commits view and a base picker to fill.
-  const logs = Promise.all([
-    branchScope
-      ? runGit(cwd, [
-          'log',
-          `--max-count=${MAX_BRANCH_COMMITS + 1}`,
-          COMMIT_LOG_FORMAT,
-          `${mergeBase}..HEAD`,
-          '--',
-          '.',
-        ])
-      : noLog,
-    branchScope
-      ? runGit(cwd, [
-          'log',
-          `--max-count=${MAX_BASE_COMMITS}`,
-          COMMIT_LOG_FORMAT,
-          mergeBase,
-          '--',
-          '.',
-        ])
-      : noLog,
-  ]);
-  const statusResult = await statusPending;
-  if (!statusResult.ok) {
-    return { success: false, error: gitError(statusResult.error, 'Unable to read the diff.') };
-  }
-  const statuses = parsePorcelainStatus(statusResult.stdout, await prefixPending);
-  const untracked = new Set(
-    [...statuses].filter(([, status]) => status === '??').map(([path]) => path),
-  );
-  // Each Git status list is its own diff, so a partly staged file shows each half.
-  const indexLists = scope.kind === 'uncommitted';
-  const noFiles = Promise.resolve<ChangedFiles>({ ok: true, files: [] });
-  const stagedPending = indexLists
-    ? changedFiles(cwd, ['diff', '--cached', head, '--'], undefined)
-    : noFiles;
-  const [changes, unstaged] = await withIntentToAdd(cwd, untracked, (env) =>
-    Promise.all([
-      changedFiles(cwd, ['diff', mergeBase, '--'], env),
-      indexLists ? changedFiles(cwd, ['diff', '--'], env) : noFiles,
-    ]),
-  );
-  const staged = await stagedPending;
-  const [branchLog, baseLog] = await logs;
-  const branchCommits = branchLog.ok ? parseCommitLog(branchLog.stdout) : [];
-  for (const result of [changes, unstaged, staged]) {
-    if (!result.ok) {
-      return { success: false, error: gitError(result.error, 'Unable to read the diff.') };
-    }
-  }
-  const listed = (result: ChangedFiles): GitDiffFile[] =>
-    result.ok
-      ? sortedFiles(
-          result.files.map((file) =>
-            file.status === 'added' && untracked.has(file.path)
-              ? { ...file, status: 'untracked' }
-              : file,
-          ),
-        )
-      : [];
-
-  const [branches, baseLabel, defaultBaseName] = await Promise.all([
-    branchesPending,
-    labelPending,
-    defaultBasePending,
-  ]);
-
-  return {
-    success: true,
-    summary: {
-      branch,
-      detached: branch === null,
-      base,
+    return summaryOf({
+      base: head,
       baseLabel,
-      defaultBase: defaultBaseName,
-      source: { kind: 'base', base: mergeBase },
-      branches,
-      commits: branchCommits.slice(0, MAX_BRANCH_COMMITS),
-      moreCommits: branchCommits.length > MAX_BRANCH_COMMITS,
-      baseCommits: baseLog.ok ? parseCommitLog(baseLog.stdout) : [],
-      files: listed(changes),
-      staged: listed(staged),
-      unstaged: listed(unstaged),
-    },
-  };
+      defaultBase: await defaultBasePending,
+      source: { kind: 'commit', commit: head },
+      commits: [],
+      moreCommits: false,
+      baseCommits: [],
+      files: sortedFiles(changes.files),
+      staged: [],
+      unstaged: [],
+    });
+  }
+
+  const untrackedPending = untrackedAmong(cwd, ['.']);
+  let base = 'HEAD';
+  let baseLabel: string | Promise<string> = 'HEAD';
+  let mergeBase = head;
+  const noLog = Promise.resolve<GitCommandResult>({ ok: true, stdout: '', error: '' });
+  let logs = Promise.all([noLog, noLog]);
+  if (scope.kind === 'branch') {
+    base = scope.base?.trim() || (await defaultBasePending);
+    const baseCommit = await commitFor(cwd, base);
+    if (!baseCommit) {
+      return { success: false, error: 'That branch or commit no longer exists.' };
+    }
+    // A branch or tag keeps its name; `HEAD~3` or a SHA shows as the commit it names.
+    const named = base;
+    baseLabel = runGit(cwd, ['rev-parse', '--symbolic-full-name', named]).then((result) =>
+      result.ok && result.stdout.trim() ? named : shortHash(cwd, baseCommit),
+    );
+    const mergeBaseResult = await runGit(cwd, ['merge-base', baseCommit, head]);
+    mergeBase =
+      mergeBaseResult.ok && mergeBaseResult.stdout.trim()
+        ? mergeBaseResult.stdout.trim()
+        : baseCommit;
+    // Only the branch scope has a Commits view and a base picker to fill.
+    logs = Promise.all([
+      runGit(cwd, [
+        'log',
+        `--max-count=${MAX_BRANCH_COMMITS + 1}`,
+        COMMIT_LOG_FORMAT,
+        `${mergeBase}..HEAD`,
+        '--',
+        '.',
+      ]),
+      runGit(cwd, [
+        'log',
+        `--max-count=${MAX_BASE_COMMITS}`,
+        COMMIT_LOG_FORMAT,
+        mergeBase,
+        '--',
+        '.',
+      ]),
+    ]);
+  }
+
+  const untracked = await untrackedPending;
+  const changes = await withIntentToAdd(cwd, untracked, (env) =>
+    changedFiles(cwd, ['diff', mergeBase, '--'], env),
+  );
+  const [branchLog, baseLog] = await logs;
+  if (!changes.ok) {
+    return { success: false, error: gitError(changes.error, 'Unable to read the diff.') };
+  }
+  const branchCommits = branchLog.ok ? parseCommitLog(branchLog.stdout) : [];
+
+  return summaryOf({
+    base,
+    baseLabel: await baseLabel,
+    defaultBase: await defaultBasePending,
+    source: { kind: 'base', base: mergeBase },
+    commits: branchCommits.slice(0, MAX_BRANCH_COMMITS),
+    moreCommits: branchCommits.length > MAX_BRANCH_COMMITS,
+    baseCommits: baseLog.ok ? parseCommitLog(baseLog.stdout) : [],
+    files: listedUntracked(changes.files, untracked),
+    staged: [],
+    unstaged: [],
+  });
+}
+
+/** Sorted, with the files intent-to-add made look added marked as untracked. */
+function listedUntracked(files: GitDiffFile[], untracked: ReadonlySet<string>): GitDiffFile[] {
+  return sortedFiles(
+    files.map((file) =>
+      file.status === 'added' && untracked.has(file.path) ? { ...file, status: 'untracked' } : file,
+    ),
+  );
 }
 
 function sortedFiles(files: GitDiffFile[]): GitDiffFile[] {

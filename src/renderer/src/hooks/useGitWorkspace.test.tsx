@@ -33,7 +33,6 @@ function summary(path: string): GitDiffSummary {
     baseLabel: 'main',
     defaultBase: 'main',
     source: { kind: 'base', base: 'abc' },
-    branches: [],
     commits: [],
     moreCommits: false,
     baseCommits: [],
@@ -118,6 +117,21 @@ describe('useGitWorkspace auto refresh', () => {
     expect(answers).toHaveLength(1);
   });
 
+  it('waits four times as long as the last summary took, when that is past 5s', async () => {
+    await openTab();
+    notifyProjectActivity(CWD);
+    await wait(0);
+    await wait(2000);
+    await answer({ success: true, summary: summary('a.txt') });
+
+    // 8s after the last refresh started, where a fixed 5s would have run it 3s from now.
+    notifyProjectActivity(CWD);
+    await wait(5500);
+    expect(answers).toHaveLength(0);
+    await wait(500);
+    expect(answers).toHaveLength(1);
+  });
+
   it('runs one more refresh after a load that activity arrived during', async () => {
     await openTab();
 
@@ -187,7 +201,7 @@ describe('useGitWorkspace project and view changes', () => {
     requests = [];
     hook.rerender({ cwd: '/other' });
     await wait(0);
-    expect(requests).toEqual([['/other', { kind: 'uncommitted' }]]);
+    expect(requests).toEqual([['/other', { kind: 'status' }]]);
     await answer({ success: true, summary: summary('a.txt') });
     act(() => hook.result.current.setView('diff'));
     await wait(0);

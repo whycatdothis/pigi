@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconSelector } from '@tabler/icons-react';
-import type { GitDiffCommit, GitDiffSummary } from '../../../../shared/ipcContract';
+import type { GitDiffBranch, GitDiffCommit, GitDiffSummary } from '../../../../shared/ipcContract';
+import { listGitBranches } from '../../services/piAgentClient';
 import {
   Command,
   CommandEmpty,
@@ -62,11 +63,13 @@ function CommitItem({
  * typed into the search (a SHA, `HEAD~3`, a tag).
  */
 export default function GitBasePicker({
+  projectPath,
   summary,
   base,
   disabled,
   onSelect,
 }: {
+  projectPath: string;
   summary: GitDiffSummary | null;
   base: string | null;
   disabled: boolean;
@@ -77,6 +80,18 @@ export default function GitBasePicker({
   const [tab, setTab] = useState<PickerTab>('branches');
   const [openedAt, setOpenedAt] = useState(Date.now);
   const listRef = useRef<HTMLDivElement>(null);
+  // Read on each open, not with every summary: sorting many remote branches
+  // by date is slow. The last list shows while the next one loads.
+  const [branches, setBranches] = useState<GitDiffBranch[] | null>(null);
+
+  const loadBranches = (): void => {
+    listGitBranches(projectPath)
+      .then((result) => {
+        // A typed ref still works when the list cannot be read.
+        setBranches((previous) => (result.success ? result.branches : (previous ?? [])));
+      })
+      .catch(() => setBranches((previous) => previous ?? []));
+  };
 
   // cmdk scrolls its selection into view before the filtered rows settle,
   // which leaves the best match above the fold; start each result at the top.
@@ -85,7 +100,6 @@ export default function GitBasePicker({
     const frame = requestAnimationFrame(() => listRef.current?.scrollTo(0, 0));
     return () => cancelAnimationFrame(frame);
   }, [open, query, tab]);
-  const branches = summary?.branches ?? [];
   const commits = [...(summary?.commits ?? []), ...(summary?.baseCommits ?? [])];
   const typed = query.trim();
 
@@ -96,7 +110,7 @@ export default function GitBasePicker({
   };
 
   const branchGroup = (local: boolean): React.JSX.Element | null => {
-    const group = branches.filter((branch) => branch.local === local);
+    const group = (branches ?? []).filter((branch) => branch.local === local);
     if (group.length === 0) return null;
     return (
       <CommandGroup heading={local ? 'Local branches' : 'Remote branches'}>
@@ -127,6 +141,7 @@ export default function GitBasePicker({
           return;
         }
         setOpenedAt(Date.now());
+        loadBranches();
         // Reopen on the tab that holds the current base.
         setTab(commits.some((commit) => commit.hash === base) ? 'commits' : 'branches');
       }}
@@ -172,7 +187,13 @@ export default function GitBasePicker({
             </TabsList>
           </Tabs>
           <CommandList ref={listRef} className="max-h-64">
-            <CommandEmpty>{tab === 'commits' ? 'No commits.' : 'No branches.'}</CommandEmpty>
+            <CommandEmpty>
+              {tab === 'commits'
+                ? 'No commits.'
+                : branches === null
+                  ? 'Loading branches…'
+                  : 'No branches.'}
+            </CommandEmpty>
             {tab === 'branches' && branchGroup(true)}
             {tab === 'branches' && branchGroup(false)}
             {tab === 'commits' && (

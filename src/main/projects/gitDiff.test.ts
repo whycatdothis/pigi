@@ -11,7 +11,7 @@ import {
   getGitDiffSummary,
   parseNameStatus,
   parseNumStat,
-  parsePorcelainStatus,
+  listGitBranches,
   setGitStaged,
 } from './gitDiff';
 
@@ -34,15 +34,6 @@ async function git(cwd: string, ...args: string[]): Promise<void> {
 }
 
 describe('git diff parsers', () => {
-  it('keeps the new path of a porcelain rename and skips its old path', () => {
-    const statuses = parsePorcelainStatus('R  b.txt\0a.txt\0A  c.txt\0?? d.txt\0');
-    expect([...statuses]).toEqual([
-      ['b.txt', 'R '],
-      ['c.txt', 'A '],
-      ['d.txt', '??'],
-    ]);
-  });
-
   it('reads old and new paths from a name-status rename', () => {
     expect(parseNameStatus('R100\0a.txt\0b.txt\0A\0c.txt\0')).toEqual([
       { path: 'b.txt', oldPath: 'a.txt', code: 'R100' },
@@ -145,7 +136,18 @@ describe('getGitDiffSummary', () => {
       ['moved-from.txt', 'added'],
     ]);
     expect(result.summary.source).toEqual({ kind: 'commit', commit: result.summary.base });
-    expect(result.summary.branches).toEqual([]);
+  });
+
+  it('lists branches for the base picker, the current one first', async () => {
+    await git(root, 'branch', 'feature');
+    const result = await listGitBranches(root);
+    expect(result).toEqual({
+      success: true,
+      branches: [
+        { name: 'main', current: true, local: true },
+        { name: 'feature', current: false, local: true },
+      ],
+    });
   });
 
   it('builds a patch for an untracked file', async () => {
@@ -214,6 +216,15 @@ describe('a project in a subdirectory of its repository', () => {
     ]);
   });
 
+  it('lists Git status with project-relative paths, untracked files included', async () => {
+    const result = await getGitDiffSummary(project, { kind: 'status' });
+    if (!result.success) throw new Error(result.error);
+    expect(result.summary.unstaged.map((file) => [file.path, file.status])).toEqual([
+      ['new.txt', 'untracked'],
+      ['src/x.txt', 'modified'],
+    ]);
+  });
+
   it('reads patches and contents by project-relative path', async () => {
     const working = await getGitDiffFile(
       project,
@@ -277,11 +288,13 @@ describe('staged and unstaged changes', () => {
   });
 
   it('lists the index against HEAD and the working tree against the index', async () => {
-    const result = await getGitDiffSummary(root, { kind: 'uncommitted' });
+    const result = await getGitDiffSummary(root, { kind: 'status' });
     expect(result.success).toBe(true);
     if (!result.success) return;
     const list = (files: GitDiffFile[]): [string, string, number, number][] =>
       files.map((file) => [file.path, file.status, file.additions, file.deletions]);
+    expect(result.summary.files).toEqual([]);
+    expect(result.summary.defaultBase).toBeNull();
     // A change staged and then undone in the working tree is in both lists, not in neither.
     expect(list(result.summary.staged)).toEqual([
       ['both.txt', 'modified', 1, 0],
@@ -310,7 +323,7 @@ describe('staged and unstaged changes', () => {
 
   it('stages everything, untracked files included, and unstages it again', async () => {
     expect(await setGitStaged(root, true)).toEqual({ success: true });
-    let result = await getGitDiffSummary(root, { kind: 'uncommitted' });
+    let result = await getGitDiffSummary(root, { kind: 'status' });
     if (!result.success) throw new Error(result.error);
     expect(result.summary.unstaged).toEqual([]);
     expect(result.summary.staged.map((file) => file.path)).toEqual([
@@ -321,7 +334,7 @@ describe('staged and unstaged changes', () => {
     ]);
 
     expect(await setGitStaged(root, false)).toEqual({ success: true });
-    result = await getGitDiffSummary(root, { kind: 'uncommitted' });
+    result = await getGitDiffSummary(root, { kind: 'status' });
     if (!result.success) throw new Error(result.error);
     expect(result.summary.staged).toEqual([]);
     expect(result.summary.unstaged.map((file) => file.path)).toEqual([

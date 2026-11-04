@@ -18,6 +18,7 @@ import {
   getGitCommitFiles,
   getGitDiffFile,
   getGitDiffSummary,
+  listGitBranches,
   setGitStaged,
 } from '../projects/gitDiff';
 import { searchProjectFiles } from '../projects/projectFileSearch';
@@ -27,7 +28,9 @@ import { setProjectFileWatch } from '../projects/projectFileWatch';
 
 function parseGitDiffScope(value: unknown): GitDiffScope | null {
   if (typeof value !== 'object' || value === null || !('kind' in value)) return null;
-  if (value.kind === 'uncommitted' || value.kind === 'lastCommit') return { kind: value.kind };
+  if (value.kind === 'uncommitted' || value.kind === 'lastCommit' || value.kind === 'status') {
+    return { kind: value.kind };
+  }
   if (value.kind !== 'branch') return null;
   const base = 'base' in value ? value.base : null;
   if (base === null || base === undefined) return { kind: 'branch', base: null };
@@ -71,7 +74,7 @@ export function registerProjectHandlers(): void {
     }
     const diffScope = parseGitDiffScope(scope);
     if (!diffScope) {
-      return { success: false, error: 'scope must be branch, uncommitted or lastCommit' };
+      return { success: false, error: 'scope must be branch, uncommitted, lastCommit or status' };
     }
     return getGitDiffSummary(cwd, diffScope);
   });
@@ -104,6 +107,13 @@ export function registerProjectHandlers(): void {
       return { success: false, error: 'commit must be a non-empty string' };
     }
     return getGitCommitFiles(cwd, commit);
+  });
+
+  ipcMain.handle(PiChannel.ListGitBranches, async (_event, cwd: unknown) => {
+    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+      return { success: false, error: 'cwd must be a non-empty string' };
+    }
+    return listGitBranches(cwd);
   });
 
   ipcMain.handle(PiChannel.SetGitStaged, async (_event, cwd: unknown, staged: unknown) => {

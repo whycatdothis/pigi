@@ -179,47 +179,56 @@ longer exists.` instead of keeping the old contents.
 The Git tab has three modes, as in Plannotator: all changes since a base (the
 default branch unless another is picked), uncommitted changes (a base of
 `HEAD`), and the last commit (read as one commit, like an opened commit). The
-modes live in the tree view; Git status and Commits always use the first, and
-Commits always against the default branch, since it lists the branch's own
-commits. Only the first shows the base picker, and the summary
-skips the branch list and logs in the other two. Main runs the git commands (`gitDiff.ts`, 6s timeout each) and
-the renderer only draws. Three IPC calls: the summary (branch, base label,
-merge-base, branches, the commits since the merge-base and 30 below it, and
-the changed-file list with +/- counts), one file's patch, fetched only for the
-selected file, and one commit's file list, fetched when that commit is opened.
+modes live in the tree view; Commits always uses the first against the
+default branch, since it lists the branch's own commits, and Git status has a
+scope of its own that reads only its two lists. Only the first mode shows the
+base picker, and the summary skips the logs in the others. Main runs the git
+commands (`gitDiff.ts`, 6s timeout each) and the renderer only draws. The IPC
+calls: the summary (branch, base label, merge-base, the commits since the
+merge-base and 30 below it, and the changed-file list with +/- counts), one
+file's patch, fetched only for the selected file, one commit's file list,
+fetched when that commit is opened, the branch list, fetched when the base
+picker opens, and staging everything or nothing.
 Comparing merge-base..HEAD plus the working tree in one patch means a file
 shows committed and uncommitted edits together, which is what a reviewer of
 "changes since main" wants.
 
-The default base is the branch `origin/HEAD` points at, so a monorepo's
-`trunk` is found by name; then `origin/main`, `origin/master`, `main`,
+The default base is the branch `origin/HEAD` points at, so a `trunk` or
+`develop` is found by name; then `origin/main`, `origin/master`, `main`,
 `master`, the upstream and `HEAD`, because the common case is "what did I do
 since main" and every fallback still produces a useful answer. The base picker lists branches and commits on separate tabs and takes
 any typed ref (`HEAD~3`, a SHA, a tag); it lists every local branch but only
-the 200 most recently committed remote branches, because a monorepo can carry
-~90k. The base is deliberately not persisted per project: a branch selected in
+the 200 most recently committed remote branches, because a large repository
+can carry tens of thousands. Sorting them by date reads every branch's tip
+commit (0.7s warm, 3.5s cold with 89k remote branches), so the list is read
+when the picker opens, not with every summary refresh. The base is deliberately not persisted per project: a branch selected in
 one repo rarely exists in another.
 
 A project that is a folder inside a bigger repository (a monorepo package)
 shows only its own changes, with paths relative to the project: `diff
---relative`, `status`/`log` limited to `.`, `show <commit>:./<path>`. Quotes
-then read `@src/app.ts:L10` from the project the agent runs in, and `status`
-scans only the folder (0.8s instead of 3s in a monorepo package).
+--relative`, `ls-files`/`log` limited to `.`, `show <commit>:./<path>`. Quotes
+then read `@src/app.ts:L10` from the project the agent runs in, and the
+untracked-file scan covers only the folder.
 
 Every git call passes `--no-optional-locks`, so a summary never takes
 `index.lock` from an agent that is committing, and
 `diff.suppressBlankEmpty=false`, so a user setting cannot print an empty
-context line as `""`, which the patch parser reads as the end of the hunk. On a 170k-file repository the
-summary costs about 3s, two thirds of it listing untracked files, so `status`
-is the only command that lists them and it starts first, with the branch list,
-logs and merge-base running beside it.
+context line as `""`, which the patch parser reads as the end of the hunk.
+Listing untracked files walks the whole tree and dominates the summary on a
+big repository (1.8s of about 2.2s on one 170k-file repository, where any git
+process costs ~20ms and a diff against the working tree ~180ms), so
+`ls-files --others` is the only command that lists them, and it starts first
+with the logs and merge-base running beside it. It replaced `status -uall`,
+which makes one more pass over tracked files and whose `XY` codes Git status
+no longer needs.
 
 The tab refreshes itself, quietly (no spinner, a failed refresh keeps the last
 summary) when an agent in the project finishes a tool call or a run, and when
 the window regains focus. Triggers are throttled, not debounced: the first
-refreshes at once, later ones at most every 5 seconds, and the last is never
-dropped; a debounce never fires while a long run keeps calling tools, and one
-summary is ~17 git processes on a big repository. Any tool but the read-only
+refreshes at once, later ones at most every 5 seconds or four times the last
+summary's duration, whichever is longer, and the last is never dropped. A
+debounce never fires while a long run keeps calling tools, and a fixed
+interval would keep git busy for most of a run where a summary takes seconds. Any tool but the read-only
 built-ins (`read`, `grep`, `find`, `ls`) and a read-only bash command (the
 same `isReadOnlyBashCommand` the chat's read groups use) counts, because
 agents change files through bash and scripts as often as through edit/write.

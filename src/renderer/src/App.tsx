@@ -1730,6 +1730,7 @@ function App(): React.JSX.Element {
               ) : workspaceTab === WORKSPACE_TABS.git && activeProject ? (
                 <GitSidebar
                   key={activeProject.path}
+                  projectPath={activeProject.path}
                   projectName={activeProject.name}
                   workspace={gitWorkspace}
                   shortcutBindings={shortcutBindings}

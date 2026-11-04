@@ -499,10 +499,12 @@ function CommitsView({
 // App re-renders on every streamed agent batch; the workspace and the other
 // props are stable, so the Git tab skips those renders.
 const GitSidebar = memo(function GitSidebar({
+  projectPath,
   projectName,
   workspace,
   shortcutBindings,
 }: {
+  projectPath: string;
   projectName: string;
   workspace: GitWorkspace;
   shortcutBindings: Map<string, ShortcutBinding> | null;
@@ -566,6 +568,7 @@ const GitSidebar = memo(function GitSidebar({
                 Compare vs
               </span>
               <GitBasePicker
+                projectPath={projectPath}
                 summary={summary}
                 base={base}
                 disabled={disabled}

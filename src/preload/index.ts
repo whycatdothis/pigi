@@ -15,6 +15,7 @@ import {
   type ControlPortMessage,
   type DataPortMessage,
   type GitBranchResult,
+  type GitBranchListResult,
   type GitCommitFilesResult,
   type GitStageResult,
   type GitDiffFileResult,
@@ -344,6 +345,10 @@ const piApi = {
   /** List the files one commit changed. */
   getGitCommitFiles: (cwd: string, commit: string): Promise<GitCommitFilesResult> =>
     ipcRenderer.invoke(PiChannel.GetGitCommitFiles, cwd, commit),
+
+  /** List branches for the Git tab's base picker. */
+  listGitBranches: (cwd: string): Promise<GitBranchListResult> =>
+    ipcRenderer.invoke(PiChannel.ListGitBranches, cwd),
 
   /** Stage every change in the project, or unstage every staged one. */
   setGitStaged: (cwd: string, staged: boolean): Promise<GitStageResult> =>
