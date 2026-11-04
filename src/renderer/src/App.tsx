@@ -373,6 +373,11 @@ function App(): React.JSX.Element {
   const pendingPromptsRef = useRef<Map<string, PromptInput[]>>(new Map());
   // Tracks sessions whose utility process is still spawning.
   const pendingResumesRef = useRef<Set<string>>(new Set());
+  // Bumped by every session selection. A resume that awaited (project IPC,
+  // reading a large session file) must not select its session or project
+  // over a click that came after it: that left one session showing with the
+  // other's project in Files and Git.
+  const selectionRequestRef = useRef(0);
 
   const refreshSessionState = useCallback(async (sessionId: string): Promise<void> => {
     try {
@@ -1021,6 +1026,7 @@ function App(): React.JSX.Element {
     if (isDraftChat && !activeSessionPath && draftControllerRef.current.state.status !== 'error') {
       return;
     }
+    selectionRequestRef.current += 1;
     // Push current active session to navigation history so it's not lost.
     // Pass empty string as sentinel (no real session path is empty) so the
     // current activeSessionPath gets pushed to backStack.
@@ -1064,15 +1070,22 @@ function App(): React.JSX.Element {
         freshSession?: boolean;
       },
     ): Promise<void> => {
+      const request = ++selectionRequestRef.current;
+      const isLatestSelection = (): boolean => request === selectionRequestRef.current;
       setIsDraftChat(false);
       setPendingSelectedPath(session.path);
 
+      // Switched in the store at once, so a click that follows compares against
+      // this project rather than the one still being persisted.
       const store = useAppStore.getState();
       if (store.activeProject?.path !== session.cwd) {
-        const projectResult = await setActiveProject(session.cwd);
-        if (projectResult.success) {
-          store.setProjects(projectResult.recentProjects, projectResult.activeProject);
-        }
+        const known = store.recentProjects.find((project) => project.path === session.cwd);
+        if (known) store.setProjects(store.recentProjects, known);
+        void setActiveProject(session.cwd).then((result) => {
+          if (result.success && isLatestSelection()) {
+            useAppStore.getState().setProjects(result.recentProjects, result.activeProject);
+          }
+        });
       }
 
       const existing = store.sessions.get(session.path);
@@ -1136,13 +1149,16 @@ function App(): React.JSX.Element {
         }
       }
 
-      if (!options?.skipHistory) {
-        pushNavigationHistory(sessionPath);
-      }
-      setActiveSession(sessionPath);
-      setPendingSelectedPath(null);
-      if (options?.prefillInput) {
-        setRestoreInputs([options.prefillInput]);
+      // A later selection wins; this session still resumes in the background.
+      if (isLatestSelection()) {
+        if (!options?.skipHistory) {
+          pushNavigationHistory(sessionPath);
+        }
+        setActiveSession(sessionPath);
+        setPendingSelectedPath(null);
+        if (options?.prefillInput) {
+          setRestoreInputs([options.prefillInput]);
+        }
       }
 
       if (options?.freshSession) {

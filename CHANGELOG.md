@@ -18,6 +18,8 @@
   the Git tab
 - Chat search no longer opens over the Files or Git tab when Cmd+F is pressed
   there
+- Switching sessions quickly, while one is still loading, opens the session
+  clicked last, and the Files and Git tabs show that session's project
 
 ## [0.5.1] - 2026-11-04
 
