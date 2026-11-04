@@ -11,6 +11,8 @@
 
 - An open right sidebar stays open, dimmed, on the new chat screen instead of
   hiding, and comes back to life in the next session
+- Switching away from the Files or Git tab and back keeps the open file or diff
+  where it was scrolled, along with Preview/Source and the whole-file view
 
 ### Fixed
 

@@ -12,6 +12,7 @@ import ContainerFind from '../ui/containerFind';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
+import { useRememberedScroll } from '../../hooks/useRememberedScroll';
 
 /** A text view with this many lines is already well past reading; the rest is cut and announced. */
 const MAX_RENDERED_LINES = 5000;
@@ -22,6 +23,9 @@ type FileState =
   | { status: 'error'; error: string };
 
 type ViewMode = 'preview' | 'source';
+
+// Outlives the viewer, which a workspace tab switch unmounts.
+let lastViewMode: ViewMode = 'preview';
 
 const VIEW_MODES: readonly { value: ViewMode; label: string }[] = [
   { value: 'preview', label: 'Preview' },
@@ -99,9 +103,18 @@ export default function FileViewer({
   onOpenFile: (path: string) => void;
 }): React.JSX.Element {
   const [fileState, setFileState] = useState<FileState>({ status: 'loading' });
-  const [viewMode, setViewMode] = useState<ViewMode>('preview');
+  const [viewMode, setViewModeState] = useState(lastViewMode);
+  const setViewMode = useCallback((mode: ViewMode) => {
+    lastViewMode = mode;
+    setViewModeState(mode);
+  }, []);
   const containerRef = useRef<HTMLDivElement>(null);
   useBottomAnchoredScroll(containerRef);
+  useRememberedScroll(
+    containerRef,
+    'file',
+    fileState.status === 'ready' ? `${projectPath}\0${filePath}\0${viewMode}` : null,
+  );
   const isMarkdown = isMarkdownPath(filePath);
   const language = languageForPath(filePath);
   const markdownProjectFile = useMemo(

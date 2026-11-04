@@ -8,6 +8,7 @@ import {
 } from '../../../../shared/ipcContract';
 import type { GitDiffLayout } from '../../hooks/useGitWorkspace';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
+import { useRememberedScroll } from '../../hooks/useRememberedScroll';
 import { formatFileDiffQuote, formatFileLineQuote } from '../../lib/fileQuotes';
 import { splitFileLines } from '../../lib/gitDiffPatch';
 import { diffLinesFromSelection } from '../../lib/sourceLineSelection';
@@ -45,6 +46,8 @@ interface PatchState {
 
 const EMPTY_PATCH_STATE: PatchState = { shown: null, incoming: null, error: null };
 let nextPatchId = 0;
+// Outlives the viewer, which a workspace tab switch unmounts.
+let lastWholeFilePath: string | null = null;
 
 function samePatch(
   loaded: LoadedPatch | null,
@@ -102,7 +105,11 @@ export default function GitDiffViewer({
 }): React.JSX.Element {
   const [patchState, setPatchState] = useState<PatchState>(EMPTY_PATCH_STATE);
   // The path whose whole file is open, so another file starts with changes only.
-  const [wholeFilePath, setWholeFilePath] = useState<string | null>(null);
+  const [wholeFilePath, setWholeFilePathState] = useState(lastWholeFilePath);
+  const setWholeFilePath = useCallback((path: string | null) => {
+    lastWholeFilePath = path;
+    setWholeFilePathState(path);
+  }, []);
   const containerRef = useRef<HTMLDivElement>(null);
   useBottomAnchoredScroll(containerRef);
   const sourceKind = source.kind;
@@ -176,6 +183,14 @@ export default function GitDiffViewer({
     scrolledKeyRef.current = shownKey;
     containerRef.current?.scrollTo(0, 0);
   }, [shownKey]);
+  // After the reset above: the first file shown after a remount is the one that was left.
+  useRememberedScroll(
+    containerRef,
+    'diff',
+    shown
+      ? `${projectPath}\0${sourceRef}\0${shownKey}\0${layout}\0${wholeFilePath === shown.file.path}`
+      : null,
+  );
 
   const formatQuoteText = useCallback(
     ({ range }: { range: Range }): string => {
