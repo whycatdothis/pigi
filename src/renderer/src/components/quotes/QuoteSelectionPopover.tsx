@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '../../state/appStore';
-import { normalizeQuoteText } from '../../lib/messageQuotes';
+import { normalizeQuoteText, type QuoteContent } from '../../lib/messageQuotes';
 import { isTextField } from '../../lib/focusModality';
 import { VIBRANCY_OVERLAY_CONTENT } from '../../lib/layoutConstants';
 import { Kbd } from '../ui/kbd';
@@ -182,9 +182,9 @@ function placementStyle(
   return aboveBottom - height >= EDGE_MARGIN_PX ? above(aboveBottom) : below(maximumTop);
 }
 
-/** The quote text when nothing more specific is needed: the selected text itself. */
-function selectedTextAsQuote({ text }: { text: string; range: Range }): string {
-  return text;
+/** The quote when nothing more specific is needed: the selected text itself. */
+function selectedTextAsQuote({ text }: { text: string; range: Range }): QuoteContent {
+  return { text };
 }
 
 /**
@@ -196,12 +196,12 @@ function selectedTextAsQuote({ text }: { text: string; range: Range }): string {
 export default function QuoteSelectionPopover({
   containerRef,
   sessionPath,
-  formatQuoteText = selectedTextAsQuote,
+  formatQuoteContent = selectedTextAsQuote,
 }: {
   containerRef: React.RefObject<HTMLDivElement | null>;
   sessionPath: string;
-  /** Turns the measured selection into the text stored on the quote. */
-  formatQuoteText?: (selection: { text: string; range: Range }) => string;
+  /** Turns the measured selection into what the quote stores, or null when it cannot be quoted. */
+  formatQuoteContent?: (selection: { text: string; range: Range }) => QuoteContent | null;
 }): React.JSX.Element | null {
   const [state, setState] = useState<PopoverState | null>(null);
   // While a drag selection is in progress the button waits for pointerup, so
@@ -226,14 +226,14 @@ export default function QuoteSelectionPopover({
       // Selections that cannot be turned into a quote (for example, a range
       // that starts in the file viewer's truncation notice) must not offer a
       // button: saving it would silently discard the comment.
-      if (!next || !formatQuoteText({ text: next.text, range: next.range }).trim()) {
+      if (!next || !formatQuoteContent({ text: next.text, range: next.range })) {
         return null;
       }
       return previous && next.text === previous.text && sameAnchor(next.anchor, previous.anchor)
         ? previous
         : next;
     });
-  }, [containerRef, formatQuoteText]);
+  }, [containerRef, formatQuoteContent]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -347,15 +347,15 @@ export default function QuoteSelectionPopover({
   const handleSave = useCallback(
     (comment: string) => {
       if (state) {
-        const quoteText = formatQuoteText({ text: state.text, range: state.range }).trim();
-        if (quoteText) {
-          useAppStore.getState().addQuote(sessionPath, quoteText, comment);
+        const content = formatQuoteContent({ text: state.text, range: state.range });
+        if (content) {
+          useAppStore.getState().addQuote(sessionPath, content, comment);
         }
       }
       window.getSelection()?.removeAllRanges();
       setState(null);
     },
-    [formatQuoteText, sessionPath, state],
+    [formatQuoteContent, sessionPath, state],
   );
 
   const handleCancel = useCallback(() => setState(null), []);

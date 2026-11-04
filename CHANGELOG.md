@@ -15,6 +15,8 @@
   where it was scrolled, along with Preview/Source and the whole-file view
 - The right sidebar's Quotes tab matches the header tabs, and the header tabs
   use a slightly smaller type size, with the chat title kept at its size
+- Quotes from the Files and Git tabs send the file reference on its own line,
+  with only the quoted text marked by `>`
 
 ### Fixed
 

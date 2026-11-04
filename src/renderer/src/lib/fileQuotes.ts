@@ -1,27 +1,25 @@
 import { formatFileReference } from './chatReferences';
 import { DIFF_LINE_PREFIX, type GitDiffSourceLine } from './gitDiffPatch';
+import type { QuoteContent } from './messageQuotes';
 
 /** A path as a pi file reference, relative to the project root. */
-export function formatFileLineQuote(path: string, startLine: number, endLine: number): string {
+export function formatFileLineQuote(
+  path: string,
+  startLine: number,
+  endLine: number,
+): QuoteContent {
   const first = Math.min(startLine, endLine);
   const last = Math.max(startLine, endLine);
   const reference = formatFileReference(path);
-  if (last === first) {
-    return `${reference}:L${first}`;
-  }
-  return `${reference}:L${first}-L${last}`;
+  return {
+    reference: last === first ? `${reference}:L${first}` : `${reference}:L${first}-L${last}`,
+    text: '',
+  };
 }
 
-/**
- * A rendered markdown passage has no source lines to point at, so the quote
- * carries the text itself: `@docs/readme.md > the selected passage`.
- */
-export function formatFileContentQuote(path: string, text: string): string {
-  const lines = text.split('\n');
-  return [
-    `${formatFileReference(path)} > ${lines[0] ?? ''}`,
-    ...lines.slice(1).map((line) => (line ? `> ${line}` : '>')),
-  ].join('\n');
+/** Rendered markdown has no source lines to point at, so the quote carries the text itself. */
+export function formatFileContentQuote(path: string, text: string): QuoteContent {
+  return { reference: formatFileReference(path), text };
 }
 
 /**
@@ -34,9 +32,9 @@ export function formatFileDiffQuote(
   path: string,
   scope: string,
   lines: readonly Pick<GitDiffSourceLine, 'kind' | 'text'>[],
-): string {
-  return [
-    `${formatFileReference(path)}, ${scope}:`,
-    ...lines.map((line) => `${DIFF_LINE_PREFIX[line.kind]}${line.text}`),
-  ].join('\n');
+): QuoteContent {
+  return {
+    reference: `${formatFileReference(path)}, ${scope}:`,
+    text: lines.map((line) => `${DIFF_LINE_PREFIX[line.kind]}${line.text}`).join('\n'),
+  };
 }

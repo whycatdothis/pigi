@@ -10,6 +10,7 @@ import type { GitDiffLayout } from '../../hooks/useGitWorkspace';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
 import { useRememberedScroll } from '../../hooks/useRememberedScroll';
 import { formatFileDiffQuote, formatFileLineQuote } from '../../lib/fileQuotes';
+import type { QuoteContent } from '../../lib/messageQuotes';
 import { splitFileLines } from '../../lib/gitDiffPatch';
 import { diffLinesFromSelection } from '../../lib/sourceLineSelection';
 import { GIT_DIFF_STATUS_LABELS } from '../../lib/gitDiffLabels';
@@ -192,14 +193,14 @@ export default function GitDiffViewer({
       : null,
   );
 
-  const formatQuoteText = useCallback(
-    ({ range }: { range: Range }): string => {
+  const formatQuoteContent = useCallback(
+    ({ range }: { range: Range }): QuoteContent | null => {
       if (!isInsideDiffLine(range.startContainer) || !isInsideDiffLine(range.endContainer)) {
-        return '';
+        return null;
       }
-      if (!shownPath || !containerRef.current) return '';
+      if (!shownPath || !containerRef.current) return null;
       const lines = diffLinesFromSelection(containerRef.current, range);
-      if (lines.length === 0) return '';
+      if (lines.length === 0) return null;
       // Added and context rows carry the working tree's line numbers, so they
       // quote like the Files viewer. Deleted rows have none, and the numbers
       // of a commit or the index point into a file the agent cannot open.
@@ -361,7 +362,7 @@ export default function GitDiffViewer({
           <QuoteSelectionPopover
             containerRef={containerRef}
             sessionPath={sessionPath}
-            formatQuoteText={formatQuoteText}
+            formatQuoteContent={formatQuoteContent}
           />
         )}
       </div>

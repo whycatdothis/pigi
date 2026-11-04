@@ -27,7 +27,7 @@ describe('formatQuotesMessage', () => {
     );
     expect(message).toBe(
       [
-        'Comments on quoted passages:',
+        'Comments on quotes:',
         '1. > line one',
         '>',
         '> line two',
@@ -39,9 +39,30 @@ describe('formatQuotesMessage', () => {
     );
   });
 
+  it('opens a file quote with its reference, unquoted', () => {
+    const message = formatQuotesMessage(
+      [
+        { id: 'a', reference: '@src/app.ts:L30-L50', text: '', comment: 'Why?' },
+        { id: 'b', reference: '@docs/readme.md', text: 'first\n\nthird', comment: '' },
+      ],
+      '',
+    );
+    expect(message).toBe(
+      [
+        'Comments on quotes:',
+        '1. @src/app.ts:L30-L50',
+        'Why?',
+        '2. @docs/readme.md',
+        '> first',
+        '>',
+        '> third',
+      ].join('\n'),
+    );
+  });
+
   it('leaves out an empty comment', () => {
     expect(formatQuotesMessage([{ id: 'a', text: 'only text', comment: ' ' }], ' ')).toBe(
-      'Comments on quoted passages:\n1. > only text',
+      'Comments on quotes:\n1. > only text',
     );
   });
 
@@ -51,7 +72,7 @@ describe('formatQuotesMessage', () => {
 
   it('puts the global comment last, under its own label', () => {
     expect(formatQuotesMessage([{ id: 'a', text: 'quoted', comment: '' }], ' Overall fine. ')).toBe(
-      'Comments on quoted passages:\n1. > quoted\nGlobal comment:\nOverall fine.',
+      'Comments on quotes:\n1. > quoted\nGlobal comment:\nOverall fine.',
     );
   });
 });

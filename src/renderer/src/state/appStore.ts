@@ -12,7 +12,7 @@ import type {
 } from '../../../shared/ipcContract';
 import type { Platform } from '../../../shared/platform';
 import { createPersistedSessionMap } from '../lib/persistedSessionMap';
-import { parseStoredQuotes, type MessageQuote } from '../lib/messageQuotes';
+import { parseStoredQuotes, type MessageQuote, type QuoteContent } from '../lib/messageQuotes';
 import { RIGHT_SIDEBAR_TABS, type RightSidebarTab } from '../lib/rightSidebarTabs';
 import { WORKSPACE_TABS, type WorkspaceTab } from '../lib/workspaceTabs';
 import type { AgentStatus } from './transcriptController';
@@ -105,7 +105,7 @@ interface AppState {
   // Quotes collected from the transcript, per session, waiting to be sent
   // together. Persisted in localStorage, like the chat input drafts.
   quotesBySession: Map<string, MessageQuote[]>;
-  addQuote: (sessionPath: string, text: string, comment: string) => void;
+  addQuote: (sessionPath: string, content: QuoteContent, comment: string) => void;
   updateQuoteComment: (sessionPath: string, quoteId: string, comment: string) => void;
   removeQuote: (sessionPath: string, quoteId: string) => void;
   setSessionQuotes: (sessionPath: string, quotes: MessageQuote[]) => void;
@@ -363,9 +363,9 @@ export const useAppStore = create<AppState>((set) => ({
     set({ terminalTabs, activeTerminalTabId }),
 
   quotesBySession: storedQuotes.load(),
-  addQuote: (sessionPath, text, comment) =>
+  addQuote: (sessionPath, content, comment) =>
     set((state) => {
-      const quote: MessageQuote = { id: crypto.randomUUID(), text, comment };
+      const quote: MessageQuote = { id: crypto.randomUUID(), ...content, comment };
       const quotes = [...(state.quotesBySession.get(sessionPath) ?? []), quote];
       return {
         quotesBySession: withSessionQuotes(state.quotesBySession, sessionPath, quotes),

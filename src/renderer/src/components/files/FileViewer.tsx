@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconAlertTriangle, IconLoader2 } from '@tabler/icons-react';
 import { cn, formatFileSize } from '../../lib/utils';
 import { formatFileContentQuote, formatFileLineQuote } from '../../lib/fileQuotes';
+import type { QuoteContent } from '../../lib/messageQuotes';
 import { isMarkdownPath, languageForPath } from '../../lib/fileLanguage';
 import { sourceLineRangeFromSelection } from '../../lib/sourceLineSelection';
 import { MESSAGE_LIST_MAX_WIDTH } from '../../lib/layoutConstants';
@@ -163,17 +164,18 @@ export default function FileViewer({
   }, [fileState]);
 
   const formatSourceQuote = useCallback(
-    ({ range }: { text: string; range: Range }): string => {
+    ({ range }: { text: string; range: Range }): QuoteContent | null => {
       const lines = sourceLineRangeFromSelection(range);
-      return lines ? formatFileLineQuote(filePath, lines.start, lines.end) : '';
+      return lines ? formatFileLineQuote(filePath, lines.start, lines.end) : null;
     },
     [filePath],
   );
   const formatPreviewQuote = useCallback(
-    ({ text }: { text: string; range: Range }): string => formatFileContentQuote(filePath, text),
+    ({ text }: { text: string; range: Range }): QuoteContent =>
+      formatFileContentQuote(filePath, text),
     [filePath],
   );
-  const formatQuoteText =
+  const formatQuoteContent =
     isMarkdown && viewMode === 'preview' ? formatPreviewQuote : formatSourceQuote;
 
   const notice =
@@ -233,7 +235,7 @@ export default function FileViewer({
           <QuoteSelectionPopover
             containerRef={containerRef}
             sessionPath={sessionPath}
-            formatQuoteText={formatQuoteText}
+            formatQuoteContent={formatQuoteContent}
           />
         )}
       </div>

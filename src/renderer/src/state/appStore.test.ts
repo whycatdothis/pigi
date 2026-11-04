@@ -95,11 +95,11 @@ describe('quotes', () => {
 
   it('adds quotes per session and opens the right sidebar', () => {
     const store = useAppStore.getState();
-    store.addQuote(activePath, 'first', 'a');
-    store.addQuote(activePath, 'second', '');
+    store.addQuote(activePath, { text: 'first' }, 'a');
+    store.addQuote(activePath, { text: 'second' }, '');
     expect(quotesOf(activePath)).toEqual(['first|a', 'second|']);
     expect(useAppStore.getState().rightSidebarOpen).toBe(true);
-    store.addQuote(backgroundPath, 'other', 'b');
+    store.addQuote(backgroundPath, { text: 'other' }, 'b');
     expect(quotesOf(backgroundPath)).toEqual(['other|b']);
   });
 
@@ -113,8 +113,8 @@ describe('quotes', () => {
 
   it('updates and removes a quote by id', () => {
     const store = useAppStore.getState();
-    store.addQuote(activePath, 'first', 'a');
-    store.addQuote(activePath, 'second', 'b');
+    store.addQuote(activePath, { text: 'first' }, 'a');
+    store.addQuote(activePath, { text: 'second' }, 'b');
     const [first, second] = useAppStore.getState().quotesBySession.get(activePath) ?? [];
     store.updateQuoteComment(activePath, second.id, 'changed');
     store.removeQuote(activePath, first.id);
@@ -124,7 +124,7 @@ describe('quotes', () => {
   it('saves quotes to localStorage after a short delay', () => {
     vi.useFakeTimers();
     try {
-      useAppStore.getState().addQuote(activePath, 'kept', 'note');
+      useAppStore.getState().addQuote(activePath, { text: 'kept' }, 'note');
       vi.runAllTimers();
       const stored: unknown = JSON.parse(localStorage.getItem(QUOTES_STORAGE_KEY) ?? '{}');
       expect(stored).toMatchObject({
@@ -141,12 +141,12 @@ describe('quotes', () => {
 
   it('drops a session entry once its last quote is gone', () => {
     const store = useAppStore.getState();
-    store.addQuote(activePath, 'only', '');
+    store.addQuote(activePath, { text: 'only' }, '');
     const [only] = useAppStore.getState().quotesBySession.get(activePath) ?? [];
     store.removeQuote(activePath, only.id);
     expect(useAppStore.getState().quotesBySession.has(activePath)).toBe(false);
 
-    store.addQuote(activePath, 'again', '');
+    store.addQuote(activePath, { text: 'again' }, '');
     store.setSessionQuotes(activePath, []);
     expect(useAppStore.getState().quotesBySession.has(activePath)).toBe(false);
   });
