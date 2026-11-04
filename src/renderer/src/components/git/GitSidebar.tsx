@@ -21,10 +21,10 @@ import { SidebarToggle } from '../sidebar/sidebarToggle';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { ListFlatIcon, TreeViewIcon } from './fileListIcons';
 import { Sidebar as ShadcnSidebar, SidebarContent, SidebarHeader } from '../ui/sidebar';
 import GitBasePicker from './GitBasePicker';
 import GitDiffModeMenu from './GitDiffModeMenu';
-import SegmentedToggle from './SegmentedToggle';
 
 const INDENT_STEP_PX = 12;
 const ROW_CLASS_NAME =
@@ -236,10 +236,32 @@ function FileList({
   );
 }
 
-const FILE_LISTS: readonly { value: GitFileList; label: string }[] = [
-  { value: 'tree', label: 'Tree' },
-  { value: 'flat', label: 'Flatten' },
-];
+/** Shows the list in use; a click switches to the other. */
+function FileListToggle({
+  fileList,
+  onChange,
+}: {
+  fileList: GitFileList;
+  onChange: (fileList: GitFileList) => void;
+}): React.JSX.Element {
+  const next: GitFileList = fileList === 'tree' ? 'flat' : 'tree';
+  const label = next === 'tree' ? 'View as tree' : 'View as list';
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          onClick={() => onChange(next)}
+          className="flex size-5 shrink-0 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [-webkit-app-region:no-drag]"
+        >
+          {fileList === 'tree' ? <TreeViewIcon size={14} /> : <ListFlatIcon size={14} />}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 /** The selected path, when the selection is in `list` (and in `commit`, for a commit's files). */
 function selectedPathIn(
@@ -341,43 +363,41 @@ function StatusView({
   ];
 
   return (
-    <TooltipProvider delayDuration={400}>
-      <div className="pb-2">
-        {groups.map((group) => (
-          <Section
-            key={group.section}
-            section={group.section}
-            label={group.label}
-            count={group.files.length}
-            emptyText={`No ${group.label.toLowerCase()} files.`}
-            action={
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={group.action}
-                    disabled={group.files.length === 0 || workspace.staging}
-                    onClick={() => workspace.setStaged(group.section === 'unstaged')}
-                    className="mr-1 flex size-5 shrink-0 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-                  >
-                    {group.icon}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">{group.action}</TooltipContent>
-              </Tooltip>
-            }
-            workspace={workspace}
-          >
-            <FileList
-              files={group.files}
-              fileList={workspace.fileList}
-              selectedPath={selectedPathIn(workspace.selection, group.section)}
-              onSelectFile={(path) => workspace.select({ list: group.section, path })}
-            />
-          </Section>
-        ))}
-      </div>
-    </TooltipProvider>
+    <div className="pb-2">
+      {groups.map((group) => (
+        <Section
+          key={group.section}
+          section={group.section}
+          label={group.label}
+          count={group.files.length}
+          emptyText={`No ${group.label.toLowerCase()} files.`}
+          action={
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={group.action}
+                  disabled={group.files.length === 0 || workspace.staging}
+                  onClick={() => workspace.setStaged(group.section === 'unstaged')}
+                  className="mr-1 flex size-5 shrink-0 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                >
+                  {group.icon}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{group.action}</TooltipContent>
+            </Tooltip>
+          }
+          workspace={workspace}
+        >
+          <FileList
+            files={group.files}
+            fileList={workspace.fileList}
+            selectedPath={selectedPathIn(workspace.selection, group.section)}
+            onSelectFile={(path) => workspace.select({ list: group.section, path })}
+          />
+        </Section>
+      ))}
+    </div>
   );
 }
 
@@ -515,122 +535,122 @@ const GitSidebar = memo(function GitSidebar({
   const disabled = loading && !summary;
 
   return (
-    <ShadcnSidebar collapsible="none" data-testid="git-sidebar" className="w-full">
-      <SidebarHeader className="gap-0 border-b-[0.5px] border-foreground/15 pb-0 [-webkit-app-region:drag]">
-        <div className="flex h-10 items-start justify-end">
-          <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
-        </div>
-        <div className="mt-2 flex min-w-0 items-center gap-1.5 px-2">
-          <span className="min-w-0 truncate text-lg font-medium text-sidebar-foreground/80">
-            {projectName}
-          </span>
-        </div>
-        <span className="truncate px-2 pb-2 text-ui text-muted-foreground">
-          {summary
-            ? (summary.branch ?? (summary.detached ? 'Detached HEAD' : 'No branch'))
-            : status === 'error'
-              ? null
-              : 'Loading…'}
-        </span>
-
-        <div className="-mx-2 flex flex-col gap-2 border-t-[0.5px] border-foreground/15 p-2 [-webkit-app-region:no-drag]">
-          <div className="flex items-center gap-0.5 rounded-control bg-foreground/7 p-0.5">
-            {VIEW_LABELS.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                aria-pressed={view === item.value}
-                onClick={() => workspace.setView(item.value)}
-                className={cn(
-                  'h-6 flex-1 rounded-control-sm px-1 text-ui leading-none whitespace-nowrap transition-colors',
-                  view === item.value
-                    ? 'bg-background text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
+    <TooltipProvider delayDuration={400}>
+      <ShadcnSidebar collapsible="none" data-testid="git-sidebar" className="w-full">
+        <SidebarHeader className="gap-0 border-b-[0.5px] border-foreground/15 pb-0 [-webkit-app-region:drag]">
+          <div className="flex h-10 items-start justify-end">
+            <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
           </div>
-          {/* Git status and Commits each have a fixed comparison; only Diff offers modes. */}
-          {view === 'diff' && (
-            <GitDiffModeMenu
-              mode={mode}
-              defaultBase={summary?.defaultBase ?? null}
-              baseLabel={summary?.baseLabel ?? null}
-              disabled={disabled}
-              onSelect={workspace.selectMode}
-            />
-          )}
-          {mode === 'branch' && view !== 'commits' && (
-            <div className="flex items-center gap-2">
-              <span className="shrink-0 text-caption whitespace-nowrap text-muted-foreground">
-                Compare vs
-              </span>
-              <GitBasePicker
-                projectPath={projectPath}
-                summary={summary}
-                base={base}
+          <div className="mt-2 flex min-w-0 items-center gap-1.5 px-2">
+            <span className="min-w-0 truncate text-lg font-medium text-sidebar-foreground/80">
+              {projectName}
+            </span>
+          </div>
+          <div className="flex min-w-0 items-center gap-1 pb-2 pl-2">
+            <span className="min-w-0 flex-1 truncate text-ui text-muted-foreground">
+              {summary
+                ? (summary.branch ?? (summary.detached ? 'Detached HEAD' : 'No branch'))
+                : status === 'error'
+                  ? null
+                  : 'Loading…'}
+            </span>
+            {view !== 'commits' && (
+              <FileListToggle fileList={workspace.fileList} onChange={workspace.setFileList} />
+            )}
+          </div>
+
+          <div className="-mx-2 flex flex-col gap-2 border-t-[0.5px] border-foreground/15 p-2 [-webkit-app-region:no-drag]">
+            <div className="flex items-center gap-0.5 rounded-control bg-foreground/7 p-0.5">
+              {VIEW_LABELS.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  aria-pressed={view === item.value}
+                  onClick={() => workspace.setView(item.value)}
+                  className={cn(
+                    'h-6 flex-1 rounded-control-sm px-1 text-ui leading-none whitespace-nowrap transition-colors',
+                    view === item.value
+                      ? 'bg-background text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            {/* Git status and Commits each have a fixed comparison; only Diff offers modes. */}
+            {view === 'diff' && (
+              <GitDiffModeMenu
+                mode={mode}
+                defaultBase={summary?.defaultBase ?? null}
+                baseLabel={summary?.baseLabel ?? null}
                 disabled={disabled}
-                onSelect={workspace.selectBase}
+                onSelect={workspace.selectMode}
               />
-            </div>
-          )}
-        </div>
-      </SidebarHeader>
-
-      <SidebarContent className="min-h-0 gap-0 overflow-hidden">
-        {view !== 'commits' && (
-          <div className="flex justify-end px-2 pt-2">
-            <SegmentedToggle
-              options={FILE_LISTS}
-              value={workspace.fileList}
-              onChange={workspace.setFileList}
-            />
-          </div>
-        )}
-        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto no-scrollbar px-1 pb-3">
-          {status === 'error' && (
-            <div className="mx-1 mb-2 rounded-control bg-destructive/10 px-2 py-2 text-caption text-destructive">
-              <p>{error ?? 'Unable to read this diff.'}</p>
-              <button
-                type="button"
-                className="mt-1 font-medium underline underline-offset-2"
-                onClick={workspace.resetBase}
-              >
-                Reset comparison
-              </button>
-            </div>
-          )}
-          {!summary && status !== 'error' && (
-            <div className="flex animate-in items-center gap-2 px-2 py-2 text-caption text-muted-foreground delay-300 fade-in-0 fill-mode-backwards">
-              <SpinningIcon>
-                <IconLoader2 size={13} />
-              </SpinningIcon>
-              Loading changes…
-            </div>
-          )}
-          {summary &&
-            view === 'diff' &&
-            (summary.files.length === 0 ? (
-              <p className="px-2 py-3 text-caption text-muted-foreground">
-                No changes against {summary.baseLabel}.
-              </p>
-            ) : (
-              <ul>
-                <FileList
-                  files={summary.files}
-                  fileList={workspace.fileList}
-                  selectedPath={selectedPathIn(selection, 'files')}
-                  onSelectFile={(path) => workspace.select({ list: 'files', path })}
+            )}
+            {mode === 'branch' && view !== 'commits' && (
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 text-caption whitespace-nowrap text-muted-foreground">
+                  Compare vs
+                </span>
+                <GitBasePicker
+                  projectPath={projectPath}
+                  summary={summary}
+                  base={base}
+                  disabled={disabled}
+                  onSelect={workspace.selectBase}
                 />
-              </ul>
-            ))}
-          {summary && view === 'status' && <StatusView summary={summary} workspace={workspace} />}
-          {summary && view === 'commits' && <CommitsView summary={summary} workspace={workspace} />}
-        </div>
-      </SidebarContent>
-    </ShadcnSidebar>
+              </div>
+            )}
+          </div>
+        </SidebarHeader>
+
+        <SidebarContent className="min-h-0 gap-0 overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto no-scrollbar px-1 pb-3">
+            {status === 'error' && (
+              <div className="mx-1 mb-2 rounded-control bg-destructive/10 px-2 py-2 text-caption text-destructive">
+                <p>{error ?? 'Unable to read this diff.'}</p>
+                <button
+                  type="button"
+                  className="mt-1 font-medium underline underline-offset-2"
+                  onClick={workspace.resetBase}
+                >
+                  Reset comparison
+                </button>
+              </div>
+            )}
+            {!summary && status !== 'error' && (
+              <div className="flex animate-in items-center gap-2 px-2 py-2 text-caption text-muted-foreground delay-300 fade-in-0 fill-mode-backwards">
+                <SpinningIcon>
+                  <IconLoader2 size={13} />
+                </SpinningIcon>
+                Loading changes…
+              </div>
+            )}
+            {summary &&
+              view === 'diff' &&
+              (summary.files.length === 0 ? (
+                <p className="px-2 py-3 text-caption text-muted-foreground">
+                  No changes against {summary.baseLabel}.
+                </p>
+              ) : (
+                <ul>
+                  <FileList
+                    files={summary.files}
+                    fileList={workspace.fileList}
+                    selectedPath={selectedPathIn(selection, 'files')}
+                    onSelectFile={(path) => workspace.select({ list: 'files', path })}
+                  />
+                </ul>
+              ))}
+            {summary && view === 'status' && <StatusView summary={summary} workspace={workspace} />}
+            {summary && view === 'commits' && (
+              <CommitsView summary={summary} workspace={workspace} />
+            )}
+          </div>
+        </SidebarContent>
+      </ShadcnSidebar>
+    </TooltipProvider>
   );
 });
 

@@ -273,7 +273,8 @@ A button at the right of each group stages or unstages everything (`git add --al
 only touches itself) and refreshes at once, outside the auto-refresh
 interval. Git status and Diff list files as a tree (a directory holding only
 one directory compacted into one row like `main/java/com/example`) or
-flattened. Opening a commit lists its files and shows one commit against its
+flattened, switched by an icon at the right of the branch row that shows the
+list in use. Opening a commit lists its files and shows one commit against its
 first parent; a root commit diffs against the empty tree. The selection names
 the list it came from (`files`, `staged`, `unstaged` or a `commit`), because
 the same path can be in several, and each list's file has its own diff.
