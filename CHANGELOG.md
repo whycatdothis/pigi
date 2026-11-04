@@ -4,58 +4,31 @@
 
 ### Added
 
-- The Git tab (until now the Diff placeholder) compares the project against a
-  branch, a commit or any ref (`HEAD~3`), lists changed files as staged and
-  unstaged (Git status), against the chosen base (Diff), or by commit, as a
-  tree or a flat list, where opening a commit shows that commit's own changes.
-  Diffs are syntax highlighted with the changed words marked, unified or side
-  by side, expand the unchanged lines between changes or show the whole file,
-  and quote lines into the chat (`@src/app.ts:L10-L20`) like the Files tab
-  does; deleted lines and lines from a commit are quoted as a diff, so the
-  agent knows they are not in the file as it is now, and a side-by-side
-  selection stays in the column it starts in. A file moved without `git add`
-  shows as a rename, and a newly added file is shown in green without a `+`
-  on every line
-- Git status shows staged and unstaged changes as separate diffs, so a partly
-  staged file shows each half, and a button beside each group stages or
-  unstages everything in it
-- The Git tab refreshes on its own once the agent changes files, however it
-  changes them (at most every 5 seconds during a run, less often in a large
-  repository where reading the changes takes seconds), and at once when you
-  come back to the window
-- The Git tab's Git status and Commits groups fold open and closed, and empty
-  groups still show
-- The Git tab's Diff view shows all changes since the repository's main branch
-  (whatever it is called), only the uncommitted changes, or only the last
-  commit
-- Commits in the Git tab show how long ago they were made (`2h ago`)
-- A project that is a folder inside a bigger repository shows only its own
-  changes in the Git tab
+- The Git tab, replacing the Diff placeholder, has three views: Git status
+  (staged and unstaged changes, with stage all / unstage all), Diff (against
+  the main branch or any ref, the uncommitted changes, or the last commit)
+  and Commits. Diffs are syntax highlighted with the changed words marked,
+  unified or side by side, can show the whole file, and quote selected lines
+  into the chat like Files does. The tab refreshes as the agent changes files
 - While Files or Git is open, the Chat tab shows a spinner while the agent
-  runs and a dot once it finishes, until you go back to the chat
-- The Files and Git trees compact a directory that only holds one directory
-  into one row (`main/java/com/example`)
+  runs and a dot once it finishes
+- The Files tree shows a directory holding only one directory as one row
+  (`main/java/com/example`)
 
 ### Changed
 
-- The Diff tab is now the Git tab; a custom shortcut set for it goes back to
-  the default ⌘3
-- The right sidebar is open or closed for every session alike instead of
-  per session, and starts closed on launch
-- The Chat, Files and Git tabs are taller with larger text, and the chat
-  title has more room
-- Sending quotes keeps the quote sidebar open, a global comment can be sent
-  without any quote, and sending from the Git tab switches to the chat
+- The Diff tab is now the Git tab; a custom shortcut for it resets to ⌘3
+- The right sidebar is open or closed for all sessions alike, and starts
+  closed
+- The Chat, Files and Git tabs are taller with larger text
+- Sending quotes keeps the quote sidebar open, and a global comment can be
+  sent without any quote
 
 ### Fixed
 
-- The Files and Git tabs move up with the terminal instead of being covered
-  by it, wherever they are scrolled
-- Switching files in the Git tab no longer flashes blank
-- The sidebar can be dragged wider, so long file paths fit
-- The sidebar resize handle is grabbable along its whole height and full
-  width; half of it was clipped, and in the Git tab the line gutters covered
-  the rest
+- The Files tab moves up with the terminal instead of being covered by it
+- The sidebar can be dragged wider, and its resize handle works along its
+  whole height
 
 ## [0.4.30] - 2026-11-01
 
