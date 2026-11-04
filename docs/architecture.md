@@ -638,7 +638,8 @@ session toolbar. Tabs are listed in `lib/rightSidebarTabs.ts`; the active tab
 lives in the app store (`rightSidebarTab`). Whether it is open is one flag for
 every session (`rightSidebarOpen`), like the left sidebar and the terminal: it
 starts closed on launch, adding a quote opens it, and switching sessions keeps
-it as it is.
+it as it is. Without a session (new chat, welcome screen) an open sidebar
+stays open but dimmed and `inert`, since its views belong to a session.
 A new view adds a tab id there, a trigger and a `TabsContent` in the sidebar.
 
 ## Quotes

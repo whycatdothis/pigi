@@ -193,7 +193,7 @@ function App(): React.JSX.Element {
       toggleTerminal: state.toggleTerminal,
       terminalHeight: state.terminalHeight,
       sidebarExpanded: state.sidebarExpanded,
-      rightSidebarOpen: state.activeSessionPath !== null && state.rightSidebarOpen,
+      rightSidebarOpen: state.rightSidebarOpen,
       platform: state.platform,
       settingsOpen: state.settingsOpen,
       settingsSection: state.settingsSection,
@@ -856,9 +856,9 @@ function App(): React.JSX.Element {
     handleSendRef.current = handleSend;
   });
   const handleSendQuotes = useCallback((message: string): Promise<void> => {
-    // A diff review ends in the chat, where the agent answers it.
+    // A file or diff review ends in the chat, where the agent answers it.
     const store = useAppStore.getState();
-    if (store.workspaceTab === WORKSPACE_TABS.git) store.setWorkspaceTab(WORKSPACE_TABS.chat);
+    if (store.workspaceTab !== WORKSPACE_TABS.chat) store.setWorkspaceTab(WORKSPACE_TABS.chat);
     return handleSendRef.current(message);
   }, []);
 
@@ -1655,8 +1655,6 @@ function App(): React.JSX.Element {
     [RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY]: `${rightSidebarWidth}px`,
     [RIGHT_SIDEBAR_WIDTH_PROPERTY]: `min(var(${RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY}), max(${RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH}px, 100vw - ${RIGHT_SIDEBAR_RESERVED_WIDTH}px))`,
   };
-  // Its views belong to a session; drafts and empty states have none to show.
-  const rightSidebarVisible = rightSidebarOpen && activeSession !== null;
   const selectedFilePath = activeProjectPath
     ? (lastFileByProject.get(activeProjectPath) ?? null)
     : null;
@@ -1971,24 +1969,30 @@ function App(): React.JSX.Element {
               full width, slides in from the right without reflowing. */}
           <div
             ref={rightSidebarRef}
-            inert={!rightSidebarVisible}
+            inert={!rightSidebarOpen}
             className={cn(
               'relative flex h-full shrink-0 overflow-hidden transition-[width] data-[panel-resizing]:transition-none',
               SIDEBAR_TRANSITION_CLASS_NAME,
-              rightSidebarVisible ? 'w-(--right-sidebar-width)' : 'w-0',
+              rightSidebarOpen ? 'w-(--right-sidebar-width)' : 'w-0',
             )}
             style={rightSidebarLayoutStyle}
           >
-            <div className="flex h-full w-(--right-sidebar-width) min-w-full shrink-0 border-l-[0.5px] border-foreground/27">
-              {activeSessionPath && (
-                <RightSidebar
-                  sessionPath={activeSessionPath}
-                  onSendQuotes={handleSendQuotes}
-                  sendQuotesShortcut={shortcutBindings?.get('quotes.send')}
-                />
+            {/* Stays open over a new chat so it does not jump in and out, but its
+                views belong to a session, so without one it only shows. */}
+            <div
+              inert={!activeSessionPath}
+              className={cn(
+                'flex h-full w-(--right-sidebar-width) min-w-full shrink-0 border-l-[0.5px] border-foreground/27',
+                !activeSessionPath && 'opacity-50',
               )}
+            >
+              <RightSidebar
+                sessionPath={activeSessionPath ?? ''}
+                onSendQuotes={handleSendQuotes}
+                sendQuotesShortcut={shortcutBindings?.get('quotes.send')}
+              />
             </div>
-            {rightSidebarVisible && (
+            {rightSidebarOpen && (
               <div
                 aria-label="Resize right sidebar"
                 role="separator"

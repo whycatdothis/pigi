@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- An open right sidebar stays open, dimmed, on the new chat screen instead of
+  hiding, and comes back to life in the next session
+
+### Fixed
+
+- Sending quotes from the Files tab switches to the Chat tab, as it does from
+  the Git tab
+
 ## [0.5.1] - 2026-11-04
 
 ### Added
