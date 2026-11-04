@@ -248,7 +248,9 @@ async function withIntentToAdd<T>(
   }
 }
 
-async function untrackedAmong(cwd: string, paths: readonly string[]): Promise<Set<string>> {
+type Untracked = { ok: true; files: Set<string> } | { ok: false; error: string };
+
+async function untrackedAmong(cwd: string, paths: readonly string[]): Promise<Untracked> {
   const result = await runGit(cwd, [
     'ls-files',
     '--others',
@@ -257,7 +259,8 @@ async function untrackedAmong(cwd: string, paths: readonly string[]): Promise<Se
     '--',
     ...paths,
   ]);
-  return new Set(result.stdout.split('\0').filter(Boolean));
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, files: new Set(result.stdout.split('\0').filter(Boolean)) };
 }
 
 type ChangedFiles = { ok: true; files: GitDiffFile[] } | { ok: false; error: string };
@@ -406,7 +409,11 @@ export async function getGitDiffSummary(
     // Each list is its own diff, so a partly staged file shows each half.
     const stagedPending = changedFiles(cwd, ['diff', '--cached', head, '--'], undefined);
     const untracked = await untrackedPending;
-    const unstaged = await withIntentToAdd(cwd, untracked, (env) =>
+    // Without the list, new files would vanish from Unstaged with no word why.
+    if (!untracked.ok) {
+      return { success: false, error: gitError(untracked.error, 'Unable to read the diff.') };
+    }
+    const unstaged = await withIntentToAdd(cwd, untracked.files, (env) =>
       changedFiles(cwd, ['diff', '--'], env),
     );
     const staged = await stagedPending;
@@ -426,7 +433,7 @@ export async function getGitDiffSummary(
       baseCommits: [],
       files: [],
       staged: sortedFiles(staged.files),
-      unstaged: listedUntracked(unstaged.files, untracked),
+      unstaged: listedUntracked(unstaged.files, untracked.files),
     });
   }
 
@@ -499,7 +506,10 @@ export async function getGitDiffSummary(
   }
 
   const untracked = await untrackedPending;
-  const changes = await withIntentToAdd(cwd, untracked, (env) =>
+  if (!untracked.ok) {
+    return { success: false, error: gitError(untracked.error, 'Unable to read the diff.') };
+  }
+  const changes = await withIntentToAdd(cwd, untracked.files, (env) =>
     changedFiles(cwd, ['diff', mergeBase, '--'], env),
   );
   const [branchLog, baseLog] = await logs;
@@ -516,7 +526,7 @@ export async function getGitDiffSummary(
     commits: branchCommits.slice(0, MAX_BRANCH_COMMITS),
     moreCommits: branchCommits.length > MAX_BRANCH_COMMITS,
     baseCommits: baseLog.ok ? parseCommitLog(baseLog.stdout) : [],
-    files: listedUntracked(changes.files, untracked),
+    files: listedUntracked(changes.files, untracked.files),
     staged: [],
     unstaged: [],
   });
@@ -630,10 +640,14 @@ export async function getGitDiffFile(
     '--unified=3',
     '-p',
   ];
-  const againstWorkingTree = async (range: string[]): Promise<GitCommandResult> =>
-    withIntentToAdd(cwd, await untrackedAmong(cwd, paths), (env) =>
+  // A file's patch only misses its untracked half if the list fails; the
+  // summary already said so.
+  const againstWorkingTree = async (range: string[]): Promise<GitCommandResult> => {
+    const untracked = await untrackedAmong(cwd, paths);
+    return withIntentToAdd(cwd, untracked.ok ? untracked.files : new Set(), (env) =>
       runGit(cwd, ['diff', ...flags, ...range, '--', ...paths], env),
     );
+  };
   let result: GitCommandResult;
   if (source.kind === 'base') {
     result = await againstWorkingTree([commit]);
@@ -689,8 +703,10 @@ export async function setGitStaged(cwd: string, staged: boolean): Promise<GitSta
     staged ? ['add', '--all', '--', '.'] : ['restore', '--staged', '--', '.'],
   );
   if (!result.ok) {
-    // Git's own first line names the cause, such as another process holding `index.lock`.
-    const cause = result.error.split('\n')[0].replace(/^(fatal|error): /, '');
+    // Git's `fatal:` line names the cause, such as another process holding
+    // `index.lock`; warnings (line endings) can come first, and a timeout
+    // has only Node's "Command failed" message.
+    const cause = /^(?:fatal|error): (.+)$/m.exec(result.error)?.[1];
     const action = staged ? 'Unable to stage the changes' : 'Unable to unstage the changes';
     return { success: false, error: cause ? `${action}: ${cause}` : `${action}.` };
   }

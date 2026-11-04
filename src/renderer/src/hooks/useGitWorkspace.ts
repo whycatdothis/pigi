@@ -307,8 +307,9 @@ export function useGitWorkspace({
     [cwd, quietRefresh],
   );
 
-  // A picked comparison loads with a spinner and shows its errors, even if a
-  // quiet refresh was about to run.
+  // A pending quiet refresh must not make a picked comparison's load quiet:
+  // with nothing cached it shows a spinner and its errors. A cached one
+  // stays on screen and refreshes quietly, as a view switch does.
   const reload = useCallback(() => {
     quietRef.current = false;
     setRevision((value) => value + 1);
