@@ -8,6 +8,7 @@ import { MESSAGE_LIST_MAX_WIDTH } from '../../lib/layoutConstants';
 import MarkdownMessage from '../message/markdownMessage';
 import SyntaxHighlightedCode from '../message/syntaxHighlightedCode';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
+import ContainerFind from '../ui/containerFind';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
@@ -214,6 +215,7 @@ export default function FileViewer({
             </>
           )}
         </div>
+        <ContainerFind containerRef={containerRef} active placeholder="Find in file…" />
         {sessionPath && (
           <QuoteSelectionPopover
             containerRef={containerRef}

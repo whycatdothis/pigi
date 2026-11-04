@@ -17,6 +17,8 @@ import { getMeasuredRowHeight, recordMeasuredRowHeight } from '../../lib/measure
 import { RenderItemRenderer } from './messageListRows';
 import { escapeAbortScopeProps } from '../../lib/focusScopes';
 import MessageSearch from './MessageSearch';
+import ContainerFind from '../ui/containerFind';
+import { WORKSPACE_TABS } from '../../lib/workspaceTabs';
 import { useMessageListScrollController } from '../../hooks/useMessageListScrollController';
 import { useActiveUserMessageIndex } from '../../hooks/useActiveUserMessageIndex';
 import { useMessageSearchController } from '../../hooks/useMessageSearchController';
@@ -68,6 +70,7 @@ export default React.memo(function MessageList({
   // Minimal mode renders plain (non-virtualized) turn content inside the same
   // scroll container, sharing auto-scroll / restore / minimap with other modes.
   const isMinimal = toolBlockViewMode === 'minimal';
+  const isChatTabActive = useAppStore((state) => state.workspaceTab === WORKSPACE_TABS.chat);
   const sessionStatus = useAppStore(
     (state) => (sessionPath ? state.sessions.get(sessionPath)?.status : undefined) ?? 'idle',
   );
@@ -253,12 +256,19 @@ export default React.memo(function MessageList({
     handleSearchJump,
   } = useMessageSearchController({
     isMinimal,
+    active: isChatTabActive,
     containerRef,
     rowVirtualizer,
     suspendAutoScroll,
     renderItems,
     expandGroup,
   });
+
+  // The active-match highlight is one global slot: rows of a hidden chat that
+  // keep highlighting take it back from the Files/Git find on every streamed
+  // re-apply.
+  const rowSearchQuery = isChatTabActive ? searchQuery : '';
+  const rowActiveOccurrence = isChatTabActive ? activeOccurrenceInfo : null;
 
   const handleScrollToIndex = useCallback(
     (displayIndex: number) => {
@@ -367,14 +377,14 @@ export default React.memo(function MessageList({
                         isLast={isLast}
                         showActions={showsActions}
                         sessionActive={sessionStatus !== 'idle'}
-                        searchQuery={searchQuery}
+                        searchQuery={rowSearchQuery}
                         expanded={
                           item.type === 'readGroup' ? expandedGroupIds.has(item.id) : undefined
                         }
                         onToggleExpand={item.type === 'readGroup' ? toggleGroupExpand : undefined}
-                        activeOccurrenceItemId={activeOccurrenceInfo?.itemId ?? null}
-                        activeOccurrenceToolNodeId={activeOccurrenceInfo?.toolNodeId ?? null}
-                        activeOccurrenceIndex={activeOccurrenceInfo?.occurrenceIndex ?? null}
+                        activeOccurrenceItemId={rowActiveOccurrence?.itemId ?? null}
+                        activeOccurrenceToolNodeId={rowActiveOccurrence?.toolNodeId ?? null}
+                        activeOccurrenceIndex={rowActiveOccurrence?.occurrenceIndex ?? null}
                       />
                     </div>
                   );
@@ -384,11 +394,18 @@ export default React.memo(function MessageList({
           )}
         </div>
       </div>
-      {!isMinimal && (
+      {isMinimal ? (
+        <ContainerFind
+          containerRef={containerRef}
+          active={isChatTabActive}
+          placeholder="Search messages…"
+          onBeforeJump={suspendAutoScroll}
+        />
+      ) : (
         <MessageSearch
           key={searchOpen ? 'open' : 'closed'}
           refocus={searchRefocus}
-          open={searchOpen}
+          open={searchOpen && isChatTabActive}
           onOpenChange={setSearchOpen}
           query={searchQuery}
           onQueryChange={setSearchQuery}

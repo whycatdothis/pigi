@@ -43,6 +43,7 @@ function SourceLineNumber({ lineNumber }: { lineNumber: number }): React.JSX.Ele
   return (
     <span
       aria-hidden="true"
+      data-search-ignore
       className="sticky left-0 z-10 w-14 shrink-0 select-none bg-background pr-3 text-right text-muted-foreground tabular-nums"
     >
       {lineNumber}

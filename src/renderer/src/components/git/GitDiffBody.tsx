@@ -342,10 +342,13 @@ const GitDiffBody = memo(function GitDiffBody({
                       side === 0 && 'border-r-[0.5px] border-foreground/15',
                     )}
                   >
-                    <span className={GUTTER_CLASS_NAME}>
+                    <span className={GUTTER_CLASS_NAME} data-search-ignore>
                       {side === 0 ? line.oldLineNumber : line.newLineNumber}
                     </span>
-                    <span className="w-4 shrink-0 select-none text-center opacity-50">
+                    <span
+                      className="w-4 shrink-0 select-none text-center opacity-50"
+                      data-search-ignore
+                    >
                       {DIFF_LINE_PREFIX[line.kind]}
                     </span>
                     <LineText line={line} tokens={tokens} changed={changed.get(line)} wrap />
@@ -390,6 +393,7 @@ const GitDiffBody = memo(function GitDiffBody({
           >
             {onlyKind !== 'add' && (
               <span
+                data-search-ignore
                 className={cn(
                   GUTTER_CLASS_NAME,
                   'sticky left-0 z-10',
@@ -401,6 +405,7 @@ const GitDiffBody = memo(function GitDiffBody({
             )}
             {onlyKind !== 'remove' && (
               <span
+                data-search-ignore
                 className={cn(
                   GUTTER_CLASS_NAME,
                   'sticky z-10 border-r-[0.5px] border-foreground/15',
@@ -413,7 +418,7 @@ const GitDiffBody = memo(function GitDiffBody({
             {onlyKind ? (
               <span className="w-2 shrink-0" />
             ) : (
-              <span className="w-4 shrink-0 select-none text-center opacity-50">
+              <span className="w-4 shrink-0 select-none text-center opacity-50" data-search-ignore>
                 {DIFF_LINE_PREFIX[row.kind]}
               </span>
             )}

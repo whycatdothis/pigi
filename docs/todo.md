@@ -97,3 +97,12 @@ against the range: up to 5,000 rows plus a second body while a patch swaps
 in, a millisecond or two per frame. Walking from the start row to the end row
 would cost only the selected lines; the popover could also take a cheap
 `canQuote` check and format only on click.
+
+## Find scrolls only the outer container
+
+`ContainerFind` brings a match into view by scrolling the viewer itself. A
+match inside a code block that scrolls on its own (Files markdown preview) stays
+hidden sideways, and one under the sticky line-number gutter counts as visible
+because its rect is still inside the container. Fix by walking the scrollable
+ancestors between the match and the container, and treating the gutter width as
+an inset.

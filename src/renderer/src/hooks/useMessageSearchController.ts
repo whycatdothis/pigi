@@ -5,10 +5,12 @@ import type { RenderItem } from '../lib/readGrouping';
 import type { OccurrenceResult } from '../components/transcript/MessageSearch';
 import { buildSearchTargets } from '../components/transcript/messageSearchTargets';
 import { findOccurrenceRanges } from '../lib/highlightMatches';
+import { useFindShortcut } from './useFindShortcut';
 
 /**
  * Owns the in-message search feature: query/open/occurrence state, search
- * target building, the Cmd/Ctrl+F entry point, jump handling (including
+ * target building, the Cmd/Ctrl+F entry point (transcript views other than
+ * minimal; minimal uses ContainerFind), jump handling (including
  * auto-expanding overflow-hidden tool content around a match), and scrolling
  * the active occurrence into view.
  *
@@ -26,6 +28,8 @@ export interface ActiveOccurrenceInfo {
 
 interface MessageSearchControllerOptions {
   isMinimal: boolean;
+  /** False while the chat tab is hidden; Cmd+F belongs to the visible tab. */
+  active: boolean;
   containerRef: RefObject<HTMLDivElement | null>;
   rowVirtualizer: Virtualizer<HTMLDivElement, Element>;
   /** Suspends bottom auto-follow before jumping (from the scroll controller). */
@@ -48,6 +52,7 @@ export interface MessageSearchController {
 
 export function useMessageSearchController({
   isMinimal,
+  active,
   containerRef,
   rowVirtualizer,
   suspendAutoScroll,
@@ -77,7 +82,7 @@ export function useMessageSearchController({
     return buildSearchTargets(renderItems);
   }, [renderItems, isMinimal, searchOpen]);
 
-  // Search is unavailable in minimal mode; drop any stale search state so it
+  // Minimal mode searches its DOM instead; drop any stale search state so it
   // doesn't resurface with outdated targets when switching back. Adjusted
   // during render (documented prop-change pattern) rather than in an effect,
   // so no cascading render is needed.
@@ -195,21 +200,14 @@ export function useMessageSearchController({
     });
   }, [activeOccurrenceInfo, searchQuery, containerRef]);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (isMinimal) return;
-      if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'f') {
-        event.preventDefault();
-        if (searchOpen) {
-          setSearchRefocus((prev) => prev + 1);
-        } else {
-          setSearchOpen(true);
-        }
-      }
+  const handleFind = useCallback(() => {
+    if (searchOpen) {
+      setSearchRefocus((prev) => prev + 1);
+    } else {
+      setSearchOpen(true);
     }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [searchOpen, isMinimal]);
+  }, [searchOpen]);
+  useFindShortcut(active && !isMinimal, handleFind);
 
   return {
     searchOpen,

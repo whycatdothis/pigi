@@ -16,6 +16,7 @@ import { cn } from '../../lib/utils';
 import { getGitDiffFile } from '../../services/piAgentClient';
 import { FileIcon } from '../fileIcon';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
+import ContainerFind from '../ui/containerFind';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import GitDiffBody from './GitDiffBody';
@@ -316,6 +317,7 @@ export default function GitDiffViewer({
                   <div
                     key={loaded.id}
                     aria-hidden={loaded === incoming || undefined}
+                    data-search-ignore={loaded === incoming || undefined}
                     className={cn(
                       loaded === incoming &&
                         'pointer-events-none invisible absolute inset-x-0 top-0 h-full overflow-hidden',
@@ -339,6 +341,7 @@ export default function GitDiffViewer({
                 ),
             )}
         </div>
+        <ContainerFind containerRef={containerRef} active placeholder="Find in diff…" />
         {sessionPath && (
           <QuoteSelectionPopover
             containerRef={containerRef}

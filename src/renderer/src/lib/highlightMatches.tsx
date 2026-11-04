@@ -48,6 +48,8 @@ export function highlightMatches(
 
 const HIGHLIGHT_NAME = 'pi-search-highlights';
 const ACTIVE_HIGHLIGHT_NAME = 'pi-search-active';
+/** Idle time per unit of scan time between mutation-driven re-applies (see useHighlightTextNodes). */
+const REAPPLY_SPACING_FACTOR = 4;
 
 /**
  * Ownership token for the shared ACTIVE highlight registry entry. Only the
@@ -101,6 +103,10 @@ function findMatchesInContainer(container: HTMLElement, query: string): Range[][
 
   const matches: Range[][] = [];
   let searchPos = 0;
+  // Matches come in increasing order, so the node scan resumes where the
+  // previous match started instead of from the first node: a 5,000-line file
+  // has tens of thousands of token text nodes.
+  let firstNode = 0;
 
   while (searchPos < fullText.length) {
     const matchStart = lowerFull.indexOf(lowerQuery, searchPos);
@@ -111,7 +117,14 @@ function findMatchesInContainer(container: HTMLElement, query: string): Range[][
     let pos = matchStart;
     const segments: Range[] = [];
 
-    for (let index = 0; index < nodes.length && remaining > 0; index++) {
+    while (
+      firstNode < nodes.length - 1 &&
+      offsets[firstNode] + (nodes[firstNode].textContent?.length ?? 0) <= matchStart
+    ) {
+      firstNode++;
+    }
+
+    for (let index = firstNode; index < nodes.length && remaining > 0; index++) {
       const node = nodes[index];
       const nodeLength = node.textContent?.length ?? 0;
       const nodeStart = offsets[index];
@@ -167,6 +180,8 @@ export function useHighlightTextNodes(
   containerRef: React.RefObject<HTMLElement | null>,
   query: string,
   activeOccurrenceIndex: number | null = null,
+  /** Receives every (re)computed match list, e.g. to count or scroll to matches. */
+  onMatches?: (matches: Range[][]) => void,
 ): void {
   const ownedRangesRef = useRef<Range[]>([]);
   const ownerTokenRef = useRef<symbol | null>(null);
@@ -212,10 +227,12 @@ export function useHighlightTextNodes(
 
       if (!trimmed || !available) {
         releaseActiveIfOwner();
+        onMatches?.([]);
         return;
       }
 
       const matches = findMatchesInContainer(container, trimmed);
+      onMatches?.(matches);
       const ranges = matches.flat();
       ownedRangesRef.current = ranges;
 
@@ -242,8 +259,27 @@ export function useHighlightTextNodes(
       }
     };
 
-    apply();
+    // Re-applies after DOM changes wait REAPPLY_SPACING_FACTOR × the last scan's
+    // cost, which caps scanning at ~20% of main-thread time whatever the
+    // container size: a short transcript or diff (~0.3ms) still re-applies every
+    // frame, a 420-turn minimal transcript (25-45ms per scan) every 100-180ms, so
+    // a streaming reply is not starved. A fixed throttle would instead delay small
+    // containers for nothing, and leave highlights missing after each Shiki node
+    // swap for the whole interval. Query and step changes rerun the effect and
+    // scan at once; only mutation-driven re-applies are spaced.
+    let applyCostMs = 0;
+    const timedApply = (): void => {
+      const start = performance.now();
+      apply();
+      applyCostMs = performance.now() - start;
+    };
 
+    timedApply();
+    // Nothing to keep current while there is no query.
+    if (!trimmed || !available) return;
+
+    let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+    let pendingFrame: number | null = null;
     const observer = new MutationObserver((mutations) => {
       // Skip mutations inside ignored chrome (e.g. status footers with
       // ticking timers) — they cannot change the searchable text.
@@ -253,8 +289,16 @@ export function useHighlightTextNodes(
         return element?.closest('[data-search-ignore]') != null;
       });
       if (onlyIgnored) return;
-      // Defer to next frame so Shiki async render has completed
-      requestAnimationFrame(() => apply());
+      // One re-apply however many mutation batches arrive meanwhile; it runs at
+      // a frame start so Shiki's async render has landed.
+      if (pendingTimer !== null || pendingFrame !== null) return;
+      pendingTimer = setTimeout(() => {
+        pendingTimer = null;
+        pendingFrame = requestAnimationFrame(() => {
+          pendingFrame = null;
+          timedApply();
+        });
+      }, applyCostMs * REAPPLY_SPACING_FACTOR);
     });
     observer.observe(container, {
       childList: true,
@@ -264,8 +308,10 @@ export function useHighlightTextNodes(
 
     return () => {
       observer.disconnect();
+      if (pendingTimer !== null) clearTimeout(pendingTimer);
+      if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
       removeOwnedRanges();
       releaseActiveIfOwner();
     };
-  }, [containerRef, query, activeOccurrenceIndex]);
+  }, [containerRef, query, activeOccurrenceIndex, onMatches]);
 }

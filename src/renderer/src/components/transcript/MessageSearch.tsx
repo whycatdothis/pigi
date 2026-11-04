@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue } from 'react';
-import { IconArrowUp, IconArrowDown, IconX, IconSearch } from '@tabler/icons-react';
-import { Popover, PopoverContent, PopoverAnchor } from '../ui/popover';
-import { Input } from '../ui/input';
+import FindPopover from '../ui/findPopover';
 
 export interface MessageSearchTarget {
   renderIndex: number;
@@ -29,6 +27,10 @@ interface MessageSearchProps {
   refocus: number;
 }
 
+function isInsideMessageList(target: Element): boolean {
+  return target.closest('[data-testid="message-list"]') !== null;
+}
+
 export default function MessageSearch({
   open,
   onOpenChange,
@@ -39,24 +41,7 @@ export default function MessageSearch({
   refocus,
 }: MessageSearchProps): React.JSX.Element | null {
   const [activeIndex, setActiveIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
   const deferredQuery = useDeferredValue(query);
-
-  useEffect(() => {
-    if (open) {
-      requestAnimationFrame(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      });
-    }
-  }, [open]);
-
-  // Select all on Cmd+F when already open
-  useEffect(() => {
-    if (refocus > 0 && inputRef.current) {
-      inputRef.current.select();
-    }
-  }, [refocus]);
 
   const results = useMemo(() => {
     const trimmed = deferredQuery.trim().toLowerCase();
@@ -107,104 +92,21 @@ export default function MessageSearch({
     }
   }, [deferredQuery, results, onJump]);
 
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>): void => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onOpenChange(false);
-        return;
-      }
-      if (results.length === 0) return;
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        jumpTo(event.shiftKey ? clampedIndex - 1 : clampedIndex + 1);
-        return;
-      }
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        jumpTo(clampedIndex + 1);
-        return;
-      }
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        jumpTo(clampedIndex - 1);
-        return;
-      }
-    },
-    [results.length, clampedIndex, jumpTo, onOpenChange],
-  );
-
-  if (!open) return null;
-
-  const hasQuery = deferredQuery.trim().length > 0;
-
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverAnchor className="absolute right-5 top-2" />
-      <PopoverContent
-        align="end"
-        sideOffset={0}
-        className="w-72 rounded-surface p-0"
-        onInteractOutside={(event) => {
-          const target = event.target;
-          if (target instanceof Element && target.closest('[data-testid="message-list"]')) {
-            event.preventDefault();
-          }
-        }}
-      >
-        <div className="flex items-center gap-1.5 px-2 py-1">
-          <IconSearch className="size-4 shrink-0 text-muted-foreground" />
-          <Input
-            ref={inputRef}
-            value={query}
-            onChange={(event) => {
-              setActiveIndex(0);
-              onQueryChange(event.target.value);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="Search messages…"
-            className="h-7 w-44 border-0 bg-transparent px-px text-body shadow-none focus-visible:ring-0"
-          />
-          <div className="ml-auto flex items-center gap-1.5">
-            {hasQuery && totalMatches > 0 && (
-              <>
-                <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
-                  {clampedIndex + 1}/{totalMatches}
-                </span>
-                <span className="flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => jumpTo(clampedIndex - 1)}
-                    className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-                    title="Previous match (Shift+Enter)"
-                  >
-                    <IconArrowUp className="size-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => jumpTo(clampedIndex + 1)}
-                    className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-                    title="Next match (Enter)"
-                  >
-                    <IconArrowDown className="size-4" />
-                  </button>
-                </span>
-              </>
-            )}
-            {hasQuery && totalMatches === 0 && (
-              <span className="shrink-0 text-2xs whitespace-nowrap text-danger-fg">NOT FOUND</span>
-            )}
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-              title="Close (Esc)"
-            >
-              <IconX className="size-4" />
-            </button>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+    <FindPopover
+      open={open}
+      onOpenChange={onOpenChange}
+      query={query}
+      onQueryChange={(next) => {
+        setActiveIndex(0);
+        onQueryChange(next);
+      }}
+      matchCount={deferredQuery.trim().length > 0 ? totalMatches : null}
+      activeIndex={clampedIndex}
+      onStep={(direction) => jumpTo(clampedIndex + direction)}
+      focusRequest={refocus}
+      placeholder="Search messages…"
+      keepOpenOnInteract={isInsideMessageList}
+    />
   );
 }

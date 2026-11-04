@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Cmd+F finds text in the minimal chat view, the open file in the Files tab and
+  the open diff in the Git tab
+
 ### Changed
 
 - An open right sidebar stays open, dimmed, on the new chat screen instead of
@@ -11,6 +16,8 @@
 
 - Sending quotes from the Files tab switches to the Chat tab, as it does from
   the Git tab
+- Chat search no longer opens over the Files or Git tab when Cmd+F is pressed
+  there
 
 ## [0.5.1] - 2026-11-04
 
