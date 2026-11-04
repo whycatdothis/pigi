@@ -3,7 +3,6 @@ import { diagramFontFamily, diagramFontKey } from './mermaidTheme';
 import type { DiagramTheme } from '../../../shared/diagramTheme';
 
 export interface RenderedDiagram {
-  /** Mermaid's own markup, which is what the drawing is made of. */
   svg: string;
   /**
    * Mermaid's stylesheet for this drawing, with its rules scoped to
@@ -38,7 +37,6 @@ const CACHE_LIMIT = 32;
 const cache = new Map<string, DiagramOutcome>();
 
 let renderCount = 0;
-/** The configuration mermaid was last initialized with, theme and font. */
 let initializedConfig: string | null = null;
 
 /**
@@ -49,11 +47,9 @@ let initializedConfig: string | null = null;
 let queue: Promise<unknown> = Promise.resolve();
 
 /**
- * Renders that are under way, by key. Two callers asking for the same diagram
- * at the same time — which is what a component mounted twice does — get one
- * drawing rather than two, and with it the same markup: a caller that mounts
- * into an element another caller is already drawing into is not left holding a
- * drawing that the next one replaces.
+ * Renders under way, by key. A component mounted twice asks for the same
+ * diagram at once; both callers must get one drawing with the same markup, or
+ * one is left holding a drawing the other replaces.
  */
 const inFlight = new Map<string, Promise<DiagramOutcome>>();
 
@@ -146,11 +142,9 @@ async function renderUncached(
     renderCount += 1;
     const renderId = `pigi-mermaid-${String(renderCount)}`;
     const { svg } = await mermaid.render(renderId, code);
-    // The name mermaid draws under says which render this was, and a render is
-    // not a thing the drawing is: the markup of a diagram is named after the
-    // diagram, so that the same source in the same theme is the same markup
-    // however often it is drawn, and a caller can mount it without a redraw
-    // taking the drawing out from under it.
+    // The markup is renamed after the diagram, not the render, so the same
+    // source in the same theme is the same markup however often it is drawn,
+    // and a caller can mount it without a redraw taking it out from under it.
     return { ok: true, diagram: prepareDiagram(svg, renderId, `pigi-mermaid-${hashString(key)}`) };
   } catch (error) {
     return { ok: false, message: firstLine(error) };
@@ -168,7 +162,6 @@ function configFor(theme: DiagramTheme): MermaidConfig {
     // the document, where it would sit outside the transcript and never leave.
     suppressErrorRendering: true,
     theme,
-    // Mermaid's palette for the theme, in the stack the app draws text in.
     fontFamily: diagramFontFamily(),
   };
 }
@@ -254,7 +247,6 @@ function scopeRules(rules: string, rootId: string): { scope: string; rules: stri
   return { scope, rules: scoped };
 }
 
-/** The animation names a stylesheet defines, for renaming them per scope. */
 function animationNames(rules: string): string[] {
   return [...rules.matchAll(/@keyframes\s+([\w-]+)/g)].map((match) => match[1]);
 }
@@ -263,7 +255,6 @@ function escaped(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** A stable key for a set of rules, so identical ones are recognised as such. */
 function hashString(text: string): string {
   let hash = 2166136261;
   for (let index = 0; index < text.length; index++) {

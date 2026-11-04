@@ -1,10 +1,6 @@
 /**
- * Tests for the list model: the items the list renders, where they start, which
- * row sits at the top of the viewport, and the branch lines.
- *
- * All of it is arithmetic over the row order, which is the point: the list draws
- * a window, so the geometry of rows that are not rendered has to be right
- * anyway. The expectations here are the numbers the drawn app has: a row is 32px
+ * The list draws a window, so the geometry of rows that are not rendered has to
+ * be right anyway. The expectations here are the numbers the drawn app has: a row is 32px
  * tall, a fork's child carries 2px of spacing above it, and a lit run reaches
  * the centre of the row it leads to.
  */

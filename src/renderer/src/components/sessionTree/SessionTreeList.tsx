@@ -111,15 +111,12 @@ export function SessionTreeList({
   const pendingFocusIdRef = useRef<string | null>(null);
   /** The list has been to the current row once; it does not go back on its own. */
   const scrolledToCurrentRef = useRef(false);
-  /** The keyboard row the list last brought into view. */
   const revealedIdRef = useRef<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // The rows the list shows (folds and filters applied). This is the expensive
-  // part — one walk of the visible session — so it is memoised on the things that
-  // can change it, and not on the row the light is on: a pointer moving along a
-  // branch must not rebuild the rows.
+  // One walk of the visible session, so deliberately not keyed on the lit row: a
+  // pointer moving along a branch must not rebuild the rows.
   const { rows, parentById, depthById } = useMemo(
     () => buildSessionTreeRows(data, foldedItemIds, collapsedTreeIds),
     [data, foldedItemIds, collapsedTreeIds],
@@ -350,8 +347,6 @@ export function SessionTreeList({
       onScroll={handleScroll}
       onKeyDown={handleKeyDown}
     >
-      {/* The ancestor band sticks inside the list, above the rows and the tree
-          headers (`z-20`), and takes no space in the flow. */}
       <PinnedAncestors
         scrollRef={containerRef}
         items={items}
@@ -363,9 +358,6 @@ export function SessionTreeList({
         onToggleTree={onToggleTree}
         rowContext={rowContext}
       />
-      {/* The spacer is as tall as the whole list, so the scrollbar is honest; the
-          rows inside it are only the ones on screen, and the window moves with
-          the scroll. */}
       <div
         className="relative"
         style={{ height: `${virtualizer.getTotalSize()}px` }}

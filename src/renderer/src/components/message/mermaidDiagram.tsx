@@ -19,7 +19,6 @@ import { useSettingsStore } from '../../state/settingsStore';
 const ZOOM_MARGIN_PX = 24;
 /** How far a pointer may travel and still count as a click rather than a drag. */
 const DRAG_SLOP_PX = 4;
-/** How far into a drawing the overlay may be zoomed. */
 const MAX_ZOOM_SCALE = 8;
 
 /**
@@ -115,8 +114,6 @@ function DiagramZoomContent({
 }
 
 /**
- * The drawing itself, as markup.
- *
  * Memoised on purpose: React writes `dangerouslySetInnerHTML` back into the DOM
  * whenever the element renders, identical string or not, which would tear down
  * and rebuild the drawing underneath the reader. Whatever the drawing is holding

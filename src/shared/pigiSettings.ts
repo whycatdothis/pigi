@@ -46,9 +46,8 @@ export interface PigiSettings {
 }
 
 /**
- * What a renderer asks the owner to change: the slices it edited, not the whole
- * document. Main merges these onto its authoritative copy, so a commit only
- * touches what it edited.
+ * The slices a renderer edited, not the whole document: main merges these onto
+ * its authoritative copy.
  */
 export interface PigiSettingsChange {
   appearance?: AppearanceSettings;

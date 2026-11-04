@@ -9,7 +9,6 @@
  * height each tier was tuned against.
  */
 @theme static {
-  /* Radius ------------------------------------------------------------- */
   --radius-inline: 6px; /* inline code, kbd: padding-box ornaments */
   --radius-chip: 8px; /* chips, badges, theme tiles */
   --radius-control-sm: 10px; /* 24px icon buttons, xs controls, tables */
@@ -21,17 +20,14 @@
   --radius-container: 36px; /* page cards, large panels */
   --radius-full: 9999px; /* circles and pills, when height is unknown */
 
-  /* Spacing ------------------------------------------------------------ */
   --spacing-row: 12px; /* label and control inside one row */
   --spacing-group: 16px; /* gap between controls in a card */
   --spacing-section: 36px; /* gap between settings groups */
 
-  /* Elevation ---------------------------------------------------------- */
   --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.12);
   --shadow-popover: 0 6px 20px rgb(0 0 0 / 0.14);
   --shadow-composer: 0 10px 34px rgb(0 0 0 / 0.075);
 
-  /* Motion ------------------------------------------------------------- */
   --duration-fast: 100ms; /* hover, focus */
   --duration-base: 150ms; /* colour, opacity */
   --duration-slow: 200ms; /* enter and exit */

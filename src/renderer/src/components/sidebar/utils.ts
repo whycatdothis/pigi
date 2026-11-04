@@ -16,16 +16,10 @@ export function formatDateTime(value: string): string {
   return `${y}-${mo}-${d} ${h}:${m}`;
 }
 
-/**
- * Get the display title for a session.
- */
 export function getSessionTitle(session: PiSessionInfo): string {
   return (session.name ?? session.firstMessage).replace(/\s+/g, ' ').trim();
 }
 
-/**
- * Check if a session is currently running (not idle).
- */
 export function isSessionRunning(
   sessionPath: string,
   sessions: Map<string, { status: string }>,

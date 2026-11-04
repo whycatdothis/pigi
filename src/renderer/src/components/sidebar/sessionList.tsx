@@ -305,9 +305,7 @@ export function SessionList({
 
   function handleSessionSwitch(session: PiSessionInfo): void {
     // Clicked items are visible by definition (hidden items aren't rendered),
-    // so auto-expand must never fire for this selection — even if a later
-    // session-list refresh re-runs the effect after the user collapsed the
-    // list.
+    // so auto-expand must never fire for this selection.
     suppressAutoExpandPathRef.current = session.path;
     onResumeSession(session);
   }

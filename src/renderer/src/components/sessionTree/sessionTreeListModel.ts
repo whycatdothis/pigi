@@ -19,7 +19,6 @@ import {
 /** Height of a tree header before one has been measured. */
 export const DEFAULT_TREE_HEADER_HEIGHT_PX = 28;
 
-/** One line of the list: a version header, or a row. */
 export type SessionTreeListItem =
   | {
       kind: 'header';
@@ -31,7 +30,6 @@ export type SessionTreeListItem =
     }
   | { kind: 'row'; treeId: string; row: SessionTreeFlatRow };
 
-/** The header line of one tree. */
 export type SessionTreeHeaderItem = Extract<SessionTreeListItem, { kind: 'header' }>;
 
 /** The tree's header item, which the pinned band draws while the list is inside it. */
@@ -189,7 +187,6 @@ export function findTopRowIndex(
   return lastRowIndex(items);
 }
 
-/** The last row of the list, or null when it has none. */
 function lastRowIndex(items: readonly SessionTreeListItem[]): number | null {
   for (let index = items.length - 1; index >= 0; index -= 1) {
     if (items[index].kind === 'row') return index;

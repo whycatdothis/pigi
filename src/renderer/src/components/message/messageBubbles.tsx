@@ -41,9 +41,8 @@ function isInFlight(node: TranscriptNode): boolean {
 }
 
 /**
- * Uniform spacing between a message's content and its action icons. Applied
- * inside the toolbar so every placement (user bubble, assistant text, tool
- * block) has the same clear gap.
+ * Applied inside the toolbar so every placement (user bubble, assistant text,
+ * tool block) gets the same gap above the icons.
  */
 const ACTION_TOOLBAR_OFFSET_CLASS_NAME = 'mt-0.5';
 

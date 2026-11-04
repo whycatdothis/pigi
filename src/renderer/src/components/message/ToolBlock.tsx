@@ -18,7 +18,6 @@ import OverflowClamp from './overflowClamp';
 import { Skeleton } from '../ui/skeleton';
 import { IconCheck, IconX, IconMinus } from '@tabler/icons-react';
 
-/** Max lines shown in collapsed write preview */
 function WritePreview({
   content,
   language,
@@ -53,7 +52,6 @@ const DIFF_SKELETON_ROWS = [
 const WRITE_SKELETON_WIDTHS = ['w-1/2', 'w-4/5', 'w-2/3', 'w-3/4', 'w-1/3', 'w-3/5'];
 const BASH_SKELETON_WIDTHS = ['w-3/4', 'w-2/3', 'w-1/2', 'w-3/5'];
 
-/** Diff-styled placeholder shown while an edit is still running */
 function DiffSkeleton(): React.JSX.Element {
   return (
     <div className="overflow-hidden rounded font-mono text-code-compact leading-5" aria-hidden>
@@ -67,7 +65,6 @@ function DiffSkeleton(): React.JSX.Element {
   );
 }
 
-/** File-content placeholder shown while a write is still streaming */
 function WriteSkeleton(): React.JSX.Element {
   return (
     <div className="flex flex-col font-mono text-code-compact leading-5" aria-hidden>
@@ -81,8 +78,7 @@ function WriteSkeleton(): React.JSX.Element {
   );
 }
 
-/** Terminal-output placeholder shown while a bash command runs with no output yet.
- *  No line-number gutter, unlike WriteSkeleton, to read as log/terminal lines. */
+/** No line-number gutter, unlike WriteSkeleton, to read as terminal output. */
 function BashSkeleton(): React.JSX.Element {
   return (
     <div className="flex flex-col font-mono text-code leading-5" aria-hidden>
@@ -181,8 +177,7 @@ function getLanguageFromPath(path: string): string | null {
     return null;
   }
 
-  // Check override map first, then use the extension directly
-  // (most extensions like rs, go, py, ts are valid shiki language ids/aliases)
+  // Most extensions (rs, go, py, ts) are already shiki language ids or aliases.
   return FILE_EXTENSION_LANGUAGE_OVERRIDE[extension] ?? extension;
 }
 
@@ -245,9 +240,8 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
   const editDiffFromDetails = getEditDiffFromDetails(node);
   const writeEntries = getWriteEntries(node);
   const hasOutput = cleanedOutput.length > 0;
-  // While running, the body is empty until content loads; show a skeleton
-  // instead of a blank card. Each tool gets a placeholder matching its real
-  // output: a diff for edit, file lines for write, terminal lines for bash.
+  // A running tool's body is empty until content loads; a placeholder shaped
+  // like its real output stands in for a blank card.
   const showEditSkeleton = node.name === 'edit' && node.status === 'running';
   const showWriteSkeleton =
     node.name === 'write' && node.status === 'running' && (writeEntries?.length ?? 0) === 0;

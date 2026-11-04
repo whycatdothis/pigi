@@ -13,7 +13,6 @@ export interface PathToken {
   startOffset: number;
 }
 
-/** Find a path-like token ending at the cursor. */
 export function findPathTokenAtEnd(text: string): PathToken | null {
   let searchEnd = text.length;
   while (searchEnd > 0) {
@@ -44,7 +43,6 @@ export function findPathTokenAtEnd(text: string): PathToken | null {
   return null;
 }
 
-/** A word starts a path when it is `~` or contains a slash. */
 function isPathStartWord(word: string): boolean {
   return word === '~' || word.includes('/');
 }

@@ -6,12 +6,10 @@ import {
 } from '../state/transcriptController';
 import { isReadOnlyBashCommand } from './readOnlyCommand';
 
-/** A read group entry is either a read-only tool call or an absorbed thinking-only assistant message */
 export type ReadGroupEntry =
   | { kind: 'tool'; node: ToolNode }
   | { kind: 'thinking'; node: AssistantNode };
 
-/** A render item is either a single transcript node or a collapsed group of read-only entries */
 export type RenderItem =
   | { type: 'node'; node: TranscriptNode; id: string }
   | { type: 'readGroup'; entries: ReadGroupEntry[]; id: string };
@@ -71,10 +69,10 @@ function canonicalizeGroupItem(item: RenderItem): RenderItem {
   return item;
 }
 
-/** The entries sequence matches when every node reference, kind, and mutation
- *  revision equals the snapshot taken when the cached item was stored.
- *  References alone are not enough: thinking deltas mutate absorbed assistant
- *  nodes in place, and only their revision exposes the change. */
+/** Every node reference, kind, and revision equals the snapshot taken when
+ *  the cached item was stored. References alone are not enough: thinking
+ *  deltas mutate absorbed assistant nodes in place, and only their revision
+ *  exposes the change. */
 function entriesEquivalent(
   cached: { revisions: number[]; item: Extract<RenderItem, { type: 'readGroup' }> },
   incoming: Extract<RenderItem, { type: 'readGroup' }>,
@@ -172,8 +170,6 @@ export function buildRenderItems(nodes: TranscriptNode[], compact: boolean): Ren
     if (node.role === 'tool' && isReadToolNode(node)) {
       currentGroup.push({ kind: 'tool', node });
     } else if (isThinkingOnlyNode(node) && currentGroup.length > 0) {
-      // Thinking-only messages are transparent to grouping —
-      // absorb them directly into the current read group.
       currentGroup.push({ kind: 'thinking', node });
     } else {
       flushGroup();

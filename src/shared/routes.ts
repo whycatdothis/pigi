@@ -6,5 +6,4 @@
  * which avoids a second vite entry and keeps one preload/renderer bundle.
  */
 
-/** The standalone update progress window. */
 export const UPDATE_PROGRESS_HASH = '#/update-progress';

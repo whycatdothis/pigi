@@ -18,9 +18,7 @@ function round(value: number): number {
 /**
  * One superellipse corner as the points between two edge tangents.
  *
- * `corner-shape` cannot reach inside an SVG, so an outlined path is the only way
- * to keep a drawn box on the same corner family as the surfaces around it. The
- * polyline is exact rather than a bezier approximation: at this size the
+ * The polyline is exact rather than a bezier approximation: at this size the
  * segments are a fraction of a device pixel apart.
  */
 function cornerPoints(

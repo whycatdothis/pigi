@@ -16,6 +16,8 @@ pay for itself.
 
 - No `eslint-disable` comments, no `any`, no `as` unless nothing else works (then a comment says why).
 - Comments earn their place: no restating what the code says, no narrating the diff. Write the ones that carry something the reader cannot get from the code — why this way, what broke before, which measurement forced the value — and keep those short.
+  - Not earning it: JSDoc that repeats the name or type, step narration (`// Cleanup`), `// ===== Section =====` banners, history ("used to", "now") that no longer guards against a regression.
+  - A comment that no longer matches the code is a bug: when you change code, fix or delete the comments on it.
 - No inline or dynamic imports; every import is top-level.
 - Never downgrade code to satisfy a dependency's stale types — upgrade the dependency.
 - Ask before removing functionality that looks intentional; no backward compatibility unless asked.

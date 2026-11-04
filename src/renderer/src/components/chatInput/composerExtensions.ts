@@ -61,13 +61,11 @@ const PATH_REFERENCE_NODE_NAME = 'pathReference';
 /** Position right after the opening paragraph tag, i.e. the start of the prompt. */
 export const COMPOSER_TEXT_START = 1;
 
-/** Close the picker of `kind` if it is open. */
 export function exitReferenceSuggestion(view: EditorView, kind: ChatReferenceKind): void {
   const key = SUGGESTION_KEYS[kind];
   if (key.getState(view.state)?.active) exitSuggestion(view, key);
 }
 
-/** Close the path picker if it is open. */
 export function exitPathSuggestion(view: EditorView): void {
   if (PATH_SUGGESTION_KEY.getState(view.state)?.active) exitSuggestion(view, PATH_SUGGESTION_KEY);
 }
@@ -83,7 +81,6 @@ export function exitReferenceSuggestions(view: EditorView): void {
   }
 }
 
-/** Whether any picker is open. */
 export function hasActiveSuggestion(state: EditorState): boolean {
   return ALL_SUGGESTION_KEYS.some((key) => key.getState(state)?.active === true);
 }

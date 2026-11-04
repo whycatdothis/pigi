@@ -15,7 +15,6 @@ import { getMainWindow } from '../windows/createMainWindow';
 import { createTerminalProcess } from '../processes/createPiAgentProcess';
 import { PiChannel, type TerminalUtilityCommand } from '../../shared/ipcContract';
 
-/** One utility process per terminal tab (keyed by its unique id). */
 const terminalProcesses = new Map<string, Electron.UtilityProcess>();
 
 function sendToRenderer(channel: PiChannel, data: unknown): void {

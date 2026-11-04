@@ -27,9 +27,7 @@ import {
 export interface CodeThemePreset {
   id: string;
   name: string;
-  /** Shiki theme for a light code surface. */
   light: BundledTheme;
-  /** Shiki theme for a dark code surface. */
   dark: BundledTheme;
 }
 
@@ -97,7 +95,7 @@ export function quantizeSurface(surface: string): string {
   return rgbToHex({ red: step(rgb.red), green: step(rgb.green), blue: step(rgb.blue) });
 }
 
-/** Above this relative luminance the surface is light enough for one-light. */
+/** At or above this relative luminance the surface takes the preset's light theme. */
 const LIGHT_SURFACE_LUMINANCE = 0.2;
 
 /** The subset of Shiki's `IRawThemeSetting` this pass reads and writes. */

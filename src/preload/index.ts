@@ -52,9 +52,7 @@ import {
   type PigiSettingsReadResult,
 } from '../shared/pigiSettings';
 
-// =============================================================================
-// pigi settings path (main passes it through `additionalArguments`)
-// =============================================================================
+// Main passes the pigi settings path through `additionalArguments`.
 
 const settingsPathArgument = process.argv.find((argument) =>
   argument.startsWith(PIGI_SETTINGS_PATH_ARGUMENT),
@@ -62,10 +60,6 @@ const settingsPathArgument = process.argv.find((argument) =>
 const pigiSettingsPath = settingsPathArgument
   ? settingsPathArgument.slice(PIGI_SETTINGS_PATH_ARGUMENT.length)
   : null;
-
-// =============================================================================
-// Per-session port management (keyed by sessionPath)
-// =============================================================================
 
 interface PendingCommand {
   resolve: (value: unknown) => void;
@@ -217,7 +211,6 @@ function setupPort(sessionPath: string, controlPort: MessagePort, dataPort: Mess
 
   sessionPorts.set(sessionPath, session);
 
-  // Drain pending handlers registered before port arrived.
   const queuedPushHandlers = pendingPushHandlers.get(sessionPath);
   if (queuedPushHandlers) {
     for (const callback of queuedPushHandlers) session.pushHandlers.add(callback);
@@ -240,12 +233,6 @@ ipcRenderer.on(PiChannel.SessionPort, (event, data: { sessionPath: string }) => 
   if (!controlPort || !dataPort || !data?.sessionPath) return;
   setupPort(data.sessionPath, controlPort, dataPort);
 });
-
-// =============================================================================
-// Terminal panel ports (one PTY per terminal tab, high-volume I/O over a data
-// MessagePort each). Everything is keyed by the tab's unique id so the renderer
-// can route to the right terminal instance.
-// =============================================================================
 
 const terminalPorts = new Map<string, MessagePort>();
 const terminalExitNotified = new Set<string>();
@@ -284,10 +271,6 @@ ipcRenderer.on(PiChannel.TerminalExit, (_event, payload: { id: string }) => {
   notifyTerminalExit(payload.id, null);
 });
 
-// =============================================================================
-// API
-// =============================================================================
-
 const piApi = {
   /** Create a new session. Resolves after the renderer-side ports are registered. */
   createSession: async (
@@ -314,7 +297,6 @@ const piApi = {
     return result;
   },
 
-  /** Destroy a session by its file path. */
   destroySession: (sessionPath: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke(PiChannel.DestroySession, sessionPath),
 
@@ -322,10 +304,8 @@ const piApi = {
   touchSession: (sessionPath: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke(PiChannel.TouchSession, sessionPath),
 
-  /** Get persisted project directory state from main process. */
   getProjects: (): Promise<ProjectStateResult> => ipcRenderer.invoke(PiChannel.GetProjects),
 
-  /** Get current git branch for a project directory. */
   getGitBranch: (cwd: string): Promise<GitBranchResult> =>
     ipcRenderer.invoke(PiChannel.GetGitBranch, cwd),
 
@@ -342,7 +322,6 @@ const piApi = {
   ): Promise<GitDiffFileResult> =>
     ipcRenderer.invoke(PiChannel.GetGitDiffFile, cwd, source, path, oldPath),
 
-  /** List the files one commit changed. */
   getGitCommitFiles: (cwd: string, commit: string): Promise<GitCommitFilesResult> =>
     ipcRenderer.invoke(PiChannel.GetGitCommitFiles, cwd, commit),
 
@@ -370,7 +349,6 @@ const piApi = {
   listProjectDirectory: (cwd: string, path: string): Promise<ProjectDirectoryResult> =>
     ipcRenderer.invoke(PiChannel.ListProjectDirectory, cwd, path),
 
-  /** Read a project file for the workspace viewer. */
   readProjectFile: (cwd: string, path: string): Promise<ProjectFileResult> =>
     ipcRenderer.invoke(PiChannel.ReadProjectFile, cwd, path),
 
@@ -379,7 +357,6 @@ const piApi = {
     ipcRenderer.send(PiChannel.WatchProjectFiles, cwd, directories, filePath);
   },
 
-  /** Subscribe to Files workspace filesystem changes. */
   onProjectFilesChanged: (callback: (change: ProjectFilesChanged) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, change: ProjectFilesChanged): void => {
       callback(change);
@@ -388,7 +365,6 @@ const piApi = {
     return () => ipcRenderer.removeListener(PiChannel.ProjectFilesChanged, handler);
   },
 
-  /** Set active project directory from recent projects. */
   setActiveProject: (path: string): Promise<ProjectStateResult> =>
     ipcRenderer.invoke(PiChannel.SetActiveProject, path),
 
@@ -396,7 +372,6 @@ const piApi = {
   openProjectDirectory: (): Promise<ProjectStateResult> =>
     ipcRenderer.invoke(PiChannel.OpenProjectDirectory),
 
-  /** Remove a project from recent projects. */
   removeProject: (path: string): Promise<ProjectStateResult> =>
     ipcRenderer.invoke(PiChannel.RemoveProject, path),
 
@@ -407,7 +382,6 @@ const piApi = {
   /** Resolve the on-disk path of a dropped or pasted File. Empty for JS-created files. */
   getPathForFile: (file: File): string => webUtils.getPathForFile(file),
 
-  /** Reorder recent projects. */
   reorderProjects: (paths: string[]): Promise<ProjectStateResult> =>
     ipcRenderer.invoke(PiChannel.ReorderProjects, paths),
 
@@ -430,11 +404,9 @@ const piApi = {
     error?: string;
   }> => ipcRenderer.invoke(PiChannel.ReadSessionMessages, sessionPath),
 
-  /** List persisted pi sessions for project directories. */
   listProjectSessions: (cwds: string[]): Promise<SessionListResult> =>
     ipcRenderer.invoke(PiChannel.ListProjectSessions, cwds),
 
-  /** Subscribe to persisted pi session chunks by project cwd. */
   onProjectSessionsChunk: (callback: (chunk: ProjectSessionsChunk) => void): (() => void) => {
     const handler = (_: Electron.IpcRendererEvent, chunk: ProjectSessionsChunk): void => {
       callback(chunk);
@@ -469,7 +441,6 @@ const piApi = {
     });
   },
 
-  /** Subscribe to push events for a session. */
   onPush: (sessionPath: string, callback: (message: PiPush) => void): (() => void) => {
     const session = sessionPorts.get(sessionPath);
     if (session) {
@@ -487,7 +458,6 @@ const piApi = {
     };
   },
 
-  /** Subscribe to stream batches for a session. */
   onStreamBatch: (sessionPath: string, callback: (batch: StreamBatch) => void): (() => void) => {
     const session = sessionPorts.get(sessionPath);
     if (session) {
@@ -505,7 +475,6 @@ const piApi = {
     };
   },
 
-  /** Listen for process exit (main → renderer). */
   onProcessExit: (callback: (data: { sessionPath: string; code: number }) => void) => {
     const handler = (
       _: Electron.IpcRendererEvent,
@@ -526,7 +495,6 @@ const piApi = {
   refreshModelCatalog: (): Promise<ModelCatalogSnapshot> =>
     ipcRenderer.invoke(PiChannel.RefreshModelCatalog),
 
-  /** Subscribe to model catalog updates (main → renderer push). */
   onModelCatalogUpdated: (callback: (snapshot: ModelCatalogSnapshot) => void) => {
     const handler = (_: Electron.IpcRendererEvent, snapshot: ModelCatalogSnapshot): void => {
       callback(snapshot);
@@ -537,8 +505,6 @@ const piApi = {
 
   /** Get the app's working directory (for session creation). */
   getCwd: (): string => process.cwd(),
-
-  /** Get app/electron/runtime version info for the About section. */
 
   /** Read pi settings (global + project) for a project cwd. */
   getPiSettings: (cwd: string): Promise<PiSettingsResult> =>
@@ -551,7 +517,6 @@ const piApi = {
     updates: PiSettingUpdate[],
   ): Promise<PiSettingsResult> => ipcRenderer.invoke(PiChannel.SetPiSettings, cwd, scope, updates),
 
-  /** Open a URL in the system browser. */
   openExternal: (url: string): void => {
     ipcRenderer.send(PiChannel.OpenExternal, url);
   },
@@ -564,7 +529,6 @@ const piApi = {
   /** Get all keyboard shortcut definitions with current bindings. */
   getShortcuts: (): Promise<ShortcutDefinition[]> => ipcRenderer.invoke(PiChannel.GetShortcuts),
 
-  /** Update a keyboard shortcut binding. */
   setShortcut: (
     id: string,
     binding: ShortcutBinding,
@@ -626,7 +590,6 @@ const piApi = {
     dismissWindow: (): void => {
       ipcRenderer.send(PiChannel.DismissUpdateWindow);
     },
-    /** Quit and install the downloaded update. */
     quitAndInstall: (): void => {
       ipcRenderer.send(PiChannel.QuitAndInstallUpdate);
     },
@@ -637,7 +600,6 @@ const piApi = {
     setProgressWindowContentHeight: (height: number): void => {
       ipcRenderer.send(PiChannel.UpdateProgressContentHeight, height);
     },
-    /** Subscribe to status changes (main → renderer push). */
     onStatus: (callback: (status: UpdateStatus) => void): (() => void) => {
       const handler = (_: Electron.IpcRendererEvent, status: UpdateStatus): void => {
         callback(status);
@@ -663,17 +625,14 @@ const piApi = {
       terminalExitNotified.delete(id);
       void ipcRenderer.invoke(PiChannel.TerminalStop, id);
     },
-    /** Send keystrokes to a PTY. */
     write: (id: string, data: string): void => {
       const message: TerminalInboundMessage = { type: 'input', data };
       terminalPorts.get(id)?.postMessage(message);
     },
-    /** Inform a PTY of a new viewport size. */
     resize: (id: string, cols: number, rows: number): void => {
       const message: TerminalInboundMessage = { type: 'resize', cols, rows };
       terminalPorts.get(id)?.postMessage(message);
     },
-    /** Subscribe to a PTY's output. */
     onData: (id: string, callback: (data: string) => void): (() => void) => {
       let handlers = terminalOutputHandlers.get(id);
       if (!handlers) {

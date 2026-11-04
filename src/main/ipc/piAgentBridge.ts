@@ -100,7 +100,6 @@ interface PendingRequest {
 
 const pendingSessionWorkerRequests = new Map<string, PendingRequest>();
 
-/** One round trip; the same budget each handler used to hard-code. */
 const SESSION_WORKER_REQUEST_TIMEOUT_MS = 10000;
 
 /**
@@ -132,16 +131,12 @@ function settleRequest<TReply, TResult>(
   pending.settle(definition.read(reply));
 }
 
-/**
- * Posts one command and waits for the worker's reply.
- *
- * The id, the pending slot, the 10s timeout and its cleanup live here once;
- * `build` gets the freshly minted id so each call site keeps its own command
- * shape. A failure resolves the kind's failure shape rather than throwing into
- * ipcMain, which is what every handler already returned.
- */
 type SessionWorkerRequestCommand = Exclude<SessionWorkerCommand, { type: 'reload_catalog' }>;
 
+/**
+ * Posts one command and waits for the worker's reply. A failure resolves the
+ * kind's failure shape rather than throwing into ipcMain.
+ */
 function requestFromSessionWorker<TReply, TResult>(
   definition: SessionWorkerRequest<TReply, TResult>,
   build: (requestId: string) => SessionWorkerRequestCommand,
@@ -176,16 +171,12 @@ const processPool = new PiAgentProcessPool((sessionPath, code) => {
   sendToRenderer(PiChannel.ProcessExit, { sessionPath, code });
 });
 
-// =============================================================================
-// Model catalog (served by the session worker, cached + broadcast by main)
-//
 // The session worker is the single producer of the model catalog; it loads it
 // at startup, rebuilds it on credential changes, and reloads on renderer
 // request (picker refresh). Main keeps the last published snapshot so a
 // freshly loaded renderer gets an immediate answer, and forwards every update
 // push with a monotonically increasing version so the renderer can drop
 // out-of-order snapshots.
-// =============================================================================
 
 let modelCatalogCache: ModelInfo[] = [];
 let modelCatalogVersion = 0;
@@ -310,10 +301,6 @@ function listProjectSessions(cwds: string[]): SessionListResult {
   return { success: true, requestId };
 }
 
-/**
- * Spawn a utility process (or claim the warm one), send lifecycle command,
- * wait for sessionPath, then establish dedicated control/data MessagePorts.
- */
 async function attemptSpawnSessionProcess(
   command: UtilityCommand,
   proc: Electron.UtilityProcess,
@@ -330,7 +317,6 @@ async function attemptSpawnSessionProcess(
     }, 30000);
 
     const messageHandler = (message: UtilityResponse): void => {
-      // Always handle busy state changes
       if (message.type === 'session_busy_changed') {
         processPool.updateBusyState(proc, message.isBusy);
         return;
@@ -366,7 +352,6 @@ async function attemptSpawnSessionProcess(
 
           processPool.registerSessionProcess(sessionPath, proc);
 
-          // Establish control/data MessagePorts
           const controlChannel = new MessageChannelMain();
           const dataChannel = new MessageChannelMain();
           const attachCommand: UtilityCommand = { type: 'attach_ports' };
@@ -403,7 +388,6 @@ async function attemptSpawnSessionProcess(
       }
     });
 
-    // Send the lifecycle command
     proc.postMessage(command);
   });
 }
@@ -416,7 +400,6 @@ async function attemptSpawnSessionProcess(
 async function spawnSessionProcess(
   command: UtilityCommand,
 ): Promise<{ success: boolean; sessionPath?: string; error?: string }> {
-  // First attempt: prefer warm process, fall back to fresh
   const firstProc = processPool.claimWarmProcess() ?? processPool.createFreshProcess();
   const firstResult = await attemptSpawnSessionProcess(command, firstProc);
   if (firstResult.success) {
@@ -430,7 +413,6 @@ async function spawnSessionProcess(
     return retryResult;
   }
 
-  // Both attempts failed — return the retry error
   return { success: false, error: retryResult.error ?? firstResult.error };
 }
 
@@ -457,7 +439,6 @@ export function stopAllProcesses(): void {
 
 export function registerIpcHandlers(): void {
   startSessionWorker();
-  // Spawn the initial warm process
   processPool.ensureWarmProcess();
 
   ipcMain.handle(PiChannel.CreateSession, async (_e, cwd: string, parentSessionPath?: string) => {
@@ -474,7 +455,6 @@ export function registerIpcHandlers(): void {
     if (!sessionPath || typeof sessionPath !== 'string' || sessionPath.trim().length === 0) {
       return { success: false, error: 'sessionPath must be a non-empty string' };
     }
-    // Reuse existing process if this session is already open
     const existing = processPool.findBySessionPath(sessionPath);
     if (existing) {
       processPool.touchSessionProcess(sessionPath);
@@ -519,10 +499,9 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(PiChannel.RefreshModelCatalog, async () => {
-    // Picker refresh: return the current snapshot immediately (corrects a
-    // renderer whose snapshot went stale) and kick a reload in the
-    // background — updates arrive via ModelCatalogUpdated. Throttled so a
-    // burst of picker opens costs one rebuild, not one per click.
+    // Return the current snapshot immediately (corrects a renderer whose
+    // snapshot went stale) and kick a background reload; updates arrive via
+    // ModelCatalogUpdated.
     const now = Date.now();
     if (now - lastPickerRefreshAt >= PICKER_REFRESH_THROTTLE_MS) {
       lastPickerRefreshAt = now;

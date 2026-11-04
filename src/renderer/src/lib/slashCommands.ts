@@ -83,10 +83,7 @@ export function getAllSlashCommands(skills: SkillSlashCommand[]): SlashCommand[]
   return [...BUILTIN_COMMANDS, ...skills.map(toSkillCommand)];
 }
 
-/**
- * Filter commands matching partial input (for autocomplete).
- * Uses fuzzy match (matches non-contiguous character sequences) for both builtin and skill commands.
- */
+/** Autocomplete matches; fuzzy (non-contiguous characters) for builtin and skill commands. */
 export function matchSlashCommands(
   input: string,
   allCommands: SlashCommand[],

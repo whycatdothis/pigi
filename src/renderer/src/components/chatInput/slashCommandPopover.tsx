@@ -27,7 +27,6 @@ export function SlashCommandPopover({
   const slashListRef = useRef<HTMLDivElement>(null);
   const hasMatches = matches.builtin.length > 0 || matches.skill.length > 0;
 
-  // Scroll selected slash item into view
   useEffect(() => {
     if (!hasMatches) return;
     const container = slashListRef.current;

@@ -40,7 +40,7 @@ async function buildImageContent(attachment: PromptAttachment): Promise<ImageCon
   const bytes = await readAttachmentBytes(attachment);
   const resized = await resizeImage(bytes, attachment.mimeType);
   // Null means it could not be decoded or brought under the provider's inline
-  // limit; the original bytes would fail the whole prompt, so leave it out.
+  // limit; sending the original bytes would fail at the provider, so refuse here.
   if (!resized) {
     throw new Error('image could not be resized below the inline image size limit');
   }
@@ -65,7 +65,6 @@ async function buildInlineFileSection(attachment: PromptAttachment): Promise<str
   return fileSection(name, `\n${bytes.toString('utf-8')}\n`);
 }
 
-/** Build the text and images for a prompt command. */
 export async function buildPromptContent(
   message: string,
   attachments: PromptAttachment[],

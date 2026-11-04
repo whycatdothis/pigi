@@ -12,7 +12,6 @@ import fuzzysort from 'fuzzysort';
 import type { SessionTree, SessionTreeEntry } from '../../../shared/ipcContract';
 import { getToolCommandPartsForTool } from './toolDisplay';
 
-/** Entry kinds, as they arrive from the utility process. */
 export type SessionTreeKind = SessionTreeEntry['kind'];
 
 /** The parent of every tree's root; real entries never use this id. */
@@ -223,8 +222,6 @@ export function describeSessionTreeRow(
 } {
   const description = describeSessionTreeEntry(entry);
   return {
-    // Chains have no fold affordance: the rows a fold would hide do not read as
-    // children on screen.
     canFold: canFoldRow(childCount, isBranchChild),
     description,
     isMetaKind: entry.kind === 'compaction' || entry.kind === 'branchSummary',
@@ -232,7 +229,6 @@ export function describeSessionTreeRow(
   };
 }
 
-/** Row text for the tree list. */
 export function describeSessionTreeEntry(entry: SessionTreeEntry): SessionTreeDescription {
   if (entry.kind === 'toolResult') {
     const parts = getToolCommandPartsForTool(entry.toolName ?? 'tool', entry.toolArgs);
@@ -275,7 +271,6 @@ export function canFoldRow(childCount: number, isBranchChild: boolean): boolean 
   return childCount > 1 || (isBranchChild && childCount > 0);
 }
 
-/** One row of the list, carrying what it takes to draw on its own. */
 export interface SessionTreeFlatRow {
   itemId: string;
   /** Indent level the row draws at; the roots of a tree start at zero. */

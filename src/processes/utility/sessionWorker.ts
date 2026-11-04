@@ -67,7 +67,6 @@ const CATALOG_SERVICES_TIMEOUT_MS = 30000;
 const CATALOG_REFRESH_TIMEOUT_MS = 10000;
 
 let catalogServices: AgentSessionServices | null = null;
-// Dedup key of the last published catalog (sorted provider/id pairs).
 let lastPublishedCatalogKey: string | null = null;
 // Coalesced reload: concurrent requests join the in-flight reload instead of
 // queueing behind it, so a burst (login + picker refresh) costs one rebuild.
@@ -133,9 +132,6 @@ function publishCatalog(modelRuntime: ModelRuntime): void {
 }
 
 /**
- * (Re)build the catalog services and publish. Called at startup, on every
- * credentials change, and on picker refresh requests from the renderer.
- *
  * Every await inside is raced against a timeout so a hung SDK call can never
  * wedge the chain: the next reload builds fresh services regardless.
  */
@@ -213,7 +209,6 @@ async function performCatalogReload(): Promise<void> {
   }
 }
 
-/** Coalesced reload: concurrent requests join the in-flight one. */
 function reloadCatalog(): Promise<void> {
   pendingReload ??= performCatalogReload().finally(() => {
     pendingReload = null;

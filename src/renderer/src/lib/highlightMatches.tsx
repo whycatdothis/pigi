@@ -168,7 +168,6 @@ export function useHighlightTextNodes(
   query: string,
   activeOccurrenceIndex: number | null = null,
 ): void {
-  // Track ranges owned by this hook instance so we can remove them on cleanup
   const ownedRangesRef = useRef<Range[]>([]);
   const ownerTokenRef = useRef<symbol | null>(null);
   if (ownerTokenRef.current === null) {
@@ -183,7 +182,6 @@ export function useHighlightTextNodes(
     const available = typeof CSS !== 'undefined' && 'highlights' in CSS;
     const ownerToken = ownerTokenRef.current;
 
-    // Remove this instance's ranges from the shared highlight
     const removeOwnedRanges = (): void => {
       if (!available) return;
       const existing = CSS.highlights.get(HIGHLIGHT_NAME);
@@ -199,7 +197,6 @@ export function useHighlightTextNodes(
       ownedRangesRef.current = [];
     };
 
-    // Clear the shared active highlight, but only if this instance owns it
     const releaseActiveIfOwner = (): void => {
       if (!available || activeHighlightOwner !== ownerToken) return;
       activeHighlightOwner = null;
@@ -223,7 +220,6 @@ export function useHighlightTextNodes(
       ownedRangesRef.current = ranges;
 
       if (ranges.length > 0) {
-        // Add to shared highlight, creating it if needed
         let highlight = CSS.highlights.get(HIGHLIGHT_NAME);
         if (!highlight) {
           highlight = new Highlight();
@@ -234,7 +230,6 @@ export function useHighlightTextNodes(
         }
       }
 
-      // Apply active occurrence highlight and take ownership
       const activeSegments =
         activeOccurrenceIndex !== null && activeOccurrenceIndex >= 0
           ? matches[activeOccurrenceIndex]

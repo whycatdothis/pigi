@@ -86,7 +86,6 @@ function attachPort(port: Port): void {
 
   port.start();
 
-  // Flush anything produced before the port was ready.
   for (const message of outboundQueue) port.postMessage(message);
   outboundQueue = [];
 }

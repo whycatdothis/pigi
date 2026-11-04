@@ -79,10 +79,9 @@ test('the panel mounts on first open and fades in through its own transition', a
 
   await vi.waitFor(() => expect(Number(getComputedStyle(panel).opacity)).toBeCloseTo(1, 2));
   expect(getComputedStyle(panel).display).toBe('flex');
-  // Opening used to be a keyframe animation. The state is the element's own
-  // now, so anything still animating through keyframes is a leftover — and a
-  // leftover is what the shared overlay classes bring: they key off `data-open`,
-  // which is why this panel's own attribute is `data-panel-open`.
+  // Any keyframe animation here is a leftover from the shared overlay classes:
+  // they key off `data-open`, which is why this panel's own attribute is
+  // `data-panel-open`.
   expect(getComputedStyle(panel).animationName).toBe('none');
   expect(
     panel.getAnimations().filter((animation) => !(animation instanceof CSSTransition)),
@@ -94,7 +93,7 @@ test('closing fades out, then leaves the layout without a visible frame', async 
   const { opacities, display } = await recordClose(panel);
 
   expect(display).toBe('none');
-  // The panel is never unmounted any more: `display` is what hides it, so the
+  // The panel is never unmounted: `display` is what hides it, so the
   // rows are not rebuilt on the next hover.
   expect(panel.isConnected).toBe(true);
 

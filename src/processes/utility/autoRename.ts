@@ -22,10 +22,7 @@ const EXCLUDED_APIS = new Set(['openai-codex-responses']);
 
 const MAX_GLOBAL_ATTEMPTS = 2;
 
-/**
- * Sort candidate models by cost (cheapest first).
- * Models with non-zero cost come before zero-cost ones.
- */
+/** Cheapest first, but models with a non-zero cost come before zero-cost ones. */
 function getCandidatesByCost(available: readonly Model<Api>[]): Model<Api>[] {
   const candidates = available.filter((m) => {
     if (!m.input.includes('text')) return false;
@@ -45,9 +42,6 @@ function getCandidatesByCost(available: readonly Model<Api>[]): Model<Api>[] {
   return candidates;
 }
 
-/**
- * Get the cheapest model from the session's provider (known-good fallback).
- */
 function getCheapestSameProvider(
   candidates: Model<Api>[],
   sessionProvider: string,
@@ -55,9 +49,6 @@ function getCheapestSameProvider(
   return candidates.find((m) => m.provider === sessionProvider) ?? null;
 }
 
-/**
- * Try to generate a title with a specific model. Returns the title or null on failure.
- */
 async function tryGenerate(
   model: Model<Api>,
   conversationText: string,
@@ -91,12 +82,6 @@ async function tryGenerate(
   }
 }
 
-/**
- * Generate a session title from conversation messages.
- *
- * Tries cheapest models first (up to 2 attempts). If both fail, falls back to
- * the cheapest model from the session's own provider.
- */
 export async function generateSessionTitle(
   messages: Message[],
   modelRuntime: ModelRuntime,
@@ -112,7 +97,6 @@ export async function generateSessionTitle(
     .join('\n')
     .slice(0, 1000);
 
-  // Try cheapest models in order (up to MAX_GLOBAL_ATTEMPTS)
   const tried = new Set<string>();
   let attempts = 0;
   for (const model of candidates) {
@@ -126,7 +110,7 @@ export async function generateSessionTitle(
     if (title) return title;
   }
 
-  // Fallback: cheapest model from session's provider (known to work)
+  // The session's own provider is known to work.
   if (sessionProvider) {
     const fallback = getCheapestSameProvider(candidates, sessionProvider);
     if (fallback && !tried.has(fallback.provider + '/' + fallback.id)) {

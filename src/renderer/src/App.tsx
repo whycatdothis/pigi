@@ -282,7 +282,6 @@ function App(): React.JSX.Element {
   // know, and the tree navigation sets it while it runs one.
   const [branchSummaryBusy, setBranchSummaryBusy] = useState(false);
   const prevTerminalOpenRef = useRef(terminalOpen);
-  // When the terminal closes, move focus back to the chat input.
   useEffect(() => {
     if (prevTerminalOpenRef.current && !terminalOpen) {
       chatInputRef.current?.focus();
@@ -385,7 +384,6 @@ function App(): React.JSX.Element {
         autoCompactionEnabled: sessionState.autoCompactionEnabled,
         messageCount: sessionState.messageCount,
       });
-      // Track last-used model/thinking for draft mode fallback
       if (sessionState.model) {
         lastModelRef.current = {
           provider: sessionState.model.provider,
@@ -697,7 +695,6 @@ function App(): React.JSX.Element {
         draftControllerRef.current.reset();
       }
 
-      // Show optimistic user message on the draft controller
       draftControllerRef.current.addUserMessage(message, {
         imageSources,
         filePaths,
@@ -767,7 +764,6 @@ function App(): React.JSX.Element {
         markSessionHydrated(sessionPath);
         ensureTranscriptSession(sessionPath);
 
-        // Apply last-used model and thinking level
         if (lastModelRef.current) {
           void setModel(sessionPath, lastModelRef.current.provider, lastModelRef.current.id).catch(
             () => {},
@@ -777,7 +773,6 @@ function App(): React.JSX.Element {
           void setThinkingLevel(sessionPath, lastThinkingLevelRef.current).catch(() => {});
         }
 
-        // Transition out of draft
         setIsDraftChat(false);
         isDraftSpawningRef.current = false;
         setIsDraftSpawning(false);
@@ -812,7 +807,6 @@ function App(): React.JSX.Element {
       return;
     }
 
-    // Normal session flow (session already exists)
     const sessionPath = activeSessionPath;
     const existing = useAppStore.getState().sessions.get(sessionPath);
     if (existing?.title === 'New chat') {
@@ -834,14 +828,12 @@ function App(): React.JSX.Element {
       return;
     }
 
-    // Queue locally during compaction
     if (transcript.isCompacting) {
       transcriptControllerRef.current?.addCompactionMessage(message, 'steer', promptAttachments);
       void listProjectSessions([cwd]);
       return;
     }
 
-    // If the session is already streaming, steer instead of prompting
     if (transcript.status !== 'idle') {
       await steer(sessionPath, message, promptAttachments);
     } else {
@@ -878,7 +870,6 @@ function App(): React.JSX.Element {
       const imageSources = attachmentImageSources(attachments);
       const filePaths = attachmentFilePaths(attachments);
 
-      // Queue locally during compaction.
       if (transcript.isCompacting) {
         transcriptControllerRef.current?.addCompactionMessage(
           message,
@@ -966,14 +957,12 @@ function App(): React.JSX.Element {
         const { steering, followUp: followUps } = cleared;
         const editedInput =
           type === 'steer' ? steering.splice(index, 1)[0] : followUps.splice(index, 1)[0];
-        // Re-queue remaining
         for (const input of steering) {
           await steer(activeSessionPath, input.message, input.attachments);
         }
         for (const input of followUps) {
           await followUp(activeSessionPath, input.message, input.attachments);
         }
-        // Restore edited message to input
         if (editedInput) setRestoreInputs([editedInput]);
       } catch (err) {
         console.error('Failed to edit queued message:', err);
@@ -983,10 +972,6 @@ function App(): React.JSX.Element {
   );
 
   const handleRestoredInputs = useCallback(() => setRestoreInputs(null), []);
-
-  // ===========================================================================
-  // Session tree
-  // ===========================================================================
 
   // Escape aborts only when focus is in an explicit abort scope.
   useEffect(() => {
@@ -1033,7 +1018,6 @@ function App(): React.JSX.Element {
 
   /** Enter draft chat mode — instant, no process spawned. */
   const handleNewSession = useCallback((): void => {
-    // If already in a clean draft mode (no error), do nothing.
     if (isDraftChat && !activeSessionPath && draftControllerRef.current.state.status !== 'error') {
       return;
     }
@@ -1041,7 +1025,6 @@ function App(): React.JSX.Element {
     // Pass empty string as sentinel (no real session path is empty) so the
     // current activeSessionPath gets pushed to backStack.
     pushNavigationHistory('');
-    // Reset draft controller for a fresh chat.
     draftControllerRef.current.reset();
     isDraftSpawningRef.current = false;
     setIsDraftSpawning(false);
@@ -1084,7 +1067,6 @@ function App(): React.JSX.Element {
       setIsDraftChat(false);
       setPendingSelectedPath(session.path);
 
-      // Switch active project to match the session's project directory
       const store = useAppStore.getState();
       if (store.activeProject?.path !== session.cwd) {
         const projectResult = await setActiveProject(session.cwd);
@@ -1154,7 +1136,6 @@ function App(): React.JSX.Element {
         }
       }
 
-      // Show the session — messages and metadata are ready
       if (!options?.skipHistory) {
         pushNavigationHistory(sessionPath);
       }
@@ -1179,7 +1160,6 @@ function App(): React.JSX.Element {
         // Wire up live subscriptions (port is now available under sessionPath)
         ensureTranscriptSession(sessionPath);
 
-        // Fetch session-scoped options and state from the process
         void refreshSessionState(sessionPath);
         void refreshSessionOptions(sessionPath);
         void touchSession(sessionPath);
@@ -1193,7 +1173,6 @@ function App(): React.JSX.Element {
         // session create/rename, and after flushing buffered prompts below
         // (which do change the session).
 
-        // Flush any pending prompts
         const bufferedMessages = pendingPromptsRef.current.get(sessionPath);
         if (bufferedMessages && bufferedMessages.length > 0) {
           pendingPromptsRef.current.delete(sessionPath);
@@ -1478,7 +1457,6 @@ function App(): React.JSX.Element {
     async (sessionPath: string, name: string) => {
       // Mark as manually renamed to suppress sidebar typewriter animation
       useAppStore.getState().markSessionRenamed(sessionPath);
-      // Find the running session by path
       const entry = Array.from(sessions.values()).find((s) => s.sessionPath === sessionPath);
       if (entry) {
         // Session is running, rename via SDK
@@ -1494,7 +1472,6 @@ function App(): React.JSX.Element {
           console.error('Failed to rename persisted session:', result.error);
         }
       }
-      // Refresh session list to reflect new name
       const sessionCwd = entry?.cwd ?? findSessionByPath(sessionPath)?.cwd;
       if (sessionCwd) {
         void listProjectSessions([sessionCwd]);
@@ -1507,7 +1484,6 @@ function App(): React.JSX.Element {
     async (model: ModelInfo) => {
       lastModelRef.current = { provider: model.provider, id: model.id };
       setLastModelSnapshot({ provider: model.provider, id: model.id });
-      // Filter thinking level options for the selected model
       if (model.thinkingLevels.length > 0) {
         setSessionThinkingLevels(model.thinkingLevels);
       }
@@ -2101,7 +2077,6 @@ function App(): React.JSX.Element {
               if (!activeSessionPath) return;
               await logout(activeSessionPath, providerId);
               await refreshSessionOptions(activeSessionPath);
-              // Refresh provider list
               const result = await getAuthProviders(activeSessionPath);
               if (result.success) setAuthProviders(result.providers);
             }}

@@ -54,20 +54,13 @@ import { buildSessionTree, readEntryText, resolveForkTarget } from './sessionTre
 import { promptInputFromUserMessage } from './userMessageInput';
 import { PIGI_SYSTEM_PROMPT } from './systemPrompt';
 
-// =============================================================================
-// Port interface (compatible with Electron's MessagePortMain)
-// =============================================================================
-
+// Compatible with Electron's MessagePortMain.
 interface Port {
   postMessage(message: unknown): void;
   start(): void;
   close(): void;
   on(event: 'message', listener: (messageEvent: { data: unknown }) => void): unknown;
 }
-
-// =============================================================================
-// StreamBatcher
-// =============================================================================
 
 class StreamBatcher {
   private static readonly MIN_INTERVAL_MS = 8;
@@ -112,7 +105,7 @@ class StreamBatcher {
     this.markDirty();
   }
 
-  /** Force an immediate flush, ensuring all buffered deltas are sent before subsequent push events. */
+  /** Call before any push event so buffered deltas reach the renderer first. */
   flushNow(): void {
     this.flush();
   }
@@ -141,10 +134,6 @@ class StreamBatcher {
   }
 }
 
-// =============================================================================
-// Session state (single session per process)
-// =============================================================================
-
 let runtime: AgentSessionRuntime | null = null;
 let batcher: StreamBatcher | null = null;
 let controlPort: Port | null = null;
@@ -159,14 +148,11 @@ const servicesByCwd = new Map<string, Promise<AgentSessionServices>>();
 let serviceCreationQueue: Promise<void> = Promise.resolve();
 
 /**
- * Minimal ExtensionUIContext that forwards notifications to the renderer via dataPort.
- * Most TUI-specific methods are no-ops since pigi has its own UI.
+ * Forwards notifications to the renderer; the TUI-specific methods (theme,
+ * widgets, custom editors) are no-ops since pigi has its own UI.
  */
 function createExtensionUIContext(): ExtensionUIContext {
   const noop = (): void => {};
-  // ExtensionUIContext has many TUI-specific methods (theme, widgets, custom editors)
-  // that don't apply to pigi's Electron renderer. We implement the relevant ones
-  // and stub the rest.
   return {
     select: async () => undefined,
     confirm: async () => false,
@@ -265,10 +251,6 @@ function getServices(cwd: string): Promise<AgentSessionServices> {
   return services;
 }
 
-// =============================================================================
-// Model runtime refresh (set_model self-heal)
-// =============================================================================
-
 // Bound for a refresh triggered by a missing model. The AbortController bounds
 // the cooperative SDK paths; the outer race is the real guarantee — a provider
 // whose fetch ignores the signal still leaves refresh() pending, so the wait
@@ -308,10 +290,6 @@ async function syncSessionModelWithRegistry(rt: AgentSessionRuntime): Promise<vo
   }
 }
 
-// =============================================================================
-// Runtime factory
-// =============================================================================
-
 const createRuntimeFactory: CreateAgentSessionRuntimeFactory = async ({
   cwd,
   sessionManager,
@@ -328,10 +306,6 @@ const createRuntimeFactory: CreateAgentSessionRuntimeFactory = async ({
     diagnostics: services.diagnostics,
   };
 };
-
-// =============================================================================
-// Event subscription
-// =============================================================================
 
 function setSessionBusy(isBusy: boolean): void {
   if (isSessionBusy === isBusy) {
@@ -351,10 +325,6 @@ function setSessionBusy(isBusy: boolean): void {
 
 let snippets: Array<{ role: 'user' | 'assistant'; text: string }> = [];
 
-/**
- * Auto-rename: accumulate user/assistant text snippets on each message_start.
- * Once we have 3, generate a title.
- */
 function autoRenameOnce(
   event: AgentSessionEvent & { type: 'message_end' },
   session: AgentSessionRuntime['session'],
@@ -436,16 +406,15 @@ function subscribeToSession(rt: AgentSessionRuntime, port: Port, batch: StreamBa
 
       case 'message_update': {
         const { assistantMessageEvent, message } = event;
-        // toolcall_delta — batch by toolCallId directly
         if (assistantMessageEvent.type === 'toolcall_delta' && message.role === 'assistant') {
           const content = message.content[assistantMessageEvent.contentIndex];
           if (content.type === 'toolCall' && content.id && content.name) {
             if (content.name === 'write') {
-              // Write: stream full args (shows content preview during streaming)
+              // Full args: the card previews the content while it streams.
               const args = content.arguments as Partial<WriteToolInput>;
               batch.setToolArgs(content.id, { name: 'write', args });
             } else if (content.name === 'edit') {
-              // Edit: stream only path (edits array is large and not shown during streaming)
+              // Path only: the edits array is large and not shown while streaming.
               const args = content.arguments as Partial<EditToolInput>;
               if (args.path) {
                 batch.setToolArgs(content.id, { name: 'edit', args: { path: args.path } });
@@ -497,10 +466,6 @@ function subscribeToSession(rt: AgentSessionRuntime, port: Port, batch: StreamBa
     }
   });
 }
-
-// =============================================================================
-// Command handling (via control MessagePort from renderer)
-// =============================================================================
 
 type BuildCommandContentResult =
   | { success: true; content: BuiltPromptContent }
@@ -949,10 +914,6 @@ function setupControlPortListener(port: Port): void {
   port.start();
 }
 
-// =============================================================================
-// Session creation
-// =============================================================================
-
 function sendToMain(response: UtilityResponse): void {
   process.parentPort?.postMessage(response);
 }
@@ -1066,7 +1027,7 @@ async function resumeSession(sessionPath: string): Promise<void> {
     queuedPromptInputs = new QueuedPromptInputs();
     // TODO: pass commandContextActions (see createSession)
     await runtime.session.bindExtensions({ uiContext: createExtensionUIContext(), mode: 'rpc' });
-    // Resumed sessions already have names; skip auto-rename
+    // Resumed sessions already have names.
     hasAutoRenamed = true;
     sendToMain({
       type: 'session_created',
@@ -1098,7 +1059,6 @@ function attachPorts(nextControlPort: Port, nextDataPort: Port): void {
   unsubscribeEvents = subscribeToSession(runtime, nextDataPort, batcher);
   setupControlPortListener(nextControlPort);
 
-  // Send session_ready as first push on the data port
   const session = runtime.session;
   const push: PiPush = {
     type: 'session_ready',
@@ -1109,10 +1069,6 @@ function attachPorts(nextControlPort: Port, nextDataPort: Port): void {
   };
   nextDataPort.postMessage(push);
 }
-
-// =============================================================================
-// Cleanup
-// =============================================================================
 
 function cleanup(): void {
   if (isCleanedUp) {
@@ -1137,10 +1093,6 @@ process.on('SIGTERM', () => {
   cleanup();
   process.exit(0);
 });
-
-// =============================================================================
-// Main listener (parentPort — lifecycle commands only)
-// =============================================================================
 
 process.parentPort?.on('message', async (messageEvent) => {
   const { data, ports } = messageEvent;

@@ -10,11 +10,11 @@ const BOTTOM_FADE_MASK = 'linear-gradient(to top, transparent, black 16px)';
 /**
  * Clamps tall content to `maxHeight`.
  *
- * In tail-anchor mode (default), the LAST lines stay visible — useful for
+ * In tail-anchor mode, the LAST lines stay visible — useful for
  * streaming tool output where new content appears at the bottom. The Show
  * more/less button sits above the clamped area.
  *
- * In top-anchor mode (`tailAnchor={false}`), the FIRST lines stay visible —
+ * In top-anchor mode (default), the FIRST lines stay visible —
  * useful for user messages. The button sits below the clamped area.
  */
 export default function OverflowClamp({
@@ -31,14 +31,10 @@ export default function OverflowClamp({
   /** Max visible height in px while collapsed */
   maxHeight: number;
   children: React.ReactNode;
-  /** Extra classes for the clamped content wrapper */
+  /** Classes for the clamped content wrapper. */
   className?: string;
-  /** Extra inline styles for the clamped content wrapper */
   contentStyle?: React.CSSProperties;
-  /** Extra classes for the Show more/less button */
   buttonClassName?: string;
-  /** When true (default), content is bottom-aligned and clipped at the top.
-   *  When false, content is top-aligned and clipped at the bottom. */
   tailAnchor?: boolean;
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false);

@@ -33,13 +33,11 @@ function shortHash(value: string): string {
   return (hash >>> 0).toString(36);
 }
 
-/** The registered theme name for a preset, background and code surface. */
 export function codeThemeNameFor(background: string, surface: string, themeId: string): string {
   const base = codeThemeForBackground(background, themeId);
   return `pigi-${base}-${shortHash(`${base}|${quantizeSurface(surface)}`)}`;
 }
 
-/** Loads (and retints) the theme for a background and code surface. */
 export async function loadCodeTheme(
   background: string,
   surface: string,
@@ -78,7 +76,6 @@ export async function loadCodeTheme(
   return loading;
 }
 
-/** Registers the theme in the shared highlighter, once per name. */
 export async function ensureThemeLoaded(
   highlighter: Highlighter,
   theme: CodeTheme,

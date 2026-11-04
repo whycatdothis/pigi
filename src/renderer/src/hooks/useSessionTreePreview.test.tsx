@@ -12,7 +12,7 @@ import { useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { SessionTreeEntry } from '../../../shared/ipcContract';
-// The jsdom stubs and the DOM matchers; nothing here moves anything.
+// The jsdom stubs and the DOM matchers.
 import '../testing/jsdomSetup';
 import { installFakePiApi, type FakePiApi } from '../testing/fakePiApi';
 import { sessionTree, sessionTreeEntry } from '../testing/sessionTreeFixtures';

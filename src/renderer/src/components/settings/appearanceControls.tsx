@@ -507,10 +507,6 @@ function PreviewSidebar({
   );
 }
 
-/**
- * Body of a miniature window: one user line, two assistant lines, two more user
- * lines, then two assistant lines. The composer stays at the bottom.
- */
 function PreviewContent({ tokens }: { tokens: Record<string, string> }): React.JSX.Element {
   const muted = tokens['--app-muted-foreground'];
   const accent = tokens['--app-system-accent'];
@@ -602,9 +598,6 @@ function PreviewUnit({
       className={cn('flex h-full w-full p-[8px]', radius)}
       style={{
         backgroundColor: tokens['--app-background'],
-        // A hairline inside the drawing, so the frame around it stays a frame.
-        // Darkening the background gives a soft edge on a light preview and a
-        // black one on a dark preview, where the card already has its own edge.
       }}
     >
       <PreviewWindow tokens={tokens} dark={dark} />

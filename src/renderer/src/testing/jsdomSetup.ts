@@ -58,7 +58,6 @@ export function installViewport(size: { width: number; height: number }): void {
 }
 
 class ResizeObserverStub {
-  /** What the observer was asked to watch. */
   readonly observed = new Set<Element>();
 
   constructor(

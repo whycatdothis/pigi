@@ -41,7 +41,6 @@ interface PiApi {
   destroySession: (sessionPath: string) => Promise<{ success: boolean }>;
   touchSession: (sessionPath: string) => Promise<{ success: boolean; error?: string }>;
 
-  // Project directories
   getProjects: () => Promise<ProjectStateResult>;
   getGitBranch: (cwd: string) => Promise<GitBranchResult>;
   getGitDiffSummary: (cwd: string, scope: GitDiffScope) => Promise<GitDiffSummaryResult>;
@@ -92,10 +91,8 @@ interface PiApi {
   onPush: (sessionPath: string, callback: (message: PiPush) => void) => () => void;
   onStreamBatch: (sessionPath: string, callback: (batch: StreamBatch) => void) => () => void;
 
-  // Process lifecycle
   onProcessExit: (callback: (data: { sessionPath: string; code: number }) => void) => () => void;
 
-  // Utilities
   getCwd: () => string;
   openExternal: (url: string) => void;
   previewFile: (path: string) => void;
@@ -111,7 +108,6 @@ interface PiApi {
     updates: PiSettingUpdate[],
   ) => Promise<PiSettingsResult>;
 
-  // Keyboard shortcuts
   getShortcuts: () => Promise<ShortcutDefinition[]>;
   setShortcut: (
     id: string,
@@ -120,11 +116,9 @@ interface PiApi {
   setAppearanceTheme: (theme: 'system' | 'light' | 'dark') => void;
   /** pigi's own settings, read synchronously so the first paint can use them. */
   readPigiSettings: () => PigiSettingsReadResult;
-  /** Apply appearance/chat slices; resolves with the merged snapshot. */
+  /** Apply appearance/chat slices. */
   changePigiSettings: (change: PigiSettingsChange) => Promise<void>;
-  /** Follow the merged snapshot of every change; returns an unsubscribe. */
 
-  // Auto-update
   update: {
     getStatus: () => Promise<UpdateStatus>;
     check: () => Promise<UpdateStatus>;

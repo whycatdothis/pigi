@@ -44,10 +44,6 @@ async function send<T = unknown>(sessionPath: string, command: PiCommand): Promi
   return window.piApi.send(sessionPath, command) as Promise<T>;
 }
 
-// =============================================================================
-// Session lifecycle
-// =============================================================================
-
 /** Create a new session. Resolves with sessionPath when port is received. */
 export async function createSession(cwd: string, parentSessionPath?: string): Promise<string> {
   const result = await window.piApi.createSession(cwd, parentSessionPath);
@@ -66,7 +62,6 @@ export async function resumeSession(sessionPath: string): Promise<string> {
   return result.sessionPath;
 }
 
-/** Destroy a session. */
 export async function destroySession(sessionPath: string): Promise<void> {
   await window.piApi.destroySession(sessionPath);
 }
@@ -174,10 +169,6 @@ export function onProjectSessionsChunk(
 ): () => void {
   return window.piApi.onProjectSessionsChunk(callback);
 }
-
-// =============================================================================
-// Session commands (via MessagePort)
-// =============================================================================
 
 export async function prompt(
   sessionPath: string,
@@ -287,10 +278,6 @@ export async function listSessions(sessionPath: string, cwd?: string): Promise<u
   return send<unknown[]>(sessionPath, { type: 'list_sessions', cwd });
 }
 
-// =============================================================================
-// Session tree
-// =============================================================================
-
 /** Read the whole session tree (all branches) for the tree dialog. */
 export async function getSessionTree(sessionPath: string): Promise<SessionTree> {
   return send<SessionTree>(sessionPath, { type: 'get_session_tree' });
@@ -365,10 +352,6 @@ export async function renameSession(sessionPath: string, name: string): Promise<
   }
 }
 
-// =============================================================================
-// Authentication
-// =============================================================================
-
 export async function getAuthProviders(
   sessionPath: string,
 ): Promise<{ success: boolean; providers: AuthProviderInfo[] }> {
@@ -391,10 +374,6 @@ export async function logout(sessionPath: string, providerId: string): Promise<C
   return send<CommandResult>(sessionPath, { type: 'logout', providerId });
 }
 
-// =============================================================================
-// Pi settings
-// =============================================================================
-
 /** Read the global and project pi settings snapshot for a project cwd. */
 export async function getPiSettings(cwd: string): Promise<PiSettingsResult> {
   return window.piApi.getPiSettings(cwd);
@@ -408,10 +387,6 @@ export async function setPiSettings(
 ): Promise<PiSettingsResult> {
   return window.piApi.setPiSettings(cwd, scope, updates);
 }
-
-// =============================================================================
-// Subscriptions
-// =============================================================================
 
 export function onPush(sessionPath: string, callback: (message: PiPush) => void): () => void {
   return window.piApi.onPush(sessionPath, callback);
@@ -434,7 +409,6 @@ export async function refreshModelCatalog(): Promise<ModelCatalogSnapshot> {
   return window.piApi.refreshModelCatalog();
 }
 
-/** Subscribe to model catalog updates pushed from main. */
 export function onModelCatalogUpdated(
   callback: (snapshot: ModelCatalogSnapshot) => void,
 ): () => void {
@@ -451,7 +425,6 @@ export async function checkForUpdates(): Promise<UpdateStatus> {
   return window.piApi.update.check();
 }
 
-/** Abort an in-flight update download. */
 export function cancelUpdateDownload(): void {
   window.piApi.update.cancelDownload();
 }
@@ -461,7 +434,6 @@ export function dismissUpdateWindow(): void {
   window.piApi.update.dismissWindow();
 }
 
-/** Quit and install the downloaded update. */
 export function quitAndInstallUpdate(): void {
   window.piApi.update.quitAndInstall();
 }
@@ -471,7 +443,6 @@ export function setUpdateProgressContentHeight(height: number): void {
   window.piApi.update.setProgressWindowContentHeight(height);
 }
 
-/** Subscribe to auto-update status changes pushed from main. */
 export function onUpdateStatus(callback: (status: UpdateStatus) => void): () => void {
   return window.piApi.update.onStatus(callback);
 }

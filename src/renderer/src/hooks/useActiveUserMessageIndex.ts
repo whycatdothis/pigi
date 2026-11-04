@@ -34,8 +34,7 @@ export function useActiveUserMessageIndex({
   virtualizer,
   virtualItems,
 }: ActiveUserMessageIndexOptions): number {
-  // Derive active user message from visible virtual items — no scroll listener
-  // needed because the virtualizer already triggers re-renders on scroll.
+  // No scroll listener needed: the virtualizer already re-renders on scroll.
   // Returns a displayNodes index (what the MiniMap uses).
   // Uses measurement cache to check ALL user messages, not just visible ones,
   // so the last user message stays highlighted when scrolled to the bottom.

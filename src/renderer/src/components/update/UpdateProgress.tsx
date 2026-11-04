@@ -146,11 +146,9 @@ export default function UpdateProgress(): React.JSX.Element | null {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // Reporting the measured height on every change keeps the window the same
-  // size as its content as the status moves from one line to a bar and buttons.
-  // Keyed on whether there is a status at all: the first paint has no ref to
-  // measure, and a status that keeps ticking it download progress must not
-  // rebuild the observer.
+  // The window follows its content's height as the status grows from one line
+  // to a bar and buttons. Keyed on whether there is a status at all: the first paint has no ref to
+  // measure, and ticking download progress must not rebuild the observer.
   useLayoutEffect(() => {
     if (!hasStatus) return undefined;
     const container = containerRef.current;

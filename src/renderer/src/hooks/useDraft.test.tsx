@@ -59,9 +59,6 @@ describe('useDraft', () => {
   });
 
   it('resets an in-progress edit when the value changes externally mid-edit', () => {
-    // The class of bug this hook removes: one copy forgot the reset, another
-    // reset on every render. A save that lands while the field is being edited
-    // has to win.
     const { rerender } = render(<DraftField source="1" />);
     fireEvent.change(field(), { target: { value: '12' } });
 
@@ -89,8 +86,7 @@ describe('useDraft', () => {
     const input = (): HTMLInputElement => screen.getByLabelText('list-draft');
     fireEvent.change(input(), { target: { value: 'in-progress' } });
 
-    // A new array with the same content: the JSON key matches, so the draft is
-    // left alone even though the reference changed.
+    // Same content in a new array: the JSON key matches, so the draft stays.
     rerender(<ListField entries={['one', 'two']} />);
     expect(input().value).toBe('in-progress');
 

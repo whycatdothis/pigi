@@ -259,7 +259,6 @@ export function useSessionTreeNavigation(
     [prepareTreeNavigation],
   );
 
-  /** `tree` on a transcript row. */
   const handleTreeMessage = useCallback(
     async (node: TranscriptNode): Promise<void> => {
       try {

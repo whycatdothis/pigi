@@ -74,7 +74,6 @@ interface DialogProps {
   revision?: string;
 }
 
-/** Mount the dialog and wait for the tree read behind it to land. */
 async function renderDialog({
   onSelect,
   onOpenChange,
@@ -95,7 +94,6 @@ async function renderDialog({
 const rows = (): HTMLElement[] =>
   Array.from(document.querySelectorAll<HTMLElement>('[data-testid=session-tree-row]'));
 
-/** The entry ids on screen, in the order they are drawn. */
 const rowIds = (): (string | undefined)[] => rows().map((row) => row.dataset.treeRowId);
 
 function row(entryId: string): HTMLElement {
@@ -370,7 +368,6 @@ describe('SessionTreeDialog', () => {
     await user.keyboard('{ArrowLeft}');
     expect(rowIds()).toEqual(['u1', 'a1', 't1', 'u2']);
 
-    // The session grows: a fourth message lands under `u2`.
     fake.tree = sessionTree(
       [...dialogTree().entries, sessionTreeEntry(9, 'a4', 'u2', 'assistant', 'Third attempt')],
       'a4',

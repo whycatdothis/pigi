@@ -278,11 +278,6 @@ function alphaMix(color: OklchColor, amount: number): string {
   return `color-mix(in srgb, ${formatHex(color)} ${Math.round(amount * 100)}%, transparent)`;
 }
 
-/**
- * Derives every color token. Surfaces follow the solved border amount because
- * they have no WCAG floor of their own, so they stay in proportion to the
- * user's contrast choice.
- */
 /** Foreground floor for anything the reader typed: below this it is unreadable. */
 const FOREGROUND_CONTRAST_FLOOR = 7;
 

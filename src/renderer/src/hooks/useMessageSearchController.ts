@@ -119,15 +119,13 @@ export function useMessageSearchController({
           const overflowEl = root.querySelector<HTMLElement>('[style*="max-height"]');
           if (!overflowEl) return;
 
-          // Read from ref to avoid stale closure if query changed after this
-          // deferred callback was scheduled.
+          // The query may have changed since this deferred callback was scheduled.
           const query = searchQueryRef.current.trim();
           if (!query) return;
           const segments = findOccurrenceRanges(root, query, result.occurrenceIndex);
           if (!segments || segments.length === 0) return;
 
-          // Check if the match is fully visible (both ends within the overflow container).
-          // Content is tail-anchored (overflow clipped at the TOP), so we check
+          // Content is tail-anchored (overflow clipped at the TOP), so check
           // the first segment's top and the last segment's bottom.
           const firstSegment = segments[0];
           const lastSegment = segments[segments.length - 1];
@@ -136,14 +134,13 @@ export function useMessageSearchController({
           const overflowRect = overflowEl.getBoundingClientRect();
           if (firstRect.top >= overflowRect.top && lastRect.bottom <= overflowRect.bottom) return;
 
-          // relies on [data-action="expand-overflow"] on overflow buttons
           const expandButton = root.querySelector<HTMLButtonElement>(
             '[data-action="expand-overflow"]',
           );
           if (!expandButton) return;
           expandButton.click();
 
-          //     After the expand animation, scroll to the matched text
+          // After the expand animation, scroll to the matched text
           const scrollToMatch = (): void => {
             const freshSegments = findOccurrenceRanges(root, query, result.occurrenceIndex);
             const firstSegment = freshSegments?.[0];
@@ -198,7 +195,6 @@ export function useMessageSearchController({
     });
   }, [activeOccurrenceInfo, searchQuery, containerRef]);
 
-  // Cmd/Ctrl+F opens search (not supported in minimal mode)
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
       if (isMinimal) return;

@@ -32,13 +32,11 @@ const USER_MESSAGE_TRAILING_PADDING = 8;
 const USER_MESSAGE_WRAP_ESTIMATE_WIDTH = 72;
 /** Conservative estimate cap for the user bubble's reduced viewport clamp. */
 const USER_MESSAGE_MAX_ESTIMATE_HEIGHT = 200;
-/** Body line height of a markdown body: --text-body at 1.5, not the mono
- *  TOOL_BLOCK_LINE_HEIGHT the card used to draw. */
+/** Markdown body: --text-body at 1.5, not the mono TOOL_BLOCK_LINE_HEIGHT. */
 const CUSTOM_BODY_LINE_HEIGHT = 24;
 /** One row of 64px image thumbnails and the 8px gap above it. */
 const CUSTOM_IMAGE_ROW_HEIGHT = 72;
 
-/** Height estimates for collapsed read-only group */
 const COLLAPSED_GROUP_TRIGGER_HEIGHT = 28;
 const COLLAPSED_GROUP_COMMAND_LINE_HEIGHT = 16;
 /** The "Show more" / "Show less" toggle row present when entries are hidden. */
@@ -47,8 +45,6 @@ const COLLAPSED_GROUP_SHOW_MORE_HEIGHT = 20;
 export function estimateRenderItemHeight(item: RenderItem | undefined): number {
   if (!item) return 96;
   if (item.type === 'readGroup') {
-    // The collapsed preview shows at most READ_GROUP_MAX_COLLAPSED_ENTRIES
-    // command lines, plus the "Show more" row when entries were hidden.
     const visibleLines = Math.min(item.entries.length, READ_GROUP_MAX_COLLAPSED_ENTRIES);
     const showMoreRow =
       item.entries.length > READ_GROUP_MAX_COLLAPSED_ENTRIES ? COLLAPSED_GROUP_SHOW_MORE_HEIGHT : 0;

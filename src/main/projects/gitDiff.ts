@@ -532,7 +532,7 @@ export async function getGitDiffSummary(
   });
 }
 
-/** Sorted, with the files intent-to-add made look added marked as untracked. */
+/** Sorted; files that only look added because of intent-to-add are marked untracked. */
 function listedUntracked(files: GitDiffFile[], untracked: ReadonlySet<string>): GitDiffFile[] {
   return sortedFiles(
     files.map((file) =>

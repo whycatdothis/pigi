@@ -5,12 +5,8 @@
  * worker uses it to flatten `settings.json` files and to validate writes, the
  * renderer uses it to render controls. Fields that are not listed here are
  * preserved untouched in the files and are never read or written by pigi.
- *
- * Field ids are dotted paths into the JSON document (`compaction.enabled`).
- * `globalOnly` marks settings that pi itself only reads from the global file.
  */
 
-/** Value shapes pigi can read from and write to pi settings files. */
 export type PiSettingValue = boolean | string | number | readonly string[];
 
 export type PiSettingType = 'boolean' | 'string' | 'number' | 'stringList' | 'enum';
@@ -142,7 +138,6 @@ export interface PiSettingUpdate {
   value: PiSettingValue | null;
 }
 
-/** Built-in defaults for every field that declares one. */
 export function piSettingDefaults(): PiSettingsValues {
   const defaults: PiSettingsValues = {};
   for (const field of PI_SETTING_FIELD_LIST) {
@@ -277,7 +272,6 @@ export function extractPiSettingsValues(source: object): PiSettingsValues {
   return values;
 }
 
-/** Validate an incoming write against the field's declared type. */
 export function isPiSettingValueValid(field: PiSettingField, value: PiSettingValue): boolean {
   switch (field.type) {
     case 'boolean':

@@ -74,8 +74,7 @@ export default memo(function Sidebar({
     Record<string, Set<string>>
   >({});
   const [relativeTimeBase, setRelativeTimeBase] = useState(() => Date.now());
-  // Track the last session path we've successfully scrolled to.
-  // This allows retries when projectSessions loads asynchronously after selectedSessionPath changes.
+  // Lets the effect retry when projectSessions loads after selectedSessionPath changes.
   const lastScrolledPathRef = useRef<string | null>(null);
   // The selection observed at the previous effect run — distinguishes a real
   // selection change from a projectSessions-only re-run.
@@ -127,7 +126,6 @@ export default memo(function Sidebar({
     // scroll at most once per selection.
     if (!selectionChanged && lastScrolledPathRef.current === selectedSessionPath) return;
 
-    // Find which project contains this session
     let targetProjectPath: string | null = null;
     for (const cwd of Object.keys(projectSessions)) {
       const sessions = projectSessions[cwd];
@@ -140,7 +138,6 @@ export default memo(function Sidebar({
 
     lastScrolledPathRef.current = selectedSessionPath;
 
-    // Capture path in local variable to avoid stale closure
     const scrollToPath = selectedSessionPath;
     const projectPath = targetProjectPath;
     let cancelled = false;
@@ -200,7 +197,6 @@ export default memo(function Sidebar({
             });
           }
         } else {
-          // Expanding: clear the snapshot for this project.
           next.add(projectPath);
           setVisibleWhenCollapsedSessionIds((prev) => {
             const nextState = { ...prev };

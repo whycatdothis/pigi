@@ -122,14 +122,11 @@ export function ModelSettingsPicker({
                     className="rounded-control"
                     onSelect={() => {
                       onSelectModel(model);
-                      // Same model or a model without thinking levels:
-                      // nothing to confirm, close immediately.
                       if (key === selectedKey || model.thinkingLevels.length === 0) {
                         setOpen(false);
                         return;
                       }
-                      // New model: keep the popover open, normalize the list
-                      // view, and ask for a thinking-level confirmation.
+                      // A new model keeps the popover open to confirm a thinking level.
                       setModelSearch('');
                       setPendingThinkingConfirm(true);
                     }}

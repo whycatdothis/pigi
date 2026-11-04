@@ -2,10 +2,6 @@
  * Tests for the renderer's session tree data: filtering, the shape rows are
  * indented into, and the two pieces of bookkeeping the navigation flow needs
  * (how much a move abandons, and which forks a row hangs from).
- *
- * These are the rules that were iterated on by hand in the running app; they are
- * pure functions over the tree the utility process sends, so they can be pinned
- * down here instead.
  */
 import { describe, expect, it } from 'vitest';
 import type { SessionTree, SessionTreeEntry } from '../../../shared/ipcContract';

@@ -3,22 +3,12 @@ import type { PromptAttachment, PromptInput, StreamBatch } from '../../../shared
 import { sanitizeUserPromptForDisplay } from '../../../shared/chatAttachments';
 
 /**
- * TranscriptController - manages transcript state for a single session.
- *
- * Responsibilities:
- * - Converts SDK lifecycle events into UI state (TranscriptNode[])
- * - Applies stream batches to active streaming nodes
- * - Normalizes session.messages during startup/switch (hydration)
- * - Tracks agent status (idle/streaming/tool_running/error)
- * - Notifies subscribers on state changes (for React re-render)
+ * Transcript state for a single session: turns SDK lifecycle events, stream
+ * batches, and hydrated session messages into TranscriptNode[] plus agent status.
  *
  * Stream batches are already throttled by the utility process. Notifying React per batch keeps
  * the rendered layout measurable without rendering on every token event.
  */
-
-// =============================================================================
-// Node types
-// =============================================================================
 
 export interface UserNode {
   id: string;
@@ -56,7 +46,7 @@ export interface AssistantNode {
   stopReason?: string;
   errorMessage?: string;
   isStreaming: boolean;
-  /** Set when the first thinking delta arrives (streaming sessions only) */
+  /** The message start time, once the message is known to think. */
   thinkingStartedAt?: number;
   /** Set when thinking ends (text starts, a tool call starts, or the message finalizes) */
   thinkingEndedAt?: number;
@@ -114,10 +104,6 @@ interface UserMessageOptions {
 
 export type AgentStatus = 'idle' | 'streaming' | 'tool_running' | 'error';
 
-// =============================================================================
-// Type guards for transcript node narrowing
-// =============================================================================
-
 function isToolNode(node: TranscriptNode): node is ToolNode {
   return node.role === 'tool';
 }
@@ -131,17 +117,12 @@ function findToolNodeByCallId(
   return { node: nodes[index] as ToolNode, index };
 }
 
-/** Parse `node.args` (typed as `unknown`) into a Record for tool argument access. */
 export function getToolArgs(node: ToolNode): Record<string, unknown> | undefined {
   if (node.args && typeof node.args === 'object' && !Array.isArray(node.args)) {
     return node.args as Record<string, unknown>;
   }
   return undefined;
 }
-
-// =============================================================================
-// State
-// =============================================================================
 
 export interface TranscriptState {
   nodes: TranscriptNode[];
@@ -158,11 +139,7 @@ export interface TranscriptState {
   }>;
 }
 
-// =============================================================================
-// SDK event shapes (what arrives over the port as PiPush { type: 'event', event })
-// =============================================================================
-
-// SDK event shapes (only types actually used in casts are kept)
+// SDK events as they arrive over the port in PiPush { type: 'event', event }; only the fields used here.
 interface SdkMessageStart {
   type: 'message_start';
   message: {
@@ -228,10 +205,6 @@ interface SdkToolExecEnd {
   result: unknown;
   isError: boolean;
 }
-
-// =============================================================================
-// Controller
-// =============================================================================
 
 type Listener = () => void;
 
@@ -317,7 +290,6 @@ export class TranscriptController {
     if (this._state.status === status) {
       return;
     }
-    // When transitioning to idle, finalize any lingering streaming state
     if (status === 'idle') {
       this.finalizeCurrent();
       this.setState({
@@ -339,10 +311,7 @@ export class TranscriptController {
     return this.findNode<AssistantNode>(this._state.activeAssistantId);
   }
 
-  // ===========================================================================
-  // Hydration (from getMessages on session_ready or switch)
-  // ===========================================================================
-
+  // From getMessages on session_ready or session switch.
   hydrate(messages: unknown[], compactionCount?: number): void {
     this._optimisticUserMessages.clear();
     this._runPromptPending = false;
@@ -428,8 +397,8 @@ export class TranscriptController {
       };
       if (!parsed.role) continue;
 
-      // Insert compaction marker at the boundary between pre-compaction kept messages
-      // and post-compaction messages, determined by timestamp.
+      // The marker goes at the first message newer than the compaction: the
+      // boundary between kept pre-compaction messages and later ones.
       if (
         compactionTimestamp !== undefined &&
         !compactionInserted &&
@@ -558,8 +527,7 @@ export class TranscriptController {
           break;
         }
         case 'compactionSummary':
-          // Handled above via compactionTimestamp; marker is inserted at the
-          // chronological boundary between kept and post-compaction messages.
+          // Handled above via compactionTimestamp.
           break;
       }
     }
@@ -576,10 +544,6 @@ export class TranscriptController {
 
     return nodes;
   }
-
-  // ===========================================================================
-  // Reset (session switch, destroy)
-  // ===========================================================================
 
   reset(): void {
     this._optimisticUserMessages.clear();
@@ -626,7 +590,6 @@ export class TranscriptController {
     this.setState({ nodes: [...nodes, node], status: 'error' });
   }
 
-  // ===========================================================================
   private _optimisticUserMessages = new Map<string, number>();
 
   /** Queue a message sent during compaction for replay after compaction ends. */
@@ -651,7 +614,6 @@ export class TranscriptController {
    * Used when the user clicks "Edit" on a queued message during compaction.
    */
   removeCompactionMessage(type: 'steer' | 'followUp', index: number): PromptInput | undefined {
-    // Find the nth message of the given type in the compaction queue
     let seen = 0;
     let queueIndex = -1;
     for (let i = 0; i < this._state.compactionQueue.length; i++) {
@@ -679,14 +641,11 @@ export class TranscriptController {
     return { message: removed.text, attachments: removed.attachments ?? [] };
   }
 
-  /** Clear the compaction queue after replaying its messages. */
   clearCompactionQueue(): void {
     this.setState({ compactionQueue: [], queuedSteering: [], queuedFollowUp: [] });
   }
 
   // Optimistic user message (shown immediately before SDK echo)
-  // ===========================================================================
-
   addUserMessage(text: string, options?: UserMessageOptions): void {
     const key = this.appendUserNode(text, options);
     this._optimisticUserMessages.set(key, (this._optimisticUserMessages.get(key) ?? 0) + 1);
@@ -774,10 +733,6 @@ export class TranscriptController {
     }
   }
 
-  // ===========================================================================
-  // SDK event processing
-  // ===========================================================================
-
   /** True while an agent run owns the transcript, so an event arriving now
    *  belongs to the current user turn instead of starting a new one. */
   private isRunActive(): boolean {
@@ -856,7 +811,6 @@ export class TranscriptController {
           break;
         }
         if (startMessage?.role === 'user') {
-          // Check if this user message was already added optimistically
           const { text, imageSources, filePaths, inlineFileNames } = extractUserContent(
             startMessage.content,
           );
@@ -917,9 +871,8 @@ export class TranscriptController {
         this.finalizeCompactionNode(compactionEvent.aborted, compactionEvent.errorMessage);
         this.setState({ isCompacting: false });
 
-        // Fire callback to replay messages queued during compaction.
-        // Uses the sessionId captured at callback registration, not the currently
-        // active session, to handle session switching during compaction.
+        // Uses the sessionId captured at callback registration, not the active
+        // session, because the user may switch sessions during compaction.
         if (
           this._compactionReplayCallback &&
           this._sessionId &&
@@ -933,7 +886,6 @@ export class TranscriptController {
       }
 
       case 'queue_update': {
-        // Runtime guard for expected shape
         if (typeof event !== 'object' || event === null) break;
         const newSteering: string[] = Array.isArray(event.steering) ? event.steering : [];
         const newFollowUp: string[] = Array.isArray(event.followUp) ? event.followUp : [];
@@ -950,10 +902,6 @@ export class TranscriptController {
         break;
     }
   }
-
-  // ===========================================================================
-  // Stream batch processing
-  // ===========================================================================
 
   /**
    * Apply a stream batch. The utility process flushes at animation-frame cadence, so
@@ -1003,7 +951,6 @@ export class TranscriptController {
           if (toolArgsEntry.name === 'edit') {
             // Edit: only merge path from streaming args, preserve existing args.
             // Utility sends { path } only (not full edits array) to reduce batch size.
-            // TS can't narrow discriminated union from Object.entries result
             const { path } = toolArgsEntry.args;
             const existing = (found.node.args ?? {}) as Record<string, unknown>;
             this._state.nodes[found.index] = {
@@ -1012,7 +959,6 @@ export class TranscriptController {
             };
             changed = true;
           } else {
-            // Write and others: replace full args
             this._state.nodes[found.index] = { ...found.node, args: toolArgsEntry.args };
             changed = true;
           }
@@ -1024,10 +970,6 @@ export class TranscriptController {
       this.setState({ nodes: [...this._state.nodes] });
     }
   }
-
-  // ===========================================================================
-  // Internal event handlers
-  // ===========================================================================
 
   private createAssistantNode(id?: string, timestamp?: number | string): void {
     const nodeId = id || nextNodeId();
@@ -1047,7 +989,6 @@ export class TranscriptController {
     });
   }
 
-  /** Bump the mutation revision so renderer identity caches invalidate. */
   private bumpRevision(assistant: AssistantNode): void {
     assistant.revision = (assistant.revision ?? 0) + 1;
   }
@@ -1167,7 +1108,6 @@ export class TranscriptController {
       return;
     }
 
-    // Update tool args at toolcall_end with the finalized arguments
     if (ame.type === 'toolcall_end' && ame.toolCall) {
       const tc = ame.toolCall as { id: string; name: string; arguments: unknown };
       const found = findToolNodeByCallId(this._state.nodes, tc.id);
@@ -1218,7 +1158,6 @@ export class TranscriptController {
     const assistant = this.getActiveAssistant();
     if (!assistant) return;
 
-    // Finalize the assistant node
     assistant.isStreaming = false;
     this.markThinkingEnded(assistant);
     assistant.messageEndedAt = Date.now();
@@ -1355,7 +1294,6 @@ export class TranscriptController {
         const newNodes = [...nodes];
         newNodes[i] = updated;
 
-        // Add a separate error node with the detailed message
         if (errorMessage && !aborted) {
           const errorNode: AssistantNode = {
             id: `compaction-error-${Date.now()}`,
@@ -1401,10 +1339,6 @@ export class TranscriptController {
   }
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
-
 // After role equality is checked, TS can't narrow `right` via switch on `left.role`.
 // The casts below are safe because we returned early when roles differ.
 function areDuplicateNodes(left: TranscriptNode, right: TranscriptNode): boolean {
@@ -1428,7 +1362,6 @@ function areDuplicateNodes(left: TranscriptNode, right: TranscriptNode): boolean
         (left.inlineFileNames?.length ?? 0) === ((right as UserNode).inlineFileNames?.length ?? 0)
       );
     case 'assistant': {
-      // right is guaranteed to be AssistantNode here due to role equality check above
       const assistant = right as AssistantNode;
       return (
         Boolean(left.text || left.thinking) &&

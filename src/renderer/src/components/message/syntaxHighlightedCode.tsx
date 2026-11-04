@@ -82,7 +82,6 @@ function useStreamingThrottledCode(code: string, isStreaming: boolean, intervalM
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Refs are written here (in an effect), never during render.
     latestCodeRef.current = code;
     if (!isStreaming) {
       if (timerRef.current !== null) {
@@ -110,8 +109,6 @@ function useStreamingThrottledCode(code: string, isStreaming: boolean, intervalM
     [],
   );
 
-  // While streaming, return the throttled value; otherwise pass the latest
-  // through immediately so the final content highlights without delay.
   return isStreaming ? throttledCode : code;
 }
 

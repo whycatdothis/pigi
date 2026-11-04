@@ -222,7 +222,6 @@ function installDownloadedUpdate(): void {
   }, INSTALL_TIMEOUT_MS);
 }
 
-/** What the app menu's single update item should say right now. */
 export interface UpdateMenuItemState {
   label: string;
   enabled: boolean;
@@ -265,7 +264,6 @@ export function runUpdateMenuItemAction(): void {
   void runCheck(true);
 }
 
-/** Registers the menu rebuild hook and applies it to the current status. */
 export function setUpdateStatusObserver(observer: (() => void) | null): void {
   statusObserver = observer;
   observer?.();

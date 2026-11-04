@@ -123,7 +123,6 @@ export default function SessionSwitcher({
     return flattened;
   }, [projectSessions, navigationBackStack, navigationForwardStack, activeSessionPath]);
 
-  // Prepare search targets once (avoid rebuilding on every keystroke)
   const searchTargets = useMemo(
     () =>
       allSessions.map((session) => ({
@@ -134,10 +133,8 @@ export default function SessionSwitcher({
     [allSessions],
   );
 
-  // Defer the search query so typing stays responsive
   const deferredQuery = useDeferredValue(query);
 
-  // Search (filtered + highlight data)
   const { filteredSessions, highlightMap } = useMemo(() => {
     const trimmed = deferredQuery.trim().toLowerCase();
     if (!trimmed) {
@@ -160,25 +157,21 @@ export default function SessionSwitcher({
     return { filteredSessions: sessions, highlightMap: map };
   }, [deferredQuery, allSessions, searchTargets]);
 
-  // Reset selection to first item when dialog opens or filtered results change
   useEffect(() => {
     if (!open) return;
     requestAnimationFrame(() => {
       if (autoSelectPrevious) {
-        // Ctrl+Tab mode: select the second item (previous session)
         const secondPath = filteredSessions[1]?.path;
         if (secondPath) {
           setSelectedValue(secondPath);
         }
       } else {
-        // Normal mode: always select first item
         const firstPath = filteredSessions[0]?.path ?? '';
         setSelectedValue(firstPath);
       }
     });
   }, [open, filteredSessions, autoSelectPrevious]);
 
-  // Scroll to top when dialog opens or filtered list changes
   useEffect(() => {
     if (open) {
       requestAnimationFrame(() => {
@@ -204,7 +197,6 @@ export default function SessionSwitcher({
     [onOpenChange],
   );
 
-  // Ctrl+Tab navigation: move selection down within the filtered list
   const handleCommandKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
       if (event.key === 'Tab' && event.ctrlKey) {

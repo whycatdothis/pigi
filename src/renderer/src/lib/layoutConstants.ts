@@ -52,7 +52,6 @@ export const MESSAGE_LIST_BOTTOM_INSET = 16;
  *  input changes the follow state (see useMessageListScrollController). */
 export const MESSAGE_LIST_SCROLL_END_THRESHOLD = 16;
 
-/** Bottom terminal panel sizing. */
 export const TERMINAL_DEFAULT_HEIGHT = 280;
 /** Shared by the terminal and chat viewport, including live pointer resizing. */
 export const TERMINAL_HEIGHT_PROPERTY = '--terminal-height';
@@ -102,8 +101,10 @@ export function sidebarToggleLeft(platform: Platform): number {
   return platform === 'mac' ? SIDEBAR_TOGGLE_LEFT_MAC_PX : SIDEBAR_TOGGLE_LEFT_PX;
 }
 
-/** Used by Dialog, Popover, and ContextMenu — these need backdrop-blur but blur renders incorrectly in vibrant regions, so they use a separate configuration. */
 /**
+ * Used by Dialog, Popover, and ContextMenu: they need backdrop-blur, which
+ * renders incorrectly in vibrant regions, so they get their own configuration.
+ *
  * The hairline is an outline, not a ring: a 0.5px box-shadow loses the whole arc
  * of a 20px corner to antialiasing (the straight edges draw, the curves vanish),
  * while an outline keeps 0.5px all the way round.

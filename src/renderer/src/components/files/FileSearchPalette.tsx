@@ -14,7 +14,6 @@ import { FileIcon } from '../fileIcon';
 const SEARCH_LIMIT = 30;
 const QUERY_DEBOUNCE_MS = 70;
 
-/** Split a project-relative path into the result row's name and directory. */
 function splitFilePath(path: string): { name: string; directory: string } {
   const slash = path.lastIndexOf('/');
   return slash === -1

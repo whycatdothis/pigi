@@ -251,7 +251,6 @@ export default function ChatInput({
     editorProps,
     onUpdate: ({ editor: updatedEditor }) => {
       history.handleTyping();
-      // Hash autocomplete detection (only in new session mode)
       if (isNewSession) {
         const { doc, selection } = updatedEditor.state;
         setHashMode(doc.textBetween(0, selection.from, TEXT_BLOCK_SEPARATOR) === '#');
@@ -457,7 +456,6 @@ export default function ChatInput({
         : EMPTY_SLASH_MATCHES,
     [suggestion, allSlashCommands],
   );
-  // Flat list for keyboard nav across builtin + skill groups
   const flatSlashMatches = useMemo(
     () => [...slashMatches.builtin, ...slashMatches.skill],
     [slashMatches],
@@ -563,7 +561,6 @@ export default function ChatInput({
       writeChatDraft(previousKey, getHistoryDraft());
     }
 
-    // Reset history recall when switching sessions
     resetHistory();
 
     if (previousKey !== draftKey) {
@@ -571,7 +568,6 @@ export default function ChatInput({
       // remount of the same draft (the settings page replaces the main area)
       // gets back what the unmount below parked.
       setAttachmentList(previousKey === null ? takeParkedDraftAttachments(draftKey) : []);
-      // Restore the current key's draft and auto-focus the input
       const draft = readChatDraft(draftKey);
       queueMicrotask(() => composer.setText(draft));
     }
@@ -611,7 +607,6 @@ export default function ChatInput({
     };
   }, [editor, getHistoryDraft]);
 
-  // Restore messages from abort/dequeue
   useEffect(() => {
     if (restoreInputs === null) return;
     // Programmatic value change: exit history recall
@@ -771,7 +766,6 @@ export default function ChatInput({
         }
       }
 
-      // Shell-style history recall
       if (history.handleArrowKey(event)) return true;
 
       if (event.key === 'Enter' && !event.shiftKey) {

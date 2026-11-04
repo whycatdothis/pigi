@@ -25,7 +25,6 @@ export function setupApplicationMenu(): void {
   builtUpdateItemSignature = `${updateItem.label}|${updateItem.enabled}`;
 
   const template: Electron.MenuItemConstructorOptions[] = [
-    // macOS app menu
     ...(isMac
       ? [
           {
@@ -51,7 +50,6 @@ export function setupApplicationMenu(): void {
           },
         ]
       : []),
-    // Edit menu — standard copy/paste/undo shortcuts
     {
       label: 'Edit',
       submenu: [
@@ -64,7 +62,7 @@ export function setupApplicationMenu(): void {
         { role: 'selectAll' as const },
       ],
     },
-    // View menu — no reload item so Ctrl+R is free for custom shortcuts
+    // No reload item, so Ctrl+R is free for custom shortcuts.
     {
       label: 'View',
       submenu: [
@@ -76,7 +74,6 @@ export function setupApplicationMenu(): void {
         { role: 'togglefullscreen' as const },
       ],
     },
-    // Window menu (macOS)
     ...(isMac
       ? [
           {

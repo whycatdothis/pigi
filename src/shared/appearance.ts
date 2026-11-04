@@ -3,9 +3,6 @@
  * presets, and a tolerant parser. Values here are data only — the rendering
  * rules live in `appearanceTokens.ts` and the DOM writer in
  * `src/renderer/src/appearance/applyAppearance.ts`.
- *
- * Per-mode slots exist from the start: `separateModes` decides whether the
- * light slot is shared or light and dark are configured independently.
  */
 
 import {
@@ -60,13 +57,9 @@ export interface AppearanceSettings {
 export interface ThemeAccent {
   /** Stable identifier persisted with the user's choice. */
   id: string;
-  /** Human-readable label for the picker. */
   name: string;
-  /** Swatch color shown in the picker. */
   swatchHex: string;
-  /** Accent oklch tuned for light mode. */
   lightOklch: string;
-  /** Accent oklch tuned for dark mode. */
   darkOklch: string;
 }
 
@@ -212,7 +205,6 @@ const DEFAULT_FONT_STACKS: Record<FontRole, string> = {
   code: FONT_STACKS[DEFAULT_FONT_FAMILY.code],
 };
 
-/** Resolves a stored family name to a CSS stack, with the role default. */
 export function fontStackFor(role: FontRole, name: string | null): string {
   return isFontFamilyName(name) ? FONT_STACKS[name] : DEFAULT_FONT_STACKS[role];
 }
@@ -330,7 +322,6 @@ function parseModeAppearance(raw: unknown, fallback: ModeAppearance): ModeAppear
   };
 }
 
-/** Parses a persisted appearance blob, falling back field by field. */
 /**
  * Parses a stored appearance object. `diagramThemeFallback` carries the value
  * from the version that kept the diagram theme under `chat`.

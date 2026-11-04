@@ -29,7 +29,6 @@ const HOSTILE_LABEL = [
   '  B --> C["<script>window.__mermaidPwned=true</script>"]',
 ].join('\n');
 
-/** Switch the app's own theme the way the settings page does. */
 function setAppMode(mode: 'light' | 'dark'): void {
   applyAppearance({ ...DEFAULT_APPEARANCE, mode });
 }
@@ -55,7 +54,6 @@ async function waitFor(check: () => boolean, timeoutMs = 3000): Promise<void> {
   expect(check()).toBe(true);
 }
 
-/** The overlay, opened by a click on the drawing. */
 async function openOverlay(screen: { container: HTMLElement }): Promise<HTMLElement> {
   await userEvent.click(svgIn(graphicIn(screen.container)));
   await waitFor(() => document.querySelector('[data-rmiz-modal]')?.hasAttribute('open') === true);
@@ -68,7 +66,6 @@ function overlayIsOpen(): boolean {
   return document.querySelector('dialog[data-rmiz-modal]')?.hasAttribute('open') === true;
 }
 
-/** The drawing inside the overlay. */
 function zoomedDrawing(): SVGSVGElement {
   return svgIn(document.querySelector('[data-rmiz-modal-content]') ?? document);
 }
@@ -147,8 +144,7 @@ test('draws a mermaid block as a diagram', async () => {
   expect(Number(drawing.getAttribute('width'))).toBeGreaterThan(0);
   expect(graphic.querySelector('style')).toBeNull();
 
-  // Its ids come along with it. Two drawings of the same source carry the same
-  // ids, which is what they are: the same drawing.
+  // Two drawings of the same source carry the same ids: they are the same drawing.
   expect(drawing.id).toMatch(/^pigi-mermaid-/);
 
   // And its text is this document's text, so the search can see it.
@@ -159,8 +155,7 @@ test('draws a diagram whose label carries an HTML line break', async () => {
   const screen = await render(<MermaidDiagram code={WRAPPED_LABEL} />);
   await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
 
-  // A label is HTML inside the drawing, so a `<br>` in it is a line break like
-  // any other one rather than something that can cost the whole picture.
+  // A label is HTML inside the drawing, so a `<br>` must not cost the whole picture.
   const graphic = graphicIn(screen.container);
   expect(graphic.textContent).toContain('First line');
   expect(graphic.textContent).toContain('Second line');
@@ -206,8 +201,6 @@ test('draws the fence once it is closed, in a message that keeps streaming after
 
   await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
   expect(graphicIn(screen.container).textContent).toContain('A');
-  // The prose around it is still there: the diagram replaced the block, not the
-  // message.
   await expect.element(screen.getByText('and text after it.')).toBeVisible();
 });
 
@@ -248,9 +241,7 @@ test('leaves the drawing alone when the app switches to dark', async () => {
 
   setAppMode('dark');
 
-  // A diagram is drawn in its own theme, not the window's: nothing about it
-  // depends on the mode, so the drawing is byte-for-byte the one from the light
-  // window (the diagram theme picked in the settings is what changes it).
+  // A diagram is drawn in its own theme (picked in settings), not the window's.
   await new Promise((resolve) => setTimeout(resolve, 300));
   expect(graphicIn(screen.container).innerHTML).toBe(inLight);
 });
@@ -320,8 +311,6 @@ test('leaves the text in a diagram selectable', async () => {
   if (!label) throw new Error('no label has been drawn');
   expect(getComputedStyle(label).userSelect).not.toBe('none');
 
-  // A selection over the label is a selection of the label's text, the way
-  // dragging across the drawing would leave one.
   const range = document.createRange();
   range.selectNodeContents(label);
   window.getSelection()?.removeAllRanges();
@@ -364,7 +353,6 @@ test('opens the drawn diagram in a zoom overlay', async () => {
   await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
 
   await openOverlay(screen);
-  // The overlay holds a copy of the same drawing, scaled to the window.
   // Dismissing it is the library's own behaviour, shared with the image preview.
   const zoomed = document.querySelector('[data-rmiz-modal-content] svg');
   expect(zoomed).not.toBeNull();
@@ -392,8 +380,6 @@ test('zooms and pans the drawing in the overlay, without dismissing it', async (
   drawing.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   expect(overlayIsOpen()).toBe(true);
 
-  // A click on the space around the drawing dismisses the overlay, the way the
-  // overlay's own background does.
   surface.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   await waitFor(() => !overlayIsOpen());
 });
@@ -407,8 +393,6 @@ test('opens a diagram at the size it was fitted to, every time', async () => {
   surface.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -120 }));
   await waitFor(() => zoomedDrawing().getBoundingClientRect().width > fittedWidth + 1, 2000);
 
-  // Escape closes it, and the next visit starts where the drawing fits the
-  // window rather than where the last one was left.
   await userEvent.keyboard('{Escape}');
   await waitFor(() => !overlayIsOpen());
   await openOverlay(screen);
@@ -452,12 +436,9 @@ test('draws in the theme the reader picks, whatever the app is doing', async () 
   await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
   const asBundled = graphicIn(screen.container).innerHTML;
 
-  // What the settings page writes: a mermaid theme of the reader's own.
   useSettingsStore.getState().setDiagramTheme('forest');
   await waitFor(() => graphicIn(screen.container).innerHTML !== asBundled);
 
-  // A picked theme is drawn whatever the window is doing, so switching the app's
-  // own theme leaves the drawing alone.
   setAppMode('dark');
   const forestInDark = graphicIn(screen.container).innerHTML;
   expect(forestInDark).not.toBe(asBundled);

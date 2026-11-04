@@ -23,12 +23,7 @@ export class PiAgentProcessPool {
 
   constructor(private readonly onSessionProcessExit: (sessionPath: string, code: number) => void) {}
 
-  // ===========================================================================
-  // Warm process management
-  // ===========================================================================
-
   /**
-   * Ensure a warm process exists. Spawns one if not present.
    * The warm process initializes services (model registry, extensions) but
    * does NOT create a session file — it stays unbound until claimed. It is a
    * pure session embryo: the model catalog is served by the session worker,
@@ -38,7 +33,6 @@ export class PiAgentProcessPool {
   ensureWarmProcess(cwds: string[] = this.warmCwds): void {
     this.warmCwds = [...new Set(cwds)];
     if (this.warmProcess) {
-      // Already have one — just prewarm any new cwds
       this.prewarmWarmProcess();
       return;
     }
@@ -50,33 +44,21 @@ export class PiAgentProcessPool {
     return this.warmProcess?.ready ?? false;
   }
 
-  /**
-   * Claim the warm process for a real session. Returns the process and removes
-   * it from warm state. Immediately spawns a new warm process as replacement.
-   * Returns null if no warm process exists.
-   */
   claimWarmProcess(): Electron.UtilityProcess | null {
     if (!this.warmProcess || !this.warmProcess.ready) {
       return null;
     }
     const proc = this.warmProcess.process;
     this.warmProcess = null;
-    // Spawn replacement immediately
     this.spawnWarmProcess();
     return proc;
   }
 
-  // ===========================================================================
-  // Session process management
-  // ===========================================================================
-
-  /** Spawn a fresh process (no warm available). */
   createFreshProcess(): Electron.UtilityProcess {
     return createPiAgentProcess();
   }
 
   registerSessionProcess(sessionPath: string, proc: Electron.UtilityProcess): void {
-    // Kill old process if same sessionPath was already registered (prevents leaks)
     const existing = this.sessionProcesses.get(sessionPath);
     if (existing && existing.process !== proc) {
       existing.process.kill();
@@ -170,10 +152,6 @@ export class PiAgentProcessPool {
     }
   }
 
-  // ===========================================================================
-  // Private
-  // ===========================================================================
-
   private spawnWarmProcess(): void {
     const proc = createPiAgentProcess();
     this.warmProcess = {
@@ -193,7 +171,6 @@ export class PiAgentProcessPool {
         this.warmProcess.ready = true;
       }
     });
-    // Send warm_up command to initialize services
     const command: UtilityCommand = { type: 'warm_up', cwds: this.warmCwds };
     proc.postMessage(command);
   }

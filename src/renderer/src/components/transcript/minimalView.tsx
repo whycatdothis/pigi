@@ -25,7 +25,7 @@ import ShimmerText from '../message/shimmerText';
 import { cn } from '../../lib/utils';
 
 /**
- * MinimalView - minimal/codex-style activity view.
+ * Minimal (codex-style) activity view.
  *
  * Each user message starts a turn: the agent's first text message (intro) is
  * rendered at the top, followed by a "Working for Xm Ys" timer and a divider.
@@ -54,7 +54,6 @@ interface MinimalViewProps {
   onCollapseChange?: (isCollapsing: boolean) => void;
   /** Reports each working turn's section height for output-follow. */
   onOutputGrowth?: (height: number) => void;
-  /** The message list scroll container ref. */
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -102,10 +101,6 @@ function scrollTo(element: HTMLElement, position: number): void {
   element.scrollTop = position;
 }
 
-// =============================================================================
-// Turn
-// =============================================================================
-
 /** Geometry captured at collapse-click time, consumed by useLayoutEffect. */
 interface CollapseSnapshot {
   startScrollTop: number;
@@ -145,7 +140,6 @@ const TurnSection = React.memo(function TurnSection({
     }
   }, [analysis.isActive, onTurnEnd, turn.id]);
 
-  // Track section height for output-follow while the turn is active.
   const sectionRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!analysis.isActive) return;
@@ -158,7 +152,6 @@ const TurnSection = React.memo(function TurnSection({
     return () => observer.disconnect();
   }, [analysis.isActive, onOutputGrowth]);
 
-  // Snapshot captured at collapse-click, consumed once by the layout effect.
   const collapseSnapshotRef = useRef<CollapseSnapshot | null>(null);
 
   const handleToggleDetails = useCallback(() => {
@@ -573,10 +566,6 @@ function DetailItem({
   return null;
 }
 
-// =============================================================================
-// Working timer
-// =============================================================================
-
 function WorkingTimer({
   startAt,
   endAt,
@@ -607,10 +596,6 @@ function WorkingTimer({
     </span>
   );
 }
-
-// =============================================================================
-// Running tool line
-// =============================================================================
 
 const COMMAND_TAIL_CHARS = 20;
 

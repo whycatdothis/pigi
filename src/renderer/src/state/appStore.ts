@@ -66,7 +66,6 @@ interface AppState {
   setProjectSessions: (sessionsByCwd: Record<string, PiSessionInfo[]>) => void;
   setProjectSessionList: (cwd: string, sessions: PiSessionInfo[]) => void;
 
-  // Sidebar
   sidebarExpanded: boolean;
   setSidebarExpanded: (expanded: boolean) => void;
   toggleSidebar: () => void;
@@ -124,7 +123,6 @@ interface AppState {
   // Tool block view mode and diagram theme live in the settings store
   // (persisted preferences).
 
-  // Platform
   platform: Platform;
   setPlatform: (platform: Platform) => void;
 
@@ -143,7 +141,6 @@ interface AppState {
   navigateBack: () => string | null;
   /** Returns target sessionPath or null, updates stacks and activeSessionPath internally */
   navigateForward: () => string | null;
-  /** Remove a session path from all history stacks */
   removeFromNavigationHistory: (sessionPath: string) => void;
 
   // Sessions whose run finished while the user was viewing another session;
@@ -322,19 +319,16 @@ export const useAppStore = create<AppState>((set) => ({
       },
     })),
 
-  // Sidebar
   sidebarExpanded: true,
   setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
   toggleSidebar: () => set((s) => ({ sidebarExpanded: !s.sidebarExpanded })),
 
-  // Settings page
   settingsOpen: false,
   settingsSection: DEFAULT_SETTINGS_SECTION,
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
   setSettingsSection: (settingsSection) => set({ settingsSection }),
 
-  // Workspace views
   workspaceTab: WORKSPACE_TABS.chat,
   setWorkspaceTab: (workspaceTab) =>
     set((state) => ({
@@ -350,7 +344,6 @@ export const useAppStore = create<AppState>((set) => ({
       return { lastFileByProject };
     }),
 
-  // Bottom terminal panel
   terminalOpen: false,
   terminalMounted: false,
   toggleTerminal: () =>
@@ -369,7 +362,6 @@ export const useAppStore = create<AppState>((set) => ({
   setTerminalTabs: (terminalTabs, activeTerminalTabId) =>
     set({ terminalTabs, activeTerminalTabId }),
 
-  // Quotes
   quotesBySession: storedQuotes.load(),
   addQuote: (sessionPath, text, comment) =>
     set((state) => {
@@ -411,22 +403,18 @@ export const useAppStore = create<AppState>((set) => ({
       return { globalCommentBySession };
     }),
 
-  // Right sidebar
   rightSidebarOpen: false,
   rightSidebarTab: RIGHT_SIDEBAR_TABS.quotes,
   setRightSidebarOpen: (open) => set({ rightSidebarOpen: open }),
   toggleRightSidebar: () => set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
   setRightSidebarTab: (tab) => set({ rightSidebarTab: tab }),
 
-  // Platform
   platform: 'unknown',
   setPlatform: (platform) => set({ platform }),
 
-  // Auto-update
   updateStatus: { phase: 'idle' },
   setUpdateStatus: (status) => set({ updateStatus: status }),
 
-  // Navigation history
   navigationBackStack: [],
   navigationForwardStack: [],
 
@@ -435,7 +423,6 @@ export const useAppStore = create<AppState>((set) => ({
       if (sessionPath === state.activeSessionPath) return {};
       // Remove target from backStack to avoid duplicates when toggling
       // between sessions (e.g. Ctrl+Tab D↔C keeps backStack clean).
-      // .filter() creates a new array required by Zustand's immutability.
       const backStack = state.navigationBackStack.filter((p) => p !== sessionPath);
       if (state.activeSessionPath) {
         backStack.push(state.activeSessionPath);

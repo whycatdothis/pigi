@@ -3,8 +3,7 @@ import { useAppStore } from '../state/appStore';
 
 /**
  * Suppresses the next typewriter animation when a manual rename is detected
- * for the given session path. Used by both SessionToolbar and SessionItem
- * to avoid animating title changes caused by explicit user renames.
+ * for the given session path, so explicit user renames do not animate.
  */
 export function useRenameSuppress(sessionPath: string, skipNextAnimation: () => void): void {
   const isRenamed = useAppStore((state) => state.renamedSessionPaths.has(sessionPath));

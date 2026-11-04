@@ -17,12 +17,7 @@ export const CHEVRON_PX = 16;
 /** Height of a row; the hover preview and the branch elbows measure against it. */
 export const ROW_HEIGHT_PX = 32;
 
-/**
- * Structure line width.
- *
- * A hairline: one whole pixel, so it never blurs into a grey bar and stays
- * thinner than any row chrome.
- */
+/** A whole pixel, so the hairline never blurs into a grey bar. */
 export const RAIL_WIDTH_PX = 1;
 /** Extra space above a fork's direct children; the line spans it. */
 export const BRANCH_SPACING_PX = 2;
@@ -48,7 +43,6 @@ export const RAIL_COLOR = 'color-mix(in oklab, var(--foreground) 28%, transparen
 /** Structure line on the active path, so the way back to the leaf stands out. */
 export const RAIL_COLOR_CURRENT = 'color-mix(in oklab, var(--system-accent) 60%, transparent)';
 
-/** Width of the hover preview card. */
 export const CARD_WIDTH_PX = 380;
 /** Distance between the card and the dialog's right edge. */
 export const CARD_INSET_PX = 12;
@@ -63,7 +57,6 @@ export const CARD_MAX_HEIGHT_PX = 320;
  */
 export const CARD_GAP_PX = 20;
 
-/** Structure line colour for a rail or an elbow. */
 export function railColor(tinted: boolean): string {
   return tinted ? RAIL_COLOR_CURRENT : RAIL_COLOR;
 }

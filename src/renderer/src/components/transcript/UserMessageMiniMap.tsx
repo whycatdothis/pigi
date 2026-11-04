@@ -120,7 +120,6 @@ export default React.memo(function UserMessageMiniMap({
     return () => observer.disconnect();
   }, [containerRef]);
 
-  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (openTimerRef.current) clearTimeout(openTimerRef.current);
@@ -142,7 +141,6 @@ export default React.memo(function UserMessageMiniMap({
     return result;
   }, [nodes]);
 
-  /** Which position in the userMessages array is currently active */
   const activePosition = useMemo(() => {
     for (let position = 0; position < userMessages.length; position++) {
       if (userMessages[position].index === activeUserMessageIndex) return position;

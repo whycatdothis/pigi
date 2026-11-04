@@ -271,7 +271,6 @@ export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
     [models, selectedKey],
   );
 
-  // Group the catalog by provider for a scannable select.
   const providers = useMemo(() => {
     const grouped = new Map<string, ModelInfo[]>();
     for (const model of models) {

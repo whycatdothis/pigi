@@ -112,13 +112,11 @@ function readTerminalTheme(): TerminalTheme {
   };
 }
 
-/** Basename of a directory path, used as a fallback tab title. */
 function directoryName(path: string): string {
   const base = path.replace(/\/+$/, '').split('/').pop();
   return base && base.length > 0 ? base : 'Terminal';
 }
 
-/** One terminal tab: an independent shell inside a project group. */
 interface TerminalTab {
   id: string;
   /** Project group this tab belongs to (also the shell's working directory). */
@@ -135,16 +133,11 @@ interface TerminalTab {
   disposeData: () => void;
 }
 
-/** A set of tabs bound to one project, cached while the project is inactive. */
 interface ProjectGroup {
   key: string;
   tabs: TerminalTab[];
   activeTabId: string | null;
-  /**
-   * Idle-eviction timer. Armed (and reset on I/O) only while the group is NOT
-   * the one currently shown; when it fires, the whole group is killed. The
-   * shown group is exempt and has no timer.
-   */
+  /** Idle-eviction timer; armed only while the group is not the shown one. */
   ttlTimer: ReturnType<typeof setTimeout> | null;
 }
 
@@ -153,7 +146,6 @@ class TerminalController {
   private appliedFont: { fontFamily: string; fontSize: number } | null = null;
   /** Pending debounced fit, so a burst of appearance changes fits once. */
   private fitTimer: number | null = null;
-  /** project key -> group. */
   private readonly groups = new Map<string, ProjectGroup>();
   /** project keys ordered least- to most-recently-used (last = MRU). */
   private recency: string[] = [];
@@ -180,7 +172,6 @@ class TerminalController {
     const { fontFamily, fontSize } = readTerminalFont();
     const terminal = new Terminal({
       cursorBlink: true,
-      // Thin vertical beam instead of the default solid block.
       cursorStyle: 'bar',
       // Treat Option as the Meta key so every Option shortcut emits the
       // ESC-prefixed sequence shells expect (M-b, M-d, M-f, M-Backspace, ...).
@@ -246,7 +237,6 @@ class TerminalController {
     return tab;
   }
 
-  /** Dispose a single tab: detach its DOM, free xterm, and kill its shell. */
   private disposeTab(tab: TerminalTab): void {
     tab.disposeData();
     tab.host.parentElement?.removeChild(tab.host);
@@ -254,7 +244,6 @@ class TerminalController {
     void window.piApi.terminal.stop(tab.id);
   }
 
-  /** Dispose an entire project group (kills every shell in it). */
   private disposeGroup(key: string): void {
     const group = this.groups.get(key);
     if (!group) return;
@@ -274,11 +263,6 @@ class TerminalController {
     if (group) this.armGroupTtl(group);
   }
 
-  /**
-   * (Re)arm the idle-eviction timer for a group. Clears any existing timer first,
-   * then schedules disposal in GROUP_TTL_MS — unless the group is the one being
-   * shown, which is exempt and left without a timer.
-   */
   private armGroupTtl(group: ProjectGroup): void {
     this.clearGroupTtl(group);
     if (group.key === this.activeProjectKey) return;
@@ -295,7 +279,6 @@ class TerminalController {
     }
   }
 
-  /** Detach every host of the active group except the active tab, and attach that one. */
   private attachActiveTab(): void {
     const group = this.activeGroup;
     if (!group || !this.container) return;
@@ -310,7 +293,6 @@ class TerminalController {
     }
   }
 
-  /** Start the active tab's shell if it isn't running yet. */
   private ensureActiveStarted(): void {
     const tab = this.activeTab;
     if (!tab || tab.started) return;
@@ -346,7 +328,6 @@ class TerminalController {
 
     // Command: jump/kill by line (Cmd is not sent to the shell by default).
     if (metaKey && !altKey && !ctrlKey) {
-      // Cmd+K clears the scrollback (macOS Terminal's "Clear Buffer").
       if (key === 'k') {
         event.preventDefault();
         this.clearTab(id);
@@ -387,9 +368,6 @@ class TerminalController {
     return true;
   }
 
-  // --- public API (called by TerminalPanel) ------------------------------
-
-  /** Remember the container the active tab should be parented into. */
   mount(container: HTMLElement): void {
     this.container = container;
     this.attachActiveTab();
@@ -455,7 +433,6 @@ class TerminalController {
     this.focusSoon();
   }
 
-  /** Switch the active tab within the current group. */
   activateTab(id: string): void {
     const group = this.activeGroup;
     if (!group || group.activeTabId === id) return;

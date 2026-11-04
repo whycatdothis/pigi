@@ -1,6 +1,3 @@
-/**
- * Create and configure the main BrowserWindow.
- */
 import { BrowserWindow } from 'electron';
 import { join } from 'path';
 import { PIGI_SETTINGS_PATH_ARGUMENT } from '../../shared/pigiSettings';

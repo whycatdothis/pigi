@@ -34,11 +34,9 @@ export interface MinimalSystemItem {
 export interface MinimalTurnAnalysis {
   intro: AssistantNode | null;
   summary: AssistantNode | null;
-  /** Pinned rows rendered outside the activity feed: error messages (the
-   *  turn's outcome) and system markers. Tools and narration are NOT here —
-   *  they flow through the turn's activity feed. */
+  /** System markers pinned outside the activity feed; tools and narration
+   *  flow through the feed instead. */
   items: MinimalSystemItem[];
-  /** When the agent started working on this turn (first agent node timestamp). */
   startAt: number | undefined;
   /** When the turn finished (last agent node end timestamp). */
   endAt: number | undefined;
@@ -121,7 +119,6 @@ export function analyzeTurn(
   let firstToolIndex = -1;
   let lastAgentNodeActive = false;
 
-  // First pass: collect text positions and timing info.
   for (let index = 0; index < turn.entries.length; index++) {
     const node = turn.entries[index];
     if (node.role === 'assistant') {
@@ -191,9 +188,8 @@ export function analyzeTurn(
       ? lastTextEntry.node
       : null;
 
-  // Second pass: pinned rows — system markers only. Error messages are
-  // handled by the currentMsg slot (latest replaces previous, same as
-  // normal assistant text).
+  // Error messages are not pinned: they take the currentMsg slot, where the
+  // latest replaces the previous like normal assistant text.
   for (let index = 0; index < turn.entries.length; index++) {
     const node = turn.entries[index];
     if (node.role === 'system') {

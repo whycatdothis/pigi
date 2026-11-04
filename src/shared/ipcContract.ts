@@ -56,7 +56,6 @@ export interface ProjectDirectory {
   name: string;
 }
 
-/** How a chat attachment is delivered to the agent. */
 export type ChatAttachmentKind = 'image' | 'file';
 
 /**
@@ -507,7 +506,6 @@ export type ControlPortMessage = PiRequest | PiResult;
 /** High-volume data port: utility → renderer push events and stream batches. */
 export type DataPortMessage = PiPush | StreamBatch;
 
-/** Union of all session port messages. */
 export type PortMessage = ControlPortMessage | DataPortMessage;
 
 // =============================================================================

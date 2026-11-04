@@ -40,7 +40,6 @@ export default function BranchSummaryPrompt({
   );
 }
 
-/** Mounted only while the dialog is open, so its local state resets each time. */
 function PromptBody({
   abandonedCount,
   onConfirm,

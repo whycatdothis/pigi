@@ -17,7 +17,6 @@ export function useTypewriter(text: string, speed = 30): [string, () => void] {
     if (prevText === text) return;
     prevTextRef.current = text;
 
-    // Skip animation if flagged (manual rename) or no previous text
     if (skipNextRef.current || !prevText) {
       skipNextRef.current = false;
       setDisplayed(text);
@@ -27,7 +26,7 @@ export function useTypewriter(text: string, speed = 30): [string, () => void] {
     let cancelled = false;
 
     async function animate(): Promise<void> {
-      // Phase 1: delete in chunks to keep total deletion under ~300ms
+      // ~10 chunks keep the deletion under ~300ms at the default speed.
       const deleteStep = Math.max(1, Math.ceil(prevText.length / 10));
       for (let i = prevText.length; i >= 0; i -= deleteStep) {
         if (cancelled) return;
@@ -36,7 +35,6 @@ export function useTypewriter(text: string, speed = 30): [string, () => void] {
       }
       if (!cancelled) setDisplayed('');
 
-      // Phase 2: type new text character by character
       for (let i = 0; i <= text.length; i++) {
         if (cancelled) return;
         setDisplayed(text.slice(0, i));

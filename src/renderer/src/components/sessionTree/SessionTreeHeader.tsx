@@ -15,19 +15,12 @@ interface TreeHeaderProps {
 }
 
 /**
- * Section header for one of the session's trees.
+ * Section header for one of the session's trees: which version the reader is
+ * in, and a toggle that folds the whole tree away.
  *
- * It tells the reader which version they are in and folds the whole tree away —
- * the escape hatch for keeping every other version reachable. The pinned band
- * keeps the line of the tree the top rows belong to in view; this is the one in
- * the flow of the list, which scrolls under it.
- *
- * The line itself: chevron, `Tree N`, how many messages and the time span.
- *
- * Split out so the pinned band can draw the same line where the header would be
- * if it were still on screen — with several versions in one file, the band holds
- * the header of the tree its rows belong to, and the space it takes is what keeps
- * the band from being a see-through strip.
+ * Split out so the pinned band can draw the same line once the header in the
+ * flow of the list has scrolled under it; the space it takes is what keeps the
+ * band from being a see-through strip.
  */
 export function TreeHeaderContent({
   position,

@@ -247,7 +247,6 @@ test('paints the position in the theme colour and the keyboard row in grey', asy
   expect(currentBackground).not.toBe('rgba(0, 0, 0, 0)');
   expect(selectedBackground).not.toBe('');
   expect(selectedBackground).not.toBe('rgba(0, 0, 0, 0)');
-  // Grey for the keyboard, the theme colour for the position: two different paints.
   expect(selectedBackground).not.toBe(currentBackground);
   // And the grey has to carry: a whisper-thin one is the same as no mark at all, so
   // its alpha is held above a floor here rather than left to look-right-by-eye.
@@ -308,9 +307,7 @@ test('draws a window of rows, and a scrollbar as long as the whole session', asy
   const list = requireElement<HTMLElement>('[role=tree]');
   const listRect = list.getBoundingClientRect();
 
-  // The list is 2000 rows tall to scroll through…
   expect(list.scrollHeight).toBe(2000 * ROW_HEIGHT_PX);
-  // …but only a screenful of rows is in the document.
   const rows = [...document.querySelectorAll<HTMLElement>('[data-tree-row-id]')];
   expect(rows.length).toBeGreaterThan(8);
   expect(rows.length).toBeLessThanOrEqual(Math.ceil(listRect.height / ROW_HEIGHT_PX) + 20);
@@ -340,7 +337,6 @@ test('opens a 20000-message conversation at its end, and the keys reach both end
 test('pins the branch the top row hangs from, and only once it is scrolled past', async () => {
   await renderDialog(forkedSession());
 
-  // Nothing has scrolled past at the top, so there is no band to show.
   expect(pinnedIds()).toEqual([]);
 
   // Put `y20` at the top of the list. The rows from there down hang from two
@@ -368,7 +364,6 @@ test('holds the tree header, and the pinned rows under it, at the top of the lis
   const headerBackground = headerAtTop ? getComputedStyle(headerAtTop).backgroundColor : 'none';
   expect(headerBackground).not.toMatch(/^rgba?\(0, 0, 0, 0\)$/);
 
-  // The pinned rows start below that header, so both are readable.
   const pinnedRow = requireElement<HTMLElement>('[data-tree-pinned-id]');
   const pinnedTop = pinnedRow.getBoundingClientRect().top - listRect.top;
   expect(pinnedTop).toBeGreaterThanOrEqual(ROW_HEIGHT_PX - 4);
@@ -421,8 +416,6 @@ test('lights the run down to a hovered row, and takes it away again', async () =
   // there is no quiet piece left over below it.
   expect(drawnRails().some((rail) => rail.forkDepth === 1 && !rail.lit)).toBe(false);
 
-  // Off the rows again: the light goes back to the leaf's path, and the line runs
-  // the whole way down its branch again.
   await screen.getByRole('textbox').hover();
   await expect
     .poll(() => drawnRails().some((rail) => rail.forkDepth === 1 && rail.lit))

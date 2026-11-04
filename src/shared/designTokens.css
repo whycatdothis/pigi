@@ -3,8 +3,7 @@
  *
  * Shared verbatim: the app imports this from `assets/main.css` and the marketing
  * site from `website/src/styles/global.css`, so a colour, a radius or a type
- * scale changed here changes in both places at once. It used to be copied into
- * the site by hand, which is how the two drifted.
+ * scale changed here changes in both places at once.
  *
  * Nothing in this file refers to the app: it is `@theme`, `:root` and `.dark`,
  * plus the `dark` variant the utilities resolve off. Keep it that way — the site
@@ -148,9 +147,8 @@
 }
 
 :root {
-  /* App accent (links, highlights, mini-map, focus rings). The appearance
-     engine writes --app-system-accent; --accent-light stays as the fallback
-     the site and themeAccents.ts used before the engine existed. */
+  /* App accent (links, highlights, mini-map, focus rings). --accent-light is
+     the marketing site's fallback when the appearance engine is absent. */
   /* Chrome text follows the UI family; content and code have their own
      tokens in @theme inline. */
   --font-ui: var(
@@ -250,10 +248,6 @@
   --card-foreground: var(--app-card-foreground, oklch(0.985 0 0));
   --popover: var(--app-popover, oklch(0.205 0 0));
   --popover-foreground: var(--app-popover-foreground, oklch(0.985 0 0));
-  /* Opaque stand-in for the dialog surface (`VIBRANCY_OVERLAY_CONTENT` in
-     layoutConstants.ts: popover at 88% over the `bg-black/20` overlay). A
-     pinned header inside a dialog cannot use the translucent material — it
-     would tint a second time and show the rows scrolling underneath. */
   --dialog-solid: color-mix(
     in srgb,
     var(--popover) 88%,
@@ -261,7 +255,6 @@
   );
   --primary: var(--app-primary, oklch(0.922 0 0));
   --primary-foreground: var(--app-primary-foreground, oklch(0.205 0 0));
-  /* Hover moves away from the page: darker on light, lighter on dark. */
   --primary-hover: var(--app-primary-hover, oklch(0.97 0 0));
   --secondary: var(--app-secondary, oklch(0.269 0 0));
   --secondary-foreground: var(--app-secondary-foreground, oklch(0.985 0 0));
@@ -281,7 +274,6 @@
   --chart-4: oklch(0.457 0.24 277.023);
   --chart-5: oklch(0.398 0.195 277.366);
   --sidebar: var(--app-sidebar, oklch(0.269 0 0 / 55%));
-  /* Opaque approximation of the sidebar surface (sidebar composited over background) */
   --sidebar-solid: var(
     --app-sidebar-solid,
     color-mix(in oklch, var(--background) 45%, oklch(0.269 0 0) 55%)

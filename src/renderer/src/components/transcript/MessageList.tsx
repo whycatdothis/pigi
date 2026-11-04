@@ -83,7 +83,6 @@ export default React.memo(function MessageList({
     };
   }, [displayNodes, sessionStatus]);
 
-  // O(1) lookup: node reference → displayNodes index
   const nodeToDisplayIndex = useMemo(() => {
     const map = new WeakMap<TranscriptNode, number>();
     for (let index = 0; index < displayNodes.length; index++) {
@@ -99,7 +98,6 @@ export default React.memo(function MessageList({
     [displayNodes, toolBlockViewMode],
   );
 
-  // Map from displayNodes index → renderItems index for user messages
   const displayToRenderIndex = useMemo(() => {
     const map = new Map<number, number>();
     for (let renderIndex = 0; renderIndex < renderItems.length; renderIndex++) {
@@ -124,8 +122,6 @@ export default React.memo(function MessageList({
       estimateRenderItemHeight(renderItems[index]),
     [renderItems],
   );
-
-  // TanStack Virtual returns imperative measurement helpers; this follows its documented React pattern.
 
   const rowVirtualizer = useVirtualizer({
     // Inert in minimal mode: turns render unvirtualized, so there is nothing
@@ -410,9 +406,7 @@ export default React.memo(function MessageList({
         activeUserMessageIndex={activeUserMessageIndex}
         onScrollToIndex={handleScrollToIndex}
       />
-      {/* Top gradient fade */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-8 bg-linear-to-b from-background to-transparent" />
-      {/* Bottom gradient fade */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-linear-to-t from-background to-transparent" />
       {/* Above the fades so the thumb never dissolves at its ends. */}
       <ThinScrollbar

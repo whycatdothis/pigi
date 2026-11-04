@@ -26,7 +26,6 @@ interface TerminalPanelProps {
   projectCwd: string;
   /** Whether the panel is currently shown. Kept mounted when hidden so shells persist. */
   visible: boolean;
-  /** Request to close (hide) the panel (X button). */
   onClose: () => void;
 }
 
@@ -134,8 +133,8 @@ export default function TerminalPanel({
   });
 
   return (
-    // Absolute overlay pinned to the bottom of the main area. Only `transform`
-    // animates here; App independently resizes the chat viewport above it.
+    // Only `transform` animates here; App independently resizes the chat
+    // viewport above it.
     <div
       className={cn(
         'absolute inset-x-0 bottom-0 z-10 flex flex-col border-t-[0.5px] border-foreground/27 bg-background will-change-transform',

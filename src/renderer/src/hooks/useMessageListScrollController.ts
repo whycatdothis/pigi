@@ -33,7 +33,6 @@ import type { MinimalTurn } from '../lib/minimalTurns';
 
 import { MESSAGE_LIST_SCROLL_END_THRESHOLD } from '../lib/layoutConstants';
 
-/** Minimal-mode pin state machine. */
 type PinPhase =
   | { phase: 'idle' }
   | { phase: 'pinned'; turnId: string }
@@ -92,13 +91,11 @@ export function useMessageListScrollController({
   // Wheel-up pixels accumulated while following; past the threshold the
   // user means it and follow disengages. Reset by any wheel-down.
   const wheelUpSlackRef = useRef(0);
-  /** Glue the viewport to the real DOM end. */
   const glueToEnd = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
     container.scrollTop = container.scrollHeight - container.clientHeight;
   }, [containerRef]);
-  /** Turn normal-mode follow on and land at the end. */
   const engageFollow = useCallback(() => {
     autoScrollRef.current = true;
     wheelUpSlackRef.current = 0;
@@ -185,7 +182,6 @@ export function useMessageListScrollController({
   //   is engaged we snap to the bottom here.
   // Re-created on view-mode switch: minimal mode attaches rowsWrapperRef to a
   // different element, so the observers must re-bind.
-  // Re-glues the pinned turn's top edge to the viewport top.
   const pinTopToViewport = useCallback(() => {
     const pin = pinRef.current;
     if (pin.phase === 'idle' || pin.phase === 'ending') return;
@@ -240,7 +236,6 @@ export function useMessageListScrollController({
         case 'pinned': {
           const turnEl = container!.querySelector(`[data-turn-id="${pin.turnId}"]`);
           if (!turnEl) break;
-          // Pin turn to viewport top.
           const pinPosition =
             turnEl.getBoundingClientRect().top -
             container!.getBoundingClientRect().top +
@@ -687,7 +682,6 @@ export function useMessageListScrollController({
     }
   }, []);
 
-  // Re-pin on collapse of active turn's details.
   const handleCollapseDetails = useCallback(
     (isActive: boolean) => {
       if (!isActive) return;
@@ -704,7 +698,6 @@ export function useMessageListScrollController({
     [containerRef, pinTopToViewport],
   );
 
-  /** Disables bottom auto-follow (search jump, minimap jump, group toggle...). */
   const suspendAutoScroll = useCallback(() => {
     autoScrollRef.current = false;
   }, []);

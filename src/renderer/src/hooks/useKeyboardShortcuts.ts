@@ -25,13 +25,10 @@ export function bindingMatches(binding: ShortcutBinding, event: KeyboardEvent): 
 }
 
 /**
- * Register global keyboard shortcuts.
+ * Register global keyboard shortcuts, keyed by shortcut registry ID.
  *
- * Takes a mapping from shortcut IDs (matching those in the shortcut registry)
- * to action callbacks. Definitions come from the shared shortcuts store, so
- * edits made on the settings page take effect immediately.
- *
- * Shortcut IDs without a corresponding action are ignored.
+ * Definitions come from the shared shortcuts store, so edits made on the
+ * settings page take effect immediately. IDs without an action are ignored.
  */
 export function useKeyboardShortcuts(
   shortcutActions: Record<string, () => void>,

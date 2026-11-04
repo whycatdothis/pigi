@@ -95,12 +95,10 @@ interface PinnedAncestorsProps {
 /**
  * The branch line the list is currently showing, pinned to its top.
  *
- * Scrolling past a fork used to hide who the visible rows hang from. This
- * mirrors the list with the forks the top-most visible row hangs from — one row
- * per indent level, so the stack is as tall as the nesting, not as long as the
- * conversation — and, in a session with several trees, with the header of the
- * tree those rows belong to above them. It sticks above the rows (`z-20`) and
- * takes no space in the flow, so nothing shifts when it appears.
+ * Shows the forks the top-most visible row hangs from — one row per indent
+ * level — and, in a session with several trees, the header of the tree those
+ * rows belong to above them. It sticks above the rows (`z-20`) and takes no
+ * space in the flow, so nothing shifts when it appears.
  *
  * Which row that is comes out of the scroll offset and the item heights: the
  * rows it names are usually not rendered at all, so measuring them is not an

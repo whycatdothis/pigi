@@ -5,14 +5,11 @@
  * keep a draft while the committed value comes back from somewhere else: a
  * write that round-trips through the worker, a preset, a reset. The draft must
  * survive those round trips while the user is typing, and reset when the value
- * changed from outside — the two rules that, written out per field, had each
- * copy drifting (one of them resets on every render, another never resets).
+ * changed from outside.
  *
  * The reset happens during render, not in an effect: React's "storing
  * information from previous renders" pattern, which avoids the cascading second
- * pass an effect would add. `source` is compared with `isSameSource` (identity
- * by default) — a field whose value is rebuilt as a new array on every snapshot
- * passes a comparison on its content instead.
+ * pass an effect would add.
  */
 import { useState } from 'react';
 

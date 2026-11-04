@@ -41,7 +41,6 @@ test('a custom message is headed by its type and keeps the content it was sent',
   const card = renderCard(customNode());
 
   expect(card.textContent).toContain('pi-peer');
-  // The full delivery survives: header, body, and the boilerplate the model needs.
   expect(card.textContent).toContain('Message from pi session pigi');
   expect(card.textContent).toContain('This came from another pi session');
 });

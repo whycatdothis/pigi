@@ -17,7 +17,7 @@
     @apply border-border outline-ring/50;
   }
 
-  /* The UA's default focus outline, for controls without their own ring. */
+  /* Pointer focus also drops the UA outline on controls without their own ring. */
   :focus-visible[data-pointer-focus] {
     outline: none;
   }
@@ -59,7 +59,6 @@
     font-family: var(--font-sans);
   }
 
-  /* The contrast slider: a flat track whose thumb follows the accent. */
   .appearance-slider::-webkit-slider-thumb {
     appearance: none;
     width: 14px;
@@ -105,7 +104,7 @@
     --message-kind-change-spacing: calc(1.8 * var(--text-body));
   }
 
-  /* Rows in the middle of a reply carry no hover band any more, so their
+  /* Rows in the middle of a reply carry no hover band, so their
      trailing space has to express the rhythm. It lives in the row's padding
      (not its margin) because the virtualizer measures border boxes: padding is
      inside the measured height, a margin would fall outside it and
@@ -581,15 +580,12 @@
 }
 
 @layer components {
-  /* The minimap panel's whole open/close state.
-     `display` is what used to need a second `present` flag, an `animationend`
-     handler that unmounted the panel, a timer under it in case the event never
-     arrived, and `inert` for the window in between. With `allow-discrete` the
+  /* The minimap panel's whole open/close state. With `allow-discrete` the
      browser holds `display: flex` for the length of the exit and then drops it
      by itself, and `@starting-style` gives the enter its first frame, so one
-     element and one boolean describe the panel, and nothing can desync.
-     `display: none` is also what keeps a closed panel out of layout and hit
-     testing, which is why the panel never needs to unmount. */
+     boolean describes the panel: no `present` flag, `animationend` unmount or
+     fallback timer to desync. `display: none` keeps a closed panel out of
+     layout and hit testing, which is why the panel never needs to unmount. */
   .message-minimap-panel {
     display: none;
     opacity: 0;
@@ -670,19 +666,17 @@
     width: 12px;
   }
 
-  /* Content bottom fade mask, 16px gradient to transparent */
   .content-fade-bottom {
     mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent);
     -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent);
   }
 
-  /* When a sticky footer (Show less) is present, remove the bottom fade */
+  /* A sticky Show less footer replaces the fade. */
   .content-fade-bottom:has([data-show-all]) {
     mask-image: none;
     -webkit-mask-image: none;
   }
 
-  /* Frosted menu content: hairline ring + blur shadow */
   .menu-content {
     border-radius: var(--radius-surface);
     padding: 0.25rem;
@@ -699,9 +693,8 @@
    It animates `background-position`, i.e. it repaints instead of compositing
    (`compositeFailed`, `unsupportedProperties: [background-position-x]` in a
    `blink.animations` trace). That is a deliberate, documented exception to the
-   transform/opacity rule in AGENTS.md: the composited alternative paints the
-   glyphs twice, and the two copies rasterize at different edge phases, which is
-   the doubling this replaced. Keep it in the glyphs, and keep it to one copy. */
+   transform/opacity rule in AGENTS.md: the composited alternative is the
+   doubled-glyph copy above. Keep it in the glyphs, and keep it to one copy. */
 .shimmer-text {
   /* inline-block so the component can measure a width for the sweep duration;
      an inline box reports clientWidth 0. */

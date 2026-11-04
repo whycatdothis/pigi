@@ -47,10 +47,6 @@ function getCommandLabel(node: ToolNode): string {
  *  part (filename, line range, final args). */
 const COMMAND_LABEL_TAIL_CHARS = 20;
 
-/** A command label that ellipsizes in the middle instead of the end. Splits the
- *  text into a shrinking head (end-truncated) and a fixed tail that always shows.
- *  As the row widens, more of the head becomes visible; when it fits, head + tail
- *  reconstruct the original string seamlessly. */
 function MiddleTruncatedLabel({ text }: { text: string }): React.JSX.Element {
   if (text.length <= COMMAND_LABEL_TAIL_CHARS) {
     return <span className="truncate font-mono text-code">{text}</span>;
@@ -74,14 +70,11 @@ interface CollapsedReadGroupProps {
   entries: ReadGroupEntry[];
   /** True when this group is still potentially growing (last group + agent active) */
   isActive: boolean;
-  /** Controlled open state */
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Current search query for text highlighting */
   searchQuery: string;
   /** ID of the tool node that should receive the active highlight (inside this group) */
   activeToolNodeId: string | null;
-  /** Occurrence index for the active tool node */
   activeOccurrenceIndex: number | null;
 }
 

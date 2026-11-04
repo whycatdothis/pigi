@@ -50,7 +50,7 @@ app.whenReady().then(() => {
 
   // Read before the window exists: the native theme decides the window
   // material, and the background decides the frame painted before the renderer
-  // has any pixels. Both used to wait for the renderer to say so.
+  // has any pixels.
   const settingsPath = join(app.getPath('userData'), PIGI_SETTINGS_FILE_NAME);
   const initialSettings = readPigiSettingsFile(settingsPath).settings;
   nativeTheme.themeSource = initialSettings.appearance.mode;

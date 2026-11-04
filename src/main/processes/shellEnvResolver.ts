@@ -67,10 +67,9 @@ function buildShellProbeCommand(isFish: boolean): string {
 }
 
 /**
- * Resolve the user's PATH and allowlisted variables by spawning interactive
- * login shells. On macOS, /Applications apps inherit a minimal PATH
- * (just /usr/bin:/bin:/usr/sbin:/sbin), so we source the user's shell config
- * (.zprofile + .zshrc) to pick up tools like bk, brew, npm, etc.
+ * On macOS, /Applications apps inherit a minimal PATH
+ * (just /usr/bin:/bin:/usr/sbin:/sbin), so interactive login shells source the
+ * user's config (.zprofile + .zshrc) to pick up tools like brew and npm.
  *
  * Tries all available shells, merges PATH entries across them, and keeps the
  * first non-empty value for each allowlisted variable.
@@ -124,10 +123,6 @@ function resolveShellEnv(): { pathDirs: string[]; envVars: Record<string, string
   return pathDirs.length > 0 || Object.keys(envVars).length > 0 ? { pathDirs, envVars } : null;
 }
 
-/**
- * Initialize the shell environment by merging PATH and allowlisted variables
- * from the user's interactive login shell into process.env.
- */
 export function initializeShellEnv(): void {
   if (resolved) {
     return;

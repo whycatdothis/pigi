@@ -10,7 +10,6 @@ export type ChatReferenceKind = 'skill' | 'file';
 
 export interface ChatReference {
   kind: ChatReferenceKind;
-  /** Start offset in the text. */
   start: number;
   /** Exclusive end offset in the text. */
   end: number;

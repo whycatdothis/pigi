@@ -43,7 +43,6 @@ export function setShortcutBinding(
 
   const overrides = { ...store.get('overrides') };
 
-  // If the new binding matches the default, remove the override
   const defaultBinding = registered.defaultBinding;
   const isDefault =
     binding.key === defaultBinding.key &&

@@ -180,7 +180,6 @@ export function ShortcutsSettings(): React.JSX.Element {
         Changes apply immediately and are stored per user. Backspace clears a shortcut while
         recording; Esc cancels.
         {openSettingsDefinition && (
-          /* The shortcut for this page reads as a keycap here, like everywhere else. */
           <>
             {' '}
             <Kbd className={`${COMPACT_KBD_CLASS_NAME} mx-0.5 align-middle`}>

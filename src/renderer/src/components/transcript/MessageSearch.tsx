@@ -42,7 +42,6 @@ export default function MessageSearch({
   const inputRef = useRef<HTMLInputElement>(null);
   const deferredQuery = useDeferredValue(query);
 
-  // Focus input on open
   useEffect(() => {
     if (open) {
       requestAnimationFrame(() => {

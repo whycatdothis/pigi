@@ -8,8 +8,7 @@ import { extendTailwindMerge } from 'tailwind-merge';
 //
 // Radius is named by role in semanticTokens.css for the same reason: without the
 // names here, a primitive's `rounded-control` and a caller's `rounded-surface`
-// would both survive and the cascade, not the caller, would decide. Both entries
-// replace the Tailwind steps the app used to write.
+// would both survive and the cascade, not the caller, would decide.
 const RADIUS_ROLES = [
   'inline',
   'chip',
@@ -50,7 +49,6 @@ export function cn(...inputs: ClassValue[]): string {
   return mergeClassName(clsx(inputs));
 }
 
-/** Human-readable file size for attachments and file notices. */
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

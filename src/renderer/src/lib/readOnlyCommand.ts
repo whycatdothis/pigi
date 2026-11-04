@@ -1,8 +1,6 @@
 /**
- * Determines whether a bash command is read-only (does not mutate the filesystem or system state).
- *
- * Currently uses a simple prefix-based heuristic. This can be extended to a more sophisticated
- * model-based approach in the future.
+ * Whether a bash command is read-only (does not mutate the filesystem or system state),
+ * by a prefix-based heuristic.
  */
 
 const READ_ONLY_COMMAND_PREFIXES = [
@@ -79,7 +77,6 @@ const READ_ONLY_EXACT_COMMANDS = new Set([
 export function isReadOnlyBashCommand(command: string): boolean {
   const trimmed = command.trimStart();
 
-  // Handle `cd /path && actual_command` patterns — evaluate the last command in the chain
   const effectiveCommand = extractEffectiveCommand(trimmed);
 
   if (READ_ONLY_EXACT_COMMANDS.has(effectiveCommand)) {
@@ -95,7 +92,6 @@ export function isReadOnlyBashCommand(command: string): boolean {
     }
   }
 
-  // git read-only subcommands
   if (/^git\s/.test(effectiveCommand) && isReadOnlyGitCommand(effectiveCommand)) {
     if (!hasMutatingPipe(effectiveCommand)) {
       return true;
@@ -110,8 +106,7 @@ export function isReadOnlyBashCommand(command: string): boolean {
     }
   }
 
-  // perl with explicitly read-only flags: -c (syntax check), -n/-p (line filter), -e (one-liner)
-  // Catches: perl -i, perl -ni, perl -pi -e '...'
+  // perl with flags is read-only unless -i appears: perl -i, perl -ni, perl -pi -e '...'
   if (/^perl\s+-./.test(effectiveCommand) && !hasInPlaceFlag(effectiveCommand)) {
     if (!hasMutatingPipe(effectiveCommand)) {
       return true;
@@ -121,22 +116,16 @@ export function isReadOnlyBashCommand(command: string): boolean {
   return false;
 }
 
-/**
- * Extracts the effective command from chains like `cd /path && rg foo`.
- * If the command starts with `cd ... &&`, we skip the cd and evaluate the rest.
- * Also handles pipes — checks the last segment for read-only-ness of the pipeline end.
- */
+/** Strips leading `# ...` lines and `cd ... &&` segments: `cd /path && rg foo` → `rg foo`. */
 export function extractEffectiveCommand(command: string): string {
   let effective = command;
 
-  // Strip leading comment lines (# ...\n)
   while (effective.startsWith('#')) {
     const newlineIndex = effective.indexOf('\n');
     if (newlineIndex === -1) return effective;
     effective = effective.slice(newlineIndex + 1).trimStart();
   }
 
-  // Strip leading `cd ... &&` segments (can be chained)
   while (/^cd\s+\S+/.test(effective)) {
     const andIndex = effective.indexOf('&&');
     if (andIndex === -1) {
@@ -182,10 +171,7 @@ export function isReadOnlyGitCommand(command: string): boolean {
   return READ_ONLY_GIT_SUBCOMMANDS.has(match[1]);
 }
 
-/**
- * Simple check for pipes to obviously mutating commands.
- * This is conservative — if unsure, we assume it's not read-only.
- */
+/** Only catches pipes into obviously mutating commands. */
 function hasMutatingPipe(command: string): boolean {
   const pipeSegments = command.split('|').slice(1);
   const mutatingCommands = ['tee ', 'xargs rm', 'xargs mv', 'dd ', 'sh ', 'bash '];

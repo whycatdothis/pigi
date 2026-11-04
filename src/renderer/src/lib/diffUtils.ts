@@ -8,7 +8,7 @@ export interface EditEntry {
 export interface DiffLine {
   type: 'add' | 'remove' | 'context';
   content: string;
-  lineNumber: number | null; // null for removed lines (they don't exist in new file)
+  lineNumber: number | null; // null for removed lines
   oldLineNumber: number | null; // null for added lines
   /** Word-level diff segments for intra-line highlighting */
   segments?: IntraLineSegment[];
@@ -21,11 +21,7 @@ export interface IntraLineSegment {
 
 const CONTEXT_LINES = 3;
 
-/**
- * Generate diff lines from an array of edits (oldText/newText pairs).
- * Since we don't have the full file, we diff each edit independently
- * and concatenate the results with separators.
- */
+/** Without the full file, each edit is diffed on its own: one DiffLine[] per edit. */
 export function computeEditDiffLines(edits: EditEntry[]): DiffLine[][] {
   return edits.map((edit) => computeSingleDiffLines(edit.oldText, edit.newText));
 }
@@ -73,7 +69,6 @@ function computeSingleDiffLines(oldText: string, newText: string): DiffLine[] {
     }
   }
 
-  // Post-process: add intra-line diff for 1:1 remove/add pairs
   addIntraLineDiffs(result);
 
   return result;
@@ -85,12 +80,10 @@ function computeSingleDiffLines(oldText: string, newText: string): DiffLine[] {
 function addIntraLineDiffs(lines: DiffLine[]): void {
   let i = 0;
   while (i < lines.length) {
-    // Find consecutive removed lines
     const removeStart = i;
     while (i < lines.length && lines[i].type === 'remove') i++;
     const removeEnd = i;
 
-    // Find consecutive added lines
     const addStart = i;
     while (i < lines.length && lines[i].type === 'add') i++;
     const addEnd = i;
@@ -168,7 +161,6 @@ function computeIntraLineDiff(
 export function collapseContext(lines: DiffLine[]): (DiffLine | 'separator')[] {
   if (lines.length === 0) return [];
 
-  // Find which indices are "change" lines
   const changeIndices = new Set<number>();
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].type !== 'context') {
@@ -176,7 +168,6 @@ export function collapseContext(lines: DiffLine[]): (DiffLine | 'separator')[] {
     }
   }
 
-  // Mark context lines that are within CONTEXT_LINES of a change
   const visibleIndices = new Set<number>();
   for (const changeIndex of changeIndices) {
     visibleIndices.add(changeIndex);
@@ -215,7 +206,6 @@ export function parseDiffString(diff: string): DiffLine[][] {
   for (const raw of rawLines) {
     if (raw.length === 0) continue;
     const prefix = raw[0];
-    // Rest is: line_number + space + content
     const rest = raw.slice(1);
     // Match optional line number (may be spaces for separator lines like "    ...")
     const match = rest.match(/^(\s*\d+|\s+) (.*)$/);
@@ -224,9 +214,8 @@ export function parseDiffString(diff: string): DiffLine[][] {
     const lineNumStr = match[1].trim();
     const content = match[2];
 
-    // Detect collapsed context separator ("...")
     if (content === '...' && prefix === ' ') {
-      // Skip — these are context collapse markers; DiffView handles its own collapsing
+      // DiffView does its own context collapsing
       continue;
     }
 
@@ -243,7 +232,6 @@ export function parseDiffString(diff: string): DiffLine[][] {
 
   if (result.length === 0) return [];
 
-  // Add intra-line diffs for better highlighting
   addIntraLineDiffs(result);
 
   return [result];

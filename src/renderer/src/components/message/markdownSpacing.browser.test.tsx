@@ -96,7 +96,6 @@ test('spaces ordered items wider than bulleted ones, at both text sizes', async 
   expect(orderedList.children.length).toBe(6);
   expect(bulletedList.children.length).toBe(3);
 
-  // The default body size, and both ladders against it.
   expect(bodySizeIn(screen.container)).toBeCloseTo(DEFAULT_UI_FONT_SIZE, 1);
   expectItemsAtStep(orderedList, ORDERED_ITEM_STEP, DEFAULT_UI_FONT_SIZE);
   expectItemsAtStep(bulletedList, BULLETED_ITEM_STEP, DEFAULT_UI_FONT_SIZE);
@@ -214,7 +213,6 @@ test('scales table text below prose and draws task rows without bullets', async 
   );
   expect(parseFloat(getComputedStyle(checkbox).width)).toBeCloseTo(bodySize, 0);
 
-  // The same two rules hold when the text size setting changes.
   setUiFontSize(LARGE_UI_FONT_SIZE);
 
   expect(parseFloat(getComputedStyle(cell).fontSize)).toBeCloseTo(LARGE_UI_FONT_SIZE * 0.93, 1);

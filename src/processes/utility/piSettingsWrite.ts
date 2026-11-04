@@ -58,9 +58,8 @@ export async function writePiSettingsDocument(
     for (const update of updates) {
       setPiSettingValue(document, update.field, update.value === null ? undefined : update.value);
     }
-    // Written beside the target and renamed into place, like pigi's own
-    // settings file: a crash mid-write must not leave pi with a truncated
-    // config.
+    // Written beside the target and renamed into place: a crash mid-write must
+    // not leave pi with a truncated config.
     const temporaryPath = `${path}.tmp`;
     try {
       writeFileSync(temporaryPath, JSON.stringify(document, null, 2), 'utf-8');
