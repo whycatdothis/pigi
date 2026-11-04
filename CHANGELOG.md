@@ -13,6 +13,8 @@
   hiding, and comes back to life in the next session
 - Switching away from the Files or Git tab and back keeps the open file or diff
   where it was scrolled, along with Preview/Source and the whole-file view
+- The right sidebar's Quotes tab matches the header tabs, and the header tabs
+  use a slightly smaller type size, with the chat title kept at its size
 
 ### Fixed
 

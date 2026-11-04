@@ -4,6 +4,8 @@ import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { useAppStore } from '../../state/appStore';
 import { RIGHT_SIDEBAR_TABS, type RightSidebarTab } from '../../lib/rightSidebarTabs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { cn } from '../../lib/utils';
+import { HEADER_TAB_CLASS_NAME } from '../app/WorkspaceTabs';
 import QuotePanel from '../quotes/QuotePanel';
 
 const TAB_LABELS: Record<RightSidebarTab, string> = {
@@ -42,9 +44,9 @@ export default React.memo(function RightSidebar({
         <TabsList variant="chip" className="[-webkit-app-region:no-drag]">
           <TabsTrigger
             value={RIGHT_SIDEBAR_TABS.quotes}
-            className="h-7 flex-none px-2.5 text-caption font-normal text-muted-foreground"
+            className={cn(HEADER_TAB_CLASS_NAME, 'flex-none')}
           >
-            <IconQuote size={13} className="opacity-70" />
+            <IconQuote size={16} />
             {TAB_LABELS[RIGHT_SIDEBAR_TABS.quotes]}
             {quoteCount > 0 && (
               <span className="rounded-full bg-foreground/10 px-1.5 text-3xs leading-4 tabular-nums">
