@@ -41,14 +41,16 @@ const TAB_CLASS_NAME =
 
 // The header has no left padding of its own; Chat's left margin keeps the
 // active chip off the header edge, and the title sits where it does unselected.
-// 272px plus the 8px margin is the 280px Chat takes.
+// 312px plus the 8px margin is the 320px Chat takes.
 const CHAT_TAB_CLASS_NAME =
-  'ml-2 pl-2 w-68 min-w-36 shrink basis-auto justify-start @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none';
+  'ml-2 pl-2 w-78 min-w-36 shrink basis-auto justify-start @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none';
 
 /**
  * The main window's fixed views. Chat carries no icon so its title gets the
- * room, at a fixed 280px so Files and Git keep their place whatever the title.
- * Files and Git reserve room for their keycaps, shown on hover or focus. The
+ * room, at a fixed 320px so Files and Git keep their place whatever the title.
+ * Every tab reserves room for its keycap, shown on hover or focus; Chat's slot
+ * also holds the agent's status while another tab is open, so the title never
+ * shifts when it appears. The
  * @max breakpoints are container (header) widths, not viewport widths: below
  * 600px Chat may shrink and the keycaps go, at 500px Files and Git drop their labels, at 320px Chat
  * swaps its title for an icon, and at 220px padding tightens.
@@ -70,7 +72,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
   chatTitle?: string;
   /** The unanimated title to start a rename from, while the tab shows `chatTitle`. */
   chatRenameTitle?: string;
-  /** Replaces the Chat tab's icon while another tab is open: the agent is running, or finished unseen. */
+  /** Shown in the Chat tab's keycap slot while another tab is open: the agent is running, or finished unseen. */
   chatActivity?: 'running' | 'unread' | null;
   onRenameChat?: (name: string) => void;
   className?: string;
@@ -191,14 +193,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
                 isRenamingChat && !isChat && '@max-[320px]:hidden',
               )}
             >
-              {isChat ? (
-                <>
-                  {chatStatus}
-                  <Icon size={16} className="hidden @max-[320px]:inline" />
-                </>
-              ) : (
-                <Icon size={16} />
-              )}
+              <Icon size={16} className={isChat ? 'hidden @max-[320px]:inline' : undefined} />
               <span
                 className={cn(
                   'min-w-0 truncate',
@@ -207,15 +202,31 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
               >
                 {label}
               </span>
-              {!isChat && binding && (
-                <Kbd
-                  className={cn(
-                    COMPACT_KBD_CLASS_NAME,
-                    'shrink-0 opacity-0 transition-opacity group-hover/tab:opacity-100 group-focus-visible/tab:opacity-100 @max-[600px]:hidden',
+              {(binding || (isChat && chatStatus)) && (
+                <span className={cn('grid shrink-0 place-items-center', isChat && 'ml-auto')}>
+                  {binding && (
+                    <Kbd
+                      className={cn(
+                        COMPACT_KBD_CLASS_NAME,
+                        '[grid-area:1/1] opacity-0 transition-opacity group-hover/tab:opacity-100 group-focus-visible/tab:opacity-100 @max-[600px]:hidden',
+                      )}
+                    >
+                      {formatShortcutLabel(binding)}
+                    </Kbd>
                   )}
-                >
-                  {formatShortcutLabel(binding)}
-                </Kbd>
+                  {isChat && chatStatus && (
+                    <span
+                      className={cn(
+                        'flex [grid-area:1/1] transition-opacity',
+                        binding &&
+                          // Below 600px the keycap is hidden, so the status stays.
+                          'group-hover/tab:opacity-0 group-focus-visible/tab:opacity-0 @max-[600px]:group-hover/tab:opacity-100 @max-[600px]:group-focus-visible/tab:opacity-100',
+                      )}
+                    >
+                      {chatStatus}
+                    </span>
+                  )}
+                </span>
               )}
             </TabsTrigger>
           );

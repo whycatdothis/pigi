@@ -128,9 +128,11 @@ invisible layer also keeps the composer and its draft state alive. Switching
 back resizes the box, which re-glues a following reader.
 
 The tabs are 32px chips in the 44px header, 15px text, the active one on a
-muted fill. Chat has no icon, so its title gets the room, at a fixed 280px so
-Files and Git sit in the same place whatever the title is. Chat shows no
-keycap; Files and Git reserve room for theirs. The list is
+muted fill. Chat has no icon, so its title gets the room, at a fixed 320px so
+Files and Git sit in the same place whatever the title is. Every tab reserves
+room for its keycap; Chat's slot, at its right end, also holds the agent's
+spinner or unread dot while another tab is open, so the title does not shift
+when one appears, and the keycap replaces it on hover. The list is
 `max-w-full`, not only `w-fit`: with `w-fit` it keeps its max-content width and
 the Chat chip's `shrink` is dead code. The tabs query the header's content box,
 not the viewport: below 600px the Chat chip may shrink and the keycaps go, below 500px Files and
