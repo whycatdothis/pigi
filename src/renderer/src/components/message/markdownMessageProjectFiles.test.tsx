@@ -43,6 +43,18 @@ describe('MarkdownMessage project files', () => {
     expect(image).not.toHaveAttribute('node');
   });
 
+  it('leaves an image inside a link to the link, without a zoom overlay', () => {
+    const { container } = render(
+      <MarkdownMessage text="[![Badge](badge.svg)](https://example.com) ![Dot](dot.png)" />,
+    );
+
+    expect(container.querySelector('a [data-rmiz]')).toBeNull();
+    expect(screen.getByRole('img', { name: 'Dot' }).closest('[data-rmiz]')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('img', { name: 'Badge' }));
+    expect(openExternal).toHaveBeenCalledWith('https://example.com');
+  });
+
   it('does not send an in-page anchor to the system browser', () => {
     render(<MarkdownMessage text="[Section](#section)" projectFile={projectFile} />);
 

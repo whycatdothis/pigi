@@ -5,6 +5,7 @@ import { InputGroupButton } from '../ui/input-group';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn, formatFileSize } from '../../lib/utils';
 import { FileIcon } from '../fileIcon';
+import { ZoomableImage } from '../zoomableImage';
 import { displayFileName, type ChatAttachment } from '../../lib/chatAttachments';
 
 export function AttachmentPickerButton({
@@ -103,7 +104,7 @@ function AttachmentChip({
   if (attachment.kind === 'image') {
     return (
       <div className="group/chip relative size-16 shrink-0" title={attachment.name}>
-        <img
+        <ZoomableImage
           src={attachment.previewUrl}
           alt={attachment.name}
           className="size-16 rounded-chip border border-border/60 object-cover"

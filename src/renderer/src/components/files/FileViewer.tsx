@@ -3,13 +3,20 @@ import { IconAlertTriangle, IconLoader2 } from '@tabler/icons-react';
 import { cn, formatFileSize } from '../../lib/utils';
 import { formatFileContentQuote, formatFileLineQuote } from '../../lib/fileQuotes';
 import type { QuoteContent } from '../../lib/messageQuotes';
-import { isMarkdownPath, languageForPath } from '../../lib/fileLanguage';
+import {
+  isBitmapImagePath,
+  isMarkdownPath,
+  isSvgPath,
+  languageForPath,
+} from '../../lib/fileLanguage';
 import { sourceLineRangeFromSelection } from '../../lib/sourceLineSelection';
 import { MESSAGE_LIST_MAX_WIDTH } from '../../lib/layoutConstants';
 import MarkdownMessage from '../message/markdownMessage';
 import SyntaxHighlightedCode from '../message/syntaxHighlightedCode';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import ContainerFind from '../ui/containerFind';
+import { ZoomableImage } from '../zoomableImage';
+import { localFileUrl } from '../../lib/chatAttachments';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
@@ -85,6 +92,21 @@ function FileStateMessage({
   );
 }
 
+// Both wrappers fill the pane so `scale-down` can fit a large image to it; a
+// small one keeps its own size.
+function FileImage({ src, alt }: { src: string; alt: string }): React.JSX.Element {
+  return (
+    <div className="h-full p-6 [&_[data-rmiz-content]]:block [&_[data-rmiz-content]]:size-full [&_[data-rmiz]]:block [&_[data-rmiz]]:size-full">
+      <ZoomableImage
+        src={src}
+        alt={alt}
+        className="size-full object-scale-down"
+        draggable={false}
+      />
+    </div>
+  );
+}
+
 /**
  * The Files tab's reading pane. Source mode quotes a line range; rendered
  * markdown has no stable source lines, so its quotes carry the selected text
@@ -103,6 +125,7 @@ export default function FileViewer({
   sessionPath: string | null;
   onOpenFile: (path: string) => void;
 }): React.JSX.Element {
+  const isBitmap = isBitmapImagePath(filePath);
   const [fileState, setFileState] = useState<FileState>({ status: 'loading' });
   const [viewMode, setViewModeState] = useState(lastViewMode);
   const setViewMode = useCallback((mode: ViewMode) => {
@@ -117,6 +140,10 @@ export default function FileViewer({
     fileState.status === 'ready' ? `${projectPath}\0${filePath}\0${viewMode}` : null,
   );
   const isMarkdown = isMarkdownPath(filePath);
+  const isSvg = isSvgPath(filePath);
+  const showsPreview = (isMarkdown || isSvg) && viewMode === 'preview';
+  // The revision busts the image cache, which would otherwise keep showing the old file.
+  const imageSource = `${localFileUrl(`${projectPath}/${filePath}`)}?v=${fileRevision}`;
   const language = languageForPath(filePath);
   const markdownProjectFile = useMemo(
     () => ({ projectPath, filePath, onOpenFile }),
@@ -124,6 +151,7 @@ export default function FileViewer({
   );
 
   useEffect(() => {
+    if (isBitmap) return;
     let cancelled = false;
     window.piApi
       .readProjectFile(projectPath, filePath)
@@ -146,7 +174,7 @@ export default function FileViewer({
     return () => {
       cancelled = true;
     };
-  }, [projectPath, filePath, fileRevision]);
+  }, [projectPath, filePath, fileRevision, isBitmap]);
 
   const source = useMemo(() => {
     if (fileState.status !== 'ready') {
@@ -175,8 +203,7 @@ export default function FileViewer({
       formatFileContentQuote(filePath, text),
     [filePath],
   );
-  const formatQuoteContent =
-    isMarkdown && viewMode === 'preview' ? formatPreviewQuote : formatSourceQuote;
+  const formatQuoteContent = showsPreview ? formatPreviewQuote : formatSourceQuote;
 
   const notice =
     fileState.status === 'ready' && fileState.truncated
@@ -195,7 +222,7 @@ export default function FileViewer({
         >
           {filePath}
         </span>
-        {isMarkdown && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
+        {(isMarkdown || isSvg) && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
       </div>
 
       <div className="relative min-h-0 flex-1">
@@ -206,16 +233,22 @@ export default function FileViewer({
           data-testid="file-viewer"
           className="h-full overflow-auto bg-background select-text outline-none"
         >
-          {fileState.status === 'loading' && <FileStateMessage loading />}
-          {fileState.status === 'error' && <FileStateMessage error={fileState.error} />}
-          {fileState.status === 'ready' && (
+          {isBitmap ? (
+            <FileImage src={imageSource} alt={filePath} />
+          ) : fileState.status === 'loading' ? (
+            <FileStateMessage loading />
+          ) : fileState.status === 'error' ? (
+            <FileStateMessage error={fileState.error} />
+          ) : (
             <>
               {notice && (
                 <div className="border-b-[0.5px] border-foreground/27 px-4 py-1.5 text-caption text-muted-foreground">
                   {notice}
                 </div>
               )}
-              {isMarkdown && viewMode === 'preview' ? (
+              {isSvg && showsPreview ? (
+                <FileImage src={imageSource} alt={filePath} />
+              ) : showsPreview ? (
                 <div
                   className="user-content mx-auto w-full px-6 py-6"
                   style={{ maxWidth: `${MESSAGE_LIST_MAX_WIDTH}px` }}

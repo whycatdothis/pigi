@@ -56,6 +56,7 @@ const LANGUAGE_BY_EXTENSION: Record<string, string> = {
   sh: 'shellscript',
   sql: 'sql',
   svelte: 'svelte',
+  svg: 'xml',
   swift: 'swift',
   toml: 'toml',
   ts: 'typescript',
@@ -77,6 +78,16 @@ const LANGUAGE_BY_FILE_NAME: Record<string, string> = {
 };
 
 const MARKDOWN_EXTENSIONS = new Set(['md', 'mdx', 'markdown']);
+const BITMAP_IMAGE_EXTENSIONS = new Set([
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'bmp',
+  'ico',
+  'avif',
+]);
 
 function fileNameOf(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1).toLowerCase();
@@ -97,4 +108,13 @@ export function languageForPath(path: string): string {
 
 export function isMarkdownPath(path: string): boolean {
   return MARKDOWN_EXTENSIONS.has(extensionOf(path));
+}
+
+/** An image with no text to show: SVG is not one, its source is worth reading. */
+export function isBitmapImagePath(path: string): boolean {
+  return BITMAP_IMAGE_EXTENSIONS.has(extensionOf(path));
+}
+
+export function isSvgPath(path: string): boolean {
+  return extensionOf(path) === 'svg';
 }

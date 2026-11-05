@@ -1,117 +1,12 @@
-import { memo, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useLayoutEffect, useState } from 'react';
 import Zoom from 'react-medium-image-zoom';
-import {
-  TransformComponent,
-  TransformWrapper,
-  type ReactZoomPanPinchRef,
-} from 'react-zoom-pan-pinch';
-// The overlay's own styles, which the image preview brings in for itself: a
-// diagram is zoomable whether or not an image happens to be on screen.
-import 'react-medium-image-zoom/dist/styles.css';
 import SyntaxHighlightedCode from './syntaxHighlightedCode';
 import CodeCopyButton from './codeCopyButton';
 import { ensureDiagramStyles } from '../../lib/mermaidRenderer';
 import { useMermaidDiagram } from '../../hooks/useMermaidDiagram';
 import { useShallow } from 'zustand/react/shallow';
 import { useSettingsStore } from '../../state/settingsStore';
-
-/** Breathing room around a zoomed diagram, so it reads as floating over the window. */
-const ZOOM_MARGIN_PX = 24;
-/** How far a pointer may travel and still count as a click rather than a drag. */
-const DRAG_SLOP_PX = 4;
-const MAX_ZOOM_SCALE = 8;
-
-/**
- * What the overlay holds: the drawing, with panning and zooming of its own.
- *
- * Two gestures belong to the overlay rather than to the drawing — the wheel and
- * the touch move that dismiss it — and they are only the reader's when they are
- * not the middle of a gesture of this content's. A wheel that pans or zooms the
- * drawing stays here, and a drag that happens to end on the drawing is the end
- * of a gesture rather than the click that dismisses the overlay.
- */
-function DiagramZoomContent({
-  img,
-  buttonUnzoom,
-  modalState,
-  onUnzoom,
-}: {
-  img: React.ReactElement | null;
-  buttonUnzoom: React.ReactElement<HTMLButtonElement>;
-  modalState: string;
-  onUnzoom: (e: Event) => void;
-}): React.JSX.Element {
-  const pressedAt = useRef<{ x: number; y: number } | null>(null);
-  const dragged = useRef(false);
-  const transformRef = useRef<ReactZoomPanPinchRef>(null);
-
-  // Every visit starts at the drawing as it was fitted to the window, rather
-  // than wherever the last one was left.
-  useLayoutEffect(() => {
-    if (modalState === 'LOADING') {
-      transformRef.current?.resetTransform(0);
-    }
-  }, [modalState]);
-
-  return (
-    <>
-      <div
-        className="mermaid-zoom-surface"
-        onPointerDownCapture={(event) => {
-          pressedAt.current = { x: event.clientX, y: event.clientY };
-          dragged.current = false;
-        }}
-        onPointerMoveCapture={(event) => {
-          const start = pressedAt.current;
-          if (start === null || dragged.current) return;
-          if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > DRAG_SLOP_PX) {
-            dragged.current = true;
-          }
-        }}
-        onClickCapture={(event) => {
-          if (!dragged.current) return;
-          dragged.current = false;
-          event.stopPropagation();
-        }}
-        onClick={(event) => {
-          // A click on the space around the drawing dismisses the overlay, which
-          // is what it does about a click on its own background: this surface is
-          // the element that covers it.
-          const target = event.target;
-          if (target instanceof Element && target.closest('[data-rmiz-modal-img]') !== null) {
-            return;
-          }
-          onUnzoom(event.nativeEvent);
-        }}
-        onWheel={(event) => {
-          event.stopPropagation();
-        }}
-        onTouchMove={(event) => {
-          event.stopPropagation();
-        }}
-      >
-        <TransformWrapper
-          ref={transformRef}
-          maxScale={MAX_ZOOM_SCALE}
-          panning={{ allowLeftClickPan: true }}
-          trackPadPanning={{ disabled: false }}
-          doubleClick={{ disabled: true }}
-          keyboard={{ disabled: false }}
-        >
-          {/* The drawing is positioned inside this box by the overlay itself, so
-              the box is what the drawing is panned and zoomed within. */}
-          <TransformComponent
-            wrapperStyle={{ width: '100%', height: '100%' }}
-            contentStyle={{ width: '100%', height: '100%' }}
-          >
-            {img}
-          </TransformComponent>
-        </TransformWrapper>
-      </div>
-      {buttonUnzoom}
-    </>
-  );
-}
+import { ZOOM_MARGIN_PX, ZoomPanContent } from '../zoomableImage';
 
 /**
  * Memoised on purpose: React writes `dangerouslySetInnerHTML` back into the DOM
@@ -205,7 +100,7 @@ export default function MermaidDiagram({ code }: { code: string }): React.JSX.El
           {/* The overlay looks the drawing up once, when it mounts, and keeps the
               element it found: a theme switch is what replaces the drawing, so it
               is what mounts a new overlay. */}
-          <Zoom key={theme} zoomMargin={ZOOM_MARGIN_PX} ZoomContent={DiagramZoomContent}>
+          <Zoom key={theme} zoomMargin={ZOOM_MARGIN_PX} ZoomContent={ZoomPanContent}>
             <DiagramGraphic markup={diagram.diagram.svg} />
           </Zoom>
         </div>

@@ -57,8 +57,17 @@ async function waitFor(check: () => boolean, timeoutMs = 3000): Promise<void> {
 async function openOverlay(screen: { container: HTMLElement }): Promise<HTMLElement> {
   await userEvent.click(svgIn(graphicIn(screen.container)));
   await waitFor(() => document.querySelector('[data-rmiz-modal]')?.hasAttribute('open') === true);
-  const surface = document.querySelector<HTMLElement>('.mermaid-zoom-surface');
+  const surface = document.querySelector<HTMLElement>('.zoom-pan-surface');
   if (!surface) throw new Error('the overlay has no surface');
+  // The overlay animates the drawing up to its fitted size; a width read before
+  // that ends is a frame of the animation, not the size a gesture starts from.
+  let width = -1;
+  await waitFor(() => {
+    const next = zoomedDrawing().getBoundingClientRect().width;
+    const settled = next === width;
+    width = next;
+    return settled;
+  });
   return surface;
 }
 
@@ -68,6 +77,27 @@ function overlayIsOpen(): boolean {
 
 function zoomedDrawing(): SVGSVGElement {
   return svgIn(document.querySelector('[data-rmiz-modal-content]') ?? document);
+}
+
+/**
+ * A trackpad pinch-out over the middle of the drawing, as Chromium delivers it: a
+ * ctrl+wheel. Zoom centres on the pointer, so a pinch at the corner would leave
+ * the drawing against its bounds with no room to pan one way.
+ */
+function pinch(): WheelEvent {
+  const box = zoomedDrawing().getBoundingClientRect();
+  return new WheelEvent('wheel', {
+    bubbles: true,
+    cancelable: true,
+    ctrlKey: true,
+    deltaY: -120,
+    clientX: box.x + box.width / 2,
+    clientY: box.y + box.height / 2,
+  });
+}
+
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 /**
@@ -99,10 +129,13 @@ function drag(target: Element, from: [number, number], to: [number, number]): vo
     [(fromX + toX) / 2, (fromY + toY) / 2],
     [toX, toY],
   ]) {
+    // `buttons`: a move with none pressed is how the pan library learns a drag ended.
     target.dispatchEvent(
-      new PointerEvent('pointermove', { bubbles: true, clientX: x, clientY: y }),
+      new PointerEvent('pointermove', { bubbles: true, buttons: 1, clientX: x, clientY: y }),
     );
-    target.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+    target.dispatchEvent(
+      new MouseEvent('mousemove', { bubbles: true, buttons: 1, clientX: x, clientY: y }),
+    );
   }
   target.dispatchEvent(
     new PointerEvent('pointerup', { bubbles: true, clientX: toX, clientY: toY }),
@@ -365,10 +398,28 @@ test('zooms and pans the drawing in the overlay, without dismissing it', async (
   const surface = await openOverlay(screen);
   const startWidth = zoomedDrawing().getBoundingClientRect().width;
 
-  // A wheel over the drawing is a gesture of the drawing's: it must not reach
+  // Wheels go to the drawing: the gesture listeners sit inside the surface, so
+  // one dispatched on the surface never reaches them.
+  // A plain wheel is a trackpad scroll: it pans, never zooms, and must not reach
   // the overlay, which dismisses itself on one.
-  surface.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -120 }));
+  zoomedDrawing().dispatchEvent(
+    new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 120 }),
+  );
+  await nextFrame();
+  expect(zoomedDrawing().getBoundingClientRect().width).toBeCloseTo(startWidth, 0);
+  expect(overlayIsOpen()).toBe(true);
+
+  zoomedDrawing().dispatchEvent(pinch());
   await waitFor(() => zoomedDrawing().getBoundingClientRect().width > startWidth + 1, 2000);
+  expect(overlayIsOpen()).toBe(true);
+
+  // Panning needs room, which a drawing fitted to the window does not have.
+  const zoomedBox = zoomedDrawing().getBoundingClientRect();
+  zoomedDrawing().dispatchEvent(
+    new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 60, deltaY: 60 }),
+  );
+  await waitFor(() => zoomedDrawing().getBoundingClientRect().x !== zoomedBox.x, 2000);
+  expect(zoomedDrawing().getBoundingClientRect().width).toBeCloseTo(zoomedBox.width, 0);
   expect(overlayIsOpen()).toBe(true);
 
   const drawing = zoomedDrawing();
@@ -387,10 +438,10 @@ test('zooms and pans the drawing in the overlay, without dismissing it', async (
 test('opens a diagram at the size it was fitted to, every time', async () => {
   const screen = await render(<MermaidDiagram code={FLOWCHART} />);
   await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
-  const surface = await openOverlay(screen);
+  await openOverlay(screen);
   const fittedWidth = zoomedDrawing().getBoundingClientRect().width;
 
-  surface.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -120 }));
+  zoomedDrawing().dispatchEvent(pinch());
   await waitFor(() => zoomedDrawing().getBoundingClientRect().width > fittedWidth + 1, 2000);
 
   await userEvent.keyboard('{Escape}');

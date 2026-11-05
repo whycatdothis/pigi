@@ -66,11 +66,12 @@ app.whenReady().then(() => {
     settingsOwner.applyChange(parsePigiSettingsChange(change));
   });
 
-  protocol.handle('local-file', (request) =>
-    net.fetch(
-      pathToFileURL(decodeURIComponent(request.url.slice('local-file://'.length))).toString(),
-    ),
-  );
+  // The path is one encodeURIComponent'd segment, so a literal `?` can only start
+  // a query: a cache-busting one the renderer adds when a file changes on disk.
+  protocol.handle('local-file', (request) => {
+    const [encodedPath] = request.url.slice('local-file://'.length).split('?');
+    return net.fetch(pathToFileURL(decodeURIComponent(encodedPath)).toString());
+  });
 
   initializeShellEnv();
   registerIpcHandlers();

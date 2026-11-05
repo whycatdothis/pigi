@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- The Files tab shows images, fitted to the pane and refreshed when the file
+  changes on disk; SVG files get a Preview/Source toggle
+- Clicking an image in chat, attachments, tool output or the Files tab opens it
+  enlarged, with trackpad pinch to zoom and two-finger scroll to pan
+
+### Fixed
+
+- Two-finger scroll in an enlarged Mermaid diagram pans instead of zooming
+- An image inside a link opens the link instead of also enlarging
+
 ## [0.5.2] - 2026-11-05
 
 ### Added

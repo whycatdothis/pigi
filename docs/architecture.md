@@ -762,10 +762,15 @@ Rules that the code depends on:
   and the overlay's reference to it with it.
 - **The overlay zooms and pans the drawing.** `react-medium-image-zoom` owns the
   dialog, and `react-zoom-pan-pinch` (inside `ZoomContent`) owns the gestures:
-  wheel, pinch, trackpad panning, dragging, arrow keys. The two gestures the
-  overlay performs on itself — wheel and touch move dismiss it — are stopped from
-  reaching it while they are the drawing's, and a click that ends a drag is not
-  the click that dismisses the overlay.
+  pinch (ctrl+wheel) zooms; a plain wheel, dragging and arrow keys pan. A plain
+  wheel does not zoom because the library would hand it to zoom first, leaving
+  trackpad panning nothing. The two gestures the overlay performs on itself —
+  wheel and touch move dismiss it — are stopped from reaching it while they are
+  the drawing's, and a click that ends a drag is not the click that dismisses the
+  overlay. The same overlay (`ZoomPanContent` in `components/zoomableImage.tsx`)
+  serves every content image through `ZoomableImage`: markdown and tool-output
+  images, message and composer attachments, and the Files tab's image preview.
+  An image inside a markdown link is not zoomable; the click is the link's.
 - **A diagram is drawn in mermaid's own theme.** The light window gets mermaid's
   `default` and the dark one its `dark`; no theme variable is overridden, so the
   drawing looks like the diagram it is rather than like the app's chrome around

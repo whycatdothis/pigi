@@ -7,7 +7,7 @@ import SyntaxHighlightedCode from './syntaxHighlightedCode';
 import DiffView from './DiffView';
 import type { EditEntry, DiffLine } from '../../lib/diffUtils';
 import { parseDiffString } from '../../lib/diffUtils';
-import ImagePreview from './ImagePreview';
+import { ZoomableImage } from '../zoomableImage';
 import {
   getToolCommandParts,
   cleanReadOutput,
@@ -353,7 +353,15 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
           {timeout !== undefined && <span data-search-ignore>Timeout {timeout}s</span>}
         </div>
       </div>
-      {imagePath && <ImagePreview src={localFileUrl(imagePath)} alt={imagePath} />}
+      {imagePath && (
+        <div className="mt-2">
+          <ZoomableImage
+            src={localFileUrl(imagePath)}
+            alt={imagePath}
+            className="max-w-full rounded border border-border/40 object-contain"
+          />
+        </div>
+      )}
     </>
   );
 }

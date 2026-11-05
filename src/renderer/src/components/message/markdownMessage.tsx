@@ -6,6 +6,7 @@ import CodeCopyButton from './codeCopyButton';
 import MermaidDiagram from './mermaidDiagram';
 import SyntaxHighlightedCode from './syntaxHighlightedCode';
 import { localFileUrl } from '../../lib/chatAttachments';
+import { ZoomableImage } from '../zoomableImage';
 import { isFenceClosed } from '../../lib/markdownFence';
 import { resolveProjectFileReference } from '../../lib/projectFileLinks';
 
@@ -69,6 +70,10 @@ const MarkdownStreamingContext = createContext(false);
 
 const MarkdownProjectFileContext = createContext<MarkdownProjectFile | null>(null);
 
+// An image inside a link (a README badge) is the link: zooming it would open the
+// overlay and the link with one click.
+const IsInLinkContext = createContext(false);
+
 function MarkdownLink({ href, children }: React.ComponentProps<'a'>): React.JSX.Element {
   const projectFile = useContext(MarkdownProjectFileContext);
   const target =
@@ -94,7 +99,7 @@ function MarkdownLink({ href, children }: React.ComponentProps<'a'>): React.JSX.
         window.piApi.openExternal(href);
       }}
     >
-      {children}
+      <IsInLinkContext.Provider value>{children}</IsInLinkContext.Provider>
     </a>
   );
 }
@@ -107,13 +112,15 @@ function MarkdownImage({
   height,
 }: React.ComponentProps<'img'> & ExtraProps): React.JSX.Element {
   const projectFile = useContext(MarkdownProjectFileContext);
+  const isInLink = useContext(IsInLinkContext);
   const target =
     projectFile && src
       ? resolveProjectFileReference(projectFile.projectPath, projectFile.filePath, src)
       : null;
+  const Image = isInLink ? 'img' : ZoomableImage;
 
   return (
-    <img
+    <Image
       src={target ? localFileUrl(target.absolutePath) : src}
       alt={alt ?? ''}
       title={title}
