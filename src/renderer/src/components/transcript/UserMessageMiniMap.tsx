@@ -306,9 +306,9 @@ export default React.memo(function UserMessageMiniMap({
         </svg>
       </button>
       {/* Docked panel: flush with the list's right edge, covering the lines.
-          It is a sibling of the scroll container (see MessageList), so nothing
-          between here and the app shell scrolls or clips — an anchored overlay
-          stays put and `scrollIntoView` below cannot drag the transcript.
+          It is a sibling of the scroll container (see MessageList), so an
+          anchored overlay stays put and `scrollIntoView` below cannot drag the
+          transcript (nor the app shell: see the `overflow-clip` on <main>).
           It follows the trigger in the DOM so Tab reaches the items, and it is
           positioned, so the visual order is unchanged. */}
       {hasOpened && (

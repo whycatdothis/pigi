@@ -1764,9 +1764,12 @@ function App(): React.JSX.Element {
               />
             </div>
           )}
+          {/* `clip`, not `hidden`: the closed terminal waits translated below
+              this box, and a `hidden` box still scrolls by script, so any
+              `scrollIntoView` inside slid the header up and the terminal in. */}
           <main
             ref={mainRef}
-            className="group/terminal-layout relative flex min-w-0 flex-1 flex-col overflow-hidden border-l-[0.5px] border-foreground/27 bg-background"
+            className="group/terminal-layout relative flex min-w-0 flex-1 flex-col overflow-clip border-l-[0.5px] border-foreground/27 bg-background"
             style={terminalLayoutStyle}
           >
             {settingsOpen ? (
@@ -1994,12 +1997,14 @@ function App(): React.JSX.Element {
             style={rightSidebarLayoutStyle}
           >
             {/* Stays open over a new chat so it does not jump in and out, but its
-                views belong to a session, so without one it only shows. */}
+                views belong to a session, so without one it only shows. The
+                content fades over an opaque background: fading the whole panel
+                let the window show through. */}
             <div
               inert={!activeSessionPath}
               className={cn(
-                'flex h-full w-(--right-sidebar-width) min-w-full shrink-0 border-l-[0.5px] border-foreground/27',
-                !activeSessionPath && 'opacity-50',
+                'flex h-full w-(--right-sidebar-width) min-w-full shrink-0 border-l-[0.5px] border-foreground/27 bg-background',
+                !activeSessionPath && '*:opacity-50',
               )}
             >
               <RightSidebar

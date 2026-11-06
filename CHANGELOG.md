@@ -17,6 +17,10 @@
 
 - Clicking outside the selected text (margins, header, sidebar) clears the
   selection and its Quote button
+- Hovering the message minimap no longer shifts the window up, cutting off the
+  header and revealing half of the closed terminal
+- The right sidebar on the new chat screen dims its content over a solid
+  background instead of turning see-through
 
 - Arrow-key history recall places the cursor on the first line instead of the last
 - Two-finger scroll in an enlarged Mermaid diagram pans instead of zooming
