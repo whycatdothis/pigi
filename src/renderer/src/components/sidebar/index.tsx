@@ -303,7 +303,7 @@ export default memo(function Sidebar({
             <SidebarMenuItem>
               <Popover>
                 <PopoverTrigger asChild>
-                  <SidebarMenuButton className="hover:bg-foreground/5 hover:text-popover-foreground">
+                  <SidebarMenuButton>
                     <IconSettings data-icon="inline-start" />
                     <span className="truncate">Settings</span>
                     {/* An update that downloaded itself while the user was

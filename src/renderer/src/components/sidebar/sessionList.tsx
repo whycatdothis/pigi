@@ -17,6 +17,8 @@ import { SpinningIcon } from '../ui/spinningIcon';
 import { formatRelativeTime } from '../../lib/utils';
 import { formatDateTime, getSessionTitle, isSessionRunning } from './utils';
 
+const SESSION_ROW_CLASS_NAME = 'w-full justify-start pl-6 text-left text-sidebar-foreground/85';
+
 interface SessionItemProps {
   row: LineageRow;
   isActive: boolean;
@@ -161,11 +163,7 @@ export function SessionItem({
   if (isEditing) {
     return (
       <SidebarMenuSubItem data-session-path={session.path}>
-        <SidebarMenuSubButton
-          asChild
-          isActive={isActive}
-          className="w-full justify-start pl-6 text-left text-sidebar-foreground/85 data-active:bg-primary/10 data-active:text-foreground"
-        >
+        <SidebarMenuSubButton asChild isActive={isActive} className={SESSION_ROW_CLASS_NAME}>
           <div>
             <input
               type="text"
@@ -186,11 +184,7 @@ export function SessionItem({
     <ContextMenuRoot>
       <ContextMenuTrigger asChild>
         <SidebarMenuSubItem data-session-path={session.path}>
-          <SidebarMenuSubButton
-            asChild
-            isActive={isActive}
-            className="w-full justify-start pl-6 text-left text-sidebar-foreground/85 data-active:bg-primary/10 data-active:text-foreground"
-          >
+          <SidebarMenuSubButton asChild isActive={isActive} className={SESSION_ROW_CLASS_NAME}>
             <button type="button" onClick={onSwitch} onDoubleClick={handleStartRename}>
               <LineagePrefix row={row} />
               <span className="min-w-0 flex-1 truncate text-left" title={getSessionTitle(session)}>

@@ -70,6 +70,7 @@ export default function SettingsSidebar({
                           <SidebarMenuItem key={section.id}>
                             <SidebarMenuButton
                               isActive={section.id === activeSection}
+                              className="text-sidebar-foreground/85"
                               onClick={() => onSelectSection(section.id)}
                               data-testid={`settings-nav-${section.id}`}
                             >

@@ -18,6 +18,8 @@
   numbers, dropdowns and text fields each line up with their kind
 - Settings descriptions are cut down to the ones that tell you something the
   label does not
+- Sidebar rows in the main, Settings, Files and Diff sidebars tint with the
+  theme accent on hover, and the main and Settings sidebars on selection too
 
 ### Fixed
 

@@ -30,7 +30,7 @@ const INDENT_STEP_PX = 12;
 const ROW_CLASS_NAME =
   'flex h-7 w-full items-center gap-1.5 rounded-control pr-2 text-left text-body transition-colors';
 const ROW_IDLE_CLASS_NAME =
-  'text-sidebar-foreground/80 hover:bg-accent hover:text-accent-foreground';
+  'text-sidebar-foreground/80 hover:bg-primary/5 hover:text-accent-foreground';
 const ROW_SELECTED_CLASS_NAME = 'bg-accent-subtle text-[var(--system-accent)]';
 
 const VIEW_LABELS: { value: GitView; label: string }[] = [
@@ -418,7 +418,7 @@ function CommitRow({
         type="button"
         aria-expanded={open}
         className={cn(
-          'flex w-full items-start gap-1.5 rounded-control px-1.5 py-1.5 text-left transition-colors hover:bg-accent',
+          'flex w-full items-start gap-1.5 rounded-control px-1.5 py-1.5 text-left transition-colors hover:bg-primary/5',
           selectedPathIn(workspace.selection, 'commit', commit.hash) !== null && 'bg-accent-subtle',
         )}
         title={`${commit.hash}\n${commit.subject}\n${commit.author}`}
