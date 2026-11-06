@@ -13,10 +13,9 @@ import type { MinimalTurn } from '../lib/minimalTurns';
  * Normal-mode follow has one state (autoScrollRef) and two rules:
  * - While following, every content growth (rows-wrapper ResizeObserver) and
  *   viewport resize glues scrollTop to the real DOM end, whatever the
- *   shortfall. The virtualizer's anchorTo: 'end' correction runs earlier in
- *   the same ResizeObserver pass but only preserves distance-from-end by its
- *   model's delta; this hook's write is the last one before paint, so the
- *   painted frame is always exactly at the end.
+ *   shortfall, inside the ResizeObserver callback, so the painted frame is
+ *   exactly at the end. The virtualizer does no end anchoring (see
+ *   MessageList): this is the only writer at the bottom.
  * - Only user input changes the state: wheel-up accumulating past
  *   MESSAGE_LIST_SCROLL_END_THRESHOLD disengages, wheel-down that reaches the
  *   end re-engages, a scrollbar drag disengages and re-engages by where it
@@ -167,19 +166,13 @@ export function useMessageListScrollController({
   //
   // The rows-wrapper ResizeObserver pins synchronously after layout but
   // before paint, so the pinned scroll position is what gets painted — the
-  // only timing that avoids visible jitter during fast streaming in minimal
-  // mode. It drives ONLY the minimal pin phases: in normal (virtualized)
-  // mode the virtualizer's anchorTo: 'end' correction owns bottom-follow
-  // (its per-item observers run in the same frame with the same target),
-  // and a second writer here would just fight it.
+  // only timing that avoids visible jitter during fast streaming. In normal
+  // (virtualized) mode it glues to the end while following; in minimal mode
+  // it drives the pin phases.
   //
-  // - rowsWrapperRo: any minimal-mode content grows (streaming text, details
-  //   expanding) — pinned/following phases re-glue here.
-  // - containerRo: the container itself resizes. In minimal mode this re-runs
-  //   the pin; in normal mode a viewport shrink (e.g. StreamingQueue appears)
-  //   must re-pin to the bottom ourselves — the virtualizer only corrects on
-  //   item re-measures, not on viewport rect changes — so while auto-follow
-  //   is engaged we snap to the bottom here.
+  // - rowsWrapperRo: content grows (streaming text, rows mounting, details
+  //   expanding).
+  // - containerRo: the viewport resizes (terminal, queue bars, window).
   // Re-created on view-mode switch: minimal mode attaches rowsWrapperRef to a
   // different element, so the observers must re-bind.
   const pinTopToViewport = useCallback(() => {

@@ -340,16 +340,30 @@ commit has already grown the DOM again, so a handler reads a large distance for
 a viewport that is glued. Likewise a tool card mounting at its real size moves
 the end hundreds of px in one frame.
 
+What is painted is only as good as the end it glues to, so the end must be
+the DOM's and must not shrink under a followed reply:
+
+- Mounted rows sit in flow between two paddings standing in for the
+  unmounted ones, so `scrollHeight` is the real rows. A sizer of the model's
+  total size made the end overshoot for a frame whenever a row mounted at its
+  estimate (a tool row: 80px estimated, 23px drawn), and the reply dropped
+  back 50-75px when the measurement landed.
+- A code line is one line box whether drawn or skipped by
+  `content-visibility`. A 20px placeholder under a 22.4px line shrank a long
+  block by 2.4px per line above the viewport when its highlight replaced the
+  streamed plain text.
+
 The Working/queued bars reserve their visible height in the flow
 (`queueBarCount * STREAMING_QUEUE_BAR_STEP_PX`), so the list viewport always
 ends above the topmost bar; content cannot be covered by them.
 
 Measure with the painted-state probe from `pigi-jitter-debug`, never with rAF
-sampling or screenshots.
+sampling or screenshots: a reply dropping back keeps the distance from the end
+at 0, so the probe also tracks how far on-screen rows move.
 
 ## Transcript Row Spacing
 
-Rows sit in flow inside one translated wrapper, so the virtualizer's `gap` must
+Rows sit in flow inside one padded wrapper, so the virtualizer's `gap` must
 equal the DOM's base row gap, and every extra pixel of spacing lives in the
 row's _padding_ — `measureElement` returns the border box, so padding is inside
 the measured height while a margin would fall outside it and desynchronise the

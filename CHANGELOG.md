@@ -21,6 +21,8 @@
   header and revealing half of the closed terminal
 - The right sidebar on the new chat screen dims its content over a solid
   background instead of turning see-through
+- A streaming reply followed in show-all or compact view no longer jolts up
+  and down when a tool call or a code block arrives
 
 - Arrow-key history recall places the cursor on the first line instead of the last
 - Two-finger scroll in an enlarged Mermaid diagram pans instead of zooming

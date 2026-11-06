@@ -56,16 +56,29 @@ paints.
 node scripts/cdp.mjs eval-file .pi/skills/pigi-jitter-debug/scripts/paintedStateProbe.js
 ```
 
-Observes the rows wrapper; on every content resize records
-`d = scrollHeight - scrollTop - clientHeight` into `window.__painted`. While
-pinned and streaming: `d > 2` = frame painted off-bottom (visible jump);
-`|d| <= 0.5` = subpixel rounding, fine. For another target adapt the two
-selectors at the top of the probe.
+Install it after the list has mounted for the session under test (later
+registration = runs after the app). It gets a callback in every frame by
+resizing a hidden element, and records into `window.__painted`:
+
+- `d = scrollHeight - scrollTop - clientHeight`: `d > 2` while following =
+  frame painted off-bottom; `|d| <= 0.5` = subpixel rounding, fine.
+- `move`: the largest downward shift of a row that was on screen the frame
+  before. `move > 2` while following = the reply dropped back. `d` stays 0
+  through this (the end itself moved), so `d` alone passes a build that jolts
+  50-75px; this was the 2026-11 "剧烈上下抖动" in show-all/compact.
 
 ```bash
-node scripts/cdp.mjs eval '(() => { const p = window.__painted; const bad = p.filter(e => e.d > 2);
-  return { total: p.length, paintedUnpinned: bad.length, max: Math.max(...p.map(e => e.d)), sample: p.slice(10, 30) }; })()'
+node scripts/cdp.mjs eval 'window.__paintedSummary()'
 ```
+
+A hidden window gets no rAF and the probe records nothing; when
+`document.visibilityState` is `hidden`, run
+`node scripts/cdp.mjs --main eval '__pigi.BrowserWindow.getAllWindows()[0].webContents.setBackgroundThrottling(false)'`.
+
+To find what moved, log per frame which rows are mounted with their
+`offsetHeight`, then diff the frames before a jolt: a new row whose height
+does not match the scroll extent's growth is an estimate, an existing row
+that shrank is a rendering change (diff its blocks).
 
 ### Standard repro (fast streaming)
 
@@ -78,6 +91,17 @@ node scripts/cdp.mjs eval '(() => { const p = window.__painted; const bad = p.fi
 
 Baseline (message-list pin fix, 2026-07): broken build 82/88 samples ~22.5px
 off; fixed build 0/87, max 0.5px.
+
+Mixed repro (text + tool rows, the case pure text misses): new chat in the
+pigi project, a cheap model (Claude Sonnet 4.6; the Codex account rejects
+the mini/spark models), view mode show-all or compact:
+`请交替执行下面步骤 3 轮，不要解释，不要提问：1) 用 bash 工具 cat 一个 /Users/mwei2/PersonalCode/pigi/src 下的不同源文件的前 80 行（sed -n 1,80p）；2) 用 read 工具读另一个 src 下的文件的前 60 行；3) 直接输出一段 markdown：一个 5 行 4 列的表格、一个 15 行的代码块、两段文字和一个 4 项列表。每轮内容都要不同。`
+Baseline (2026-11): before, 4-16 jolts per run up to 75px; after, 0 over 7
+runs (one of 8 rounds), max `d` 0.5px.
+
+Drive it on a fresh new chat only: picking a model on an open session runs
+`set_model` on it, and a session open in another pi instance gets the entry
+written into its file.
 
 ### Always run a control
 

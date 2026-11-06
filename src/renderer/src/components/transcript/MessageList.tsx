@@ -58,8 +58,7 @@ export default React.memo(function MessageList({
   ref,
 }: MessageListProps & { ref?: React.Ref<MessageListHandle> }): React.JSX.Element {
   // Created here (not inside the scroll controller) because the virtualizer
-  // needs containerRef for getScrollElement while the controller needs the
-  // virtualizer's totalSize — the refs break that cycle.
+  // and the controller both need them.
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const rowsWrapperRef = useRef<HTMLDivElement>(null);
@@ -146,8 +145,8 @@ export default React.memo(function MessageList({
     // rows are laid out in-flow with marginBottom = MESSAGE_ROW_GAP, so without
     // gap the model is gapless while the DOM is not. paddingStart/paddingEnd
     // fold the top inset and the below-last-row breathing room into the model,
-    // which makes totalSize equal the real scrollHeight so scrollToIndex
-    // alignments are pixel-accurate.
+    // so item starts match the DOM and scrollToIndex alignments are
+    // pixel-accurate.
     gap: MESSAGE_ROW_GAP,
     paddingStart: MESSAGE_LIST_TOP_INSET,
     paddingEnd: MESSAGE_LIST_BOTTOM_INSET,
@@ -178,7 +177,21 @@ export default React.memo(function MessageList({
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
-  const totalSize = rowVirtualizer.getTotalSize();
+  const firstVirtualItem = virtualItems[0];
+  const lastVirtualItem = virtualItems[virtualItems.length - 1];
+  // The model's span below the last mounted row, less that row's own margin.
+  // Zero whenever the last row is mounted, which is always the case while
+  // following the bottom.
+  const unmountedTailSize = lastVirtualItem
+    ? Math.max(
+        0,
+        rowVirtualizer.getTotalSize() -
+          lastVirtualItem.end -
+          (lastVirtualItem.index === renderItems.length - 1
+            ? MESSAGE_LIST_BOTTOM_INSET
+            : MESSAGE_ROW_GAP),
+      )
+    : 0;
 
   const scrollController = useMessageListScrollController({
     containerRef,
@@ -337,59 +350,58 @@ export default React.memo(function MessageList({
             </div>
           ) : (
             /*
-             * Spacer div for the virtualizer: its height IS totalSize (the
-             * model includes paddingStart/paddingEnd, so it equals the real
-             * scrollHeight — this is what keeps the virtualizer's at-end
-             * check exact). Rows are position:absolute inside it.
+             * Rows in flow between two paddings that stand in for the rows
+             * that are not mounted. The rows on screen are therefore sized by
+             * the DOM, never by the model: with a sizer of `totalSize`, a row
+             * mounting at its estimate made the end overshoot for a frame and
+             * the followed reply dropped back by the difference.
              */
             <div
-              className="relative"
-              style={{ height: `${totalSize}px` }}
+              ref={rowsWrapperRef}
+              className="flow-root"
+              style={{
+                paddingTop: `${firstVirtualItem?.start ?? 0}px`,
+                paddingBottom: `${unmountedTailSize}px`,
+              }}
               data-testid="message-virtualizer"
             >
-              <div
-                ref={rowsWrapperRef}
-                className="absolute left-0 top-0 w-full"
-                style={{ transform: `translateY(${virtualItems[0]?.start ?? 0}px)` }}
-              >
-                {virtualItems.map((virtualItem) => {
-                  const item = renderItems[virtualItem.index];
-                  const isLast = virtualItem.index === renderItems.length - 1;
-                  const nextItem = renderItems[virtualItem.index + 1];
-                  // Only node rows can render the band; a read group at the end
-                  // of a reply keeps its gutters instead.
-                  const showsActions =
-                    item.type === 'node' &&
-                    rowShowsActions(nextReplyItem(renderItems, virtualItem.index));
-                  return (
-                    <div
-                      key={item.id}
-                      ref={rowVirtualizer.measureElement}
-                      data-index={virtualItem.index}
-                      data-item-id={item.id}
-                      data-row-space={rowSpaceFor(item, nextItem, showsActions)}
-                      style={{
-                        marginBottom: `${isLast ? MESSAGE_LIST_BOTTOM_INSET : MESSAGE_ROW_GAP}px`,
-                      }}
-                    >
-                      <RenderItemRenderer
-                        item={item}
-                        isLast={isLast}
-                        showActions={showsActions}
-                        sessionActive={sessionStatus !== 'idle'}
-                        searchQuery={rowSearchQuery}
-                        expanded={
-                          item.type === 'readGroup' ? expandedGroupIds.has(item.id) : undefined
-                        }
-                        onToggleExpand={item.type === 'readGroup' ? toggleGroupExpand : undefined}
-                        activeOccurrenceItemId={rowActiveOccurrence?.itemId ?? null}
-                        activeOccurrenceToolNodeId={rowActiveOccurrence?.toolNodeId ?? null}
-                        activeOccurrenceIndex={rowActiveOccurrence?.occurrenceIndex ?? null}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+              {virtualItems.map((virtualItem) => {
+                const item = renderItems[virtualItem.index];
+                const isLast = virtualItem.index === renderItems.length - 1;
+                const nextItem = renderItems[virtualItem.index + 1];
+                // Only node rows can render the band; a read group at the end
+                // of a reply keeps its gutters instead.
+                const showsActions =
+                  item.type === 'node' &&
+                  rowShowsActions(nextReplyItem(renderItems, virtualItem.index));
+                return (
+                  <div
+                    key={item.id}
+                    ref={rowVirtualizer.measureElement}
+                    data-index={virtualItem.index}
+                    data-item-id={item.id}
+                    data-row-space={rowSpaceFor(item, nextItem, showsActions)}
+                    style={{
+                      marginBottom: `${isLast ? MESSAGE_LIST_BOTTOM_INSET : MESSAGE_ROW_GAP}px`,
+                    }}
+                  >
+                    <RenderItemRenderer
+                      item={item}
+                      isLast={isLast}
+                      showActions={showsActions}
+                      sessionActive={sessionStatus !== 'idle'}
+                      searchQuery={rowSearchQuery}
+                      expanded={
+                        item.type === 'readGroup' ? expandedGroupIds.has(item.id) : undefined
+                      }
+                      onToggleExpand={item.type === 'readGroup' ? toggleGroupExpand : undefined}
+                      activeOccurrenceItemId={rowActiveOccurrence?.itemId ?? null}
+                      activeOccurrenceToolNodeId={rowActiveOccurrence?.toolNodeId ?? null}
+                      activeOccurrenceIndex={rowActiveOccurrence?.occurrenceIndex ?? null}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

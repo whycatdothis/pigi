@@ -29,9 +29,12 @@ interface SyntaxHighlightedCodeProps {
 function codeLineClassName(lineNumbers: boolean): string {
   // Line rows keep content-visibility off: with the w-max rows and sticky
   // gutter it showed no reliable gain, and the cost is dominated by line count.
+  // Every line, empty or not and drawn or skipped, is one line box tall, as in
+  // the plain text the highlight replaces: 20px against a 22.4px line made a
+  // streamed block shrink when its highlight landed, jolting a followed reply.
   return lineNumbers
     ? 'flex min-h-5 min-w-full w-max leading-5'
-    : 'block min-h-5 [content-visibility:auto] [contain-intrinsic-size:auto_20px]';
+    : 'block min-h-[1lh] [content-visibility:auto] [contain-intrinsic-size:auto_1lh]';
 }
 
 function codeClassName(lineNumbers: boolean): string {
