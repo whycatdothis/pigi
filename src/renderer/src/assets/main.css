@@ -544,6 +544,13 @@
     corner-shape: round;
   }
 
+  /* The zoom wrapper sets an inline `visibility: visible` on the image, which
+     beat the inherited `hidden` of the chat column kept laid out behind the
+     Files and Git tabs, so sent thumbnails showed through. */
+  .invisible [data-rmiz-content] {
+    visibility: hidden !important;
+  }
+
   .markdown-body th,
   .markdown-body td {
     border-right: 1px solid var(--border);

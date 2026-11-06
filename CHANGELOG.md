@@ -43,6 +43,8 @@
 ### Fixed
 
 - Hovering the message minimap no longer lifts the chat column and composer
+- Image thumbnails in sent messages no longer show through the Files and Git
+  tabs
 - Clicking outside the selected text (margins, header, sidebar) clears the
   selection and its Quote button
 - Hovering the message minimap no longer shifts the window up, cutting off the
