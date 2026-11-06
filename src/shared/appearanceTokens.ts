@@ -105,6 +105,12 @@ const SIDEBAR_STEPS: Record<ColorMode, number> = { light: 0, dark: 0.148 };
  *  text it sweeps across. The band has to read as light crossing the label, so
  *  it goes almost all the way: a 60% mix is barely visible on a white page. */
 const SHIMMER_WHITE_MIX = 0.85;
+/** The accent tint behind the user's messages and the queue bars. */
+const ACCENT_SUBTLE_MIX = 0.08;
+/** What the usual 8% gives the dark presets on a white page (1.10-1.12). */
+const ACCENT_SUBTLE_LIGHT_CONTRAST = 1.08;
+/** A tint, not a second accent, even where the floor cannot be reached. */
+const ACCENT_SUBTLE_MAX_MIX = 0.25;
 
 function interpolate(values: number[], contrast: number): number {
   const clamped = Math.min(100, Math.max(0, contrast));
@@ -375,6 +381,23 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
   const fillAccent = fillStep.fill;
   const fillLabel = fillStep.label;
   const textAccent = ensureContrast(fitAccent(accentBase, mode, 'text'), background, 4.5);
+  // Light mode tints with the fill: the text accent is walked dark for 4.5:1,
+  // which turned a Yellow tint beige. A light fill barely moves luminance at
+  // 8%, so the mix grows until the tint still separates from the page.
+  const accentSubtle =
+    mode === 'light'
+      ? mixOklch(
+          background,
+          fillAccent,
+          Math.min(
+            ACCENT_SUBTLE_MAX_MIX,
+            Math.max(
+              ACCENT_SUBTLE_MIX,
+              solveMixAmount(background, fillAccent, background, ACCENT_SUBTLE_LIGHT_CONTRAST),
+            ),
+          ),
+        )
+      : mixOklch(background, textAccent, ACCENT_SUBTLE_MIX);
   // Hover moves away from the page in both modes: darker on light, lighter on
   // dark. Fading the fill toward the background, the usual shortcut, would
   // darken it in dark mode and read as pressed.
@@ -416,6 +439,7 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
     '--app-muted': formatOklch(muted),
     '--app-muted-foreground': formatOklch(secondaryText),
     '--app-shimmer-highlight': formatOklch(shimmerHighlight),
+    '--app-accent-subtle': formatOklch(accentSubtle),
     '--app-accent': formatOklch(hover),
     '--app-accent-foreground': formatOklch(foreground),
     '--app-destructive': formatOklch(status.danger.fg),

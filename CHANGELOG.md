@@ -10,8 +10,9 @@
   changes on disk; SVG files get a Preview/Source toggle
 - Clicking an image in chat, attachments, tool output or the Files tab opens it
   enlarged, with trackpad pinch to zoom and two-finger scroll to pan
-- Settings → Chat has a "Pin sent message" switch: off, the minimal view
-  follows the reply at the bottom instead of holding your message at the top
+- Settings → Chat → "Pin minimal view sent message" (shown in Minimal view):
+  off, the view follows the reply at the bottom instead of holding your
+  message at the top
 - pigi reopens the session that was open when it last closed
 
 ### Changed
@@ -21,6 +22,8 @@
   Green and Graphite; a saved retired color switches to the nearest one.
   Orange, Yellow and Green buttons keep their color with dark text instead of
   turning muddy under white text
+- With a light accent such as Yellow, your message bubbles, the Working bar and
+  its icon use the bright accent instead of a dark, beige-looking one
 - The window opens at 1440×900 instead of 1200×800, capped at 90% of the
   screen
 - Settings controls share a few consistent widths: short numbers, long
@@ -39,6 +42,7 @@
 
 ### Fixed
 
+- Hovering the message minimap no longer lifts the chat column and composer
 - Clicking outside the selected text (margins, header, sidebar) clears the
   selection and its Quote button
 - Hovering the message minimap no longer shifts the window up, cutting off the

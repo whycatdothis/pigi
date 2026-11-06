@@ -1843,7 +1843,7 @@ function App(): React.JSX.Element {
                 {workspaceTab !== WORKSPACE_TABS.chat && (
                   // Same terminal reservation as the chat below, so the drawer
                   // pushes the viewer up instead of covering its bottom.
-                  <div className="relative min-h-0 flex-1 overflow-hidden">
+                  <div className="relative min-h-0 flex-1 overflow-clip">
                     <div className={workspaceLayoutClassName} style={workspaceLayoutStyle}>
                       {workspaceTab === WORKSPACE_TABS.files && (
                         <FilesTab
@@ -1882,7 +1882,7 @@ function App(): React.JSX.Element {
                   )}
                 >
                   {activeSession ? (
-                    <div className="relative min-h-0 flex-1 overflow-hidden">
+                    <div className="relative min-h-0 flex-1 overflow-clip">
                       <div className={workspaceLayoutClassName} style={workspaceLayoutStyle}>
                         <MessageList
                           key={activeSessionPath ?? 'draft'}
@@ -1934,7 +1934,7 @@ function App(): React.JSX.Element {
                       </div>
                     </div>
                   ) : isDraftChat ? (
-                    <div className="relative min-h-0 flex-1 overflow-hidden">
+                    <div className="relative min-h-0 flex-1 overflow-clip">
                       <div className={workspaceLayoutClassName} style={workspaceLayoutStyle}>
                         {isDraftEmpty ? (
                           <div className="relative z-10 flex flex-1 flex-col">

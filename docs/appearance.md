@@ -373,6 +373,7 @@ verbatim):
 | `--app-muted`, `--app-muted-foreground`                            | surface(1.0) / mutedText                    |
 | `--app-shimmer-highlight`                                          | mutedText mixed 90% toward white            |
 | `--app-minimap-tick`                                               | tick target, solved like the border         |
+| `--app-accent-subtle`                                              | 8% accent; light: fill, raised to 1.08:1    |
 | `--app-accent`, `--app-accent-foreground`                          | surface(1.6) / fg                           |
 | `--app-primary`, `--app-primary-foreground`                        | accent fill / white                         |
 | `--app-primary-hover`                                              | fill stepped away from the page             |

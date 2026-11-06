@@ -28,16 +28,18 @@ export function ChatSettings(): React.JSX.Element {
           onChange={setToolBlockViewMode}
         />
       </SettingsRow>
-      <SettingsRow
-        label="Pin sent message"
-        description="Minimal view: keep a sent message at the top while the reply comes in."
-      >
-        <Switch
-          aria-label="Pin sent message"
-          checked={pinSentMessage}
-          onCheckedChange={setPinSentMessage}
-        />
-      </SettingsRow>
+      {toolBlockViewMode === 'minimal' && (
+        <SettingsRow
+          label="Pin minimal view sent message"
+          description="Off: follow the reply at the bottom instead."
+        >
+          <Switch
+            aria-label="Pin minimal view sent message"
+            checked={pinSentMessage}
+            onCheckedChange={setPinSentMessage}
+          />
+        </SettingsRow>
+      )}
     </SettingsGroup>
   );
 }

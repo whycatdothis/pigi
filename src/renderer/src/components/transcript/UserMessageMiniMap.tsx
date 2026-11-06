@@ -212,12 +212,19 @@ export default React.memo(function UserMessageMiniMap({
   useEffect(() => {
     if (!open) return;
     const frame = requestAnimationFrame(() => {
-      activeItemRef.current?.scrollIntoView({ block: 'center' });
+      // Scroll only the list: `scrollIntoView` also scrolls every ancestor it
+      // can, and a script can scroll an `overflow: hidden` box, which lifted the
+      // whole chat column, composer included.
+      const item = activeItemRef.current;
+      const list = item?.parentElement;
+      if (item && list) {
+        list.scrollTop = item.offsetTop - (list.clientHeight - item.offsetHeight) / 2;
+      }
       if (!focusFirstItemRef.current) return;
       focusFirstItemRef.current = false;
       const target =
         activeItemRef.current ?? panelRef.current?.querySelector<HTMLButtonElement>('button');
-      target?.focus();
+      target?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
   }, [open]);
@@ -307,8 +314,7 @@ export default React.memo(function UserMessageMiniMap({
       </button>
       {/* Docked panel: flush with the list's right edge, covering the lines.
           It is a sibling of the scroll container (see MessageList), so an
-          anchored overlay stays put and `scrollIntoView` below cannot drag the
-          transcript (nor the app shell: see the `overflow-clip` on <main>).
+          anchored overlay stays put while the transcript scrolls.
           It follows the trigger in the DOM so Tab reaches the items, and it is
           positioned, so the visual order is unchanged. */}
       {hasOpened && (
@@ -332,7 +338,7 @@ export default React.memo(function UserMessageMiniMap({
             'absolute right-0 top-1/2 max-h-[50vh] w-64 origin-right -translate-y-1/2 flex-col overflow-hidden rounded-l-surface p-0 backdrop-blur-md',
           )}
         >
-          <div className="flex flex-col gap-0.5 overflow-y-auto p-1 scrollbar-none">
+          <div className="relative flex flex-col gap-0.5 overflow-y-auto p-1 scrollbar-none">
             {userMessages.map(({ node, index, preview }, position) => {
               const isActive = position === activePosition;
               const isHovered = hoveredIndex === index;

@@ -112,7 +112,7 @@ export default function StreamingQueue({
       <QueueBar
         icon={
           <SpinningIcon className="animate-[spin_2.2s_linear_infinite]">
-            <IconStarFilled className="size-4 text-[var(--system-accent)]" />
+            <IconStarFilled className="size-4 text-primary dark:text-[var(--system-accent)]" />
           </SpinningIcon>
         }
       >

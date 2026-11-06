@@ -157,6 +157,18 @@ describe('deriveTokens', () => {
     }
   });
 
+  it('keeps the accent tint apart from a light page for every preset', () => {
+    // At a flat 8% of the walked-dark text accent, Yellow's tint was beige;
+    // at 8% of its own bright fill, it all but vanished (1.03:1).
+    for (const preset of ACCENT_PRESETS) {
+      const tokens = tokensFor({ mode: 'light', accent: { presetId: preset.id } });
+      const tint = color(tokens['--app-accent-subtle']);
+      // 1.08 is the target; the published oklch is rounded.
+      expect(contrastRatio(tint, color(tokens['--app-background']))).toBeGreaterThanOrEqual(1.075);
+      expect(contrastRatio(tint, color(tokens['--app-foreground']))).toBeGreaterThanOrEqual(7);
+    }
+  });
+
   it('keeps the fill labelled on a mid-tone page', () => {
     // A user-set mid-tone background is where the two rules collide: the fill has
     // to move away from the page to keep its 3:1 separation, ends up light, and a
