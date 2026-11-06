@@ -10,16 +10,30 @@
   changes on disk; SVG files get a Preview/Source toggle
 - Clicking an image in chat, attachments, tool output or the Files tab opens it
   enlarged, with trackpad pinch to zoom and two-finger scroll to pan
+- Settings → Chat has a "Pin sent message" switch: off, the minimal view
+  follows the reply at the bottom instead of holding your message at the top
+- pigi reopens the session that was open when it last closed
 
 ### Changed
 
 - The chat column and composer are wider, 920px instead of 820px
+- Accent colors are the macOS set: Blue, Purple, Pink, Red, Orange, Yellow,
+  Green and Graphite; a saved retired color switches to the nearest one.
+  Orange, Yellow and Green buttons keep their color with dark text instead of
+  turning muddy under white text
+- The window opens at 1440×900 instead of 1200×800, capped at 90% of the
+  screen
 - Settings controls share a few consistent widths: short numbers, long
   numbers, dropdowns and text fields each line up with their kind
 - Settings descriptions are cut down to the ones that tell you something the
   label does not
 - Sidebar rows in the main, Settings, Files and Diff sidebars tint with the
   theme accent on hover, and the main and Settings sidebars on selection too
+- Switching the chat view (Show All, Compact, Minimal) from the session toolbar
+  lands at the end of the conversation
+- The update window puts its buttons beside the status instead of under it;
+  a finished download offers only "Restart", and closing the window leaves
+  the update in Settings
 
 ### Fixed
 
@@ -31,6 +45,13 @@
   background instead of turning see-through
 - A streaming reply followed in show-all or compact view no longer jolts up
   and down when a tool call or a code block arrives
+- The update window uses your theme instead of the default one
+- The right sidebar button shows its dot for a pending global comment, not only
+  for quotes
+- A collapsed project keeps its running sessions listed after a visit to the
+  Files, Git or Settings view
+- Clicking a project folder only expands or collapses it; it no longer switches
+  the Files and Git tabs to that project
 
 - Arrow-key history recall places the cursor on the first line instead of the last
 - Two-finger scroll in an enlarged Mermaid diagram pans instead of zooming

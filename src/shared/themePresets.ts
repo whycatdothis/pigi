@@ -8,7 +8,7 @@
  * falls back to "Custom" on its own.
  */
 import {
-  ACCENT_PRESETS,
+  findAccentPreset,
   DEFAULT_THEME_ACCENT_ID,
   type AccentChoice,
   type AppearanceSettings,
@@ -150,10 +150,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
 /** Hex shown in the `Aa` swatch for a stored accent choice. */
 export function accentSwatchHex(accent: AccentChoice): string {
   if ('hex' in accent) {
-    return normalizeHexColor(accent.hex) ?? '#6366f1';
+    return normalizeHexColor(accent.hex) ?? findAccentPreset(DEFAULT_THEME_ACCENT_ID).swatchHex;
   }
-  const preset = ACCENT_PRESETS.find((candidate) => candidate.id === accent.presetId);
-  return preset?.swatchHex ?? '#6366f1';
+  return findAccentPreset(accent.presetId).swatchHex;
 }
 
 function sameChoice(left: AccentChoice, right: AccentChoice): boolean {

@@ -86,6 +86,11 @@ describe('parseAppearance', () => {
     expect(parsed.dark.fonts.uiSize).toBe(12);
     expect(parsed.reduceMotion).toBe('system');
   });
+
+  it('maps a retired accent preset to its replacement', () => {
+    const parsed = parseAppearance({ light: { accent: { presetId: 'violet' } } });
+    expect(parsed.light.accent).toEqual({ presetId: 'purple' });
+  });
 });
 
 describe('resolveAppearance', () => {
@@ -123,7 +128,7 @@ describe('resolveAppearance', () => {
 });
 
 describe('deriveTokens', () => {
-  it('keeps the fill white-labelled and the text accent legible in both modes', () => {
+  it('labels the fill legibly and keeps the text accent legible in both modes', () => {
     for (const mode of ['light', 'dark'] as const) {
       for (const preset of ACCENT_PRESETS) {
         const tokens = tokensFor({ mode, accent: { presetId: preset.id } });
@@ -131,13 +136,19 @@ describe('deriveTokens', () => {
         const label = color(tokens['--app-primary-foreground']);
         const textAccent = color(tokens['--app-system-accent']);
         const background = color(tokens['--app-background']);
+        const base = color(mode === 'dark' ? preset.darkOklch : preset.lightOklch);
 
-        // Solid buttons read the same in every theme: white label on the
-        // fill, never a flipped black label that would change their weight.
-        expect(label.lightness).toBeGreaterThan(0.95);
         expect(contrastRatio(label, fill)).toBeGreaterThanOrEqual(4.5);
-        // The fill only has to separate from the page (non-text floor).
-        expect(contrastRatio(fill, background)).toBeGreaterThanOrEqual(3);
+        if (contrastRatio(color('#ffffff'), base) >= 3) {
+          // A white label: the fill is walked dark and separates from the page
+          // (non-text floor).
+          expect(label.lightness).toBeGreaterThan(0.95);
+          expect(contrastRatio(fill, background)).toBeGreaterThanOrEqual(3);
+        } else {
+          // Too light for white (Yellow): it keeps its own colour, dark label.
+          expect(label.lightness).toBeLessThan(0.2);
+          expect(fill.lightness).toBeCloseTo(Math.min(0.88, base.lightness), 2);
+        }
         // Text, icons and rails use their own value, which clears AA.
         expect(contrastRatio(textAccent, background)).toBeGreaterThanOrEqual(4.5);
         expect(tokens['--app-sidebar-primary']).toBe(tokens['--app-primary']);
@@ -164,7 +175,10 @@ describe('deriveTokens', () => {
           const fill = color(tokens['--app-primary']);
           const label = color(tokens['--app-primary-foreground']);
 
-          expect(contrastRatio(fill, background)).toBeGreaterThanOrEqual(3);
+          // A dark-label fill keeps its own colour and does not chase the page.
+          if (label.lightness > 0.95) {
+            expect(contrastRatio(fill, background)).toBeGreaterThanOrEqual(3);
+          }
           expect(contrastRatio(label, fill)).toBeGreaterThanOrEqual(4.5);
           expect(tokens['--app-sidebar-primary-foreground']).toBe(
             tokens['--app-primary-foreground'],
@@ -385,8 +399,8 @@ describe('parsePigiSettings', () => {
     expect(migrated.version).toBe(2);
     expect(migrated.appearance.mode).toBe('dark');
     expect(migrated.appearance.separateModes).toBe(false);
-    expect(migrated.appearance.light.accent).toEqual({ presetId: 'teal' });
-    expect(migrated.appearance.dark.accent).toEqual({ presetId: 'teal' });
+    expect(migrated.appearance.light.accent).toEqual({ presetId: 'green' });
+    expect(migrated.appearance.dark.accent).toEqual({ presetId: 'green' });
     expect(migrated.chat.toolBlockViewMode).toBe('minimal');
   });
 
@@ -400,6 +414,7 @@ describe('parsePigiSettings', () => {
     expect(parsed.appearance.light.background).toBe('#f6f1e8');
     expect(parsed.appearance.mode).toBe('light');
     expect(parsed.chat.toolBlockViewMode).toBe('default');
+    expect(parsed.chat.pinSentMessage).toBe(true);
     expect(parsed.appearance.diagramTheme).toBe('default');
   });
 

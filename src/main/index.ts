@@ -28,14 +28,9 @@ import { stopProjectFileWatch } from './projects/projectFileWatch';
 import { PiChannel } from '../shared/ipcContract';
 import { configureDebugPanel, installMainDebugHandle } from './debugConfig';
 import { initializeShellEnv } from './processes/shellEnvResolver';
-import {
-  PIGI_SETTINGS_FILE_NAME,
-  readPigiSettingsFile,
-  windowBackgroundFor,
-} from './pigiSettingsFile';
+import { pigiSettingsPath, readPigiSettingsFile, windowBackgroundFor } from './pigiSettingsFile';
 import { createPigiSettingsOwner } from './pigiSettingsOwner';
 import { parsePigiSettingsChange } from '../shared/pigiSettings';
-import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 configureDebugPanel();
@@ -51,7 +46,7 @@ app.whenReady().then(() => {
   // Read before the window exists: the native theme decides the window
   // material, and the background decides the frame painted before the renderer
   // has any pixels.
-  const settingsPath = join(app.getPath('userData'), PIGI_SETTINGS_FILE_NAME);
+  const settingsPath = pigiSettingsPath();
   const initialSettings = readPigiSettingsFile(settingsPath).settings;
   nativeTheme.themeSource = initialSettings.appearance.mode;
 

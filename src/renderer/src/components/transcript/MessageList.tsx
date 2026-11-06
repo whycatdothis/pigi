@@ -69,6 +69,7 @@ export default React.memo(function MessageList({
   // Minimal mode renders plain (non-virtualized) turn content inside the same
   // scroll container, sharing auto-scroll / restore / minimap with other modes.
   const isMinimal = toolBlockViewMode === 'minimal';
+  const pinSentMessage = useSettingsStore((state) => state.chat.pinSentMessage);
   const isChatTabActive = useAppStore((state) => state.workspaceTab === WORKSPACE_TABS.chat);
   const sessionStatus = useAppStore(
     (state) => (sessionPath ? state.sessions.get(sessionPath)?.status : undefined) ?? 'idle',
@@ -197,7 +198,8 @@ export default React.memo(function MessageList({
     containerRef,
     rowsWrapperRef,
     sessionPath,
-    isMinimal,
+    viewMode: toolBlockViewMode,
+    pinSentMessage,
     lastMinimalTurn,
     isLastMinimalTurnActive,
   });

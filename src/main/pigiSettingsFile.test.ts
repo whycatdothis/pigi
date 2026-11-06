@@ -44,31 +44,31 @@ describe('readPigiSettingsFile', () => {
 
     expect(readPigiSettingsFile(path).settings).toEqual(DEFAULT_PIGI_SETTINGS);
     // The next write must be able to recover the file, not choke on it.
-    writePigiSettingsFile(path, settingsWithAccent('teal'));
+    writePigiSettingsFile(path, settingsWithAccent('green'));
     expect(readPigiSettingsFile(path).settings.appearance.light.accent).toEqual({
-      presetId: 'teal',
+      presetId: 'green',
     });
   });
 
   it('migrates an older stored version on read', () => {
     const path = join(directory, PIGI_SETTINGS_FILE_NAME);
-    writeFileSync(path, JSON.stringify({ theme: 'dark', accentId: 'rose' }), 'utf8');
+    writeFileSync(path, JSON.stringify({ theme: 'dark', accentId: 'red' }), 'utf8');
 
     const { settings, exists } = readPigiSettingsFile(path);
     expect(exists).toBe(true);
     expect(settings.version).toBe(2);
     expect(settings.appearance.mode).toBe('dark');
-    expect(settings.appearance.light.accent).toEqual({ presetId: 'rose' });
+    expect(settings.appearance.light.accent).toEqual({ presetId: 'red' });
   });
 });
 
 describe('writePigiSettingsFile', () => {
   it('round-trips and leaves no temporary file behind', () => {
     const path = join(directory, PIGI_SETTINGS_FILE_NAME);
-    writePigiSettingsFile(path, settingsWithAccent('violet'));
+    writePigiSettingsFile(path, settingsWithAccent('purple'));
 
     expect(readPigiSettingsFile(path).settings.appearance.light.accent).toEqual({
-      presetId: 'violet',
+      presetId: 'purple',
     });
     expect(readdirSync(directory)).toEqual([PIGI_SETTINGS_FILE_NAME]);
   });
@@ -81,7 +81,7 @@ describe('writePigiSettingsFile', () => {
 
   it('writes human-readable json', () => {
     const path = join(directory, PIGI_SETTINGS_FILE_NAME);
-    writePigiSettingsFile(path, settingsWithAccent('amber'));
+    writePigiSettingsFile(path, settingsWithAccent('orange'));
     const raw = readFileSync(path, 'utf8');
     expect(raw).toContain('\n  "version": 2');
     expect(raw.endsWith('\n')).toBe(true);

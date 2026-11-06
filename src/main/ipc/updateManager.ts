@@ -9,7 +9,7 @@
  *             jitter). A found update downloads with no UI; the blue dot in
  *             Settings is the only announcement.
  *   manual  — from Settings. A found update shows the progress window, which
- *             carries the progress bar, Cancel, and Install and Restart.
+ *             carries the progress bar, Cancel, and Restart.
  *
  * Every renderer gets the status pushed on change and can read it back on
  * demand, so a window that opens mid-download still shows the right thing.
@@ -196,7 +196,7 @@ function cancelUpdateDownload(): void {
   closeUpdateProgressWindow();
 }
 
-/** Hides the window without touching a download: "Later", or Escape. */
+/** Hides the window on Escape without touching a download. */
 function dismissUpdateWindow(): void {
   closeUpdateProgressWindow();
 }

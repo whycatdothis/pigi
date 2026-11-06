@@ -34,7 +34,7 @@ gives the progress window a token to cancel.
 Installing is a user action:
 
 1. Settings popover: "Update to <version>" → `quitAndInstall()`
-2. Progress window: "Install and Restart" → `quitAndInstall()`
+2. Progress window: "Restart" → `quitAndInstall()`
 
 A quitter never picks up a half-decided update.
 
@@ -97,8 +97,8 @@ Settings sidebar button → popover → "Check for Updates"
       → downloadUpdate(token)
         → progress: bar + transferred/total + Cancel
         → Cancel → token.cancel(), close window, status 'idle'
-        → update-downloaded → "Install and Restart" / "Later"
-      → Install and Restart → status 'installing' ("Restarting to install…")
+        → update-downloaded → "Restart" (closing the window leaves "Update to <version>" in Settings)
+      → Restart → status 'installing' ("Restarting to install…")
       → Squirrel re-fetches the bundle from the updater's local proxy
       → the app quits and reopens on the new version
     → update-not-available → window shows "pigi is up to date" and counts
@@ -121,7 +121,7 @@ window instead of starting a second download.
 
 If Squirrel never finishes an install — it neither replaces the bundle nor
 reports an error — the status falls back to "downloaded" after 20 seconds, so
-the window offers "Install and Restart" again instead of leaving the session
+the window offers "Restart" again instead of leaving the session
 unable to check for updates.
 
 The Settings popover's item swaps from "Check for Updates" to
@@ -259,7 +259,7 @@ dev run:
 2. Bump, release the next version as usual.
 3. Launch the installed build: the accent dot appears within a couple of hours
    at the latest (the launch check runs 15s in), then Settings → "Update to …" →
-   "Install and Restart" swaps the bundle in place.
+   "Restart" swaps the bundle in place.
 4. Manual path: Settings → "Check for Updates" on an up-to-date build shows
    "pigi is up to date" in the window, counting 2 then 1, and then closes it, with no
    toast in the main window; on an outdated one the same window becomes the

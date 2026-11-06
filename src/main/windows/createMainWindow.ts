@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, screen } from 'electron';
 import { join } from 'path';
 import { PIGI_SETTINGS_PATH_ARGUMENT } from '../../shared/pigiSettings';
 import { is } from '@electron-toolkit/utils';
@@ -7,6 +7,14 @@ import { openDebugPanel } from '../debugConfig';
 import { guardWindowNavigation } from './windowNavigation';
 
 let mainWindow: BrowserWindow | null = null;
+
+/**
+ * Wide enough for the left sidebar plus the full 960px chat column; on a laptop
+ * the screen fraction wins.
+ */
+const DEFAULT_WIDTH = 1440;
+const DEFAULT_HEIGHT = 900;
+const MAX_SCREEN_FRACTION = 0.9;
 
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
@@ -19,9 +27,10 @@ export function createMainWindow({
   settingsPath: string;
   backgroundColor: string;
 }): BrowserWindow {
+  const workArea = screen.getPrimaryDisplay().workAreaSize;
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: Math.min(DEFAULT_WIDTH, Math.round(workArea.width * MAX_SCREEN_FRACTION)),
+    height: Math.min(DEFAULT_HEIGHT, Math.round(workArea.height * MAX_SCREEN_FRACTION)),
     minWidth: 680,
     minHeight: 400,
     show: false,

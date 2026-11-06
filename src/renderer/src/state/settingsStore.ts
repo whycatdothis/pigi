@@ -69,6 +69,7 @@ function readStoredSettings(): PigiSettings {
 interface SettingsState extends PigiSettings {
   setMode: (mode: ThemeMode) => void;
   setToolBlockViewMode: (mode: ToolBlockViewMode) => void;
+  setPinSentMessage: (pinSentMessage: boolean) => void;
   setCodeTheme: (codeTheme: string) => void;
   setDiagramTheme: (choice: DiagramThemeChoice) => void;
   updateAppearance: (updater: (appearance: AppearanceSettings) => AppearanceSettings) => void;
@@ -102,6 +103,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     setMode: (mode) => commit({ appearance: { ...get().appearance, mode } }),
     setToolBlockViewMode: (toolBlockViewMode) =>
       commit({ chat: { ...get().chat, toolBlockViewMode } }),
+    setPinSentMessage: (pinSentMessage) => commit({ chat: { ...get().chat, pinSentMessage } }),
     setCodeTheme: (codeTheme) => commit({ appearance: { ...get().appearance, codeTheme } }),
     setDiagramTheme: (diagramTheme) =>
       commit({ appearance: { ...get().appearance, diagramTheme } }),

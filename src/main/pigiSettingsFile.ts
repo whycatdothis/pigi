@@ -11,8 +11,9 @@
  * Writes are atomic: a half-written file would drop every appearance setting,
  * and a temp file plus rename costs nothing at this size.
  */
+import { app } from 'electron';
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import {
   DEFAULT_PIGI_SETTINGS,
   isMissingFileError,
@@ -22,8 +23,12 @@ import {
 import { deriveTokens, resolveAppearance } from '../shared/appearanceTokens';
 import { formatHex, parseCssColor } from '../shared/colorMath';
 
-/** File name inside `app.getPath('userData')`. */
 export const PIGI_SETTINGS_FILE_NAME = 'settings.json';
+
+/** Where the file lives; valid once the app is ready. */
+export function pigiSettingsPath(): string {
+  return join(app.getPath('userData'), PIGI_SETTINGS_FILE_NAME);
+}
 
 /**
  * Reads and normalizes the file. `exists` is false when there is nothing on

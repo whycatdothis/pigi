@@ -77,9 +77,9 @@ into long lines.
 The message column is capped at `MESSAGE_LIST_MAX_WIDTH` (960px). Rows reflow
 when the sidebar is toggled only while the window is narrower than roughly
 sidebar width + 960px (about 1204px with the default 244px sidebar); above that,
-hiding the sidebar only changes the margins. The default 1200px window sits just
-below that line, so it reflows by a few pixels; measure any width-animation
-concern at a narrow window, where the reflow is large.
+hiding the sidebar only changes the margins. The default 1440px window sits
+above that line, so the toggle does not reflow there; measure any
+width-animation concern at a narrow window, where the reflow is large.
 
 Native window resizing remains CSS-driven. Keep resize measurements scoped to
 their consumers: the message minimap observes its own available width without

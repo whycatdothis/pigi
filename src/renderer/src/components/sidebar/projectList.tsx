@@ -24,7 +24,6 @@ interface ProjectItemProps {
   relativeTimeBase: number;
   isExpanded: boolean;
   onToggleExpand: () => void;
-  onSelect: () => void;
   onNewSession: () => void;
   onResumeSession: (session: PiSessionInfo) => void;
   onRemove: () => void;
@@ -45,7 +44,6 @@ function ProjectItem({
   relativeTimeBase,
   isExpanded,
   onToggleExpand,
-  onSelect,
   onNewSession,
   onResumeSession,
   onRemove,
@@ -98,10 +96,7 @@ function ProjectItem({
             onDrop={onDrop}
           >
             <SidebarMenuButton
-              onClick={() => {
-                onSelect();
-                onToggleExpand();
-              }}
+              onClick={onToggleExpand}
               title={project.path}
               className="text-sidebar-foreground/80"
             >
@@ -160,7 +155,6 @@ interface ProjectListProps {
   expandedProjects: Set<string>;
   visibleWhenCollapsedSessionIdsByPath: Record<string, Set<string>>;
   onToggleProjectExpand: (path: string) => void;
-  onSelectProject: (path: string) => void;
   onNewSessionForProject: (path: string) => void;
   onResumeSession: (session: PiSessionInfo) => void;
   onOpenProject: () => void;
@@ -178,7 +172,6 @@ export function ProjectList({
   expandedProjects,
   visibleWhenCollapsedSessionIdsByPath,
   onToggleProjectExpand,
-  onSelectProject,
   onNewSessionForProject,
   onResumeSession,
   onOpenProject,
@@ -256,7 +249,6 @@ export function ProjectList({
           relativeTimeBase={relativeTimeBase}
           isExpanded={expandedProjects.has(project.path)}
           onToggleExpand={() => onToggleProjectExpand(project.path)}
-          onSelect={() => onSelectProject(project.path)}
           onNewSession={() => onNewSessionForProject(project.path)}
           onResumeSession={onResumeSession}
           onRemove={() => onRemoveProject(project.path)}

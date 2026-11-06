@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { useShallow } from 'zustand/react/shallow';
-import { useAppStore, type SessionEntry } from './state/appStore';
+import { loadLastSessionPath, useAppStore, type SessionEntry } from './state/appStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useShortcutsStore } from './state/shortcutsStore';
 import { useSessionTreeNavigation } from './hooks/useSessionTreeNavigation';
@@ -134,6 +134,9 @@ function extractUserHistory(nodes: TranscriptNode[]): string[] {
     .map((node) => node.text)
     .filter((text) => text.length > 0);
 }
+
+/** Read once: App re-renders on every streaming update. */
+const LAST_SESSION_PATH_AT_LAUNCH = loadLastSessionPath();
 
 function App(): React.JSX.Element {
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
@@ -1225,6 +1228,34 @@ function App(): React.JSX.Element {
     ],
   );
 
+  // Reopen the last session once the list that contains it has loaded, unless
+  // the reader has already picked a session or started a new chat.
+  const sessionToRestoreRef = useRef(LAST_SESSION_PATH_AT_LAUNCH);
+  useEffect(() => {
+    const path = sessionToRestoreRef.current;
+    if (!path) return;
+    const session = findSessionByPath(path);
+    if (!session) {
+      // Every project has listed and it is not there (deleted, or its project
+      // removed): stop, or re-adding that project later would jump to it.
+      const allListed =
+        recentProjects.length > 0 &&
+        recentProjects.every((project) => project.path in projectSessions);
+      if (allListed) sessionToRestoreRef.current = null;
+      return;
+    }
+    // The rAF boundary is for the react-hooks/set-state-in-effect rule.
+    const frame = requestAnimationFrame(() => {
+      sessionToRestoreRef.current = null;
+      const userActed =
+        selectionRequestRef.current !== 0 ||
+        isDraftSpawningRef.current ||
+        useAppStore.getState().activeSessionPath !== null;
+      if (!userActed) void handleResumeSession(session, { skipHistory: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [findSessionByPath, handleResumeSession, projectSessions, recentProjects]);
+
   const tree = useSessionTreeNavigation({
     activeSessionPath,
     activeCwd,
@@ -1737,7 +1768,6 @@ function App(): React.JSX.Element {
                   onNewSessionForProject={handleNewSessionForProject}
                   onResumeSession={handleResumeSession}
                   onOpenProject={handleOpenProject}
-                  onSelectProject={handleSelectProject}
                   onRemoveProject={handleRemoveProject}
                   onReorderProjects={handleReorderProjects}
                   onRenameSession={handleRenameSession}

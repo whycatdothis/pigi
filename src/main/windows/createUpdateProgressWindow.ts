@@ -1,7 +1,7 @@
 /**
  * The update progress window: a small titled window over the main window,
- * showing download progress, Cancel, and (when the download lands) Install and
- * Restart. It loads the same renderer bundle and picks its UI from the hash.
+ * showing download progress, Cancel, and (when the download lands) Restart. It
+ * loads the same renderer bundle and picks its UI from the hash.
  *
  * The window hugs its content: the renderer measures what the current status
  * needs and reports a height, and the window is sized to it. A fixed box would
@@ -11,6 +11,8 @@ import { BrowserWindow, ipcMain } from 'electron';
 import { join } from 'path';
 import { is } from '@electron-toolkit/utils';
 import { PiChannel } from '../../shared/ipcContract';
+import { PIGI_SETTINGS_PATH_ARGUMENT } from '../../shared/pigiSettings';
+import { pigiSettingsPath } from '../pigiSettingsFile';
 import { UPDATE_PROGRESS_HASH } from '../../shared/routes';
 import { getMainWindow } from './createMainWindow';
 import { guardWindowNavigation } from './windowNavigation';
@@ -134,6 +136,9 @@ export function openUpdateProgressWindow(): BrowserWindow {
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
+      // Without it the preload finds no settings file and the window renders
+      // the default theme instead of the user's.
+      additionalArguments: [`${PIGI_SETTINGS_PATH_ARGUMENT}${pigiSettingsPath()}`],
     },
   });
 

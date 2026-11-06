@@ -656,8 +656,8 @@ export enum PiChannel {
   /** renderer → main: abort an in-flight update download */
   CancelUpdateDownload = 'pi:cancel_update_download',
   /**
-   * renderer → main: close the progress window without touching the download.
-   * "Later" on a finished download, and the window's own Escape key.
+   * renderer → main: close the progress window on Escape without touching the
+   * download.
    */
   DismissUpdateWindow = 'pi:dismiss_update_window',
   /** renderer → main: quit and install the downloaded update */

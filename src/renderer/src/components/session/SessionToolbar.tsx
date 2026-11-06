@@ -141,7 +141,10 @@ export default React.memo(function SessionToolbar({
         ? 'unread'
         : null,
   );
-  const hasQuotes = useAppStore((state) => state.quotesBySession.has(sessionPath));
+  const hasPendingContext = useAppStore(
+    (state) =>
+      state.quotesBySession.has(sessionPath) || state.globalCommentBySession.has(sessionPath),
+  );
   const rightSidebarOpen = useAppStore((state) => state.rightSidebarOpen);
   const toggleRightSidebar = useAppStore((state) => state.toggleRightSidebar);
   const toolBlockViewMode = useSettingsStore((state) => state.chat.toolBlockViewMode);
@@ -302,8 +305,8 @@ export default React.memo(function SessionToolbar({
               className={`relative flex items-center justify-center rounded p-1 transition-colors size-7 hover:bg-muted @max-[220px]:hidden [-webkit-app-region:no-drag] ${rightSidebarOpen ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               <PanelIcon side="right" />
-              {/* Pending quotes are otherwise invisible while the sidebar is closed. */}
-              {hasQuotes && !rightSidebarOpen && (
+              {/* Pending quotes and comments are otherwise invisible while the sidebar is closed. */}
+              {hasPendingContext && !rightSidebarOpen && (
                 <span className="absolute top-1 right-1 size-1.5 rounded-full bg-[var(--system-accent)]" />
               )}
             </button>

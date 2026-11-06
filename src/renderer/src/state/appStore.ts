@@ -114,6 +114,15 @@ interface AppState {
   /** An empty comment removes it. */
   setGlobalComment: (sessionPath: string, comment: string) => void;
 
+  /**
+   * Sessions a collapsed project keeps listed: the ones running when it was
+   * collapsed. Here rather than in the sidebar, which unmounts while Files,
+   * Git or Settings is showing.
+   */
+  visibleWhenCollapsedSessionIds: Record<string, Set<string>>;
+  /** An empty set removes the project's entry. */
+  setVisibleWhenCollapsedSessionIds: (projectPath: string, sessionIds: Set<string>) => void;
+
   rightSidebarOpen: boolean;
   rightSidebarTab: RightSidebarTab;
   setRightSidebarOpen: (open: boolean) => void;
@@ -190,6 +199,13 @@ function loadUnreadSessionPaths(): Set<string> {
   } catch {
     return new Set();
   }
+}
+
+const LAST_SESSION_STORAGE_KEY = 'pigi.lastSessionPath';
+
+/** The session that was open when the app last closed, reopened at launch. */
+export function loadLastSessionPath(): string | null {
+  return localStorage.getItem(LAST_SESSION_STORAGE_KEY);
 }
 
 export const QUOTES_STORAGE_KEY = 'pigi.quotesBySession';
@@ -391,6 +407,20 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       quotesBySession: withSessionQuotes(state.quotesBySession, sessionPath, quotes),
     })),
+  visibleWhenCollapsedSessionIds: {},
+  setVisibleWhenCollapsedSessionIds: (projectPath, sessionIds) =>
+    set((state) => {
+      if (sessionIds.size === 0 && !(projectPath in state.visibleWhenCollapsedSessionIds)) {
+        return {};
+      }
+      const visibleWhenCollapsedSessionIds = { ...state.visibleWhenCollapsedSessionIds };
+      if (sessionIds.size > 0) {
+        visibleWhenCollapsedSessionIds[projectPath] = sessionIds;
+      } else {
+        delete visibleWhenCollapsedSessionIds[projectPath];
+      }
+      return { visibleWhenCollapsedSessionIds };
+    }),
   globalCommentBySession: storedGlobalComments.load(),
   setGlobalComment: (sessionPath, comment) =>
     set((state) => {
@@ -493,6 +523,13 @@ export const useAppStore = create<AppState>((set) => ({
 }));
 
 useAppStore.subscribe((state, previous) => {
+  if (state.activeSessionPath !== previous.activeSessionPath) {
+    if (state.activeSessionPath) {
+      localStorage.setItem(LAST_SESSION_STORAGE_KEY, state.activeSessionPath);
+    } else {
+      localStorage.removeItem(LAST_SESSION_STORAGE_KEY);
+    }
+  }
   if (state.unreadSessionPaths !== previous.unreadSessionPaths) {
     localStorage.setItem(
       UNREAD_SESSIONS_STORAGE_KEY,

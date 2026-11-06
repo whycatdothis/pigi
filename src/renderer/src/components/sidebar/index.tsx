@@ -13,6 +13,8 @@ import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { Kbd, MENU_ROW_KBD_CLASS_NAME } from '../ui/kbd';
 import { isSessionRunning } from './utils';
+import { useAppStore } from '../../state/appStore';
+import { listProjectSessions } from '../../services/piAgentClient';
 import { TooltipProvider } from '../ui/tooltip';
 import {
   Sidebar as ShadcnSidebar,
@@ -56,7 +58,6 @@ export default memo(function Sidebar({
   onNewSessionForProject,
   onResumeSession,
   onOpenProject,
-  onSelectProject,
   onRemoveProject,
   onReorderProjects,
   onRenameSession,
@@ -70,9 +71,9 @@ export default memo(function Sidebar({
   useEffect(() => {
     localStorage.setItem(EXPANDED_PROJECTS_STORAGE_KEY, JSON.stringify([...expandedProjects]));
   }, [expandedProjects]);
-  const [visibleWhenCollapsedSessionIds, setVisibleWhenCollapsedSessionIds] = useState<
-    Record<string, Set<string>>
-  >({});
+  const visibleWhenCollapsedSessionIds = useAppStore(
+    (state) => state.visibleWhenCollapsedSessionIds,
+  );
   const [relativeTimeBase, setRelativeTimeBase] = useState(() => Date.now());
   // Lets the effect retry when projectSessions loads after selectedSessionPath changes.
   const lastScrolledPathRef = useRef<string | null>(null);
@@ -174,40 +175,28 @@ export default memo(function Sidebar({
 
   const toggleProjectExpand = useCallback(
     (projectPath: string) => {
+      const collapsing = expandedProjects.has(projectPath);
       setExpandedProjects((current) => {
         const next = new Set(current);
-        if (next.has(projectPath)) {
-          // Collapsing: snapshot currently-running session IDs so they stay visible.
+        if (collapsing) {
           next.delete(projectPath);
-          const runningIds = new Set(
-            getProjectSessions(projectPath)
-              .filter((s) => isSessionRunning(s.path, sessions))
-              .map((s) => s.id),
-          );
-          if (runningIds.size > 0) {
-            setVisibleWhenCollapsedSessionIds((prev) => ({
-              ...prev,
-              [projectPath]: runningIds,
-            }));
-          } else {
-            setVisibleWhenCollapsedSessionIds((prev) => {
-              const nextState = { ...prev };
-              delete nextState[projectPath];
-              return nextState;
-            });
-          }
         } else {
           next.add(projectPath);
-          setVisibleWhenCollapsedSessionIds((prev) => {
-            const nextState = { ...prev };
-            delete nextState[projectPath];
-            return nextState;
-          });
         }
         return next;
       });
+      // Collapsing snapshots the running sessions so they stay listed.
+      const runningIds = collapsing
+        ? new Set(
+            getProjectSessions(projectPath)
+              .filter((session) => isSessionRunning(session.path, sessions))
+              .map((session) => session.id),
+          )
+        : new Set<string>();
+      useAppStore.getState().setVisibleWhenCollapsedSessionIds(projectPath, runningIds);
+      if (!collapsing) void listProjectSessions([projectPath]);
     },
-    [getProjectSessions, sessions],
+    [expandedProjects, getProjectSessions, sessions],
   );
 
   const handleNewSessionForProject = useCallback(
@@ -285,7 +274,6 @@ export default memo(function Sidebar({
                 expandedProjects={expandedProjects}
                 visibleWhenCollapsedSessionIdsByPath={visibleWhenCollapsedSessionIds}
                 onToggleProjectExpand={toggleProjectExpand}
-                onSelectProject={onSelectProject}
                 onNewSessionForProject={handleNewSessionForProject}
                 onResumeSession={handleResumeSessionFromList}
                 onOpenProject={onOpenProject}

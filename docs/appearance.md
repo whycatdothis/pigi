@@ -320,21 +320,28 @@ buttons and the checked switch, because shadcn wires `primary` to
 One accent value cannot do both of its jobs in dark mode, so there are two, the
 same way GitHub separates `accent.emphasis` from `accent.fg`:
 
-|                                                         | Light     | Dark      | Why                                                                      |
-| ------------------------------------------------------- | --------- | --------- | ------------------------------------------------------------------------ |
-| filled surfaces (`--primary`)                           | 0.45-0.58 | 0.50-0.60 | carries a white label, so it stays dark; needs only 3:1 against the page |
-| accent text, icons, rails (`--system-accent`, `--ring`) | 0.45-0.58 | 0.66-0.80 | is read on the page, so dark mode lifts it until it clears 4.5:1         |
+|                                                         | Light     | Dark      | Why                                                                                              |
+| ------------------------------------------------------- | --------- | --------- | ------------------------------------------------------------------------------------------------ |
+| filled surfaces (`--primary`)                           | 0.45-0.58 | 0.50-0.60 | carries a white label, so it stays dark; needs only 3:1 against the page (light hues: see below) |
+| accent text, icons, rails (`--system-accent`, `--ring`) | 0.45-0.58 | 0.66-0.80 | is read on the page, so dark mode lifts it until it clears 4.5:1                                 |
 
 Contrast is symmetric: white text on the accent and accent text on white are the
 same number. In light mode the two roles therefore coincide. In dark mode they
 cannot — an accent light enough to read on near-black is too light for a white
 label (2.85:1 at 0.70) — which is why the fill stays put and the text accent
-lifts. Filled buttons keep a white label in both modes, so their weight does not
-change when the mode does.
+lifts. A white-labelled button keeps that label in both modes, so its weight
+does not change when the mode does.
 
-Both bands also clamp chroma to 0.06-0.22 and the fill is walked down until its
-label clears 4.6:1, so a hand-picked hex cannot produce a pale button that
-outranks the layout around it. Hover moves away from the page in both modes
+A hue too light for white at its own colour (white on it below 3:1: Orange,
+Yellow, Green, light Graphite) skips the fill band instead. It keeps its colour,
+capped at lightness 0.88, and carries a near-black label, the way Radix labels
+its bright scales. Walking Yellow down until white read turned it mustard. The
+cost is the 3:1 separation: a yellow fill on a white page is 1.56:1, as macOS's
+own yellow controls are. The text accent is unchanged; it still clears 4.5:1, so
+yellow links stay dark gold.
+
+Both bands cap chroma at 0.22, with no floor so Graphite stays grey, and a
+white-labelled fill is walked down until its label clears 4.6:1. Hover moves away from the page in both modes
 (`--primary-hover`: mixed toward black on light, toward white on dark); fading
 the fill toward the background would darken it in dark mode and read as pressed.
 

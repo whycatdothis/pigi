@@ -16,7 +16,7 @@ import {
   parseAppearance,
   type AppearanceSettings as Appearance,
 } from '../../../../shared/appearance';
-import { PIGI_SETTINGS_STORAGE_KEY } from '../../../../shared/pigiSettings';
+import { DEFAULT_PIGI_SETTINGS, PIGI_SETTINGS_STORAGE_KEY } from '../../../../shared/pigiSettings';
 import { installSystemAppearance } from '../../testing/jsdomSetup';
 import { serializeTheme } from '../../../../shared/themeFile';
 import {
@@ -47,7 +47,7 @@ function seed(): void {
   useSettingsStore.setState({
     version: 2,
     appearance: DEFAULT_APPEARANCE,
-    chat: { toolBlockViewMode: 'compact_read' },
+    chat: DEFAULT_PIGI_SETTINGS.chat,
   });
 }
 
@@ -78,8 +78,8 @@ describe('AppearanceSettings', () => {
 
   it('stores an accent preset and applies it to the document', () => {
     render(<AppearanceSettings />);
-    fireEvent.click(screen.getByTestId('accent-option-teal'));
-    expect(storedAppearance().light.accent).toEqual({ presetId: 'teal' });
+    fireEvent.click(screen.getByTestId('accent-option-green'));
+    expect(storedAppearance().light.accent).toEqual({ presetId: 'green' });
     expect(document.documentElement.style.getPropertyValue('--app-system-accent')).not.toBe('');
   });
 
@@ -180,7 +180,7 @@ describe('AppearanceSettings', () => {
       light: {
         ...DEFAULT_APPEARANCE.light,
         background: '#f6f1e8',
-        accent: { presetId: 'amber' },
+        accent: { presetId: 'orange' },
         contrast: 55,
       },
     });
@@ -190,7 +190,7 @@ describe('AppearanceSettings', () => {
     expect(appearance.mode).toBe('dark');
     expect(appearance.separateModes).toBe(true);
     expect(appearance.light.background).toBe('#f6f1e8');
-    expect(appearance.light.accent).toEqual({ presetId: 'amber' });
+    expect(appearance.light.accent).toEqual({ presetId: 'orange' });
     expect(appearance.light.contrast).toBe(55);
     expect(screen.queryByLabelText('Theme file contents')).not.toBeInTheDocument();
   });

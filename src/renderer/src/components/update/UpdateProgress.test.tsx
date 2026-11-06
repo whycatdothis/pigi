@@ -135,17 +135,6 @@ describe('UpdateProgress', () => {
     expect(screen.getByText('auto closing in 1s')).toBeInTheDocument();
   });
 
-  it('closes on "Later" without cancelling the finished download', async () => {
-    const api = installUpdateApi({ phase: 'downloaded', version: '0.4.23' });
-
-    render(<UpdateProgress />);
-    await api.answerStatus();
-    fireEvent.click(screen.getByRole('button', { name: 'Later' }));
-
-    expect(api.dismissWindow).toHaveBeenCalledTimes(1);
-    expect(api.cancelDownload).not.toHaveBeenCalled();
-  });
-
   it('cancels an in-flight download from its own button', async () => {
     const api = installUpdateApi(DOWNLOADING);
 

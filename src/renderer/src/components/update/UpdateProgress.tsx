@@ -5,7 +5,7 @@
  * `main/windows/createUpdateProgressWindow.ts`, not by the main window: the
  * renderer entry picks this component from the location hash.
  *
- * It only ever displays the status main pushes. Cancel and Install send a
+ * It only ever displays the status main pushes. Cancel and Restart send a
  * command and wait for the next status — no local optimistic state, so the
  * window cannot disagree with the updater.
  *
@@ -54,7 +54,7 @@ function statusTitle(status: UpdateStatus): string {
 function statusDetail(status: UpdateStatus): string | null {
   switch (status.phase) {
     case 'downloaded':
-      return 'Restart pigi to finish installing.';
+      return 'Restart to finish installing.';
     case 'installing':
       return 'pigi quits and reopens when the install is done.';
     case 'error':
@@ -77,11 +77,8 @@ function transferredLabel(status: UpdateStatus): string | null {
   return `${formatFileSize(status.transferredBytes)} of ${formatFileSize(status.totalBytes)}`;
 }
 
-/** What the bar shows: the download's progress, or full once it has landed. */
 function barPercent(status: UpdateStatus): number | null {
-  if (status.phase === 'downloading') return status.percent / 100;
-  if (status.phase === 'downloaded' || status.phase === 'installing') return 1;
-  return null;
+  return status.phase === 'downloading' ? status.percent / 100 : null;
 }
 
 /**
@@ -135,7 +132,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
     };
   }, []);
 
-  // Escape closes the window without touching the download, the same as "Later".
+  // Escape closes the window without touching the download.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return;
@@ -147,8 +144,9 @@ export default function UpdateProgress(): React.JSX.Element | null {
   }, []);
 
   // The window follows its content's height as the status grows from one line
-  // to a bar and buttons. Keyed on whether there is a status at all: the first paint has no ref to
-  // measure, and ticking download progress must not rebuild the observer.
+  // to a progress bar or a wrapped error. Keyed on whether there is a status at
+  // all: the first paint has no ref to measure, and ticking download progress
+  // must not rebuild the observer.
   useLayoutEffect(() => {
     if (!hasStatus) return undefined;
     const container = containerRef.current;
@@ -173,7 +171,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
   const percent = barPercent(status);
   const detail = statusDetail(status);
   const bytes = transferredLabel(status);
-  const hasFooter = status.phase === 'downloading' || status.phase === 'downloaded';
+  const isWorking = status.phase === 'checking' || status.phase === 'installing';
 
   return (
     <div
@@ -183,11 +181,11 @@ export default function UpdateProgress(): React.JSX.Element | null {
       <img
         src={appIconUrl}
         alt=""
-        className="size-11 shrink-0 rounded-control shadow-sm ring-1 ring-black/5"
+        className="size-10 shrink-0 rounded-control shadow-sm ring-1 ring-black/5"
       />
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
         <div className="flex items-center gap-1.5">
-          {status.phase === 'checking' && (
+          {isWorking && (
             <SpinningIcon>
               <IconLoader className="size-3.5 text-foreground/45" />
             </SpinningIcon>
@@ -217,7 +215,7 @@ export default function UpdateProgress(): React.JSX.Element | null {
             aria-valuemax={100}
             aria-valuenow={Math.round(percent * 100)}
             aria-label="Update download"
-            className="h-[5px] w-full overflow-hidden rounded-full bg-foreground/10"
+            className="mt-0.5 h-[5px] w-full overflow-hidden rounded-full bg-foreground/10"
           >
             <div
               className="h-full origin-left rounded-full bg-[var(--system-accent)] transition-transform duration-200 ease-out"
@@ -228,46 +226,26 @@ export default function UpdateProgress(): React.JSX.Element | null {
           </div>
         )}
 
-        {hasFooter && (
-          <div className="flex items-center gap-1.5">
-            {bytes !== null && (
-              <span className="text-2xs tabular-nums text-muted-foreground">{bytes}</span>
-            )}
-            <div className="ml-auto flex items-center gap-1.5">
-              {status.phase === 'downloading' && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className={SECONDARY_BUTTON}
-                  onClick={cancelUpdateDownload}
-                >
-                  Cancel
-                </Button>
-              )}
-              {status.phase === 'downloaded' && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={SECONDARY_BUTTON}
-                    onClick={dismissUpdateWindow}
-                  >
-                    Later
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={ACCENT_BUTTON}
-                    onClick={quitAndInstallUpdate}
-                  >
-                    Install and Restart
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
+        {bytes !== null && (
+          <span className="text-2xs leading-4 tabular-nums text-muted-foreground">{bytes}</span>
         )}
       </div>
+
+      {status.phase === 'downloading' && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className={SECONDARY_BUTTON}
+          onClick={cancelUpdateDownload}
+        >
+          Cancel
+        </Button>
+      )}
+      {status.phase === 'downloaded' && (
+        <Button size="sm" variant="ghost" className={ACCENT_BUTTON} onClick={quitAndInstallUpdate}>
+          Restart
+        </Button>
+      )}
     </div>
   );
 }

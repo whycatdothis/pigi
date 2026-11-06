@@ -15,7 +15,7 @@ import {
   DEFAULT_APPEARANCE,
   DEFAULT_THEME_ACCENT_ID,
   THEME_MODES,
-  isAccentPresetId,
+  resolveAccentPresetId,
   parseAppearance,
   type AppearanceSettings,
 } from './appearance';
@@ -29,6 +29,8 @@ export type ToolBlockViewMode = 'default' | 'compact_read' | 'minimal';
 
 export interface ChatSettings {
   toolBlockViewMode: ToolBlockViewMode;
+  /** Minimal view: hold a sent message at the top while its reply fills in. */
+  pinSentMessage: boolean;
 }
 
 /** Whether a failed read means "no file yet" rather than a file that is broken. */
@@ -60,6 +62,10 @@ function parseChat(raw: unknown): ChatSettings {
     toolBlockViewMode: isToolBlockViewMode(record.toolBlockViewMode)
       ? record.toolBlockViewMode
       : DEFAULT_PIGI_SETTINGS.chat.toolBlockViewMode,
+    pinSentMessage:
+      typeof record.pinSentMessage === 'boolean'
+        ? record.pinSentMessage
+        : DEFAULT_PIGI_SETTINGS.chat.pinSentMessage,
   };
 }
 
@@ -102,7 +108,7 @@ export const TOOL_BLOCK_VIEW_MODES: readonly ToolBlockViewMode[] = [
 export const DEFAULT_PIGI_SETTINGS: PigiSettings = {
   version: PIGI_SETTINGS_VERSION,
   appearance: DEFAULT_APPEARANCE,
-  chat: { toolBlockViewMode: 'compact_read' },
+  chat: { toolBlockViewMode: 'compact_read', pinSentMessage: true },
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -133,7 +139,7 @@ function migrateFromV1(raw: unknown): PigiSettings {
   const record = isRecord(raw) ? raw : {};
   const appearance = parseAppearance(record.appearance);
   const mode = includes(THEME_MODES, record.theme) ? record.theme : appearance.mode;
-  const accentId = isAccentPresetId(record.accentId) ? record.accentId : DEFAULT_THEME_ACCENT_ID;
+  const accentId = resolveAccentPresetId(record.accentId) ?? DEFAULT_THEME_ACCENT_ID;
 
   return {
     version: PIGI_SETTINGS_VERSION,

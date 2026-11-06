@@ -1,5 +1,6 @@
 import { useSettingsStore } from '../../state/settingsStore';
 import { TOOL_BLOCK_VIEW_MODES, type ToolBlockViewMode } from '../../../../shared/pigiSettings';
+import { Switch } from '../ui/switch';
 import { SegmentedControl, SettingsGroup, SettingsRow } from './settingsControls';
 
 /** Same labels as the session toolbar's view menu. */
@@ -12,6 +13,8 @@ const VIEW_MODE_LABELS: Record<ToolBlockViewMode, string> = {
 export function ChatSettings(): React.JSX.Element {
   const toolBlockViewMode = useSettingsStore((state) => state.chat.toolBlockViewMode);
   const setToolBlockViewMode = useSettingsStore((state) => state.setToolBlockViewMode);
+  const pinSentMessage = useSettingsStore((state) => state.chat.pinSentMessage);
+  const setPinSentMessage = useSettingsStore((state) => state.setPinSentMessage);
 
   return (
     <SettingsGroup>
@@ -23,6 +26,16 @@ export function ChatSettings(): React.JSX.Element {
             label: VIEW_MODE_LABELS[mode],
           }))}
           onChange={setToolBlockViewMode}
+        />
+      </SettingsRow>
+      <SettingsRow
+        label="Pin sent message"
+        description="Minimal view: keep a sent message at the top while the reply comes in."
+      >
+        <Switch
+          aria-label="Pin sent message"
+          checked={pinSentMessage}
+          onCheckedChange={setPinSentMessage}
         />
       </SettingsRow>
     </SettingsGroup>

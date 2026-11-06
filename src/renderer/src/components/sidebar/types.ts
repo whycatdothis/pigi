@@ -12,7 +12,6 @@ export interface SidebarProps {
   onNewSessionForProject: (path: string) => void;
   onResumeSession: (session: PiSessionInfo) => void;
   onOpenProject: () => void;
-  onSelectProject: (path: string) => void;
   onRemoveProject: (path: string) => void;
   onReorderProjects: (paths: string[]) => void;
   onRenameSession: (sessionPath: string, name: string) => void;

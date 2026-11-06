@@ -161,7 +161,8 @@ function parseColor(value: string | null, fallback: string): OklchColor {
  * which is why GitHub ships `accent.emphasis` and `accent.fg` as separate
  * values. We do the same: one band per role.
  *
- * Chroma stays below the point where a hue clips out of sRGB on either end.
+ * Chroma stays below the point where a hue clips out of sRGB on either end. No
+ * floor: Graphite is meant to be grey, and a floor tinted it pink.
  */
 const WHITE = requireColor('#ffffff');
 const NEAR_BLACK = requireColor('#0b0b0b');
@@ -172,7 +173,7 @@ const ACCENT_BANDS: Record<ColorMode, Record<AccentRole, readonly [number, numbe
   light: { fill: [0.45, 0.58], text: [0.45, 0.58] },
   dark: { fill: [0.5, 0.6], text: [0.66, 0.8] },
 };
-const ACCENT_CHROMA: readonly [number, number] = [0.06, 0.22];
+const ACCENT_CHROMA_MAX = 0.22;
 
 /** Clamps an accent into its role's band, then steps it until the label clears 4.5:1. */
 function fitAccent(color: OklchColor, mode: ColorMode, role: AccentRole): OklchColor {
@@ -180,7 +181,7 @@ function fitAccent(color: OklchColor, mode: ColorMode, role: AccentRole): OklchC
   const fitted = {
     ...color,
     lightness: Math.min(maxLightness, Math.max(minLightness, color.lightness)),
-    chroma: Math.min(ACCENT_CHROMA[1], Math.max(ACCENT_CHROMA[0], color.chroma)),
+    chroma: Math.min(ACCENT_CHROMA_MAX, color.chroma),
   };
   if (role === 'text') {
     return fitted;
@@ -221,6 +222,29 @@ function fitFillWithLabel(
     fitted.lightness = Math.min(1, Math.max(0, fitted.lightness + direction));
   }
   return { fill: fitted, label };
+}
+
+/**
+ * Below this white-on-accent ratio a hue is too light for a white label at its
+ * own colour (Yellow, Orange, Green, Graphite). Walking it down until white
+ * reads turned Yellow into mustard, so it keeps its colour and carries a dark
+ * label instead. On a light page that fill no longer separates 3:1, the same
+ * as macOS's own yellow controls.
+ */
+const WHITE_LABEL_FLOOR = 3;
+/** Yellow sits at 0.86; above this a hand-picked white would vanish into the page. */
+const LIGHT_FILL_MAX_LIGHTNESS = 0.88;
+
+function fitLightFill(color: OklchColor): { fill: OklchColor; label: OklchColor } {
+  const fill = {
+    ...color,
+    lightness: Math.min(LIGHT_FILL_MAX_LIGHTNESS, color.lightness),
+    chroma: Math.min(ACCENT_CHROMA_MAX, color.chroma),
+  };
+  for (let step = 0; step < 40 && contrastRatio(NEAR_BLACK, fill) < 4.6; step += 1) {
+    fill.lightness = Math.min(1, fill.lightness + 0.005);
+  }
+  return { fill, label: NEAR_BLACK };
 }
 
 /** The accent the user picked, before any fitting. */
@@ -341,10 +365,13 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
   const shimmerHighlight = mixOklch(secondaryText, WHITE, SHIMMER_WHITE_MIX);
 
   const accentBase = readAccent(slot.accent, mode);
-  // The fill only needs to separate from the page (3:1 is the non-text floor);
-  // its label is guaranteed by the band. The text accent needs the full 4.5:1,
-  // because it is read as a link, a rail or an icon.
-  const fillStep = fitFillWithLabel(fitAccent(accentBase, mode, 'fill'), background);
+  // A white-label fill only needs to separate from the page (3:1 is the
+  // non-text floor); its label is guaranteed by the band. The text accent needs
+  // the full 4.5:1, because it is read as a link, a rail or an icon.
+  const fillStep =
+    contrastRatio(WHITE, accentBase) < WHITE_LABEL_FLOOR
+      ? fitLightFill(accentBase)
+      : fitFillWithLabel(fitAccent(accentBase, mode, 'fill'), background);
   const fillAccent = fillStep.fill;
   const fillLabel = fillStep.label;
   const textAccent = ensureContrast(fitAccent(accentBase, mode, 'text'), background, 4.5);

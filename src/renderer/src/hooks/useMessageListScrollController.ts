@@ -2,12 +2,13 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { RefObject } from 'react';
 import { useAppStore } from '../state/appStore';
 import type { MinimalTurn } from '../lib/minimalTurns';
+import type { ToolBlockViewMode } from '../../../shared/pigiSettings';
 
 /**
  * Owns every scroll-position writer for the message list outside the
  * virtualizer itself: bottom auto-follow in normal (virtualized) mode, the
  * minimal-mode turn pin state machine, per-session scroll save/restore, and
- * the view-mode switch re-derivation. MessageList consumes the returned
+ * landing at the end on a view-mode switch. MessageList consumes the returned
  * refs/handlers.
  *
  * Normal-mode follow has one state (autoScrollRef) and two rules:
@@ -52,7 +53,9 @@ interface MessageListScrollControllerOptions {
   containerRef: RefObject<HTMLDivElement | null>;
   rowsWrapperRef: RefObject<HTMLDivElement | null>;
   sessionPath: string;
-  isMinimal: boolean;
+  viewMode: ToolBlockViewMode;
+  /** Minimal view: hold the active turn at the top instead of following the end. */
+  pinSentMessage: boolean;
   lastMinimalTurn: MinimalTurn | null;
   isLastMinimalTurnActive: boolean;
 }
@@ -82,10 +85,12 @@ export function useMessageListScrollController({
   containerRef,
   rowsWrapperRef,
   sessionPath,
-  isMinimal,
+  viewMode,
+  pinSentMessage,
   lastMinimalTurn,
   isLastMinimalTurnActive,
 }: MessageListScrollControllerOptions): MessageListScrollController {
+  const isMinimal = viewMode === 'minimal';
   const autoScrollRef = useRef(true);
   // Wheel-up pixels accumulated while following; past the threshold the
   // user means it and follow disengages. Reset by any wheel-down.
@@ -119,42 +124,6 @@ export function useMessageListScrollController({
     topPaddingPxRef.current = topPaddingPx;
   }, [topPaddingPx]);
 
-  // New active turn: pin it in minimal mode, or jump to the bottom. Resolve
-  // the turn rather than checking only the latest transcript node: React may
-  // batch the user message with agent_start or the first assistant delta, so
-  // the user node is often no longer last by the time this layout effect runs.
-  //
-  // Tracked by the first time a turn is observed as ACTIVE — not by the turn
-  // id alone. The user node can land before the session status flips to
-  // streaming (the status arrives via a separate store update), so gating on
-  // "turn id changed" misses turns whose status arrives one render late.
-  // handledTurnIdRef records which turn we've already positioned; the effect
-  // re-fires when the status catches up.
-  const handledTurnIdRef = useRef<string | null>(null);
-  useLayoutEffect(() => {
-    const lastTurnId = lastMinimalTurn?.id ?? null;
-    const needsHandling =
-      lastMinimalTurn !== null &&
-      isLastMinimalTurnActive &&
-      handledTurnIdRef.current !== lastTurnId;
-    if (!needsHandling) return;
-    handledTurnIdRef.current = lastTurnId;
-    if (isMinimal) {
-      pinRef.current = { phase: 'pinned', turnId: lastMinimalTurn.id };
-      autoScrollRef.current = false;
-      // Set an initial spacer — the RO's pinned case will refine it to
-      // the exact value on the next layout, but we need SOME space now so
-      // the browser doesn't clamp scrollTop before the RO fires.
-      const container = containerRef.current;
-      if (container) {
-        setTopPaddingPx(container.clientHeight);
-      }
-    } else {
-      // Sending a message follows the reply even if the user had scrolled up.
-      engageFollow();
-    }
-  }, [containerRef, engageFollow, isLastMinimalTurnActive, isMinimal, lastMinimalTurn]);
-
   // While a just-expanded details area settles (one frame: the details mount,
   // the pin padding is re-fit, the viewport rolls to the details bottom), the
   // auto-scroll ResizeObserver must stand down — its scrollToBottom would
@@ -187,6 +156,57 @@ export function useMessageListScrollController({
       container.getBoundingClientRect().top +
       container.scrollTop;
   }, [containerRef]);
+
+  /**
+   * Minimal mode's active turn either holds the top, with a viewport-high
+   * spacer so the browser does not clamp scrollTop before the RO refines it,
+   * or rides the content end like the other views.
+   */
+  const startActiveTurn = useCallback(
+    (turnId: string, alignNow: boolean) => {
+      if (!pinSentMessage) {
+        pinRef.current = { phase: 'following', turnId };
+        engageFollow();
+        return;
+      }
+      pinRef.current = { phase: 'pinned', turnId };
+      autoScrollRef.current = false;
+      const container = containerRef.current;
+      if (!container) return;
+      setTopPaddingPx(container.clientHeight);
+      if (alignNow) pinTopToViewport();
+    },
+    [containerRef, engageFollow, pinSentMessage, pinTopToViewport],
+  );
+
+  // New active turn: pin it in minimal mode, or jump to the bottom. Resolve
+  // the turn rather than checking only the latest transcript node: React may
+  // batch the user message with agent_start or the first assistant delta, so
+  // the user node is often no longer last by the time this layout effect runs.
+  //
+  // Tracked by the first time a turn is observed as ACTIVE — not by the turn
+  // id alone. The user node can land before the session status flips to
+  // streaming (the status arrives via a separate store update), so gating on
+  // "turn id changed" misses turns whose status arrives one render late.
+  // handledTurnIdRef records which turn we've already positioned; the effect
+  // re-fires when the status catches up.
+  const handledTurnIdRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const lastTurnId = lastMinimalTurn?.id ?? null;
+    const needsHandling =
+      lastMinimalTurn !== null &&
+      isLastMinimalTurnActive &&
+      handledTurnIdRef.current !== lastTurnId;
+    if (!needsHandling) return;
+    handledTurnIdRef.current = lastTurnId;
+    if (isMinimal) {
+      // The RO's pinned case aligns the turn on the next layout.
+      startActiveTurn(lastMinimalTurn.id, false);
+    } else {
+      // Sending a message follows the reply even if the user had scrolled up.
+      engageFollow();
+    }
+  }, [engageFollow, isLastMinimalTurnActive, isMinimal, lastMinimalTurn, startActiveTurn]);
 
   /** Re-fit the pinned spacer so maxScroll equals the pin position (user
    *  cannot scroll past the turn). Reads the spacer's live DOM height since
@@ -263,44 +283,56 @@ export function useMessageListScrollController({
     });
     containerRo.observe(container);
 
-    function handleWheel(event: WheelEvent): void {
-      restoreAnimRef.current?.cancel();
-      restoreAnimRef.current = null;
-      if (!isMinimal) {
-        if (event.deltaY < 0) {
-          if (autoScrollRef.current) {
-            wheelUpSlackRef.current -= event.deltaY;
-            if (wheelUpSlackRef.current > MESSAGE_LIST_SCROLL_END_THRESHOLD) {
-              autoScrollRef.current = false;
-            }
-          }
-        } else if (event.deltaY > 0) {
-          wheelUpSlackRef.current = 0;
-          // Runs before the wheel's scroll is applied, so predict where it
-          // lands. Not following means nothing glues, so the current distance
-          // is the truth.
-          const distance = container!.scrollHeight - container!.scrollTop - container!.clientHeight;
-          if (
-            !autoScrollRef.current &&
-            distance - event.deltaY <= MESSAGE_LIST_SCROLL_END_THRESHOLD
-          ) {
-            engageFollow();
-          }
-        }
+    // Minimal's following phase rides the end like the other views, so it
+    // takes their input rules too; only the pin itself has its own.
+    function releaseFollow(): void {
+      autoScrollRef.current = false;
+      const pin = pinRef.current;
+      if (pin.phase === 'following') pinRef.current = { phase: 'scrolled', turnId: pin.turnId };
+    }
+
+    function resumeFollow(): void {
+      // Below a pin spacer the end is blank space: flag it, but stay put until
+      // the turn ends and the spacer goes.
+      if (topPaddingPxRef.current > 0) {
+        autoScrollRef.current = true;
         return;
       }
       const pin = pinRef.current;
-      if (pin.phase === 'pinned' && event.deltaY < 0) {
+      if (pin.phase === 'scrolled') pinRef.current = { phase: 'following', turnId: pin.turnId };
+      engageFollow();
+    }
+
+    function handleWheel(event: WheelEvent): void {
+      restoreAnimRef.current?.cancel();
+      restoreAnimRef.current = null;
+      const pin = pinRef.current;
+      if (pin.phase === 'pinned') {
         // Only scrolling UP releases the pin (user wants to see history).
         // Scrolling down is blocked by the scroll clamp.
-        pinRef.current = { phase: 'scrolled', turnId: pin.turnId };
-      } else if (pin.phase === 'following') {
-        pinRef.current = { phase: 'scrolled', turnId: pin.turnId };
+        if (event.deltaY < 0) {
+          pinRef.current = { phase: 'scrolled', turnId: pin.turnId };
+          autoScrollRef.current = false;
+        }
+        return;
       }
       if (event.deltaY < 0) {
-        autoScrollRef.current = false;
-      } else if (event.deltaY > 0 && !autoScrollRef.current && isAtBottom(container!)) {
-        autoScrollRef.current = true;
+        if (autoScrollRef.current) {
+          wheelUpSlackRef.current -= event.deltaY;
+          if (wheelUpSlackRef.current > MESSAGE_LIST_SCROLL_END_THRESHOLD) releaseFollow();
+        }
+      } else if (event.deltaY > 0) {
+        wheelUpSlackRef.current = 0;
+        // Runs before the wheel's scroll is applied, so predict where it
+        // lands. Not following means nothing glues, so the current distance
+        // is the truth.
+        const distance = container!.scrollHeight - container!.scrollTop - container!.clientHeight;
+        if (
+          !autoScrollRef.current &&
+          distance - event.deltaY <= MESSAGE_LIST_SCROLL_END_THRESHOLD
+        ) {
+          resumeFollow();
+        }
       }
     }
 
@@ -332,12 +364,13 @@ export function useMessageListScrollController({
     // the scrollbar, not a row. Release follow for the drag and re-derive it
     // from where the thumb is released.
     function handlePointerDown(event: PointerEvent): void {
-      if (isMinimal || event.target !== container) return;
-      autoScrollRef.current = false;
+      // The pin's scroll clamp already owns a drag.
+      if (event.target !== container || pinRef.current.phase === 'pinned') return;
+      releaseFollow();
       window.addEventListener(
         'pointerup',
         () => {
-          if (isAtBottom(container!)) engageFollow();
+          if (isAtBottom(container!)) resumeFollow();
         },
         { once: true },
       );
@@ -406,13 +439,9 @@ export function useMessageListScrollController({
     // while tools or assistant output stream, that node is not the user node
     // used by data-turn-id.
     if (isMinimal && lastMinimalTurn && isLastMinimalTurnActive) {
-      pinRef.current = { phase: 'pinned', turnId: lastMinimalTurn.id };
-      autoScrollRef.current = false;
-      const container = containerRef.current;
-      if (container) {
-        setTopPaddingPx(container.clientHeight);
-        pinTopToViewport();
-      }
+      // The previous session's spacer must not carry over to an unpinned turn.
+      clearTopPin();
+      startActiveTurn(lastMinimalTurn.id, true);
       // A running turn takes over the viewport: skip the saved-position
       // restore entirely (it would override the re-pin).
       requestAnimationFrame(() => {
@@ -467,41 +496,35 @@ export function useMessageListScrollController({
     isLastMinimalTurnActive,
     isMinimal,
     lastMinimalTurn,
-    pinTopToViewport,
     sessionPath,
+    startActiveTurn,
   ]);
 
-  // View-mode switch swaps the content layout entirely, so a pixel scrollTop
-  // (and the pin flag) carried over from the other mode is meaningless —
-  // re-derive pinning from where the viewport actually landed.
-  // Guarded to run only on an actual mode change: on mount the restore effect
-  // owns the pin, and deriving here would clobber a restored mid-scroll
-  // position (this effect runs after restore but before its rAF applies,
-  // while the observer effect's mount-time scrollToBottom still has the
-  // container at the bottom → isAtBottom wrongly reads true).
-  const prevIsMinimalRef = useRef(isMinimal);
+  // A view-mode switch swaps the row layout, so the old scrollTop means
+  // nothing in the new one: land at the end, or re-establish a running minimal
+  // turn. Guarded to an actual change so mount leaves restore alone.
+  const prevViewModeRef = useRef(viewMode);
   useLayoutEffect(() => {
-    if (prevIsMinimalRef.current === isMinimal) return;
-    prevIsMinimalRef.current = isMinimal;
+    if (prevViewModeRef.current === viewMode) return;
+    prevViewModeRef.current = viewMode;
     // A mode switch must not be clobbered by an in-flight restore glide.
     restoreAnimRef.current?.cancel();
     restoreAnimRef.current = null;
     clearTopPin();
-    const container = containerRef.current;
-    if (!container) return;
-
-    if (isMinimal) {
-      if (lastMinimalTurn && isLastMinimalTurnActive) {
-        pinRef.current = { phase: 'pinned', turnId: lastMinimalTurn.id };
-        autoScrollRef.current = false;
-        setTopPaddingPx(container.clientHeight);
-        pinTopToViewport();
-        return;
-      }
+    setShowScrollButton(false);
+    if (isMinimal && lastMinimalTurn && isLastMinimalTurnActive) {
+      startActiveTurn(lastMinimalTurn.id, true);
+      return;
     }
-
-    autoScrollRef.current = isAtBottom(container);
-  }, [containerRef, isLastMinimalTurnActive, isMinimal, lastMinimalTurn, pinTopToViewport]);
+    engageFollow();
+  }, [
+    engageFollow,
+    isLastMinimalTurnActive,
+    isMinimal,
+    lastMinimalTurn,
+    startActiveTurn,
+    viewMode,
+  ]);
 
   function clearTopPin(): void {
     pinRef.current = { phase: 'idle' };
@@ -678,17 +701,17 @@ export function useMessageListScrollController({
   const handleCollapseDetails = useCallback(
     (isActive: boolean) => {
       if (!isActive) return;
+      if (!pinSentMessage) {
+        // The collapse dropped the follow flag; a reader who was following
+        // goes back to the end.
+        if (pinRef.current.phase === 'following') engageFollow();
+        return;
+      }
       const turnId = lastPinnedTurnIdRef.current;
       if (!turnId) return;
-      pinRef.current = { phase: 'pinned', turnId };
-      autoScrollRef.current = false;
-      const container = containerRef.current;
-      if (container) {
-        setTopPaddingPx(container.clientHeight);
-        pinTopToViewport();
-      }
+      startActiveTurn(turnId, true);
     },
-    [containerRef, pinTopToViewport],
+    [engageFollow, pinSentMessage, startActiveTurn],
   );
 
   const suspendAutoScroll = useCallback(() => {

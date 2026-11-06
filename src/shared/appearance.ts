@@ -64,67 +64,79 @@ export interface ThemeAccent {
 }
 
 /**
- * Selectable accent presets. Light values stay dark enough to read as link
- * text on white; dark values are lifted to stay legible on a dark surface.
+ * Selectable accent presets: the macOS accent colours, light and dark variants.
+ * `deriveTokens` fits them per role, so a light hue like Yellow fills and reads
+ * darker than its swatch.
  */
 export const ACCENT_PRESETS: readonly ThemeAccent[] = [
   {
-    id: 'indigo',
-    name: 'Indigo',
-    swatchHex: '#6366f1',
-    lightOklch: 'oklch(0.55 0.2 277.1)',
-    darkOklch: 'oklch(0.7 0.17 277.1)',
-  },
-  {
-    id: 'violet',
-    name: 'Violet',
-    swatchHex: '#7c5cfc',
-    lightOklch: 'oklch(0.56 0.22 286.5)',
-    darkOklch: 'oklch(0.72 0.19 286.5)',
-  },
-  {
     id: 'blue',
     name: 'Blue',
-    swatchHex: '#3b82f6',
-    lightOklch: 'oklch(0.55 0.18 259.8)',
-    darkOklch: 'oklch(0.7 0.16 259.8)',
+    swatchHex: '#007aff',
+    lightOklch: 'oklch(0.603 0.218 257.4)',
+    darkOklch: 'oklch(0.624 0.206 255.5)',
   },
   {
-    id: 'sky',
-    name: 'Sky',
-    swatchHex: '#0ea5e9',
-    lightOklch: 'oklch(0.55 0.15 237.3)',
-    darkOklch: 'oklch(0.72 0.13 237.3)',
+    id: 'purple',
+    name: 'Purple',
+    swatchHex: '#953d96',
+    lightOklch: 'oklch(0.513 0.162 327.2)',
+    darkOklch: 'oklch(0.569 0.157 326.5)',
   },
   {
-    id: 'teal',
-    name: 'Teal',
-    swatchHex: '#14b8a6',
-    lightOklch: 'oklch(0.54 0.12 182.5)',
-    darkOklch: 'oklch(0.74 0.12 182.5)',
+    id: 'pink',
+    name: 'Pink',
+    swatchHex: '#f74f9e',
+    lightOklch: 'oklch(0.681 0.215 355.5)',
+    darkOklch: 'oklch(0.681 0.215 355.5)',
   },
   {
-    id: 'emerald',
-    name: 'Emerald',
-    swatchHex: '#10b981',
-    lightOklch: 'oklch(0.53 0.15 162.5)',
-    darkOklch: 'oklch(0.74 0.14 162.5)',
+    id: 'red',
+    name: 'Red',
+    swatchHex: '#e0383e',
+    lightOklch: 'oklch(0.6 0.204 24.2)',
+    darkOklch: 'oklch(0.679 0.209 23.1)',
   },
   {
-    id: 'amber',
-    name: 'Amber',
-    swatchHex: '#e0724a',
-    lightOklch: 'oklch(0.57 0.15 40.2)',
-    darkOklch: 'oklch(0.74 0.13 40.2)',
+    id: 'orange',
+    name: 'Orange',
+    swatchHex: '#f7821b',
+    lightOklch: 'oklch(0.725 0.174 54)',
+    darkOklch: 'oklch(0.725 0.174 54)',
   },
   {
-    id: 'rose',
-    name: 'Rose',
-    swatchHex: '#f43f5e',
-    lightOklch: 'oklch(0.58 0.21 16.4)',
-    darkOklch: 'oklch(0.7 0.19 16.4)',
+    id: 'yellow',
+    name: 'Yellow',
+    swatchHex: '#ffc726',
+    lightOklch: 'oklch(0.856 0.168 86.9)',
+    darkOklch: 'oklch(0.854 0.175 87.5)',
+  },
+  {
+    id: 'green',
+    name: 'Green',
+    swatchHex: '#62ba46',
+    lightOklch: 'oklch(0.709 0.175 138.9)',
+    darkOklch: 'oklch(0.709 0.175 138.9)',
+  },
+  {
+    id: 'graphite',
+    name: 'Graphite',
+    swatchHex: '#989898',
+    lightOklch: 'oklch(0.68 0 0)',
+    darkOklch: 'oklch(0.64 0 0)',
   },
 ];
+
+/** Retired preset ids mapped to the nearest current one, so a saved choice survives. */
+const RETIRED_ACCENT_PRESET_IDS: Readonly<Record<string, string>> = {
+  indigo: 'blue',
+  violet: 'purple',
+  sky: 'blue',
+  teal: 'green',
+  emerald: 'green',
+  amber: 'orange',
+  rose: 'red',
+};
 
 export const DEFAULT_THEME_ACCENT_ID = 'blue';
 
@@ -253,8 +265,11 @@ export function findAccentPreset(id: string): ThemeAccent {
   return ACCENT_PRESETS.find((preset) => preset.id === id) ?? ACCENT_PRESETS[0];
 }
 
-export function isAccentPresetId(value: unknown): value is string {
-  return typeof value === 'string' && ACCENT_PRESETS.some((preset) => preset.id === value);
+/** A current preset id, or the one that replaced a retired id; null otherwise. */
+export function resolveAccentPresetId(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  if (ACCENT_PRESETS.some((preset) => preset.id === value)) return value;
+  return RETIRED_ACCENT_PRESET_IDS[value] ?? null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -280,8 +295,9 @@ function parseAccent(raw: unknown, fallback: AccentChoice): AccentChoice {
   if (!isRecord(raw)) {
     return fallback;
   }
-  if (typeof raw.presetId === 'string' && isAccentPresetId(raw.presetId)) {
-    return { presetId: raw.presetId };
+  const presetId = resolveAccentPresetId(raw.presetId);
+  if (presetId) {
+    return { presetId };
   }
   if (typeof raw.hex === 'string') {
     return { hex: raw.hex };
