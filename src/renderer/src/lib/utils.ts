@@ -8,7 +8,8 @@ import { extendTailwindMerge } from 'tailwind-merge';
 //
 // Radius is named by role in semanticTokens.css for the same reason: without the
 // names here, a primitive's `rounded-control` and a caller's `rounded-surface`
-// would both survive and the cascade, not the caller, would decide.
+// would both survive and the cascade, not the caller, would decide. Settings
+// field widths likewise: `Input`'s `w-full` would beat a caller's `w-field-text`.
 const RADIUS_ROLES = [
   'inline',
   'chip',
@@ -27,6 +28,7 @@ const mergeClassName = extendTailwindMerge({
     classGroups: {
       'font-size': [{ text: ['caption', 'ui', 'body', 'code', 'code-compact', '2xs', '3xs'] }],
       rounded: [{ rounded: RADIUS_ROLES }],
+      w: [{ w: ['field-short', 'field-number', 'field-picker', 'field-text'] }],
       'rounded-s': [{ 'rounded-s': RADIUS_ROLES }],
       'rounded-e': [{ 'rounded-e': RADIUS_ROLES }],
       'rounded-t': [{ 'rounded-t': RADIUS_ROLES }],

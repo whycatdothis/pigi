@@ -4,6 +4,8 @@
 
 ### Added
 
+- Number fields in Settings have up/down steppers (arrow keys work too), and
+  a change applies as soon as it is typed or stepped instead of on blur
 - The Files tab shows images, fitted to the pane and refreshed when the file
   changes on disk; SVG files get a Preview/Source toggle
 - Clicking an image in chat, attachments, tool output or the Files tab opens it
@@ -12,6 +14,8 @@
 ### Changed
 
 - The chat column and composer are wider, 920px instead of 820px
+- Settings controls share a few consistent widths: short numbers, long
+  numbers, dropdowns and text fields each line up with their kind
 
 ### Fixed
 

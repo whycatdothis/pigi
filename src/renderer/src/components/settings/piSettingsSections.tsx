@@ -38,12 +38,8 @@ function stringValue(
 }
 
 /** Global-only fields cannot be written to a project file. */
-function isFieldDisabled(
-  field: PiSettingFieldId,
-  scope: PiSettingsScope,
-  saving: boolean,
-): boolean {
-  return saving || (scope === 'project' && findPiSettingField(field)?.globalOnly === true);
+function isFieldDisabled(field: PiSettingFieldId, scope: PiSettingsScope): boolean {
+  return scope === 'project' && findPiSettingField(field)?.globalOnly === true;
 }
 
 /** Source tag, or a "Global only" note for fields with no project form. */
@@ -79,7 +75,6 @@ function BooleanSetting({
   isOverridden,
   setValue,
   scope,
-  saving,
 }: FieldSettingProps): React.JSX.Element {
   return (
     <SettingsRow
@@ -96,7 +91,7 @@ function BooleanSetting({
     >
       <Switch
         checked={values[field] === true}
-        disabled={isFieldDisabled(field, scope, saving)}
+        disabled={isFieldDisabled(field, scope)}
         onCheckedChange={(checked) => setValue(field, checked)}
       />
     </SettingsRow>
@@ -112,7 +107,6 @@ function EnumSetting<T extends string>({
   isOverridden,
   setValue,
   scope,
-  saving,
 }: FieldSettingProps & {
   options: readonly { value: T; label: string }[];
 }): React.JSX.Element {
@@ -133,7 +127,7 @@ function EnumSetting<T extends string>({
       <SegmentedControl
         value={current ?? (options[0]?.value as T)}
         options={options}
-        disabled={isFieldDisabled(field, scope, saving)}
+        disabled={isFieldDisabled(field, scope)}
         onChange={(value) => setValue(field, value)}
       />
     </SettingsRow>
@@ -147,16 +141,17 @@ function NumberSetting({
   placeholder,
   min,
   max,
+  step,
   suffix,
   values,
   isOverridden,
   setValue,
   scope,
-  saving,
 }: FieldSettingProps & {
   placeholder?: string;
   min?: number;
   max?: number;
+  step?: number;
   suffix?: string;
 }): React.JSX.Element {
   const value = values[field];
@@ -180,10 +175,13 @@ function NumberSetting({
         value={typeof value === 'number' ? value : undefined}
         min={min ?? bounds?.min}
         max={max ?? bounds?.max}
+        step={step}
+        label={label}
         suffix={suffix}
         placeholder={placeholder}
-        disabled={isFieldDisabled(field, scope, saving)}
-        onCommit={(next) => setValue(field, next)}
+        disabled={isFieldDisabled(field, scope)}
+        onChange={(next) => setValue(field, next)}
+        onClear={() => setValue(field, null)}
       />
     </SettingsRow>
   );
@@ -198,7 +196,6 @@ function TextSetting({
   isOverridden,
   setValue,
   scope,
-  saving,
 }: FieldSettingProps & { placeholder?: string }): React.JSX.Element {
   return (
     <SettingsRow
@@ -216,9 +213,9 @@ function TextSetting({
       <TextField
         value={stringValue(values, field)}
         placeholder={placeholder}
-        disabled={isFieldDisabled(field, scope, saving)}
+        disabled={isFieldDisabled(field, scope)}
         monospace
-        className="w-72"
+        className="w-field-text"
         onCommit={(next) => setValue(field, next)}
       />
     </SettingsRow>
@@ -235,7 +232,6 @@ function ListSetting({
   isOverridden,
   setValue,
   scope,
-  saving,
 }: FieldSettingProps & { placeholder?: string; addLabel: string }): React.JSX.Element {
   const value = values[field];
   return (
@@ -253,7 +249,6 @@ function ListSetting({
       <StringListField
         value={Array.isArray(value) ? value : undefined}
         placeholder={placeholder}
-        disabled={saving}
         addLabel={addLabel}
         onCommit={(next) => setValue(field, next)}
       />
@@ -262,7 +257,7 @@ function ListSetting({
 }
 
 export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
-  const { values, models, setValues, saving } = props;
+  const { values, models, setValues } = props;
   const provider = stringValue(values, 'defaultProvider');
   const modelId = stringValue(values, 'defaultModel');
   const selectedKey = provider && modelId ? `${provider}/${modelId}` : '';
@@ -319,8 +314,8 @@ export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
         >
           <NativeSelect
             value={selectedKey}
-            disabled={saving || models.length === 0}
-            className="w-72 [&_select]:text-caption [&_select]:border-transparent [&_select]:bg-transparent dark:[&_select]:bg-transparent [&_select]:hover:bg-muted"
+            disabled={models.length === 0}
+            className="w-field-text [&_select]:text-caption [&_select]:border-transparent [&_select]:bg-transparent dark:[&_select]:bg-transparent [&_select]:hover:bg-muted"
             onChange={(event) => {
               const nextKey = event.target.value;
               if (!nextKey) {
@@ -365,7 +360,6 @@ export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
         >
           <SegmentedControl
             value={thinkingValue ?? thinkingLevels[0]}
-            disabled={saving}
             options={thinkingLevels.map((level) => ({ value: level, label: level }))}
             onChange={(level) => props.setValue('defaultThinkingLevel', level)}
           />
@@ -419,6 +413,7 @@ export function DeliverySettings(props: PiSectionProps): React.JSX.Element {
         label="HTTP idle timeout"
         description="Abort a request when no data arrives for this long. 0 disables it."
         min={0}
+        step={1000}
         suffix="ms"
       />
     </SettingsGroup>
@@ -438,6 +433,7 @@ export function CompactionSettings(props: PiSectionProps): React.JSX.Element {
         label="Reserve tokens"
         description="Tokens kept free for the model's response."
         min={0}
+        step={1000}
       />
       <NumberSetting
         {...props}
@@ -445,6 +441,7 @@ export function CompactionSettings(props: PiSectionProps): React.JSX.Element {
         label="Keep recent tokens"
         description="Recent context that is not summarized."
         min={0}
+        step={1000}
       />
     </SettingsGroup>
   );
@@ -462,6 +459,7 @@ export function RetrySettings(props: PiSectionProps): React.JSX.Element {
           label="Base delay"
           description="Exponential backoff starts here."
           min={0}
+          step={1000}
           suffix="ms"
         />
         <NumberSetting
@@ -470,6 +468,7 @@ export function RetrySettings(props: PiSectionProps): React.JSX.Element {
           label="Max agent delay"
           description="Longest wait between agent-level retries."
           min={0}
+          step={1000}
           suffix="ms"
         />
       </SettingsGroup>
@@ -481,8 +480,9 @@ export function RetrySettings(props: PiSectionProps): React.JSX.Element {
           {...props}
           field="retry.provider.timeoutMs"
           label="Request timeout"
-          placeholder="SDK default"
+          placeholder="Default"
           min={0}
+          step={1000}
           suffix="ms"
         />
         <NumberSetting {...props} field="retry.provider.maxRetries" label="Max retries" min={0} />
@@ -492,6 +492,7 @@ export function RetrySettings(props: PiSectionProps): React.JSX.Element {
           label="Max server delay"
           description="Fail immediately when a provider asks to wait longer."
           min={0}
+          step={1000}
           suffix="ms"
         />
       </SettingsGroup>

@@ -102,17 +102,35 @@ describe('AppearanceSettings', () => {
     expect(screen.getByText('100 · 7.0:1')).toBeInTheDocument();
   });
 
-  it('types a text size and clamps it to the range', () => {
+  it('applies a typed text size at once and clamps an out-of-range one on Enter', () => {
     render(<AppearanceSettings />);
     const input = screen.getByLabelText('Text size');
     fireEvent.change(input, { target: { value: '17' } });
-    fireEvent.blur(input);
     expect(storedAppearance().light.fonts.uiSize).toBe(17);
+
+    // On the way to a two-digit size: below the minimum, so nothing is stored yet.
+    fireEvent.change(input, { target: { value: '1' } });
+    expect(storedAppearance().light.fonts.uiSize).toBe(17);
+    expect(input).toHaveValue('1');
 
     fireEvent.change(input, { target: { value: '400' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(storedAppearance().light.fonts.uiSize).toBe(UI_FONT_SIZE_MAX);
     expect(screen.getByLabelText('Text size')).toHaveValue(String(UI_FONT_SIZE_MAX));
+    expect(screen.getByRole('button', { name: 'Increase Text size' })).toBeDisabled();
+  });
+
+  it('steps the text size with the buttons and the arrow keys', () => {
+    render(<AppearanceSettings />);
+    const start = DEFAULT_APPEARANCE.light.fonts.uiSize;
+    fireEvent.click(screen.getByRole('button', { name: 'Increase Text size' }));
+    expect(storedAppearance().light.fonts.uiSize).toBe(start + 1);
+
+    const input = screen.getByLabelText('Text size');
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(storedAppearance().light.fonts.uiSize).toBe(start - 1);
+    expect(input).toHaveValue(String(start - 1));
   });
 
   it('edits only the selected slot when modes are separate', () => {

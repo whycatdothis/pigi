@@ -24,6 +24,12 @@
   --spacing-group: 16px; /* gap between controls in a card */
   --spacing-section: 36px; /* gap between settings groups */
 
+  /* Settings controls, sized by the longest value they hold. */
+  --width-field-short: 72px; /* numbers up to 3 digits: text size, retries */
+  --width-field-number: 104px; /* numbers up to 8 digits: milliseconds, tokens */
+  --width-field-picker: 160px; /* dropdowns: fonts, themes */
+  --width-field-text: 256px; /* free text, paths, model */
+
   --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.12);
   --shadow-popover: 0 6px 20px rgb(0 0 0 / 0.14);
   --shadow-composer: 0 10px 34px rgb(0 0 0 / 0.075);

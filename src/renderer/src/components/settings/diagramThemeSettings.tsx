@@ -32,7 +32,7 @@ export function DiagramThemeSettings(): React.JSX.Element {
             }
           }}
           icon={<IconChevronDown size={14} stroke={1.75} />}
-          className="w-[10rem] [&_select]:pr-7 [&_select]:text-caption [&_select]:dark:bg-transparent"
+          className="w-field-picker [&_select]:pr-7 [&_select]:text-caption [&_select]:dark:bg-transparent"
         >
           {DIAGRAM_THEME_CHOICES.map((choice) => (
             <option key={choice.value} value={choice.value}>

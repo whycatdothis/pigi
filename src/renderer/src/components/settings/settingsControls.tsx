@@ -1,11 +1,11 @@
 /**
- * Presentational building blocks for the settings page. Controls are
- * uncontrolled-in-progress: text and number fields keep a local draft and
- * commit on blur/Enter, so a write never fires per keystroke. The draft and its
+ * Presentational building blocks for the settings page. Text fields keep a
+ * local draft and commit on blur/Enter; number fields also commit as they are
+ * typed or stepped (see `NumberField`). The draft and its
  * reset-when-the-value-changes rule live in `hooks/useDraft`.
  */
 import { type ReactNode } from 'react';
-import { IconPlus, IconX } from '@tabler/icons-react';
+import { IconChevronDown, IconChevronUp, IconPlus, IconX } from '@tabler/icons-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { SETTINGS_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
@@ -217,64 +217,131 @@ export function SegmentedControl<T extends string>({
   );
 }
 
+/**
+ * A non-negative integer with a stepper. A typed value commits as it is typed
+ * once it is canonical and in range, so its effect shows at once; anything else
+ * (empty, leading zeros, out of range) waits for blur or Enter, which clamps.
+ * Committing "1" on the way to "14" would clamp it to the minimum and rewrite
+ * the draft under the cursor.
+ */
 export function NumberField({
   value,
-  onCommit,
-  min,
-  max,
+  onChange,
+  onClear,
+  min = 0,
+  max = Number.MAX_SAFE_INTEGER,
+  step = 1,
+  label,
   placeholder,
   disabled,
   suffix,
-  className,
 }: {
   value: number | undefined;
-  onCommit: (value: number | null) => void;
+  onChange: (value: number) => void;
+  /** Called when the field is emptied; without it an empty field reverts. */
+  onClear?: () => void;
   min?: number;
   max?: number;
+  step?: number;
+  label: string;
   placeholder?: string;
   disabled?: boolean;
   suffix?: string;
-  className?: string;
 }): React.JSX.Element {
   const formatted = value === undefined ? '' : String(value);
   const [draft, setDraft] = useDraft(formatted, (next) => next);
+  const current = draft === '' ? value : Number(draft);
 
-  function commit(): void {
-    const trimmed = draft.trim();
-    if (trimmed === '') {
-      onCommit(null);
-      return;
-    }
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed)) {
-      setDraft(formatted);
-      return;
-    }
-    const clamped = Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min ?? 0, parsed));
-    setDraft(String(clamped));
-    onCommit(clamped);
+  function clamp(next: number): number {
+    return Math.min(max, Math.max(min, next));
   }
 
+  function settle(next: number): void {
+    setDraft(String(next));
+    if (next !== value) onChange(next);
+  }
+
+  function edit(next: string): void {
+    setDraft(next);
+    const parsed = Number(next);
+    if (next !== '' && String(parsed) === next && parsed === clamp(parsed) && parsed !== value) {
+      onChange(parsed);
+    }
+  }
+
+  function commit(): void {
+    if (draft !== '') {
+      settle(clamp(Number(draft)));
+      return;
+    }
+    setDraft(formatted);
+    if (onClear && value !== undefined) onClear();
+  }
+
+  function stepBy(direction: 1 | -1): void {
+    settle(clamp((current ?? min) + direction * step));
+  }
+
+  const stepButtonClass =
+    'flex flex-1 items-center justify-center rounded-inline text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40';
+
   return (
-    <div className={cn('flex items-center gap-1.5', className)}>
-      <Input
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            commit();
-          } else if (event.key === 'Escape') {
-            event.stopPropagation();
-            setDraft(formatted);
-          }
-        }}
-        inputMode="decimal"
-        placeholder={placeholder}
-        disabled={disabled}
-        className="h-7 w-28 rounded-control text-right font-mono text-caption tabular-nums"
-      />
+    <div className="flex items-center gap-1.5">
+      <div
+        className={cn(
+          'relative flex h-7 rounded-control border border-input transition-colors focus-within:border-ring has-[input:disabled]:opacity-50 dark:bg-input/30',
+          max < 1000 ? 'w-field-short' : 'w-field-number',
+        )}
+      >
+        <input
+          value={draft}
+          onChange={(event) => edit(event.target.value.replace(/[^0-9]/g, ''))}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commit();
+            } else if (event.key === 'Escape') {
+              event.stopPropagation();
+              setDraft(formatted);
+            } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+              event.preventDefault();
+              stepBy(event.key === 'ArrowUp' ? 1 : -1);
+            }
+          }}
+          inputMode="numeric"
+          aria-label={label}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="w-full min-w-0 bg-transparent pr-7 pl-2.5 text-center font-mono text-caption tabular-nums outline-none placeholder:text-muted-foreground"
+        />
+        {/* Pointer-down is cancelled so the input keeps focus while stepping. */}
+        <div
+          className="absolute inset-y-1 right-1.5 flex w-4 flex-col"
+          onPointerDown={(event) => event.preventDefault()}
+        >
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label={`Increase ${label}`}
+            disabled={disabled || (current !== undefined && current >= max)}
+            onClick={() => stepBy(1)}
+            className={stepButtonClass}
+          >
+            <IconChevronUp size={10} stroke={2} />
+          </button>
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label={`Decrease ${label}`}
+            disabled={disabled || (current ?? min) <= min}
+            onClick={() => stepBy(-1)}
+            className={stepButtonClass}
+          >
+            <IconChevronDown size={10} stroke={2} />
+          </button>
+        </div>
+      </div>
       {suffix && <span className="text-caption text-muted-foreground">{suffix}</span>}
     </div>
   );
@@ -358,13 +425,11 @@ export function StringListField({
   value,
   onCommit,
   placeholder,
-  disabled,
   addLabel,
 }: {
   value: readonly string[] | undefined;
   onCommit: (value: string[] | null) => void;
   placeholder?: string;
-  disabled?: boolean;
   addLabel: string;
 }): React.JSX.Element {
   // Compare by content: a new snapshot re-creates every array, and in-progress
@@ -408,7 +473,6 @@ export function StringListField({
               }
             }}
             placeholder={placeholder}
-            disabled={disabled}
             spellCheck={false}
             className="h-7 flex-1 rounded-control font-mono text-caption"
           />
@@ -417,7 +481,6 @@ export function StringListField({
             variant="ghost"
             size="icon-xs"
             aria-label="Remove entry"
-            disabled={disabled}
             onClick={() => commit(rows.filter((entry) => entry.id !== row.id))}
             className="text-muted-foreground hover:text-foreground"
           >
@@ -429,7 +492,6 @@ export function StringListField({
         type="button"
         variant="outline"
         size="xs"
-        disabled={disabled}
         onClick={() => setRows([...rows, { id: nextStringListRowId++, text: '' }])}
         className="w-fit text-muted-foreground"
       >

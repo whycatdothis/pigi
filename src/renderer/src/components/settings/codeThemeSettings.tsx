@@ -30,7 +30,7 @@ export function CodeThemeSettings(): React.JSX.Element {
           value={codeTheme}
           onChange={(event) => setCodeTheme(event.target.value)}
           icon={<IconChevronDown size={14} stroke={1.75} />}
-          className="w-[9rem] [&_select]:pr-7 [&_select]:text-caption [&_select]:dark:bg-transparent"
+          className="w-field-picker [&_select]:pr-7 [&_select]:text-caption [&_select]:dark:bg-transparent"
         >
           {CODE_THEME_PRESETS.map((preset) => (
             <option key={preset.id} value={preset.id}>

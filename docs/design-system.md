@@ -96,10 +96,14 @@ thinking flyout keeps body text on a tighter 28px row. Segmented controls
 keep the muted track and white pill; they are a different affordance. Do not
 introduce a second tint for a selected row.
 
-## Spacing, elevation, motion
+## Spacing, widths, elevation, motion
 
 - `--spacing-row` 12 (label ↔ control), `--spacing-group` 16 (controls within a
   card), `--spacing-section` 36 (between settings groups).
+- Settings controls take one of four widths, by the longest value they hold:
+  `w-field-short` 72 (numbers up to 3 digits), `w-field-number` 104 (up to 8
+  digits), `w-field-picker` 160 (dropdowns), `w-field-text` 256 (free text,
+  paths). `NumberField` picks short or number from its `max`.
 - `--shadow-raised` (1px hairline lift), `--shadow-popover` (menus, dialogs),
   `--shadow-composer` (the one large soft shadow).
 - `--duration-fast` 100ms (hover, focus), `--duration-base` 150ms (colour,

@@ -209,63 +209,6 @@ export function SliderField({
   );
 }
 
-/**
- * A single editable number, the way the rest of the page shows values: a small
- * bordered field plus the unit outside it. The draft is local so a half-typed
- * number never reaches the store; blur or Enter clamps and commits.
- */
-export function NumberInput({
-  value,
-  min,
-  max,
-  label,
-  suffix,
-  onChange,
-}: {
-  value: number;
-  min: number;
-  max: number;
-  label: string;
-  suffix: string;
-  onChange: (value: number) => void;
-}): React.JSX.Element {
-  const [draft, setDraft] = useDraft(String(value), (next) => next);
-
-  function commit(): void {
-    const parsed = Number.parseInt(draft, 10);
-    if (Number.isNaN(parsed)) {
-      setDraft(String(value));
-      return;
-    }
-    const clamped = Math.min(max, Math.max(min, parsed));
-    setDraft(String(clamped));
-    if (clamped !== value) onChange(clamped);
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <input
-        value={draft}
-        onChange={(event) => setDraft(event.target.value.replace(/[^0-9]/g, ''))}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            commit();
-          } else if (event.key === 'Escape') {
-            event.stopPropagation();
-            setDraft(String(value));
-          }
-        }}
-        inputMode="numeric"
-        aria-label={label}
-        className="h-7 w-12 rounded-control border border-input bg-transparent text-center text-caption tabular-nums outline-none transition-colors focus-visible:border-ring dark:bg-input/30"
-      />
-      <span className="text-caption text-muted-foreground">{suffix}</span>
-    </div>
-  );
-}
-
 export function FontPicker({
   role,
   value,
@@ -288,7 +231,7 @@ export function FontPicker({
         onChange(event.target.value === DEFAULT_FONT_FAMILY[role] ? null : event.target.value)
       }
       icon={<IconChevronDown size={14} stroke={1.75} />}
-      className="w-[8.5rem] [&_select]:pr-7 [&_select]:text-caption [&_select]:dark:bg-transparent"
+      className="w-field-picker [&_select]:pr-7 [&_select]:text-caption [&_select]:dark:bg-transparent"
     >
       {FONT_FAMILIES.map((family) => (
         <option key={family} value={family}>
@@ -339,7 +282,7 @@ export function ThemePresetField({
         <button
           type="button"
           aria-label="Theme"
-          className="flex h-8 w-52 items-center gap-2 rounded-control border border-input py-[3px] pl-1 pr-2 text-left outline-none transition-colors hover:bg-muted data-[state=open]:bg-muted dark:bg-input/30"
+          className="flex h-8 w-field-picker items-center gap-2 rounded-control border border-input py-[3px] pl-1 pr-2 text-left outline-none transition-colors hover:bg-muted data-[state=open]:bg-muted dark:bg-input/30"
         >
           <ThemeBadge accent={isCustom ? accent : preset.light.accent} />
           <span className="flex-1 truncate text-caption text-foreground">
@@ -348,7 +291,7 @@ export function ThemePresetField({
           <IconChevronDown size={14} className="shrink-0 text-muted-foreground" stroke={1.75} />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="end" className="w-field-picker">
         <DropdownMenuRadioGroup value={presetId} onValueChange={onChange}>
           {THEME_PRESETS.map((option) => (
             <DropdownMenuRadioItem

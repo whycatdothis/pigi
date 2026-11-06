@@ -26,7 +26,13 @@ import {
   resolveAppearance,
   resolvedSecondaryContrast,
 } from '../../../../shared/appearanceTokens';
-import { SettingsCard, SettingsGroup, SettingsRow, SegmentedControl } from './settingsControls';
+import {
+  NumberField,
+  SettingsCard,
+  SettingsGroup,
+  SettingsRow,
+  SegmentedControl,
+} from './settingsControls';
 import { ThemeFileActions } from './themeFileActions';
 import { CodeThemeSettings } from './codeThemeSettings';
 import { DiagramThemeSettings } from './diagramThemeSettings';
@@ -35,7 +41,6 @@ import {
   ColorField,
   FontPicker,
   ModePreviewPicker,
-  NumberInput,
   SettingSwitch,
   SliderField,
   ThemePresetField,
@@ -201,7 +206,7 @@ export function AppearanceSettings(): React.JSX.Element {
           />
         </SettingsRow>
         <SettingsRow label="Text size">
-          <NumberInput
+          <NumberField
             label="Text size"
             suffix="px"
             value={slot.fonts.uiSize}
@@ -211,7 +216,7 @@ export function AppearanceSettings(): React.JSX.Element {
           />
         </SettingsRow>
         <SettingsRow label="Code font size">
-          <NumberInput
+          <NumberField
             label="Code font size"
             suffix="px"
             value={slot.fonts.codeSize}

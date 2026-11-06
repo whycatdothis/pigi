@@ -157,7 +157,7 @@ function PiSettingsSection({
 
   const setValues = useCallback(
     (updates: PiSettingUpdate[]) => {
-      void setUpdates(effectiveScope, updates);
+      setUpdates(effectiveScope, updates);
     },
     [effectiveScope, setUpdates],
   );
@@ -175,7 +175,6 @@ function PiSettingsSection({
     isOverridden,
     setValue,
     setValues,
-    saving,
     models,
   };
   const projectUntrusted =

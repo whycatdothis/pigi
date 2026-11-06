@@ -18,7 +18,6 @@ export interface PiSectionProps {
   setValue: (field: PiSettingFieldId, value: PiSettingValue | null) => void;
   /** Write several fields in one locked read-modify-write. */
   setValues: (updates: PiSettingUpdate[]) => void;
-  saving: boolean;
   /** Global model catalog for the models section. */
   models: ModelInfo[];
 }
