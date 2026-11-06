@@ -9,6 +9,7 @@ import { Toaster } from './components/ui/sonner';
 import { installDesignTokenSheet } from './dev/designTokenSheet';
 import { installDebugHandle } from './lib/debugHandle';
 import { installFocusModality } from './lib/focusModality';
+import { installSelectionDismissal } from './lib/selectionDismissal';
 import { UPDATE_PROGRESS_HASH } from '../../shared/routes';
 import { initializePigiSettings } from './state/settingsStore';
 
@@ -21,6 +22,7 @@ if (import.meta.env.DEV) {
 // there is no color flash.
 initializePigiSettings();
 installFocusModality();
+installSelectionDismissal();
 
 // Secondary windows load this same bundle and pick their UI from the hash; the
 // main window loads with none. See shared/routes.ts.

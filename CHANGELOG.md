@@ -9,7 +9,14 @@
 - Clicking an image in chat, attachments, tool output or the Files tab opens it
   enlarged, with trackpad pinch to zoom and two-finger scroll to pan
 
+### Changed
+
+- The chat column and composer are wider, 920px instead of 820px
+
 ### Fixed
+
+- Clicking outside the selected text (margins, header, sidebar) clears the
+  selection and its Quote button
 
 - Arrow-key history recall places the cursor on the first line instead of the last
 - Two-finger scroll in an enlarged Mermaid diagram pans instead of zooming

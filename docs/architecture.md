@@ -74,12 +74,12 @@ left behind would drop the cap. The Quotes
 tab keeps its cards in a 640px column, so a wide sidebar does not stretch quotes
 into long lines.
 
-The message column is capped at `MESSAGE_LIST_MAX_WIDTH` (860px). At the default
-window size the chat viewport is already wider than that cap, so hiding the
-sidebar only changes the margins: the rows keep their width and do not reflow.
-Rows do reflow below roughly sidebar width + 860px (about 1104px with the
-default 244px sidebar), so measure any width-animation concern at a narrow
-window instead of assuming the default one reproduces it.
+The message column is capped at `MESSAGE_LIST_MAX_WIDTH` (960px). Rows reflow
+when the sidebar is toggled only while the window is narrower than roughly
+sidebar width + 960px (about 1204px with the default 244px sidebar); above that,
+hiding the sidebar only changes the margins. The default 1200px window sits just
+below that line, so it reflows by a few pixels; measure any width-animation
+concern at a narrow window, where the reflow is large.
 
 Native window resizing remains CSS-driven. Keep resize measurements scoped to
 their consumers: the message minimap observes its own available width without

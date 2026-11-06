@@ -168,6 +168,8 @@ export function ThinScrollbar({
     if (!viewport) return;
     const { viewport: viewportHeight, content } = geometryRef.current;
     if (content <= viewportHeight) return;
+    // Like a native scrollbar, dragging keeps the text selection (selectionDismissal).
+    event.preventDefault();
     dragRef.current = { startY: event.clientY, startScrollTop: viewport.scrollTop };
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragging(true);

@@ -19,7 +19,7 @@ export const TOOL_BLOCK_BODY_MAX_HEIGHT_LARGE = 300;
 /** Line height (px) of monospace body rows; the heights above are multiples of it. */
 export const TOOL_BLOCK_LINE_HEIGHT = 20;
 
-export const MESSAGE_LIST_MAX_WIDTH = 860;
+export const MESSAGE_LIST_MAX_WIDTH = 960;
 export const MESSAGE_LIST_HORIZONTAL_PADDING = 20;
 export const MESSAGE_CONTENT_MAX_WIDTH =
   MESSAGE_LIST_MAX_WIDTH - MESSAGE_LIST_HORIZONTAL_PADDING * 2;
