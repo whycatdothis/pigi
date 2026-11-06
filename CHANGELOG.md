@@ -34,6 +34,8 @@
 - The update window puts its buttons beside the status instead of under it;
   a finished download offers only "Restart", and closing the window leaves
   the update in Settings
+- Terminal selection is a fixed light blue instead of following the theme
+  accent
 
 ### Fixed
 

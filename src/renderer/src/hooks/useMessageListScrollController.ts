@@ -105,6 +105,26 @@ export function useMessageListScrollController({
     wheelUpSlackRef.current = 0;
     glueToEnd();
   }, [glueToEnd]);
+  // Minimal's following phase rides the end like the other views, so it
+  // takes their input rules too; only the pin itself has its own. Leaving the
+  // phase at `following` is not enough: `handleOutputGrowth` rides the end in
+  // that phase whatever the flag says, which yanked a thumb drag back down.
+  const releaseFollow = useCallback(() => {
+    autoScrollRef.current = false;
+    const pin = pinRef.current;
+    if (pin.phase === 'following') pinRef.current = { phase: 'scrolled', turnId: pin.turnId };
+  }, []);
+  const resumeFollow = useCallback(() => {
+    // Below a pin spacer the end is blank space: flag it, but stay put until
+    // the turn ends and the spacer goes.
+    if (topPaddingPxRef.current > 0) {
+      autoScrollRef.current = true;
+      return;
+    }
+    const pin = pinRef.current;
+    if (pin.phase === 'scrolled') pinRef.current = { phase: 'following', turnId: pin.turnId };
+    engageFollow();
+  }, [engageFollow]);
   // In-flight layout-restore animation (cancelled the moment the user
   // scrolls, so their position is never yanked back).
   const restoreAnimRef = useRef<{ cancel: () => void } | null>(null);
@@ -283,26 +303,6 @@ export function useMessageListScrollController({
     });
     containerRo.observe(container);
 
-    // Minimal's following phase rides the end like the other views, so it
-    // takes their input rules too; only the pin itself has its own.
-    function releaseFollow(): void {
-      autoScrollRef.current = false;
-      const pin = pinRef.current;
-      if (pin.phase === 'following') pinRef.current = { phase: 'scrolled', turnId: pin.turnId };
-    }
-
-    function resumeFollow(): void {
-      // Below a pin spacer the end is blank space: flag it, but stay put until
-      // the turn ends and the spacer goes.
-      if (topPaddingPxRef.current > 0) {
-        autoScrollRef.current = true;
-        return;
-      }
-      const pin = pinRef.current;
-      if (pin.phase === 'scrolled') pinRef.current = { phase: 'following', turnId: pin.turnId };
-      engageFollow();
-    }
-
     function handleWheel(event: WheelEvent): void {
       restoreAnimRef.current?.cancel();
       restoreAnimRef.current = null;
@@ -389,7 +389,7 @@ export function useMessageListScrollController({
       container.removeEventListener('pointerdown', handlePointerDown);
       container.removeEventListener('scroll', handleScroll);
     };
-  }, [containerRef, engageFollow, glueToEnd, isMinimal, rowsWrapperRef]);
+  }, [containerRef, glueToEnd, isMinimal, releaseFollow, resumeFollow, rowsWrapperRef]);
 
   // Save scroll position to store on every scroll event: sentinel -1 while
   // following (the measured distance is unreliable mid-stream, see header)
@@ -714,19 +714,15 @@ export function useMessageListScrollController({
     [engageFollow, pinSentMessage, startActiveTurn],
   );
 
-  const suspendAutoScroll = useCallback(() => {
-    autoScrollRef.current = false;
-  }, []);
-
   const restoreFollow = useCallback(() => {
     const container = containerRef.current;
-    if (container && isAtBottom(container)) engageFollow();
-  }, [containerRef, engageFollow]);
+    if (container && isAtBottom(container)) resumeFollow();
+  }, [containerRef, resumeFollow]);
 
   return {
     topPaddingPx,
     showScrollButton,
-    suspendAutoScroll,
+    suspendAutoScroll: releaseFollow,
     restoreFollow,
     followAfterContentSwap: handleFollowAfterContentSwap,
     handleScrollToBottom,
