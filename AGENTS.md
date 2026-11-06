@@ -7,10 +7,8 @@ pay for itself.
 ## Workflow
 
 - Do NOT commit unless asked. Commit and release workflow: `pigi-release` skill.
-- Edit with `read` + `edit`, never `sed`; read files with `read`, not `cat`/`head`/`tail`.
 - Run `npm run check` after significant changes and read the full output.
 - Deferred follow-ups live in `docs/todo.md`: check it before working in an area it names, delete the entry when it lands.
-- `rg --type ts` covers `.ts` and `.tsx`; `--type tsx` is not a valid type.
 
 ## Code Quality
 
