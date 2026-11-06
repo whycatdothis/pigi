@@ -284,16 +284,13 @@ export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
 
   return (
     <>
-      <SettingsGroup
-        title="Startup model"
-        description="Used when pi starts a new session without an explicit model."
-      >
+      <SettingsGroup title="Startup model">
         <SettingsRow
           label="Default model"
           description={
             models.length === 0
               ? 'No models available — check providers and credentials.'
-              : 'The model new sessions start with.'
+              : undefined
           }
           hint={
             modelId ? (
@@ -349,7 +346,7 @@ export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
 
         <SettingsRow
           label="Default thinking level"
-          description="Applied at startup; per-model overrides from /model still win."
+          description="Per-model overrides from /model still win."
           hint={
             <SettingSourceTag
               isOverridden={props.isOverridden('defaultThinkingLevel')}
@@ -371,10 +368,7 @@ export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
 
 export function DeliverySettings(props: PiSectionProps): React.JSX.Element {
   return (
-    <SettingsGroup
-      title="Message delivery"
-      description="How queued messages reach a running agent."
-    >
+    <SettingsGroup title="Message delivery">
       <EnumSetting
         {...props}
         field="steeringMode"
@@ -399,7 +393,7 @@ export function DeliverySettings(props: PiSectionProps): React.JSX.Element {
         {...props}
         field="transport"
         label="Transport"
-        description="Preferred transport for providers that support more than one."
+        description="Only for providers that support more than one."
         options={[
           { value: 'auto', label: 'Auto' },
           { value: 'sse', label: 'SSE' },
@@ -411,7 +405,7 @@ export function DeliverySettings(props: PiSectionProps): React.JSX.Element {
         {...props}
         field="httpIdleTimeoutMs"
         label="HTTP idle timeout"
-        description="Abort a request when no data arrives for this long. 0 disables it."
+        description="0 disables it."
         min={0}
         step={1000}
         suffix="ms"
@@ -450,7 +444,7 @@ export function CompactionSettings(props: PiSectionProps): React.JSX.Element {
 export function RetrySettings(props: PiSectionProps): React.JSX.Element {
   return (
     <>
-      <SettingsGroup title="Agent retries" description="Retry transient failures automatically.">
+      <SettingsGroup title="Agent retries">
         <BooleanSetting {...props} field="retry.enabled" label="Enable retries" />
         <NumberSetting {...props} field="retry.maxRetries" label="Max retries" min={0} />
         <NumberSetting
@@ -466,7 +460,6 @@ export function RetrySettings(props: PiSectionProps): React.JSX.Element {
           {...props}
           field="retry.maxAgentDelayMs"
           label="Max agent delay"
-          description="Longest wait between agent-level retries."
           min={0}
           step={1000}
           suffix="ms"
@@ -513,7 +506,7 @@ export function ResourcesSettings(props: PiSectionProps): React.JSX.Element {
       </SettingsGroup>
       <SettingsGroup
         title="Resource paths"
-        description="Extra files or directories pi loads in addition to the defaults. Globs and ! exclusions are supported."
+        description="Loaded in addition to the defaults. Globs and ! exclusions work."
       >
         <ListSetting
           {...props}
@@ -556,7 +549,7 @@ export function AdvancedSettings(props: PiSectionProps): React.JSX.Element {
           {...props}
           field="sessionDir"
           label="Session directory"
-          description="Where session files are stored. Absolute, relative, or ~ paths."
+          description="Absolute, relative, or ~ paths."
           placeholder="Default pi sessions directory"
         />
       </SettingsGroup>
@@ -565,14 +558,12 @@ export function AdvancedSettings(props: PiSectionProps): React.JSX.Element {
           {...props}
           field="shellPath"
           label="Shell path"
-          description="Custom shell binary, e.g. for Cygwin on Windows."
           placeholder="System default shell"
         />
         <TextSetting
           {...props}
           field="shellCommandPrefix"
           label="Command prefix"
-          description="Prepended to every bash command."
           placeholder="e.g. shopt -s expand_aliases"
         />
         <ListSetting

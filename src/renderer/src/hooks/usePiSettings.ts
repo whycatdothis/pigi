@@ -4,11 +4,11 @@
  * The session worker owns file I/O; this hook keeps the renderer view in sync
  * with the authoritative snapshot returned by every write.
  *
- * Number fields write as the user types or steps, so writes are queued one at a
- * time: concurrent writes race for pi's file lock, which is not FIFO, and the
- * file could end on an older value. Each write shows up in the snapshot at
- * once; a returned snapshot is only taken when nothing is queued behind it,
- * otherwise it would roll the field back under the user's cursor.
+ * A number stepper writes on every click, so writes are queued one at a time:
+ * concurrent writes race for pi's file lock, which is not FIFO, and the file
+ * could end on an older value. Each write shows up in the snapshot at once; a
+ * returned snapshot, or a load, is only taken when nothing is queued, otherwise
+ * it would roll the field back to a value the queue is about to replace.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -18,6 +18,8 @@ import type {
   PiSettingsSnapshot,
   PiSettingUpdate,
 } from '../../../shared/piSettings';
+
+const SAVE_ERROR_TOAST_ID = 'pi-settings-save-error';
 
 function applyUpdates(
   snapshot: PiSettingsSnapshot,
@@ -67,7 +69,9 @@ export function usePiSettings(cwd: string | null): PiSettingsController {
       if (!result.success || !result.snapshot) {
         throw new Error(result.error ?? 'Failed to read pi settings');
       }
-      setSnapshot(result.snapshot);
+      if (queuedWritesRef.current === 0) {
+        setSnapshot(result.snapshot);
+      }
     } catch (error) {
       if (token !== loadTokenRef.current) {
         return;
@@ -116,7 +120,10 @@ export function usePiSettings(cwd: string | null): PiSettingsController {
             setSnapshot(result.snapshot);
           }
         } catch (error) {
-          toast.error(error instanceof Error ? error.message : 'Failed to save the setting');
+          // One toast for a run of failed steps, not one per click.
+          toast.error(error instanceof Error ? error.message : 'Failed to save the setting', {
+            id: SAVE_ERROR_TOAST_ID,
+          });
           // The failed value is already on screen; read back what the file holds.
           if (isLast()) {
             void load();

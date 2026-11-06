@@ -15,10 +15,7 @@ export function ChatSettings(): React.JSX.Element {
 
   return (
     <SettingsGroup>
-      <SettingsRow
-        label="Default view"
-        description="How tool calls are rendered in the transcript. Also switchable from the session toolbar."
-      >
+      <SettingsRow label="Default view" description="How tool calls are shown.">
         <SegmentedControl
           value={toolBlockViewMode}
           options={TOOL_BLOCK_VIEW_MODES.map((mode) => ({

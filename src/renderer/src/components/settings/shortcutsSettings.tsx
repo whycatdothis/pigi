@@ -177,8 +177,7 @@ export function ShortcutsSettings(): React.JSX.Element {
         })}
       </SettingsGroup>
       <SettingsHint>
-        Changes apply immediately and are stored per user. Backspace clears a shortcut while
-        recording; Esc cancels.
+        Backspace clears a shortcut while recording.
         {openSettingsDefinition && (
           <>
             {' '}

@@ -1,7 +1,7 @@
 /**
  * Presentational building blocks for the settings page. Text fields keep a
- * local draft and commit on blur/Enter; number fields also commit as they are
- * typed or stepped (see `NumberField`). The draft and its
+ * local draft and commit on blur/Enter; number fields also commit each step,
+ * and can commit as they are typed (see `NumberField`). The draft and its
  * reset-when-the-value-changes rule live in `hooks/useDraft`.
  */
 import { type ReactNode } from 'react';
@@ -218,9 +218,10 @@ export function SegmentedControl<T extends string>({
 }
 
 /**
- * A non-negative integer with a stepper. A typed value commits as it is typed
- * once it is canonical and in range, so its effect shows at once; anything else
- * (empty, leading zeros, out of range) waits for blur or Enter, which clamps.
+ * A non-negative integer with a stepper. Steps commit at once. With
+ * `commitWhileTyping`, a typed value also commits as it is typed once it is
+ * canonical and in range, so its effect shows at once; anything else (empty,
+ * leading zeros, out of range) waits for blur or Enter, which clamps.
  * Committing "1" on the way to "14" would clamp it to the minimum and rewrite
  * the draft under the cursor.
  */
@@ -235,6 +236,7 @@ export function NumberField({
   placeholder,
   disabled,
   suffix,
+  commitWhileTyping = false,
 }: {
   value: number | undefined;
   onChange: (value: number) => void;
@@ -247,6 +249,7 @@ export function NumberField({
   placeholder?: string;
   disabled?: boolean;
   suffix?: string;
+  commitWhileTyping?: boolean;
 }): React.JSX.Element {
   const formatted = value === undefined ? '' : String(value);
   const [draft, setDraft] = useDraft(formatted, (next) => next);
@@ -263,6 +266,7 @@ export function NumberField({
 
   function edit(next: string): void {
     setDraft(next);
+    if (!commitWhileTyping) return;
     const parsed = Number(next);
     if (next !== '' && String(parsed) === next && parsed === clamp(parsed) && parsed !== value) {
       onChange(parsed);
@@ -278,8 +282,16 @@ export function NumberField({
     if (onClear && value !== undefined) onClear();
   }
 
+  // An empty field means "default": stepping down from it would store the
+  // minimum, which for a timeout is "disabled", not "a bit less".
+  function canStep(direction: 1 | -1): boolean {
+    if (disabled) return false;
+    if (direction < 0) return current !== undefined && current > min;
+    return (current ?? min) < max;
+  }
+
   function stepBy(direction: 1 | -1): void {
-    settle(clamp((current ?? min) + direction * step));
+    if (canStep(direction)) settle(clamp((current ?? min) + direction * step));
   }
 
   const stepButtonClass =
@@ -310,7 +322,11 @@ export function NumberField({
             }
           }}
           inputMode="numeric"
+          role="spinbutton"
           aria-label={label}
+          aria-valuemin={min}
+          aria-valuemax={max}
+          aria-valuenow={value}
           placeholder={placeholder}
           disabled={disabled}
           className="w-full min-w-0 bg-transparent pr-7 pl-2.5 text-center font-mono text-caption tabular-nums outline-none placeholder:text-muted-foreground"
@@ -324,7 +340,7 @@ export function NumberField({
             type="button"
             tabIndex={-1}
             aria-label={`Increase ${label}`}
-            disabled={disabled || (current !== undefined && current >= max)}
+            disabled={!canStep(1)}
             onClick={() => stepBy(1)}
             className={stepButtonClass}
           >
@@ -334,7 +350,7 @@ export function NumberField({
             type="button"
             tabIndex={-1}
             aria-label={`Decrease ${label}`}
-            disabled={disabled || (current ?? min) <= min}
+            disabled={!canStep(-1)}
             onClick={() => stepBy(-1)}
             className={stepButtonClass}
           >

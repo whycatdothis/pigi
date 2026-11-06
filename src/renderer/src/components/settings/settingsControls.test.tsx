@@ -3,11 +3,14 @@
  * `StringListField` is edited in place, so its rows have to keep their identity:
  * an id reissued on commit remounts the input, and a commit happens on Enter
  * from inside the field that would then lose the caret.
+ *
+ * `NumberField` without `commitWhileTyping` writes a file per commit, so typing
+ * must wait for blur, and an empty field ("default") must not step down to 0.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach } from 'vitest';
-import { StringListField } from './settingsControls';
+import { NumberField, StringListField } from './settingsControls';
 
 afterEach(cleanup);
 
@@ -53,5 +56,35 @@ describe('StringListField', () => {
 
     expect(onCommit).toHaveBeenLastCalledWith(['one', 'three']);
     expect(screen.getAllByRole('textbox')[1]).toBe(third);
+  });
+});
+
+describe('NumberField', () => {
+  it('commits typing on blur, not per keystroke', () => {
+    const onChange = vi.fn();
+    render(<NumberField value={2000} label="Delay" step={1000} onChange={onChange} />);
+    const input = screen.getByRole('spinbutton', { name: 'Delay' });
+
+    fireEvent.change(input, { target: { value: '6' } });
+    fireEvent.change(input, { target: { value: '60' } });
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(60);
+  });
+
+  it('does not step an empty field down to the minimum', () => {
+    const onChange = vi.fn();
+    render(<NumberField value={undefined} label="Timeout" step={1000} onChange={onChange} />);
+
+    fireEvent.keyDown(screen.getByRole('spinbutton', { name: 'Timeout' }), { key: 'ArrowDown' });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Decrease Timeout' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Increase Timeout' }));
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(1000);
   });
 });

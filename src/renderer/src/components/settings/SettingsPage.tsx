@@ -89,7 +89,9 @@ export default function SettingsPage({
   // Reading pi's settings means a round trip to the session worker and two
   // reads of pi's own files. Only the pi sections need it, so only they ask.
   return sectionMeta.group === 'pi' ? (
-    <PiSettingsSection meta={sectionMeta} cwd={cwd} models={models} />
+    // Keyed by project: writes still queued for the previous one must not land
+    // in this one's view.
+    <PiSettingsSection key={cwd} meta={sectionMeta} cwd={cwd} models={models} />
   ) : (
     <PigiSettingsSection meta={sectionMeta} />
   );
@@ -241,12 +243,7 @@ function PiSettingsSection({
           )}
         </>
       }
-      footer={
-        <SettingsHint>
-          Changes are saved immediately and apply to sessions started afterwards. Run /reload in a
-          running session to apply them now.
-        </SettingsHint>
-      }
+      footer={<SettingsHint>Running sessions pick up changes after /reload.</SettingsHint>}
     >
       {unavailable ? (
         <SettingsHint>

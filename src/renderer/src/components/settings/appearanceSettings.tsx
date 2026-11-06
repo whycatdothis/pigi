@@ -189,7 +189,7 @@ export function AppearanceSettings(): React.JSX.Element {
       </SettingsGroup>
 
       <SettingsGroup title="Typography">
-        <SettingsRow label="Text font" description="Messages and the app itself, in one family.">
+        <SettingsRow label="Text font">
           <FontPicker
             role="ui"
             label="Text font"
@@ -208,6 +208,7 @@ export function AppearanceSettings(): React.JSX.Element {
         <SettingsRow label="Text size">
           <NumberField
             label="Text size"
+            commitWhileTyping
             suffix="px"
             value={slot.fonts.uiSize}
             min={UI_FONT_SIZE_MIN}
@@ -218,6 +219,7 @@ export function AppearanceSettings(): React.JSX.Element {
         <SettingsRow label="Code font size">
           <NumberField
             label="Code font size"
+            commitWhileTyping
             suffix="px"
             value={slot.fonts.codeSize}
             min={CODE_FONT_SIZE_MIN}
