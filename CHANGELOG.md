@@ -11,6 +11,7 @@
 
 ### Fixed
 
+- Arrow-key history recall places the cursor on the first line instead of the last
 - Two-finger scroll in an enlarged Mermaid diagram pans instead of zooming
 - An image inside a link opens the link instead of also enlarging
 

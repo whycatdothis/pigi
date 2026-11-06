@@ -3,8 +3,8 @@ import { useCallback, useMemo, useRef } from 'react';
 /** What history recall needs from the composer. */
 export interface HistoryComposer {
   getText: () => string;
-  /** Replace the composer text and put the caret at the end. */
-  setText: (text: string) => void;
+  /** Replace the composer text and position the caret. */
+  setText: (text: string, caret?: 'start' | 'end') => void;
   /** Caret is collapsed on the first visual line. */
   isCaretOnFirstLine: () => boolean;
   /** Caret is collapsed on the last visual line. */
@@ -53,9 +53,9 @@ export function useInputHistory(
   }, [composer]);
 
   const applyHistoryEntry = useCallback(
-    (index: number) => {
+    (index: number, caret?: 'start' | 'end') => {
       const text = index === -1 ? (savedDraftRef.current ?? '') : (userHistory[index] ?? '');
-      composer.setText(text);
+      composer.setText(text, caret);
     },
     [composer, userHistory],
   );
@@ -81,7 +81,7 @@ export function useInputHistory(
           return false;
         }
         historyIndexRef.current = nextIndex;
-        applyHistoryEntry(nextIndex);
+        applyHistoryEntry(nextIndex, 'start');
         return true;
       }
 
@@ -90,7 +90,7 @@ export function useInputHistory(
         const currentIndex = Math.min(historyIndexRef.current, userHistory.length - 1);
         // At the newest entry, pressing down restores the saved draft
         historyIndexRef.current = currentIndex === userHistory.length - 1 ? -1 : currentIndex + 1;
-        applyHistoryEntry(historyIndexRef.current);
+        applyHistoryEntry(historyIndexRef.current, 'end');
         return true;
       }
 

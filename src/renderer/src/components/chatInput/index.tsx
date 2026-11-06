@@ -267,13 +267,13 @@ export default function ChatInput({
   const composer = useMemo<HistoryComposer>(
     () => ({
       getText: () => editor.getText({ blockSeparator: TEXT_BLOCK_SEPARATOR }),
-      setText: (text) => {
+      setText: (text, caret) => {
         editor
           .chain()
           .setContent(composerDocumentFromText(text, commandNamesRef.current), {
             emitUpdate: false,
           })
-          .focus('end')
+          .focus(caret === 'start' ? 'start' : 'end')
           .run();
         exitReferenceSuggestions(editor.view);
       },
