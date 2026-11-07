@@ -1,6 +1,7 @@
 import { useContext, type ReactNode } from 'react';
 import { localFileUrl } from '../../lib/chatAttachments';
-import { useExistingFile } from '../../lib/existingFiles';
+import { useExistingFile } from '../../lib/existingPaths';
+import { FileIcon } from '../fileIcon';
 import { ChatFilesContext } from './chatFiles';
 
 /** Opens an existing file in the Files tab; the href only makes it a real, focusable link. */
@@ -27,14 +28,41 @@ export function OpenFileAnchor({
   );
 }
 
-/** Chat text naming `path`: a link to the file once it is known to exist, plain text otherwise. */
-export function FileLink({ path, children }: { path: string; children: ReactNode }): ReactNode {
+/** Leads a file link's text; sized to it. */
+export function FileLinkIcon({ path }: { path: string }): React.JSX.Element {
+  return (
+    <FileIcon
+      path={path}
+      className="my-0 mr-0.5 inline-block size-[1em] rounded-none align-[-0.125em]"
+    />
+  );
+}
+
+/**
+ * Chat text naming `path`: a link to the file once it is known to exist, plain
+ * text otherwise. Inline code keeps the icon inside its box.
+ */
+export function FileLink({
+  path,
+  inlineCode = false,
+  children,
+}: {
+  path: string;
+  inlineCode?: boolean;
+  children: ReactNode;
+}): ReactNode {
   const chatFiles = useContext(ChatFilesContext);
   const absolutePath = useExistingFile(chatFiles?.cwd ?? '', chatFiles ? path : null);
-  if (!chatFiles || !absolutePath) return children;
+  if (!chatFiles || !absolutePath) return inlineCode ? <code>{children}</code> : children;
+  const content = (
+    <>
+      <FileLinkIcon path={absolutePath} />
+      {children}
+    </>
+  );
   return (
     <OpenFileAnchor absolutePath={absolutePath} onOpenFile={chatFiles.onOpenFile}>
-      {children}
+      {inlineCode ? <code>{content}</code> : content}
     </OpenFileAnchor>
   );
 }

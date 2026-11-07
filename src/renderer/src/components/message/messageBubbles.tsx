@@ -26,7 +26,7 @@ import { MessageAttachments } from './messageAttachments';
 import { UserMessageText } from './userMessageText';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
 import { parseSlashCommand, slashCommandDisplayName } from '../../lib/slashCommands';
-import { formatWorkingDuration, type RunEnd } from '../../lib/minimalTurns';
+import { formatWorkingDuration } from '../../lib/minimalTurns';
 
 /**
  * Shared message bubbles (user / system / toolbar) used by both the classic
@@ -130,25 +130,34 @@ function MessageActionTooltip({
   );
 }
 
-function RunEndStamp({ runEnd }: { runEnd: RunEnd }): React.JSX.Element {
+/** When a finished run ended and how long it took, under its last message. */
+export function RunEndStamp({
+  endedAt,
+  durationMs,
+}: {
+  endedAt: number;
+  durationMs: number;
+}): React.JSX.Element {
   return (
-    <span
-      className="mr-1 text-caption text-muted-foreground tabular-nums"
+    <div
+      className={`text-caption text-muted-foreground tabular-nums ${ACTION_TOOLBAR_OFFSET_CLASS_NAME}`}
       data-search-ignore
       data-testid="run-end"
     >
-      {formatMessageTime(runEnd.endedAt, true)} · {formatWorkingDuration(runEnd.durationMs)}
-    </span>
+      {formatMessageTime(endedAt, true)} Worked for {formatWorkingDuration(durationMs)}
+    </div>
   );
 }
 
 export function MessageToolbar({
   node,
-  runEnd,
+  runEndedAt,
+  runDurationMs,
 }: {
   node: TranscriptNode;
-  /** Set on the last message of a finished run; always shown, unlike the hover actions. */
-  runEnd?: RunEnd;
+  /** Set on the last message of a finished run; shown above the hover actions, always. */
+  runEndedAt?: number;
+  runDurationMs?: number;
 }): React.JSX.Element {
   const text =
     node.role === 'tool'
@@ -198,19 +207,21 @@ export function MessageToolbar({
 
   return (
     <TooltipProvider delayDuration={ACTION_TOOLTIP_DELAY_MS}>
-      <div className={`flex items-center ${ACTION_TOOLBAR_OFFSET_CLASS_NAME}`}>
-        {runEnd && <RunEndStamp runEnd={runEnd} />}
-        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-          <button
-            type="button"
-            className={ACTION_BUTTON_CLASS_NAME}
-            onClick={copy}
-            aria-label="Copy message"
-          >
-            {copied ? <IconCheck size={ACTION_ICON_SIZE} /> : <IconCopy size={ACTION_ICON_SIZE} />}
-          </button>
-          {actions.length > 0 && <MessageActionTooltip disabled={disabled} actions={actions} />}
-        </div>
+      {runEndedAt !== undefined && runDurationMs !== undefined && (
+        <RunEndStamp endedAt={runEndedAt} durationMs={runDurationMs} />
+      )}
+      <div
+        className={`flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 ${ACTION_TOOLBAR_OFFSET_CLASS_NAME}`}
+      >
+        <button
+          type="button"
+          className={ACTION_BUTTON_CLASS_NAME}
+          onClick={copy}
+          aria-label="Copy message"
+        >
+          {copied ? <IconCheck size={ACTION_ICON_SIZE} /> : <IconCopy size={ACTION_ICON_SIZE} />}
+        </button>
+        {actions.length > 0 && <MessageActionTooltip disabled={disabled} actions={actions} />}
       </div>
     </TooltipProvider>
   );

@@ -14,10 +14,11 @@
   off, the view follows the reply at the bottom instead of holding your
   message at the top
 - pigi reopens the session that was open when it last closed
-- File paths in chat replies, in prose or inline code, link to the file when it
-  exists and open it in the Files tab, including files outside the project
-- Sent messages show `@file` references and completed paths as the same chips
-  the composer showed; a chip for an existing file opens it in the Files tab
+- File paths in chat replies link to the file when it exists, led by its file
+  icon, and open it in the Files tab, including files outside the project. A
+  path in prose needs a `/`; a bare file name links from inline code
+- Sent messages show `@file` references and completed paths that exist as the
+  same chips the composer showed; a file chip opens it in the Files tab
 - The last message of a finished run shows when it ended and how long the run
   took, in every chat view
 
@@ -48,6 +49,8 @@
 
 ### Fixed
 
+- An `@file` reference followed by CJK punctuation (`@a.md，`) ends at the
+  punctuation instead of taking it into the path
 - A code block or table that was part of a selection no longer stays
   highlighted after a click elsewhere in the chat clears the selection
 - Hovering the message minimap no longer lifts the chat column and composer

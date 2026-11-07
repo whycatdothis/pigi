@@ -2,14 +2,15 @@ import { findChatReferences } from './chatReferences';
 import { withoutLineSuffix } from './filePathCandidates';
 
 /**
- * A sent prompt split back into what the composer showed as chips. The prompt
- * is plain text: an `@` reference chip was sent as `@path`, and a completed
- * path chip as its absolute path, with a trailing `/` for a folder.
+ * A sent prompt split into the spans that may have been chips in the composer.
+ * The prompt is plain text: an `@` reference chip was sent as `@path`, and a
+ * completed path chip as its absolute path, so a span is only drawn as a chip
+ * once the path is known to exist.
  */
 export type UserMessageSegment =
   | { kind: 'text'; start: number; text: string }
   | { kind: 'reference'; start: number; text: string; path: string }
-  | { kind: 'path'; start: number; text: string; path: string; isDirectory: boolean };
+  | { kind: 'path'; start: number; text: string; path: string };
 
 const NO_COMMANDS: ReadonlySet<string> = new Set();
 
@@ -49,7 +50,7 @@ function pathSpans(text: string): Span[] {
     spans.push({
       start,
       end: start + path.length,
-      segment: { kind: 'path', start, text: path, path, isDirectory: path.endsWith('/') },
+      segment: { kind: 'path', start, text: path, path },
     });
   }
   return spans;

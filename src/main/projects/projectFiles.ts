@@ -2,6 +2,7 @@ import { open, readdir, stat } from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { expandHome } from './pathCompletion';
 import type {
+  ExistingPath,
   ProjectDirectoryEntry,
   ProjectDirectoryResult,
   ProjectFileResult,
@@ -150,19 +151,21 @@ export async function readProjectFile(
 }
 
 /**
- * Absolute path of each entry that names an existing regular file, else null.
- * Chat text names files relative to the session cwd, absolutely, or under `~`.
+ * Each entry that names an existing file or directory, made absolute, else null.
+ * Chat text names paths relative to the session cwd, absolutely, or under `~`.
  */
-export async function resolveExistingFiles(
+export async function resolveExistingPaths(
   cwd: string,
   paths: readonly string[],
-): Promise<(string | null)[]> {
+): Promise<(ExistingPath | null)[]> {
   return Promise.all(
     paths.slice(0, MAX_RESOLVED_PATHS).map(async (path) => {
       if (path.length === 0 || path.includes('\0')) return null;
       const absolute = resolve(cwd, expandHome(path));
       try {
-        return (await stat(absolute)).isFile() ? absolute : null;
+        const stats = await stat(absolute);
+        if (stats.isFile()) return { path: absolute, isDirectory: false };
+        return stats.isDirectory() ? { path: absolute, isDirectory: true } : null;
       } catch {
         return null;
       }

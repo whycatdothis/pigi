@@ -1,6 +1,6 @@
 /**
  * Text in chat that looks like a file path. Only a shape test: whether the file
- * exists is asked of the main process (`existingFiles.ts`), so a false positive
+ * exists is asked of the main process (`existingPaths.ts`), so a false positive
  * here costs a stat, never a wrong link.
  */
 export interface FilePathCandidate {
@@ -23,12 +23,13 @@ export function withoutLineSuffix(path: string): string {
   return path.replace(LINE_SUFFIX_PATTERN, '');
 }
 
-function isPathShaped(path: string): boolean {
+function isPathShaped(path: string, requireSlash = false): boolean {
   if (path.length === 0 || /\s/.test(path)) return false;
   if (path.startsWith('//') || path.includes('://') || path.endsWith('/')) return false;
   const name = path.slice(path.lastIndexOf('/') + 1);
   if (name === '' || name === '.' || name === '..' || name === '~') return false;
-  return path.includes('/') || EXTENSION_PATTERN.test(name);
+  if (path.includes('/')) return true;
+  return !requireSlash && EXTENSION_PATTERN.test(name);
 }
 
 /** `@src/a.ts` is how a prompt names a file; the path is what follows the `@`. */
@@ -51,7 +52,9 @@ export function findFilePathCandidates(text: string): FilePathCandidate[] {
     const body = match[0].slice(0, match[0].length - suffix.length);
     const token = body.replace(/[.-]+$/, '');
     const path = withoutReferenceMark(token);
-    if (!isPathShaped(path)) continue;
+    // A bare name in prose is more often `Node.js` or `e.g` than a file; code
+    // spans are where a reply names one.
+    if (!isPathShaped(path, true)) continue;
     const start = match.index ?? 0;
     const length = token.length === body.length ? match[0].length : token.length;
     candidates.push({ start, end: start + length, path });

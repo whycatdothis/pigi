@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { listProjectDirectory, readProjectFile, resolveExistingFiles } from './projectFiles';
+import { listProjectDirectory, readProjectFile, resolveExistingPaths } from './projectFiles';
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 let root: string;
@@ -130,10 +130,10 @@ describe('readProjectFile', () => {
   });
 });
 
-describe('resolveExistingFiles', () => {
-  it('resolves relative and absolute paths to existing files only', async () => {
+describe('resolveExistingPaths', () => {
+  it('resolves relative and absolute paths to existing files and directories', async () => {
     await expect(
-      resolveExistingFiles(root, [
+      resolveExistingPaths(root, [
         'src/app.ts',
         './README.md',
         join(outside, 'secret.txt'),
@@ -142,10 +142,10 @@ describe('resolveExistingFiles', () => {
         '',
       ]),
     ).resolves.toEqual([
-      join(root, 'src/app.ts'),
-      join(root, 'README.md'),
-      join(outside, 'secret.txt'),
-      null,
+      { path: join(root, 'src/app.ts'), isDirectory: false },
+      { path: join(root, 'README.md'), isDirectory: false },
+      { path: join(outside, 'secret.txt'), isDirectory: false },
+      { path: join(root, 'src'), isDirectory: true },
       null,
       null,
     ]);

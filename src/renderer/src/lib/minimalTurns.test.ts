@@ -134,18 +134,8 @@ test('a finished run ends on its last message, timed from the prompt', () => {
 
   expect(turnRunEnd(turn, analyzeTurn(turn, 'idle', true))).toEqual({
     node: reply,
-    runEnd: { endedAt: 61_000, durationMs: 60_000 },
+    endedAt: 61_000,
+    durationMs: 60_000,
   });
   expect(turnRunEnd(turn, analyzeTurn(turn, 'streaming', true))).toBeNull();
-});
-
-test('a run end keeps its identity across analyses, so memoized rows do not re-render', () => {
-  const turn = buildTurns([
-    user('go', 1_000),
-    assistant({ text: 'done', messageStartedAt: 2_000, messageEndedAt: 5_000 }),
-  ])[0];
-
-  const first = turnRunEnd(turn, analyzeTurn(turn, 'idle', true));
-  const second = turnRunEnd(turn, analyzeTurn(turn, 'idle', true));
-  expect(second?.runEnd).toBe(first?.runEnd);
 });

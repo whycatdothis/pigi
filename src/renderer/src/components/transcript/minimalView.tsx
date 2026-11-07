@@ -21,7 +21,7 @@ import {
 import MarkdownMessage from '../message/markdownMessage';
 import ToolBlock from '../message/ToolBlock';
 import ThinkingBlock from '../message/thinkingBlock';
-import { MessageToolbar, SystemBubble, UserBubble } from '../message/messageBubbles';
+import { MessageToolbar, RunEndStamp, SystemBubble, UserBubble } from '../message/messageBubbles';
 import { getToolCommandParts } from '../../lib/toolDisplay';
 import ShimmerText from '../message/shimmerText';
 import { cn } from '../../lib/utils';
@@ -218,6 +218,8 @@ const TurnSection = React.memo(function TurnSection({
 
   const showTimer = shouldShowTimer(analysis);
   const runEnd = turnRunEnd(turn, analysis);
+  // A system notice after the reply (compaction, a peer note) does not carry the action band.
+  const lastReply = turn.entries.findLast((node) => node.role !== 'system');
   const showIntro =
     analysis.intro !== null &&
     (analysis.isActive || (!analysis.hasTools && analysis.intro === analysis.summary));
@@ -415,12 +417,12 @@ const TurnSection = React.memo(function TurnSection({
         <div className="mt-2" data-testid="minimal-details-wrapper">
           <div className="overflow-hidden" data-testid="minimal-details">
             <div className="flex flex-col pb-1" style={{ gap: 'var(--message-surface-spacing)' }}>
-              {turn.entries.map((node, index) => (
+              {turn.entries.map((node) => (
                 <DetailItem
                   key={node.id}
                   node={node}
-                  showActions={index === turn.entries.length - 1}
-                  runEnd={runEnd?.node === node ? runEnd.runEnd : undefined}
+                  showActions={node === lastReply}
+                  runEnd={node === lastReply ? (runEnd ?? undefined) : undefined}
                 />
               ))}
             </div>
@@ -494,10 +496,13 @@ function CollapsedContent({
   pinnedRowsBeforeCurrent: React.ReactNode[];
   pinnedRowsAfterCurrent: React.ReactNode[];
   feedRow: React.ReactNode;
-  runEnd: ReturnType<typeof turnRunEnd>;
+  runEnd: RunEnd | null;
 }): React.JSX.Element {
-  const runEndOf = (node: AssistantNode): RunEnd | undefined =>
-    runEnd?.node === node ? runEnd.runEnd : undefined;
+  const showsSummary =
+    summary !== null && ((showIntro && intro === summary) || currentMsg === summary);
+  const summaryToolbar = (node: AssistantNode): React.ReactNode => (
+    <MessageToolbar node={node} runEndedAt={runEnd?.endedAt} runDurationMs={runEnd?.durationMs} />
+  );
   return (
     <div className="mt-2" data-testid="minimal-collapsed">
       <div className="overflow-hidden">
@@ -506,16 +511,14 @@ function CollapsedContent({
           {showIntro && (
             <div className="group" data-testid="minimal-intro">
               <AssistantText node={intro!} />
-              {intro === summary && <MessageToolbar node={intro!} runEnd={runEndOf(intro!)} />}
+              {intro === summary && summaryToolbar(intro!)}
             </div>
           )}
           {pinnedRowsBeforeCurrent}
           {currentMsg && (
             <div className={cn('group', showIntro && 'mt-2')} data-testid="minimal-current-msg">
               <AssistantText node={currentMsg} />
-              {currentMsg === summary && (
-                <MessageToolbar node={currentMsg} runEnd={runEndOf(currentMsg)} />
-              )}
+              {currentMsg === summary && summaryToolbar(currentMsg)}
             </div>
           )}
           {pinnedRowsAfterCurrent}
@@ -523,6 +526,10 @@ function CollapsedContent({
             <div className="flex h-[27px] items-center overflow-hidden" data-testid="minimal-feed">
               {feedRow}
             </div>
+          )}
+          {/* A run that ended on a tool call or was stopped has no summary to carry it. */}
+          {runEnd && !showsSummary && (
+            <RunEndStamp endedAt={runEnd.endedAt} durationMs={runEnd.durationMs} />
           )}
         </div>
       </div>
@@ -544,7 +551,13 @@ function DetailItem({
     return (
       <div className="group">
         <ToolBlock node={node} />
-        {showActions && <MessageToolbar node={node} runEnd={runEnd} />}
+        {showActions && (
+          <MessageToolbar
+            node={node}
+            runEndedAt={runEnd?.endedAt}
+            runDurationMs={runEnd?.durationMs}
+          />
+        )}
       </div>
     );
   }
@@ -569,7 +582,13 @@ function DetailItem({
             <AssistantText node={node} />
           </div>
         )}
-        {showActions && <MessageToolbar node={node} runEnd={runEnd} />}
+        {showActions && (
+          <MessageToolbar
+            node={node}
+            runEndedAt={runEnd?.endedAt}
+            runDurationMs={runEnd?.durationMs}
+          />
+        )}
       </div>
     );
   }

@@ -1,17 +1,17 @@
 import { useEffect, useSyncExternalStore } from 'react';
+import type { ExistingPath } from '../../../shared/ipcContract';
 import { onProjectActivity } from './projectActivity';
 
 /**
- * Which paths named in chat are existing files, shared by every message so a
- * transcript asks once per path. Lookups made in the same tick go out as one
- * IPC call per cwd.
+ * Which paths named in chat exist, shared by every message so a transcript
+ * asks once per path. Lookups made in the same tick go out as one IPC call
+ * per cwd.
  *
- * A miss is forgotten whenever an agent may have written files: a message often
- * names a file before the tool call that creates it.
+ * A miss is forgotten whenever an agent may have written files in its cwd: a
+ * message often names a file before the tool call that creates it.
  */
 
-/** Absolute path of an existing file, or null when the path names none. */
-const resolved = new Map<string, string | null>();
+const resolved = new Map<string, ExistingPath | null>();
 const inFlight = new Set<string>();
 const queued = new Map<string, Set<string>>();
 const listeners = new Set<() => void>();
@@ -32,7 +32,7 @@ function subscribe(listener: () => void): () => void {
 }
 
 async function resolveBatch(cwd: string, paths: string[]): Promise<void> {
-  const results = await window.piApi.resolveExistingFiles(cwd, paths).catch(() => []);
+  const results = await window.piApi.resolveExistingPaths(cwd, paths).catch(() => []);
   paths.forEach((path, index) => {
     const key = cacheKey(cwd, path);
     inFlight.delete(key);
@@ -57,10 +57,11 @@ function request(cwd: string, path: string): void {
   queued.set(cwd, paths);
 }
 
-onProjectActivity(() => {
+onProjectActivity((cwd) => {
+  const prefix = cacheKey(cwd, '');
   let forgot = false;
   for (const [key, value] of resolved) {
-    if (value !== null) continue;
+    if (value !== null || !key.startsWith(prefix)) continue;
     resolved.delete(key);
     forgot = true;
   }
@@ -68,14 +69,20 @@ onProjectActivity(() => {
 });
 
 /**
- * Absolute path of the file `path` names relative to `cwd`, or null while it is
- * unknown or names no file. A null `path` asks nothing.
+ * What `path` names relative to `cwd`, or null while it is unknown or names
+ * nothing. A null `path` asks nothing.
  */
-export function useExistingFile(cwd: string, path: string | null): string | null {
+export function useExistingPath(cwd: string, path: string | null): ExistingPath | null {
   const key = path === null ? null : cacheKey(cwd, path);
   const value = useSyncExternalStore(subscribe, () => (key === null ? null : resolved.get(key)));
   useEffect(() => {
     if (path !== null && value === undefined) request(cwd, path);
   }, [cwd, path, value]);
   return value ?? null;
+}
+
+/** Absolute path of the file `path` names relative to `cwd`, or null. */
+export function useExistingFile(cwd: string, path: string | null): string | null {
+  const existing = useExistingPath(cwd, path);
+  return existing && !existing.isDirectory ? existing.path : null;
 }

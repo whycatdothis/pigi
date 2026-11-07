@@ -7,9 +7,9 @@ describe('userMessageSegments', () => {
       { kind: 'text', start: 0, text: 'read ' },
       { kind: 'reference', start: 5, text: '@src/a.ts', path: 'src/a.ts' },
       { kind: 'text', start: 14, text: ' and ' },
-      { kind: 'path', start: 19, text: '/repo/b.ts', path: '/repo/b.ts', isDirectory: false },
+      { kind: 'path', start: 19, text: '/repo/b.ts', path: '/repo/b.ts' },
       { kind: 'text', start: 29, text: ':12 then ' },
-      { kind: 'path', start: 38, text: '~/notes/', path: '~/notes/', isDirectory: true },
+      { kind: 'path', start: 38, text: '~/notes/', path: '~/notes/' },
     ]);
   });
 

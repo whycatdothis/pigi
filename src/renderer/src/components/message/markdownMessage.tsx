@@ -10,10 +10,10 @@ import { ZoomableImage } from '../zoomableImage';
 import { isFenceClosed } from '../../lib/markdownFence';
 import { resolveProjectFileReference } from '../../lib/projectFileLinks';
 import { filePathFromHref } from '../../lib/filePathCandidates';
-import { useExistingFile } from '../../lib/existingFiles';
+import { useExistingFile } from '../../lib/existingPaths';
 import rehypeFilePaths, { FILE_PATH_PROPERTY } from '../../lib/rehypeFilePaths';
 import { ChatFilesContext } from './chatFiles';
-import { FileLink, OpenFileAnchor } from './fileLink';
+import { FileLink, FileLinkIcon, OpenFileAnchor } from './fileLink';
 
 const MERMAID_LANGUAGE = 'mermaid';
 
@@ -92,6 +92,7 @@ function MarkdownLink({ href, children }: React.ComponentProps<'a'>): React.JSX.
   if (chatFile && chatFiles) {
     return (
       <OpenFileAnchor absolutePath={chatFile} onOpenFile={chatFiles.onOpenFile}>
+        <FileLinkIcon path={chatFile} />
         <IsInLinkContext.Provider value>{children}</IsInLinkContext.Provider>
       </OpenFileAnchor>
     );
@@ -196,8 +197,12 @@ function MarkdownCode({
   const isStreaming = useContext(MarkdownStreamingContext);
   if (!isCodeBlock) {
     const path = markedFilePath(node);
-    const code = <code className={className}>{children}</code>;
-    return path ? <FileLink path={path}>{code}</FileLink> : code;
+    if (!path) return <code className={className}>{children}</code>;
+    return (
+      <FileLink path={path} inlineCode>
+        {children}
+      </FileLink>
+    );
   }
 
   const language = getCodeLanguage(className);

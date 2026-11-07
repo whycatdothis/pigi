@@ -85,7 +85,7 @@ export default React.memo(function MessageList({
       const analysis = analyzeTurn(turn, sessionStatus, turn === lastTurn);
       if (turn === lastTurn) isLastTurnActive = analysis.isActive;
       const end = turnRunEnd(turn, analysis);
-      if (end) runEnds.set(end.node, end.runEnd);
+      if (end) runEnds.set(end.node, end);
     }
     return {
       lastMinimalTurn: lastTurn,
@@ -384,6 +384,7 @@ export default React.memo(function MessageList({
                 const showsActions =
                   item.type === 'node' &&
                   rowShowsActions(nextReplyItem(renderItems, virtualItem.index));
+                const runEnd = showsActions ? runEnds.get(item.node) : undefined;
                 return (
                   <div
                     key={item.id}
@@ -399,9 +400,8 @@ export default React.memo(function MessageList({
                       item={item}
                       isLast={isLast}
                       showActions={showsActions}
-                      runEnd={
-                        showsActions && item.type === 'node' ? runEnds.get(item.node) : undefined
-                      }
+                      runEndedAt={runEnd?.endedAt}
+                      runDurationMs={runEnd?.durationMs}
                       sessionActive={sessionStatus !== 'idle'}
                       searchQuery={rowSearchQuery}
                       expanded={

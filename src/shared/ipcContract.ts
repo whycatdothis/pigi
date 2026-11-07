@@ -126,6 +126,12 @@ export interface ProjectDirectoryEntry {
   isDirectory: boolean;
 }
 
+/** A path named in chat that exists on disk, made absolute. */
+export interface ExistingPath {
+  path: string;
+  isDirectory: boolean;
+}
+
 export type ProjectDirectoryResult =
   | { success: true; entries: ProjectDirectoryEntry[]; truncated: boolean }
   | { success: false; error: string };
@@ -621,8 +627,8 @@ export enum PiChannel {
   ProjectFilesChanged = 'pi:project_files_changed',
   /** renderer → main: read a project file for the workspace viewer */
   ReadProjectFile = 'pi:read_project_file',
-  /** renderer → main: which paths named in chat are existing files */
-  ResolveExistingFiles = 'pi:resolve_existing_files',
+  /** renderer → main: which paths named in chat exist */
+  ResolveExistingPaths = 'pi:resolve_existing_paths',
   /** renderer → main: the app theme, so window materials follow it */
   SetAppearanceTheme = 'pi:set_appearance_theme',
   /** renderer → main: apply appearance/chat slices to pigi's settings */

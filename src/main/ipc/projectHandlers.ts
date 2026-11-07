@@ -26,7 +26,7 @@ import { completePath } from '../projects/pathCompletion';
 import {
   listProjectDirectory,
   readProjectFile,
-  resolveExistingFiles,
+  resolveExistingPaths,
 } from '../projects/projectFiles';
 import { setProjectFileWatch } from '../projects/projectFileWatch';
 
@@ -164,12 +164,12 @@ export function registerProjectHandlers(): void {
     return readProjectFile(cwd, path);
   });
 
-  ipcMain.handle(PiChannel.ResolveExistingFiles, async (_event, cwd: unknown, paths: unknown) => {
+  ipcMain.handle(PiChannel.ResolveExistingPaths, async (_event, cwd: unknown, paths: unknown) => {
     if (typeof cwd !== 'string' || cwd.trim().length === 0) return [];
     if (!Array.isArray(paths) || !paths.every((path): path is string => typeof path === 'string')) {
       return [];
     }
-    return resolveExistingFiles(cwd, paths);
+    return resolveExistingPaths(cwd, paths);
   });
 
   ipcMain.on(

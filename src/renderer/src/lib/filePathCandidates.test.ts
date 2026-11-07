@@ -21,7 +21,7 @@ describe('findFilePathCandidates', () => {
   });
 
   it('takes a path written straight into CJK prose on its own', () => {
-    expect(paths('修改了src/a.ts文件，还有README.md。')).toEqual(['src/a.ts', 'README.md']);
+    expect(paths('修改了src/a.ts文件，还有docs/b.md。')).toEqual(['src/a.ts', 'docs/b.md']);
   });
 
   it('leaves sentence punctuation out and keeps a line suffix in the link', () => {
@@ -35,6 +35,10 @@ describe('findFilePathCandidates', () => {
 
   it('ignores versions, URLs, folders and words without a path shape', () => {
     expect(paths('v1.2.3 and 1.0 and https://example.com/a.ts and src/ and hello')).toEqual([]);
+  });
+
+  it('leaves a bare name in prose to code spans', () => {
+    expect(paths('Node.js, e.g. obj.method, foo@bar.com or README.md')).toEqual([]);
   });
 
   it('reads an @ reference as the path after it', () => {

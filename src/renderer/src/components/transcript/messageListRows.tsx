@@ -12,7 +12,6 @@ import { useHighlightTextNodes } from '../../lib/highlightMatches';
 import ThinkingBlock from '../message/thinkingBlock';
 import { MessageToolbar, UserBubble, SystemBubble } from '../message/messageBubbles';
 import CollapsedReadGroup from '../message/CollapsedReadGroup';
-import type { RunEnd } from '../../lib/minimalTurns';
 
 // Memoized so that virtualizer-driven re-renders (e.g. while the bottom terminal
 // panel animates open/close and the scroll container resizes every frame) skip
@@ -22,7 +21,8 @@ export const RenderItemRenderer = React.memo(function RenderItemRenderer({
   item,
   isLast,
   showActions,
-  runEnd,
+  runEndedAt,
+  runDurationMs,
   sessionActive,
   searchQuery,
   expanded,
@@ -35,7 +35,8 @@ export const RenderItemRenderer = React.memo(function RenderItemRenderer({
   isLast: boolean;
   /** Reply actions belong to the last row of a reply, not to every row. */
   showActions: boolean;
-  runEnd?: RunEnd;
+  runEndedAt?: number;
+  runDurationMs?: number;
   sessionActive: boolean;
   searchQuery: string;
   expanded?: boolean;
@@ -64,7 +65,8 @@ export const RenderItemRenderer = React.memo(function RenderItemRenderer({
     <NodeRenderer
       node={item.node}
       showActions={showActions}
-      runEnd={runEnd}
+      runEndedAt={runEndedAt}
+      runDurationMs={runDurationMs}
       searchQuery={searchQuery}
       activeOccurrenceIndex={activeIndex}
     />
@@ -74,13 +76,15 @@ export const RenderItemRenderer = React.memo(function RenderItemRenderer({
 function NodeRenderer({
   node,
   showActions,
-  runEnd,
+  runEndedAt,
+  runDurationMs,
   searchQuery,
   activeOccurrenceIndex,
 }: {
   node: TranscriptNode;
   showActions: boolean;
-  runEnd?: RunEnd;
+  runEndedAt?: number;
+  runDurationMs?: number;
   searchQuery: string;
   activeOccurrenceIndex: number | null;
 }): React.JSX.Element {
@@ -98,7 +102,8 @@ function NodeRenderer({
         <AssistantBubble
           node={node}
           showActions={showActions}
-          runEnd={runEnd}
+          runEndedAt={runEndedAt}
+          runDurationMs={runDurationMs}
           searchQuery={searchQuery}
           activeOccurrenceIndex={activeOccurrenceIndex}
         />
@@ -108,7 +113,8 @@ function NodeRenderer({
         <ToolBubble
           node={node}
           showActions={showActions}
-          runEnd={runEnd}
+          runEndedAt={runEndedAt}
+          runDurationMs={runDurationMs}
           searchQuery={searchQuery}
           activeOccurrenceIndex={activeOccurrenceIndex}
         />
@@ -127,13 +133,15 @@ function NodeRenderer({
 function ToolBubble({
   node,
   showActions,
-  runEnd,
+  runEndedAt,
+  runDurationMs,
   searchQuery,
   activeOccurrenceIndex,
 }: {
   node: ToolNode;
   showActions: boolean;
-  runEnd?: RunEnd;
+  runEndedAt?: number;
+  runDurationMs?: number;
   searchQuery: string;
   activeOccurrenceIndex: number | null;
 }): React.JSX.Element {
@@ -143,7 +151,9 @@ function ToolBubble({
   return (
     <div ref={containerRef} className="group">
       <ToolBlock node={node} />
-      {showActions && <MessageToolbar node={node} runEnd={runEnd} />}
+      {showActions && (
+        <MessageToolbar node={node} runEndedAt={runEndedAt} runDurationMs={runDurationMs} />
+      )}
     </div>
   );
 }
@@ -151,13 +161,15 @@ function ToolBubble({
 function AssistantBubble({
   node,
   showActions,
-  runEnd,
+  runEndedAt,
+  runDurationMs,
   searchQuery,
   activeOccurrenceIndex,
 }: {
   node: AssistantNode;
   showActions: boolean;
-  runEnd?: RunEnd;
+  runEndedAt?: number;
+  runDurationMs?: number;
   searchQuery: string;
   activeOccurrenceIndex: number | null;
 }): React.JSX.Element {
@@ -202,7 +214,9 @@ function AssistantBubble({
           </div>
         )}
 
-        {showActions && <MessageToolbar node={node} runEnd={runEnd} />}
+        {showActions && (
+          <MessageToolbar node={node} runEndedAt={runEndedAt} runDurationMs={runDurationMs} />
+        )}
       </div>
     </div>
   );

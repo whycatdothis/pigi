@@ -7,6 +7,7 @@ import { UserBubble } from './messageBubbles';
 import { ChatFilesContext, type ChatFiles } from './chatFiles';
 
 const EXISTING = new Set(['src/a.ts', '/outside/notes.md']);
+const DIRECTORIES = new Set(['/data/notes/']);
 const originalPiApi = window.piApi;
 const onOpenFile = vi.fn();
 let cwd = '';
@@ -17,10 +18,15 @@ beforeEach(() => {
   cwd = `/repo-${testIndex++}`;
   window.piApi = {
     ...originalPiApi,
-    resolveExistingFiles: (base: string, paths: string[]) =>
+    resolveExistingPaths: (base: string, paths: string[]) =>
       Promise.resolve(
         paths.map((path) =>
-          EXISTING.has(path) ? (path.startsWith('/') ? path : `${base}/${path}`) : null,
+          EXISTING.has(path) || DIRECTORIES.has(path)
+            ? {
+                path: path.startsWith('/') ? path : `${base}/${path}`,
+                isDirectory: DIRECTORIES.has(path),
+              }
+            : null,
         ),
       ),
   };
@@ -44,7 +50,9 @@ describe('paths in chat markdown', () => {
     fireEvent.click(await screen.findByRole('link', { name: 'src/a.ts' }));
     expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`);
 
-    fireEvent.click(await screen.findByRole('link', { name: '/outside/notes.md' }));
+    const codeLink = await screen.findByRole('link', { name: '/outside/notes.md' });
+    expect(codeLink.querySelector('code > img')).not.toBeNull();
+    fireEvent.click(codeLink);
     expect(onOpenFile).toHaveBeenCalledWith('/outside/notes.md');
 
     expect(screen.queryByRole('link', { name: 'src/b.ts' })).toBeNull();
@@ -66,19 +74,40 @@ describe('paths in chat markdown', () => {
   });
 });
 
-describe('paths in a sent message', () => {
-  it('draws @ references and paths as chips that open existing files', async () => {
-    renderInChat(
-      <UserBubble
-        node={{ id: 'u', role: 'user', text: 'read @src/a.ts and @missing.ts', sentAt: 0 }}
-        searchQuery=""
-        activeOccurrenceIndex={null}
-      />,
-    );
+function renderSent(text: string, searchQuery = ''): void {
+  renderInChat(
+    <UserBubble
+      node={{ id: 'u', role: 'user', text, sentAt: 0 }}
+      searchQuery={searchQuery}
+      activeOccurrenceIndex={null}
+    />,
+  );
+}
 
-    expect(screen.getByTitle('missing.ts')).toHaveTextContent('missing.ts');
+describe('paths in a sent message', () => {
+  it('draws existing files as chips that open them, and folders as plain chips', async () => {
+    renderSent('read @src/a.ts in /data/notes/');
+
     fireEvent.click(await screen.findByRole('button', { name: 'a.ts' }));
     expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`);
-    expect(screen.queryByRole('button', { name: 'missing.ts' })).toBeNull();
+    expect(await screen.findByTitle('/data/notes/')).toHaveTextContent('/data/notes/');
+  });
+
+  it('leaves what names nothing on disk as text', async () => {
+    renderSent('GET /api/users/1 or @missing.ts, then @src/a.ts');
+
+    // Every lookup goes out in one batch, so the one chip marks them all answered.
+    await screen.findByRole('button', { name: 'a.ts' });
+    expect(screen.queryByTitle('/api/users/1')).toBeNull();
+    expect(screen.queryByTitle('missing.ts')).toBeNull();
+    expect(screen.queryByRole('button', { name: /api|missing/ })).toBeNull();
+  });
+
+  it('shows a chip holding a search match as its text, highlighted', async () => {
+    renderSent('read @src/a.ts', 'src');
+
+    expect(screen.getByText('src').tagName).toBe('MARK');
+    await Promise.resolve();
+    expect(screen.queryByRole('button', { name: 'a.ts' })).toBeNull();
   });
 });

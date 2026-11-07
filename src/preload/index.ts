@@ -29,6 +29,7 @@ import {
   type PickAttachmentsResult,
   type ChatAttachmentKind,
   type ProjectDirectoryResult,
+  type ExistingPath,
   type ProjectFileResult,
   type ProjectFilesChanged,
   type ProjectFileSearchResult,
@@ -352,9 +353,9 @@ const piApi = {
   readProjectFile: (cwd: string, path: string): Promise<ProjectFileResult> =>
     ipcRenderer.invoke(PiChannel.ReadProjectFile, cwd, path),
 
-  /** Absolute path of each entry that names an existing file, else null. */
-  resolveExistingFiles: (cwd: string, paths: string[]): Promise<(string | null)[]> =>
-    ipcRenderer.invoke(PiChannel.ResolveExistingFiles, cwd, paths),
+  /** Each entry that names an existing file or directory, made absolute, else null. */
+  resolveExistingPaths: (cwd: string, paths: string[]): Promise<(ExistingPath | null)[]> =>
+    ipcRenderer.invoke(PiChannel.ResolveExistingPaths, cwd, paths),
 
   /** Replace the directories and active file watched for the Files workspace. */
   watchProjectFiles: (cwd: string, directories: string[], filePath: string | null): void => {
