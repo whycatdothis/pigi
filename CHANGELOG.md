@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Stopping a response that an extension then follows with a context compaction keeps the working bar visible until the compaction ends, instead of showing the session as idle
+
 ## [0.5.4] - 2026-11-07
 
 ### Added

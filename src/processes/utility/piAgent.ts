@@ -622,7 +622,9 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
       return serializeCommand(async () => {
         session.abortCompaction();
         await session.abort();
-        setSessionBusy(session.isStreaming);
+        // abort() resolves after agent_settled, where an extension may have
+        // started a compaction; isStreaming alone would mark that idle.
+        setSessionBusy(session.isStreaming || session.isCompacting);
         return { success: true };
       });
     }
@@ -1107,7 +1109,7 @@ function attachPorts(nextControlPort: Port, nextDataPort: Port): void {
 
   controlPort = nextControlPort;
   dataPort = nextDataPort;
-  setSessionBusy(runtime.session.isStreaming);
+  setSessionBusy(runtime.session.isStreaming || runtime.session.isCompacting);
   batcher = new StreamBatcher();
   batcher.start(nextDataPort);
   unsubscribeEvents = subscribeToSession(runtime, nextDataPort, batcher);
