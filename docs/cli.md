@@ -20,8 +20,8 @@ on the same transport; the CLI shape does not change.
 
 - No TCP/HTTP endpoint, no MCP server.
 - No token auth or per-caller permission model (§9).
-- No technical recursion limit for subagents; the skill tells agents not to
-  nest them.
+- No nested subagents: `subagent.run` refuses a subagent as the parent
+  (`INVALID_PARAMS`, exit 2), so one level is all an agent can spawn.
 - No new setting for a default subagent model.
 - No single-instance lock in this work (§8); `docs/todo.md` keeps that item.
 - AppImage and snap get no PATH install (§11).
@@ -144,7 +144,8 @@ methods }`. The CLI calls it first and reports "pigi is too old"
 
 `0` success · `1` the request failed, including the session erroring or being
 aborted and pigi closing the connection mid-request · `2` usage error · `3` pigi
-could not be reached, so nothing ran.
+could not be reached, so nothing ran · `4` still running: `session wait
+--timeout` ran out (`--timeout 0` polls without waiting).
 
 stdout carries only the result (what an agent reads); progress and the child
 session path go to stderr. `--json` gives the structured result on stdout.
@@ -271,7 +272,7 @@ assistant message, so there is no half-written case to handle.
 
 ```
 ● Implement login                         2m
-  ├ ⌁ 3 subagents · 1 running  ⟳          ← group row, collapsed, first child
+  ├ 3 subagents · 1 running  ⟳            ← group row, collapsed, first child
   ├ Login (fork)                          5m
   └ Other approach (fork)                 1h
 ```
@@ -282,13 +283,14 @@ assistant message, so there is no half-written case to handle.
 2. The group is **collapsed by default** and counts as one row toward the
    five-row "show more" limit. Expansion is in-memory per parent path, not a
    setting. A new running subagent does not expand it.
-3. The collapsed row aggregates count, running (spinner) and unread (dot).
+3. The group row shows the count, running (spinner) and latest activity, but
+   no unread dot: subagents finish unattended all the time. Expanded, each
+   subagent row shows its own.
 4. Selecting a session hidden in a collapsed group (CLI path, navigation
    history) expands that group, as the "show more" auto-expand does today.
-5. Subagent rows and the group row carry an icon (e.g. tabler `IconRobot`);
-   connectors match forks.
-6. A fork of a subagent nests under that subagent; a subagent's own subagents
-   form that subagent's group.
+5. No icon on subagent rows or the group row; connectors match forks.
+6. A fork of a subagent nests under that subagent. A subagent has no subagents
+   of its own (§2); a fork of one is an ordinary session and may.
 
 ## 11. Installing `pigi` on PATH
 
@@ -348,10 +350,13 @@ the switch to `pink.pigi` (`docs/todo.md`).
 ## 12. Agent discoverability
 
 A bundled `pigi-cli` skill, loaded on demand, rather than a line in
-`PIGI_SYSTEM_PROMPT` that every session pays for. It stays short: when to use a
-subagent, triage findings instead of applying them blindly, do not nest
-subagents, give the bash call a long timeout, and run `pigi <command> --help`
-for details, so the skill does not drift from the contract.
+`PIGI_SYSTEM_PROMPT` that every session pays for. It presents `pigi` as the
+general way to operate the app and sends agents to `pigi --help` for the
+current command set, which grows. Beyond that it describes today's commands
+and their mechanics only (blocking, abort, `--detach`, no nesting, exit codes)
+and leaves flags to `pigi <command> --help`, so it does not drift from the
+contract. Workflows built on it, such as review-and-fix, belong in the user's
+own skills, not here.
 
 ## 13. Failure behavior
 

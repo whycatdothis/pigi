@@ -297,7 +297,7 @@ function waitForRunStart(path: string, start: () => Promise<void>): Promise<void
       else resolve();
     };
     const timer = setTimeout(
-      () => finish(remoteError('TIMEOUT', 'the session did not start running')),
+      () => finish(remoteError('SESSION_FAILED', 'the session did not start running', { path })),
       RUN_START_TIMEOUT_MS,
     );
     const unsubscribe = controller.subscribe(() => {
@@ -437,6 +437,12 @@ const HANDLERS: { [M in HandledMethod]: Handler<M> } = {
   },
 
   'subagent.run': async ({ task, parent, model, thinkingLevel, detach }, { signal, notify }) => {
+    // Every subagent's parent is known: its cwd comes from there.
+    if (findKnownSession(parent)?.isSubagent) {
+      fail('INVALID_PARAMS', 'a subagent cannot start subagents; do the task in this session', {
+        param: 'parent',
+      });
+    }
     const created = await createBackgroundSession(
       { parent, model, thinkingLevel },
       { subagent: true, title: chatMessageTitle(task, []) },

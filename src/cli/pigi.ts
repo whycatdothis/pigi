@@ -24,6 +24,7 @@ const EXIT_OK = 0;
 const EXIT_FAILED = 1;
 const EXIT_USAGE = 2;
 const EXIT_NOT_RUNNING = 3;
+const EXIT_STILL_RUNNING = 4;
 
 const TITLE_COLUMN_LENGTH = 80;
 
@@ -234,6 +235,7 @@ async function run(argv: string[]): Promise<number> {
         if (error.data?.reply) out(error.data.reply);
         note(error.message);
       }
+      if (error.data?.code === 'TIMEOUT') return EXIT_STILL_RUNNING;
       return USAGE_ERRORS.has(error.data?.code) ? EXIT_USAGE : EXIT_FAILED;
     }
     printResult(method, answer.result, json);

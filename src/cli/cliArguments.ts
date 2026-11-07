@@ -59,7 +59,13 @@ export function generalHelp(): string {
   for (const [, spec] of METHOD_ENTRIES) {
     lines.push(`  ${spec.command.padEnd(16)}${spec.description}`);
   }
-  lines.push('', 'Every command takes --json and --help.');
+  lines.push(
+    '',
+    'Every command takes --json and --help.',
+    '',
+    'Exit codes: 0 success, 1 failed, 2 usage error, 3 pigi not reachable,',
+    '4 still running (session wait --timeout ran out).',
+  );
   return lines.join('\n');
 }
 

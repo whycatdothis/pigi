@@ -226,6 +226,7 @@ export const RemoteErrorCode = {
   NOT_FOUND: -32002,
   /** The session errored or was aborted; `data` carries the partial reply. */
   SESSION_FAILED: -32003,
+  /** `session wait` gave up; the session is still running (CLI exit 4). */
   TIMEOUT: -32004,
   SESSION_BUSY: -32005,
 } as const;

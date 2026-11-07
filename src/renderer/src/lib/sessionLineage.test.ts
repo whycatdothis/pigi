@@ -183,9 +183,16 @@ describe('subagent groups', () => {
   });
 
   it('names the groups to open for a hidden session', () => {
-    const nested = [...sessions, session('review/check', { parent: 'review', subagent: true })];
+    // A fork of a subagent is an ordinary session and may have subagents.
+    const nested = [
+      ...sessions,
+      session('review/fork/check', { parent: 'review/fork', subagent: true }),
+    ];
 
-    expect(subagentGroupsContaining(buildLineage(nested), 'review/check')).toEqual(['a', 'review']);
+    expect(subagentGroupsContaining(buildLineage(nested), 'review/fork/check')).toEqual([
+      'a',
+      'review/fork',
+    ]);
     expect(subagentGroupsContaining(buildLineage(nested), 'fork')).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { IconLoader2, IconPencil, IconRobot } from '@tabler/icons-react';
+import { IconLoader2, IconPencil } from '@tabler/icons-react';
 import { useTypewriter } from '../../hooks/useTypewriter';
 import type { PiSessionInfo } from '../../../../shared/ipcContract';
 import { useAppStore, type SessionEntry } from '../../state/appStore';
@@ -198,7 +198,6 @@ export function SessionItem({
           <SidebarMenuSubButton asChild isActive={isActive} className={SESSION_ROW_CLASS_NAME}>
             <button type="button" onClick={onSwitch} onDoubleClick={handleStartRename}>
               <LineagePrefix row={row} />
-              {session.isSubagent && <SubagentIcon />}
               <span className="min-w-0 flex-1 truncate text-left" title={getSessionTitle(session)}>
                 {displayTitle}
               </span>
@@ -222,13 +221,10 @@ export function SessionItem({
   );
 }
 
-function SubagentIcon(): React.JSX.Element {
-  return <IconRobot aria-label="Subagent" className="size-3.5 shrink-0 text-muted-foreground" />;
-}
-
 /**
- * A parent's subagents folded into one row: how many, whether any is running
- * or unread, and the latest activity among them. Clicking opens the group.
+ * A parent's subagents folded into one row: how many, whether any is running,
+ * and the latest activity among them. Clicking opens the group. No unread dot:
+ * subagents finish unattended all the time; their own rows show it.
  */
 function SubagentGroupItem({
   row,
@@ -239,9 +235,6 @@ function SubagentGroupItem({
   sessions: Map<string, SessionEntry>;
   relativeTimeBase: number;
 }): React.JSX.Element {
-  const isUnread = useAppStore((state) =>
-    row.sessions.some((session) => state.unreadSessionPaths.has(session.path)),
-  );
   const setExpanded = useAppStore((state) => state.setSubagentGroupsExpanded);
   const runningCount = row.sessions.filter((session) =>
     isSessionRunning(session.path, sessions),
@@ -263,12 +256,11 @@ function SubagentGroupItem({
           onClick={() => setExpanded([row.parentPath], !row.expanded)}
         >
           <LineagePrefix row={row} />
-          <SubagentIcon />
           <span className="min-w-0 flex-1 truncate text-left text-muted-foreground">{label}</span>
           <SessionTrailing
             session={latest}
             isRunning={runningCount > 0}
-            isUnread={isUnread}
+            isUnread={false}
             relativeTimeBase={relativeTimeBase}
           />
         </button>
