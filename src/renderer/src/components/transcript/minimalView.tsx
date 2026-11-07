@@ -25,6 +25,7 @@ import { MessageToolbar, RunEndStamp, SystemBubble, UserBubble } from '../messag
 import { getToolCommandParts } from '../../lib/toolDisplay';
 import ShimmerText from '../message/shimmerText';
 import { cn } from '../../lib/utils';
+import { useSettingsStore } from '../../state/settingsStore';
 
 /**
  * Minimal (codex-style) activity view.
@@ -132,6 +133,10 @@ const TurnSection = React.memo(function TurnSection({
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 }): React.JSX.Element {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // Unpinned, the sent message sits at the bottom: hold room under it for the
+  // reply to start in.
+  const pinSentMessage = useSettingsStore((state) => state.chat.pinSentMessage);
+  const reservesReply = !pinSentMessage && analysis.isActive;
   const previousIsActiveRef = useRef(analysis.isActive);
 
   useEffect(() => {
@@ -384,63 +389,65 @@ const TurnSection = React.memo(function TurnSection({
         </div>
       )}
 
-      {showTimer && (
-        <div
-          className={cn(
-            'flex flex-col border-b-[0.5px] border-foreground/27',
-            detailsOpen && 'sticky top-0 z-20 bg-background',
-          )}
-        >
-          <button
-            type="button"
-            onClick={handleToggleDetails}
-            aria-expanded={detailsOpen}
-            className="flex w-full items-center gap-1.5 pt-3 pb-1 text-left"
-            data-testid="minimal-timer-row"
+      <div style={reservesReply ? { minHeight: 'var(--minimal-reply-reserve)' } : undefined}>
+        {showTimer && (
+          <div
+            className={cn(
+              'flex flex-col border-b-[0.5px] border-foreground/27',
+              detailsOpen && 'sticky top-0 z-20 bg-background',
+            )}
           >
-            <WorkingTimer
-              startAt={analysis.startAt}
-              endAt={analysis.endAt}
-              active={analysis.isActive}
-            />
-            <IconChevronRight
-              className={cn(
-                'size-4 shrink-0 text-muted-foreground/50 transition-transform',
-                detailsOpen && 'rotate-90',
-              )}
-            />
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={handleToggleDetails}
+              aria-expanded={detailsOpen}
+              className="flex w-full items-center gap-1.5 pt-3 pb-1 text-left"
+              data-testid="minimal-timer-row"
+            >
+              <WorkingTimer
+                startAt={analysis.startAt}
+                endAt={analysis.endAt}
+                active={analysis.isActive}
+              />
+              <IconChevronRight
+                className={cn(
+                  'size-4 shrink-0 text-muted-foreground/50 transition-transform',
+                  detailsOpen && 'rotate-90',
+                )}
+              />
+            </button>
+          </div>
+        )}
 
-      {detailsOpen ? (
-        <div className="mt-2" data-testid="minimal-details-wrapper">
-          <div className="overflow-hidden" data-testid="minimal-details">
-            <div className="flex flex-col pb-1" style={{ gap: 'var(--message-surface-spacing)' }}>
-              {turn.entries.map((node) => (
-                <DetailItem
-                  key={node.id}
-                  node={node}
-                  showActions={node === lastReply}
-                  runEnd={node === lastReply ? (runEnd ?? undefined) : undefined}
-                />
-              ))}
+        {detailsOpen ? (
+          <div className="mt-2" data-testid="minimal-details-wrapper">
+            <div className="overflow-hidden" data-testid="minimal-details">
+              <div className="flex flex-col pb-1" style={{ gap: 'var(--message-surface-spacing)' }}>
+                {turn.entries.map((node) => (
+                  <DetailItem
+                    key={node.id}
+                    node={node}
+                    showActions={node === lastReply}
+                    runEnd={node === lastReply ? (runEnd ?? undefined) : undefined}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <CollapsedContent
-          showIntro={showIntro}
-          intro={analysis.intro}
-          currentMsg={currentMsg}
-          summary={analysis.summary}
-          pinnedRowsBeforeIntro={pinnedRowsBeforeIntro}
-          pinnedRowsBeforeCurrent={pinnedRowsBeforeCurrent}
-          pinnedRowsAfterCurrent={pinnedRowsAfterCurrent}
-          feedRow={feedRow}
-          runEnd={runEnd}
-        />
-      )}
+        ) : (
+          <CollapsedContent
+            showIntro={showIntro}
+            intro={analysis.intro}
+            currentMsg={currentMsg}
+            summary={analysis.summary}
+            pinnedRowsBeforeIntro={pinnedRowsBeforeIntro}
+            pinnedRowsBeforeCurrent={pinnedRowsBeforeCurrent}
+            pinnedRowsAfterCurrent={pinnedRowsAfterCurrent}
+            feedRow={feedRow}
+            runEnd={runEnd}
+          />
+        )}
+      </div>
     </section>
   );
 });
@@ -529,7 +536,13 @@ function CollapsedContent({
           )}
           {/* A run that ended on a tool call or was stopped has no summary to carry it. */}
           {runEnd && !showsSummary && (
-            <RunEndStamp endedAt={runEnd.endedAt} durationMs={runEnd.durationMs} />
+            <div className="group">
+              <RunEndStamp
+                endedAt={runEnd.endedAt}
+                durationMs={runEnd.durationMs}
+                className="opacity-0 transition-opacity group-hover:opacity-100"
+              />
+            </div>
           )}
         </div>
       </div>

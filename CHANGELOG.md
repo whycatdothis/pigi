@@ -10,17 +10,18 @@
   changes on disk; SVG files get a Preview/Source toggle
 - Clicking an image in chat, attachments, tool output or the Files tab opens it
   enlarged, with trackpad pinch to zoom and two-finger scroll to pan
-- Settings → Chat → "Pin minimal view sent message" (shown in Minimal view):
-  off, the view follows the reply at the bottom instead of holding your
-  message at the top
+- Settings → Chat → "Pin minimal view sent message" (shown in Minimal view),
+  off by default: the view follows the reply at the bottom, with a few lines of
+  room under your message for the reply to start in; on, it holds your message
+  at the top
 - pigi reopens the session that was open when it last closed
 - File paths in chat replies link to the file when it exists, led by its file
   icon, and open it in the Files tab, including files outside the project. A
   path in prose needs a `/`; a bare file name links from inline code
 - Sent messages show `@file` references and completed paths that exist as the
   same chips the composer showed; a file chip opens it in the Files tab
-- The last message of a finished run shows when it ended and how long the run
-  took, in every chat view
+- Hovering the last message of a finished run shows when it ended and how long
+  the run took, next to the message actions, in every chat view
 
 ### Changed
 

@@ -25,6 +25,7 @@ import {
 import { MessageAttachments } from './messageAttachments';
 import { UserMessageText } from './userMessageText';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
+import { cn } from '../../lib/utils';
 import { parseSlashCommand, slashCommandDisplayName } from '../../lib/slashCommands';
 import { formatWorkingDuration } from '../../lib/minimalTurns';
 
@@ -130,22 +131,29 @@ function MessageActionTooltip({
   );
 }
 
-/** When a finished run ended and how long it took, under its last message. */
+/** When a finished run ended and how long it took. */
 export function RunEndStamp({
   endedAt,
   durationMs,
+  className,
 }: {
   endedAt: number;
   durationMs: number;
+  className?: string;
 }): React.JSX.Element {
   return (
-    <div
-      className={`text-caption text-muted-foreground tabular-nums ${ACTION_TOOLBAR_OFFSET_CLASS_NAME}`}
+    <span
+      className={cn(
+        'inline-flex items-center text-caption text-muted-foreground tabular-nums',
+        className,
+      )}
       data-search-ignore
       data-testid="run-end"
     >
-      {formatMessageTime(endedAt, true)} Worked for {formatWorkingDuration(durationMs)}
-    </div>
+      {formatMessageTime(endedAt, true)}
+      <span aria-hidden className="mx-2 h-[0.75em] w-px bg-current opacity-25" />
+      Worked for {formatWorkingDuration(durationMs)}
+    </span>
   );
 }
 
@@ -155,7 +163,7 @@ export function MessageToolbar({
   runDurationMs,
 }: {
   node: TranscriptNode;
-  /** Set on the last message of a finished run; shown above the hover actions, always. */
+  /** Set on the last message of a finished run; shown right of the actions. */
   runEndedAt?: number;
   runDurationMs?: number;
 }): React.JSX.Element {
@@ -207,9 +215,6 @@ export function MessageToolbar({
 
   return (
     <TooltipProvider delayDuration={ACTION_TOOLTIP_DELAY_MS}>
-      {runEndedAt !== undefined && runDurationMs !== undefined && (
-        <RunEndStamp endedAt={runEndedAt} durationMs={runDurationMs} />
-      )}
       <div
         className={`flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 ${ACTION_TOOLBAR_OFFSET_CLASS_NAME}`}
       >
@@ -222,6 +227,9 @@ export function MessageToolbar({
           {copied ? <IconCheck size={ACTION_ICON_SIZE} /> : <IconCopy size={ACTION_ICON_SIZE} />}
         </button>
         {actions.length > 0 && <MessageActionTooltip disabled={disabled} actions={actions} />}
+        {runEndedAt !== undefined && runDurationMs !== undefined && (
+          <RunEndStamp endedAt={runEndedAt} durationMs={runDurationMs} className="ml-1" />
+        )}
       </div>
     </TooltipProvider>
   );

@@ -108,7 +108,7 @@ export const TOOL_BLOCK_VIEW_MODES: readonly ToolBlockViewMode[] = [
 export const DEFAULT_PIGI_SETTINGS: PigiSettings = {
   version: PIGI_SETTINGS_VERSION,
   appearance: DEFAULT_APPEARANCE,
-  chat: { toolBlockViewMode: 'compact_read', pinSentMessage: true },
+  chat: { toolBlockViewMode: 'compact_read', pinSentMessage: false },
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {

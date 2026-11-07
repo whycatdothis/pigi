@@ -102,6 +102,10 @@
     --message-text-spacing: calc(0.8 * var(--text-body));
     --message-surface-spacing: calc(1 * var(--text-body));
     --message-kind-change-spacing: calc(1.8 * var(--text-body));
+    /* Under an unpinned sent message while it runs: the Working row and about
+       three lines, close to a short finished reply with its end stamp and
+       actions, so the turn barely moves when it ends. */
+    --minimal-reply-reserve: calc(7.5 * var(--text-body));
   }
 
   /* Rows in the middle of a reply carry no hover band, so their

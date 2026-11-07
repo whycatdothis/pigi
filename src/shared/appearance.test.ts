@@ -426,7 +426,7 @@ describe('parsePigiSettings', () => {
     expect(parsed.appearance.light.background).toBe('#f6f1e8');
     expect(parsed.appearance.mode).toBe('light');
     expect(parsed.chat.toolBlockViewMode).toBe('default');
-    expect(parsed.chat.pinSentMessage).toBe(true);
+    expect(parsed.chat.pinSentMessage).toBe(false);
     expect(parsed.appearance.diagramTheme).toBe('default');
   });
 
