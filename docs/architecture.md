@@ -209,7 +209,7 @@ one repo rarely exists in another.
 A project that is a folder inside a bigger repository (a monorepo package)
 shows only its own changes, with paths relative to the project: `diff
 --relative`, `ls-files`/`log` limited to `.`, `show <commit>:./<path>`. Quotes
-then read `@src/app.ts:L10` from the project the agent runs in, and the
+then read `@src/app.ts:10` from the project the agent runs in, and the
 untracked-file scan covers only the folder.
 
 Every git call passes `--no-optional-locks`, so a summary never takes
@@ -303,7 +303,7 @@ as it does in the chat. A file that is
 only added or only deleted drops the +/- column, the empty gutter and the gap
 rows. Quoting reuses the Files popover, gated to line cells
 (`data-diff-line`): added and context lines carry new-file line numbers and
-quote as `@src/app.ts:L10-L20`. A selection touching deleted lines has no
+quote as `@src/app.ts:10-20`. A selection touching deleted lines has no
 post-change number to point at, and a commit's numbers point into a file the
 agent cannot open, so both quote the whole touched lines as a unified diff
 under what they were compared with (`@src/app.ts, diff against origin/main:`,

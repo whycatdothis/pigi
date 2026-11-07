@@ -1,6 +1,7 @@
 import { useContext, useMemo, type ReactNode } from 'react';
 import { displayFileName } from '../../lib/chatAttachments';
 import { useExistingPath } from '../../lib/existingPaths';
+import { formatLineSuffix } from '../../lib/filePathCandidates';
 import { highlightMatches } from '../../lib/highlightMatches';
 import {
   INTERACTIVE_PATH_CHIP_CLASS,
@@ -41,10 +42,13 @@ function SentPathChip({
   if (!existing || !chatFiles) return <span>{segment.text}</span>;
 
   const isReference = segment.kind === 'reference';
+  const name = isReference ? displayFileName(segment.path) : segment.path;
   const content = (
     <>
       {!existing.isDirectory && <FileIcon path={segment.path} />}
-      <span className="truncate">{isReference ? displayFileName(segment.path) : segment.path}</span>
+      <span className="truncate">
+        {segment.lines ? `${name}${formatLineSuffix(segment.lines)}` : name}
+      </span>
     </>
   );
   if (existing.isDirectory) {
@@ -59,7 +63,7 @@ function SentPathChip({
       type="button"
       className={isReference ? INTERACTIVE_REFERENCE_CHIP_CLASS : INTERACTIVE_PATH_CHIP_CLASS}
       title={existing.path}
-      onClick={() => chatFiles.onOpenFile(existing.path)}
+      onClick={() => chatFiles.onOpenFile(existing.path, segment.lines)}
     >
       {content}
     </button>

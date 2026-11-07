@@ -1,3 +1,5 @@
+import { splitLineSuffix } from './filePathCandidates';
+
 /**
  * Inline references in the chat composer.
  *
@@ -36,9 +38,6 @@ const FILE_REFERENCE_PATTERN = /(^|[\s(])(@(?:"[^"\n]+"|[^\s@\u3000-\u303f\uff00
 /** Punctuation that usually follows a path in a sentence rather than being part of it. */
 const TRAILING_PUNCTUATION_PATTERN = /[.,;:!?)\]}]+$/;
 
-/** A viewer quote's line range, appended after the path. */
-const LINE_SUFFIX_PATTERN = /:L\d+(?:-L\d+)?$/;
-
 export interface FindChatReferencesOptions {
   /** Parse `@path` tokens. Off for pasted text, where `@` often means something else. */
   fileReferences?: boolean;
@@ -71,13 +70,11 @@ export function findChatReferences(
     const boundary = match[1];
     const token = match[2];
     const quoted = token.startsWith('@"');
-    let value = quoted ? token : token.replace(TRAILING_PUNCTUATION_PATTERN, '');
-    if (!quoted) {
-      // The viewer appends `:L10-L20` after the reference. Keep the chip's id
-      // a real path and leave the suffix as text behind it.
-      const suffix = LINE_SUFFIX_PATTERN.exec(value);
-      if (suffix) value = value.slice(0, -suffix[0].length);
-    }
+    // A quote appends `:10-20` after the reference. Keep the chip's id a real
+    // path and leave the suffix as text behind it.
+    const value = quoted
+      ? token
+      : splitLineSuffix(token.replace(TRAILING_PUNCTUATION_PATTERN, '')).path;
     if (value.length <= 1) continue;
     const start = (match.index ?? 0) + boundary.length;
     const id = quoted ? value.slice(2, -1) : value.slice(1);

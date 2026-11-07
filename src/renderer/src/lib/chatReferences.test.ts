@@ -59,14 +59,14 @@ describe('findChatReferences', () => {
   });
 
   it('keeps a viewer line suffix outside the file chip', () => {
-    const text = 'see @src/app.ts:L30-L50';
+    const text = 'see @src/app.ts:30-50';
     expect(findChatReferences(text, commands)).toEqual([
       { kind: 'file', start: 4, end: 15, value: '@src/app.ts', id: 'src/app.ts' },
     ]);
   });
 
   it('keeps a quoted path and its line suffix separate', () => {
-    const text = 'see @"docs/my notes.md":L3-L5';
+    const text = 'see @"docs/my notes.md":3-5';
     expect(findChatReferences(text, commands)).toEqual([
       {
         kind: 'file',
