@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { filePathFromCode, filePathFromHref, findFilePathCandidates } from './filePathCandidates';
+import {
+  filePathFromCode,
+  filePathFromHref,
+  findFilePathCandidates,
+  formatLineSuffix,
+  leadingLineSuffix,
+  splitLineSuffix,
+} from './filePathCandidates';
 
 function paths(text: string): string[] {
   return findFilePathCandidates(text).map((candidate) => candidate.path);
@@ -33,6 +40,14 @@ describe('findFilePathCandidates', () => {
     expect(paths('at src/a.ts:12')).toEqual(['src/a.ts']);
   });
 
+  it('reads the line range a suffix names', () => {
+    expect(
+      findFilePathCandidates('see website/src/lib/site.ts:55-56 and src/b.ts.').map(
+        (candidate) => candidate.lines,
+      ),
+    ).toEqual([{ start: 55, end: 56 }, null]);
+  });
+
   it('ignores versions, URLs, folders and words without a path shape', () => {
     expect(paths('v1.2.3 and 1.0 and https://example.com/a.ts and src/ and hello')).toEqual([]);
   });
@@ -48,8 +63,14 @@ describe('findFilePathCandidates', () => {
 
 describe('filePathFromCode', () => {
   it('accepts a span that is only a path', () => {
-    expect(filePathFromCode('src/[id]/page.tsx')).toBe('src/[id]/page.tsx');
-    expect(filePathFromCode(' package.json:3 ')).toBe('package.json');
+    expect(filePathFromCode('src/[id]/page.tsx')).toEqual({
+      path: 'src/[id]/page.tsx',
+      lines: null,
+    });
+    expect(filePathFromCode(' package.json:3 ')).toEqual({
+      path: 'package.json',
+      lines: { start: 3, end: 3 },
+    });
   });
 
   it('rejects commands and plain words', () => {
@@ -60,9 +81,44 @@ describe('filePathFromCode', () => {
 
 describe('filePathFromHref', () => {
   it('keeps local paths and drops URLs and anchors', () => {
-    expect(filePathFromHref('docs/my%20guide.md#intro')).toBe('docs/my guide.md');
-    expect(filePathFromHref('/abs/file.ts')).toBe('/abs/file.ts');
+    expect(filePathFromHref('docs/my%20guide.md#intro')).toEqual({
+      path: 'docs/my guide.md',
+      lines: null,
+    });
+    expect(filePathFromHref('/abs/file.ts#L3-L9')).toEqual({
+      path: '/abs/file.ts',
+      lines: { start: 3, end: 9 },
+    });
     expect(filePathFromHref('https://example.com')).toBeNull();
     expect(filePathFromHref('#section')).toBeNull();
+  });
+});
+
+describe('line suffixes', () => {
+  it('reads ranges, single lines and drops a column', () => {
+    expect(splitLineSuffix('src/a.ts:55-56')).toEqual({
+      path: 'src/a.ts',
+      lines: { start: 55, end: 56 },
+    });
+    expect(splitLineSuffix('src/a.ts:L30-L50').lines).toEqual({ start: 30, end: 50 });
+    expect(splitLineSuffix('src/a.ts:12:5').lines).toEqual({ start: 12, end: 12 });
+    expect(splitLineSuffix('src/a.ts:9-3').lines).toEqual({ start: 3, end: 9 });
+    expect(splitLineSuffix('src/a.ts')).toEqual({ path: 'src/a.ts', lines: null });
+  });
+
+  it('reads a suffix at the start of the text after a reference', () => {
+    expect(leadingLineSuffix(':55-56, then')).toEqual({
+      length: 6,
+      lines: { start: 55, end: 56 },
+    });
+    expect(leadingLineSuffix(' :55')).toBeNull();
+    expect(leadingLineSuffix(':12abc')).toBeNull();
+    expect(leadingLineSuffix(':12-20abc')).toBeNull();
+    expect(leadingLineSuffix('#L3-L9x')).toBeNull();
+  });
+
+  it('writes a single line and a range', () => {
+    expect(formatLineSuffix({ start: 55, end: 55 })).toBe(':55');
+    expect(formatLineSuffix({ start: 55, end: 56 })).toBe(':55-56');
   });
 });

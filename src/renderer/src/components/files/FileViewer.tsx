@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { IconAlertTriangle, IconLoader2 } from '@tabler/icons-react';
 import { cn, formatFileSize } from '../../lib/utils';
 import { formatFileContentQuote, formatFileLineQuote } from '../../lib/fileQuotes';
+import type { LineRange } from '../../lib/filePathCandidates';
 import type { QuoteContent } from '../../lib/messageQuotes';
 import {
   isBitmapImagePath,
@@ -35,6 +36,17 @@ type ViewMode = 'preview' | 'source';
 
 // Outlives the viewer, which a workspace tab switch unmounts.
 let lastViewMode: ViewMode = 'preview';
+
+/** Lines a chat link opened the file at: highlighted, and scrolled to once. */
+export interface FileLineTarget {
+  projectPath: string;
+  filePath: string;
+  lines: LineRange;
+}
+
+// Outlives the viewer too, so a remount after a tab switch keeps its remembered
+// scroll instead of jumping back to the lines.
+let lastRevealedTarget: FileLineTarget | null = null;
 
 const VIEW_MODES: readonly { value: ViewMode; label: string }[] = [
   { value: 'preview', label: 'Preview' },
@@ -117,32 +129,44 @@ export default function FileViewer({
   projectPath,
   filePath,
   fileRevision,
+  lineTarget,
   sessionPath,
   onOpenFile,
 }: {
   projectPath: string;
   filePath: string;
   fileRevision: number;
+  lineTarget: FileLineTarget | null;
   sessionPath: string | null;
   onOpenFile: (path: string) => void;
 }): React.JSX.Element {
   const isBitmap = isBitmapImagePath(filePath);
   const [fileState, setFileState] = useState<FileState>({ status: 'loading' });
-  const [viewMode, setViewModeState] = useState(lastViewMode);
+  const isMarkdown = isMarkdownPath(filePath);
+  const isSvg = isSvgPath(filePath);
+  // Line numbers exist only in the source view. Opening a file there at its
+  // lines counts as choosing it, so a remount after a tab switch comes back to
+  // whichever view the user left.
+  const [viewMode, setViewModeState] = useState<ViewMode>(
+    lineTarget && lineTarget !== lastRevealedTarget ? 'source' : lastViewMode,
+  );
+  const [sourceShownFor, setSourceShownFor] = useState(lineTarget);
+  if (lineTarget !== sourceShownFor) {
+    setSourceShownFor(lineTarget);
+    if (lineTarget) setViewModeState('source');
+  }
   const setViewMode = useCallback((mode: ViewMode) => {
     lastViewMode = mode;
     setViewModeState(mode);
   }, []);
+  const showsPreview = (isMarkdown || isSvg) && viewMode === 'preview';
   const containerRef = useRef<HTMLDivElement>(null);
   useBottomAnchoredScroll(containerRef);
   useRememberedScroll(
     containerRef,
     'file',
-    fileState.status === 'ready' ? `${projectPath}\0${filePath}\0${viewMode}` : null,
+    fileState.status === 'ready' ? `${projectPath}\0${filePath}\0${showsPreview}` : null,
   );
-  const isMarkdown = isMarkdownPath(filePath);
-  const isSvg = isSvgPath(filePath);
-  const showsPreview = (isMarkdown || isSvg) && viewMode === 'preview';
   // The revision busts the image cache, which would otherwise keep showing the old file.
   const absolutePath = isAbsoluteFilePath(filePath) ? filePath : `${projectPath}/${filePath}`;
   const imageSource = `${localFileUrl(absolutePath)}?v=${fileRevision}`;
@@ -192,6 +216,18 @@ export default function FileViewer({
       totalLines: lines.length,
     };
   }, [fileState]);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container || !lineTarget || lineTarget === lastRevealedTarget) return;
+    if (fileState.status !== 'ready' || showsPreview) return;
+    const line = container.querySelector(`[data-source-line="${lineTarget.lines.start}"]`);
+    if (!line) return;
+    lastRevealedTarget = lineTarget;
+    if (isMarkdown || isSvg) lastViewMode = 'source';
+    const offset = line.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    container.scrollTop += offset - container.clientHeight / 3;
+  }, [lineTarget, fileState.status, showsPreview, isMarkdown, isSvg]);
 
   const formatSourceQuote = useCallback(
     ({ range }: { text: string; range: Range }): QuoteContent | null => {
@@ -259,7 +295,12 @@ export default function FileViewer({
                 </div>
               ) : (
                 <div className="w-max min-w-full px-3 py-3 font-mono">
-                  <SyntaxHighlightedCode code={source.content} language={language} lineNumbers />
+                  <SyntaxHighlightedCode
+                    code={source.content}
+                    language={language}
+                    lineNumbers
+                    markedLines={lineTarget?.lines}
+                  />
                 </div>
               )}
             </>

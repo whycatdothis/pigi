@@ -62,7 +62,7 @@ export function normalizeQuoteText(text: string): string {
  *   1. > first quoted line
  *   > second quoted line
  *   the comment
- *   2. @src/app.ts:L30-L50
+ *   2. @src/app.ts:30-50
  *   3. @docs/readme.md
  *   > quoted text
  *   Global comment:

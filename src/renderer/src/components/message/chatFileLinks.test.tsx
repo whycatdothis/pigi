@@ -48,14 +48,25 @@ describe('paths in chat markdown', () => {
     renderInChat(<MarkdownMessage text="Edit src/a.ts, see `/outside/notes.md`, not src/b.ts." />);
 
     fireEvent.click(await screen.findByRole('link', { name: 'src/a.ts' }));
-    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`);
+    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`, null);
 
+    // The chip replaces the code box, as it replaces the plain text.
     const codeLink = await screen.findByRole('link', { name: '/outside/notes.md' });
-    expect(codeLink.querySelector('code > img')).not.toBeNull();
+    expect(codeLink.querySelector('img')).not.toBeNull();
+    expect(codeLink.querySelector('code')).toBeNull();
     fireEvent.click(codeLink);
-    expect(onOpenFile).toHaveBeenCalledWith('/outside/notes.md');
+    expect(onOpenFile).toHaveBeenCalledWith('/outside/notes.md', null);
 
     expect(screen.queryByRole('link', { name: 'src/b.ts' })).toBeNull();
+  });
+
+  it('opens a path at the lines its suffix names', async () => {
+    renderInChat(<MarkdownMessage text="See src/a.ts:55-56 and `src/a.ts:7`." />);
+
+    fireEvent.click(await screen.findByRole('link', { name: 'src/a.ts:55-56' }));
+    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`, { start: 55, end: 56 });
+    fireEvent.click(await screen.findByRole('link', { name: 'src/a.ts:7' }));
+    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`, { start: 7, end: 7 });
   });
 
   it('opens a relative markdown link in the Files tab', async () => {
@@ -63,7 +74,7 @@ describe('paths in chat markdown', () => {
 
     // A plain link until the file is known to exist; the title is the resolved path.
     fireEvent.click(await screen.findByTitle(`${cwd}/src/a.ts`));
-    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`);
+    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`, null);
   });
 
   it('leaves a message that is still arriving alone', async () => {
@@ -89,8 +100,15 @@ describe('paths in a sent message', () => {
     renderSent('read @src/a.ts in /data/notes/');
 
     fireEvent.click(await screen.findByRole('button', { name: 'a.ts' }));
-    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`);
+    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`, null);
     expect(await screen.findByTitle('/data/notes/')).toHaveTextContent('/data/notes/');
+  });
+
+  it('keeps a quote line range in the chip and opens the file at it', async () => {
+    renderSent('look at @src/a.ts:55-56, please');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'a.ts:55-56' }));
+    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`, { start: 55, end: 56 });
   });
 
   it('leaves what names nothing on disk as text', async () => {

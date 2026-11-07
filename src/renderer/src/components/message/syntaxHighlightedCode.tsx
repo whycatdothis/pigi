@@ -6,6 +6,7 @@ import {
   useCodeTheme,
   type HighlightedState,
 } from './codeHighlighting';
+import type { LineRange } from '../../lib/filePathCandidates';
 
 const STREAMING_HIGHLIGHT_THROTTLE_MS = 60;
 
@@ -24,17 +25,31 @@ interface SyntaxHighlightedCodeProps {
    * lines for a quote.
    */
   lineNumbers?: boolean;
+  /** Lines to highlight, with `lineNumbers`: the range a chat link opened. */
+  markedLines?: LineRange | null;
 }
 
-function codeLineClassName(lineNumbers: boolean): string {
+function isMarked(lineNumber: number, markedLines: LineRange | null | undefined): boolean {
+  return !!markedLines && lineNumber >= markedLines.start && lineNumber <= markedLines.end;
+}
+
+// The gutter is opaque so code scrolled under it stays hidden; a marked line's
+// gutter mixes the same tint the row gets from its translucent background.
+const MARKED_LINE_CLASS = 'bg-[var(--system-accent)]/10';
+const MARKED_GUTTER_CLASS =
+  'bg-[color-mix(in_srgb,var(--system-accent)_10%,var(--background))] text-[var(--system-accent)]';
+
+function codeLineClassName(lineNumbers: boolean, marked = false): string {
   // Line rows keep content-visibility off: with the w-max rows and sticky
   // gutter it showed no reliable gain, and the cost is dominated by line count.
   // Every line, empty or not and drawn or skipped, is one line box tall, as in
   // the plain text the highlight replaces: 20px against a 22.4px line made a
   // streamed block shrink when its highlight landed, jolting a followed reply.
-  return lineNumbers
-    ? 'flex min-h-5 min-w-full w-max leading-5'
-    : 'block min-h-[1lh] [content-visibility:auto] [contain-intrinsic-size:auto_1lh]';
+  if (!lineNumbers) {
+    return 'block min-h-[1lh] [content-visibility:auto] [contain-intrinsic-size:auto_1lh]';
+  }
+  const row = 'flex min-h-5 min-w-full w-max leading-5';
+  return marked ? `${row} ${MARKED_LINE_CLASS}` : row;
 }
 
 function codeClassName(lineNumbers: boolean): string {
@@ -42,25 +57,41 @@ function codeClassName(lineNumbers: boolean): string {
 }
 
 /** A sticky gutter cell, so horizontal scrolling never hides the line numbers. */
-function SourceLineNumber({ lineNumber }: { lineNumber: number }): React.JSX.Element {
+function SourceLineNumber({
+  lineNumber,
+  marked,
+}: {
+  lineNumber: number;
+  marked: boolean;
+}): React.JSX.Element {
   return (
     <span
       aria-hidden="true"
       data-search-ignore
-      className="sticky left-0 z-10 w-14 shrink-0 select-none bg-background pr-3 text-right text-muted-foreground tabular-nums"
+      className={`sticky left-0 z-10 w-14 shrink-0 select-none pr-3 text-right tabular-nums ${marked ? MARKED_GUTTER_CLASS : 'bg-background text-muted-foreground'}`}
     >
       {lineNumber}
     </span>
   );
 }
 
-function plainSourceLineNodes(code: string): React.JSX.Element[] {
-  return code.split('\n').map((line, lineIndex) => (
-    <span key={lineIndex} data-source-line={lineIndex + 1} className={codeLineClassName(true)}>
-      <SourceLineNumber lineNumber={lineIndex + 1} />
-      <span className="min-w-0 whitespace-pre">{line}</span>
-    </span>
-  ));
+function plainSourceLineNodes(
+  code: string,
+  markedLines: LineRange | null | undefined,
+): React.JSX.Element[] {
+  return code.split('\n').map((line, lineIndex) => {
+    const marked = isMarked(lineIndex + 1, markedLines);
+    return (
+      <span
+        key={lineIndex}
+        data-source-line={lineIndex + 1}
+        className={codeLineClassName(true, marked)}
+      >
+        <SourceLineNumber lineNumber={lineIndex + 1} marked={marked} />
+        <span className="min-w-0 whitespace-pre">{line}</span>
+      </span>
+    );
+  });
 }
 
 // The plain fallback can be 5,000 rows. Memoizing the built elements keeps a
@@ -68,10 +99,12 @@ function plainSourceLineNodes(code: string): React.JSX.Element[] {
 // doing no work on the highlighted path.
 const PlainSourceLines = memo(function PlainSourceLines({
   code,
+  markedLines,
 }: {
   code: string;
+  markedLines: LineRange | null | undefined;
 }): React.JSX.Element {
-  return <>{plainSourceLineNodes(code)}</>;
+  return <>{plainSourceLineNodes(code, markedLines)}</>;
 });
 
 /**
@@ -121,6 +154,7 @@ export default function SyntaxHighlightedCode({
   language,
   isStreaming = false,
   lineNumbers = false,
+  markedLines,
 }: SyntaxHighlightedCodeProps): React.JSX.Element {
   const codeTheme = useCodeTheme();
   const { codeThemeId } = codeTheme;
@@ -156,20 +190,21 @@ export default function SyntaxHighlightedCode({
           {token.content}
         </span>
       ));
+      const marked = lineNumbers && isMarked(lineIndex + 1, markedLines);
       return (
         <span
           key={lineIndex}
           data-source-line={lineNumbers ? lineIndex + 1 : undefined}
           // Skip layout/paint/raster for lines clipped by the clamp or scrolled
           // out of view; they render lazily when revealed.
-          className={codeLineClassName(lineNumbers)}
+          className={codeLineClassName(lineNumbers, marked)}
         >
-          {lineNumbers && <SourceLineNumber lineNumber={lineIndex + 1} />}
+          {lineNumbers && <SourceLineNumber lineNumber={lineIndex + 1} marked={marked} />}
           {lineNumbers ? <span className="min-w-0 whitespace-pre">{tokens}</span> : tokens}
         </span>
       );
     });
-  }, [highlightedLines, isAppendOfSource, lineNumbers]);
+  }, [highlightedLines, isAppendOfSource, lineNumbers, markedLines]);
 
   useEffect(() => {
     let cancelled = false;
@@ -207,7 +242,7 @@ export default function SyntaxHighlightedCode({
   if (!highlightedLines) {
     return (
       <code className={codeClassName(lineNumbers)}>
-        {lineNumbers ? <PlainSourceLines code={code} /> : code}
+        {lineNumbers ? <PlainSourceLines code={code} markedLines={markedLines} /> : code}
       </code>
     );
   }
@@ -223,7 +258,7 @@ export default function SyntaxHighlightedCode({
     // highlight and fall back to plain until the next highlight lands.
     return (
       <code className={codeClassName(lineNumbers)}>
-        {lineNumbers ? <PlainSourceLines code={code} /> : code}
+        {lineNumbers ? <PlainSourceLines code={code} markedLines={markedLines} /> : code}
       </code>
     );
   }

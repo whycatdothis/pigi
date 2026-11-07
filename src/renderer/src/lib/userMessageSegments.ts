@@ -1,16 +1,22 @@
 import { findChatReferences } from './chatReferences';
-import { withoutLineSuffix } from './filePathCandidates';
+import { leadingLineSuffix, splitLineSuffix, type LineRange } from './filePathCandidates';
 
 /**
  * A sent prompt split into the spans that may have been chips in the composer.
  * The prompt is plain text: an `@` reference chip was sent as `@path`, and a
  * completed path chip as its absolute path, so a span is only drawn as a chip
- * once the path is known to exist.
+ * once the path is known to exist. A line suffix (`@src/a.ts:10-20`) belongs to
+ * the chip.
  */
 export type UserMessageSegment =
   | { kind: 'text'; start: number; text: string }
-  | { kind: 'reference'; start: number; text: string; path: string }
-  | { kind: 'path'; start: number; text: string; path: string };
+  | {
+      kind: 'reference' | 'path';
+      start: number;
+      text: string;
+      path: string;
+      lines: LineRange | null;
+    };
 
 const NO_COMMANDS: ReadonlySet<string> = new Set();
 
@@ -29,16 +35,21 @@ interface Span {
 function referenceSpans(text: string): Span[] {
   return findChatReferences(text, NO_COMMANDS)
     .filter((reference) => reference.kind === 'file')
-    .map((reference) => ({
-      start: reference.start,
-      end: reference.end,
-      segment: {
-        kind: 'reference',
+    .map((reference) => {
+      const suffix = leadingLineSuffix(text.slice(reference.end));
+      const end = reference.end + (suffix?.length ?? 0);
+      return {
         start: reference.start,
-        text: reference.value,
-        path: reference.id,
-      },
-    }));
+        end,
+        segment: {
+          kind: 'reference',
+          start: reference.start,
+          text: text.slice(reference.start, end),
+          path: reference.id,
+          lines: suffix?.lines ?? null,
+        },
+      };
+    });
 }
 
 function pathSpans(text: string): Span[] {
@@ -46,11 +57,11 @@ function pathSpans(text: string): Span[] {
   for (const match of text.matchAll(ABSOLUTE_PATH_PATTERN)) {
     const start = (match.index ?? 0) + match[1].length;
     const token = match[2].replace(TRAILING_PUNCTUATION_PATTERN, '');
-    const path = withoutLineSuffix(token);
+    const { path, lines } = splitLineSuffix(token);
     spans.push({
       start,
-      end: start + path.length,
-      segment: { kind: 'path', start, text: path, path },
+      end: start + token.length,
+      segment: { kind: 'path', start, text: token, path, lines },
     });
   }
   return spans;

@@ -4,25 +4,23 @@ import { formatFileContentQuote, formatFileDiffQuote, formatFileLineQuote } from
 describe('formatFileLineQuote', () => {
   it('quotes a single source line', () => {
     expect(formatFileLineQuote('src/app.ts', 30, 30)).toEqual({
-      reference: '@src/app.ts:L30',
+      reference: '@src/app.ts:30',
       text: '',
     });
   });
 
   it('quotes a line range', () => {
     expect(formatFileLineQuote('src/service/test.js', 30, 50).reference).toBe(
-      '@src/service/test.js:L30-L50',
+      '@src/service/test.js:30-50',
     );
   });
 
   it('orders a selection made bottom-up', () => {
-    expect(formatFileLineQuote('src/app.ts', 50, 30).reference).toBe('@src/app.ts:L30-L50');
+    expect(formatFileLineQuote('src/app.ts', 50, 30).reference).toBe('@src/app.ts:30-50');
   });
 
   it('quotes paths with spaces without breaking the reference', () => {
-    expect(formatFileLineQuote('docs/my notes.md', 3, 5).reference).toBe(
-      '@"docs/my notes.md":L3-L5',
-    );
+    expect(formatFileLineQuote('docs/my notes.md', 3, 5).reference).toBe('@"docs/my notes.md":3-5');
   });
 });
 

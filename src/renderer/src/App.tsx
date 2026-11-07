@@ -89,6 +89,7 @@ import BranchSummaryPrompt from './components/sessionTree/BranchSummaryPrompt';
 import { MessageActionsContext, type MessageActions } from './components/message/messageActions';
 import { ChatFilesContext, type ChatFiles } from './components/message/chatFiles';
 import { projectRelativePath } from './lib/projectFileLinks';
+import type { LineRange } from './lib/filePathCandidates';
 import { SessionTreeHelpContext } from './components/sessionTree/sessionTreeHelp';
 import SessionTreeHelpDialog from './components/sessionTree/SessionTreeHelpDialog';
 import TerminalPanel from './components/terminal/TerminalPanel';
@@ -100,6 +101,7 @@ import { WorkspaceHeader } from './components/app/WorkspaceTabs';
 import { WelcomeScreen } from './components/app/WelcomeScreen';
 import FileSearchPalette from './components/files/FileSearchPalette';
 import FilesTab from './components/files/FilesTab';
+import type { FileLineTarget } from './components/files/FileViewer';
 import FileTreeSidebar from './components/files/FileTreeSidebar';
 import GitSidebar from './components/git/GitSidebar';
 import GitTab from './components/git/GitTab';
@@ -236,6 +238,9 @@ function App(): React.JSX.Element {
   // Re-opening the current file bumps this revision, so the viewer re-reads it
   // instead of showing what the agent changed since it was opened.
   const [fileRevision, setFileRevision] = useState(0);
+  // The lines a chat link asked for; a new object per open, so following the
+  // same link again scrolls back to them.
+  const [fileLineTarget, setFileLineTarget] = useState<FileLineTarget | null>(null);
 
   const activeSession = activeSessionPath ? (sessions.get(activeSessionPath) ?? null) : null;
   const activeProjectPath = activeProject?.path ?? null;
@@ -1357,11 +1362,13 @@ function App(): React.JSX.Element {
     }
   }, []);
 
-  const handleOpenFile = useCallback((path: string) => {
+  const handleOpenFile = useCallback((path: string, lines?: LineRange | null) => {
     const store = useAppStore.getState();
     const project = store.activeProject;
     if (!project) return;
-    store.setLastFile(project.path, projectRelativePath(project.path, path));
+    const filePath = projectRelativePath(project.path, path);
+    store.setLastFile(project.path, filePath);
+    setFileLineTarget(lines ? { projectPath: project.path, filePath, lines } : null);
     setFileRevision((revision) => revision + 1);
     store.setWorkspaceTab(WORKSPACE_TABS.files);
     store.setSidebarExpanded(true);
@@ -1870,6 +1877,12 @@ function App(): React.JSX.Element {
                           projectPath={activeProject?.path ?? null}
                           filePath={selectedFilePath}
                           fileRevision={fileRevision}
+                          lineTarget={
+                            fileLineTarget?.projectPath === activeProject?.path &&
+                            fileLineTarget?.filePath === selectedFilePath
+                              ? fileLineTarget
+                              : null
+                          }
                           sessionPath={activeSessionPath}
                           findFileShortcut={shortcutBindings?.get('files.search')}
                           onFindFile={handleOpenFileSearch}

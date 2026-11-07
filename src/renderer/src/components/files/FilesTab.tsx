@@ -11,7 +11,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '../ui/empty';
-import FileViewer from './FileViewer';
+import FileViewer, { type FileLineTarget } from './FileViewer';
 
 /**
  * The Files tab: the reader when a file is open, and the two ways to get one
@@ -21,6 +21,7 @@ export default function FilesTab({
   projectPath,
   filePath,
   fileRevision,
+  lineTarget,
   sessionPath,
   findFileShortcut,
   onFindFile,
@@ -30,6 +31,7 @@ export default function FilesTab({
   projectPath: string | null;
   filePath: string | null;
   fileRevision: number;
+  lineTarget: FileLineTarget | null;
   sessionPath: string | null;
   findFileShortcut: ShortcutBinding | undefined;
   onFindFile: () => void;
@@ -89,6 +91,7 @@ export default function FilesTab({
       projectPath={projectPath}
       filePath={filePath}
       fileRevision={fileRevision}
+      lineTarget={lineTarget}
       sessionPath={sessionPath}
       onOpenFile={onOpenFile}
     />

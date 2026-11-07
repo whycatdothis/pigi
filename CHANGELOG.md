@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- A file path in chat with a line suffix (`src/app.ts:55-56`, `:L55`, `#L55-L56`)
+  opens the file at those lines and highlights them
+
+### Changed
+
+- File paths in replies are drawn as the same chips as in sent messages, in
+  prose and in code spans alike
+- Quoted file lines read `@src/app.ts:55-56` instead of `@src/app.ts:L55-L56`,
+  and a sent message's chip includes the line range
+
 ### Fixed
 
 - Stopping a response that an extension then follows with a context compaction keeps the working bar visible until the compaction ends, instead of showing the session as idle

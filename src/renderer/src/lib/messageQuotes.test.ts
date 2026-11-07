@@ -42,7 +42,7 @@ describe('formatQuotesMessage', () => {
   it('opens a file quote with its reference, unquoted', () => {
     const message = formatQuotesMessage(
       [
-        { id: 'a', reference: '@src/app.ts:L30-L50', text: '', comment: 'Why?' },
+        { id: 'a', reference: '@src/app.ts:30-50', text: '', comment: 'Why?' },
         { id: 'b', reference: '@docs/readme.md', text: 'first\n\nthird', comment: '' },
       ],
       '',
@@ -50,7 +50,7 @@ describe('formatQuotesMessage', () => {
     expect(message).toBe(
       [
         'Comments on quotes:',
-        '1. @src/app.ts:L30-L50',
+        '1. @src/app.ts:30-50',
         'Why?',
         '2. @docs/readme.md',
         '> first',

@@ -1,4 +1,5 @@
 import { formatFileReference } from './chatReferences';
+import { formatLineSuffix } from './filePathCandidates';
 import { DIFF_LINE_PREFIX, type GitDiffSourceLine } from './gitDiffPatch';
 import type { QuoteContent } from './messageQuotes';
 
@@ -8,13 +9,8 @@ export function formatFileLineQuote(
   startLine: number,
   endLine: number,
 ): QuoteContent {
-  const first = Math.min(startLine, endLine);
-  const last = Math.max(startLine, endLine);
-  const reference = formatFileReference(path);
-  return {
-    reference: last === first ? `${reference}:L${first}` : `${reference}:L${first}-L${last}`,
-    text: '',
-  };
+  const lines = { start: Math.min(startLine, endLine), end: Math.max(startLine, endLine) };
+  return { reference: `${formatFileReference(path)}${formatLineSuffix(lines)}`, text: '' };
 }
 
 /** Rendered markdown has no source lines to point at, so the quote carries the text itself. */
