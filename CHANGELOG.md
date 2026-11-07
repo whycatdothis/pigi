@@ -42,6 +42,8 @@
 
 ### Fixed
 
+- A code block or table that was part of a selection no longer stays
+  highlighted after a click elsewhere in the chat clears the selection
 - Hovering the message minimap no longer lifts the chat column and composer
 - Image thumbnails in sent messages no longer show through the Files and Git
   tabs
