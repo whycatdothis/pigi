@@ -12,6 +12,7 @@ import {
   REMOTE_METHODS,
   REMOTE_PROTOCOL_VERSION,
   SUBAGENT_STARTED_NOTIFICATION,
+  remoteError,
   type RemoteError,
   type RemoteMethod,
   type RemoteResults,
@@ -58,8 +59,10 @@ class RemoteClient {
     socket.setEncoding('utf8');
     socket.on('data', (chunk: string) => this.receive(chunk));
     socket.on('close', () => {
+      // Exit 1, not 3: the request may have half run (a child created), so
+      // retrying it after starting pigi is not safe the way a refused connect is.
       const closed = JSON.stringify({
-        error: { code: 0, message: 'pigi closed the connection', data: { code: 'APP_NOT_READY' } },
+        error: remoteError('APP_NOT_READY', 'pigi closed the connection'),
       });
       for (const settle of this.waiting.values()) settle(closed);
       this.waiting.clear();

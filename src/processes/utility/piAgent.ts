@@ -10,7 +10,7 @@
  * One process per session. Process exits when session is destroyed.
  */
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import {
   type AgentSessionEvent,
   type AgentSessionRuntime,
@@ -142,10 +142,14 @@ class StreamBatcher {
 }
 
 /**
- * Skills shipped with the app (`resources/skills`). `out/` and `resources/` are
- * siblings both in the repo and in the asar, which Electron reads through.
+ * Skills shipped with the app (`resources/skills`), a sibling of `out/` in the
+ * repo and in the package. Packaged, it points at the unpacked copy: Electron
+ * reads the asar path for pi's read tool, but an agent's bash `cat` cannot.
  */
-const BUNDLED_SKILLS_DIRECTORY = join(__dirname, '../../../../resources/skills');
+const BUNDLED_SKILLS_DIRECTORY = join(__dirname, '../../../../resources/skills').replace(
+  `app.asar${sep}`,
+  `app.asar.unpacked${sep}`,
+);
 
 let runtime: AgentSessionRuntime | null = null;
 let batcher: StreamBatcher | null = null;

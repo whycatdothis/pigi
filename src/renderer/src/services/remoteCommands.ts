@@ -264,6 +264,20 @@ function isIdle(path: string): boolean {
 }
 
 /**
+ * The transcript controller of an exited session is disposed and never
+ * notifies again, so a wait has to hear about the exit itself.
+ */
+function onSessionExit(path: string, listener: () => void): () => void {
+  return window.piApi.onProcessExit(({ sessionPath }) => {
+    if (sessionPath === path) listener();
+  });
+}
+
+function sessionExited(path: string): RemoteError {
+  return remoteError('SESSION_FAILED', 'the session process exited', { path });
+}
+
+/**
  * Resolves once the transcript leaves `idle`, or with the error that stopped
  * the prompt first. Waiting for the start makes `session prompt` followed by
  * `session wait` safe: the wait never sees the idle state before the run.
@@ -278,6 +292,7 @@ function waitForRunStart(path: string, start: () => Promise<void>): Promise<void
       clearTimeout(timer);
       unsubscribe();
       offPush();
+      offExit();
       if (error) reject(new RemoteCommandFailure(error));
       else resolve();
     };
@@ -293,6 +308,7 @@ function waitForRunStart(path: string, start: () => Promise<void>): Promise<void
         finish(remoteError('SESSION_FAILED', message.error, { path }));
       }
     });
+    const offExit = onSessionExit(path, () => finish(sessionExited(path)));
     start().catch((error: unknown) =>
       finish(
         remoteError('SESSION_FAILED', error instanceof Error ? error.message : String(error), {
@@ -351,6 +367,7 @@ function waitForIdle(
       if (timer) clearTimeout(timer);
       unsubscribe();
       offPush();
+      offExit();
       signal.removeEventListener('abort', onAbort);
     };
     const finish = (): void => {
@@ -382,9 +399,15 @@ function waitForIdle(
     const offPush = onPush(path, (message) => {
       if (message.type === 'error') pushError = message.error;
     });
+    const offExit = onSessionExit(path, () => {
+      if (settled) return;
+      cleanup();
+      reject(new RemoteCommandFailure(sessionExited(path)));
+    });
     const unsubscribe = controller.subscribe(finish);
     signal.addEventListener('abort', onAbort);
-    finish();
+    if (signal.aborted) onAbort();
+    else finish();
   });
 }
 
@@ -418,6 +441,7 @@ const HANDLERS: { [M in HandledMethod]: Handler<M> } = {
       { parent, model, thinkingLevel },
       { subagent: true, title: chatMessageTitle(task, []) },
     );
+    if (signal.aborted) fail('SESSION_FAILED', 'cancelled', { path: created.path });
     notify(SUBAGENT_STARTED_NOTIFICATION, created);
     if (detach) {
       await promptSession(created.path, task);
@@ -428,6 +452,8 @@ const HANDLERS: { [M in HandledMethod]: Handler<M> } = {
     signal.addEventListener('abort', stopChild);
     try {
       await promptSession(created.path, task);
+      // A cancel that came while the run was starting found nothing to abort.
+      if (signal.aborted) stopChild();
       return { ...created, ...(await waitForIdle(created.path, signal)) };
     } finally {
       signal.removeEventListener('abort', stopChild);

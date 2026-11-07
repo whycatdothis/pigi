@@ -199,7 +199,6 @@ export interface RemoteResults {
     protocolVersion: number;
     appVersion: string;
     methods: RemoteMethod[];
-    deprecated: RemoteMethod[];
   };
   'session.list': { sessions: RemoteSessionSummary[] };
   'session.create': RemoteSessionCreated;

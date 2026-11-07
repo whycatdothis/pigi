@@ -128,9 +128,9 @@ answer into a finished line; `subagent.run` also sends one notification,
    flag do nothing against an older app. Clients ignore unknown result fields
    and unknown notifications.
 3. **Breaking change = new method name.** The old method stays for several
-   releases and is marked deprecated in `system.hello`.
+   releases.
 4. **Handshake.** `system.hello` returns `{ protocolVersion, appVersion,
-methods, deprecated }`. The CLI calls it first and reports "pigi is too old"
+methods }`. The CLI calls it first and reports "pigi is too old"
    on a major mismatch or a missing method. Skew is real: an auto-update
    replaces the bundle on disk while the old instance keeps running, so the old
    instance's sessions run the new CLI against the old server.
@@ -142,8 +142,9 @@ methods, deprecated }`. The CLI calls it first and reports "pigi is too old"
 
 ### Exit codes
 
-`0` success · `1` the session errored or was aborted · `2` usage error ·
-`3` pigi not running or connection failed.
+`0` success · `1` the request failed, including the session erroring or being
+aborted and pigi closing the connection mid-request · `2` usage error · `3` pigi
+could not be reached, so nothing ran.
 
 stdout carries only the result (what an agent reads); progress and the child
 session path go to stderr. `--json` gives the structured result on stdout.
@@ -151,7 +152,7 @@ session path go to stderr. `--json` gives the structured result on stdout.
 ## 7. Commands (MVP)
 
 ```
-pigi                                         open the app
+pigi                                         help; opens the app once installed (§11)
 pigi ping                                    → system.hello
 pigi session list [--cwd <dir>]
 pigi session create [--parent <path> | --parent-self] [--cwd <dir>]
@@ -382,6 +383,6 @@ on the bash card).
 - Unit: contract parsers, CLI argument parsing, the contract surface snapshot.
 - `sessionLineage.test.ts`: group placement first, collapsed row count, a fork
   of a subagent stays a fork, auto-expand on a hidden selection.
-- `sessionWorker`: marker detection, including the fork-of-subagent case.
+- `subagentMarker.test.ts`: marker detection, including the fork-of-subagent case.
 - End to end with the `pigi-debug` skill: run `pigi subagent` from a real
   session in the dev build and check the sidebar and the returned reply.

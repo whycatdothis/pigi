@@ -91,7 +91,6 @@ function hello(): RemoteResults['system.hello'] {
     protocolVersion: REMOTE_PROTOCOL_VERSION,
     appVersion: app.getVersion(),
     methods: Object.keys(REMOTE_METHODS).filter(isRemoteMethod),
-    deprecated: [],
   };
 }
 
