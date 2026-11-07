@@ -1,6 +1,9 @@
 import { ElectronAPI } from '@electron-toolkit/preload';
 import type { PigiSettingsChange, PigiSettingsReadResult } from '../shared/pigiSettings';
 import type {
+  CreateSessionOptions,
+  RemoteCommandOutput,
+  RemoteCommandRequest,
   PiCommand,
   PiPush,
   GitBranchResult,
@@ -35,6 +38,7 @@ interface PiApi {
   createSession: (
     cwd: string,
     parentSessionPath?: string,
+    options?: CreateSessionOptions,
   ) => Promise<{ success: boolean; sessionPath?: string; error?: string }>;
   resumeSession: (
     sessionPath: string,
@@ -129,6 +133,13 @@ interface PiApi {
     quitAndInstall: () => void;
     setProgressWindowContentHeight: (height: number) => void;
     onStatus: (callback: (status: UpdateStatus) => void) => () => void;
+  };
+
+  remoteControl: {
+    onCommand: (callback: (request: RemoteCommandRequest) => void) => () => void;
+    onCancel: (callback: (requestId: number) => void) => () => void;
+    send: (output: RemoteCommandOutput) => void;
+    ready: () => void;
   };
 
   // Bottom-panel terminals (one PTY per tab, keyed by id, I/O over a MessagePort each)

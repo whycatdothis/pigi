@@ -6,6 +6,7 @@
  */
 import type {
   AuthProviderInfo,
+  CreateSessionOptions,
   ClearedQueue,
   EntryTextResult,
   ForkSessionResult,
@@ -45,8 +46,12 @@ async function send<T = unknown>(sessionPath: string, command: PiCommand): Promi
 }
 
 /** Create a new session. Resolves with sessionPath when port is received. */
-export async function createSession(cwd: string, parentSessionPath?: string): Promise<string> {
-  const result = await window.piApi.createSession(cwd, parentSessionPath);
+export async function createSession(
+  cwd: string,
+  parentSessionPath?: string,
+  options?: CreateSessionOptions,
+): Promise<string> {
+  const result = await window.piApi.createSession(cwd, parentSessionPath, options);
   if (!result.success || !result.sessionPath) {
     throw new Error(result.error || 'failed to create session');
   }

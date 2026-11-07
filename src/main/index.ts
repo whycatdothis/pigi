@@ -30,6 +30,7 @@ import { configureDebugPanel, installMainDebugHandle } from './debugConfig';
 import { initializeShellEnv } from './processes/shellEnvResolver';
 import { pigiSettingsPath, readPigiSettingsFile, windowBackgroundFor } from './pigiSettingsFile';
 import { createPigiSettingsOwner } from './pigiSettingsOwner';
+import { startRemoteControlServer } from './remoteControl/remoteControlServer';
 import { parsePigiSettingsChange } from '../shared/pigiSettings';
 import { pathToFileURL } from 'node:url';
 
@@ -108,12 +109,16 @@ app.whenReady().then(() => {
   );
   scheduleBackgroundUpdateChecks();
 
+  const reopenMainWindow = (): void =>
+    openMainWindow(
+      settingsPath,
+      windowBackgroundFor(settingsOwner.current(), nativeTheme.shouldUseDarkColors),
+    );
+  startRemoteControlServer({ getWindow: getMainWindow, openWindow: reopenMainWindow });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      openMainWindow(
-        settingsPath,
-        windowBackgroundFor(settingsOwner.current(), nativeTheme.shouldUseDarkColors),
-      );
+      reopenMainWindow();
     }
   });
 });

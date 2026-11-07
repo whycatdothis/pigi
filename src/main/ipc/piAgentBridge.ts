@@ -14,6 +14,7 @@ import { createSessionWorkerProcess } from '../processes/createPiAgentProcess';
 import { PiAgentProcessPool } from './piAgentProcessPool';
 import {
   PiChannel,
+  type CreateSessionOptions,
   type ListProjectSessionsCommand,
   type ModelInfo,
   type SessionWorkerCommand,
@@ -28,6 +29,7 @@ import {
   type PiSettingsScope,
   type PiSettingUpdate,
 } from '../../shared/piSettings';
+import { THINKING_LEVEL_ORDER } from '../../shared/thinkingLevels';
 
 let sessionWorkerProcess: Electron.UtilityProcess | null = null;
 let sessionWorkerRequestId = 0;
@@ -158,6 +160,33 @@ function requestFromSessionWorker<TReply, TResult>(
     });
     proc.postMessage(command);
   });
+}
+
+/** Null when the options are malformed; undefined fields are left out. */
+function parseCreateSessionOptions(raw: unknown): CreateSessionOptions | null {
+  if (raw === undefined) return {};
+  if (typeof raw !== 'object' || raw === null) return null;
+  const model: unknown = Reflect.get(raw, 'model');
+  const thinkingLevel: unknown = Reflect.get(raw, 'thinkingLevel');
+  const subagent: unknown = Reflect.get(raw, 'subagent');
+  const options: CreateSessionOptions = {};
+  if (model !== undefined) {
+    if (typeof model !== 'object' || model === null) return null;
+    const provider: unknown = Reflect.get(model, 'provider');
+    const modelId: unknown = Reflect.get(model, 'modelId');
+    if (typeof provider !== 'string' || typeof modelId !== 'string') return null;
+    options.model = { provider, modelId };
+  }
+  if (thinkingLevel !== undefined) {
+    const level = THINKING_LEVEL_ORDER.find((candidate) => candidate === thinkingLevel);
+    if (!level) return null;
+    options.thinkingLevel = level;
+  }
+  if (subagent !== undefined) {
+    if (typeof subagent !== 'boolean') return null;
+    options.subagent = subagent;
+  }
+  return options;
 }
 
 function sendToRenderer(channel: PiChannel, data: unknown): void {
@@ -441,15 +470,27 @@ export function registerIpcHandlers(): void {
   startSessionWorker();
   processPool.ensureWarmProcess();
 
-  ipcMain.handle(PiChannel.CreateSession, async (_e, cwd: string, parentSessionPath?: string) => {
-    if (!cwd || typeof cwd !== 'string') {
-      return { success: false, error: 'cwd must be a non-empty string' };
-    }
-    if (parentSessionPath !== undefined && typeof parentSessionPath !== 'string') {
-      return { success: false, error: 'parentSessionPath must be a string' };
-    }
-    return spawnSessionProcess({ type: 'create_session', cwd, parentSessionPath });
-  });
+  ipcMain.handle(
+    PiChannel.CreateSession,
+    async (_e, cwd: string, parentSessionPath?: string, options?: unknown) => {
+      if (!cwd || typeof cwd !== 'string') {
+        return { success: false, error: 'cwd must be a non-empty string' };
+      }
+      if (parentSessionPath !== undefined && typeof parentSessionPath !== 'string') {
+        return { success: false, error: 'parentSessionPath must be a string' };
+      }
+      const parsedOptions = parseCreateSessionOptions(options);
+      if (parsedOptions === null) {
+        return { success: false, error: 'invalid session options' };
+      }
+      return spawnSessionProcess({
+        type: 'create_session',
+        cwd,
+        parentSessionPath,
+        options: parsedOptions,
+      });
+    },
+  );
 
   ipcMain.handle(PiChannel.ResumeSession, async (_e, sessionPath: string) => {
     if (!sessionPath || typeof sessionPath !== 'string' || sessionPath.trim().length === 0) {

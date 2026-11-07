@@ -7,11 +7,16 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { PiSessionInfo } from '../../../shared/ipcContract';
-import { buildLineage, flattenLineage, type LineageRow } from './sessionLineage';
+import {
+  buildLineage,
+  flattenLineage,
+  subagentGroupsContaining,
+  type LineageRow,
+} from './sessionLineage';
 
 function session(
   path: string,
-  options: { parent?: string; modified?: string } = {},
+  options: { parent?: string; modified?: string; subagent?: boolean } = {},
 ): PiSessionInfo {
   const modified = options.modified ?? '2026-01-01T00:00:00.000Z';
   return {
@@ -19,6 +24,7 @@ function session(
     id: path,
     cwd: '/repo',
     parentSessionPath: options.parent,
+    isSubagent: options.subagent,
     created: '2026-01-01T00:00:00.000Z',
     modified,
     messageCount: 0,
@@ -27,9 +33,22 @@ function session(
   };
 }
 
-/** `path@depth`, with `!` on the last sibling, in render order. */
+/**
+ * `path@depth`, with `!` on the last sibling, in render order; a subagent group
+ * is `[n subagents of parent]`.
+ */
 function outline(rows: LineageRow[]): string[] {
-  return rows.map((row) => `${row.session.path}@${row.depth}${row.isLast ? '!' : ''}`);
+  return rows.map((row) => {
+    const label =
+      row.kind === 'session'
+        ? row.session.path
+        : `[${row.sessions.length} subagents of ${row.parentPath}]`;
+    return `${label}@${row.depth}${row.isLast ? '!' : ''}`;
+  });
+}
+
+function sessionPaths(rows: LineageRow[]): string[] {
+  return rows.flatMap((row) => (row.kind === 'session' ? [row.session.path] : []));
 }
 
 describe('buildLineage', () => {
@@ -69,7 +88,7 @@ describe('buildLineage', () => {
       buildLineage([session('a', { parent: 'b' }), session('b', { parent: 'a' })]),
     );
 
-    expect(rows.map((row) => row.session.path).sort()).toEqual(['a', 'b']);
+    expect(sessionPaths(rows).sort()).toEqual(['a', 'b']);
   });
 
   it('matches a Windows parent by ignoring case, and looks past it for lineage', () => {
@@ -110,7 +129,9 @@ describe('flattenLineage', () => {
   });
 
   it('marks a column as running on when that ancestor has a sibling below it', () => {
-    const byPath = new Map(rows.map((row) => [row.session.path, row]));
+    const byPath = new Map(
+      rows.flatMap((row) => (row.kind === 'session' ? [[row.session.path, row] as const] : [])),
+    );
 
     // `b` opens its own column, which closes at `b`.
     expect(byPath.get('b')?.ancestorContinues).toEqual([]);
@@ -118,5 +139,53 @@ describe('flattenLineage', () => {
     // at `b`'s column runs past `d` down to `c`.
     expect(byPath.get('d')?.ancestorContinues).toEqual([true]);
     expect(byPath.get('c')?.ancestorContinues).toEqual([]);
+  });
+});
+
+describe('subagent groups', () => {
+  const sessions = [
+    session('a', { modified: '2026-01-01T00:00:00.000Z' }),
+    // Newer than the fork, still placed after the group.
+    session('fork', { parent: 'a', modified: '2026-01-02T00:00:00.000Z' }),
+    session('review', { parent: 'a', subagent: true, modified: '2026-01-03T00:00:00.000Z' }),
+    session('tests', { parent: 'a', subagent: true, modified: '2026-01-04T00:00:00.000Z' }),
+    session('review/fork', { parent: 'review', modified: '2026-01-05T00:00:00.000Z' }),
+  ];
+
+  it('places the group first under its parent, collapsed to one row', () => {
+    const rows = flattenLineage(buildLineage(sessions));
+
+    expect(outline(rows)).toEqual(['a@0!', '[3 subagents of a]@1', 'fork@1!']);
+  });
+
+  it('lists the subagents, newest first, under an expanded group', () => {
+    const rows = flattenLineage(buildLineage(sessions), new Set(['a']));
+
+    expect(outline(rows)).toEqual([
+      'a@0!',
+      '[3 subagents of a]@1',
+      'review@2',
+      'review/fork@3!',
+      'tests@2!',
+      'fork@1!',
+    ]);
+    // The group's column runs on past its sessions down to `fork`.
+    const tests = rows.find((row) => row.kind === 'session' && row.session.path === 'tests');
+    expect(tests?.ancestorContinues).toEqual([true]);
+  });
+
+  it('keeps a fork of a subagent a fork, nested under that subagent', () => {
+    const rows = flattenLineage(buildLineage(sessions), new Set(['a']));
+    const fork = rows.find((row) => row.kind === 'session' && row.session.path === 'review/fork');
+
+    expect(fork?.kind === 'session' && fork.session.isSubagent).toBeFalsy();
+    expect(fork?.depth).toBe(3);
+  });
+
+  it('names the groups to open for a hidden session', () => {
+    const nested = [...sessions, session('review/check', { parent: 'review', subagent: true })];
+
+    expect(subagentGroupsContaining(buildLineage(nested), 'review/check')).toEqual(['a', 'review']);
+    expect(subagentGroupsContaining(buildLineage(nested), 'fork')).toEqual([]);
   });
 });

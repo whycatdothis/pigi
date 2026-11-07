@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- A `pigi` command for agents and terminals inside pigi. `pigi subagent "<task>"`
+  runs the task in a fresh child session of the calling one, with the same
+  model and thinking level unless `--model` or `--thinking` says otherwise, and
+  prints its final reply, for example to have a second session review the
+  first one's changes. `pigi session list|create|prompt|wait` drive other
+  sessions; a bundled `pigi-cli` skill tells agents when to use it
+- Subagent sessions gather in one collapsed row, first under their parent in
+  the sidebar, with their count, running state and unread dot
+- A failed update offers "Download pigi" to install the latest release by hand
+
 ## [0.5.3] - 2026-11-07
 
 ### Added

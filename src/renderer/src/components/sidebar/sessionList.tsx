@@ -1,9 +1,16 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { IconLoader2, IconPencil } from '@tabler/icons-react';
+import { IconLoader2, IconPencil, IconRobot } from '@tabler/icons-react';
 import { useTypewriter } from '../../hooks/useTypewriter';
 import type { PiSessionInfo } from '../../../../shared/ipcContract';
 import { useAppStore, type SessionEntry } from '../../state/appStore';
-import { buildLineage, flattenLineage, type LineageRow } from '../../lib/sessionLineage';
+import {
+  buildLineage,
+  flattenLineage,
+  subagentGroupsContaining,
+  type LineageRow,
+  type SessionLineageRow,
+  type SubagentGroupRow,
+} from '../../lib/sessionLineage';
 import { useRenameSuppress } from '../../hooks/useRenameSuppress';
 import { SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem } from '../ui/sidebar';
 import {
@@ -20,7 +27,7 @@ import { formatDateTime, getSessionTitle, isSessionRunning } from './utils';
 const SESSION_ROW_CLASS_NAME = 'w-full justify-start pl-6 text-left text-sidebar-foreground/85';
 
 interface SessionItemProps {
-  row: LineageRow;
+  row: SessionLineageRow;
   isActive: boolean;
   isRunning: boolean;
   relativeTimeBase: number;
@@ -36,7 +43,11 @@ interface SessionItemProps {
 const LINEAGE_INDENT_PX = 12;
 const LINEAGE_MAX_DEPTH = 3;
 
-function LineagePrefix({ row }: { row: LineageRow }): React.JSX.Element | null {
+function LineagePrefix({
+  row,
+}: {
+  row: Pick<LineageRow, 'depth' | 'isLast' | 'ancestorContinues'>;
+}): React.JSX.Element | null {
   if (row.depth === 0) return null;
   // Deeper forks than the indent step allows keep the innermost columns:
   // a staircase off the sidebar's edge says less than the last few levels do.
@@ -187,6 +198,7 @@ export function SessionItem({
           <SidebarMenuSubButton asChild isActive={isActive} className={SESSION_ROW_CLASS_NAME}>
             <button type="button" onClick={onSwitch} onDoubleClick={handleStartRename}>
               <LineagePrefix row={row} />
+              {session.isSubagent && <SubagentIcon />}
               <span className="min-w-0 flex-1 truncate text-left" title={getSessionTitle(session)}>
                 {displayTitle}
               </span>
@@ -207,6 +219,61 @@ export function SessionItem({
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenuRoot>
+  );
+}
+
+function SubagentIcon(): React.JSX.Element {
+  return <IconRobot aria-label="Subagent" className="size-3.5 shrink-0 text-muted-foreground" />;
+}
+
+/**
+ * A parent's subagents folded into one row: how many, whether any is running
+ * or unread, and the latest activity among them. Clicking opens the group.
+ */
+function SubagentGroupItem({
+  row,
+  sessions,
+  relativeTimeBase,
+}: {
+  row: SubagentGroupRow;
+  sessions: Map<string, SessionEntry>;
+  relativeTimeBase: number;
+}): React.JSX.Element {
+  const isUnread = useAppStore((state) =>
+    row.sessions.some((session) => state.unreadSessionPaths.has(session.path)),
+  );
+  const setExpanded = useAppStore((state) => state.setSubagentGroupsExpanded);
+  const runningCount = row.sessions.filter((session) =>
+    isSessionRunning(session.path, sessions),
+  ).length;
+  const latest = row.sessions.reduce((newest, session) =>
+    (session.modified || session.created) > (newest.modified || newest.created) ? session : newest,
+  );
+  const count = row.sessions.length;
+  const label = `${count} ${count === 1 ? 'subagent' : 'subagents'}${
+    runningCount > 0 ? ` · ${runningCount} running` : ''
+  }`;
+
+  return (
+    <SidebarMenuSubItem data-subagent-group={row.parentPath}>
+      <SidebarMenuSubButton asChild className={SESSION_ROW_CLASS_NAME}>
+        <button
+          type="button"
+          aria-expanded={row.expanded}
+          onClick={() => setExpanded([row.parentPath], !row.expanded)}
+        >
+          <LineagePrefix row={row} />
+          <SubagentIcon />
+          <span className="min-w-0 flex-1 truncate text-left text-muted-foreground">{label}</span>
+          <SessionTrailing
+            session={latest}
+            isRunning={runningCount > 0}
+            isUnread={isUnread}
+            relativeTimeBase={relativeTimeBase}
+          />
+        </button>
+      </SidebarMenuSubButton>
+    </SidebarMenuSubItem>
   );
 }
 
@@ -258,7 +325,24 @@ export function SessionList({
         : projectSessions,
     [projectSessions, isCollapsedWithPinned, visibleWhenCollapsedSessionIds],
   );
-  const rows = useMemo(() => flattenLineage(buildLineage(renderedSessions)), [renderedSessions]);
+  const lineage = useMemo(() => buildLineage(renderedSessions), [renderedSessions]);
+  const expandedGroups = useAppStore((state) => state.expandedSubagentGroups);
+  const rows = useMemo(() => flattenLineage(lineage, expandedGroups), [lineage, expandedGroups]);
+
+  // A selection inside a collapsed subagent group (from the CLI, the switcher
+  // or navigation history) opens the group, so the selected row exists; the
+  // "show more" expansion below then applies to it like to any row.
+  // Once per selection, as with "show more": a list refresh must not reopen a
+  // group the user closed.
+  const groupsOpenedForPathRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedSessionPath || groupsOpenedForPathRef.current === selectedSessionPath) return;
+    const groups = subagentGroupsContaining(lineage, selectedSessionPath);
+    if (groups.length > 0) {
+      groupsOpenedForPathRef.current = selectedSessionPath;
+      useAppStore.getState().setSubagentGroupsExpanded(groups, true);
+    }
+  }, [lineage, selectedSessionPath]);
 
   const suppressAutoExpandPathRef = useRef<string | null>(null);
   useEffect(() => {
@@ -283,7 +367,7 @@ export function SessionList({
       return;
     }
     const hidden = rows.slice(visibleSessionCount);
-    if (hidden.some((row) => row.session.path === selectedSessionPath)) {
+    if (hidden.some((row) => row.kind === 'session' && row.session.path === selectedSessionPath)) {
       // Expand at most once per selection; after that the user owns showAll.
       suppressAutoExpandPathRef.current = selectedSessionPath;
       requestAnimationFrame(() => {
@@ -328,17 +412,26 @@ export function SessionList({
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             ) : (
-              visibleRows.map((row) => (
-                <SessionItem
-                  key={row.session.path}
-                  row={row}
-                  isActive={row.session.path === selectedSessionPath}
-                  isRunning={isSessionRunning(row.session.path, sessions)}
-                  relativeTimeBase={relativeTimeBase}
-                  onSwitch={() => handleSessionSwitch(row.session)}
-                  onRename={(name) => onRenameSession(row.session.path, name)}
-                />
-              ))
+              visibleRows.map((row) =>
+                row.kind === 'subagents' ? (
+                  <SubagentGroupItem
+                    key={`subagents:${row.parentPath}`}
+                    row={row}
+                    sessions={sessions}
+                    relativeTimeBase={relativeTimeBase}
+                  />
+                ) : (
+                  <SessionItem
+                    key={row.session.path}
+                    row={row}
+                    isActive={row.session.path === selectedSessionPath}
+                    isRunning={isSessionRunning(row.session.path, sessions)}
+                    relativeTimeBase={relativeTimeBase}
+                    onSwitch={() => handleSessionSwitch(row.session)}
+                    onRename={(name) => onRenameSession(row.session.path, name)}
+                  />
+                ),
+              )
             )}
             {hiddenCount > 0 && !isCollapsedWithPinned && (
               <SidebarMenuSubItem>

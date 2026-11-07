@@ -1,7 +1,7 @@
 import type { ThinkingLevel } from './ipcContract';
 
 /** Canonical thinking-level order, mirrors pi-ai's EXTENDED_THINKING_LEVELS. */
-const THINKING_LEVEL_ORDER: ThinkingLevel[] = [
+export const THINKING_LEVEL_ORDER: readonly ThinkingLevel[] = [
   'off',
   'minimal',
   'low',

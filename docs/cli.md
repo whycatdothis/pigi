@@ -1,0 +1,387 @@
+# pigi CLI
+
+Status: phases 1–3 implemented (§14); the PATH install (phase 4) is not. This
+document is the design reference. See `docs/architecture.md` for the process model
+it builds on and `docs/sessionTree.md` for the fork lineage it extends.
+
+## 1. Goal
+
+Expose pigi's capabilities through a `pigi` command so agents (and people) can
+drive the running app from a shell. The first capability is **subagents**: an
+agent in session A runs `pigi subagent "<task>"`, pigi starts a fresh session
+linked to A, shows it in the sidebar under A, and prints the subagent's final
+reply back to A's bash tool. The typical use is an independent reviewer whose
+findings A then triages and fixes in its own context.
+
+Later capabilities (open a file, switch tab, jump to a session) are new commands
+on the same transport; the CLI shape does not change.
+
+## 2. Non-goals
+
+- No TCP/HTTP endpoint, no MCP server.
+- No token auth or per-caller permission model (§9).
+- No technical recursion limit for subagents; the skill tells agents not to
+  nest them.
+- No new setting for a default subagent model.
+- No single-instance lock in this work (§8); `docs/todo.md` keeps that item.
+- AppImage and snap get no PATH install (§11).
+
+## 3. Architecture
+
+```mermaid
+flowchart LR
+  subgraph S["session process A"]
+    B[bash tool] -->|PIGI_SOCKET / PIGI_SESSION / PATH| C[pigi CLI]
+  end
+  T[pigi terminal / external terminal] --> C
+  C -->|JSON-RPC 2.0, one message per line<br/>unix socket / named pipe| M[main: remoteControlServer<br/>frame + param check, relay]
+  M -->|pi:remote_command| R[renderer: remoteCommands<br/>registry + execution]
+  R -->|existing piAgentClient| P[session processes]
+  R -->|pi:remote_command_output| M
+```
+
+**Commands execute in the renderer; main only relays.** After the port
+handshake main is not in the session data path (`piAgentBridge.ts`): the
+renderer talks to each session process over its own MessagePorts and owns the
+UI state. Driving sessions from main would add a second control path and let
+the renderer's view drift, and UI commands can only run in the renderer anyway.
+So the CLI is a remote control for the UI: anything the user can do there, a
+command can do, through the same `piAgentClient` functions.
+
+Cost: a renderer must exist. On macOS the app outlives its window; a request
+that arrives with no window reopens it first, as `code` does. Requests wait
+(up to 30s) until the renderer sends `pi:remote_control_ready`. Main answers
+`system.hello` itself, so the handshake needs no window.
+
+### Main-process load
+
+Main does async socket I/O and parses small JSON envelopes, microseconds per
+request. Streaming never crosses main: `session.wait` answers once when the
+agent ends. Guards, because a blocked main stalls window dragging, menus and
+every renderer IPC:
+
+- A request line over 1 MB closes the connection.
+- The renderer serializes each result to a string; main writes it to the socket
+  as-is and never parses or re-serializes results.
+- No synchronous file I/O in command handling.
+
+If a bulk command (transcript export) ever needs more, the server moves into a
+utility process with a MessagePort to the renderer, the same shape as session
+and terminal processes. The socket protocol does not change, so clients do not
+notice.
+
+## 4. Components
+
+| Part              | Where                                                                                   | What                                                                                                                                                                                 |
+| ----------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Public contract   | `src/shared/remoteCommandContract.ts` (new)                                             | Protocol version, method names, param/result types, param parsers (hand-written, like `parsePigiSettingsChange`), error codes. Separate from `ipcContract.ts`, which stays internal. |
+| Relay channels    | `src/shared/ipcContract.ts`                                                             | `pi:remote_command`, `pi:remote_command_cancel`, `pi:remote_command_output`, `pi:remote_control_ready`                                                                               |
+| Socket server     | `src/main/remoteControl/remoteControlServer.ts` (new)                                   | `net.createServer`, framing, envelope validation, request-id correlation, cancel-on-disconnect                                                                                       |
+| Command execution | `src/renderer/src/services/remoteCommands.ts` (new)                                     | Registry; each method calls existing `piAgentClient` functions; installed by `App`                                                                                                   |
+| Env injection     | `createPiAgentProcess.ts`, `terminalManager.ts`, `piAgent.ts`                           | §5                                                                                                                                                                                   |
+| CLI               | `src/cli/pigi.ts`, `src/cli/cliArguments.ts` (new), `cli` entry of the main build       | Arg parsing and output formatting derived from the contract; only `node:net`                                                                                                         |
+| Launcher          | `resources/bin/pigi`, `resources/bin/pigi.cmd`                                          | §11                                                                                                                                                                                  |
+| Skill             | `resources/skills/pigi-cli`, injected with `resourceLoaderOptions.additionalSkillPaths` | §12                                                                                                                                                                                  |
+
+## 5. Caller context
+
+Precedent: `VSCODE_IPC_HOOK_CLI`, `$TMUX`/`$TMUX_PANE`, `KITTY_LISTEN_ON`/
+`KITTY_WINDOW_ID`, `WEZTERM_PANE` — a socket plus an env var naming the caller.
+
+- **Every session and terminal process**, at fork: `PIGI_SOCKET=<socket path>`
+  and `resources/bin` prepended to `PATH`.
+- **Session process**, after `createSession`/`resumeSession` succeeds:
+  `process.env.PIGI_SESSION = <session file>`. pi's bash tool spreads
+  `process.env` at every spawn (`getShellEnv()`), so each command inherits it.
+  It has to be set after the claim, not at fork: pooled processes are warmed
+  before they know their session.
+- **Terminal**: no `PIGI_SESSION`; terminals belong to a project, not a session.
+  From a terminal, pass `--parent` explicitly.
+
+## 6. Protocol and compatibility
+
+### Transport
+
+JSON-RPC 2.0, one message per line. Methods are namespaced and each is one CLI
+command: `pigi session create` is `session.create`, `pigi ping` is
+`system.hello`, `pigi subagent` is `subagent.run`. The renderer serializes each
+answer into a finished line; `subagent.run` also sends one notification,
+`subagent.started`, with the child's path, model and level before it runs.
+
+### What is a contract
+
+| Contract                                         | Not a contract            |
+| ------------------------------------------------ | ------------------------- |
+| Transport and envelope                           | Human-readable CLI output |
+| Method names, params, result fields              | Error message text        |
+| Error codes (number + string code)               |                           |
+| CLI commands, flags, `--json` output, exit codes |                           |
+| Env var names (`PIGI_SOCKET`, `PIGI_SESSION`)    |                           |
+| The `pigi.subagent` session entry (§10)          |                           |
+
+### Evolution rules
+
+1. **Additive only.** New params are optional with a default. Results gain
+   fields; existing fields never disappear or change meaning.
+2. **Strict server, tolerant client.** An unknown param is rejected with
+   `UNSUPPORTED_PARAM` naming it; silently ignoring it would let a newer CLI's
+   flag do nothing against an older app. Clients ignore unknown result fields
+   and unknown notifications.
+3. **Breaking change = new method name.** The old method stays for several
+   releases and is marked deprecated in `system.hello`.
+4. **Handshake.** `system.hello` returns `{ protocolVersion, appVersion,
+methods, deprecated }`. The CLI calls it first and reports "pigi is too old"
+   on a major mismatch or a missing method. Skew is real: an auto-update
+   replaces the bundle on disk while the old instance keeps running, so the old
+   instance's sessions run the new CLI against the old server.
+5. **One source.** The contract module drives both the CLI parser and the server
+   validator.
+6. **Snapshot test.** The method/param surface is serialized to a committed
+   snapshot; removing or renaming anything fails the test until the snapshot is
+   updated on purpose.
+
+### Exit codes
+
+`0` success · `1` the session errored or was aborted · `2` usage error ·
+`3` pigi not running or connection failed.
+
+stdout carries only the result (what an agent reads); progress and the child
+session path go to stderr. `--json` gives the structured result on stdout.
+
+## 7. Commands (MVP)
+
+```
+pigi                                         open the app
+pigi ping                                    → system.hello
+pigi session list [--cwd <dir>]
+pigi session create [--parent <path> | --parent-self] [--cwd <dir>]
+                    [--model <provider/id>] [--thinking <level>]
+                                             → new session path on stdout
+pigi session prompt <path> "<text>"          returns once the run has started
+pigi session wait <path> [--timeout <s>]     → final assistant reply on stdout
+pigi subagent "<task>" [--model <provider/id>] [--thinking <level>] [--detach]
+                       [--parent <path>]     = create linked to $PIGI_SESSION + prompt + wait
+```
+
+- `-` as the text or task reads it from stdin; relative paths resolve against
+  the caller's working directory.
+- `prompt` and `wait` attach to a listed session the window has not opened
+  (after a reload, say), as selecting it would, without selecting it.
+
+- Background-created sessions **never change the selected session**; a subagent
+  must not pull the user out of A.
+- `subagent` uses A's cwd.
+- `--model` splits at the first `/`: provider before it, the rest is the model
+  id (OpenRouter ids contain `/`). An unknown model fails with near matches
+  listed; nothing is guessed.
+
+### Model and thinking level
+
+Default: inherit A's **current** model and thinking level. The renderer reads
+them from the store and passes them explicitly; a new session would otherwise
+start from the global default, which need not match A.
+
+They are passed **at creation**, not set afterwards. `AgentSession.setModel()`
+calls `setDefaultModelAndProvider` and `setThinkingLevel()` calls
+`setDefaultThinkingLevel`, so a reviewer on another model would change the
+user's global default. `createAgentSessionFromServices({ model, thinkingLevel })`
+does not persist defaults and clamps the level with pi-ai's
+`clampThinkingLevel` (nearest supported, upward first, then downward — the same
+semantics as `clampThinkingLevelTo`). So `create_session` gains optional `model`
+and `thinkingLevel`, threaded through `createRuntimeFactory`.
+
+A clamp is reported: stderr notes it, and `--json` carries
+`"thinkingLevel": { "requested": "max", "effective": "high" }`.
+
+## 8. Socket location and instances
+
+- Production: `<userData>/pigi.sock`; dev: `<userData>/pigi-dev.sock`. Windows:
+  `\\.\pipe\pigi-<user>` / `\\.\pipe\pigi-<user>-dev`. A unix path over 103
+  bytes (macOS `sockaddr_un`) is not served; the server logs it.
+- Outside pigi (no `PIGI_SOCKET`), the CLI connects to the production socket.
+- On `EADDRINUSE`, connect to it: refused means a stale file, so unlink and
+  listen; accepted means another instance owns it, so this instance serves no
+  CLI and logs why.
+- No single-instance lock here. In-app callers find their own instance through
+  `PIGI_SOCKET`, so multiple instances do not confuse them; dev and production
+  use different sockets, so running both works. A lock would stop the dev build
+  from starting while the production app runs, since both share `userData`.
+
+## 9. Security
+
+The threat model is the industry one: same-user, unsandboxed processes are
+trusted (VS Code's CLI socket has no auth either). What is handled:
+
+- **Browsers**: no TCP port. A page can reach `localhost` (CSRF, DNS rebinding,
+  unchecked WebSocket origin — e.g. CVE-2025-52882 in Claude Code's IDE
+  extensions) but cannot open a unix socket or named pipe.
+- **Other users**: socket in the per-user `userData` directory, mode `0600`, so
+  it cannot be reached or pre-created by someone else. The default ACL of a
+  Node named pipe on Windows is still unverified (Windows is not released).
+- **Malformed input**: main parses every request strictly and answers errors
+  with a JSON-RPC error; it must never throw out of the handler.
+
+Documented, not handled:
+
+- Do not pass `PIGI_SOCKET` into a sandbox or container; the socket would be a
+  way out (the VS Code dev container `VSCODE_IPC_HOOK_CLI` issue).
+- A subagent session does not inherit confirmation extensions loaded in A (for
+  example a permission gate).
+- macOS privacy grants belong to the app: a caller can reach what pigi was
+  granted (Documents, Downloads).
+
+pi's bash tool is already unrestricted, so the CLI adds little an injected agent
+could not do without it.
+
+## 10. Subagent sessions
+
+### Marking
+
+On creation through the CLI the child session gets one pi `custom` entry:
+
+```json
+{
+  "type": "custom",
+  "customType": "pigi.subagent",
+  "data": { "version": 1, "sessionId": "<own id>" }
+}
+```
+
+`custom` entries never reach the LLM context. The link to A is the existing
+`parentSession` header.
+
+**Rule**: a session is a subagent when it has this entry, the entry comes before
+the first `message`, and `data.sessionId` equals the header `id`. Forking a
+subagent copies the entry along the path, but the fork has a new id, so it is
+an ordinary fork.
+
+Rejected: a header field (pi owns the header; `SessionManager.create` only takes
+`parentSession`), a pigi index file (drifts from the session files), a name
+prefix (visible and renameable).
+
+### Listing
+
+`SessionManager.list` does not return custom entries. `sessionWorker` reads them
+only for files with `parentSessionPath`, and only up to the first `message`, and
+sets `PiSessionInfo.isSubagent`. pi writes a session file only after its first
+assistant message, so there is no half-written case to handle.
+
+### Sidebar
+
+```
+● Implement login                         2m
+  ├ ⌁ 3 subagents · 1 running  ⟳          ← group row, collapsed, first child
+  ├ Login (fork)                          5m
+  └ Other approach (fork)                 1h
+```
+
+1. A parent's subagents form one group row, always its **first** child,
+   regardless of activity order. Inside the group, newest first. Forks keep
+   today's ordering.
+2. The group is **collapsed by default** and counts as one row toward the
+   five-row "show more" limit. Expansion is in-memory per parent path, not a
+   setting. A new running subagent does not expand it.
+3. The collapsed row aggregates count, running (spinner) and unread (dot).
+4. Selecting a session hidden in a collapsed group (CLI path, navigation
+   history) expands that group, as the "show more" auto-expand does today.
+5. Subagent rows and the group row carry an icon (e.g. tabler `IconRobot`);
+   connectors match forks.
+6. A fork of a subagent nests under that subagent; a subagent's own subagents
+   form that subagent's group.
+
+## 11. Installing `pigi` on PATH
+
+Not needed inside pigi: sessions and the terminal get `resources/bin` on `PATH`
+(§5). Installing serves external terminals only.
+
+### Launcher (`resources/bin/pigi`)
+
+1. Resolve its own symlink chain with a `readlink` loop to find the bundle, then
+   the Electron binary and `cli.js`, as VS Code's `bin/code` does.
+2. Run `cli.js` (inside `app.asar`, which Electron reads in Node mode too) under
+   `ELECTRON_RUN_AS_NODE=1`, so users need no Node install. Bare `pigi` prints
+   help today; opening the app (`open -b <bundle id>` on macOS) comes with the
+   install.
+3. The dev build offers no install; it relies on `PATH` injection only.
+
+### macOS
+
+Menu item **Install 'pigi' Command in PATH** and its uninstall counterpart:
+
+- Symlink `/usr/local/bin/pigi` → `pigi.app/Contents/Resources/bin/pigi`.
+  `/usr/local/bin` is in `/etc/paths`, so no shell rc edits. When it is not
+  writable or missing (common on fresh Apple Silicon Macs), escalate with
+  `osascript … with administrator privileges`.
+- Not `~/.local/bin`: it is not on the default macOS `PATH`, which would mean
+  editing zsh/bash/fish rc files.
+- Require `app.isInApplicationsFolder()`: an app launched from Downloads runs
+  from a random App Translocation path that disappears.
+- An existing `/usr/local/bin/pigi` that is not ours is replaced only after
+  asking. Uninstall removes the link only when it points at pigi.
+- Auto-update replaces the bundle in place, so the link stays valid and the CLI
+  always matches the installed app.
+
+Settings shows the state: installed / broken link / taken by another program /
+not installed. Nothing installs without the user asking.
+
+### Windows
+
+The NSIS installer (`nsis.include`) adds `<install>\resources\bin` to the
+**user** `PATH` (HKCU) and the uninstaller removes it. Never `setx`: it
+truncates `PATH` at 1024 characters. A new terminal is needed to see it.
+
+### Linux
+
+- deb: electron-builder's default after-install script appears to link
+  `/usr/bin/pigi` to the GUI binary (verify). Override `afterInstall` to link
+  the launcher instead; no-argument `pigi` still opens the app.
+- AppImage (path changes per version) and snap (confinement): unsupported,
+  documented.
+
+### Before the launcher ships
+
+`appId` in `electron-builder.yml` is still the template's `com.electron.app`.
+The launcher opens the app by bundle id, which bakes the id in, so it waits for
+the switch to `pink.pigi` (`docs/todo.md`).
+
+## 12. Agent discoverability
+
+A bundled `pigi-cli` skill, loaded on demand, rather than a line in
+`PIGI_SYSTEM_PROMPT` that every session pays for. It stays short: when to use a
+subagent, triage findings instead of applying them blindly, do not nest
+subagents, give the bash call a long timeout, and run `pigi <command> --help`
+for details, so the skill does not drift from the contract.
+
+## 13. Failure behavior
+
+| Case                                | Behavior                                                                                                   |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| A aborts the bash call (CLI killed) | Socket closes → main tells the renderer → the child session is aborted, unless `--detach`                  |
+| Renderer reloads mid-request        | Pending requests fail; the child keeps running; A can `pigi session wait <path>` with the path from stderr |
+| No window (macOS)                   | Main reopens the window, then relays                                                                       |
+| Long reviewer run                   | The skill tells agents to set a long bash timeout                                                          |
+| pigi not running                    | Exit code 3 with a clear message                                                                           |
+
+## 14. Phases
+
+1. **Transport** (done). Socket server, relay, contract, `system.hello`, CLI
+   skeleton, env injection, `ping` and `session list`. Contract snapshot test.
+2. **Subagent** (done). `session create/prompt/wait` and `subagent`; `model`
+   and `thinkingLevel` on `create_session`; no selection change; abort on
+   disconnect; `pigi.subagent` entry, `isSubagent`, sidebar group.
+3. **Agent use** (done). Bundled skill, CHANGELOG.
+4. **PATH install.** macOS first, then Windows and Linux deb. Needs the
+   `appId` switch (`docs/todo.md`).
+
+Later: UI commands (`ui.openFile`, tab switching, jump to session); a structured
+A → child link (a `custom` entry in A pointing at the child, rendered as a link
+on the bash card).
+
+## 15. Tests
+
+- Unit: contract parsers, CLI argument parsing, the contract surface snapshot.
+- `sessionLineage.test.ts`: group placement first, collapsed row count, a fork
+  of a subagent stays a fork, auto-expand on a hidden selection.
+- `sessionWorker`: marker detection, including the fork-of-subagent case.
+- End to end with the `pigi-debug` skill: run `pigi subagent` from a real
+  session in the dev build and check the sidebar and the returned reply.

@@ -1,0 +1,84 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`remote command contract > keeps its surface 1`] = `
+{
+  "errors": {
+    "APP_NOT_READY": -32001,
+    "INTERNAL_ERROR": -32603,
+    "INVALID_PARAMS": -32602,
+    "INVALID_REQUEST": -32600,
+    "METHOD_NOT_FOUND": -32601,
+    "NOT_FOUND": -32002,
+    "PARSE_ERROR": -32700,
+    "SESSION_BUSY": -32005,
+    "SESSION_FAILED": -32003,
+    "TIMEOUT": -32004,
+    "UNSUPPORTED_PARAM": -32000,
+  },
+  "protocol": 1,
+  "surface": [
+    {
+      "command": "ping",
+      "method": "system.hello",
+      "params": [],
+      "positional": [],
+    },
+    {
+      "command": "session list",
+      "method": "session.list",
+      "params": [
+        "cwd: string!",
+      ],
+      "positional": [],
+    },
+    {
+      "command": "session create",
+      "method": "session.create",
+      "params": [
+        "cwd: string",
+        "parent: string",
+        "model: string",
+        "thinkingLevel: string --thinking",
+      ],
+      "positional": [],
+    },
+    {
+      "command": "session prompt",
+      "method": "session.prompt",
+      "params": [
+        "path: string!",
+        "text: string!",
+      ],
+      "positional": [
+        "path",
+        "text",
+      ],
+    },
+    {
+      "command": "session wait",
+      "method": "session.wait",
+      "params": [
+        "path: string!",
+        "timeout: number",
+      ],
+      "positional": [
+        "path",
+      ],
+    },
+    {
+      "command": "subagent",
+      "method": "subagent.run",
+      "params": [
+        "task: string!",
+        "parent: string!",
+        "model: string",
+        "thinkingLevel: string --thinking",
+        "detach: boolean",
+      ],
+      "positional": [
+        "task",
+      ],
+    },
+  ],
+}
+`;

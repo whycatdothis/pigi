@@ -23,6 +23,8 @@ export default defineConfig({
           'processes/utility/piAgent': resolve('src/processes/utility/piAgent.ts'),
           'processes/utility/sessionWorker': resolve('src/processes/utility/sessionWorker.ts'),
           'processes/utility/terminal': resolve('src/processes/utility/terminal.ts'),
+          // The `pigi` CLI; resources/bin/pigi runs it with Electron in Node mode.
+          cli: resolve('src/cli/pigi.ts'),
         },
         output: {
           format: 'es',

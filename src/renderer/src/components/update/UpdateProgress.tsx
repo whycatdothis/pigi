@@ -16,7 +16,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { IconCheck, IconLoader } from '@tabler/icons-react';
 import type { UpdateStatus } from '../../../../shared/ipcContract';
-import { UP_TO_DATE_CLOSE_SECONDS } from '../../../../shared/updateWindow';
+import { MANUAL_DOWNLOAD_URL, UP_TO_DATE_CLOSE_SECONDS } from '../../../../shared/updateWindow';
 import { formatFileSize } from '../../lib/utils';
 import { Button } from '../ui/button';
 import { SpinningIcon } from '../ui/spinningIcon';
@@ -244,6 +244,16 @@ export default function UpdateProgress(): React.JSX.Element | null {
       {status.phase === 'downloaded' && (
         <Button size="sm" variant="ghost" className={ACCENT_BUTTON} onClick={quitAndInstallUpdate}>
           Restart
+        </Button>
+      )}
+      {status.phase === 'error' && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className={SECONDARY_BUTTON}
+          onClick={() => window.piApi.openExternal(MANUAL_DOWNLOAD_URL)}
+        >
+          Download
         </Button>
       )}
     </div>

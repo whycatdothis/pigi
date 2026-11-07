@@ -1,0 +1,30 @@
+#!/bin/sh
+# Runs the pigi CLI with pigi's own Electron in Node mode, so no Node install is
+# needed. Resolves symlinks first: an installed /usr/local/bin/pigi points here.
+script=$0
+while [ -L "$script" ]; do
+  target=$(readlink "$script")
+  case $target in
+    /*) script=$target ;;
+    *) script=$(dirname "$script")/$target ;;
+  esac
+done
+bin_dir=$(cd "$(dirname "$script")" && pwd -P)
+root=$(dirname "$(dirname "$bin_dir")")
+
+if [ "$(basename "$root")" = "app.asar.unpacked" ]; then
+  # Packaged: <Resources>/app.asar.unpacked/resources/bin
+  resources=$(dirname "$root")
+  if [ "$(uname)" = "Darwin" ]; then
+    electron=$(dirname "$resources")/MacOS/pigi
+  else
+    electron=$(dirname "$resources")/pigi
+  fi
+  cli=$resources/app.asar/out/main/cli.js
+else
+  # Development: <repo>/resources/bin
+  electron=$root/node_modules/electron/dist/$(cat "$root/node_modules/electron/path.txt")
+  cli=$root/out/main/cli.js
+fi
+
+ELECTRON_RUN_AS_NODE=1 exec "$electron" "$cli" "$@"

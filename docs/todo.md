@@ -106,3 +106,17 @@ hidden sideways, and one under the sticky line-number gutter counts as visible
 because its rect is still inside the container. Fix by walking the scrollable
 ancestors between the match and the container, and treating the gutter width as
 an inset.
+
+## Replace the template `appId`
+
+`electron-builder.yml` still has `com.electron.app`, which every Electron app
+that never changed it shares; `setAppUserModelId('com.pigi')` in
+`src/main/index.ts` matches neither. The plan is `pink.pigi`, with no bridge
+release: Squirrel.Mac checks an update against the running app's designated
+requirement, so every installed macOS copy fails at Restart once and installs
+the DMG by hand through the "Download pigi" action on the failure (shipped
+first, for exactly this). macOS asks again for folder and notification access
+afterwards. Pin `nsis.guid: d8e79033-b579-5adb-9605-820525010f54` so a Windows
+build keeps upgrading the old install, and set the AppUserModelID to the same
+id. The PATH launcher (`docs/cli.md` §11) opens the app by bundle id and waits
+for this.

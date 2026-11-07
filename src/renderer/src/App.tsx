@@ -68,6 +68,8 @@ import type {
   ThinkingLevel,
 } from '../../shared/ipcContract';
 import { clampThinkingLevelTo } from '../../shared/thinkingLevels';
+import { MANUAL_DOWNLOAD_URL } from '../../shared/updateWindow';
+import { installRemoteCommands } from './services/remoteCommands';
 import { sanitizeUserPromptForDisplay } from '../../shared/chatAttachments';
 import {
   attachmentFilePaths,
@@ -458,6 +460,9 @@ function App(): React.JSX.Element {
       .catch((err) => console.error('Failed to refresh model catalog:', err));
   }, [applyCatalogSnapshot]);
 
+  // The `pigi` CLI's requests run here, where the session state lives.
+  useEffect(() => installRemoteCommands(), []);
+
   // Auto-update: read the current status on mount (a window can open while a
   // download is already running), then follow the pushes from main.
   useEffect(() => {
@@ -487,7 +492,15 @@ function App(): React.JSX.Element {
       if (status.phase === 'error' && installRequestedRef.current) {
         installRequestedRef.current = false;
         installingRef.current = false;
-        toast.error('Update failed', { description: status.message });
+        // A Restart fails when Squirrel rejects the new bundle (signature,
+        // disk); downloading again would fail the same way.
+        toast.error('Update failed', {
+          description: status.message,
+          action: {
+            label: 'Download pigi',
+            onClick: () => window.piApi.openExternal(MANUAL_DOWNLOAD_URL),
+          },
+        });
       } else if (installRequestedRef.current && status.phase !== 'downloaded') {
         // An install that went nowhere must not make the next unrelated failure
         // look like the install's.

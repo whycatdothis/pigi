@@ -26,6 +26,7 @@ import type { PiSettingsResult, PiSettingsScope, PiSettingUpdate } from './piSet
 // =============================================================================
 
 import type { ThinkingLevel } from '@earendil-works/pi-agent-core';
+import type { RemoteMethod } from './remoteCommandContract';
 
 export type { ThinkingLevel };
 
@@ -282,6 +283,8 @@ export interface PiSessionInfo {
   cwd: string;
   name?: string;
   parentSessionPath?: string;
+  /** Started by `pigi subagent` (docs/cli.md §10). */
+  isSubagent?: boolean;
   created: string;
   modified: string;
   messageCount: number;
@@ -677,6 +680,33 @@ export enum PiChannel {
    * window can hug it instead of reserving a fixed box.
    */
   UpdateProgressContentHeight = 'pi:update_progress_content_height',
+  /** main → renderer: one `pigi` CLI request to execute (RemoteCommandRequest) */
+  RemoteCommand = 'pi:remote_command',
+  /** main → renderer: the CLI that sent a request disconnected */
+  RemoteCommandCancel = 'pi:remote_command_cancel',
+  /** renderer → main: a JSON-RPC line for the CLI (RemoteCommandOutput) */
+  RemoteCommandOutput = 'pi:remote_command_output',
+  /** renderer → main: remote commands can be executed from now on */
+  RemoteControlReady = 'pi:remote_control_ready',
+}
+
+/**
+ * A `pigi` CLI request relayed by main. Main has validated the envelope and the
+ * params against `REMOTE_METHODS`; `id` is the client's JSON-RPC id, echoed in
+ * the answer the renderer serializes.
+ */
+export interface RemoteCommandRequest {
+  requestId: number;
+  id: string | number;
+  method: RemoteMethod;
+  params: Record<string, string | number | boolean>;
+}
+
+/** One serialized JSON-RPC line; `final` ends the request. */
+export interface RemoteCommandOutput {
+  requestId: number;
+  line: string;
+  final: boolean;
 }
 
 // =============================================================================
@@ -788,8 +818,24 @@ export type SessionWorkerResponse =
 // Internal: Main → Utility (parentPort, lifecycle only)
 // =============================================================================
 
+/**
+ * Set only at creation: `setModel`/`setThinkingLevel` would also write the
+ * user's global defaults.
+ */
+export interface CreateSessionOptions {
+  model?: { provider: string; modelId: string };
+  thinkingLevel?: ThinkingLevel;
+  /** Write the `pigi.subagent` entry before the first message. */
+  subagent?: boolean;
+}
+
 export type UtilityCommand =
-  | { type: 'create_session'; cwd: string; parentSessionPath?: string }
+  | {
+      type: 'create_session';
+      cwd: string;
+      parentSessionPath?: string;
+      options?: CreateSessionOptions;
+    }
   | { type: 'resume_session'; sessionPath: string }
   | { type: 'warm_up'; cwds: string[] }
   | { type: 'prewarm_session_services'; cwds: string[] }

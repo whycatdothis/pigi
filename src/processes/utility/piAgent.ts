@@ -10,6 +10,7 @@
  * One process per session. Process exits when session is destroyed.
  */
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   type AgentSessionEvent,
   type AgentSessionRuntime,
@@ -29,6 +30,7 @@ import {
 } from '@earendil-works/pi-coding-agent';
 import type {
   AuthProviderInfo,
+  CreateSessionOptions,
   ForkSessionResult,
   PiCommand,
   PiPush,
@@ -53,6 +55,11 @@ import {
 import { buildSessionTree, readEntryText, resolveForkTarget } from './sessionTree';
 import { promptInputFromUserMessage } from './userMessageInput';
 import { PIGI_SYSTEM_PROMPT } from './systemPrompt';
+import {
+  PIGI_SESSION_ENV,
+  SUBAGENT_ENTRY_TYPE,
+  type SubagentEntryData,
+} from '../../shared/remoteCommandContract';
 
 // Compatible with Electron's MessagePortMain.
 interface Port {
@@ -133,6 +140,12 @@ class StreamBatcher {
     this.dirty = false;
   }
 }
+
+/**
+ * Skills shipped with the app (`resources/skills`). `out/` and `resources/` are
+ * siblings both in the repo and in the asar, which Electron reads through.
+ */
+const BUNDLED_SKILLS_DIRECTORY = join(__dirname, '../../../../resources/skills');
 
 let runtime: AgentSessionRuntime | null = null;
 let batcher: StreamBatcher | null = null;
@@ -221,6 +234,7 @@ function createServicesForCwd(cwd: string): Promise<AgentSessionServices> {
         // of adding to it, and the resource loader resolves one or the other.
         resourceLoaderOptions: {
           appendSystemPromptOverride: (base) => [...base, PIGI_SYSTEM_PROMPT],
+          additionalSkillPaths: [BUNDLED_SKILLS_DIRECTORY],
         },
       });
     } finally {
@@ -290,22 +304,38 @@ async function syncSessionModelWithRegistry(rt: AgentSessionRuntime): Promise<vo
   }
 }
 
-const createRuntimeFactory: CreateAgentSessionRuntimeFactory = async ({
-  cwd,
-  sessionManager,
-  sessionStartEvent,
-}) => {
-  const services = await getServices(cwd);
-  return {
-    ...(await createAgentSessionFromServices({
+/**
+ * The runtime factory, with model and thinking level applied to the first
+ * session it creates only: they are a creation choice, and passing them here
+ * (rather than `setModel` afterwards) keeps them out of the user's defaults.
+ */
+function createRuntimeFactory(
+  initial: CreateSessionOptions = {},
+): CreateAgentSessionRuntimeFactory {
+  let pending: CreateSessionOptions | null = initial;
+  return async ({ cwd, sessionManager, sessionStartEvent }) => {
+    const services = await getServices(cwd);
+    const options = pending ?? {};
+    pending = null;
+    const model = options.model
+      ? services.modelRuntime.getModel(options.model.provider, options.model.modelId)
+      : undefined;
+    if (options.model && !model) {
+      throw new Error(`unknown model ${options.model.provider}/${options.model.modelId}`);
+    }
+    return {
+      ...(await createAgentSessionFromServices({
+        services,
+        sessionManager,
+        sessionStartEvent,
+        model,
+        thinkingLevel: options.thinkingLevel,
+      })),
       services,
-      sessionManager,
-      sessionStartEvent,
-    })),
-    services,
-    diagnostics: services.diagnostics,
+      diagnostics: services.diagnostics,
+    };
   };
-};
+}
 
 function setSessionBusy(isBusy: boolean): void {
   if (isSessionBusy === isBusy) {
@@ -985,16 +1015,25 @@ function forkSession(entryId: string, position: 'before' | 'at'): ForkSessionRes
   }
 }
 
-async function createSession(cwd: string, parentSessionPath?: string): Promise<void> {
+async function createSession(
+  cwd: string,
+  parentSessionPath: string | undefined,
+  options: CreateSessionOptions | undefined,
+): Promise<void> {
   try {
     hasAutoRenamed = false;
     snippets = [];
     await setSessionProcessCwd(cwd);
-    runtime = await createAgentSessionRuntime(createRuntimeFactory, {
+    runtime = await createAgentSessionRuntime(createRuntimeFactory(options), {
       cwd,
       agentDir: getAgentDir(),
       sessionManager: SessionManager.create(cwd, undefined, { parentSession: parentSessionPath }),
     });
+    if (options?.subagent) {
+      // Before the first message: that is where the session list looks for it.
+      const marker: SubagentEntryData = { version: 1, sessionId: runtime.session.sessionId };
+      runtime.session.sessionManager.appendCustomEntry(SUBAGENT_ENTRY_TYPE, marker);
+    }
     queuedPromptInputs = new QueuedPromptInputs();
     // TODO: pass commandContextActions (waitForIdle, newSession, fork, navigateTree,
     // switchSession, reload) to support extensions that manage sessions.
@@ -1003,6 +1042,7 @@ async function createSession(cwd: string, parentSessionPath?: string): Promise<v
     if (!sessionPath) {
       throw new Error('session created without a file path');
     }
+    announceSessionToCommands(sessionPath);
     sendToMain({
       type: 'session_created',
       sessionId: runtime.session.sessionId,
@@ -1013,12 +1053,21 @@ async function createSession(cwd: string, parentSessionPath?: string): Promise<v
   }
 }
 
+/**
+ * pi's bash tool spreads `process.env` into every command, so this is how a
+ * `pigi` call knows which session made it. Set here, after the claim: a pooled
+ * process is forked before it knows its session.
+ */
+function announceSessionToCommands(sessionPath: string): void {
+  process.env[PIGI_SESSION_ENV] = sessionPath;
+}
+
 async function resumeSession(sessionPath: string): Promise<void> {
   try {
     const sessionManager = SessionManager.open(sessionPath);
     const cwd = sessionManager.getCwd();
     await setSessionProcessCwd(cwd);
-    runtime = await createAgentSessionRuntime(createRuntimeFactory, {
+    runtime = await createAgentSessionRuntime(createRuntimeFactory(), {
       cwd,
       agentDir: getAgentDir(),
       sessionManager,
@@ -1029,6 +1078,7 @@ async function resumeSession(sessionPath: string): Promise<void> {
     await runtime.session.bindExtensions({ uiContext: createExtensionUIContext(), mode: 'rpc' });
     // Resumed sessions already have names.
     hasAutoRenamed = true;
+    announceSessionToCommands(sessionPath);
     sendToMain({
       type: 'session_created',
       sessionId: runtime.session.sessionId,
@@ -1101,7 +1151,11 @@ process.parentPort?.on('message', async (messageEvent) => {
 
   switch (utilityCommand.type) {
     case 'create_session':
-      await createSession(utilityCommand.cwd, utilityCommand.parentSessionPath);
+      await createSession(
+        utilityCommand.cwd,
+        utilityCommand.parentSessionPath,
+        utilityCommand.options,
+      );
       break;
     case 'resume_session':
       await resumeSession(utilityCommand.sessionPath);

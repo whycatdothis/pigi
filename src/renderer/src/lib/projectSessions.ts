@@ -16,6 +16,7 @@ export function getProjectSessions(
       id: session.persistedSessionId,
       cwd: session.cwd,
       parentSessionPath: session.parentSessionPath,
+      isSubagent: session.isSubagent,
       created: session.createdAt,
       modified: session.createdAt,
       messageCount: 0,

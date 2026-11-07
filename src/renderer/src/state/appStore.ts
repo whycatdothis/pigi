@@ -32,6 +32,8 @@ export interface SessionEntry {
    *  lineage from the listed sessions; this covers a fork that has no file yet
    *  (a fork of the first message, before its first response). */
   parentSessionPath?: string;
+  /** Started by `pigi subagent`; covers the time before its file is listed. */
+  isSubagent?: boolean;
   status: AgentStatus;
   title: string;
   cwd: string;
@@ -122,6 +124,13 @@ interface AppState {
   visibleWhenCollapsedSessionIds: Record<string, Set<string>>;
   /** An empty set removes the project's entry. */
   setVisibleWhenCollapsedSessionIds: (projectPath: string, sessionIds: Set<string>) => void;
+
+  /**
+   * Parents whose subagent group is open in the sidebar. In memory only: a
+   * group starts collapsed in every launch.
+   */
+  expandedSubagentGroups: ReadonlySet<string>;
+  setSubagentGroupsExpanded: (parentPaths: string[], expanded: boolean) => void;
 
   rightSidebarOpen: boolean;
   rightSidebarTab: RightSidebarTab;
@@ -431,6 +440,20 @@ export const useAppStore = create<AppState>((set) => ({
         globalCommentBySession.delete(sessionPath);
       }
       return { globalCommentBySession };
+    }),
+
+  expandedSubagentGroups: new Set(),
+  setSubagentGroupsExpanded: (parentPaths, expanded) =>
+    set((state) => {
+      if (parentPaths.every((path) => state.expandedSubagentGroups.has(path) === expanded)) {
+        return {};
+      }
+      const expandedSubagentGroups = new Set(state.expandedSubagentGroups);
+      for (const path of parentPaths) {
+        if (expanded) expandedSubagentGroups.add(path);
+        else expandedSubagentGroups.delete(path);
+      }
+      return { expandedSubagentGroups };
     }),
 
   rightSidebarOpen: false,

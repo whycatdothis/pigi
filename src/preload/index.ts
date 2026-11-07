@@ -13,7 +13,10 @@ import {
   isPiResult,
   isStreamBatch,
   type ControlPortMessage,
+  type CreateSessionOptions,
   type DataPortMessage,
+  type RemoteCommandOutput,
+  type RemoteCommandRequest,
   type GitBranchResult,
   type GitBranchListResult,
   type GitCommitFilesResult,
@@ -277,9 +280,10 @@ const piApi = {
   createSession: async (
     cwd: string,
     parentSessionPath?: string,
+    options?: CreateSessionOptions,
   ): Promise<{ success: boolean; sessionPath?: string; error?: string }> => {
     const result: { success: boolean; sessionPath?: string; error?: string } =
-      await ipcRenderer.invoke(PiChannel.CreateSession, cwd, parentSessionPath);
+      await ipcRenderer.invoke(PiChannel.CreateSession, cwd, parentSessionPath, options);
     if (result.success && result.sessionPath) {
       await waitForPort(result.sessionPath);
     }
@@ -611,6 +615,30 @@ const piApi = {
       };
       ipcRenderer.on(PiChannel.UpdateStatusChanged, handler);
       return () => ipcRenderer.removeListener(PiChannel.UpdateStatusChanged, handler);
+    },
+  },
+
+  /** The `pigi` CLI's requests, relayed by main (docs/cli.md §3). */
+  remoteControl: {
+    onCommand: (callback: (request: RemoteCommandRequest) => void): (() => void) => {
+      const handler = (_: Electron.IpcRendererEvent, request: RemoteCommandRequest): void => {
+        callback(request);
+      };
+      ipcRenderer.on(PiChannel.RemoteCommand, handler);
+      return () => ipcRenderer.removeListener(PiChannel.RemoteCommand, handler);
+    },
+    onCancel: (callback: (requestId: number) => void): (() => void) => {
+      const handler = (_: Electron.IpcRendererEvent, payload: { requestId: number }): void => {
+        callback(payload.requestId);
+      };
+      ipcRenderer.on(PiChannel.RemoteCommandCancel, handler);
+      return () => ipcRenderer.removeListener(PiChannel.RemoteCommandCancel, handler);
+    },
+    send: (output: RemoteCommandOutput): void => {
+      ipcRenderer.send(PiChannel.RemoteCommandOutput, output);
+    },
+    ready: (): void => {
+      ipcRenderer.send(PiChannel.RemoteControlReady);
     },
   },
 

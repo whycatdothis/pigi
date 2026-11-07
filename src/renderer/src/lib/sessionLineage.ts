@@ -6,17 +6,22 @@
  * list can be nested again: a parent plus all its forks form one block, and a
  * block reads as one conversation growing in several directions.
  *
+ * Subagents (sessions started by `pigi subagent`) are children too, but they
+ * gather in one group row placed first under their parent and collapsed by
+ * default: a review run is a side errand, not a direction the conversation took.
+ *
  * Pure: the sidebar renders what `flattenLineage` hands it.
  */
 import type { PiSessionInfo } from '../../../shared/ipcContract';
 
 export interface LineageNode {
   session: PiSessionInfo;
+  /** Forks. */
   children: LineageNode[];
+  subagents: LineageNode[];
 }
 
-export interface LineageRow {
-  session: PiSessionInfo;
+interface RowGeometry {
   /** 0 for a root session, 1 for a direct fork, and so on. */
   depth: number;
   /** Last of its siblings: the row closes its indent column. */
@@ -28,6 +33,21 @@ export interface LineageRow {
    */
   ancestorContinues: boolean[];
 }
+
+export interface SessionLineageRow extends RowGeometry {
+  kind: 'session';
+  session: PiSessionInfo;
+}
+
+export interface SubagentGroupRow extends RowGeometry {
+  kind: 'subagents';
+  parentPath: string;
+  /** Every session inside the group, nested ones included, for its summary. */
+  sessions: PiSessionInfo[];
+  expanded: boolean;
+}
+
+export type LineageRow = SessionLineageRow | SubagentGroupRow;
 
 /**
  * A path's identity for lineage lookups. Windows paths are case-insensitive,
@@ -56,7 +76,7 @@ function activityTime(session: PiSessionInfo): number {
 export function buildLineage(sessions: PiSessionInfo[]): LineageNode[] {
   const byKey = new Map<string, LineageNode>();
   for (const session of sessions) {
-    byKey.set(pathKey(session.path), { session, children: [] });
+    byKey.set(pathKey(session.path), { session, children: [], subagents: [] });
   }
 
   const roots: LineageNode[] = [];
@@ -71,7 +91,7 @@ export function buildLineage(sessions: PiSessionInfo[]): LineageNode[] {
       roots.push(node);
       continue;
     }
-    parent.children.push(node);
+    (node.session.isSubagent ? parent.subagents : parent.children).push(node);
   }
 
   sortNodes(roots);
@@ -104,6 +124,7 @@ function parentChainContains(
 function sortNodes(nodes: LineageNode[]): void {
   for (const node of nodes) {
     sortNodes(node.children);
+    sortNodes(node.subagents);
   }
   nodes.sort((left, right) => {
     const byActivity = subtreeActivity(right) - subtreeActivity(left);
@@ -114,25 +135,83 @@ function sortNodes(nodes: LineageNode[]): void {
 
 function subtreeActivity(node: LineageNode): number {
   let latest = activityTime(node.session);
-  for (const child of node.children) {
+  for (const child of [...node.children, ...node.subagents]) {
     latest = Math.max(latest, subtreeActivity(child));
   }
   return latest;
 }
 
-/** Flatten a lineage forest into the rows the sidebar renders, in order. */
-export function flattenLineage(roots: LineageNode[]): LineageRow[] {
+function subtreeSessions(nodes: LineageNode[]): PiSessionInfo[] {
+  return nodes.flatMap((node) => [
+    node.session,
+    ...subtreeSessions(node.subagents),
+    ...subtreeSessions(node.children),
+  ]);
+}
+
+/**
+ * The parents whose subagent groups hold `path`, outermost first: the groups
+ * to expand so that the session shows.
+ */
+export function subagentGroupsContaining(roots: LineageNode[], path: string): string[] {
+  const key = pathKey(path);
+  function search(node: LineageNode, groups: string[]): string[] | null {
+    if (pathKey(node.session.path) === key) return groups;
+    for (const child of node.children) {
+      const found = search(child, groups);
+      if (found) return found;
+    }
+    for (const subagent of node.subagents) {
+      const found = search(subagent, [...groups, node.session.path]);
+      if (found) return found;
+    }
+    return null;
+  }
+  for (const root of roots) {
+    const found = search(root, []);
+    if (found) return found;
+  }
+  return [];
+}
+
+/**
+ * Flatten a lineage forest into the rows the sidebar renders, in order. A
+ * parent's subagent group is its first child row; its sessions follow it only
+ * while the parent's path is in `expandedGroups`.
+ */
+export function flattenLineage(
+  roots: LineageNode[],
+  expandedGroups: ReadonlySet<string> = new Set(),
+): LineageRow[] {
   const rows: LineageRow[] = [];
 
+  function walkSiblings(nodes: LineageNode[], depth: number, above: boolean[]): void {
+    nodes.forEach((child, index) => walk(child, depth, index === nodes.length - 1, above));
+  }
+
   function walk(node: LineageNode, depth: number, isLast: boolean, above: boolean[]): void {
-    rows.push({ session: node.session, depth, isLast, ancestorContinues: above });
-    node.children.forEach((child, index) => {
-      // A depth-1 row opens the first column itself; deeper rows inherit the
-      // columns above them, and the parent's column runs on when the parent has
-      // a sibling below it.
-      const childAbove = depth === 0 ? [] : [...above, !isLast];
-      walk(child, depth + 1, index === node.children.length - 1, childAbove);
-    });
+    rows.push({ kind: 'session', session: node.session, depth, isLast, ancestorContinues: above });
+    // A depth-1 row opens the first column itself; deeper rows inherit the
+    // columns above them, and the parent's column runs on when the parent has
+    // a sibling below it.
+    const childAbove = depth === 0 ? [] : [...above, !isLast];
+    if (node.subagents.length > 0) {
+      const groupIsLast = node.children.length === 0;
+      const expanded = expandedGroups.has(node.session.path);
+      rows.push({
+        kind: 'subagents',
+        parentPath: node.session.path,
+        sessions: subtreeSessions(node.subagents),
+        expanded,
+        depth: depth + 1,
+        isLast: groupIsLast,
+        ancestorContinues: childAbove,
+      });
+      if (expanded) {
+        walkSiblings(node.subagents, depth + 2, [...childAbove, !groupIsLast]);
+      }
+    }
+    walkSiblings(node.children, depth + 1, childAbove);
   }
 
   // Roots are separate conversations: each closes its (unconnected) column.
