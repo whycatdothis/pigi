@@ -85,6 +85,8 @@ import MessageList, { type MessageListHandle } from './components/transcript/Mes
 import SessionTreeDialog from './components/sessionTree/SessionTreeDialog';
 import BranchSummaryPrompt from './components/sessionTree/BranchSummaryPrompt';
 import { MessageActionsContext, type MessageActions } from './components/message/messageActions';
+import { ChatFilesContext, type ChatFiles } from './components/message/chatFiles';
+import { projectRelativePath } from './lib/projectFileLinks';
 import { SessionTreeHelpContext } from './components/sessionTree/sessionTreeHelp';
 import SessionTreeHelpDialog from './components/sessionTree/SessionTreeHelpDialog';
 import TerminalPanel from './components/terminal/TerminalPanel';
@@ -1346,11 +1348,16 @@ function App(): React.JSX.Element {
     const store = useAppStore.getState();
     const project = store.activeProject;
     if (!project) return;
-    store.setLastFile(project.path, path);
+    store.setLastFile(project.path, projectRelativePath(project.path, path));
     setFileRevision((revision) => revision + 1);
     store.setWorkspaceTab(WORKSPACE_TABS.files);
     store.setSidebarExpanded(true);
   }, []);
+
+  const chatFiles = useMemo<ChatFiles>(
+    () => ({ cwd: activeCwd, onOpenFile: handleOpenFile }),
+    [activeCwd, handleOpenFile],
+  );
 
   const handleActiveFileChanged = useCallback(() => {
     setFileRevision((revision) => revision + 1);
@@ -1884,12 +1891,14 @@ function App(): React.JSX.Element {
                   {activeSession ? (
                     <div className="relative min-h-0 flex-1 overflow-clip">
                       <div className={workspaceLayoutClassName} style={workspaceLayoutStyle}>
-                        <MessageList
-                          key={activeSessionPath ?? 'draft'}
-                          ref={messageListRef}
-                          nodes={transcript.nodes}
-                          sessionPath={activeSessionPath ?? ''}
-                        />
+                        <ChatFilesContext.Provider value={chatFiles}>
+                          <MessageList
+                            key={activeSessionPath ?? 'draft'}
+                            ref={messageListRef}
+                            nodes={transcript.nodes}
+                            sessionPath={activeSessionPath ?? ''}
+                          />
+                        </ChatFilesContext.Provider>
                         <div className="relative z-10 shrink-0">
                           {/* Flow anchor for the absolutely positioned queue. Its height is
                       the bars' visible rise (computed, not measured), so the list
@@ -1965,7 +1974,9 @@ function App(): React.JSX.Element {
                           </div>
                         ) : (
                           <>
-                            <MessageList nodes={draftState.nodes} sessionPath="" />
+                            <ChatFilesContext.Provider value={chatFiles}>
+                              <MessageList nodes={draftState.nodes} sessionPath="" />
+                            </ChatFilesContext.Provider>
                             <div className="relative z-10 shrink-0">
                               <ChatInput
                                 ref={chatInputRef}

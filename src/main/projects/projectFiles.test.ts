@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { listProjectDirectory, readProjectFile } from './projectFiles';
+import { listProjectDirectory, readProjectFile, resolveExistingFiles } from './projectFiles';
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 let root: string;
@@ -102,14 +102,21 @@ describe('readProjectFile', () => {
     });
   });
 
-  it('refuses directories and paths outside the project', async () => {
+  it('refuses directories and relative paths that climb out of the project', async () => {
     await expect(readProjectFile(root, 'src')).resolves.toEqual({
       success: false,
       error: 'This path is not a file.',
     });
-    await expect(readProjectFile(root, join(outside, 'secret.txt'))).resolves.toEqual({
+    await expect(readProjectFile(root, '../secret.txt')).resolves.toEqual({
       success: false,
       error: 'The path is outside the project.',
+    });
+  });
+
+  it('reads an absolute path outside the project, which a chat link can name', async () => {
+    await expect(readProjectFile(root, join(outside, 'secret.txt'))).resolves.toMatchObject({
+      success: true,
+      content: 'secret\n',
     });
   });
 
@@ -120,5 +127,27 @@ describe('readProjectFile', () => {
     expect(result.truncated).toBe(true);
     expect(result.size).toBe(MAX_FILE_BYTES + 1);
     expect(result.content).toHaveLength(MAX_FILE_BYTES);
+  });
+});
+
+describe('resolveExistingFiles', () => {
+  it('resolves relative and absolute paths to existing files only', async () => {
+    await expect(
+      resolveExistingFiles(root, [
+        'src/app.ts',
+        './README.md',
+        join(outside, 'secret.txt'),
+        'src',
+        'missing.ts',
+        '',
+      ]),
+    ).resolves.toEqual([
+      join(root, 'src/app.ts'),
+      join(root, 'README.md'),
+      join(outside, 'secret.txt'),
+      null,
+      null,
+      null,
+    ]);
   });
 });

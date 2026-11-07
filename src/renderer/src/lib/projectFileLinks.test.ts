@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveProjectFileReference } from './projectFileLinks';
+import { projectRelativePath, resolveProjectFileReference } from './projectFileLinks';
 
 describe('resolveProjectFileReference', () => {
   const projectPath = '/repo';
@@ -91,5 +91,25 @@ describe('resolveProjectFileReference', () => {
     ).toBeNull();
     expect(resolveProjectFileReference(projectPath, sourceFilePath, '#section')).toBeNull();
     expect(resolveProjectFileReference(projectPath, sourceFilePath, '?raw=1')).toBeNull();
+  });
+});
+
+describe('resolveProjectFileReference from a file outside the project', () => {
+  it('resolves beside the file, never against the project', () => {
+    expect(resolveProjectFileReference('/repo', '/notes/a/guide.md', '../b.md')).toEqual({
+      path: '/notes/b.md',
+      absolutePath: '/notes/b.md',
+    });
+    expect(resolveProjectFileReference('/repo', '/notes/guide.md', '/b.md')).toBeNull();
+    expect(resolveProjectFileReference('/repo', '/guide.md', '../b.md')).toBeNull();
+  });
+});
+
+describe('projectRelativePath', () => {
+  it('names a project file relative to the project and keeps others absolute', () => {
+    expect(projectRelativePath('/repo', '/repo/src/a.ts')).toBe('src/a.ts');
+    expect(projectRelativePath('/repo/', '/repo/src/a.ts')).toBe('src/a.ts');
+    expect(projectRelativePath('/repo', '/repository/a.ts')).toBe('/repository/a.ts');
+    expect(projectRelativePath('/repo', 'src/a.ts')).toBe('src/a.ts');
   });
 });

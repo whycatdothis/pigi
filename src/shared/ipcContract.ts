@@ -621,6 +621,8 @@ export enum PiChannel {
   ProjectFilesChanged = 'pi:project_files_changed',
   /** renderer → main: read a project file for the workspace viewer */
   ReadProjectFile = 'pi:read_project_file',
+  /** renderer → main: which paths named in chat are existing files */
+  ResolveExistingFiles = 'pi:resolve_existing_files',
   /** renderer → main: the app theme, so window materials follow it */
   SetAppearanceTheme = 'pi:set_appearance_theme',
   /** renderer → main: apply appearance/chat slices to pigi's settings */

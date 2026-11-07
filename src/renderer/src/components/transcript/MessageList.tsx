@@ -26,7 +26,7 @@ import UserMessageMiniMap from './UserMessageMiniMap';
 import { ThinScrollbar } from '../ui/thinScrollbar';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import MinimalView from './minimalView';
-import { analyzeTurn, buildTurns } from '../../lib/minimalTurns';
+import { analyzeTurn, buildTurns, turnRunEnd, type RunEnd } from '../../lib/minimalTurns';
 
 interface MessageListProps {
   nodes: TranscriptNode[];
@@ -76,13 +76,21 @@ export default React.memo(function MessageList({
   );
 
   const displayNodes = useMemo(() => nodes.filter(isRenderableNode), [nodes]);
-  const { lastMinimalTurn, isLastMinimalTurnActive } = useMemo(() => {
+  const { lastMinimalTurn, isLastMinimalTurnActive, runEnds } = useMemo(() => {
     const turns = buildTurns(displayNodes);
     const lastTurn = turns[turns.length - 1] ?? null;
+    const runEnds = new Map<TranscriptNode, RunEnd>();
+    let isLastTurnActive = false;
+    for (const turn of turns) {
+      const analysis = analyzeTurn(turn, sessionStatus, turn === lastTurn);
+      if (turn === lastTurn) isLastTurnActive = analysis.isActive;
+      const end = turnRunEnd(turn, analysis);
+      if (end) runEnds.set(end.node, end.runEnd);
+    }
     return {
       lastMinimalTurn: lastTurn,
-      isLastMinimalTurnActive:
-        lastTurn !== null && analyzeTurn(lastTurn, sessionStatus, true).isActive,
+      isLastMinimalTurnActive: isLastTurnActive,
+      runEnds,
     };
   }, [displayNodes, sessionStatus]);
 
@@ -391,6 +399,9 @@ export default React.memo(function MessageList({
                       item={item}
                       isLast={isLast}
                       showActions={showsActions}
+                      runEnd={
+                        showsActions && item.type === 'node' ? runEnds.get(item.node) : undefined
+                      }
                       sessionActive={sessionStatus !== 'idle'}
                       searchQuery={rowSearchQuery}
                       expanded={

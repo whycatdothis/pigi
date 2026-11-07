@@ -17,6 +17,7 @@ import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import ContainerFind from '../ui/containerFind';
 import { ZoomableImage } from '../zoomableImage';
 import { localFileUrl } from '../../lib/chatAttachments';
+import { isAbsoluteFilePath } from '../../lib/projectFileLinks';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
@@ -143,7 +144,8 @@ export default function FileViewer({
   const isSvg = isSvgPath(filePath);
   const showsPreview = (isMarkdown || isSvg) && viewMode === 'preview';
   // The revision busts the image cache, which would otherwise keep showing the old file.
-  const imageSource = `${localFileUrl(`${projectPath}/${filePath}`)}?v=${fileRevision}`;
+  const absolutePath = isAbsoluteFilePath(filePath) ? filePath : `${projectPath}/${filePath}`;
+  const imageSource = `${localFileUrl(absolutePath)}?v=${fileRevision}`;
   const language = languageForPath(filePath);
   const markdownProjectFile = useMemo(
     () => ({ projectPath, filePath, onOpenFile }),

@@ -23,7 +23,11 @@ import {
 } from '../projects/gitDiff';
 import { searchProjectFiles } from '../projects/projectFileSearch';
 import { completePath } from '../projects/pathCompletion';
-import { listProjectDirectory, readProjectFile } from '../projects/projectFiles';
+import {
+  listProjectDirectory,
+  readProjectFile,
+  resolveExistingFiles,
+} from '../projects/projectFiles';
 import { setProjectFileWatch } from '../projects/projectFileWatch';
 
 function parseGitDiffScope(value: unknown): GitDiffScope | null {
@@ -158,6 +162,14 @@ export function registerProjectHandlers(): void {
       return { success: false, error: 'path must be a non-empty string' };
     }
     return readProjectFile(cwd, path);
+  });
+
+  ipcMain.handle(PiChannel.ResolveExistingFiles, async (_event, cwd: unknown, paths: unknown) => {
+    if (typeof cwd !== 'string' || cwd.trim().length === 0) return [];
+    if (!Array.isArray(paths) || !paths.every((path): path is string => typeof path === 'string')) {
+      return [];
+    }
+    return resolveExistingFiles(cwd, paths);
   });
 
   ipcMain.on(

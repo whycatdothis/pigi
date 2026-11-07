@@ -225,6 +225,37 @@ export function shouldShowTimer(analysis: MinimalTurnAnalysis): boolean {
   );
 }
 
+/** When a finished run ended (its last message, before any compaction after it) and how long it took. */
+export interface RunEnd {
+  endedAt: number;
+  durationMs: number;
+}
+
+// Rows are memoized on their props; a finished run keeps handing out the same
+// object while transcript updates rebuild every turn's analysis.
+const runEndCache = new WeakMap<TranscriptNode, RunEnd>();
+
+/** The finished run a turn holds, and the node it ends on; null while it runs. */
+export function turnRunEnd(
+  turn: MinimalTurn,
+  analysis: MinimalTurnAnalysis,
+): { node: TranscriptNode; runEnd: RunEnd } | null {
+  const { startAt, endAt } = analysis;
+  if (analysis.isActive || !turn.userNode || startAt === undefined || endAt === undefined) {
+    return null;
+  }
+  const node = turn.entries.findLast((entry) => entry.role !== 'system');
+  if (!node) return null;
+  const durationMs = Math.max(0, endAt - startAt);
+  const cached = runEndCache.get(node);
+  if (cached?.endedAt === endAt && cached.durationMs === durationMs) {
+    return { node, runEnd: cached };
+  }
+  const runEnd = { endedAt: endAt, durationMs };
+  runEndCache.set(node, runEnd);
+  return { node, runEnd };
+}
+
 /** Format elapsed milliseconds as "1m 20s" / "2h 5m" (whole seconds, floor). */
 export function formatWorkingDuration(elapsedMs: number): string {
   const totalSeconds = Math.floor(Math.max(0, elapsedMs) / 1000);

@@ -12,9 +12,11 @@ import {
   buildTurns,
   formatWorkingDuration,
   shouldShowTimer,
+  turnRunEnd,
   type MinimalTurn,
   type MinimalSystemItem,
   type MinimalTurnAnalysis,
+  type RunEnd,
 } from '../../lib/minimalTurns';
 import MarkdownMessage from '../message/markdownMessage';
 import ToolBlock from '../message/ToolBlock';
@@ -215,6 +217,7 @@ const TurnSection = React.memo(function TurnSection({
   });
 
   const showTimer = shouldShowTimer(analysis);
+  const runEnd = turnRunEnd(turn, analysis);
   const showIntro =
     analysis.intro !== null &&
     (analysis.isActive || (!analysis.hasTools && analysis.intro === analysis.summary));
@@ -417,6 +420,7 @@ const TurnSection = React.memo(function TurnSection({
                   key={node.id}
                   node={node}
                   showActions={index === turn.entries.length - 1}
+                  runEnd={runEnd?.node === node ? runEnd.runEnd : undefined}
                 />
               ))}
             </div>
@@ -432,6 +436,7 @@ const TurnSection = React.memo(function TurnSection({
           pinnedRowsBeforeCurrent={pinnedRowsBeforeCurrent}
           pinnedRowsAfterCurrent={pinnedRowsAfterCurrent}
           feedRow={feedRow}
+          runEnd={runEnd}
         />
       )}
     </section>
@@ -479,6 +484,7 @@ function CollapsedContent({
   pinnedRowsBeforeCurrent,
   pinnedRowsAfterCurrent,
   feedRow,
+  runEnd,
 }: {
   showIntro: boolean;
   intro: AssistantNode | null;
@@ -488,7 +494,10 @@ function CollapsedContent({
   pinnedRowsBeforeCurrent: React.ReactNode[];
   pinnedRowsAfterCurrent: React.ReactNode[];
   feedRow: React.ReactNode;
+  runEnd: ReturnType<typeof turnRunEnd>;
 }): React.JSX.Element {
+  const runEndOf = (node: AssistantNode): RunEnd | undefined =>
+    runEnd?.node === node ? runEnd.runEnd : undefined;
   return (
     <div className="mt-2" data-testid="minimal-collapsed">
       <div className="overflow-hidden">
@@ -497,14 +506,16 @@ function CollapsedContent({
           {showIntro && (
             <div className="group" data-testid="minimal-intro">
               <AssistantText node={intro!} />
-              {intro === summary && <MessageToolbar node={intro!} />}
+              {intro === summary && <MessageToolbar node={intro!} runEnd={runEndOf(intro!)} />}
             </div>
           )}
           {pinnedRowsBeforeCurrent}
           {currentMsg && (
             <div className={cn('group', showIntro && 'mt-2')} data-testid="minimal-current-msg">
               <AssistantText node={currentMsg} />
-              {currentMsg === summary && <MessageToolbar node={currentMsg} />}
+              {currentMsg === summary && (
+                <MessageToolbar node={currentMsg} runEnd={runEndOf(currentMsg)} />
+              )}
             </div>
           )}
           {pinnedRowsAfterCurrent}
@@ -522,16 +533,18 @@ function CollapsedContent({
 function DetailItem({
   node,
   showActions,
+  runEnd,
 }: {
   node: TranscriptNode;
   /** Only the last step of a turn carries the action band. */
   showActions: boolean;
+  runEnd?: RunEnd;
 }): React.JSX.Element | null {
   if (node.role === 'tool') {
     return (
       <div className="group">
         <ToolBlock node={node} />
-        {showActions && <MessageToolbar node={node} />}
+        {showActions && <MessageToolbar node={node} runEnd={runEnd} />}
       </div>
     );
   }
@@ -556,7 +569,7 @@ function DetailItem({
             <AssistantText node={node} />
           </div>
         )}
-        {showActions && <MessageToolbar node={node} />}
+        {showActions && <MessageToolbar node={node} runEnd={runEnd} />}
       </div>
     );
   }

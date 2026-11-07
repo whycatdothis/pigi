@@ -3,6 +3,7 @@ import { IconChevronRight, IconLoader2, IconSettings } from '@tabler/icons-react
 import { FolderClosed, FolderOpen, Info } from 'lucide-react';
 import type { ProjectDirectoryEntry, ShortcutBinding } from '../../../../shared/ipcContract';
 import { cn } from '../../lib/utils';
+import { isAbsoluteFilePath } from '../../lib/projectFileLinks';
 import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
 import { COMPACT_KBD_CLASS_NAME, MENU_ROW_KBD_CLASS_NAME, Kbd } from '../ui/kbd';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
@@ -68,6 +69,9 @@ export default memo(function FileTreeSidebar({
   const pendingDirectoriesRef = useRef<Map<string, Promise<void>>>(new Map());
   const requestIdRef = useRef(0);
   const requestIdByDirectoryRef = useRef<Map<string, number>>(new Map());
+  // A file opened from chat may live outside the project: nothing to reveal or watch.
+  const treeFilePath =
+    selectedFilePath && !isAbsoluteFilePath(selectedFilePath) ? selectedFilePath : null;
 
   const loadDirectory = useCallback(
     (path: string, force = false): Promise<void> => {
@@ -194,8 +198,8 @@ export default memo(function FileTreeSidebar({
   }, [loadDirectory, onActiveFileChanged, projectPath, selectedFilePath]);
 
   useEffect(() => {
-    window.piApi.watchProjectFiles(projectPath, ['', ...expandedDirectories], selectedFilePath);
-  }, [expandedDirectories, projectPath, selectedFilePath]);
+    window.piApi.watchProjectFiles(projectPath, ['', ...expandedDirectories], treeFilePath);
+  }, [expandedDirectories, projectPath, treeFilePath]);
 
   useEffect(() => {
     return () => {
@@ -210,7 +214,7 @@ export default memo(function FileTreeSidebar({
   // A file opened from the search palette may sit under directories that have
   // never been loaded; open its path to it instead of leaving it invisible.
   useEffect(() => {
-    const filePath = selectedFilePath;
+    const filePath = treeFilePath;
     if (!filePath) return;
     let cancelled = false;
 
@@ -245,7 +249,7 @@ export default memo(function FileTreeSidebar({
     return () => {
       cancelled = true;
     };
-  }, [selectedFilePath, loadDirectory]);
+  }, [treeFilePath, loadDirectory]);
 
   const toggleDirectory = useCallback(
     (path: string) => {

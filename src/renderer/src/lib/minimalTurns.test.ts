@@ -1,5 +1,11 @@
 import { expect, test } from 'vitest';
-import { analyzeTurn, buildTurns, shouldShowTimer, type MinimalTurnAnalysis } from './minimalTurns';
+import {
+  analyzeTurn,
+  buildTurns,
+  shouldShowTimer,
+  turnRunEnd,
+  type MinimalTurnAnalysis,
+} from './minimalTurns';
 import type {
   AgentStatus,
   AssistantNode,
@@ -120,4 +126,26 @@ test('a steered peer note stays inside the turn, an opening one starts a turn', 
   const boundary = buildTurns([user('hello'), peer(false), assistant({ text: 'done' })]);
   expect(boundary).toHaveLength(3);
   expect(boundary[1].entries[0]).toMatchObject({ kind: 'custom' });
+});
+
+test('a finished run ends on its last message, timed from the prompt', () => {
+  const reply = assistant({ text: 'done', messageStartedAt: 2_000, messageEndedAt: 61_000 });
+  const turn = buildTurns([user('go', 1_000), reply])[0];
+
+  expect(turnRunEnd(turn, analyzeTurn(turn, 'idle', true))).toEqual({
+    node: reply,
+    runEnd: { endedAt: 61_000, durationMs: 60_000 },
+  });
+  expect(turnRunEnd(turn, analyzeTurn(turn, 'streaming', true))).toBeNull();
+});
+
+test('a run end keeps its identity across analyses, so memoized rows do not re-render', () => {
+  const turn = buildTurns([
+    user('go', 1_000),
+    assistant({ text: 'done', messageStartedAt: 2_000, messageEndedAt: 5_000 }),
+  ])[0];
+
+  const first = turnRunEnd(turn, analyzeTurn(turn, 'idle', true));
+  const second = turnRunEnd(turn, analyzeTurn(turn, 'idle', true));
+  expect(second?.runEnd).toBe(first?.runEnd);
 });

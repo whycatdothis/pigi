@@ -1,5 +1,6 @@
 import { open, readdir, stat } from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
+import { expandHome } from './pathCompletion';
 import type {
   ProjectDirectoryEntry,
   ProjectDirectoryResult,
@@ -10,6 +11,8 @@ import type {
 const MAX_DIRECTORY_ENTRIES = 2000;
 /** The viewer is text; a read stops at this size and says so. */
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
+/** One resolve call covers the paths of a rendered message; more than this is not a message. */
+const MAX_RESOLVED_PATHS = 500;
 
 const NAME_COLLATOR = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
 
@@ -92,11 +95,15 @@ export async function listProjectDirectory(
   }
 }
 
+/**
+ * A relative path stays inside the project; an absolute one is a file the user
+ * clicked in chat, which may live anywhere (see `resolveProjectPath`).
+ */
 export async function readProjectFile(
   projectPath: string,
   path: string,
 ): Promise<ProjectFileResult> {
-  const filePath = resolveProjectPath(projectPath, path);
+  const filePath = isAbsolute(path) ? path : resolveProjectPath(projectPath, path);
   if (!filePath) {
     return { success: false, error: 'The path is outside the project.' };
   }
@@ -140,4 +147,25 @@ export async function readProjectFile(
     }
     return { success: false, error: errorMessage(error, 'Unable to read this file') };
   }
+}
+
+/**
+ * Absolute path of each entry that names an existing regular file, else null.
+ * Chat text names files relative to the session cwd, absolutely, or under `~`.
+ */
+export async function resolveExistingFiles(
+  cwd: string,
+  paths: readonly string[],
+): Promise<(string | null)[]> {
+  return Promise.all(
+    paths.slice(0, MAX_RESOLVED_PATHS).map(async (path) => {
+      if (path.length === 0 || path.includes('\0')) return null;
+      const absolute = resolve(cwd, expandHome(path));
+      try {
+        return (await stat(absolute)).isFile() ? absolute : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
 }

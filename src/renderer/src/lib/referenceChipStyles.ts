@@ -12,5 +12,9 @@ export const REFERENCE_CHIP_CLASS = `${REFERENCE_CHIP_BASE_CLASS} max-w-60`;
 /** Path chips show the whole path, bounded only by the line they sit on. */
 export const PATH_CHIP_CLASS = `${REFERENCE_CHIP_BASE_CLASS} max-w-full`;
 
-/** Chip used by triggers that open a popover. */
-export const INTERACTIVE_REFERENCE_CHIP_CLASS = `${REFERENCE_CHIP_CLASS} hover:opacity-80 cursor-pointer`;
+const INTERACTIVE_CHIP_CLASS = 'hover:opacity-80 cursor-pointer';
+
+/** Chip used by triggers that open a popover or a file. */
+export const INTERACTIVE_REFERENCE_CHIP_CLASS = `${REFERENCE_CHIP_CLASS} ${INTERACTIVE_CHIP_CLASS}`;
+
+export const INTERACTIVE_PATH_CHIP_CLASS = `${PATH_CHIP_CLASS} ${INTERACTIVE_CHIP_CLASS}`;

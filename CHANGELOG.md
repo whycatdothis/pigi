@@ -14,6 +14,12 @@
   off, the view follows the reply at the bottom instead of holding your
   message at the top
 - pigi reopens the session that was open when it last closed
+- File paths in chat replies, in prose or inline code, link to the file when it
+  exists and open it in the Files tab, including files outside the project
+- Sent messages show `@file` references and completed paths as the same chips
+  the composer showed; a chip for an existing file opens it in the Files tab
+- The last message of a finished run shows when it ended and how long the run
+  took, in every chat view
 
 ### Changed
 

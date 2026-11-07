@@ -9,6 +9,11 @@ import { localFileUrl } from '../../lib/chatAttachments';
 import { ZoomableImage } from '../zoomableImage';
 import { isFenceClosed } from '../../lib/markdownFence';
 import { resolveProjectFileReference } from '../../lib/projectFileLinks';
+import { filePathFromHref } from '../../lib/filePathCandidates';
+import { useExistingFile } from '../../lib/existingFiles';
+import rehypeFilePaths, { FILE_PATH_PROPERTY } from '../../lib/rehypeFilePaths';
+import { ChatFilesContext } from './chatFiles';
+import { FileLink, OpenFileAnchor } from './fileLink';
 
 const MERMAID_LANGUAGE = 'mermaid';
 
@@ -76,10 +81,21 @@ const IsInLinkContext = createContext(false);
 
 function MarkdownLink({ href, children }: React.ComponentProps<'a'>): React.JSX.Element {
   const projectFile = useContext(MarkdownProjectFileContext);
+  const chatFiles = useContext(ChatFilesContext);
   const target =
     projectFile && href
       ? resolveProjectFileReference(projectFile.projectPath, projectFile.filePath, href)
       : null;
+  const chatPath = !projectFile && chatFiles && href ? filePathFromHref(href) : null;
+  const chatFile = useExistingFile(chatFiles?.cwd ?? '', chatPath);
+
+  if (chatFile && chatFiles) {
+    return (
+      <OpenFileAnchor absolutePath={chatFile} onOpenFile={chatFiles.onOpenFile}>
+        <IsInLinkContext.Provider value>{children}</IsInLinkContext.Provider>
+      </OpenFileAnchor>
+    );
+  }
 
   return (
     <a
@@ -130,9 +146,25 @@ function MarkdownImage({
   );
 }
 
+/** The path `rehypeFilePaths` marked on this element, if any. */
+function markedFilePath(node: ExtraProps['node']): string | null {
+  const path = node?.properties[FILE_PATH_PROPERTY];
+  return typeof path === 'string' ? path : null;
+}
+
+function MarkdownSpan({
+  children,
+  node,
+  ...props
+}: React.ComponentProps<'span'> & ExtraProps): React.JSX.Element {
+  const path = markedFilePath(node);
+  return path ? <FileLink path={path}>{children}</FileLink> : <span {...props}>{children}</span>;
+}
+
 const markdownComponents: Components = {
   a: MarkdownLink,
   img: MarkdownImage,
+  span: MarkdownSpan,
   // Scroll wrapper so wide tables overflow horizontally instead of
   // stretching the message layout.
   table: ({ children }) => (
@@ -163,7 +195,9 @@ function MarkdownCode({
   const source = useContext(MarkdownSourceContext);
   const isStreaming = useContext(MarkdownStreamingContext);
   if (!isCodeBlock) {
-    return <code className={className}>{children}</code>;
+    const path = markedFilePath(node);
+    const code = <code className={className}>{children}</code>;
+    return path ? <FileLink path={path}>{code}</FileLink> : code;
   }
 
   const language = getCodeLanguage(className);
@@ -232,6 +266,10 @@ function getCodeLanguageLabel(language: string): string {
   );
 }
 
+const REHYPE_PLUGINS = [rehypeSanitize];
+// After sanitizing, so the path marks cannot be forged by the markdown itself.
+const CHAT_REHYPE_PLUGINS = [rehypeSanitize, rehypeFilePaths];
+
 // Memoized: the remark/rehype pipeline is expensive, and callers (minimal
 // view turns, message rows) re-render for unrelated reasons like scroll
 // tracking or timer ticks — the text prop is a stable string in those cases.
@@ -240,6 +278,10 @@ export default memo(function MarkdownMessage({
   isStreaming = false,
   projectFile,
 }: MarkdownMessageProps): React.JSX.Element {
+  const chatFiles = useContext(ChatFilesContext);
+  // Paths in a message that is still arriving are half-written; they are
+  // looked up once the text settles.
+  const linksFilePaths = chatFiles !== null && !projectFile && !isStreaming;
   return (
     <div className="markdown-body text-body">
       <MarkdownStreamingContext.Provider value={isStreaming}>
@@ -247,7 +289,7 @@ export default memo(function MarkdownMessage({
           <MarkdownProjectFileContext.Provider value={projectFile ?? null}>
             <Markdown
               remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeSanitize]}
+              rehypePlugins={linksFilePaths ? CHAT_REHYPE_PLUGINS : REHYPE_PLUGINS}
               components={markdownComponents}
             >
               {text}

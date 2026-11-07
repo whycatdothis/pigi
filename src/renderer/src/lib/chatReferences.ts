@@ -28,9 +28,10 @@ const LEADING_COMMAND_PATTERN = /^\/([A-Za-z0-9][A-Za-z0-9:_.-]*)/;
 
 /**
  * A file reference is `@path` at a word boundary. Quoted paths (`@"a b.ts"`)
- * preserve spaces.
+ * preserve spaces. CJK punctuation ends it: Chinese prose puts `，` straight
+ * after the chip with no space.
  */
-const FILE_REFERENCE_PATTERN = /(^|[\s(])(@(?:"[^"\n]+"|[^\s@]+))/g;
+const FILE_REFERENCE_PATTERN = /(^|[\s(])(@(?:"[^"\n]+"|[^\s@\u3000-\u303f\uff00-\uffef]+))/g;
 
 /** Punctuation that usually follows a path in a sentence rather than being part of it. */
 const TRAILING_PUNCTUATION_PATTERN = /[.,;:!?)\]}]+$/;

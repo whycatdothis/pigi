@@ -23,8 +23,10 @@ import {
   REFERENCE_CHIP_CLASS,
 } from '../../lib/referenceChipStyles';
 import { MessageAttachments } from './messageAttachments';
+import { UserMessageText } from './userMessageText';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
 import { parseSlashCommand, slashCommandDisplayName } from '../../lib/slashCommands';
+import { formatWorkingDuration, type RunEnd } from '../../lib/minimalTurns';
 
 /**
  * Shared message bubbles (user / system / toolbar) used by both the classic
@@ -128,7 +130,26 @@ function MessageActionTooltip({
   );
 }
 
-export function MessageToolbar({ node }: { node: TranscriptNode }): React.JSX.Element {
+function RunEndStamp({ runEnd }: { runEnd: RunEnd }): React.JSX.Element {
+  return (
+    <span
+      className="mr-1 text-caption text-muted-foreground tabular-nums"
+      data-search-ignore
+      data-testid="run-end"
+    >
+      {formatMessageTime(runEnd.endedAt, true)} · {formatWorkingDuration(runEnd.durationMs)}
+    </span>
+  );
+}
+
+export function MessageToolbar({
+  node,
+  runEnd,
+}: {
+  node: TranscriptNode;
+  /** Set on the last message of a finished run; always shown, unlike the hover actions. */
+  runEnd?: RunEnd;
+}): React.JSX.Element {
   const text =
     node.role === 'tool'
       ? node.output
@@ -177,37 +198,42 @@ export function MessageToolbar({ node }: { node: TranscriptNode }): React.JSX.El
 
   return (
     <TooltipProvider delayDuration={ACTION_TOOLTIP_DELAY_MS}>
-      <div
-        className={`flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 ${ACTION_TOOLBAR_OFFSET_CLASS_NAME}`}
-      >
-        <button
-          type="button"
-          className={ACTION_BUTTON_CLASS_NAME}
-          onClick={copy}
-          aria-label="Copy message"
-        >
-          {copied ? <IconCheck size={ACTION_ICON_SIZE} /> : <IconCopy size={ACTION_ICON_SIZE} />}
-        </button>
-        {actions.length > 0 && <MessageActionTooltip disabled={disabled} actions={actions} />}
+      <div className={`flex items-center ${ACTION_TOOLBAR_OFFSET_CLASS_NAME}`}>
+        {runEnd && <RunEndStamp runEnd={runEnd} />}
+        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            type="button"
+            className={ACTION_BUTTON_CLASS_NAME}
+            onClick={copy}
+            aria-label="Copy message"
+          >
+            {copied ? <IconCheck size={ACTION_ICON_SIZE} /> : <IconCopy size={ACTION_ICON_SIZE} />}
+          </button>
+          {actions.length > 0 && <MessageActionTooltip disabled={disabled} actions={actions} />}
+        </div>
       </div>
     </TooltipProvider>
   );
 }
 
-function formatUserMessageTime(timestamp: number): string {
+const TIME_OF_DAY_FORMAT: Intl.DateTimeFormatOptions = {
+  hour: '2-digit',
+  hourCycle: 'h23',
+  minute: '2-digit',
+};
+
+/** Today's messages show the time; older ones the date, plus the time when `withTime`. */
+function formatMessageTime(timestamp: number, withTime = false): string {
   const date = new Date(timestamp);
   if (isSameLocalDay(date, new Date())) {
-    return new Intl.DateTimeFormat(undefined, {
-      hour: '2-digit',
-      hourCycle: 'h23',
-      minute: '2-digit',
-    }).format(date);
+    return new Intl.DateTimeFormat(undefined, TIME_OF_DAY_FORMAT).format(date);
   }
 
   return new Intl.DateTimeFormat(undefined, {
     year: isSameLocalYear(date, new Date()) ? undefined : 'numeric',
     month: 'short',
     day: 'numeric',
+    ...(withTime ? TIME_OF_DAY_FORMAT : {}),
   }).format(date);
 }
 
@@ -260,12 +286,19 @@ function SkillLinkBubble({
             </PopoverContent>
           </Popover>
           {skillBlock.userMessage && (
-            <> {highlightMatches(skillBlock.userMessage, searchQuery, activeOccurrenceIndex)}</>
+            <>
+              {' '}
+              <UserMessageText
+                text={skillBlock.userMessage}
+                searchQuery={searchQuery}
+                activeOccurrenceIndex={activeOccurrenceIndex}
+              />
+            </>
           )}
         </div>
         <div className="flex w-full items-center justify-end gap-2">
           <span className="text-caption text-muted-foreground" data-search-ignore>
-            {formatUserMessageTime(timestamp)}
+            {formatMessageTime(timestamp)}
           </span>
         </div>
       </div>
@@ -294,7 +327,7 @@ function CommandBubble({
         </div>
         <div className="flex w-full items-center justify-end gap-2">
           <span className="text-caption text-muted-foreground" data-search-ignore>
-            {formatUserMessageTime(timestamp)}
+            {formatMessageTime(timestamp)}
           </span>
         </div>
       </div>
@@ -357,7 +390,11 @@ export function UserBubble({
               tailAnchor={false}
               className="text-body leading-6 text-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
             >
-              {highlightMatches(text, searchQuery, activeOccurrenceIndex)}
+              <UserMessageText
+                text={text}
+                searchQuery={searchQuery}
+                activeOccurrenceIndex={activeOccurrenceIndex}
+              />
             </OverflowClamp>
           )}
           {(node.imageSources || node.filePaths || node.inlineFileNames) && (
@@ -371,7 +408,7 @@ export function UserBubble({
         <div className="flex w-full items-center justify-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
           <MessageToolbar node={node} />
           <span className="text-caption text-muted-foreground" data-search-ignore>
-            {formatUserMessageTime(node.sentAt)}
+            {formatMessageTime(node.sentAt)}
           </span>
         </div>
       </div>

@@ -352,6 +352,10 @@ const piApi = {
   readProjectFile: (cwd: string, path: string): Promise<ProjectFileResult> =>
     ipcRenderer.invoke(PiChannel.ReadProjectFile, cwd, path),
 
+  /** Absolute path of each entry that names an existing file, else null. */
+  resolveExistingFiles: (cwd: string, paths: string[]): Promise<(string | null)[]> =>
+    ipcRenderer.invoke(PiChannel.ResolveExistingFiles, cwd, paths),
+
   /** Replace the directories and active file watched for the Files workspace. */
   watchProjectFiles: (cwd: string, directories: string[], filePath: string | null): void => {
     ipcRenderer.send(PiChannel.WatchProjectFiles, cwd, directories, filePath);

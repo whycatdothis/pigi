@@ -16,7 +16,7 @@ interface PathPrefix {
   namePrefix: string;
 }
 
-function expandHome(token: string): string {
+export function expandHome(token: string): string {
   // Concatenate instead of `join`, which would drop the trailing slash of `~/`
   // and list the home directory's parent.
   if (token === '~' || token.startsWith('~/')) return `${homedir()}${token.slice(1)}`;
