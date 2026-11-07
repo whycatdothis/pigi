@@ -44,9 +44,12 @@ function defaultSocketPath(): string {
 
 type Answer<M extends RemoteMethod> = { result: RemoteResults[M] } | { error: RemoteError };
 
-interface Envelope {
-  id?: unknown;
-  method?: unknown;
+/**
+ * A line from the server, in the shape its method promises. Trusted, not
+ * checked: the handshake confirmed the method, and a newer app only adds fields.
+ */
+function fromServer<T>(line: string): T {
+  return JSON.parse(line);
 }
 
 class RemoteClient {
@@ -87,7 +90,7 @@ class RemoteClient {
   call<M extends RemoteMethod>(method: M, params: CliParams): Promise<Answer<M>> {
     const id = ++this.nextId;
     return new Promise((resolve) => {
-      this.waiting.set(id, (line) => resolve(JSON.parse(line)));
+      this.waiting.set(id, (line) => resolve(fromServer<Answer<M>>(line)));
       this.socket.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`);
     });
   }
@@ -108,22 +111,23 @@ class RemoteClient {
   }
 
   private dispatch(line: string): void {
-    let envelope: Envelope;
+    let envelope: unknown;
     try {
       envelope = JSON.parse(line);
     } catch {
       return;
     }
-    if (typeof envelope.id !== 'number') {
+    if (typeof envelope !== 'object' || envelope === null) return;
+    const id: unknown = Reflect.get(envelope, 'id');
+    const method: unknown = Reflect.get(envelope, 'method');
+    if (typeof id !== 'number') {
       // Unknown notifications are ignored: a newer app may send more.
-      if (envelope.id == null && typeof envelope.method === 'string') {
-        this.onNotification(envelope.method, line);
-      }
+      if (id == null && typeof method === 'string') this.onNotification(method, line);
       return;
     }
-    const settle = this.waiting.get(envelope.id);
+    const settle = this.waiting.get(id);
     if (!settle) return;
-    this.waiting.delete(envelope.id);
+    this.waiting.delete(id);
     settle(line);
   }
 }
@@ -224,7 +228,7 @@ async function run(argv: string[]): Promise<number> {
 
     client.listen((notification, line) => {
       if (notification !== SUBAGENT_STARTED_NOTIFICATION || json) return;
-      const started: { params: RemoteSessionCreated } = JSON.parse(line);
+      const started = fromServer<{ params: RemoteSessionCreated }>(line);
       note(`subagent ${describeCreated(started.params)}`);
     });
     const answer = await client.call(method, params);

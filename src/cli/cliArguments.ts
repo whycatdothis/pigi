@@ -134,7 +134,7 @@ export function parseCliArguments(argv: string[], context: CliEnvironment): CliI
       parentSelf = true;
       continue;
     }
-    if (!argument.startsWith('--') || argument === '-') {
+    if (!argument.startsWith('--')) {
       positional.push(argument);
       continue;
     }

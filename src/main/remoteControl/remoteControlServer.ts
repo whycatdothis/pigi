@@ -7,8 +7,7 @@
  * handshake works before a window exists.
  */
 import { app, ipcMain, type BrowserWindow, type WebContents } from 'electron';
-import { existsSync, unlinkSync } from 'node:fs';
-import { chmod } from 'node:fs/promises';
+import { chmod, rm } from 'node:fs/promises';
 import net from 'node:net';
 import { delimiter, join } from 'node:path';
 import { userInfo } from 'node:os';
@@ -18,6 +17,7 @@ import {
   type RemoteCommandRequest,
 } from '../../shared/ipcContract';
 import {
+  PIGI_SESSION_ENV,
   PIGI_SOCKET_ENV,
   REMOTE_MAX_LINE_BYTES,
   REMOTE_METHODS,
@@ -66,13 +66,18 @@ function launcherDirectory(): string {
     : join(app.getAppPath(), 'resources', 'bin');
 }
 
-/** What every session and terminal process gets at fork (docs/cli.md §5). */
-export function remoteControlEnv(): Record<string, string> {
+/** The environment of every session and terminal process (docs/cli.md §5). */
+export function remoteControlEnv(): NodeJS.ProcessEnv {
   const path = process.env.PATH ?? '';
-  return {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
     [PIGI_SOCKET_ENV]: remoteControlSocketPath(),
     PATH: path ? `${launcherDirectory()}${delimiter}${path}` : launcherDirectory(),
   };
+  // A pigi started from a pigi session's bash (the dev workflow) inherits that
+  // session's path. A session process sets its own; a terminal must have none.
+  delete env[PIGI_SESSION_ENV];
+  return env;
 }
 
 function encode(
@@ -106,7 +111,7 @@ function failRelayed(requestId: number, error: RemoteError): void {
   write(pending.socket, encode(pending.request.id, { error }));
 }
 
-/** A reload or a closed window takes the renderer's half of every request. */
+/** A reload, crash or closed window takes the renderer's half of every request. */
 function watchContents(contents: WebContents): void {
   if (watchedContents.has(contents)) return;
   watchedContents.add(contents);
@@ -120,6 +125,7 @@ function watchContents(contents: WebContents): void {
     }
   };
   contents.on('did-start-loading', reset);
+  contents.on('render-process-gone', reset);
   contents.on('destroyed', reset);
 }
 
@@ -260,8 +266,10 @@ function registerRendererIpc(): void {
  * stale, so it is replaced; an accepted one means another instance serves it.
  */
 function listen(server: net.Server, path: string): void {
-  server.once('error', (error: NodeJS.ErrnoException) => {
-    if (error.code !== 'EADDRINUSE' || process.platform === 'win32') {
+  let replacedStale = false;
+  // Kept for the server's life: an error with no listener would crash main.
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code !== 'EADDRINUSE' || replacedStale || process.platform === 'win32') {
       console.error('[remoteControl] cannot listen:', error.message);
       return;
     }
@@ -271,8 +279,12 @@ function listen(server: net.Server, path: string): void {
       console.error(`[remoteControl] ${path} is served by another pigi instance`);
     });
     probe.once('error', () => {
-      if (existsSync(path)) unlinkSync(path);
-      server.listen(path);
+      replacedStale = true;
+      rm(path, { force: true }).then(
+        () => server.listen(path),
+        (removeError: unknown) =>
+          console.error('[remoteControl] cannot replace', path, removeError),
+      );
     });
   });
   server.listen(path);

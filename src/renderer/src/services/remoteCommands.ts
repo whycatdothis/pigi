@@ -39,10 +39,13 @@ import {
   prompt,
   readSessionMessages,
   resumeSession,
+  destroySession,
+  touchSession,
 } from './piAgentClient';
 
 /** How long a prompt may take to start its run before the call gives up. */
 const RUN_START_TIMEOUT_MS = 30 * 1000;
+const SESSION_LIST_TIMEOUT_MS = 30 * 1000;
 const MODEL_SUGGESTION_LIMIT = 5;
 
 class RemoteCommandFailure extends Error {
@@ -81,7 +84,7 @@ function findKnownSession(path: string): PiSessionInfo | undefined {
   return entry ? getProjectSessions(entry.cwd, {}, new Map([[path, entry]]))[0] : undefined;
 }
 
-async function listSessions(cwd: string): Promise<PiSessionInfo[]> {
+async function listSessions(cwd: string, signal: AbortSignal): Promise<PiSessionInfo[]> {
   // Collected from before the request: the chunk can arrive before the
   // request id it belongs to is known here.
   const chunks: ProjectSessionsChunk[] = [];
@@ -95,11 +98,24 @@ async function listSessions(cwd: string): Promise<PiSessionInfo[]> {
     if (!request.success) fail('INTERNAL_ERROR', request.error ?? 'cannot list sessions');
     const matches = (chunk: ProjectSessionsChunk): boolean =>
       chunk.requestId === request.requestId && chunk.cwd === cwd;
+    // The worker answers with a chunk, not a reply main tracks: if it exits
+    // mid-list, nothing else would end this wait.
     const chunk =
       chunks.find(matches) ??
-      (await new Promise<ProjectSessionsChunk>((resolve) => {
+      (await new Promise<ProjectSessionsChunk>((resolve, reject) => {
+        const stop = (message: string): void => {
+          clearTimeout(timer);
+          reject(new RemoteCommandFailure(remoteError('INTERNAL_ERROR', message)));
+        };
+        const timer = setTimeout(
+          () => stop('the session list did not arrive'),
+          SESSION_LIST_TIMEOUT_MS,
+        );
+        signal.addEventListener('abort', () => stop('cancelled'), { once: true });
         deliver = (next) => {
-          if (matches(next)) resolve(next);
+          if (!matches(next)) return;
+          clearTimeout(timer);
+          resolve(next);
         };
       }));
     if (!chunk.success) fail('INTERNAL_ERROR', chunk.error ?? 'cannot list sessions');
@@ -183,7 +199,12 @@ async function createBackgroundSession(
 ): Promise<RemoteSessionCreated> {
   const { parent } = params;
   const cwd = params.cwd ?? (parent ? findKnownSession(parent)?.cwd : undefined);
-  if (!cwd) fail('NOT_FOUND', `pigi does not know session ${parent}; pass --cwd`);
+  if (!cwd) {
+    fail(
+      'NOT_FOUND',
+      `pigi does not list session ${parent}${extra.subagent ? '' : '; pass --cwd'}`,
+    );
+  }
   const inherited = parent ? await inheritedChoice(parent) : { model: null, thinkingLevel: null };
   const model = params.model ? await resolveModel(params.model) : inherited.model;
   const thinkingLevel = params.thinkingLevel ?? inherited.thinkingLevel;
@@ -198,6 +219,7 @@ async function createBackgroundSession(
   } catch (error) {
     fail('INTERNAL_ERROR', error instanceof Error ? error.message : String(error));
   }
+  keepSelectedSessionInView();
 
   const state = await getState(path);
   useAppStore.getState().addSessionEntry({
@@ -225,6 +247,16 @@ async function createBackgroundSession(
 }
 
 /**
+ * Main's process pool takes a created or resumed session for the one in view,
+ * which spares it from idle pruning; give that back to the session the user is
+ * looking at, or pruning can close it under them.
+ */
+function keepSelectedSessionInView(): void {
+  const selected = useAppStore.getState().activeSessionPath;
+  if (selected) void touchSession(selected);
+}
+
+/**
  * Attaches to a session the window has not opened (a reloaded window, or one
  * the user never clicked), as selecting it would, without selecting it.
  */
@@ -237,6 +269,7 @@ async function openSession(path: string): Promise<void> {
   } catch (error) {
     fail('INTERNAL_ERROR', error instanceof Error ? error.message : String(error));
   }
+  keepSelectedSessionInView();
   const state = await getState(path);
   const status = state.isStreaming ? 'streaming' : 'idle';
   useAppStore.getState().addSessionEntry({
@@ -418,8 +451,8 @@ async function promptSession(path: string, text: string): Promise<void> {
 }
 
 const HANDLERS: { [M in HandledMethod]: Handler<M> } = {
-  'session.list': async ({ cwd }) => {
-    const listed = await listSessions(cwd);
+  'session.list': async ({ cwd }, { signal }) => {
+    const listed = await listSessions(cwd, signal);
     const all = getProjectSessions(cwd, { [cwd]: listed }, useAppStore.getState().sessions);
     return { sessions: all.map(summarize) };
   },
@@ -447,7 +480,10 @@ const HANDLERS: { [M in HandledMethod]: Handler<M> } = {
       { parent, model, thinkingLevel },
       { subagent: true, title: chatMessageTitle(task, []) },
     );
-    if (signal.aborted) fail('SESSION_FAILED', 'cancelled', { path: created.path });
+    if (signal.aborted) {
+      void destroySession(created.path);
+      fail('SESSION_FAILED', 'cancelled', { path: created.path });
+    }
     notify(SUBAGENT_STARTED_NOTIFICATION, created);
     if (detach) {
       await promptSession(created.path, task);

@@ -204,10 +204,13 @@ A clamp is reported: stderr notes it, and `--json` carries
 - On `EADDRINUSE`, connect to it: refused means a stale file, so unlink and
   listen; accepted means another instance owns it, so this instance serves no
   CLI and logs why.
-- No single-instance lock here. In-app callers find their own instance through
-  `PIGI_SOCKET`, so multiple instances do not confuse them; dev and production
-  use different sockets, so running both works. A lock would stop the dev build
-  from starting while the production app runs, since both share `userData`.
+- No single-instance lock here. Dev and production use different sockets, so
+  running both works; a lock would stop the dev build from starting while the
+  production app runs, since both share `userData`. Two instances of the same
+  build (`open -n`, a double launch on Linux) share one socket: the second
+  serves no CLI, and its sessions' `pigi` calls reach the first, which does
+  not know their sessions. Not handled; the single-instance item in
+  `docs/todo.md` covers it.
 
 ## 9. Security
 
@@ -364,7 +367,9 @@ own skills, not here.
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | A aborts the bash call (CLI killed) | Socket closes → main tells the renderer → the child session is aborted, unless `--detach`                  |
 | Renderer reloads mid-request        | Pending requests fail; the child keeps running; A can `pigi session wait <path>` with the path from stderr |
+| Renderer crashes mid-request        | Same as a reload: pending requests fail, new ones wait for the renderer to come back                       |
 | No window (macOS)                   | Main reopens the window, then relays                                                                       |
+| Created session never prompted      | Idle, it can be closed when other sessions finish (the pool keeps three idle); prompt it right away        |
 | Long reviewer run                   | The skill tells agents to set a long bash timeout                                                          |
 | pigi not running                    | Exit code 3 with a clear message                                                                           |
 

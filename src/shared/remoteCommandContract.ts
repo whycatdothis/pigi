@@ -272,7 +272,7 @@ export function parseRemoteParams(method: RemoteMethod, raw: unknown): RemotePar
   }
   const params: Record<string, string | number | boolean> = {};
   for (const [name, value] of Object.entries(raw)) {
-    const param = spec.params[name];
+    const param = Object.hasOwn(spec.params, name) ? spec.params[name] : undefined;
     if (!param) {
       return {
         ok: false,

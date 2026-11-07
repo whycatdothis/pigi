@@ -39,6 +39,10 @@ describe('remote command contract', () => {
       ok: false,
       error: { code: RemoteErrorCode.UNSUPPORTED_PARAM, data: { param: 'follow' } },
     });
+    expect(parseRemoteParams('session.wait', { path: '/s', constructor: 1 })).toMatchObject({
+      ok: false,
+      error: { code: RemoteErrorCode.UNSUPPORTED_PARAM, data: { param: 'constructor' } },
+    });
   });
 
   it('checks types, values and required params', () => {
