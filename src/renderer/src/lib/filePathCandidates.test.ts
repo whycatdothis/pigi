@@ -113,6 +113,8 @@ describe('line suffixes', () => {
     });
     expect(leadingLineSuffix(' :55')).toBeNull();
     expect(leadingLineSuffix(':12abc')).toBeNull();
+    expect(leadingLineSuffix(':12-20abc')).toBeNull();
+    expect(leadingLineSuffix('#L3-L9x')).toBeNull();
   });
 
   it('writes a single line and a range', () => {

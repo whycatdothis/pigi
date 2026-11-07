@@ -24,7 +24,7 @@ export interface FilePathCandidate extends FileLocation {
 // `:12`, `:12-20`, `:L12-L20`, `:12:5` (the column is dropped), `#L12-L20`.
 const LINE_SUFFIX = String.raw`(?::L?(\d+)(?:([-:])L?(\d+))?|#L(\d+)(?:-L?(\d+))?)`;
 const TRAILING_LINE_SUFFIX_PATTERN = new RegExp(`${LINE_SUFFIX}$`);
-const LEADING_LINE_SUFFIX_PATTERN = new RegExp(`^${LINE_SUFFIX}(?!\\w)`);
+const LEADING_LINE_SUFFIX_PATTERN = new RegExp(`^${LINE_SUFFIX}(?![\\w-])`);
 // ASCII only, so a path written straight into CJK prose (`修改了src/a.ts文件`)
 // still comes out on its own.
 const PROSE_TOKEN_PATTERN = new RegExp(String.raw`[\w@+.~/-]+${LINE_SUFFIX}?`, 'g');
