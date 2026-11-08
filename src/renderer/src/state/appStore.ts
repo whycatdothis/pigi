@@ -134,12 +134,12 @@ interface AppState {
   setVisibleWhenCollapsedSessionIds: (projectPath: string, sessionIds: Set<string>) => void;
 
   /**
-   * Parents whose subagent group is open in the sidebar. In memory only: a
-   * group starts collapsed in every launch.
+   * Parents whose subagent group is open in the sidebar; a group starts
+   * collapsed. Persisted in localStorage, like the unread sessions.
    */
   expandedSubagentGroups: ReadonlySet<string>;
   setSubagentGroupsExpanded: (parentPaths: string[], expanded: boolean) => void;
-  /** Sessions whose forks and subagents the sidebar hides. In memory only, like the groups. */
+  /** Sessions whose forks and subagents the sidebar hides. Persisted, like the groups. */
   collapsedSessionParents: ReadonlySet<string>;
   setSessionChildrenCollapsed: (parentPaths: string[], collapsed: boolean) => void;
 
@@ -209,10 +209,12 @@ export function isAgentBusy(status: AgentStatus): boolean {
 }
 
 const UNREAD_SESSIONS_STORAGE_KEY = 'pigi.unreadSessionPaths';
+export const EXPANDED_SUBAGENT_GROUPS_STORAGE_KEY = 'pigi.expandedSubagentGroups';
+export const COLLAPSED_SESSION_PARENTS_STORAGE_KEY = 'pigi.collapsedSessionParents';
 
-function loadUnreadSessionPaths(): Set<string> {
+function loadPathSet(storageKey: string): Set<string> {
   try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(UNREAD_SESSIONS_STORAGE_KEY) ?? '[]');
+    const parsed: unknown = JSON.parse(localStorage.getItem(storageKey) ?? '[]');
     return Array.isArray(parsed)
       ? new Set(parsed.filter((path): path is string => typeof path === 'string'))
       : new Set();
@@ -474,13 +476,13 @@ export const useAppStore = create<AppState>((set) => ({
       return { globalCommentBySession };
     }),
 
-  expandedSubagentGroups: new Set(),
+  expandedSubagentGroups: loadPathSet(EXPANDED_SUBAGENT_GROUPS_STORAGE_KEY),
   setSubagentGroupsExpanded: (parentPaths, expanded) =>
     set((state) => {
       const expandedSubagentGroups = withPaths(state.expandedSubagentGroups, parentPaths, expanded);
       return expandedSubagentGroups ? { expandedSubagentGroups } : {};
     }),
-  collapsedSessionParents: new Set(),
+  collapsedSessionParents: loadPathSet(COLLAPSED_SESSION_PARENTS_STORAGE_KEY),
   setSessionChildrenCollapsed: (parentPaths, collapsed) =>
     set((state) => {
       const collapsedSessionParents = withPaths(
@@ -563,7 +565,7 @@ export const useAppStore = create<AppState>((set) => ({
       navigationForwardStack: state.navigationForwardStack.filter((p) => p !== sessionPath),
     })),
 
-  unreadSessionPaths: loadUnreadSessionPaths(),
+  unreadSessionPaths: loadPathSet(UNREAD_SESSIONS_STORAGE_KEY),
 
   renamedSessionPaths: new Set(),
   markSessionRenamed: (sessionPath) =>
@@ -592,6 +594,18 @@ useAppStore.subscribe((state, previous) => {
     localStorage.setItem(
       UNREAD_SESSIONS_STORAGE_KEY,
       JSON.stringify([...state.unreadSessionPaths]),
+    );
+  }
+  if (state.expandedSubagentGroups !== previous.expandedSubagentGroups) {
+    localStorage.setItem(
+      EXPANDED_SUBAGENT_GROUPS_STORAGE_KEY,
+      JSON.stringify([...state.expandedSubagentGroups]),
+    );
+  }
+  if (state.collapsedSessionParents !== previous.collapsedSessionParents) {
+    localStorage.setItem(
+      COLLAPSED_SESSION_PARENTS_STORAGE_KEY,
+      JSON.stringify([...state.collapsedSessionParents]),
     );
   }
   if (state.quotesBySession !== previous.quotesBySession) {

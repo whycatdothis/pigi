@@ -490,8 +490,9 @@ another session
   of its parent's. Lines stop at each row's edge: the break between rows is
   kept.
 - A session with forks or subagents gets a chevron in its row's left gutter
-  that collapses them (expanded by default, in memory only); selecting a
-  session under a collapsed one expands its ancestors again.
+  that collapses them (expanded by default, kept in localStorage across
+  restarts); selecting a session under a collapsed one expands its ancestors
+  again.
 - A session whose parent is not in the list renders as a root — including a fork
   of the first message, which has no file yet. That session is in the store
   while its process runs, and the store entry carries `parentSessionPath` for

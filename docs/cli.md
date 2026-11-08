@@ -299,8 +299,9 @@ assistant message, so there is no half-written case to handle.
    regardless of activity order. Inside the group, newest first. Forks keep
    today's ordering.
 2. The group is **collapsed by default**. The "show more" limit counts five
-   root sessions; their forks and subagents come along without counting. Expansion is in-memory per parent path, not a
-   setting. A new running subagent does not expand it.
+   root sessions; their forks and subagents come along without counting.
+   Expansion is kept per parent path in localStorage, across restarts, not as
+   a setting. A new running subagent does not expand it.
 3. The group row shows the count, how many run and latest activity, but no
    spinner (the label says it) and no unread dot: subagents finish unattended all the time. Expanded, each
    subagent row shows its own.
@@ -308,8 +309,9 @@ assistant message, so there is no half-written case to handle.
    history) expands that group, as the "show more" auto-expand does today.
 5. No icon on subagent rows or the group row; connectors match forks.
 6. Any session with forks or subagents has a chevron in its row's left gutter
-   that hides them all, group row included; expanded by default, in memory
-   like the groups. Selecting a session under a collapsed one expands it.
+   that hides them all, group row included; expanded by default, and kept
+   across restarts like the groups. Selecting a session under a collapsed one
+   expands it.
 7. A fork of a subagent nests under that subagent. A subagent has no subagents
    of its own (§2); a fork of one is an ordinary session and may.
 

@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LAST_FILE_STORAGE_KEY, QUOTES_STORAGE_KEY, useAppStore } from './appStore';
+import {
+  COLLAPSED_SESSION_PARENTS_STORAGE_KEY,
+  EXPANDED_SUBAGENT_GROUPS_STORAGE_KEY,
+  LAST_FILE_STORAGE_KEY,
+  QUOTES_STORAGE_KEY,
+  useAppStore,
+} from './appStore';
 
 const backgroundPath = '/sessions/background.jsonl';
 const activePath = '/sessions/active.jsonl';
@@ -180,5 +186,21 @@ describe('last opened file', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('sidebar lineage expansion', () => {
+  it('persists collapsed sessions and open subagent groups', () => {
+    const store = useAppStore.getState();
+    store.setSessionChildrenCollapsed(['/s/a.jsonl', '/s/b.jsonl'], true);
+    store.setSessionChildrenCollapsed(['/s/b.jsonl'], false);
+    store.setSubagentGroupsExpanded(['/s/a.jsonl'], true);
+
+    expect(JSON.parse(localStorage.getItem(COLLAPSED_SESSION_PARENTS_STORAGE_KEY) ?? '')).toEqual([
+      '/s/a.jsonl',
+    ]);
+    expect(JSON.parse(localStorage.getItem(EXPANDED_SUBAGENT_GROUPS_STORAGE_KEY) ?? '')).toEqual([
+      '/s/a.jsonl',
+    ]);
   });
 });
