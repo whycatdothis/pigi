@@ -523,15 +523,7 @@ export default function PackagesPage({
             className="mx-auto flex w-full flex-col gap-6 px-8 pt-7 pb-10"
             style={{ maxWidth: `${PACKAGES_CONTENT_MAX_WIDTH}px` }}
           >
-            <header className="flex flex-col gap-1">
-              <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">
-                Packages
-              </h1>
-              <p className="text-caption text-muted-foreground">
-                Extensions, skills, prompt templates and themes for pi, from npm, git or a folder.
-                They run with full access to your computer, so install the ones you trust.
-              </p>
-            </header>
+            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground">Packages</h1>
 
             <Tabs
               value={tab}
