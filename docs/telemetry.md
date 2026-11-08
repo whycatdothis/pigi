@@ -1,7 +1,7 @@
 # Telemetry
 
-pigi sends anonymous usage events and error reports to its own endpoint on
-Cloudflare, which stores them in Workers Analytics Engine. It is on by default,
+pigi sends usage events and error reports, under a random install id, to its
+own endpoint on Cloudflare, which stores them in Workers Analytics Engine. It is on by default,
 with no prompt; Settings → Privacy turns it off, and so does `DO_NOT_TRACK`
 (any value but `0`) in the login shell. Readers see the same facts on
 [pigi.pink/privacy](https://pigi.pink/privacy)
@@ -10,7 +10,7 @@ with no prompt; Settings → Privacy turns it off, and so does `DO_NOT_TRACK`
 | Piece              | Where                                                                                                                         |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | Queue, opt-out, id | `src/main/telemetry.ts`                                                                                                       |
-| Renderer reports   | `pi:report_telemetry`, `src/renderer/src/lib/errorReporting.ts`, `App.tsx`, `useKeyboardShortcuts.ts`                         |
+| Renderer reports   | `pi:report_telemetry`, `src/renderer/src/lib/errorReporting.ts`, `piAgentClient.ts`, `App.tsx`, `useKeyboardShortcuts.ts`     |
 | Endpoint           | `website/functions/api/telemetry.ts` (Pages Function, deployed with the site)                                                 |
 | Storage            | Analytics Engine dataset `pigi_telemetry`, bound as `TELEMETRY` in the Pages project; previews write `pigi_telemetry_preview` |
 
@@ -28,14 +28,16 @@ All three must hold:
   `PI_SUBAGENT_PI_BINARY`, since a Finder-launched app has no shell env.
 
 Main queues events and posts them as one batch 30 seconds after the first one,
-so a burst is one request. Offline, the queue (at most 500) waits for the next
-try; events still queued when the app quits may be lost. Turning the switch off
+so a burst is one request. Offline or on a 5xx/429, the batch goes back in the
+queue (at most 500; past that, new events are dropped) for the next try; a 4xx
+drops it. Events still queued when the app quits may be lost: the quit sends
+them without waiting. Turning the switch off
 drops the queue and deletes `telemetry-id` in the user data folder; turning it
 on again starts a new id.
 
 ## Columns
 
-Each event is one data point. The install id (a random UUID made on first send)
+Each event is one data point. The install id (a random UUID, made at launch or when the switch is turned on)
 is the only index, so sampling keeps or drops whole installs.
 
 | Column      | Value                                |
@@ -53,7 +55,7 @@ is the only index, so sampling keeps or drops whole installs.
 | Event          | When                                                                          | `blob6` …                                                                                  | `double1` |
 | -------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | --------- |
 | `app_started`  | Launch                                                                        | default tool view                                                                          |           |
-| `prompt_sent`  | Each prompt sent                                                              |                                                                                            |           |
+| `prompt_sent`  | Each prompt sent, including through the `pigi` CLI; not steer or follow-up    |                                                                                            |           |
 | `feature_used` | Switching workspace tab; any app shortcut                                     | `tab.<chat\|files\|git>` or `shortcut.<shortcut id>`                                       |           |
 | `exception`    | Uncaught error or rejection in main or a renderer; update failed while online | source (`main`, `renderer`, `update`), error name, message, stack                          |           |
 | `process_gone` | A renderer or utility process died, other than a clean exit                   | process (`renderer`, `pi-agent`, `session-worker`, `terminal`, or Electron's type), reason | exit code |
@@ -64,13 +66,16 @@ dispatcher, so a new shortcut is counted without code.
 
 ## What is never sent
 
-Prompts, replies, tool calls or output, file contents, project or session names,
-model or provider settings, hostnames. Error messages and stacks go through
-`scrubErrorText`: app frames keep their place in the bundle
-(`<app>/out/main/index.js:12:3`), every other path or URL becomes `<path>` or
-`<url>`. A message can still quote short text from its cause (a JSON parse error
-quotes its input), so messages are cut to 300 characters and each distinct error
-is reported once per launch, at most 20 per launch.
+Prompts, replies, tool calls or output, file contents, project or session names.
+Error messages and stacks go through `scrubErrorText`: app frames keep their
+place in the bundle (`<app>/out/main/index.js:12:3`); anything that looks like a
+path (absolute, relative, Windows, or any token with a slash, so
+`provider/model` too), URL, email, host name or key becomes `<path>`, `<url>`,
+`<email>`, `<host>` or `<token>`. It errs towards removing too much (`x.map`
+becomes `<host>`). A message can still quote short text from its cause (a JSON
+parse error quotes its input; a pi error may name a provider), so messages are
+cut to 300 characters and each distinct error is reported once per launch, at
+most 20 per launch.
 
 ## Querying
 

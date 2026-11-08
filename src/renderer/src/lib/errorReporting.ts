@@ -6,7 +6,7 @@
 function report(error: unknown): void {
   if (!(error instanceof Error)) return;
   window.piApi.reportTelemetry({
-    type: 'error',
+    type: 'exception',
     name: error.name,
     message: error.message,
     stack: error.stack,

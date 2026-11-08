@@ -1,5 +1,5 @@
 /**
- * Receives the desktop app's anonymous telemetry and stores it in Workers
+ * Receives the desktop app's telemetry and stores it in Workers
  * Analytics Engine. The app side and the column layout are in the app repo's
  * docs/telemetry.md.
  *
@@ -63,6 +63,14 @@ function toDataPoint(event: unknown, base: string[], installId: string): DataPoi
 }
 
 export async function onRequestPost({ request, env }: Context): Promise<Response> {
+  // Requiring JSON makes a cross-site browser post need CORS, which is never
+  // granted, so a web page cannot make its visitors send events.
+  if (!request.headers.get('content-type')?.startsWith('application/json')) {
+    return new Response(null, { status: 415 });
+  }
+  if (Number(request.headers.get('content-length')) > MAX_BODY_LENGTH) {
+    return new Response(null, { status: 413 });
+  }
   const body = await request.text();
   if (body.length > MAX_BODY_LENGTH) return new Response(null, { status: 413 });
 

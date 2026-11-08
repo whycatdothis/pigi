@@ -54,9 +54,45 @@ describe('scrubErrorText', () => {
     expect(scrubErrorText('open file:///Users/ann/a.txt', APP_PATH)).toBe('open <url>');
   });
 
-  it('leaves text without paths alone', () => {
-    expect(scrubErrorText('Expected 3 items, got 1/2 of them', APP_PATH)).toBe(
-      'Expected 3 items, got 1/2 of them',
+  it('replaces paths with spaces, relative and Windows paths', () => {
+    expect(scrubErrorText("open '/Users/ann/My Projects/acme secret/.env'", APP_PATH)).toBe(
+      "open '<path>'",
+    );
+    expect(scrubErrorText('scandir /Users/ann/My Projects/acme', APP_PATH)).toBe('scandir <path>');
+    expect(scrubErrorText('cwd:/Users/ann/acme', APP_PATH)).toBe('cwd:<path>');
+    expect(scrubErrorText('Cannot read src/secret-project/index.ts', APP_PATH)).toBe(
+      'Cannot read <path>',
+    );
+    expect(scrubErrorText('Cannot read ./acme/index.ts, ../acme/a.ts', APP_PATH)).toBe(
+      'Cannot read <path>, <path>',
+    );
+    expect(scrubErrorText('open C:\\Users\\ann\\acme\\.env', APP_PATH)).toBe('open <path>');
+    expect(scrubErrorText('open \\\\server\\share\\acme', APP_PATH)).toBe('open <path>');
+    expect(scrubErrorText('dir: --Users-ann-My Projects-acme-- gone', APP_PATH)).toBe(
+      'dir: <path> gone',
+    );
+  });
+
+  it('removes hosts, addresses, keys and model names', () => {
+    expect(scrubErrorText('getaddrinfo ENOTFOUND llm.internal.acme.com', APP_PATH)).toBe(
+      'getaddrinfo ENOTFOUND <host>',
+    );
+    expect(scrubErrorText('Invalid key sk-ant-api03-Xk2mP9qLr7Tz', APP_PATH)).toBe(
+      'Invalid key <token>',
+    );
+    expect(scrubErrorText('user ann@acme.com denied', APP_PATH)).toBe('user <email> denied');
+    expect(scrubErrorText('clone git@github.com:acme/secret.git', APP_PATH)).toBe('clone <path>');
+    expect(scrubErrorText('model not found: acme-llm/llama-70b', APP_PATH)).toBe(
+      'model not found: <path>',
+    );
+  });
+
+  it('leaves text without names alone', () => {
+    expect(scrubErrorText("Cannot read properties of undefined (reading 'id')", APP_PATH)).toBe(
+      "Cannot read properties of undefined (reading 'id')",
+    );
+    expect(scrubErrorText('Unknown flag --foo; use --bar', APP_PATH)).toBe(
+      'Unknown flag --foo; use --bar',
     );
   });
 });

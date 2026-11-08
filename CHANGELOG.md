@@ -4,9 +4,9 @@
 
 ### Added
 
-- pigi sends anonymous usage data and crash reports to its own endpoint:
-  launches, prompts sent (not their text), tabs and shortcuts used, and errors
-  with file paths removed. Never prompts, replies, code or project names; turn
+- pigi sends usage data and crash reports, under a random install id, to its
+  own endpoint: launches, prompts sent (not their text), tabs and shortcuts
+  used, and errors with paths, hosts and keys removed. Never prompts, replies, code or project names; turn
   it off in Settings → Privacy or with `DO_NOT_TRACK=1`. Details at
   [pigi.pink/privacy](https://pigi.pink/privacy)
 

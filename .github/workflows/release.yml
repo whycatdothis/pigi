@@ -43,8 +43,8 @@ jobs:
       - run: npm run build:mac:dist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Baked into the build; dev and fork builds have none and send no telemetry.
-          PIGI_TELEMETRY_URL: https://pigi.pink/api/telemetry
+          # Baked into the build; dev builds and forks (even ones that tag a release) send no telemetry.
+          PIGI_TELEMETRY_URL: ${{ github.repository == 'whycatdothis/pigi' && 'https://pigi.pink/api/telemetry' || '' }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_API_KEY: ${{ runner.temp }}/notary-key.p8
           APPLE_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}

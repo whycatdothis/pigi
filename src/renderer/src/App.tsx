@@ -1356,7 +1356,7 @@ function App(): React.JSX.Element {
 
   const handleSelectWorkspaceTab = useCallback((tab: WorkspaceTab) => {
     if (useAppStore.getState().workspaceTab !== tab) {
-      window.piApi.reportTelemetry({ type: 'feature', feature: `tab.${tab}` });
+      window.piApi.reportTelemetry({ type: 'feature_used', feature: `tab.${tab}` });
     }
     useAppStore.getState().setWorkspaceTab(tab);
     // The Files tab's navigation lives in the sidebar; make sure it is visible.

@@ -578,8 +578,8 @@ export type TelemetryFeature = `tab.${string}` | `shortcut.${string}`;
  */
 export type RendererTelemetryReport =
   | { type: 'prompt_sent' }
-  | { type: 'feature'; feature: TelemetryFeature }
-  | { type: 'error'; name: string; message: string; stack?: string };
+  | { type: 'feature_used'; feature: TelemetryFeature }
+  | { type: 'exception'; name: string; message: string; stack?: string };
 
 export enum PiChannel {
   /** renderer → main: create a new session (spawns process, returns real sessionId + port) */

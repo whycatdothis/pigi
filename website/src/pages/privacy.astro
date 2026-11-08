@@ -48,8 +48,8 @@ const updated = '2026-11-07';
         </ul>
         <h3>Usage data</h3>
         <p>
-          To find crashes and see which features people use, the app sends anonymous usage data to
-          pigi's own endpoint on Cloudflare:
+          To find crashes and see which features people use, the app sends usage data to pigi's own
+          endpoint on Cloudflare:
         </p>
         <ul>
           <li>
@@ -58,9 +58,10 @@ const updated = '2026-11-07';
           <li>that a prompt was sent (never what it said);</li>
           <li>which workspace tabs you switch to and which pigi shortcuts you press;</li>
           <li>
-            crash and error reports: the error message and stack trace, with every file path and URL
-            outside the app removed, and which app process stopped unexpectedly. Messages are cut
-            short but can quote a few words from what caused the error.
+            crash and error reports: the error message and stack trace, with anything that looks
+            like a file path, URL, host name, email address or key removed, and which app process
+            stopped unexpectedly. Messages are cut short but can still quote a few words from what
+            caused the error.
           </li>
         </ul>
         <p>
@@ -70,9 +71,9 @@ const updated = '2026-11-07';
           <a href={`${REPO_URL}/blob/main/docs/telemetry.md`}>full list of events</a> is in the source.
         </p>
         <p>
-          To turn it off, switch off <strong>Settings → Privacy → Share anonymous usage data</strong
-          >, which also deletes the id, or set <code>DO_NOT_TRACK=1</code> in your shell. Builds you make
-          yourself send nothing.
+          To turn it off, switch off <strong>Settings → Privacy → Share usage data</strong>, which
+          also deletes the id, or set <code>DO_NOT_TRACK=1</code> in your shell. Builds you make yourself
+          send nothing.
         </p>
 
         <h2>This website</h2>

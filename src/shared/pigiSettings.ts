@@ -34,7 +34,7 @@ export interface ChatSettings {
 }
 
 export interface TelemetrySettings {
-  /** Anonymous crash reports and usage counts; see docs/telemetry.md. */
+  /** Crash reports and usage counts; see docs/telemetry.md. */
   enabled: boolean;
 }
 

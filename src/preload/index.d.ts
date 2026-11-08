@@ -125,7 +125,7 @@ interface PiApi {
   readPigiSettings: () => PigiSettingsReadResult;
   /** Apply the changed slices. */
   changePigiSettings: (change: PigiSettingsChange) => Promise<void>;
-  /** A prompt or an uncaught error; main drops it when telemetry is off. */
+  /** A prompt, a feature used or an uncaught error; main drops it when telemetry is off. */
   reportTelemetry: (report: RendererTelemetryReport) => void;
 
   update: {

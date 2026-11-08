@@ -7,7 +7,8 @@ const PIGI_DEBUG_PANEL_ENV = 'PIGI_DEBUG_PANEL';
 const PIGI_DEBUG_PANEL_ENABLED_VALUE = '1';
 const pigiDebugPanelEnabled = process.env[PIGI_DEBUG_PANEL_ENV] === PIGI_DEBUG_PANEL_ENABLED_VALUE;
 // Set only by the release workflow, so dev and fork builds send no telemetry.
-const pigiTelemetryUrl = process.env['PIGI_TELEMETRY_URL'] ?? '';
+const PIGI_TELEMETRY_URL_ENV = 'PIGI_TELEMETRY_URL';
+const pigiTelemetryUrl = process.env[PIGI_TELEMETRY_URL_ENV] ?? '';
 
 export default defineConfig({
   main: {

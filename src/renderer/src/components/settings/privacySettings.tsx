@@ -11,7 +11,7 @@ export function PrivacySettings(): React.JSX.Element {
   return (
     <SettingsGroup>
       <SettingsRow
-        label="Share anonymous usage data"
+        label="Share usage data"
         description="Crash reports and usage counts. Never includes your prompts or code."
         hint={
           <button
@@ -24,7 +24,7 @@ export function PrivacySettings(): React.JSX.Element {
         }
       >
         <Switch
-          aria-label="Share anonymous usage data"
+          aria-label="Share usage data"
           checked={telemetryEnabled}
           onCheckedChange={setTelemetryEnabled}
         />
