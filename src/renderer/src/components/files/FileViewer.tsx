@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { IconAlertTriangle, IconLoader2 } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCheck, IconCopy, IconLoader2 } from '@tabler/icons-react';
 import { cn, formatFileSize } from '../../lib/utils';
 import { formatFileContentQuote, formatFileLineQuote } from '../../lib/fileQuotes';
 import type { LineRange } from '../../lib/filePathCandidates';
@@ -22,6 +22,7 @@ import { isAbsoluteFilePath } from '../../lib/projectFileLinks';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
+import { useCopyFeedback } from '../../hooks/useCopyFeedback';
 import { useRememberedScroll } from '../../hooks/useRememberedScroll';
 
 /** A text view with this many lines is already well past reading; the rest is cut and announced. */
@@ -161,6 +162,7 @@ export default function FileViewer({
   }, []);
   const showsPreview = (isMarkdown || isSvg) && viewMode === 'preview';
   const containerRef = useRef<HTMLDivElement>(null);
+  const { copied: pathCopied, copy: copyPath } = useCopyFeedback(filePath);
   useBottomAnchoredScroll(containerRef);
   useRememberedScroll(
     containerRef,
@@ -254,12 +256,26 @@ export default function FileViewer({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex h-8 shrink-0 items-center gap-2 px-3">
         <FileIcon path={filePath} className="size-4" />
-        <span
-          className="min-w-0 flex-1 truncate text-caption text-muted-foreground"
-          title={filePath}
-        >
-          {filePath}
-        </span>
+        <div className="group/path flex min-w-0 flex-1 items-center gap-1">
+          <span
+            className="min-w-0 truncate text-caption text-muted-foreground select-text"
+            title={filePath}
+          >
+            {filePath}
+          </span>
+          <button
+            type="button"
+            aria-label="Copy path"
+            title="Copy path"
+            onClick={copyPath}
+            className={cn(
+              'flex size-5 shrink-0 items-center justify-center rounded-control-sm text-muted-foreground opacity-0 transition-opacity group-hover/path:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100',
+              pathCopied && 'opacity-100',
+            )}
+          >
+            {pathCopied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+          </button>
+        </div>
         {(isMarkdown || isSvg) && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
       </div>
 

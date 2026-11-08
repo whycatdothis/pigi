@@ -1,7 +1,15 @@
 import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { VIBRANCY_OVERLAY_CONTENT } from '../../lib/layoutConstants';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
+
+/** The editor floating over a view: the selection popover's and the Git tab's file comment. */
+export const FLOATING_QUOTE_EDITOR_WIDTH_PX = 320;
+export const FLOATING_QUOTE_EDITOR_CLASS_NAME = cn(
+  VIBRANCY_OVERLAY_CONTENT,
+  'absolute z-20 p-2 animate-in fade-in-0 zoom-in-95',
+);
 
 interface QuoteCommentEditorProps {
   initialComment: string;

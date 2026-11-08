@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { IconChevronRight, IconLoader2, IconSettings } from '@tabler/icons-react';
+import { IconChevronRight, IconCopy, IconLoader2, IconSettings } from '@tabler/icons-react';
 import { FolderClosed, FolderOpen, Info } from 'lucide-react';
 import type { ProjectDirectoryEntry, ShortcutBinding } from '../../../../shared/ipcContract';
 import { cn } from '../../lib/utils';
@@ -8,6 +8,12 @@ import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
 import { COMPACT_KBD_CLASS_NAME, MENU_ROW_KBD_CLASS_NAME, Kbd } from '../ui/kbd';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { SpinningIcon } from '../ui/spinningIcon';
+import {
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuRoot,
+  ContextMenuTrigger,
+} from '../ui/context-menu';
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -45,6 +51,32 @@ interface FileTreeSidebarProps {
 function parentDirectory(path: string): string {
   const separator = path.lastIndexOf('/');
   return separator === -1 ? '' : path.slice(0, separator);
+}
+
+function EntryContextMenu({
+  name,
+  path,
+  children,
+}: {
+  name: string;
+  path: string;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <ContextMenuRoot>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent className="menu-content">
+        <ContextMenuItem onClick={() => void navigator.clipboard.writeText(name)}>
+          <IconCopy />
+          Copy Name
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => void navigator.clipboard.writeText(path)}>
+          <IconCopy />
+          Copy Relative Path
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenuRoot>
+  );
 }
 
 /**
@@ -287,32 +319,34 @@ export default memo(function FileTreeSidebar({
         }
         return (
           <li key={entry.path}>
-            <button
-              type="button"
-              aria-expanded={isExpanded}
-              style={{ paddingLeft }}
-              className={cn(ROW_CLASS_NAME, ROW_IDLE_CLASS_NAME)}
-              onClick={() => toggleDirectory(entry.path)}
-            >
-              <IconChevronRight
-                size={12}
-                className={cn(
-                  'shrink-0 text-muted-foreground transition-transform',
-                  isExpanded && 'rotate-90',
+            <EntryContextMenu name={leafPath.slice(leafPath.lastIndexOf('/') + 1)} path={leafPath}>
+              <button
+                type="button"
+                aria-expanded={isExpanded}
+                style={{ paddingLeft }}
+                className={cn(ROW_CLASS_NAME, ROW_IDLE_CLASS_NAME)}
+                onClick={() => toggleDirectory(entry.path)}
+              >
+                <IconChevronRight
+                  size={12}
+                  className={cn(
+                    'shrink-0 text-muted-foreground transition-transform',
+                    isExpanded && 'rotate-90',
+                  )}
+                />
+                {isExpanded ? (
+                  <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <FolderClosed className="size-4 shrink-0 text-muted-foreground" />
                 )}
-              />
-              {isExpanded ? (
-                <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
-              ) : (
-                <FolderClosed className="size-4 shrink-0 text-muted-foreground" />
-              )}
-              <span className="truncate">{label}</span>
-              {loadingDirectories.has(leafPath) && (
-                <SpinningIcon className="ml-auto">
-                  <IconLoader2 size={12} className="text-muted-foreground" />
-                </SpinningIcon>
-              )}
-            </button>
+                <span className="truncate">{label}</span>
+                {loadingDirectories.has(leafPath) && (
+                  <SpinningIcon className="ml-auto">
+                    <IconLoader2 size={12} className="text-muted-foreground" />
+                  </SpinningIcon>
+                )}
+              </button>
+            </EntryContextMenu>
             {isExpanded && (
               <>
                 <ul>{renderDirectory(leafPath, depth + 1)}</ul>
@@ -333,20 +367,22 @@ export default memo(function FileTreeSidebar({
       const isSelected = entry.path === selectedFilePath;
       return (
         <li key={entry.path}>
-          <button
-            type="button"
-            data-file-path={entry.path}
-            style={{ paddingLeft }}
-            className={cn(
-              ROW_CLASS_NAME,
-              isSelected ? ROW_SELECTED_CLASS_NAME : ROW_IDLE_CLASS_NAME,
-            )}
-            onClick={() => onOpenFile(entry.path)}
-          >
-            <span className="size-3 shrink-0" />
-            <FileIcon path={entry.path} className="size-4" />
-            <span className="truncate">{entry.name}</span>
-          </button>
+          <EntryContextMenu name={entry.name} path={entry.path}>
+            <button
+              type="button"
+              data-file-path={entry.path}
+              style={{ paddingLeft }}
+              className={cn(
+                ROW_CLASS_NAME,
+                isSelected ? ROW_SELECTED_CLASS_NAME : ROW_IDLE_CLASS_NAME,
+              )}
+              onClick={() => onOpenFile(entry.path)}
+            >
+              <span className="size-3 shrink-0" />
+              <FileIcon path={entry.path} className="size-4" />
+              <span className="truncate">{entry.name}</span>
+            </button>
+          </EntryContextMenu>
         </li>
       );
     });

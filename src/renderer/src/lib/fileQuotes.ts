@@ -18,6 +18,11 @@ export function formatFileContentQuote(path: string, text: string): QuoteContent
   return { reference: formatFileReference(path), text };
 }
 
+/** A comment on a file's whole diff: `@src/app.ts, diff against origin/main`. */
+export function formatFileScopeQuote(path: string, scope: string): QuoteContent {
+  return { reference: `${formatFileReference(path)}, ${scope}`, text: '' };
+}
+
 /**
  * Diff lines the agent cannot open by line number (deleted, or from a commit),
  * as a unified diff under what they were compared with, so it reads them as

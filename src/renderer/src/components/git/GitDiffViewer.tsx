@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { IconArrowRight, IconLoader2 } from '@tabler/icons-react';
+import { IconArrowRight, IconLoader2, IconMessagePlus } from '@tabler/icons-react';
 import { ChevronsUpDown } from 'lucide-react';
 import {
   MAX_DIFF_LINES,
@@ -9,14 +9,23 @@ import {
 import type { GitDiffLayout } from '../../hooks/useGitWorkspace';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
 import { useRememberedScroll } from '../../hooks/useRememberedScroll';
-import { formatFileDiffQuote, formatFileLineQuote } from '../../lib/fileQuotes';
+import {
+  formatFileDiffQuote,
+  formatFileLineQuote,
+  formatFileScopeQuote,
+} from '../../lib/fileQuotes';
 import type { QuoteContent } from '../../lib/messageQuotes';
 import { splitFileLines } from '../../lib/gitDiffPatch';
 import { diffLinesFromSelection } from '../../lib/sourceLineSelection';
 import { GIT_DIFF_STATUS_LABELS } from '../../lib/gitDiffLabels';
 import { cn } from '../../lib/utils';
+import { useAppStore } from '../../state/appStore';
 import { getGitDiffFile } from '../../services/piAgentClient';
 import { FileIcon } from '../fileIcon';
+import QuoteCommentEditor, {
+  FLOATING_QUOTE_EDITOR_CLASS_NAME,
+  FLOATING_QUOTE_EDITOR_WIDTH_PX,
+} from '../quotes/QuoteCommentEditor';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import ContainerFind from '../ui/containerFind';
 import { SpinningIcon } from '../ui/spinningIcon';
@@ -116,6 +125,15 @@ export default function GitDiffViewer({
   const sourceKind = source.kind;
   const sourceRef =
     source.kind === 'base' ? source.base : source.kind === 'commit' ? source.commit : '';
+  // What an open file comment would be saved to. Shortcuts can switch the
+  // session, project or diff without a click outside the editor, so a change
+  // here closes it instead of saving the comment somewhere else.
+  const commentTarget = `${sessionPath}\0${projectPath}\0${sourceKind}\0${sourceRef}\0${file.path}`;
+  const [commentingTarget, setCommentingTarget] = useState<string | null>(null);
+  if (commentingTarget !== null && commentingTarget !== commentTarget) {
+    setCommentingTarget(null);
+  }
+  const commentingFile = commentingTarget === commentTarget;
 
   // A summary refresh hands in a new `file` object and reads the patch again;
   // an unchanged result keeps the state.
@@ -193,6 +211,13 @@ export default function GitDiffViewer({
       : null,
   );
 
+  const diffScope =
+    sourceKind === 'base'
+      ? `diff against ${baseLabel}`
+      : sourceKind === 'commit'
+        ? `diff in commit ${sourceRef.slice(0, 7)}`
+        : `${sourceKind} diff`;
+
   const formatQuoteContent = useCallback(
     ({ range }: { range: Range }): QuoteContent | null => {
       if (!isInsideDiffLine(range.startContainer) || !isInsideDiffLine(range.endContainer)) {
@@ -215,15 +240,21 @@ export default function GitDiffViewer({
       ) {
         return formatFileLineQuote(shownPath, first, first + numbers.length - 1);
       }
-      const scope =
-        sourceKind === 'base'
-          ? `diff against ${baseLabel}`
-          : sourceKind === 'commit'
-            ? `diff in commit ${sourceRef.slice(0, 7)}`
-            : `${sourceKind} diff`;
-      return formatFileDiffQuote(shownPath, scope, lines);
+      return formatFileDiffQuote(shownPath, diffScope, lines);
     },
-    [shownPath, sourceKind, sourceRef, baseLabel],
+    [shownPath, sourceKind, diffScope],
+  );
+
+  const saveFileComment = useCallback(
+    (comment: string) => {
+      if (sessionPath) {
+        useAppStore
+          .getState()
+          .addQuote(sessionPath, formatFileScopeQuote(file.path, diffScope), comment);
+      }
+      setCommentingTarget(null);
+    },
+    [sessionPath, file.path, diffScope],
   );
 
   const renamed = file.oldPath !== null && file.oldPath !== file.path;
@@ -272,6 +303,27 @@ export default function GitDiffViewer({
         </span>
         <SegmentedToggle options={LAYOUTS} value={layout} onChange={onLayoutChange} />
         <TooltipProvider delayDuration={400}>
+          {sessionPath && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Comment on file"
+                  aria-pressed={commentingFile}
+                  onClick={() => setCommentingTarget(commentTarget)}
+                  className={cn(
+                    'flex size-6 shrink-0 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                    // The open editor closes on any press outside it; letting
+                    // this one fall through keeps a second click from reopening it.
+                    commentingFile && 'pointer-events-none bg-accent text-foreground',
+                  )}
+                >
+                  <IconMessagePlus size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Comment on file</TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             {/* On the wrapper, so a disabled button still explains itself. */}
             <TooltipTrigger asChild>
@@ -358,6 +410,15 @@ export default function GitDiffViewer({
             )}
         </div>
         <ContainerFind containerRef={containerRef} active placeholder="Find in diff…" />
+        {sessionPath && commentingFile && (
+          <QuoteCommentEditor
+            initialComment=""
+            onSave={saveFileComment}
+            onCancel={() => setCommentingTarget(null)}
+            className={cn(FLOATING_QUOTE_EDITOR_CLASS_NAME, 'top-2 right-3')}
+            style={{ width: FLOATING_QUOTE_EDITOR_WIDTH_PX }}
+          />
+        )}
         {sessionPath && (
           <QuoteSelectionPopover
             containerRef={containerRef}

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatFileContentQuote, formatFileDiffQuote, formatFileLineQuote } from './fileQuotes';
+import {
+  formatFileContentQuote,
+  formatFileDiffQuote,
+  formatFileLineQuote,
+  formatFileScopeQuote,
+} from './fileQuotes';
 
 describe('formatFileLineQuote', () => {
   it('quotes a single source line', () => {
@@ -44,6 +49,15 @@ describe('formatFileDiffQuote', () => {
     ).toEqual({
       reference: '@src/app.ts, diff against origin/main:',
       text: ['-const timeout = 5000;', '+const timeout = 8000;', ' retry(fetchUser);'].join('\n'),
+    });
+  });
+});
+
+describe('formatFileScopeQuote', () => {
+  it('points at the whole file diff without quoting any text', () => {
+    expect(formatFileScopeQuote('docs/my notes.md', 'diff in commit abc1234')).toEqual({
+      reference: '@"docs/my notes.md", diff in commit abc1234',
+      text: '',
     });
   });
 });

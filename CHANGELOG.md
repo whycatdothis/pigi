@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Right-click a file or folder in the Files tab sidebar to copy its name or
+  relative path. The path in the file viewer's title bar can be selected, and a
+  copy button appears next to it on hover.
+- A Comment on file button in the Git tab's diff header adds a quote comment
+  on the whole file's diff to the quote panel.
+
 ## [0.5.7] - 2026-11-08
 
 ### Changed

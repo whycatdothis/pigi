@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import '../../testing/jsdomSetup';
 import FileTreeSidebar from './FileTreeSidebar';
 import { SidebarProvider } from '../ui/sidebar';
@@ -98,5 +98,46 @@ describe('FileTreeSidebar automatic updates', () => {
       changeListener?.({ cwd: '/repo', directories: [], filePath: 'src/app.ts' });
     });
     expect(onActiveFileChanged).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('FileTreeSidebar context menu', () => {
+  const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  afterEach(() => {
+    if (originalClipboard) {
+      Object.defineProperty(navigator, 'clipboard', originalClipboard);
+    } else {
+      Reflect.deleteProperty(navigator, 'clipboard');
+    }
+  });
+
+  it('copies the name and relative path of a file', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    const listProjectDirectory = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        entries: [
+          { name: 'src', path: 'src', isDirectory: true },
+          { name: 'README.md', path: 'README.md', isDirectory: false },
+        ],
+        truncated: false,
+      })
+      .mockResolvedValue({
+        success: true,
+        entries: [{ name: 'app.ts', path: 'src/app.ts', isDirectory: false }],
+        truncated: false,
+      });
+
+    renderSidebar(listProjectDirectory, undefined, 'src/app.ts');
+
+    fireEvent.contextMenu(await screen.findByText('app.ts'));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Copy Name' }));
+    expect(writeText).toHaveBeenLastCalledWith('app.ts');
+
+    fireEvent.contextMenu(screen.getByText('app.ts'));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Copy Relative Path' }));
+    expect(writeText).toHaveBeenLastCalledWith('src/app.ts');
   });
 });

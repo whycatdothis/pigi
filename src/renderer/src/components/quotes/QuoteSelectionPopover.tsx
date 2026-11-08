@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { cn } from '@/lib/utils';
 import { useAppStore } from '../../state/appStore';
 import { normalizeQuoteText, type QuoteContent } from '../../lib/messageQuotes';
 import { isTextField } from '../../lib/focusModality';
-import { VIBRANCY_OVERLAY_CONTENT } from '../../lib/layoutConstants';
 import { Kbd } from '../ui/kbd';
-import QuoteCommentEditor from './QuoteCommentEditor';
+import QuoteCommentEditor, {
+  FLOATING_QUOTE_EDITOR_CLASS_NAME,
+  FLOATING_QUOTE_EDITOR_WIDTH_PX,
+} from './QuoteCommentEditor';
 
 /** Styled in assets/searchHighlights.css. */
 const QUOTE_HIGHLIGHT_NAME = 'pi-quote-selection';
@@ -17,7 +18,6 @@ const BUTTON_HALF_WIDTH_PX = 40;
 /** Pressed while the Quote button shows, opens the comment editor. */
 const QUOTE_SHORTCUT_KEY = 'q';
 const BUTTON_HEIGHT_PX = 28;
-const EDITOR_WIDTH_PX = 320;
 /** Rough editor height, only used to decide whether it fits on the preferred side. */
 const EDITOR_ESTIMATED_HEIGHT_PX = 120;
 
@@ -386,10 +386,10 @@ export default function QuoteSelectionPopover({
       initialComment=""
       onSave={handleSave}
       onCancel={handleCancel}
-      className={cn(VIBRANCY_OVERLAY_CONTENT, 'absolute z-20 p-2 animate-in fade-in-0 zoom-in-95')}
+      className={FLOATING_QUOTE_EDITOR_CLASS_NAME}
       style={{
-        ...placementStyle(state.anchor, EDITOR_WIDTH_PX, EDITOR_ESTIMATED_HEIGHT_PX),
-        width: EDITOR_WIDTH_PX,
+        ...placementStyle(state.anchor, FLOATING_QUOTE_EDITOR_WIDTH_PX, EDITOR_ESTIMATED_HEIGHT_PX),
+        width: FLOATING_QUOTE_EDITOR_WIDTH_PX,
       }}
     />
   );
