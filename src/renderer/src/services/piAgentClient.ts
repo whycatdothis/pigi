@@ -188,6 +188,7 @@ export async function prompt(
   if (!result.success) {
     throw new Error(result.error || 'prompt failed');
   }
+  window.piApi.reportTelemetry({ type: 'prompt_sent' });
 }
 
 export async function steer(

@@ -26,6 +26,12 @@
 - A session with forks or subagents has a chevron in the sidebar that
   collapses them.
 
+- pigi sends usage data and crash reports, under a random install id, to its
+  own endpoint: launches, prompts sent (not their text), tabs and shortcuts
+  used, and errors with paths, hosts and keys removed. Never prompts, replies,
+  code or project names; turn it off in Settings → Privacy or with
+  `DO_NOT_TRACK=1`. Details at [pigi.pink/privacy](https://pigi.pink/privacy)
+
 ### Changed
 
 - Skills in the chat and the message box show a wand instead of a cube, the

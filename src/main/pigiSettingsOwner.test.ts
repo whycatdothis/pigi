@@ -49,6 +49,16 @@ describe('pigi settings owner', () => {
     expect(merged.chat.toolBlockViewMode).toBe('minimal');
   });
 
+  it('stores the telemetry switch, which an older file does not have', () => {
+    const owner = createPigiSettingsOwner({ path });
+    expect(owner.current().telemetry.enabled).toBe(true);
+
+    owner.applyChange({ telemetry: { enabled: false } });
+
+    expect(readPigiSettingsFile(path).settings.telemetry.enabled).toBe(false);
+    expect(owner.current().chat).toEqual(DEFAULT_PIGI_SETTINGS.chat);
+  });
+
   it('writes the file before applyChange returns', () => {
     const owner = createPigiSettingsOwner({ path });
 

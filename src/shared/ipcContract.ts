@@ -579,6 +579,18 @@ export type UpdateStatus =
 // IPC Channels (only used for lifecycle via main process)
 // =============================================================================
 
+/** A feature a person used: a workspace tab they switched to, a shortcut they pressed. */
+export type TelemetryFeature = `tab.${string}` | `shortcut.${string}`;
+
+/**
+ * What a renderer tells main for telemetry. Main owns the queue, the opt-out and
+ * the install id, so a renderer only reports that something happened.
+ */
+export type RendererTelemetryReport =
+  | { type: 'prompt_sent' }
+  | { type: 'feature_used'; feature: TelemetryFeature }
+  | { type: 'exception'; name: string; message: string; stack?: string };
+
 export enum PiChannel {
   /** renderer → main: create a new session (spawns process, returns real sessionId + port) */
   CreateSession = 'pi:create_session',
@@ -646,8 +658,10 @@ export enum PiChannel {
   ResolveExistingPaths = 'pi:resolve_existing_paths',
   /** renderer → main: the app theme, so window materials follow it */
   SetAppearanceTheme = 'pi:set_appearance_theme',
-  /** renderer → main: apply appearance/chat slices to pigi's settings */
+  /** renderer → main: apply the changed slices to pigi's settings */
   ChangePigiSettings = 'pi:change_pigi_settings',
+  /** renderer → main: a prompt, a feature used or an uncaught error, for telemetry (main decides whether to send) */
+  ReportTelemetry = 'pi:report_telemetry',
   /** main → renderer: the merged settings snapshot every window shares */
   /** renderer → main: get all keyboard shortcut definitions with current bindings */
   GetShortcuts = 'pi:get_shortcuts',

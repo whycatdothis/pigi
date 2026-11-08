@@ -33,6 +33,11 @@ export interface ChatSettings {
   pinSentMessage: boolean;
 }
 
+export interface TelemetrySettings {
+  /** Crash reports and usage counts; see docs/telemetry.md. */
+  enabled: boolean;
+}
+
 /** Whether a failed read means "no file yet" rather than a file that is broken. */
 export function isMissingFileError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
@@ -45,6 +50,7 @@ export interface PigiSettings {
   version: typeof PIGI_SETTINGS_VERSION;
   appearance: AppearanceSettings;
   chat: ChatSettings;
+  telemetry: TelemetrySettings;
 }
 
 /**
@@ -54,6 +60,7 @@ export interface PigiSettings {
 export interface PigiSettingsChange {
   appearance?: AppearanceSettings;
   chat?: ChatSettings;
+  telemetry?: TelemetrySettings;
 }
 
 function parseChat(raw: unknown): ChatSettings {
@@ -66,6 +73,16 @@ function parseChat(raw: unknown): ChatSettings {
       typeof record.pinSentMessage === 'boolean'
         ? record.pinSentMessage
         : DEFAULT_PIGI_SETTINGS.chat.pinSentMessage,
+  };
+}
+
+function parseTelemetry(raw: unknown): TelemetrySettings {
+  const record = isRecord(raw) ? raw : {};
+  return {
+    enabled:
+      typeof record.enabled === 'boolean'
+        ? record.enabled
+        : DEFAULT_PIGI_SETTINGS.telemetry.enabled,
   };
 }
 
@@ -82,6 +99,9 @@ export function parsePigiSettingsChange(raw: unknown): PigiSettingsChange {
   }
   if (isRecord(raw.chat)) {
     change.chat = parseChat(raw.chat);
+  }
+  if (isRecord(raw.telemetry)) {
+    change.telemetry = parseTelemetry(raw.telemetry);
   }
   return change;
 }
@@ -109,6 +129,7 @@ export const DEFAULT_PIGI_SETTINGS: PigiSettings = {
   version: PIGI_SETTINGS_VERSION,
   appearance: DEFAULT_APPEARANCE,
   chat: { toolBlockViewMode: 'compact_read', pinSentMessage: false },
+  telemetry: { enabled: true },
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -151,6 +172,7 @@ function migrateFromV1(raw: unknown): PigiSettings {
       dark: { ...appearance.dark, accent: { presetId: accentId } },
     },
     chat: parseChat(record),
+    telemetry: parseTelemetry(record.telemetry),
   };
 }
 
@@ -182,6 +204,7 @@ export function parsePigiSettings(raw: unknown): PigiSettings {
       version: PIGI_SETTINGS_VERSION,
       appearance: parseAppearance(raw.appearance, legacyDiagramTheme(raw) ?? DEFAULT_DIAGRAM_THEME),
       chat: parseChat(raw.chat),
+      telemetry: parseTelemetry(raw.telemetry),
     };
   }
   return migrateFromV1(raw);

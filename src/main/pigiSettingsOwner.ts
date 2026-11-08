@@ -30,11 +30,18 @@ export function createPigiSettingsOwner({ path }: PigiSettingsOwnerOptions): Pig
   let settings = readPigiSettingsFile(path).settings;
 
   function applyChange(change: PigiSettingsChange): PigiSettings {
-    if (change.appearance === undefined && change.chat === undefined) return settings;
+    if (
+      change.appearance === undefined &&
+      change.chat === undefined &&
+      change.telemetry === undefined
+    ) {
+      return settings;
+    }
     settings = parsePigiSettings({
       ...settings,
       ...(change.appearance === undefined ? {} : { appearance: change.appearance }),
       ...(change.chat === undefined ? {} : { chat: change.chat }),
+      ...(change.telemetry === undefined ? {} : { telemetry: change.telemetry }),
     });
     writePigiSettingsFile(path, settings);
     return settings;

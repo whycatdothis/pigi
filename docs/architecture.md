@@ -827,7 +827,8 @@ close settings first, so nothing acts invisibly underneath the page.
 
 Two data paths:
 
-- **pigi settings** (theme, accent, default tool view) live in `settings.json`
+- **pigi settings** (theme, accent, default tool view, the telemetry switch
+  from [telemetry.md](telemetry.md)) live in `settings.json`
   in the app's user data directory, and the main process owns that file
   (`main/pigiSettingsOwner.ts`). It reads the file before it creates the window,
   so the native theme and the window background are right from the first frame;
@@ -937,6 +938,7 @@ src/
 │   └── ipcContract.ts          # All types + channel enum (single source of truth)
 ├── main/
 │   ├── index.ts                # App lifecycle, window creation
+│   ├── telemetry.ts            # Telemetry queue, opt-out, install id (see telemetry.md)
 │   ├── ipc/
 │   │   └── piAgentBridge.ts    # Lifecycle handlers (~120 lines)
 │   ├── menus/

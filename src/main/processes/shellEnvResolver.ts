@@ -11,7 +11,8 @@ const WINDOWS_PLATFORM = 'win32';
  * GUI apps inherit only a minimal environment from launchd, so anything that
  * must match the terminal goes here, resolved from the interactive login shell.
  */
-const SHELL_ENV_ALLOWLIST = ['PI_SUBAGENT_PI_BINARY'] as const;
+export const DO_NOT_TRACK_ENV = 'DO_NOT_TRACK';
+const SHELL_ENV_ALLOWLIST = ['PI_SUBAGENT_PI_BINARY', DO_NOT_TRACK_ENV] as const;
 
 let resolved = false;
 

@@ -27,6 +27,7 @@ import {
 } from './piSettingsSections';
 import { AppearanceSettings } from './appearanceSettings';
 import { ChatSettings } from './chatSettings';
+import { PrivacySettings } from './privacySettings';
 import { ShortcutsSettings } from './shortcutsSettings';
 
 interface SettingsPageProps {
@@ -108,6 +109,9 @@ function PigiSettingsSection({ meta }: { meta: SettingsSectionEntry }): React.JS
       break;
     case 'shortcuts':
       content = <ShortcutsSettings />;
+      break;
+    case 'privacy':
+      content = <PrivacySettings />;
       break;
     default:
       content = null;

@@ -37,7 +37,10 @@ async function readAppClasses(path) {
   const source = await readFile(resolve(ROOT, path), 'utf8');
   const classes = new Set();
   for (const [literal] of source.matchAll(STRING_LITERAL)) {
-    for (const className of literal.slice(1, -1).split(/\s+/)) {
+    for (const token of literal.slice(1, -1).split(/\s+/)) {
+      // A template literal swallows the strings nested in its `${}`
+      // (`${open ? 'text-foreground' : '…'}`); their quotes are not part of the class.
+      const className = token.replace(/^[$'"{]+|['"}]+$/g, '');
       if (className) classes.add(className);
     }
   }

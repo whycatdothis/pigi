@@ -63,6 +63,10 @@ export function useKeyboardShortcuts(
           if (action) {
             event.preventDefault();
             action();
+            // Held down, a shortcut repeats ~30 times a second; that is one use.
+            if (!event.repeat) {
+              window.piApi.reportTelemetry({ type: 'feature_used', feature: `shortcut.${id}` });
+            }
             return;
           }
         }

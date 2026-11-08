@@ -165,19 +165,18 @@ export const MENU_CONTENT = {
 /**
  * A radio item in that menu, checked or not.
  *
- * The app's `DropdownMenuRadioItem` plus the SessionToolbar's own
- * `viewModeItemClassName`, which replaces the far-right checkmark indicator with
- * an inline one and paints the checked item with the system accent. The
- * `data-state=checked` this page writes into the markup is the attribute Radix
- * would have written. As in the menu content above, the padding and the gap the
- * call site names replace the base's, so the base's are left out rather than left
- * to stylesheet order.
+ * The app's `DropdownMenuRadioItem` with `compact`, which swaps the base's size,
+ * padding and focus colours for `COMPACT_SELECTION_ITEM_CLASS`
+ * (`ui/selectionStyles.ts`): the caption row every short mode menu shares, with
+ * the checked row tinted and labelled in the system accent. The toolbar puts the
+ * check inline after the label. The `data-state=checked` this page writes into the
+ * markup is the attribute Radix would have written.
  */
 export const MENU_ITEM = {
   classes:
-    "relative flex cursor-default items-center rounded-control text-body outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 gap-1 pl-2 pr-2 py-1 text-caption transition-colors data-[state=checked]:bg-[var(--system-accent)]/10 data-[state=checked]:text-[var(--system-accent)] data-[state=checked]:focus:bg-[var(--system-accent)]/10 data-[state=checked]:focus:text-[var(--system-accent)]",
+    "relative flex cursor-default items-center outline-hidden select-none data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 gap-1 rounded-control pl-2 pr-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-[state=checked]:bg-accent-subtle data-[state=checked]:text-[var(--system-accent)] data-[state=checked]:hover:bg-accent-subtle data-[state=checked]:hover:text-[var(--system-accent)] data-[state=checked]:focus:bg-accent-subtle data-[state=checked]:focus:text-[var(--system-accent)] data-[state=checked]:focus:**:text-[var(--system-accent)] py-1 text-caption",
   source: `${UI}/dropdown-menu.tsx`,
-  alsoFrom: [`${RENDERER}/session/SessionToolbar.tsx`],
+  alsoFrom: [`${UI}/selectionStyles.ts`],
 } satisfies CopiedClasses;
 
 /**
