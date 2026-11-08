@@ -4,6 +4,12 @@ import type {
   AgentSessionEvent,
 } from '@earendil-works/pi-coding-agent';
 import type { PiSettingsResult, PiSettingsScope, PiSettingUpdate } from './piSettings.ts';
+import type {
+  PiPackageOperation,
+  PiPackageOperationResult,
+  PiPackagesHealthResult,
+  PiPackagesResult,
+} from './piPackages.ts';
 
 /**
  * IPC Contract - single source of truth for all inter-process communication.
@@ -645,6 +651,18 @@ export enum PiChannel {
   GetPiSettings = 'pi:get_pi_settings',
   /** renderer → main: write pi settings fields in one scope (atomic batch) */
   SetPiSettings = 'pi:set_pi_settings',
+  /** renderer → main: installed pi packages and loose resources for a project (or none) */
+  ListPiPackages = 'pi:list_pi_packages',
+  /** renderer → main: available updates and extension load errors (slow: network, loads code) */
+  CheckPiPackages = 'pi:check_pi_packages',
+  /** renderer → main: install, remove or update one package; operations run one at a time */
+  RunPiPackageOperation = 'pi:run_pi_package_operation',
+  /** renderer → main: a folder picked in the system dialog to install as a package, or null */
+  PickPackageFolder = 'pi:pick_package_folder',
+  /** renderer → main: search the npm registry for pi packages */
+  SearchPiPackageCatalog = 'pi:search_pi_package_catalog',
+  /** renderer → main: one catalog package's README and manifest */
+  GetPiCatalogPackage = 'pi:get_pi_catalog_package',
   /** renderer → main: app/electron/runtime version info */
   /** renderer → main: get the cached model catalog snapshot */
   GetModelCatalog = 'pi:get_model_catalog',
@@ -813,6 +831,22 @@ export type SessionWorkerResponse =
     }
   | { type: 'catalog_updated'; models: ModelInfo[] }
   | ({ type: 'settings_result'; requestId: string } & PiSettingsResult);
+
+// =============================================================================
+// Internal: Main ↔ package worker (one process per request)
+// =============================================================================
+
+/** `cwd` is the active project, or null for user scope only. */
+export type PackageWorkerCommand =
+  | { type: 'list'; cwd: string | null }
+  | { type: 'check'; cwd: string | null }
+  | { type: 'operate'; cwd: string | null; operation: PiPackageOperation };
+
+export type PackageWorkerResponse =
+  | { type: 'list_result'; result: PiPackagesResult }
+  | { type: 'check_result'; result: PiPackagesHealthResult }
+  /** The worker leaves a failure's `log` empty; main fills in the npm/git output. */
+  | { type: 'operate_result'; result: PiPackageOperationResult };
 
 // =============================================================================
 // Internal: Main → Utility (parentPort, lifecycle only)

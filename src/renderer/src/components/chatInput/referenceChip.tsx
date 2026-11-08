@@ -1,5 +1,5 @@
 import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react';
-import { IconCube, IconTerminal2 } from '@tabler/icons-react';
+import { IconTerminal2, IconWand } from '@tabler/icons-react';
 import { displayFileName } from '../../lib/chatAttachments';
 import type { ChatReferenceKind } from '../../lib/chatReferences';
 import { referenceKindForTrigger } from '../../lib/composerContent';
@@ -7,10 +7,10 @@ import { REFERENCE_CHIP_CLASS } from '../../lib/referenceChipStyles';
 import { isSkillCommandName, slashCommandDisplayName } from '../../lib/slashCommands';
 import { FileIcon } from '../fileIcon';
 
-/** Matches the transcript: skills show a cube, other commands a terminal. */
+/** Matches the transcript: skills show a wand, other commands a terminal. */
 function ReferenceIcon({ kind, id }: { kind: ChatReferenceKind; id: string }): React.JSX.Element {
   if (kind === 'file') return <FileIcon path={id} />;
-  if (isSkillCommandName(id)) return <IconCube className="size-4 shrink-0" />;
+  if (isSkillCommandName(id)) return <IconWand className="size-4 shrink-0" />;
   return <IconTerminal2 className="size-4 shrink-0" />;
 }
 

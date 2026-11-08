@@ -79,6 +79,14 @@ interface AppState {
   closeSettings: () => void;
   setSettingsSection: (section: SettingsSectionId) => void;
 
+  /**
+   * The packages page, in the main area beside the normal sidebar. Showing a
+   * session, a new chat or another workspace tab closes it.
+   */
+  packagesOpen: boolean;
+  openPackages: () => void;
+  closePackages: () => void;
+
   // Workspace views in the main area. The tabs are fixed and never close.
   workspaceTab: WorkspaceTab;
   setWorkspaceTab: (tab: WorkspaceTab) => void;
@@ -193,7 +201,7 @@ function markSeen(
   return { unreadSessionPaths };
 }
 
-function isAgentBusy(status: AgentStatus): boolean {
+export function isAgentBusy(status: AgentStatus): boolean {
   return status === 'streaming' || status === 'tool_running';
 }
 
@@ -310,6 +318,7 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveSession: (activeSessionPath) =>
     set((state) => ({
       activeSessionPath,
+      packagesOpen: false,
       ...markSeen(state, activeSessionPath, state.workspaceTab),
     })),
 
@@ -354,10 +363,15 @@ export const useAppStore = create<AppState>((set) => ({
   closeSettings: () => set({ settingsOpen: false }),
   setSettingsSection: (settingsSection) => set({ settingsSection }),
 
+  packagesOpen: false,
+  openPackages: () => set({ packagesOpen: true, settingsOpen: false }),
+  closePackages: () => set({ packagesOpen: false }),
+
   workspaceTab: WORKSPACE_TABS.chat,
   setWorkspaceTab: (workspaceTab) =>
     set((state) => ({
       workspaceTab,
+      packagesOpen: false,
       ...markSeen(state, state.activeSessionPath, workspaceTab),
     })),
   lastFileByProject: storedLastFiles.load(),

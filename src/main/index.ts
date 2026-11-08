@@ -17,6 +17,7 @@ import {
 import { registerProjectHandlers } from './ipc/projectHandlers';
 import { registerAttachmentHandlers } from './ipc/attachmentHandlers';
 import { registerShortcutHandlers } from './ipc/shortcutHandlers';
+import { registerPiPackageHandlers } from './ipc/piPackageHandlers';
 import { registerTerminalHandlers, stopTerminalProcess } from './terminal/terminalManager';
 import {
   initializeUpdateManager,
@@ -33,12 +34,15 @@ import { createPigiSettingsOwner } from './pigiSettingsOwner';
 import { startRemoteControlServer } from './remoteControl/remoteControlServer';
 import { parsePigiSettingsChange } from '../shared/pigiSettings';
 import { pathToFileURL } from 'node:url';
+import { PACKAGE_IMAGE_SCHEME } from '../shared/piPackages';
+import { handlePackageImageRequest } from './packages/packageImages';
 
 configureDebugPanel();
 installMainDebugHandle({ piAgent: getPiAgentDebugSnapshot });
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'local-file', privileges: { bypassCSP: true, supportFetchAPI: true } },
+  { scheme: PACKAGE_IMAGE_SCHEME, privileges: { secure: true } },
 ]);
 
 app.whenReady().then(() => {
@@ -69,11 +73,14 @@ app.whenReady().then(() => {
     return net.fetch(pathToFileURL(decodeURIComponent(encodedPath)).toString());
   });
 
+  protocol.handle(PACKAGE_IMAGE_SCHEME, handlePackageImageRequest);
+
   initializeShellEnv();
   registerIpcHandlers();
   registerProjectHandlers();
   registerAttachmentHandlers();
   registerShortcutHandlers();
+  registerPiPackageHandlers();
   registerTerminalHandlers();
   initializeUpdateManager();
   // After the updater: the menu's one update item renders the current status.

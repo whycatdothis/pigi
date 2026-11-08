@@ -141,6 +141,34 @@
 }
 
 @layer components {
+  /* An image-less package tile, one hue per resource kind. Lightness and
+     chroma are fixed so every kind weighs the same. */
+  .package-tile {
+    background-color: oklch(0.94 0.04 var(--package-hue));
+    color: oklch(0.52 0.13 var(--package-hue));
+  }
+
+  .dark .package-tile {
+    background-color: oklch(0.32 0.05 var(--package-hue));
+    color: oklch(0.82 0.09 var(--package-hue));
+  }
+
+  .package-tile[data-kind='extensions'] {
+    --package-hue: 255;
+  }
+
+  .package-tile[data-kind='skills'] {
+    --package-hue: 300;
+  }
+
+  .package-tile[data-kind='prompts'] {
+    --package-hue: 185;
+  }
+
+  .package-tile[data-kind='themes'] {
+    --package-hue: 350;
+  }
+
   /* Markdown typographic system for assistant messages.
      15px base text × 1.5 line-height, with one rhythm ladder shared with the
      transcript: prose spacing between block-level elements, item spacing

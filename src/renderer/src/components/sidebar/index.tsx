@@ -6,6 +6,7 @@ import {
   IconLogin2,
   IconRefresh,
   IconDownload,
+  IconCube,
 } from '@tabler/icons-react';
 import { SidebarToggle } from './sidebarToggle';
 import type { PiSessionInfo } from '../../../../shared/ipcContract';
@@ -74,6 +75,8 @@ export default memo(function Sidebar({
   const visibleWhenCollapsedSessionIds = useAppStore(
     (state) => state.visibleWhenCollapsedSessionIds,
   );
+  const packagesOpen = useAppStore((state) => state.packagesOpen);
+  const openPackages = useAppStore((state) => state.openPackages);
   const [relativeTimeBase, setRelativeTimeBase] = useState(() => Date.now());
   // Lets the effect retry when projectSessions loads after selectedSessionPath changes.
   const lastScrolledPathRef = useRef<string | null>(null);
@@ -245,6 +248,16 @@ export default memo(function Sidebar({
                       ({ key: 'o', meta: true } satisfies ShortcutBinding),
                   )}
                 </Kbd>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={packagesOpen}
+                onClick={openPackages}
+                data-testid="sidebar-packages"
+              >
+                <IconCube data-icon="inline-start" />
+                <span>Packages</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
