@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- The sidebar remembers which sessions are collapsed and which subagent groups
+  are open across restarts.
+
 ## [0.5.8] - 2026-11-08
 
 ### Added
@@ -41,8 +48,7 @@
   cancelled.
 
 - A session with forks or subagents has a chevron in the sidebar that
-  collapses them. What is collapsed or expanded, subagent groups included, is
-  remembered across restarts.
+  collapses them.
 
 - pigi sends usage data and crash reports, under a random install id, to its
   own endpoint: launches, prompts sent (not their text), tabs and shortcuts
