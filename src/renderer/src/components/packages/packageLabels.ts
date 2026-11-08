@@ -9,11 +9,13 @@ import {
 import {
   npmNameFromSource,
   PI_RESOURCE_KINDS,
+  piSourceType,
   type InstalledPiPackage,
   type PiExtensionLoadError,
   type PiPackageAction,
   type PiResource,
   type PiResourceKind,
+  type PiSourceType,
 } from '../../../../shared/piPackages';
 import { formatTimeAgo } from '@/lib/utils';
 
@@ -68,12 +70,11 @@ export const ACTION_SUCCESS_LABELS: Record<PiPackageAction, string> = {
   update: 'Updated',
 };
 
-/** What a source points at, for the line under it. */
-export function sourceKindLabel(source: string): string {
-  if (source.startsWith('npm:')) return 'npm package';
-  if (source.startsWith('git:') || /^(https?|ssh|git):\/\//.test(source)) return 'Git repository';
-  return 'Local path';
-}
+export const SOURCE_TYPE_LABELS: Record<PiSourceType, string> = {
+  npm: 'npm package',
+  git: 'Git repository',
+  local: 'Local path',
+};
 
 /** Load errors from extensions inside this package's folder. */
 export function errorsForPackage(
@@ -95,7 +96,7 @@ function displaySource(source: string): string {
 
 /** A git source's web page, for a manifest without `repository`. */
 export function gitWebUrl(source: string): string | null {
-  if (sourceKindLabel(source) !== 'Git repository') return null;
+  if (piSourceType(source) !== 'git') return null;
   const path = displaySource(source)
     .replace(/^git@([^:/]+):/, '$1/')
     .replace(/@[^/]*$/, '');

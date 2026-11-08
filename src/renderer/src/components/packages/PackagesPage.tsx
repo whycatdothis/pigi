@@ -1,9 +1,7 @@
 /**
  * Installed pi packages and the marketplace (the pi.dev catalog), one tab
  * each. The field filters the installed packages or searches the marketplace;
- * installing from npm, git or a folder has its own dialog, though a source
- * pasted into the field (`npm:…`, a git URL, a path, a `pi install …` line)
- * installs from there too.
+ * installing from npm, git or a folder has its own dialog.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -19,7 +17,6 @@ import {
 } from '@tabler/icons-react';
 import {
   npmNameFromSource,
-  parsePackageInput,
   PI_DEV_PACKAGES_URL,
   PI_RESOURCE_KINDS,
   type CatalogPackage,
@@ -47,7 +44,6 @@ import {
   ACTION_SUCCESS_LABELS,
   packageTitle,
   resourceKinds,
-  sourceKindLabel,
 } from './packageLabels';
 
 /** Even, so the two columns end level. */
@@ -188,36 +184,6 @@ function ActivityCard({
   );
 }
 
-function SourceInstallCard({
-  source,
-  onInstall,
-  disabled,
-}: {
-  source: string;
-  onInstall: () => void;
-  disabled: boolean;
-}): React.JSX.Element {
-  return (
-    <div
-      className="flex items-center gap-3 rounded-surface-sm border border-border bg-card px-4 py-3"
-      data-testid="source-install"
-    >
-      <IconDownload size={16} className="shrink-0 text-muted-foreground" />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate font-mono text-code text-foreground" title={source}>
-          {source}
-        </span>
-        <span className="text-caption text-muted-foreground">
-          {sourceKindLabel(source)} · installs for every project
-        </span>
-      </div>
-      <Button size="sm" disabled={disabled} onClick={onInstall}>
-        Install
-      </Button>
-    </div>
-  );
-}
-
 function packageKey(pkg: { scope: PiPackageScope; source: string }): string {
   return `${pkg.scope}:${pkg.source}`;
 }
@@ -260,21 +226,15 @@ export default function PackagesPage({
   const { snapshot, health, activity, listError } = packages;
   const [tab, setTab] = useState<PackagesTab>('installed');
   const [text, setText] = useState('');
-  const input = useMemo(() => parsePackageInput(text), [text]);
-  const searchText = input.kind === 'search' ? input.query : '';
+  const searchText = text.trim();
   // The popular list loads on the installed tab too, so switching shows it at once.
-  const catalogQuery = input.kind === 'source' ? null : tab === 'marketplace' ? searchText : '';
+  const catalogQuery = tab === 'marketplace' ? searchText : '';
   const { state: catalog, retry: retryCatalog } = usePackageCatalog(catalogQuery);
   const [popularCount, setPopularCount] = useState(POPULAR_PAGE_SIZE);
   const [dialog, setDialog] = useState<DialogTarget | null>(null);
   const fieldRef = useRef<HTMLInputElement>(null);
 
   const running = activity?.status === 'running';
-  // The failure card already offers the retry; a second Install beside it is noise.
-  const failedSameSource =
-    activity?.status === 'failed' &&
-    input.kind === 'source' &&
-    activity.operation.source === input.source;
   const installedByName = useMemo(() => installedByNpmName(snapshot), [snapshot]);
 
   /** Applies finished changes to running sessions and says so. */
@@ -284,7 +244,7 @@ export default function PackagesPage({
       const [firstError, ...otherErrors] = loadErrors;
       if (firstError) {
         // An install from the marketplace tab keeps the card's own notice out of sight.
-        toast.error(`${label}, but it failed to load`, {
+        toast.error(`${label}, but not everything loaded`, {
           description:
             otherErrors.length > 0
               ? `${loadErrors.length} extensions failed. ${firstError.error}`
@@ -319,28 +279,12 @@ export default function PackagesPage({
     health?.updates.includes(pkg.source),
   );
 
-  /** One after another, as the queue in main runs them anyway; stops at the first failure. */
   const updateAll = async (): Promise<void> => {
-    let updated = 0;
-    const loadErrors: PiExtensionLoadError[] = [];
-    for (const pkg of updatable) {
-      const errors = await packages.run({ action: 'update', source: pkg.source, scope: pkg.scope });
-      if (!errors) break;
-      updated += 1;
-      loadErrors.push(...errors);
-    }
-    if (updated > 0) {
-      announce(`Updated ${updated === 1 ? '1 package' : `${updated} packages`}`, loadErrors);
-    }
+    const { done, loadErrors } = await packages.runAll(
+      updatable.map((pkg) => ({ action: 'update', source: pkg.source, scope: pkg.scope })),
+    );
+    if (done > 0) announce(`Updated ${done === 1 ? '1 package' : `${done} packages`}`, loadErrors);
   };
-
-  const installSource = useCallback(() => {
-    if (input.kind !== 'source' || running) return;
-    void run({ action: 'install', source: input.source, scope: 'user' }).then((succeeded) => {
-      // A failed line stays, so an edit starts from it.
-      if (succeeded) setText('');
-    });
-  }, [input, run, running]);
 
   const catalogInstallState = useCallback(
     (name: string): CatalogInstallState => ({
@@ -368,7 +312,12 @@ export default function PackagesPage({
 
   const isBusy = (pkg: InstalledPiPackage): boolean =>
     running && activity.operation.source === pkg.source && activity.operation.scope === pkg.scope;
-  const runInstalled = (operation: PiPackageOperation): void => void run(operation);
+  const runInstalled = (operation: PiPackageOperation): void => {
+    void run(operation).then((succeeded) => {
+      // Else the dialog's target would come back, open, with a later reinstall.
+      if (succeeded && operation.action === 'remove') setDialog(null);
+    });
+  };
 
   const filteredInstalled = (snapshot?.packages ?? [])
     .filter((pkg) => !searchText || packageMatches(pkg, searchText))
@@ -571,7 +520,6 @@ export default function PackagesPage({
                     value={text}
                     onChange={(event) => setText(event.target.value)}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter') installSource();
                       if (event.key === 'Escape' && text) {
                         event.preventDefault();
                         setText('');
@@ -611,13 +559,6 @@ export default function PackagesPage({
                   Install from…
                 </Button>
               </div>
-              {input.kind === 'source' && !failedSameSource && (
-                <SourceInstallCard
-                  source={input.source}
-                  onInstall={installSource}
-                  disabled={running}
-                />
-              )}
               {activity && (
                 <ActivityCard
                   key={`${activity.operation.action}:${activity.operation.source}`}
@@ -628,7 +569,7 @@ export default function PackagesPage({
               )}
             </div>
 
-            {input.kind !== 'source' && (tab === 'installed' ? installedTab : marketplaceTab)}
+            {tab === 'installed' ? installedTab : marketplaceTab}
           </div>
         </div>
         {dialog?.kind === 'source' && (

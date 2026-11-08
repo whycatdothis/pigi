@@ -34,6 +34,10 @@ export interface PiPackagesController {
   reload: () => void;
   /** Resolves the package's load errors on success; a failure stays in `activity` and resolves null. */
   run: (operation: PiPackageOperation) => Promise<PiExtensionLoadError[] | null>;
+  /** How many finished before the first failure, and their load errors. */
+  runAll: (
+    operations: readonly PiPackageOperation[],
+  ) => Promise<{ done: number; loadErrors: PiExtensionLoadError[] }>;
   dismissActivity: () => void;
 }
 
@@ -79,39 +83,64 @@ export function usePiPackages(cwd: string | null): PiPackagesController {
     };
   }, [load, completed]);
 
-  const run = useCallback(
-    async (operation: PiPackageOperation): Promise<PiExtensionLoadError[] | null> => {
-      usePackageActivity.setState({
-        activity: { status: 'running', operation, startedAt: Date.now() },
-      });
-      const result = await window.piApi.runPiPackageOperation(cwd, operation);
-      if (!result.success) {
+  /**
+   * One after another, stopping at the first failure, which the activity
+   * card then shows. The page stays busy throughout and reloads once at the
+   * end: a check between two operations would load extensions npm is
+   * rewriting.
+   */
+  const runAll = useCallback(
+    async (
+      operations: readonly PiPackageOperation[],
+    ): Promise<{ done: number; loadErrors: PiExtensionLoadError[] }> => {
+      let done = 0;
+      const loadErrors: PiExtensionLoadError[] = [];
+      for (const operation of operations) {
         usePackageActivity.setState({
-          activity: { status: 'failed', operation, error: result.error, log: result.log },
+          activity: { status: 'running', operation, startedAt: Date.now() },
         });
-        return null;
-      }
-      // The update check takes seconds; until it answers, the cached one
-      // still offers the update that just ran.
-      if (operation.action !== 'install') {
-        const cached = lastHealthByCwd.get(cacheKey);
-        if (cached) {
-          const next = {
-            ...cached,
-            updates: cached.updates.filter((source) => source !== operation.source),
-          };
-          lastHealthByCwd.set(cacheKey, next);
-          setHealth(next);
+        const result = await window.piApi.runPiPackageOperation(cwd, operation);
+        if (!result.success) {
+          usePackageActivity.setState({
+            activity: { status: 'failed', operation, error: result.error, log: result.log },
+          });
+          break;
+        }
+        done += 1;
+        loadErrors.push(...result.loadErrors);
+        // The update check takes seconds; until it answers, the cached one
+        // still offers the update that just ran.
+        if (operation.action !== 'install') {
+          const cached = lastHealthByCwd.get(cacheKey);
+          if (cached) {
+            const next = {
+              ...cached,
+              updates: cached.updates.filter((source) => source !== operation.source),
+            };
+            lastHealthByCwd.set(cacheKey, next);
+            setHealth(next);
+          }
         }
       }
-      usePackageActivity.setState((state) => ({ activity: null, completed: state.completed + 1 }));
-      return result.loadErrors;
+      usePackageActivity.setState((state) => ({
+        activity: state.activity?.status === 'failed' ? state.activity : null,
+        completed: done > 0 ? state.completed + 1 : state.completed,
+      }));
+      return { done, loadErrors };
     },
     [cacheKey, cwd],
+  );
+
+  const run = useCallback(
+    async (operation: PiPackageOperation): Promise<PiExtensionLoadError[] | null> => {
+      const { done, loadErrors } = await runAll([operation]);
+      return done > 0 ? loadErrors : null;
+    },
+    [runAll],
   );
 
   const reload = useCallback(() => void load(), [load]);
   const dismissActivity = useCallback(() => usePackageActivity.setState({ activity: null }), []);
 
-  return { snapshot, listError, health, activity, reload, run, dismissActivity };
+  return { snapshot, listError, health, activity, reload, run, runAll, dismissActivity };
 }

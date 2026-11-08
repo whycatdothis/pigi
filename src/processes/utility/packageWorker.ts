@@ -27,6 +27,7 @@ import {
   authorFromManifest,
   npmNameFromSource,
   PI_RESOURCE_KINDS,
+  piSourceType,
   type InstalledPiPackage,
   type PiExtensionLoadError,
   type PiPackageOperation,
@@ -46,8 +47,10 @@ const NO_SUCH_DIRECTORY = '.pigi-no-extensions';
 /** Extension factories run arbitrary code; one that never settles must not hang the page. */
 const EXTENSION_LOAD_TIMEOUT_MS = 20_000;
 
-/** pi's own `npm view` for updates waits as long. */
-const RELEASE_DATE_TIMEOUT_MS = 15_000;
+/** What pi allows its own `npm view` and git calls (NETWORK_TIMEOUT_MS). */
+const RELEASE_DATE_TIMEOUT_MS = 10_000;
+/** pi's UPDATE_CHECK_CONCURRENCY: one npm process per package would be a burst of them. */
+const RELEASE_DATE_CONCURRENCY = 4;
 
 interface PackageContext {
   agentDir: string;
@@ -237,7 +240,9 @@ async function loadErrors(
 
 function capture(command: string, args: string[], cwd: string): Promise<string> {
   return new Promise((resolvePromise, reject) => {
-    execFile(command, args, { cwd, timeout: RELEASE_DATE_TIMEOUT_MS }, (error, stdout) => {
+    // npm is npm.cmd on Windows, which only a shell runs.
+    const shell = process.platform === 'win32';
+    execFile(command, args, { cwd, timeout: RELEASE_DATE_TIMEOUT_MS, shell }, (error, stdout) => {
       if (error) reject(error);
       else resolvePromise(stdout.trim());
     });
@@ -263,21 +268,26 @@ async function releaseDate(
       typeof times === 'object' && times !== null ? Reflect.get(times, version) : null;
     return typeof time === 'string' ? time : null;
   }
-  if (!existsSync(join(installedPath, '.git'))) return null;
+  // A local folder can be a checkout too; its age is not a release's.
+  if (piSourceType(source) !== 'git') return null;
   return (await capture('git', ['log', '-1', '--format=%cI'], installedPath)) || null;
 }
 
 async function releaseDates(context: PackageContext): Promise<Record<string, string>> {
-  const entries = await Promise.all(
-    context.packageManager
-      .listConfiguredPackages()
-      .map(async ({ source, installedPath }): Promise<[string, string] | null> => {
-        if (!installedPath || !existsSync(installedPath)) return null;
-        const date = await releaseDate(context, source, installedPath).catch(() => null);
-        return date ? [source, date] : null;
-      }),
-  );
-  return Object.fromEntries(entries.filter((entry) => entry !== null));
+  // pi's switch for no network, which its own update check honours.
+  if (/^(1|true|yes)$/i.test(process.env['PI_OFFLINE'] ?? '')) return {};
+  const pending = context.packageManager.listConfiguredPackages();
+  const dates: Record<string, string> = {};
+  const worker = async (): Promise<void> => {
+    for (let pkg = pending.shift(); pkg; pkg = pending.shift()) {
+      const { source, installedPath } = pkg;
+      if (!installedPath || !existsSync(installedPath)) continue;
+      const date = await releaseDate(context, source, installedPath).catch(() => null);
+      if (date) dates[source] = date;
+    }
+  };
+  await Promise.all(Array.from({ length: RELEASE_DATE_CONCURRENCY }, worker));
+  return dates;
 }
 
 async function checkHealth(context: PackageContext): Promise<PiPackagesHealth> {
@@ -286,7 +296,7 @@ async function checkHealth(context: PackageContext): Promise<PiPackagesHealth> {
     loadErrors(context).catch((error: unknown): PiExtensionLoadError[] => [
       { path: '', error: error instanceof Error ? error.message : String(error) },
     ]),
-    releaseDates(context),
+    releaseDates(context).catch(() => ({})),
   ]);
   return { updates: updates.map((update) => update.source), loadErrors: errors, releasedAt };
 }

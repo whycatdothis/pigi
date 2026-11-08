@@ -8,11 +8,11 @@ import {
   IconPackage,
   type Icon,
 } from '@tabler/icons-react';
-import { parseInstallSource } from '../../../../shared/piPackages';
+import { parseInstallSource, piSourceType, type PiSourceType } from '../../../../shared/piPackages';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { cn } from '@/lib/utils';
-import { packageTitle, sourceKindLabel } from './packageLabels';
+import { packageTitle, SOURCE_TYPE_LABELS } from './packageLabels';
 
 const EXAMPLES: readonly { kind: string; sources: readonly string[] }[] = [
   { kind: 'npm', sources: ['package-name', 'npm:@scope/name@1.2.0'] },
@@ -21,10 +21,10 @@ const EXAMPLES: readonly { kind: string; sources: readonly string[] }[] = [
   { kind: 'pi', sources: ['pi install npm:package-name'] },
 ];
 
-const SOURCE_ICONS: Record<string, Icon> = {
-  'npm package': IconBrandNpm,
-  'Git repository': IconBrandGit,
-  'Local path': IconFolder,
+const SOURCE_ICONS: Record<PiSourceType, Icon> = {
+  npm: IconBrandNpm,
+  git: IconBrandGit,
+  local: IconFolder,
 };
 
 function Examples(): React.JSX.Element {
@@ -62,13 +62,10 @@ function SourcePreview({
   source: string | null;
   busy: boolean;
 }): React.JSX.Element {
-  const kind = source ? sourceKindLabel(source) : null;
+  const type = source ? piSourceType(source) : null;
+  const kind = type ? SOURCE_TYPE_LABELS[type] : null;
   const empty = text.trim() === '';
-  const PreviewIcon = kind
-    ? (SOURCE_ICONS[kind] ?? IconFolder)
-    : empty
-      ? IconPackage
-      : IconAlertCircle;
+  const PreviewIcon = type ? SOURCE_ICONS[type] : empty ? IconPackage : IconAlertCircle;
   return (
     <div
       className={cn(
@@ -137,22 +134,21 @@ export function InstallSourceDialog({
           <DialogTitle className="text-body">Install a package</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-2">
-          <div
-            aria-invalid={text.trim() !== '' && !source}
-            className="flex h-9 items-center gap-1 rounded-control border border-input pr-1 pl-2.5 transition-colors aria-invalid:border-destructive"
-          >
+          <div className="flex h-9 items-center gap-1 rounded-control border border-input pr-1 pl-2.5 transition-colors has-[input[aria-invalid=true]]:border-destructive">
             <input
               ref={fieldRef}
               autoFocus
               value={text}
               onChange={(event) => setText(event.target.value)}
               onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing || event.key === 'Process') return;
                 if (event.key === 'Enter' && source && !disabled) onInstall(source);
               }}
               placeholder="npm:package-name, a git URL or a folder path"
               spellCheck={false}
               autoComplete="off"
               aria-label="Package source"
+              aria-invalid={text.trim() !== '' && !source}
               className="h-full min-w-0 flex-1 bg-transparent font-mono text-code text-foreground outline-none placeholder:text-muted-foreground"
               data-testid="install-source-field"
             />

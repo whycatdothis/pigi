@@ -7,47 +7,9 @@ import {
   packageImageUrl,
   parsePackageImageUrl,
   parseInstallSource,
-  parsePackageInput,
+  piSourceType,
   resourceKindsFromKeywords,
 } from './piPackages';
-
-describe('parsePackageInput', () => {
-  it.each([
-    ['npm:pi-web-access', 'npm:pi-web-access'],
-    ['npm:@foo/bar@1.2.3', 'npm:@foo/bar@1.2.3'],
-    ['git:github.com/user/repo@v1', 'git:github.com/user/repo@v1'],
-    ['https://github.com/user/repo', 'https://github.com/user/repo'],
-    ['ssh://git@github.com/user/repo', 'ssh://git@github.com/user/repo'],
-    ['git@github.com:user/repo', 'git:git@github.com:user/repo'],
-    ['/abs/path', '/abs/path'],
-    ['~/code/my-ext', '~/code/my-ext'],
-    ['./relative', './relative'],
-    ['https://www.npmjs.com/package/@scope/name', 'npm:@scope/name'],
-    ['https://pi.dev/packages/pi-web-access?type=extension', 'npm:pi-web-access'],
-  ])('reads %s as a source', (text, source) => {
-    expect(parsePackageInput(text)).toEqual({ kind: 'source', source });
-  });
-
-  it('reads a pi install line, a bare name after it as npm, and drops flags', () => {
-    expect(parsePackageInput('pi install npm:pi-web-access')).toEqual({
-      kind: 'source',
-      source: 'npm:pi-web-access',
-    });
-    expect(parsePackageInput('  pi install -l pi-web-access ')).toEqual({
-      kind: 'source',
-      source: 'npm:pi-web-access',
-    });
-  });
-
-  it('searches for anything else', () => {
-    expect(parsePackageInput('')).toEqual({ kind: 'empty' });
-    expect(parsePackageInput('   ')).toEqual({ kind: 'empty' });
-    expect(parsePackageInput('web search')).toEqual({ kind: 'search', query: 'web search' });
-    expect(parsePackageInput('pi-web-access')).toEqual({ kind: 'search', query: 'pi-web-access' });
-    expect(parsePackageInput('npm:')).toEqual({ kind: 'search', query: 'npm:' });
-    expect(parsePackageInput('pi install')).toEqual({ kind: 'search', query: 'pi install' });
-  });
-});
 
 describe('npmNameFromSource', () => {
   it('drops the version, keeping a scope', () => {
@@ -94,6 +56,9 @@ describe('package images', () => {
       expect(parsePackageImageUrl(packageImageUrl(target))).toEqual(target);
     }
     expect(parsePackageImageUrl('package-image://url/https%3A%2F%2Fx')).toBeNull();
+    // The name becomes a registry path; nothing else may ride along.
+    expect(parsePackageImageUrl('package-image://npm/..%2F..%2F-%2Fwhoami')).toBeNull();
+    expect(parsePackageImageUrl('package-image://npm/x%401.0.0')).toBeNull();
   });
 
   it('accepts only http(s) images of the kinds pi.dev shows', () => {
@@ -118,6 +83,21 @@ describe('authorFromManifest', () => {
 });
 
 describe('parseInstallSource', () => {
+  it.each([
+    ['npm:pi-web-access', 'npm:pi-web-access'],
+    ['npm:@foo/bar@1.2.3', 'npm:@foo/bar@1.2.3'],
+    ['git:github.com/user/repo@v1', 'git:github.com/user/repo@v1'],
+    ['https://github.com/user/repo', 'https://github.com/user/repo'],
+    ['ssh://git@github.com/user/repo', 'ssh://git@github.com/user/repo'],
+    ['git@github.com:user/repo', 'git:git@github.com:user/repo'],
+    ['./relative', './relative'],
+    ['https://www.npmjs.com/package/@scope/name', 'npm:@scope/name'],
+    ['https://pi.dev/packages/pi-web-access?type=extension', 'npm:pi-web-access'],
+    ['  pi install -l pi-web-access ', 'npm:pi-web-access'],
+  ])('reads %s as a source', (text, source) => {
+    expect(parseInstallSource(text)).toBe(source);
+  });
+
   it('reads a bare word as an npm name and keeps other sources', () => {
     expect(parseInstallSource('pi-web-access')).toBe('npm:pi-web-access');
     expect(parseInstallSource('pi install npm:@scope/pkg')).toBe('npm:@scope/pkg');
@@ -129,8 +109,26 @@ describe('parseInstallSource', () => {
     );
   });
 
+  it('keeps a path whole, spaces and all', () => {
+    expect(parseInstallSource('/Users/me/My Packages/pkg')).toBe('/Users/me/My Packages/pkg');
+    expect(parseInstallSource('C:\\Users\\me\\pkg')).toBe('C:\\Users\\me\\pkg');
+  });
+
   it('rejects text that is not one source', () => {
     expect(parseInstallSource('')).toBeNull();
     expect(parseInstallSource('two words')).toBeNull();
+    expect(parseInstallSource('npm:')).toBeNull();
+    expect(parseInstallSource('pi install')).toBeNull();
+    expect(parseInstallSource('pi install -l')).toBeNull();
+  });
+});
+
+describe('piSourceType', () => {
+  it('reads sources as pi does', () => {
+    expect(piSourceType('npm:@scope/x@1.0.0')).toBe('npm');
+    expect(piSourceType('git:git@github.com:user/repo')).toBe('git');
+    expect(piSourceType('https://github.com/user/repo')).toBe('git');
+    expect(piSourceType('~/code/pkg')).toBe('local');
+    expect(piSourceType('../pkg')).toBe('local');
   });
 });

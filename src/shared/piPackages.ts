@@ -78,10 +78,6 @@ export type PiPackageOperationResult =
   /** `log` is npm's and git's own output, the only place the real cause is. */
   | { success: false; error: string; log: string };
 
-// =============================================================================
-// Failures
-// =============================================================================
-
 const NPM_ERROR_REASONS: Record<string, string> = {
   E404: 'Not found in the npm registry.',
   ENOTFOUND: 'Could not reach the npm registry.',
@@ -111,10 +107,6 @@ export function failureReason(log: string): string | null {
   if (gitFatal) return gitFatal.replace(/^(fatal|ERROR): /, '');
   return null;
 }
-
-// =============================================================================
-// Catalog
-// =============================================================================
 
 export interface CatalogPackage {
   name: string;
@@ -201,10 +193,6 @@ export function repositoryUrlFromManifest(manifest: Record<string, unknown> | nu
   return /^[\w.-]+\/[\w.-]+$/.test(url) ? `https://github.com/${url}` : null;
 }
 
-// =============================================================================
-// Preview images
-// =============================================================================
-
 /**
  * Package images reach the renderer through main: the CSP loads no remote
  * image, and the address names a package, not a URL, so a page cannot use
@@ -225,7 +213,9 @@ export function parsePackageImageUrl(url: string): PackageImageTarget | null {
   if (!match?.[2]) return null;
   try {
     const value = decodeURIComponent(match[2]);
-    return match[1] === 'npm' ? { npm: value } : { path: value };
+    if (match[1] === 'path') return { path: value };
+    // A bare name: the registry path is built from it.
+    return NPM_NAME.test(value) && !value.slice(1).includes('@') ? { npm: value } : null;
   } catch {
     return null;
   }
@@ -246,6 +236,14 @@ export function imageUrlFromManifest(manifest: Record<string, unknown> | null): 
   }
 }
 
+export type PiSourceType = 'npm' | 'git' | 'local';
+
+/** How pi reads a source (`parseSource`, `isLocalPath`): anything not npm or remote is a path. */
+export function piSourceType(source: string): PiSourceType {
+  if (source.startsWith('npm:')) return 'npm';
+  return /^(git|github|https?|ssh):/.test(source) ? 'git' : 'local';
+}
+
 /** The npm name a source installs, or null for git and local sources. */
 export function npmNameFromSource(source: string): string | null {
   if (!source.startsWith('npm:')) return null;
@@ -255,15 +253,6 @@ export function npmNameFromSource(source: string): string | null {
   return versionAt === -1 ? spec : spec.slice(0, versionAt);
 }
 
-// =============================================================================
-// Input
-// =============================================================================
-
-export type PackageInput =
-  | { kind: 'empty' }
-  | { kind: 'search'; query: string }
-  | { kind: 'source'; source: string };
-
 const NPM_NAME = /^(@[a-z0-9][\w.-]*\/)?[a-z0-9][\w.-]*(@[^\s/]+)?$/i;
 const PROTOCOL_SOURCE = /^(https?|ssh|git):\/\//;
 const PACKAGE_PAGE_URLS = [
@@ -271,7 +260,7 @@ const PACKAGE_PAGE_URLS = [
   /^https?:\/\/pi\.dev\/packages\/((?:@[^/\s]+\/)?[^/\s?#]+)/,
 ];
 
-function sourceFromToken(token: string, fromInstallCommand: boolean): string | null {
+function sourceFromToken(token: string): string | null {
   for (const pattern of PACKAGE_PAGE_URLS) {
     const match = token.match(pattern);
     if (match?.[1]) return `npm:${decodeURIComponent(match[1])}`;
@@ -281,34 +270,23 @@ function sourceFromToken(token: string, fromInstallCommand: boolean): string | n
   // pi only takes the scp-like form behind `git:`.
   if (/^[\w.-]+@[\w.-]+:/.test(token)) return `git:${token}`;
   if (/^(\/|~\/|\.\.?\/)/.test(token)) return token;
-  // pi would read a bare word as a relative path; nobody types that at a GUI.
-  if (fromInstallCommand && NPM_NAME.test(token)) return `npm:${token}`;
+  // pi would read a bare word as a relative path; nobody means that here.
+  if (NPM_NAME.test(token)) return `npm:${token}`;
   return null;
 }
 
 /**
- * What a line in the packages field asks for: a source to install (`pi install
- * npm:foo`, `npm:foo`, a git URL, a path, an npm or pi.dev package page), or a
- * catalog search. A bare word is a search; after `pi install` it is an npm
- * name. Flags are dropped: pigi installs every package globally, `-l` too.
+ * The source a line in the install dialog names: `pi install …`, an
+ * `npm:`/`git:` source, a git URL, a path, an npm or pi.dev package page, or
+ * a bare npm name. Flags are dropped: pigi installs every package globally,
+ * `-l` too.
  */
-export function parsePackageInput(text: string): PackageInput {
-  const tokens = text.trim().split(/\s+/).filter(Boolean);
-  if (tokens.length === 0) return { kind: 'empty' };
-  const fromInstallCommand = tokens[0] === 'pi' && tokens[1] === 'install' && tokens.length > 2;
-  const rest = fromInstallCommand ? tokens.slice(2) : tokens;
-  const words = rest.filter((token) => !token.startsWith('-'));
-  const [word] = words;
-  if (words.length === 1 && word) {
-    const source = sourceFromToken(word, fromInstallCommand);
-    if (source) return { kind: 'source', source };
-  }
-  return { kind: 'search', query: text.trim() };
-}
-
-/** A line typed where only an install makes sense: a bare word is an npm name. */
 export function parseInstallSource(text: string): string | null {
   const line = text.trim();
-  const input = parsePackageInput(/^pi\s+install\s/.test(line) ? line : `pi install ${line}`);
-  return input.kind === 'source' ? input.source : null;
+  // A picked folder may hold spaces, which would split it into words.
+  if (/^(\/|~\/|\.\.?\/|[a-z]:[\\/])/i.test(line)) return line;
+  const tokens = line.split(/\s+/);
+  const args = tokens[0] === 'pi' && tokens[1] === 'install' ? tokens.slice(2) : tokens;
+  const words = args.filter((token) => token && !token.startsWith('-'));
+  return words.length === 1 && words[0] ? sourceFromToken(words[0]) : null;
 }

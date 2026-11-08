@@ -28,7 +28,7 @@ import {
   resourceKinds,
 } from './packageLabels';
 
-export function ScopeBadge(): React.JSX.Element {
+function ScopeBadge(): React.JSX.Element {
   return (
     <span className="shrink-0 rounded-chip bg-muted px-1.5 text-2xs leading-[18px] font-medium text-muted-foreground">
       Project
@@ -235,7 +235,7 @@ export function InstalledActions({
   );
 }
 
-export function PackageNotice({
+function PackageNotice({
   missing,
   errors,
 }: {

@@ -146,7 +146,12 @@ and CI and preview builds would get it too.
   `npmCommand` setting (an npm wrapper such as `mise exec … npm`) is ignored
   there, though installs honour it.
 - README images are dropped because the CSP loads no remote image. Showing
-  them needs an image proxy through main or a scoped `img-src`.
+  them means extending the `package-image://` proxy (which serves only a
+  package's `pi.image`) or a scoped `img-src`.
+- `package-image://` keeps every fetched image in main for the window's
+  lifetime and checks the 5 MB limit only after the download; failed fetches
+  are cached as misses until a restart. Bound the cache, reject on
+  `content-length`, and stop reading past the limit.
 - A timed-out operation kills the package worker, but npm or git started by
   pi's package manager keep running as orphans, and the queue moves on while
   they still write the install folder. Killing the worker's children (or its

@@ -868,10 +868,9 @@ and a Marketplace tab of package cards and one field over both, which filters
 the installed packages or searches the marketplace. Installing from a source
 has its own dialog ("Install from…", with a folder picker), because a search
 field that also installs hid the install from everyone who did not already
-know. `parsePackageInput` (`shared/piPackages.ts`) still reads `pi install …`,
-`npm:`/`git:` sources, git URLs, paths and npm or pi.dev package pages pasted
-into the field as a source to install; the dialog's `parseInstallSource` also
-takes a bare word as an npm name.
+know; the field itself only searches. The dialog's `parseInstallSource`
+(`shared/piPackages.ts`) reads `pi install …`, `npm:`/`git:` sources, git
+URLs, paths, npm or pi.dev package pages, and a bare word as an npm name.
 
 **Installed packages** come from pi's own `DefaultPackageManager`, run in
 `processes/utility/packageWorker.ts`, one process per request (list, check,
