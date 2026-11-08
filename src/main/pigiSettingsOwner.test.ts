@@ -6,10 +6,14 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPigiSettingsOwner } from './pigiSettingsOwner';
 import { PIGI_SETTINGS_FILE_NAME, readPigiSettingsFile } from './pigiSettingsFile';
 import { DEFAULT_PIGI_SETTINGS } from '../shared/pigiSettings';
+
+// CI installs with --ignore-scripts, so Electron has no binary and importing it
+// throws; these tests pass their own settings path.
+vi.mock('electron', () => ({ app: {} }));
 
 let directory: string;
 let path: string;
