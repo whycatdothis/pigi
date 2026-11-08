@@ -35,6 +35,11 @@ export interface RemoteParamSpec {
   values?: readonly string[];
   /** A file or directory: the CLI resolves it against its working directory. */
   filesystemPath?: boolean;
+  /**
+   * A session: its file, which the CLI resolves like `filesystemPath`, or its
+   * id or a unique prefix of it, which the app looks up.
+   */
+  session?: boolean;
   description: string;
 }
 
@@ -50,6 +55,13 @@ export interface RemoteMethodSpec {
 const MODEL_PARAM: RemoteParamSpec = {
   type: 'string',
   description: 'provider/model-id; defaults to the parent session’s current model',
+};
+
+const SESSION_PARAM: RemoteParamSpec = {
+  type: 'string',
+  required: true,
+  session: true,
+  description: 'session file, id or id prefix',
 };
 
 const THINKING_PARAM: RemoteParamSpec = {
@@ -71,9 +83,16 @@ export const REMOTE_METHODS = {
     params: {
       cwd: {
         type: 'string',
-        required: true,
         filesystemPath: true,
         description: 'project directory; defaults to the current one',
+      },
+      all: { type: 'boolean', description: 'every project in pigi’s sidebar instead of one' },
+      running: { type: 'boolean', description: 'only sessions that are running' },
+      subagent: { type: 'boolean', description: 'only subagents' },
+      parent: {
+        type: 'string',
+        session: true,
+        description: 'only children (subagents and forks) of this session',
       },
     },
   },
@@ -88,8 +107,8 @@ export const REMOTE_METHODS = {
       },
       parent: {
         type: 'string',
-        filesystemPath: true,
-        description: 'session file the new session links to',
+        session: true,
+        description: 'session the new session links to',
       },
       model: MODEL_PARAM,
       thinkingLevel: THINKING_PARAM,
@@ -100,7 +119,7 @@ export const REMOTE_METHODS = {
     description: 'Send a prompt to an idle session',
     positional: ['path', 'text'],
     params: {
-      path: { type: 'string', required: true, filesystemPath: true, description: 'session file' },
+      path: SESSION_PARAM,
       text: { type: 'string', required: true, description: 'prompt text; - reads stdin' },
     },
   },
@@ -109,10 +128,27 @@ export const REMOTE_METHODS = {
     description: 'Wait until a session is idle and print its last reply',
     positional: ['path'],
     params: {
-      path: { type: 'string', required: true, filesystemPath: true, description: 'session file' },
+      path: SESSION_PARAM,
       timeout: { type: 'number', description: 'seconds to wait before giving up' },
+      stop: {
+        type: 'boolean',
+        description: 'stop the session when the timeout runs out or the wait is cancelled',
+      },
     },
   },
+  'session.status': {
+    command: 'session status',
+    description: 'Show whether a session is running, its message count and latest activity',
+    positional: ['path'],
+    params: { path: SESSION_PARAM },
+  },
+  'session.abort': {
+    command: 'session abort',
+    description: 'Stop a running session',
+    positional: ['path'],
+    params: { path: SESSION_PARAM },
+  },
+
   'subagent.run': {
     command: 'subagent',
     description: 'Run a task in a fresh child session of this one and print its reply',
@@ -122,14 +158,18 @@ export const REMOTE_METHODS = {
       parent: {
         type: 'string',
         required: true,
-        filesystemPath: true,
-        description: 'parent session file; defaults to the session running this command',
+        session: true,
+        description: 'parent session; defaults to the session running this command',
       },
       model: MODEL_PARAM,
       thinkingLevel: THINKING_PARAM,
       detach: {
         type: 'boolean',
         description: 'print the child path and return without waiting',
+      },
+      timeout: {
+        type: 'number',
+        description: 'seconds after which the subagent is stopped; not with --detach',
       },
     },
   },
@@ -163,6 +203,7 @@ export interface RemoteSessionSummary {
 
 export interface RemoteSessionCreated {
   path: string;
+  id: string;
   /** `provider/id`. */
   model: string | null;
   thinkingLevel: ThinkingLevelChoice;
@@ -174,9 +215,26 @@ export interface RemoteSessionReply {
   stopReason: string;
 }
 
+export interface RemoteSessionStatus {
+  path: string;
+  id: string;
+  title: string;
+  running: boolean;
+  messageCount: number;
+  lastToolCall: { name: string; arguments: Record<string, unknown> } | null;
+  /** The text of the latest assistant message that has any. */
+  lastText: string;
+}
+
 export interface RemoteParams {
   'system.hello': Record<string, never>;
-  'session.list': { cwd: string };
+  'session.list': {
+    cwd?: string;
+    all?: boolean;
+    running?: boolean;
+    subagent?: boolean;
+    parent?: string;
+  };
   'session.create': {
     cwd?: string;
     parent?: string;
@@ -184,13 +242,16 @@ export interface RemoteParams {
     thinkingLevel?: ThinkingLevel;
   };
   'session.prompt': { path: string; text: string };
-  'session.wait': { path: string; timeout?: number };
+  'session.wait': { path: string; timeout?: number; stop?: boolean };
+  'session.status': { path: string };
+  'session.abort': { path: string };
   'subagent.run': {
     task: string;
     parent: string;
     model?: string;
     thinkingLevel?: ThinkingLevel;
     detach?: boolean;
+    timeout?: number;
   };
 }
 
@@ -204,6 +265,9 @@ export interface RemoteResults {
   'session.create': RemoteSessionCreated;
   'session.prompt': { path: string };
   'session.wait': RemoteSessionReply;
+  'session.status': RemoteSessionStatus;
+  /** `aborted` is false when the session was not running. */
+  'session.abort': { path: string; aborted: boolean };
   /** Without `reply` and `stopReason` when detached. */
   'subagent.run': RemoteSessionCreated & Partial<RemoteSessionReply>;
 }
@@ -229,6 +293,11 @@ export const RemoteErrorCode = {
   /** `session wait` gave up; the session is still running (CLI exit 4). */
   TIMEOUT: -32004,
   SESSION_BUSY: -32005,
+  /**
+   * The window reloaded or closed under a request it had taken; sessions run
+   * on in their own processes. `APP_NOT_READY` means it never took it.
+   */
+  WINDOW_RELOADED: -32006,
 } as const;
 
 export type RemoteErrorName = keyof typeof RemoteErrorCode;
@@ -316,6 +385,11 @@ export function parseRemoteParams(method: RemoteMethod, raw: unknown): RemotePar
     }
   }
   return { ok: true, params };
+}
+
+/** A session param names a file; otherwise it is an id or id prefix, which has neither. */
+export function isSessionFileRef(value: string): boolean {
+  return /[\\/]/.test(value) || value.endsWith('.jsonl');
 }
 
 /** `provider/id`, split at the first slash: OpenRouter ids contain slashes. */

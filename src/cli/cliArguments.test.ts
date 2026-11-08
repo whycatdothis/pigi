@@ -27,6 +27,24 @@ describe('parseCliArguments', () => {
     });
   });
 
+  it('passes a session id on as it is', () => {
+    expect(parseCliArguments(['session', 'abort', '01a1b9cc'], context)).toMatchObject({
+      method: 'session.abort',
+      params: { path: '01a1b9cc' },
+    });
+    expect(parseCliArguments(['session', 'status', 'sessions/x'], context)).toMatchObject({
+      params: { path: '/repo/sessions/x' },
+    });
+  });
+
+  it('lists every project or a parent’s children without defaulting the project', () => {
+    expect(parseCliArguments(['session', 'list', '--all', '--running'], context)).toMatchObject({
+      params: { all: true, running: true },
+    });
+    const children = parseCliArguments(['session', 'list', '--parent', '01a1'], context);
+    expect(children.kind === 'call' && children.params).toEqual({ parent: '01a1' });
+  });
+
   it('defaults the project to the working directory', () => {
     expect(parseCliArguments(['session', 'list', '--json'], context)).toMatchObject({
       method: 'session.list',

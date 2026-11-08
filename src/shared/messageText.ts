@@ -2,6 +2,7 @@
  * Message content text extraction, shared by the utility process (session tree
  * previews, navigate results) and the renderer.
  */
+import type { RemoteSessionStatus } from './remoteCommandContract';
 
 /**
  * Flatten a pi message content field to plain text.
@@ -34,4 +35,32 @@ export function clipText(text: string, maxLength: number): string {
 /** Collapse to a single trimmed line for one-line surfaces. */
 export function toSingleLine(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** The newest tool call and the newest assistant text, each from the latest message that has one. */
+export function latestAssistantActivity(
+  messages: readonly unknown[],
+): Pick<RemoteSessionStatus, 'lastToolCall' | 'lastText'> {
+  let lastToolCall: RemoteSessionStatus['lastToolCall'] = null;
+  let lastText = '';
+  for (let index = messages.length - 1; index >= 0 && !(lastText && lastToolCall); index--) {
+    const message = messages[index];
+    if (!isRecord(message) || message.role !== 'assistant') continue;
+    lastText ||= extractMessageText(message.content);
+    if (lastToolCall || !Array.isArray(message.content)) continue;
+    const call: unknown = message.content.findLast(
+      (part: unknown) => isRecord(part) && part.type === 'toolCall',
+    );
+    if (isRecord(call)) {
+      lastToolCall = {
+        name: String(call.name),
+        arguments: isRecord(call.arguments) ? call.arguments : {},
+      };
+    }
+  }
+  return { lastToolCall, lastText };
 }

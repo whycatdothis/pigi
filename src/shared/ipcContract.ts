@@ -316,6 +316,10 @@ export interface SessionState {
   isStreaming: boolean;
   sessionFile: string | undefined;
   sessionId: string;
+  cwd: string;
+  parentSessionPath: string | undefined;
+  /** Started by `pigi subagent` (docs/cli.md §10). */
+  isSubagent: boolean;
   messageCount: number;
   contextUsage: ContextUsage | null;
   autoCompactionEnabled: boolean;
@@ -584,6 +588,8 @@ export enum PiChannel {
   DestroySession = 'pi:destroy_session',
   /** renderer → main: mark a session as recently selected */
   TouchSession = 'pi:touch_session',
+  /** renderer → main: the sessions whose process is running a turn */
+  GetBusySessions = 'pi:get_busy_sessions',
   /** main → renderer: deliver control/data MessagePorts for a session */
   SessionPort = 'pi:session_port',
   /** main → renderer: a session's process exited unexpectedly */

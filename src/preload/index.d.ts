@@ -53,6 +53,7 @@ interface PiApi {
   ) => Promise<{ success: boolean; sessionPath?: string; error?: string }>;
   destroySession: (sessionPath: string) => Promise<{ success: boolean }>;
   touchSession: (sessionPath: string) => Promise<{ success: boolean; error?: string }>;
+  getBusySessions: () => Promise<string[]>;
 
   getProjects: () => Promise<ProjectStateResult>;
   getGitBranch: (cwd: string) => Promise<GitBranchResult>;

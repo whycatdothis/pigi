@@ -47,6 +47,7 @@ import { toModelInfo } from '../../shared/modelInfo';
 import { generateSessionTitle } from './autoRename';
 import { createModelRuntime } from './fileCredentialStore';
 import { buildPromptContent, hasPromptContent, type BuiltPromptContent } from './promptAttachments';
+import { hasSubagentMarker } from './subagentMarker';
 import {
   QueuedPromptInputs,
   firstAppendedQueueText,
@@ -657,6 +658,9 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
         isStreaming: s.isStreaming,
         sessionFile: s.sessionFile,
         sessionId: s.sessionId,
+        cwd: s.sessionManager.getCwd(),
+        parentSessionPath: s.sessionManager.getHeader()?.parentSession,
+        isSubagent: hasSubagentMarker(s.sessionManager.getEntries(), s.sessionId),
         messageCount: s.messages.length,
         contextUsage: s.getContextUsage() ?? null,
         autoCompactionEnabled: s.autoCompactionEnabled,

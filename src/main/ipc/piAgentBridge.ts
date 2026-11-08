@@ -545,6 +545,8 @@ export function registerIpcHandlers(): void {
     return { success: processPool.touchSessionProcess(sessionPath) };
   });
 
+  ipcMain.handle(PiChannel.GetBusySessions, () => processPool.busySessionPaths());
+
   ipcMain.handle(PiChannel.GetModelCatalog, async () => {
     // Pure cache read: the worker publishes on startup and on credential
     // changes; updates arrive via ModelCatalogUpdated.

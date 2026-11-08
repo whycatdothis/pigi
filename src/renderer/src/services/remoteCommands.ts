@@ -13,6 +13,7 @@ import type {
 } from '../../../shared/ipcContract';
 import {
   SUBAGENT_STARTED_NOTIFICATION,
+  isSessionFileRef,
   remoteError,
   splitModelRef,
   type RemoteError,
@@ -24,15 +25,23 @@ import {
   type RemoteSessionSummary,
 } from '../../../shared/remoteCommandContract';
 import { THINKING_LEVEL_ORDER } from '../../../shared/thinkingLevels';
-import { useAppStore } from '../state/appStore';
+import { isAgentBusy, useAppStore } from '../state/appStore';
 import { getProjectSessions } from '../lib/projectSessions';
 import { chatMessageTitle } from '../lib/chatAttachments';
-import { ensureTranscriptSession, getTranscriptController } from '../hooks/useTranscript';
+import {
+  disposeTranscriptSession,
+  ensureTranscriptSession,
+  getTranscriptController,
+  markSessionHydrated,
+} from '../hooks/useTranscript';
+import { extractMessageText, latestAssistantActivity } from '../../../shared/messageText';
+import { matchSessions } from '../lib/sessionLookup';
 import {
   abort,
   createSession,
   getMessages,
   getModelCatalog,
+  getProjects,
   getState,
   onProjectSessionsChunk,
   onPush,
@@ -47,6 +56,7 @@ import {
 const RUN_START_TIMEOUT_MS = 30 * 1000;
 const SESSION_LIST_TIMEOUT_MS = 30 * 1000;
 const MODEL_SUGGESTION_LIMIT = 5;
+const AMBIGUOUS_ID_LIMIT = 5;
 
 class RemoteCommandFailure extends Error {
   constructor(readonly error: RemoteError) {
@@ -73,15 +83,50 @@ function modelRef(model: { provider: string; id: string } | null): string | null
   return model ? `${model.provider}/${model.id}` : null;
 }
 
-/** Every listed or still unlisted session pigi knows of, by path. */
-function findKnownSession(path: string): PiSessionInfo | undefined {
-  const { projectSessions, sessions } = useAppStore.getState();
-  for (const listed of Object.values(projectSessions)) {
-    const found = listed.find((session) => session.path === path);
-    if (found) return found;
+/** Every session pigi knows of: the listed ones and created ones whose file is not written yet. */
+function knownSessions(listed: Record<string, PiSessionInfo[]>): PiSessionInfo[] {
+  const { sessions } = useAppStore.getState();
+  const cwds = new Set([
+    ...Object.keys(listed),
+    ...[...sessions.values()].map((entry) => entry.cwd),
+  ]);
+  return [...cwds].flatMap((cwd) => getProjectSessions(cwd, listed, sessions));
+}
+
+async function projectPaths(): Promise<string[]> {
+  const result = await getProjects();
+  if (!result.success) fail('INTERNAL_ERROR', result.error ?? 'cannot read projects');
+  return result.recentProjects.map((project) => project.path);
+}
+
+function onlyMatch(ref: string, matches: PiSessionInfo[]): PiSessionInfo {
+  if (matches.length === 0) fail('NOT_FOUND', `pigi does not know session ${ref}`);
+  if (matches.length > 1) {
+    const ids = matches.slice(0, AMBIGUOUS_ID_LIMIT).map((session) => session.id);
+    fail('INVALID_PARAMS', `${ref} matches ${matches.length} sessions: ${ids.join(', ')}`);
   }
-  const entry = sessions.get(path);
-  return entry ? getProjectSessions(entry.cwd, {}, new Map([[path, entry]]))[0] : undefined;
+  return matches[0];
+}
+
+/**
+ * Looks in what the window has listed first. A miss lists every project
+ * again, since a reloaded window may not have listed them yet, and then opens
+ * the running sessions it still does not know: one in its first turn has no
+ * file to list, and a reload emptied the store that had it.
+ */
+async function resolveSession(ref: string, signal: AbortSignal): Promise<PiSessionInfo> {
+  const inWindow = matchSessions(ref, knownSessions(useAppStore.getState().projectSessions));
+  if (inWindow.length > 0) return onlyMatch(ref, inWindow);
+  const listed = await listProjects(await projectPaths(), signal);
+  const known = knownSessions(listed);
+  const matches = matchSessions(ref, known);
+  if (matches.length > 0) return onlyMatch(ref, matches);
+  const knownPaths = new Set(known.map((session) => session.path));
+  const unknownRunning = (await window.piApi.getBusySessions()).filter(
+    (path) => !knownPaths.has(path),
+  );
+  await Promise.allSettled(unknownRunning.map(openSession));
+  return onlyMatch(ref, matchSessions(ref, knownSessions(listed)));
 }
 
 async function listSessions(cwd: string, signal: AbortSignal): Promise<PiSessionInfo[]> {
@@ -125,16 +170,41 @@ async function listSessions(cwd: string, signal: AbortSignal): Promise<PiSession
   }
 }
 
-function summarize(session: PiSessionInfo): RemoteSessionSummary {
-  const entry = useAppStore.getState().sessions.get(session.path);
+async function listProjects(
+  cwds: string[],
+  signal: AbortSignal,
+): Promise<Record<string, PiSessionInfo[]>> {
+  const lists = await Promise.all(cwds.map((cwd) => listSessions(cwd, signal)));
+  return Object.fromEntries(cwds.map((cwd, index) => [cwd, lists[index]]));
+}
+
+/**
+ * Main tracks which session processes are in a turn, which survives a window
+ * reload; the store adds a session that is starting one.
+ */
+async function runningSessionPaths(): Promise<Set<string>> {
+  const running = new Set(await window.piApi.getBusySessions());
+  for (const entry of useAppStore.getState().sessions.values()) {
+    if (isAgentBusy(entry.status)) running.add(entry.sessionPath);
+  }
+  return running;
+}
+
+function sessionTitle(session: PiSessionInfo): string {
+  return (
+    session.name || useAppStore.getState().sessions.get(session.path)?.title || session.firstMessage
+  );
+}
+
+function summarize(session: PiSessionInfo, running: Set<string>): RemoteSessionSummary {
   return {
     path: session.path,
     id: session.id,
     cwd: session.cwd,
-    title: session.name || entry?.title || session.firstMessage,
+    title: sessionTitle(session),
     parentPath: session.parentSessionPath ?? null,
     isSubagent: session.isSubagent ?? false,
-    running: entry !== undefined && entry.status !== 'idle',
+    running: running.has(session.path),
     created: session.created,
     modified: session.modified,
     messageCount: session.messageCount,
@@ -193,18 +263,12 @@ function isThinkingLevel(value: string): value is ThinkingLevel {
   return THINKING_LEVEL_ORDER.some((level) => level === value);
 }
 
+/** `parent` is a resolved session file. */
 async function createBackgroundSession(
-  params: RemoteParams['session.create'],
+  params: RemoteParams['session.create'] & { cwd: string },
   extra: { subagent?: boolean; title?: string },
 ): Promise<RemoteSessionCreated> {
-  const { parent } = params;
-  const cwd = params.cwd ?? (parent ? findKnownSession(parent)?.cwd : undefined);
-  if (!cwd) {
-    fail(
-      'NOT_FOUND',
-      `pigi does not list session ${parent}${extra.subagent ? '' : '; pass --cwd'}`,
-    );
-  }
+  const { parent, cwd } = params;
   const inherited = parent ? await inheritedChoice(parent) : { model: null, thinkingLevel: null };
   const model = params.model ? await resolveModel(params.model) : inherited.model;
   const thinkingLevel = params.thinkingLevel ?? inherited.thinkingLevel;
@@ -241,6 +305,7 @@ async function createBackgroundSession(
   ensureTranscriptSession(path);
   return {
     path,
+    id: state.sessionId,
     model: modelRef(state.model),
     thinkingLevel: { requested: thinkingLevel, effective: state.thinkingLevel },
   };
@@ -256,39 +321,63 @@ function keepSelectedSessionInView(): void {
   if (selected) void touchSession(selected);
 }
 
+const openingSessions = new Map<string, Promise<void>>();
+
 /**
  * Attaches to a session the window has not opened (a reloaded window, or one
- * the user never clicked), as selecting it would, without selecting it.
+ * the user never clicked), as selecting it would, without selecting it. Two
+ * requests for the same session share one attach.
  */
-async function openSession(path: string): Promise<void> {
-  if (useAppStore.getState().sessions.has(path)) return;
-  const info = findKnownSession(path);
-  if (!info) fail('NOT_FOUND', `pigi does not list session ${path}`);
+function openSession(path: string): Promise<void> {
+  if (useAppStore.getState().sessions.has(path)) return Promise.resolve();
+  let opening = openingSessions.get(path);
+  if (!opening) {
+    opening = attachSession(path).finally(() => openingSessions.delete(path));
+    openingSessions.set(path, opening);
+  }
+  return opening;
+}
+
+async function attachSession(path: string): Promise<void> {
   try {
     await resumeSession(path);
+    keepSelectedSessionInView();
+    markSessionHydrated(path);
+    const controller = ensureTranscriptSession(path);
+    const { messages, compactionCount } = await getMessages(path);
+    controller.hydrate(messages, compactionCount);
+    // Read after hydrating, which resets the status to idle: a session that
+    // is mid-run would otherwise end every wait at once.
+    const state = await getState(path);
+    const status = state.isStreaming ? 'streaming' : 'idle';
+    const firstUserMessage: unknown = messages.find(
+      (message: unknown) =>
+        typeof message === 'object' && message !== null && Reflect.get(message, 'role') === 'user',
+    );
+    useAppStore.getState().addSessionEntry({
+      sessionPath: path,
+      persistedSessionId: state.sessionId,
+      parentSessionPath: state.parentSessionPath,
+      isSubagent: state.isSubagent,
+      status,
+      title: firstUserMessage
+        ? chatMessageTitle(extractMessageText(Reflect.get(firstUserMessage, 'content')), [])
+        : 'New chat',
+      cwd: state.cwd,
+      createdAt: new Date().toISOString(),
+      model: state.model,
+      thinkingLevel: state.thinkingLevel,
+      contextUsage: state.contextUsage,
+      autoCompactionEnabled: state.autoCompactionEnabled,
+      messageCount: state.messageCount,
+      error: null,
+    });
+    controller.setStatus(status);
   } catch (error) {
+    // Unmarks it as hydrated too, so a click later loads its messages.
+    disposeTranscriptSession(path);
     fail('INTERNAL_ERROR', error instanceof Error ? error.message : String(error));
   }
-  keepSelectedSessionInView();
-  const state = await getState(path);
-  const status = state.isStreaming ? 'streaming' : 'idle';
-  useAppStore.getState().addSessionEntry({
-    sessionPath: path,
-    persistedSessionId: state.sessionId,
-    parentSessionPath: info.parentSessionPath,
-    isSubagent: info.isSubagent,
-    status,
-    title: info.name || info.firstMessage,
-    cwd: info.cwd,
-    createdAt: info.created,
-    model: state.model,
-    thinkingLevel: state.thinkingLevel,
-    contextUsage: state.contextUsage,
-    autoCompactionEnabled: state.autoCompactionEnabled,
-    messageCount: state.messageCount,
-    error: null,
-  });
-  ensureTranscriptSession(path).setStatus(status);
 }
 
 function isIdle(path: string): boolean {
@@ -352,25 +441,13 @@ function waitForRunStart(path: string, start: () => Promise<void>): Promise<void
   });
 }
 
-function textOf(content: unknown): string {
-  if (typeof content === 'string') return content;
-  if (!Array.isArray(content)) return '';
-  return content
-    .filter(
-      (part: unknown) =>
-        typeof part === 'object' && part !== null && Reflect.get(part, 'type') === 'text',
-    )
-    .map((part: object) => String(Reflect.get(part, 'text') ?? ''))
-    .join('');
-}
-
 async function lastReply(path: string): Promise<RemoteSessionReply> {
   const { messages } = await getMessages(path);
   for (let index = messages.length - 1; index >= 0; index--) {
     const message: unknown = messages[index];
     if (typeof message !== 'object' || message === null) continue;
     if (Reflect.get(message, 'role') !== 'assistant') continue;
-    const reply = textOf(Reflect.get(message, 'content'));
+    const reply = extractMessageText(Reflect.get(message, 'content'));
     const stopReason = String(Reflect.get(message, 'stopReason') ?? 'stop');
     if (stopReason === 'error' || stopReason === 'aborted') {
       const errorMessage = Reflect.get(message, 'errorMessage');
@@ -385,15 +462,24 @@ async function lastReply(path: string): Promise<RemoteSessionReply> {
   return { path, reply: '', stopReason: 'stop' };
 }
 
+interface WaitOptions {
+  timeoutSeconds?: number;
+  /** Abort the session when the timeout runs out or the wait is cancelled. */
+  stop?: boolean;
+}
+
+const STOPPED_AT_TIMEOUT = 'stopped: still running when the timeout ran out';
+
 /** Resolves with the last reply once the session is idle. */
 function waitForIdle(
   path: string,
   signal: AbortSignal,
-  timeoutSeconds?: number,
+  { timeoutSeconds, stop = false }: WaitOptions = {},
 ): Promise<RemoteSessionReply> {
   const controller = getTranscriptController(path);
   return new Promise<RemoteSessionReply>((resolve, reject) => {
     let settled = false;
+    let stoppedAtTimeout = false;
     let pushError: string | null = null;
     const cleanup = (): void => {
       settled = true;
@@ -410,11 +496,20 @@ function waitForIdle(
         reject(new RemoteCommandFailure(remoteError('SESSION_FAILED', pushError, { path })));
         return;
       }
-      lastReply(path).then(resolve, reject);
+      lastReply(path).then(resolve, (error: unknown) => {
+        if (!stoppedAtTimeout || !(error instanceof RemoteCommandFailure)) return reject(error);
+        const { reply, stopReason } = error.error.data;
+        reject(
+          new RemoteCommandFailure(
+            remoteError('SESSION_FAILED', STOPPED_AT_TIMEOUT, { path, reply, stopReason }),
+          ),
+        );
+      });
     };
     const onAbort = (): void => {
       if (settled) return;
       cleanup();
+      if (stop) void abort(path);
       reject(new RemoteCommandFailure(remoteError('SESSION_FAILED', 'cancelled', { path })));
     };
     const timer =
@@ -422,6 +517,12 @@ function waitForIdle(
         ? null
         : setTimeout(() => {
             if (settled) return;
+            if (stop) {
+              // Settles through `finish` once the abort leaves it idle, with the partial reply.
+              stoppedAtTimeout = true;
+              void abort(path);
+              return;
+            }
             cleanup();
             reject(
               new RemoteCommandFailure(
@@ -445,39 +546,108 @@ function waitForIdle(
 }
 
 async function promptSession(path: string, text: string): Promise<void> {
-  await openSession(path);
   if (!isIdle(path)) fail('SESSION_BUSY', `session is running: ${path}`);
   await waitForRunStart(path, () => prompt(path, text));
 }
 
 const HANDLERS: { [M in HandledMethod]: Handler<M> } = {
-  'session.list': async ({ cwd }, { signal }) => {
-    const listed = await listSessions(cwd, signal);
-    const all = getProjectSessions(cwd, { [cwd]: listed }, useAppStore.getState().sessions);
-    return { sessions: all.map(summarize) };
+  'session.list': async ({ cwd, all, running, subagent, parent }, { signal }) => {
+    if (all && cwd !== undefined) fail('INVALID_PARAMS', 'pass --cwd or --all, not both');
+    const parentSession = parent ? await resolveSession(parent, signal) : undefined;
+    const projects = all
+      ? await projectPaths()
+      : [
+          cwd ??
+            parentSession?.cwd ??
+            fail('INVALID_PARAMS', 'pass --cwd, --all or --parent', { param: 'cwd' }),
+        ];
+    const listed = await listProjects(projects, signal);
+    const runningPaths = await runningSessionPaths();
+    const { sessions: entries } = useAppStore.getState();
+    const sessions = projects
+      .flatMap((path) => getProjectSessions(path, listed, entries))
+      .filter(
+        (session) =>
+          (!running || runningPaths.has(session.path)) &&
+          (!subagent || session.isSubagent) &&
+          (!parentSession || session.parentSessionPath === parentSession.path),
+      );
+    return { sessions: sessions.map((session) => summarize(session, runningPaths)) };
   },
 
-  'session.create': (params) => createBackgroundSession(params, {}),
-
-  'session.prompt': async ({ path, text }) => {
-    await promptSession(path, text);
-    return { path };
+  'session.create': async ({ cwd, parent, model, thinkingLevel }, { signal }) => {
+    // With the project given, a parent file needs no lookup: it may be one pigi does not list.
+    if (cwd && (!parent || isSessionFileRef(parent))) {
+      return createBackgroundSession({ cwd, parent, model, thinkingLevel }, {});
+    }
+    const parentSession = parent ? await resolveSession(parent, signal) : undefined;
+    const projectCwd =
+      cwd ??
+      parentSession?.cwd ??
+      fail('INVALID_PARAMS', 'pass --cwd or --parent', { param: 'cwd' });
+    return createBackgroundSession(
+      { cwd: projectCwd, parent: parentSession?.path, model, thinkingLevel },
+      {},
+    );
   },
 
-  'session.wait': async ({ path, timeout }, { signal }) => {
-    await openSession(path);
-    return waitForIdle(path, signal, timeout);
+  'session.prompt': async ({ path, text }, { signal }) => {
+    const session = await resolveSession(path, signal);
+    await openSession(session.path);
+    await promptSession(session.path, text);
+    return { path: session.path };
   },
 
-  'subagent.run': async ({ task, parent, model, thinkingLevel, detach }, { signal, notify }) => {
-    // Every subagent's parent is known: its cwd comes from there.
-    if (findKnownSession(parent)?.isSubagent) {
+  'session.wait': async ({ path, timeout, stop }, { signal }) => {
+    const session = await resolveSession(path, signal);
+    await openSession(session.path);
+    return waitForIdle(session.path, signal, { timeoutSeconds: timeout, stop });
+  },
+
+  'session.status': async ({ path }, { signal }) => {
+    const session = await resolveSession(path, signal);
+    // An open session answers from its process; any other from its file,
+    // without starting a process to ask.
+    const { messages } = useAppStore.getState().sessions.has(session.path)
+      ? await getMessages(session.path)
+      : await readSessionMessages(session.path);
+    return {
+      path: session.path,
+      id: session.id,
+      title: sessionTitle(session),
+      running: (await runningSessionPaths()).has(session.path),
+      messageCount: messages.length,
+      ...latestAssistantActivity(messages),
+    };
+  },
+
+  'session.abort': async ({ path }, { signal }) => {
+    const session = await resolveSession(path, signal);
+    if (!(await runningSessionPaths()).has(session.path)) {
+      return { path: session.path, aborted: false };
+    }
+    await openSession(session.path);
+    await abort(session.path);
+    return { path: session.path, aborted: true };
+  },
+
+  'subagent.run': async (
+    { task, parent, model, thinkingLevel, detach, timeout },
+    { signal, notify },
+  ) => {
+    if (detach && timeout !== undefined) {
+      fail('INVALID_PARAMS', '--timeout needs the call to wait; it does not go with --detach', {
+        param: 'timeout',
+      });
+    }
+    const parentSession = await resolveSession(parent, signal);
+    if (parentSession.isSubagent) {
       fail('INVALID_PARAMS', 'a subagent cannot start subagents; do the task in this session', {
         param: 'parent',
       });
     }
     const created = await createBackgroundSession(
-      { parent, model, thinkingLevel },
+      { cwd: parentSession.cwd, parent: parentSession.path, model, thinkingLevel },
       { subagent: true, title: chatMessageTitle(task, []) },
     );
     if (signal.aborted) {
@@ -485,21 +655,13 @@ const HANDLERS: { [M in HandledMethod]: Handler<M> } = {
       fail('SESSION_FAILED', 'cancelled', { path: created.path });
     }
     notify(SUBAGENT_STARTED_NOTIFICATION, created);
-    if (detach) {
-      await promptSession(created.path, task);
-      return created;
-    }
-    // The caller is gone (its bash call was aborted): so is the reason to run.
-    const stopChild = (): void => void abort(created.path);
-    signal.addEventListener('abort', stopChild);
-    try {
-      await promptSession(created.path, task);
-      // A cancel that came while the run was starting found nothing to abort.
-      if (signal.aborted) stopChild();
-      return { ...created, ...(await waitForIdle(created.path, signal)) };
-    } finally {
-      signal.removeEventListener('abort', stopChild);
-    }
+    await promptSession(created.path, task);
+    if (detach) return created;
+    // `stop`: a caller that is gone (its bash call aborted) takes the reason to run with it.
+    return {
+      ...created,
+      ...(await waitForIdle(created.path, signal, { timeoutSeconds: timeout, stop: true })),
+    };
   },
 };
 
