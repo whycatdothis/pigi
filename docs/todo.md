@@ -136,3 +136,27 @@ hostname, so both are needed — ideally derived from `site` in
 `astro.config.mjs`, and note it under Analytics in `website/README.md`. Injecting
 the website id from CI would not help: it is public in the served HTML anyway,
 and CI and preview builds would get it too.
+
+## Packages page follow-ups
+
+- Enable or disable a package's single extension, skill, prompt or theme (what
+  `pi config` does: package filters and `+path`/`-path` overrides in settings).
+  The page lists the resources and their enabled state but cannot change it.
+- Catalog search reads the registry from `npm config get registry`; pi's
+  `npmCommand` setting (an npm wrapper such as `mise exec … npm`) is ignored
+  there, though installs honour it.
+- README images are dropped because the CSP loads no remote image. Showing
+  them needs an image proxy through main or a scoped `img-src`.
+- A timed-out operation kills the package worker, but npm or git started by
+  pi's package manager keep running as orphans, and the queue moves on while
+  they still write the install folder. Killing the worker's children (or its
+  process group) on timeout closes that; it only matters after the 10-minute
+  limit.
+- The session worker coalesces catalog reloads, so the reload after an
+  install can join one that started before it and miss a provider the new
+  package adds, until the next reload.
+- A package on disk whose version is outside its configured range, or a user
+  entry shadowed by a project entry of the same package, lists with no
+  resources and the generic "nothing for pi" text instead of saying why.
+- `pi remove …` and `pi update …` lines in the field are searched for, not
+  run.

@@ -54,6 +54,13 @@ export class PiAgentProcessPool {
     return proc;
   }
 
+  /** Its services were built from the old resources; a fresh one reads the current ones. */
+  recycleWarmProcess(): void {
+    this.warmProcess?.process.kill();
+    this.warmProcess = null;
+    this.spawnWarmProcess();
+  }
+
   createFreshProcess(): Electron.UtilityProcess {
     return createPiAgentProcess();
   }

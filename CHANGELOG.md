@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- A Packages page, below Open project in the sidebar, for pi packages: see what
+  is installed with its extensions, skills, prompts and themes, update or remove
+  a package, and install from npm, git or a folder by typing or pasting its
+  source (`pi install …` lines included). Browse and search the pi package
+  catalog and read a package's README before installing. Changes apply to open
+  sessions without restarting, and a failed install shows npm's or git's reason
+  with the full output
+
 ## [0.5.5] - 2026-11-07
 
 ### Added

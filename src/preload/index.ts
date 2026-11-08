@@ -48,6 +48,14 @@ import {
   type UpdateStatus,
 } from '../shared/ipcContract';
 import type { PiSettingsResult, PiSettingsScope, PiSettingUpdate } from '../shared/piSettings';
+import type {
+  CatalogPackageDetailResult,
+  CatalogSearchResult,
+  PiPackageOperation,
+  PiPackageOperationResult,
+  PiPackagesHealthResult,
+  PiPackagesResult,
+} from '../shared/piPackages';
 import {
   PIGI_SETTINGS_PATH_ARGUMENT,
   PIGI_SETTINGS_READ_STATE,
@@ -525,6 +533,25 @@ const piApi = {
     scope: PiSettingsScope,
     updates: PiSettingUpdate[],
   ): Promise<PiSettingsResult> => ipcRenderer.invoke(PiChannel.SetPiSettings, cwd, scope, updates),
+
+  /** Installed pi packages; `cwd` adds the project's, null lists the user's only. */
+  listPiPackages: (cwd: string | null): Promise<PiPackagesResult> =>
+    ipcRenderer.invoke(PiChannel.ListPiPackages, cwd),
+
+  checkPiPackages: (cwd: string | null): Promise<PiPackagesHealthResult> =>
+    ipcRenderer.invoke(PiChannel.CheckPiPackages, cwd),
+
+  runPiPackageOperation: (
+    cwd: string | null,
+    operation: PiPackageOperation,
+  ): Promise<PiPackageOperationResult> =>
+    ipcRenderer.invoke(PiChannel.RunPiPackageOperation, cwd, operation),
+
+  searchPiPackageCatalog: (query: string): Promise<CatalogSearchResult> =>
+    ipcRenderer.invoke(PiChannel.SearchPiPackageCatalog, query),
+
+  getPiCatalogPackage: (name: string): Promise<CatalogPackageDetailResult> =>
+    ipcRenderer.invoke(PiChannel.GetPiCatalogPackage, name),
 
   openExternal: (url: string): void => {
     ipcRenderer.send(PiChannel.OpenExternal, url);

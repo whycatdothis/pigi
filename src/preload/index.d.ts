@@ -32,6 +32,14 @@ import type {
   UpdateStatus,
 } from '../shared/ipcContract';
 import type { PiSettingsResult, PiSettingsScope, PiSettingUpdate } from '../shared/piSettings';
+import type {
+  CatalogPackageDetailResult,
+  CatalogSearchResult,
+  PiPackageOperation,
+  PiPackageOperationResult,
+  PiPackagesHealthResult,
+  PiPackagesResult,
+} from '../shared/piPackages';
 
 interface PiApi {
   // Session lifecycle (via main process IPC)
@@ -113,6 +121,16 @@ interface PiApi {
     scope: PiSettingsScope,
     updates: PiSettingUpdate[],
   ) => Promise<PiSettingsResult>;
+
+  // Pi packages
+  listPiPackages: (cwd: string | null) => Promise<PiPackagesResult>;
+  checkPiPackages: (cwd: string | null) => Promise<PiPackagesHealthResult>;
+  runPiPackageOperation: (
+    cwd: string | null,
+    operation: PiPackageOperation,
+  ) => Promise<PiPackageOperationResult>;
+  searchPiPackageCatalog: (query: string) => Promise<CatalogSearchResult>;
+  getPiCatalogPackage: (name: string) => Promise<CatalogPackageDetailResult>;
 
   getShortcuts: () => Promise<ShortcutDefinition[]>;
   setShortcut: (

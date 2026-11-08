@@ -17,6 +17,7 @@ import {
 import { registerProjectHandlers } from './ipc/projectHandlers';
 import { registerAttachmentHandlers } from './ipc/attachmentHandlers';
 import { registerShortcutHandlers } from './ipc/shortcutHandlers';
+import { registerPiPackageHandlers } from './ipc/piPackageHandlers';
 import { registerTerminalHandlers, stopTerminalProcess } from './terminal/terminalManager';
 import {
   initializeUpdateManager,
@@ -74,6 +75,7 @@ app.whenReady().then(() => {
   registerProjectHandlers();
   registerAttachmentHandlers();
   registerShortcutHandlers();
+  registerPiPackageHandlers();
   registerTerminalHandlers();
   initializeUpdateManager();
   // After the updater: the menu's one update item renders the current status.

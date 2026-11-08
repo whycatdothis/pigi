@@ -445,6 +445,18 @@ async function spawnSessionProcess(
   return { success: false, error: retryResult.error ?? firstResult.error };
 }
 
+/**
+ * Packages changed on disk: providers may have come or gone, and the warm
+ * process holds services built from the old set. Running sessions are the
+ * renderer's to reload, since only it knows which ones are idle.
+ */
+export function reloadAfterPackageChange(): void {
+  if (isShuttingDown) return;
+  processPool.recycleWarmProcess();
+  startSessionWorker();
+  sessionWorkerProcess?.postMessage({ type: 'reload_catalog' });
+}
+
 /** Dev debug handle only (see debugConfig.ts). */
 export function getPiAgentDebugSnapshot(): Record<string, unknown> {
   return {

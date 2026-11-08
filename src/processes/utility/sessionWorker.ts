@@ -3,9 +3,7 @@ import {
   CONFIG_DIR_NAME,
   createAgentSessionServices,
   getAgentDir,
-  hasTrustRequiringProjectResources,
   type ModelRuntime,
-  ProjectTrustStore,
   type SessionInfo,
   SessionManager,
   SettingsManager,
@@ -31,6 +29,7 @@ import { toModelInfo } from '../../shared/modelInfo';
 import { createModelRuntime } from './fileCredentialStore';
 import { writePiSettingsDocument } from './piSettingsWrite';
 import { isSubagentSession } from './subagentMarker';
+import { resolveProjectTrust } from './projectTrust';
 
 function sendToMain(response: SessionWorkerResponse): void {
   process.parentPort?.postMessage(response);
@@ -225,28 +224,6 @@ function reloadCatalog(): Promise<void> {
 // proper-lockfile scheme the SDK uses, so a concurrent pi TUI cannot lose
 // updates and unrelated keys are preserved byte-for-value.
 // =============================================================================
-
-/**
- * Whether pi would apply this project's settings.json at runtime. Mirrors the
- * non-interactive fallback: an explicit trust entry wins, then the global
- * defaultProjectTrust, then "trusted unless the project has gated resources".
- */
-function resolveProjectTrust(cwd: string, agentDir: string): boolean {
-  const decision = new ProjectTrustStore(agentDir).get(cwd);
-  if (decision !== null) {
-    return decision;
-  }
-  const fallback = SettingsManager.create(cwd, agentDir, {
-    projectTrusted: false,
-  }).getDefaultProjectTrust();
-  if (fallback === 'always') {
-    return true;
-  }
-  if (fallback === 'never') {
-    return false;
-  }
-  return !hasTrustRequiringProjectResources(cwd);
-}
 
 function settingsFilePath(cwd: string, scope: PiSettingsScope): string {
   return scope === 'global'

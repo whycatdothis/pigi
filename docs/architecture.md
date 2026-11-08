@@ -859,6 +859,56 @@ Two data paths:
   project scope values resolve through global to built-in defaults, and
   `globalOnly` fields are disabled in project scope.
 
+## Packages Page
+
+The sidebar's Packages entry shows `components/packages/PackagesPage.tsx` in
+the main area beside the normal sidebar (`appStore.packagesOpen`); showing a
+session, a new chat or another workspace tab closes it. One field does both
+jobs: `parsePackageInput` (`shared/piPackages.ts`) reads `pi install …`,
+`npm:`/`git:` sources, git URLs, paths and npm or pi.dev package pages as a
+source to install, and anything else as a catalog search.
+
+**Installed packages** come from pi's own `DefaultPackageManager`, run in
+`processes/utility/packageWorker.ts`, one process per request (list, check,
+install/remove/update) that main kills after its one reply. Not the session
+worker, for two reasons: pi runs npm and git with inherited stdio, so their
+output — the only place a 404 or an auth failure is spelled out — reaches main
+only through a process forked with piped stdio, and only per operation if the
+process is per operation; and the check loads every extension, which runs
+their code and may leave timers or children that a long-lived worker would
+collect. The list itself never executes package code (resolve with `skip` for
+missing sources); the check, which the page runs after every list, does: npm
+`view`/`git ls-remote` for updates and `discoverAndLoadExtensions` for load
+errors, against agentDir rather than the project so an untrusted project's
+`.pi/extensions` is not loaded. Operations queue in main, since two npm
+installs into one prefix race on its lockfile, and the running operation is
+kept outside the page (`usePiPackages`), which may close and reopen while npm
+runs. A failure carries the captured output, and `failureReason` picks the line
+a person needs (`E404` → "Not found in the npm registry") over pi's "npm
+install … failed with code 1"; main resolves a request on the worker's exit,
+not its reply, because the reply can overtake npm's last lines. A successful
+install or update also loads that package's extensions and reports the ones
+that throw, since installed is not the same as working.
+
+**Making a change take effect** is not a window reload: extensions live in the
+session utility processes. Main recycles the warm process (its prewarmed
+services hold the old resources) and reloads the model catalog (an extension
+may add a provider); the renderer runs the same reload as `/reload` on every
+idle session and on a busy one once its reply ends
+(`lib/sessionResourceReload.ts`), since pi refuses to reload mid-response.
+
+**The catalog** has no API: pi.dev's `/api/*` answers "reserved for future
+features", and its gallery is the npm registry's search for the `pi-package`
+keyword. `main/packages/packageCatalog.ts` asks registry.npmjs.org first (the
+only one that reports downloads), then the registry npm is configured with,
+which is what a company proxy or a mirror can reach and what `pi install` will
+use anyway; the registry that answered is tried first afterwards. Mirrors mix
+their own packages into the results and npmmirror answers `keywords:` with
+nothing, so results are filtered on the keyword and a qualified search that
+finds nothing is repeated as plain text. A package's details read the README
+from its packument; images and raw HTML are dropped, since the window's CSP
+loads no remote image.
+
 ## File Map
 
 Renderer components are grouped by the surface they belong to: one directory

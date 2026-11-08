@@ -106,6 +106,8 @@ import FileTreeSidebar from './components/files/FileTreeSidebar';
 import GitSidebar from './components/git/GitSidebar';
 import GitTab from './components/git/GitTab';
 import SessionSwitcher from './components/session/SessionSwitcher';
+import PackagesPage from './components/packages/PackagesPage';
+import { reloadSessionResources } from './lib/sessionResourceReload';
 import { SidebarProvider } from './components/ui/sidebar';
 import { SidebarToggle } from './components/sidebar/sidebarToggle';
 import { cn } from './lib/utils';
@@ -175,6 +177,7 @@ function App(): React.JSX.Element {
     rightSidebarOpen,
     platform,
     settingsOpen,
+    packagesOpen,
     settingsSection,
     openSettings,
     closeSettings,
@@ -205,6 +208,7 @@ function App(): React.JSX.Element {
       rightSidebarOpen: state.rightSidebarOpen,
       platform: state.platform,
       settingsOpen: state.settingsOpen,
+      packagesOpen: state.packagesOpen,
       settingsSection: state.settingsSection,
       openSettings: state.openSettings,
       closeSettings: state.closeSettings,
@@ -435,6 +439,17 @@ function App(): React.JSX.Element {
       console.error('Failed to refresh session options:', err);
     }
   }, []);
+
+  /** A package was installed, removed or updated: running sessions pick it up. */
+  const handlePackagesChanged = useCallback(
+    () =>
+      reloadSessionResources((sessionPath) => {
+        if (useAppStore.getState().activeSessionPath !== sessionPath) return;
+        void refreshSessionState(sessionPath);
+        void refreshSessionOptions(sessionPath);
+      }),
+    [refreshSessionOptions, refreshSessionState],
+  );
 
   // Global model catalog: immediate snapshot + live updates from main. The
   // worker re-publishes only on change, so this is quiet in the steady state.
@@ -1046,6 +1061,7 @@ function App(): React.JSX.Element {
 
   /** Enter draft chat mode — instant, no process spawned. */
   const handleNewSession = useCallback((): void => {
+    useAppStore.getState().closePackages();
     if (isDraftChat && !activeSessionPath && draftControllerRef.current.state.status !== 'error') {
       return;
     }
@@ -1787,7 +1803,8 @@ function App(): React.JSX.Element {
                 // pass only stable props (store values, useCallback), no inline functions or objects.
                 <Sidebar
                   sessions={sessions}
-                  selectedSessionPath={selectedSessionPath}
+                  // The packages page is the selection while it shows.
+                  selectedSessionPath={packagesOpen ? null : selectedSessionPath}
                   recentProjects={recentProjects}
                   projectSessions={projectSessions}
                   shortcutBindings={shortcutBindings}
@@ -1831,6 +1848,13 @@ function App(): React.JSX.Element {
           >
             {settingsOpen ? (
               <SettingsPage section={settingsSection} cwd={activeCwd} models={catalogModels} />
+            ) : packagesOpen ? (
+              <PackagesPage
+                key={activeProjectPath ?? ''}
+                projectPath={activeProjectPath}
+                projectName={activeProject?.name ?? null}
+                onPackagesChanged={handlePackagesChanged}
+              />
             ) : (
               <>
                 {/* The header queries this wrapper's width for its own padding;
@@ -2044,7 +2068,7 @@ function App(): React.JSX.Element {
               <TerminalPanel
                 resizeContainerRef={mainRef}
                 projectCwd={terminalProjectCwd}
-                visible={terminalOpen && !settingsOpen}
+                visible={terminalOpen && !settingsOpen && !packagesOpen}
                 onClose={toggleTerminal}
               />
             )}
