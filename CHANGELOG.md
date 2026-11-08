@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- A collapsed project no longer shows an unread dot for subagents that
+  finished; only your own sessions mark it.
+
 ## [0.5.6] - 2026-11-08
 
 ### Added

@@ -55,12 +55,14 @@ function ProjectItem({
   isDragOver,
 }: ProjectItemProps): React.JSX.Element {
   const rowRef = useRef<HTMLDivElement>(null);
-  // Sessions pinned visible while collapsed show their own dot.
+  // Sessions pinned visible while collapsed show their own dot. Subagents
+  // finish unattended, so they don't light up the project.
   const hasHiddenUnread = useAppStore(
     (state) =>
       !isExpanded &&
       projectSessions.some(
         (session) =>
+          !session.isSubagent &&
           state.unreadSessionPaths.has(session.path) &&
           !visibleWhenCollapsedSessionIds.has(session.id),
       ),
