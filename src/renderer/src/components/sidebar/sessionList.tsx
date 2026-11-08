@@ -1,13 +1,13 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { IconLoader2, IconPencil } from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight, IconLoader2, IconPencil } from '@tabler/icons-react';
 import { useTypewriter } from '../../hooks/useTypewriter';
 import type { PiSessionInfo } from '../../../../shared/ipcContract';
 import { useAppStore, type SessionEntry } from '../../state/appStore';
 import {
   buildLineage,
   flattenLineage,
+  revealPath,
   rowsOfFirstRoots,
-  subagentGroupsContaining,
   type LineageRow,
   type SessionLineageRow,
   type SubagentGroupRow,
@@ -37,11 +37,14 @@ interface SessionItemProps {
 }
 
 /**
- * Fork connector: one 12px column per ancestor level, plus the elbow into this
- * row. The list's items are 4px apart, so a line that runs on covers that gap
- * too (`-bottom-1`) — otherwise every fork reads as a dashed line.
+ * Fork connector: one 12px column per ancestor level, so a row's line runs
+ * under its parent's title, plus a short tick into this row. The row's own
+ * column is only as wide as the tick, and the title follows it closely: the
+ * sidebar has little room. Lines stop at the row's edge, leaving a break
+ * between rows.
  */
 const LINEAGE_INDENT_PX = 12;
+const LINEAGE_TICK_PX = 8;
 const LINEAGE_MAX_DEPTH = 3;
 
 function LineagePrefix({
@@ -59,17 +62,21 @@ function LineagePrefix({
     <span
       aria-hidden="true"
       data-lineage-depth={row.depth}
-      className="flex shrink-0 self-stretch"
-      style={{ width: columnCount * LINEAGE_INDENT_PX }}
+      className="-mr-0.5 flex shrink-0 self-stretch"
+      style={{ width: (columnCount - 1) * LINEAGE_INDENT_PX + LINEAGE_TICK_PX }}
     >
       {Array.from({ length: columnCount }, (_, offset) => {
         const column = firstColumn + offset;
         const isOwnColumn = column === row.depth - 1;
         const continues = isOwnColumn ? !row.isLast : (row.ancestorContinues[column] ?? false);
         return (
-          <span key={column} className="relative w-3 shrink-0">
+          <span
+            key={column}
+            className="relative shrink-0"
+            style={{ width: isOwnColumn ? LINEAGE_TICK_PX : LINEAGE_INDENT_PX }}
+          >
             {continues ? (
-              <span className="absolute left-0 top-0 -bottom-1 w-px bg-foreground/15" />
+              <span className="absolute inset-y-0 left-0 w-px bg-foreground/15" />
             ) : (
               isOwnColumn && <span className="absolute left-0 top-0 h-1/2 w-px bg-foreground/15" />
             )}
@@ -196,6 +203,7 @@ export function SessionItem({
     <ContextMenuRoot>
       <ContextMenuTrigger asChild>
         <SidebarMenuSubItem data-session-path={session.path}>
+          {row.hasChildren && <CollapseToggle row={row} />}
           <SidebarMenuSubButton asChild isActive={isActive} className={SESSION_ROW_CLASS_NAME}>
             <button type="button" onClick={onSwitch} onDoubleClick={handleStartRename}>
               <LineagePrefix row={row} />
@@ -223,6 +231,26 @@ export function SessionItem({
 }
 
 /**
+ * Hides or shows a session's forks and subagent group, in the row's left
+ * gutter: a sibling of the row's button, which cannot hold another button.
+ */
+function CollapseToggle({ row }: { row: SessionLineageRow }): React.JSX.Element {
+  const setCollapsed = useAppStore((state) => state.setSessionChildrenCollapsed);
+  const Chevron = row.collapsed ? IconChevronRight : IconChevronDown;
+  return (
+    <button
+      type="button"
+      aria-expanded={!row.collapsed}
+      aria-label={row.collapsed ? 'Show forks and subagents' : 'Hide forks and subagents'}
+      onClick={() => setCollapsed([row.session.path], !row.collapsed)}
+      className="absolute left-1 top-1/2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+    >
+      <Chevron className="size-3.5" />
+    </button>
+  );
+}
+
+/**
  * A parent's subagents folded into one row: how many, how many are running,
  * and the latest activity among them. Clicking opens the group. Neither a
  * spinner nor an unread dot: subagents run and finish unattended all the
@@ -246,7 +274,7 @@ function SubagentGroupItem({
   );
   const count = row.sessions.length;
   const label = `${count} ${count === 1 ? 'subagent' : 'subagents'}${
-    runningCount > 0 ? ` · ${runningCount} running` : ''
+    runningCount > 0 ? `, ${runningCount} running` : ''
   }`;
 
   return (
@@ -323,21 +351,27 @@ export function SessionList({
   );
   const lineage = useMemo(() => buildLineage(renderedSessions), [renderedSessions]);
   const expandedGroups = useAppStore((state) => state.expandedSubagentGroups);
-  const rows = useMemo(() => flattenLineage(lineage, expandedGroups), [lineage, expandedGroups]);
+  const collapsedParents = useAppStore((state) => state.collapsedSessionParents);
+  const rows = useMemo(
+    () => flattenLineage(lineage, expandedGroups, collapsedParents),
+    [lineage, expandedGroups, collapsedParents],
+  );
   const collapsedRowCount = useMemo(() => rowsOfFirstRoots(rows, VISIBLE_ROOT_COUNT), [rows]);
 
-  // A selection inside a collapsed subagent group (from the CLI, the switcher
-  // or navigation history) opens the group, so the selected row exists; the
-  // "show more" expansion below then applies to it like to any row.
-  // Once per selection, as with "show more": a list refresh must not reopen a
-  // group the user closed.
-  const groupsOpenedForPathRef = useRef<string | null>(null);
+  // A selection under a collapsed session or inside a collapsed subagent group
+  // (from the CLI, the switcher or navigation history) opens them, so the
+  // selected row exists; the "show more" expansion below then applies to it
+  // like to any row. Once per selection, as with "show more": a list refresh
+  // must not reopen what the user closed.
+  const revealedPathRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!selectedSessionPath || groupsOpenedForPathRef.current === selectedSessionPath) return;
-    const groups = subagentGroupsContaining(lineage, selectedSessionPath);
-    if (groups.length > 0) {
-      groupsOpenedForPathRef.current = selectedSessionPath;
-      useAppStore.getState().setSubagentGroupsExpanded(groups, true);
+    if (!selectedSessionPath || revealedPathRef.current === selectedSessionPath) return;
+    const { ancestors, subagentGroups } = revealPath(lineage, selectedSessionPath);
+    if (ancestors.length > 0) {
+      revealedPathRef.current = selectedSessionPath;
+      const store = useAppStore.getState();
+      store.setSessionChildrenCollapsed(ancestors, false);
+      store.setSubagentGroupsExpanded(subagentGroups, true);
     }
   }, [lineage, selectedSessionPath]);
 

@@ -10,6 +10,8 @@
  * gather in one group row placed first under their parent and collapsed by
  * default: a review run is a side errand, not a direction the conversation took.
  *
+ * A session with children can be collapsed, hiding its forks and its group.
+ *
  * Pure: the sidebar renders what `flattenLineage` hands it.
  */
 import type { PiSessionInfo } from '../../../shared/ipcContract';
@@ -37,6 +39,9 @@ interface RowGeometry {
 export interface SessionLineageRow extends RowGeometry {
   kind: 'session';
   session: PiSessionInfo;
+  /** Has forks or subagents, so it can be collapsed. */
+  hasChildren: boolean;
+  collapsed: boolean;
 }
 
 export interface SubagentGroupRow extends RowGeometry {
@@ -149,20 +154,23 @@ function subtreeSessions(nodes: LineageNode[]): PiSessionInfo[] {
   ]);
 }
 
-/**
- * The parents whose subagent groups hold `path`, outermost first: the groups
- * to expand so that the session shows.
- */
-export function subagentGroupsContaining(roots: LineageNode[], path: string): string[] {
+interface LineageStep {
+  parentPath: string;
+  throughSubagents: boolean;
+}
+
+/** The steps from a root down to `path`: each parent, and whether `path` is under its subagents. */
+function stepsTo(roots: LineageNode[], path: string): LineageStep[] {
   const key = pathKey(path);
-  function search(node: LineageNode, groups: string[]): string[] | null {
-    if (pathKey(node.session.path) === key) return groups;
+  function search(node: LineageNode, steps: LineageStep[]): LineageStep[] | null {
+    if (pathKey(node.session.path) === key) return steps;
+    const parentPath = node.session.path;
     for (const child of node.children) {
-      const found = search(child, groups);
+      const found = search(child, [...steps, { parentPath, throughSubagents: false }]);
       if (found) return found;
     }
     for (const subagent of node.subagents) {
-      const found = search(subagent, [...groups, node.session.path]);
+      const found = search(subagent, [...steps, { parentPath, throughSubagents: true }]);
       if (found) return found;
     }
     return null;
@@ -175,13 +183,30 @@ export function subagentGroupsContaining(roots: LineageNode[], path: string): st
 }
 
 /**
+ * What to open so that `path` shows, outermost first: every ancestor, which
+ * may be collapsed, and the parents whose subagent groups hold it.
+ */
+export function revealPath(
+  roots: LineageNode[],
+  path: string,
+): { ancestors: string[]; subagentGroups: string[] } {
+  const steps = stepsTo(roots, path);
+  return {
+    ancestors: steps.map((step) => step.parentPath),
+    subagentGroups: steps.filter((step) => step.throughSubagents).map((step) => step.parentPath),
+  };
+}
+
+/**
  * Flatten a lineage forest into the rows the sidebar renders, in order. A
  * parent's subagent group is its first child row; its sessions follow it only
- * while the parent's path is in `expandedGroups`.
+ * while the parent's path is in `expandedGroups`. A session in
+ * `collapsedParents` shows none of its children.
  */
 export function flattenLineage(
   roots: LineageNode[],
   expandedGroups: ReadonlySet<string> = new Set(),
+  collapsedParents: ReadonlySet<string> = new Set(),
 ): LineageRow[] {
   const rows: LineageRow[] = [];
 
@@ -190,7 +215,18 @@ export function flattenLineage(
   }
 
   function walk(node: LineageNode, depth: number, isLast: boolean, above: boolean[]): void {
-    rows.push({ kind: 'session', session: node.session, depth, isLast, ancestorContinues: above });
+    const hasChildren = node.children.length > 0 || node.subagents.length > 0;
+    const collapsed = hasChildren && collapsedParents.has(node.session.path);
+    rows.push({
+      kind: 'session',
+      session: node.session,
+      hasChildren,
+      collapsed,
+      depth,
+      isLast,
+      ancestorContinues: above,
+    });
+    if (collapsed) return;
     // A depth-1 row opens the first column itself; deeper rows inherit the
     // columns above them, and the parent's column runs on when the parent has
     // a sibling below it.

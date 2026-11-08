@@ -11,7 +11,7 @@ import {
   buildLineage,
   flattenLineage,
   rowsOfFirstRoots,
-  subagentGroupsContaining,
+  revealPath,
   type LineageRow,
 } from './sessionLineage';
 
@@ -183,18 +183,46 @@ describe('subagent groups', () => {
     expect(fork?.depth).toBe(3);
   });
 
-  it('names the groups to open for a hidden session', () => {
+  it('names the ancestors and groups to open for a hidden session', () => {
     // A fork of a subagent is an ordinary session and may have subagents.
     const nested = [
       ...sessions,
       session('review/fork/check', { parent: 'review/fork', subagent: true }),
     ];
 
-    expect(subagentGroupsContaining(buildLineage(nested), 'review/fork/check')).toEqual([
-      'a',
-      'review/fork',
-    ]);
-    expect(subagentGroupsContaining(buildLineage(nested), 'fork')).toEqual([]);
+    expect(revealPath(buildLineage(nested), 'review/fork/check')).toEqual({
+      ancestors: ['a', 'review', 'review/fork'],
+      subagentGroups: ['a', 'review/fork'],
+    });
+    expect(revealPath(buildLineage(nested), 'fork')).toEqual({
+      ancestors: ['a'],
+      subagentGroups: [],
+    });
+  });
+});
+
+describe('collapsed sessions', () => {
+  const sessions = [
+    session('a'),
+    session('a/fork', { parent: 'a' }),
+    session('a/fork/fork', { parent: 'a/fork' }),
+    session('a/review', { parent: 'a', subagent: true }),
+    session('b'),
+  ];
+
+  it('hides the forks and the subagent group of a collapsed session', () => {
+    const rows = flattenLineage(buildLineage(sessions), new Set(['a']), new Set(['a']));
+
+    expect(sessionPaths(rows)).toEqual(['a', 'b']);
+    expect(rows[0]).toMatchObject({ hasChildren: true, collapsed: true });
+  });
+
+  it('collapses a fork on its own, and only a session that has children', () => {
+    const rows = flattenLineage(buildLineage(sessions), new Set(), new Set(['a/fork', 'b']));
+
+    expect(outline(rows)).toEqual(['a@0!', '[1 subagents of a]@1', 'a/fork@1!', 'b@0!']);
+    const b = rows.find((row) => row.kind === 'session' && row.session.path === 'b');
+    expect(b).toMatchObject({ hasChildren: false, collapsed: false });
   });
 });
 

@@ -139,6 +139,9 @@ interface AppState {
    */
   expandedSubagentGroups: ReadonlySet<string>;
   setSubagentGroupsExpanded: (parentPaths: string[], expanded: boolean) => void;
+  /** Sessions whose forks and subagents the sidebar hides. In memory only, like the groups. */
+  collapsedSessionParents: ReadonlySet<string>;
+  setSessionChildrenCollapsed: (parentPaths: string[], collapsed: boolean) => void;
 
   rightSidebarOpen: boolean;
   rightSidebarTab: RightSidebarTab;
@@ -260,6 +263,21 @@ function withSessionQuotes(
     next.set(sessionPath, quotes);
   } else {
     next.delete(sessionPath);
+  }
+  return next;
+}
+
+/** `paths` added to or removed from `set`; null when that changes nothing, so no render follows. */
+function withPaths(
+  set: ReadonlySet<string>,
+  paths: string[],
+  present: boolean,
+): Set<string> | null {
+  if (paths.every((path) => set.has(path) === present)) return null;
+  const next = new Set(set);
+  for (const path of paths) {
+    if (present) next.add(path);
+    else next.delete(path);
   }
   return next;
 }
@@ -459,15 +477,18 @@ export const useAppStore = create<AppState>((set) => ({
   expandedSubagentGroups: new Set(),
   setSubagentGroupsExpanded: (parentPaths, expanded) =>
     set((state) => {
-      if (parentPaths.every((path) => state.expandedSubagentGroups.has(path) === expanded)) {
-        return {};
-      }
-      const expandedSubagentGroups = new Set(state.expandedSubagentGroups);
-      for (const path of parentPaths) {
-        if (expanded) expandedSubagentGroups.add(path);
-        else expandedSubagentGroups.delete(path);
-      }
-      return { expandedSubagentGroups };
+      const expandedSubagentGroups = withPaths(state.expandedSubagentGroups, parentPaths, expanded);
+      return expandedSubagentGroups ? { expandedSubagentGroups } : {};
+    }),
+  collapsedSessionParents: new Set(),
+  setSessionChildrenCollapsed: (parentPaths, collapsed) =>
+    set((state) => {
+      const collapsedSessionParents = withPaths(
+        state.collapsedSessionParents,
+        parentPaths,
+        collapsed,
+      );
+      return collapsedSessionParents ? { collapsedSessionParents } : {};
     }),
 
   rightSidebarOpen: false,

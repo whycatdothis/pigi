@@ -290,7 +290,7 @@ assistant message, so there is no half-written case to handle.
 
 ```
 ● Implement login                         2m
-  ├ 3 subagents · 1 running               ← group row, collapsed, first child
+  ├ 3 subagents, 1 running               ← group row, collapsed, first child
   ├ Login (fork)                          5m
   └ Other approach (fork)                 1h
 ```
@@ -307,7 +307,10 @@ assistant message, so there is no half-written case to handle.
 4. Selecting a session hidden in a collapsed group (CLI path, navigation
    history) expands that group, as the "show more" auto-expand does today.
 5. No icon on subagent rows or the group row; connectors match forks.
-6. A fork of a subagent nests under that subagent. A subagent has no subagents
+6. Any session with forks or subagents has a chevron in its row's left gutter
+   that hides them all, group row included; expanded by default, in memory
+   like the groups. Selecting a session under a collapsed one expands it.
+7. A fork of a subagent nests under that subagent. A subagent has no subagents
    of its own (§2); a fork of one is an ordinary session and may.
 
 ## 11. Installing `pigi` on PATH

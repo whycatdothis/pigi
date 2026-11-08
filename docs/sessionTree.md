@@ -470,9 +470,9 @@ Forked sessions render under their parent with connector lines:
 
 ```
 refactor the auth module
-├─ try approach B
-│  └─ try approach B, second pass
-└─ try approach C
+├ try approach B
+│ └ try approach B, second pass
+└ try approach C
 another session
 ```
 
@@ -482,10 +482,16 @@ another session
   parent sinking on its own old timestamp.
 - One 12px column per ancestor level, capped at 3 levels (deeper forks keep the
   innermost columns; the extra levels would be a staircase off the sidebar's
-  edge). The list's items are 4px apart, so a column that runs on covers that
-  gap as well: a dash every 24px would read as a broken line.
+  edge).
 - Each column is a 1px div (`bg-foreground/15`), not a glyph: the corner is one
-  vertical piece plus one horizontal piece, so nothing is painted twice.
+  vertical piece plus an 8px horizontal tick, so nothing is painted twice.
+- A row's line runs under its parent's title. Its own column is only as wide as
+  the tick, with the title 4px after it, so each level's title sits 12px right
+  of its parent's. Lines stop at each row's edge: the break between rows is
+  kept.
+- A session with forks or subagents gets a chevron in its row's left gutter
+  that collapses them (expanded by default, in memory only); selecting a
+  session under a collapsed one expands its ancestors again.
 - A session whose parent is not in the list renders as a root — including a fork
   of the first message, which has no file yet. That session is in the store
   while its process runs, and the store entry carries `parentSessionPath` for

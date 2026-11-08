@@ -23,6 +23,9 @@
   `pigi session wait --stop` stops the session when the wait times out or is
   cancelled.
 
+- A session with forks or subagents has a chevron in the sidebar that
+  collapses them.
+
 ### Changed
 
 - Skills in the chat and the message box show a wand instead of a cube, the
@@ -31,6 +34,8 @@
   and subagents no longer use up the rows.
 - The subagent group row no longer spins while subagents run; its label says
   how many are running.
+- Forks and subagents in the sidebar indent less, with a shorter connector,
+  leaving more room for their titles.
 - `pigi subagent` prints the child's id and path as it starts, also with
   `--json`.
 
