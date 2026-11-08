@@ -1,5 +1,5 @@
 /**
- * pigi's own settings store (appearance and chat preferences).
+ * pigi's own settings store (appearance, chat and telemetry preferences).
  *
  * The main process owns `settings.json` (see `main/pigiSettingsOwner.ts`). This
  * store reads the file synchronously through the preload at module init and
@@ -70,6 +70,7 @@ interface SettingsState extends PigiSettings {
   setMode: (mode: ThemeMode) => void;
   setToolBlockViewMode: (mode: ToolBlockViewMode) => void;
   setPinSentMessage: (pinSentMessage: boolean) => void;
+  setTelemetryEnabled: (enabled: boolean) => void;
   setCodeTheme: (codeTheme: string) => void;
   setDiagramTheme: (choice: DiagramThemeChoice) => void;
   updateAppearance: (updater: (appearance: AppearanceSettings) => AppearanceSettings) => void;
@@ -85,6 +86,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
       version: PIGI_SETTINGS_VERSION,
       appearance: change.appearance ?? current.appearance,
       chat: change.chat ?? current.chat,
+      telemetry: change.telemetry ?? current.telemetry,
     };
     // Apply immediately: the round trip is short, but a dragged slider must not
     // wait for it. Main merges the same slice and writes it.
@@ -104,6 +106,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     setToolBlockViewMode: (toolBlockViewMode) =>
       commit({ chat: { ...get().chat, toolBlockViewMode } }),
     setPinSentMessage: (pinSentMessage) => commit({ chat: { ...get().chat, pinSentMessage } }),
+    setTelemetryEnabled: (enabled) => commit({ telemetry: { enabled } }),
     setCodeTheme: (codeTheme) => commit({ appearance: { ...get().appearance, codeTheme } }),
     setDiagramTheme: (diagramTheme) =>
       commit({ appearance: { ...get().appearance, diagramTheme } }),

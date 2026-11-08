@@ -41,6 +41,7 @@ import {
   type ProjectStateResult,
   type SessionListResult,
   type ShortcutBinding,
+  type RendererTelemetryReport,
   type ShortcutDefinition,
   type StreamBatch,
   type TerminalInboundMessage,
@@ -576,7 +577,7 @@ const piApi = {
   },
 
   /**
-   * Ask the main process to apply appearance/chat slices to pigi's settings.
+   * Ask the main process to apply the changed slices to pigi's settings.
    *
    * Main owns the file: it merges the change onto its copy and writes it. The
    * renderer already applied the same change locally, so there is no snapshot
@@ -584,6 +585,10 @@ const piApi = {
    */
   changePigiSettings: (change: PigiSettingsChange): Promise<void> =>
     ipcRenderer.invoke(PiChannel.ChangePigiSettings, change),
+
+  reportTelemetry: (report: RendererTelemetryReport): void => {
+    ipcRenderer.send(PiChannel.ReportTelemetry, report);
+  },
 
   /** Auto-update. Every renderer gets the status pushed on change. */
   update: {

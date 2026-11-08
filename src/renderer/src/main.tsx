@@ -8,10 +8,13 @@ import UpdateProgress from './components/update/UpdateProgress';
 import { Toaster } from './components/ui/sonner';
 import { installDesignTokenSheet } from './dev/designTokenSheet';
 import { installDebugHandle } from './lib/debugHandle';
+import { installErrorReporting } from './lib/errorReporting';
 import { installFocusModality } from './lib/focusModality';
 import { installSelectionDismissal } from './lib/selectionDismissal';
 import { UPDATE_PROGRESS_HASH } from '../../shared/routes';
 import { initializePigiSettings } from './state/settingsStore';
+
+installErrorReporting();
 
 if (import.meta.env.DEV) {
   installDebugHandle();

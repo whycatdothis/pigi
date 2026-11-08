@@ -63,6 +63,7 @@ export function useKeyboardShortcuts(
           if (action) {
             event.preventDefault();
             action();
+            window.piApi.reportTelemetry({ type: 'feature', feature: `shortcut.${id}` });
             return;
           }
         }

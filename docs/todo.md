@@ -124,3 +124,11 @@ afterwards. Pin `nsis.guid: d8e79033-b579-5adb-9605-820525010f54` so a Windows
 build keeps upgrading the old install, and set the AppUserModelID to the same
 id. The PATH launcher (`docs/cli.md` §11) opens the app by bundle id and waits
 for this.
+
+## Telemetry: readable renderer stack traces
+
+Renderer `exception` events carry the production bundle's minified frames
+(`<app>/out/renderer/assets/index-<hash>.js:1:<column>`), so a renderer error
+names a column, not a function. Keeping each release's renderer source maps
+(a release asset, not shipped in the app) and mapping a reported frame with
+them would resolve it. Main-process frames are unminified and already readable.

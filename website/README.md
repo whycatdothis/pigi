@@ -309,6 +309,10 @@ The tracker only reports from `pigi.pink` and `www.pigi.pink` (`data-domains`, d
 in `BaseLayout.astro`): `npm run verify` on localhost, `astro dev`, Pages previews and forks stay out
 of the numbers.
 
+`/privacy` (`src/pages/privacy.astro`, linked only from the footer's last line) tells readers what
+the site and the app collect. A change to the tracker, its events, or anything the app sends lands
+with an edit to that page.
+
 ## The download button
 
 The href is

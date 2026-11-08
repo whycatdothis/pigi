@@ -28,6 +28,7 @@ function settingsWithAccent(presetId: string): PigiSettings {
       light: { ...DEFAULT_PIGI_SETTINGS.appearance.light, accent: { presetId } },
     },
     chat: DEFAULT_PIGI_SETTINGS.chat,
+    telemetry: DEFAULT_PIGI_SETTINGS.telemetry,
   };
 }
 

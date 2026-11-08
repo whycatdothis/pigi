@@ -32,6 +32,7 @@ import { pigiSettingsPath, readPigiSettingsFile, windowBackgroundFor } from './p
 import { createPigiSettingsOwner } from './pigiSettingsOwner';
 import { startRemoteControlServer } from './remoteControl/remoteControlServer';
 import { parsePigiSettingsChange } from '../shared/pigiSettings';
+import { initializeTelemetry, setTelemetryEnabled } from './telemetry';
 import { pathToFileURL } from 'node:url';
 
 configureDebugPanel();
@@ -59,7 +60,9 @@ app.whenReady().then(() => {
   ipcMain.handle(PiChannel.ChangePigiSettings, (_event, change: unknown) => {
     // The change is parsed here, not trusted: it keeps only the slices the
     // payload carries and normalizes them field by field.
-    settingsOwner.applyChange(parsePigiSettingsChange(change));
+    const parsed = parsePigiSettingsChange(change);
+    const settings = settingsOwner.applyChange(parsed);
+    if (parsed.telemetry) setTelemetryEnabled(settings.telemetry.enabled);
   });
 
   // The path is one encodeURIComponent'd segment, so a literal `?` can only start
@@ -70,6 +73,10 @@ app.whenReady().then(() => {
   });
 
   initializeShellEnv();
+  initializeTelemetry({
+    enabled: initialSettings.telemetry.enabled,
+    toolView: initialSettings.chat.toolBlockViewMode,
+  });
   registerIpcHandlers();
   registerProjectHandlers();
   registerAttachmentHandlers();

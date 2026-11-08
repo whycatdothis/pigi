@@ -14,7 +14,7 @@
  * Every renderer gets the status pushed on change and can read it back on
  * demand, so a window that opens mid-download still shows the right thing.
  */
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, net } from 'electron';
 import electronUpdater from 'electron-updater';
 import type { ProgressInfo } from 'electron-updater';
 import { PiChannel, type UpdateStatus } from '../../shared/ipcContract';
@@ -27,6 +27,7 @@ import {
   scheduleUpdateProgressWindowClose,
 } from '../windows/createUpdateProgressWindow';
 import { updateWindowAction } from './updateWindowPolicy';
+import { captureError } from '../telemetry';
 
 // electron-updater's `autoUpdater` is defined with an arrow-function getter,
 // which Node's CJS→ESM interop skips, so a named import would be undefined at
@@ -310,6 +311,9 @@ export function initializeUpdateManager(): void {
   });
 
   autoUpdater.on('error', (error) => {
+    // A background check runs every two hours; offline it fails every time and
+    // says nothing about the updater.
+    if (net.isOnline()) captureError(error, 'update');
     downloadToken = null;
     downloadVersion = null;
     publish({ phase: 'error', message: describeError(error) });

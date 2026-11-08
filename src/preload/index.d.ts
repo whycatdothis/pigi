@@ -25,6 +25,7 @@ import type {
   ProjectFileSearchResult,
   PathCompletionResult,
   ProjectStateResult,
+  RendererTelemetryReport,
   SessionListResult,
   ShortcutBinding,
   ShortcutDefinition,
@@ -122,8 +123,10 @@ interface PiApi {
   setAppearanceTheme: (theme: 'system' | 'light' | 'dark') => void;
   /** pigi's own settings, read synchronously so the first paint can use them. */
   readPigiSettings: () => PigiSettingsReadResult;
-  /** Apply appearance/chat slices. */
+  /** Apply the changed slices. */
   changePigiSettings: (change: PigiSettingsChange) => Promise<void>;
+  /** A prompt or an uncaught error; main drops it when telemetry is off. */
+  reportTelemetry: (report: RendererTelemetryReport) => void;
 
   update: {
     getStatus: () => Promise<UpdateStatus>;
