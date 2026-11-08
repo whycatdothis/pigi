@@ -24,6 +24,10 @@ interface Context {
   env: Env;
 }
 
+// The zone's rate limit on /api/telemetry covers only the site host; the
+// pages.dev aliases would bypass it and share the account's write quota.
+// localhost is a local test server; Cloudflare never serves it.
+const ALLOWED_HOSTS = new Set(['pigi.pink', 'localhost']);
 const MAX_BODY_LENGTH = 128 * 1024;
 const MAX_EVENTS = 100;
 const MAX_FIELDS = 4;
@@ -63,6 +67,7 @@ function toDataPoint(event: unknown, base: string[], installId: string): DataPoi
 }
 
 export async function onRequestPost({ request, env }: Context): Promise<Response> {
+  if (!ALLOWED_HOSTS.has(new URL(request.url).hostname)) return new Response(null, { status: 404 });
   // Requiring JSON makes a cross-site browser post need CORS, which is never
   // granted, so a web page cannot make its visitors send events.
   if (!request.headers.get('content-type')?.startsWith('application/json')) {
