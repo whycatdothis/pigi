@@ -25,8 +25,10 @@ const OFFICIAL_REGISTRY = 'https://registry.npmjs.org/';
 const OFFICIAL_REGISTRY_TIMEOUT_MS = 4_000;
 const REGISTRY_TIMEOUT_MS = 15_000;
 const NPM_CONFIG_TIMEOUT_MS = 5_000;
-/** The empty query ranks by downloads, so it reads a page big enough to hold the popular ones. */
+/** The registry's page limit; also how many of the most downloaded the empty query returns. */
 const BROWSE_PAGE_SIZE = 250;
+/** pi.dev lists ~5,300 packages; this bounds the paging if `total` is ever absurd. */
+const MAX_BROWSE_PAGES = 40;
 const SEARCH_PAGE_SIZE = 50;
 
 /** The registry that answered last; tried first next time. */
@@ -136,16 +138,59 @@ function toCatalogPackage(searchObject: unknown): CatalogPackage | null {
   };
 }
 
+interface SearchPage {
+  packages: CatalogPackage[];
+  /** Matches the registry reports, before the keyword filter. */
+  total: number;
+}
+
 async function searchOnce(
   registry: string,
   text: string,
   size: number,
   timeoutMs: number,
-): Promise<CatalogPackage[]> {
-  const url = `${registry}-/v1/search?text=${encodeURIComponent(text)}&size=${size}`;
+  from = 0,
+): Promise<SearchPage> {
+  const url = `${registry}-/v1/search?text=${encodeURIComponent(text)}&size=${size}&from=${from}`;
   const body = await fetchJson(url, timeoutMs);
   const objects = isRecord(body) && Array.isArray(body['objects']) ? body['objects'] : [];
-  return objects.map(toCatalogPackage).filter((pkg): pkg is CatalogPackage => pkg !== null);
+  const total = isRecord(body) && typeof body['total'] === 'number' ? body['total'] : 0;
+  return {
+    packages: objects.map(toCatalogPackage).filter((pkg): pkg is CatalogPackage => pkg !== null),
+    total,
+  };
+}
+
+/**
+ * Search order is relevance, not downloads, so the most downloaded can sit on
+ * any page: like pi.dev, read them all and rank. Pointless without download
+ * counts (mirrors report none), so then the first page is the list.
+ */
+async function browseAll(
+  registry: string,
+  text: string,
+  first: SearchPage,
+): Promise<CatalogPackage[]> {
+  if (!first.packages.some((pkg) => pkg.monthlyDownloads !== null)) return first.packages;
+  const pageCount = Math.min(Math.ceil(first.total / BROWSE_PAGE_SIZE), MAX_BROWSE_PAGES);
+  const rest = await Promise.allSettled(
+    Array.from({ length: Math.max(pageCount - 1, 0) }, (_, index) =>
+      searchOnce(
+        registry,
+        text,
+        BROWSE_PAGE_SIZE,
+        REGISTRY_TIMEOUT_MS,
+        (index + 1) * BROWSE_PAGE_SIZE,
+      ),
+    ),
+  );
+  // A lost page costs a few entries, not the list.
+  const pages = rest.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+  const byName = new Map<string, CatalogPackage>();
+  for (const pkg of [first, ...pages].flatMap((page) => page.packages)) byName.set(pkg.name, pkg);
+  return [...byName.values()]
+    .sort((a, b) => (b.monthlyDownloads ?? 0) - (a.monthlyDownloads ?? 0))
+    .slice(0, BROWSE_PAGE_SIZE);
 }
 
 /** Empty query: the most downloaded packages. Otherwise the registry's relevance order. */
@@ -155,20 +200,17 @@ export async function searchCatalog(
   const trimmed = query.trim();
   const size = trimmed ? SEARCH_PAGE_SIZE : BROWSE_PAGE_SIZE;
   const { value, registry } = await withRegistry(async (registryUrl, timeoutMs) => {
-    const qualified = await searchOnce(
-      registryUrl,
-      `keywords:${PI_PACKAGE_KEYWORD} ${trimmed}`.trim(),
-      size,
-      timeoutMs,
-    );
-    if (qualified.length > 0) return qualified;
-    // npmmirror answers `keywords:` with nothing; plain text still finds the keyword.
-    return searchOnce(registryUrl, `${PI_PACKAGE_KEYWORD} ${trimmed}`.trim(), size, timeoutMs);
+    const qualifiedText = `keywords:${PI_PACKAGE_KEYWORD} ${trimmed}`.trim();
+    let text = qualifiedText;
+    let first = await searchOnce(registryUrl, text, size, timeoutMs);
+    if (first.packages.length === 0) {
+      // npmmirror answers `keywords:` with nothing; plain text still finds the keyword.
+      text = `${PI_PACKAGE_KEYWORD} ${trimmed}`.trim();
+      first = await searchOnce(registryUrl, text, size, timeoutMs);
+    }
+    return trimmed ? first.packages : browseAll(registryUrl, text, first);
   });
-  const packages = trimmed
-    ? value
-    : [...value].sort((a, b) => (b.monthlyDownloads ?? 0) - (a.monthlyDownloads ?? 0));
-  return { packages, registry };
+  return { packages: value, registry };
 }
 
 function kindsFromManifest(manifest: unknown): PiResourceKind[] {
@@ -178,6 +220,14 @@ function kindsFromManifest(manifest: unknown): PiResourceKind[] {
     const entries = pi[kind];
     return Array.isArray(entries) && entries.length > 0;
   });
+}
+
+/** The latest version's package.json: small, unlike the packument, but without the README. */
+export async function fetchLatestManifest(name: string): Promise<Record<string, unknown> | null> {
+  const { value } = await withRegistry((registry, timeoutMs) =>
+    fetchJson(`${registry}${name.replace('/', '%2F')}/latest`, timeoutMs),
+  );
+  return isRecord(value) ? value : null;
 }
 
 export async function getCatalogPackage(name: string): Promise<CatalogPackageDetail> {

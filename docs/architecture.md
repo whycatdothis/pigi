@@ -863,10 +863,12 @@ Two data paths:
 
 The sidebar's Packages entry shows `components/packages/PackagesPage.tsx` in
 the main area beside the normal sidebar (`appStore.packagesOpen`); showing a
-session, a new chat or another workspace tab closes it. One field does both
-jobs: `parsePackageInput` (`shared/piPackages.ts`) reads `pi install …`,
+session, a new chat or another workspace tab closes it. It has an Installed
+and a Marketplace tab of package cards, and one field over both:
+`parsePackageInput` (`shared/piPackages.ts`) reads `pi install …`,
 `npm:`/`git:` sources, git URLs, paths and npm or pi.dev package pages as a
-source to install, and anything else as a catalog search.
+source to install on either tab, and anything else as a filter of the
+installed packages or a marketplace search.
 
 **Installed packages** come from pi's own `DefaultPackageManager`, run in
 `processes/utility/packageWorker.ts`, one process per request (list, check,
@@ -908,6 +910,16 @@ nothing, so results are filtered on the keyword and a qualified search that
 finds nothing is repeated as plain text. A package's details read the README
 from its packument; images and raw HTML are dropped, since the window's CSP
 loads no remote image.
+
+**Card images** are pi.dev's gallery field, `pi.image` in package.json, served
+by main on `package-image://` (`main/packages/packageImages.ts`): the manifest
+on disk for an installed package, the registry's `/latest` manifest for a
+catalog one, then the image itself. The address names a package rather than a
+URL, so the scheme in the CSP cannot be turned into a fetch of an arbitrary
+address by a markdown image in chat. No image, or a failed one, is a 404 and
+the card keeps the icon of what the package holds, on a tile whose hue comes
+from the package name (`tileHue`: eight fixed hues, so each one is chosen to
+look right in both themes).
 
 ## File Map
 

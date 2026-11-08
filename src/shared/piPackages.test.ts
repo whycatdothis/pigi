@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   failureReason,
+  imageUrlFromManifest,
   npmNameFromSource,
+  packageImageUrl,
+  parsePackageImageUrl,
   parsePackageInput,
   resourceKindsFromKeywords,
 } from './piPackages';
@@ -20,19 +23,17 @@ describe('parsePackageInput', () => {
     ['https://www.npmjs.com/package/@scope/name', 'npm:@scope/name'],
     ['https://pi.dev/packages/pi-web-access?type=extension', 'npm:pi-web-access'],
   ])('reads %s as a source', (text, source) => {
-    expect(parsePackageInput(text)).toEqual({ kind: 'source', source, scope: null });
+    expect(parsePackageInput(text)).toEqual({ kind: 'source', source });
   });
 
-  it('reads a pi install line, a bare name after it as npm, and -l as project scope', () => {
+  it('reads a pi install line, a bare name after it as npm, and drops flags', () => {
     expect(parsePackageInput('pi install npm:pi-web-access')).toEqual({
       kind: 'source',
       source: 'npm:pi-web-access',
-      scope: null,
     });
     expect(parsePackageInput('  pi install -l pi-web-access ')).toEqual({
       kind: 'source',
       source: 'npm:pi-web-access',
-      scope: 'project',
     });
   });
 
@@ -82,5 +83,23 @@ describe('failureReason', () => {
       "repository 'https://h/x' not found",
     );
     expect(failureReason('nothing useful')).toBeNull();
+  });
+});
+
+describe('package images', () => {
+  it('round-trips npm names and paths', () => {
+    for (const target of [{ npm: '@scope/pkg' }, { path: '/Users/me/my pkg' }]) {
+      expect(parsePackageImageUrl(packageImageUrl(target))).toEqual(target);
+    }
+    expect(parsePackageImageUrl('package-image://url/https%3A%2F%2Fx')).toBeNull();
+  });
+
+  it('accepts only http(s) images of the kinds pi.dev shows', () => {
+    expect(imageUrlFromManifest({ pi: { image: 'https://x.dev/a.PNG?v=1' } })).toBe(
+      'https://x.dev/a.PNG?v=1',
+    );
+    expect(imageUrlFromManifest({ pi: { image: 'https://x.dev/a.svg' } })).toBeNull();
+    expect(imageUrlFromManifest({ pi: { image: 'file:///etc/a.png' } })).toBeNull();
+    expect(imageUrlFromManifest({ pi: { video: 'https://x.dev/a.mp4' } })).toBeNull();
   });
 });

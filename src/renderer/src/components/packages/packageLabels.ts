@@ -1,5 +1,13 @@
-import { IconBook2, IconPalette, IconPrompt, IconPuzzle, type Icon } from '@tabler/icons-react';
 import {
+  IconArchive,
+  IconCube,
+  IconMessageDots,
+  IconPalette,
+  IconWand,
+  type Icon,
+} from '@tabler/icons-react';
+import {
+  npmNameFromSource,
   PI_RESOURCE_KINDS,
   type InstalledPiPackage,
   type PiExtensionLoadError,
@@ -16,11 +24,14 @@ export const RESOURCE_KIND_LABELS: Record<PiResourceKind, { one: string; many: s
 };
 
 export const RESOURCE_KIND_ICONS: Record<PiResourceKind, Icon> = {
-  extensions: IconPuzzle,
-  skills: IconBook2,
-  prompts: IconPrompt,
+  extensions: IconCube,
+  skills: IconWand,
+  prompts: IconMessageDots,
   themes: IconPalette,
 };
+
+/** A catalog package whose keywords name no kind. */
+export const UNKNOWN_KIND_ICON: Icon = IconArchive;
 
 /** "2 extensions · 1 skill" */
 export function resourceSummary(resources: readonly PiResource[]): string {
@@ -71,4 +82,51 @@ export function errorsForPackage(
   const root = pkg.installedPath;
   if (!root) return [];
   return loadErrors.filter((error) => error.path === root || error.path.startsWith(`${root}/`));
+}
+
+/** `https://github.com/a/b.git` reads as `github.com/a/b`. */
+function displaySource(source: string): string {
+  return source
+    .replace(/^git:/, '')
+    .replace(/^(https?|ssh|git):\/\/(git@)?/, '')
+    .replace(/\.git(@|$)/, '$1');
+}
+
+/** oklch hues for image-less tiles, about 45° apart; no pure red, which reads as an error. */
+const TILE_HUES: readonly number[] = [55, 85, 145, 185, 225, 265, 300, 340];
+
+/** One fixed hue per package name (FNV-1a), the same on both tabs and across restarts. */
+export function tileHue(name: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < name.length; index++) {
+    hash = Math.imul(hash ^ name.charCodeAt(index), 0x01000193) >>> 0;
+  }
+  return TILE_HUES[hash % TILE_HUES.length] ?? 0;
+}
+
+/** A git source's web page, for a manifest without `repository`. */
+export function gitWebUrl(source: string): string | null {
+  if (sourceKindLabel(source) !== 'Git repository') return null;
+  const path = displaySource(source)
+    .replace(/^git@([^:/]+):/, '$1/')
+    .replace(/@[^/]*$/, '');
+  return `https://${path}`;
+}
+
+/**
+ * What the user installed, not package.json's name: a git repo's manifest can
+ * name something it no longer contains.
+ */
+export function packageTitle(pkg: InstalledPiPackage): string {
+  return npmNameFromSource(pkg.source) ?? displaySource(pkg.source);
+}
+
+/**
+ * The kinds present, most numerous first (ties in pi's order): the first picks
+ * the card's icon, so 1 extension and 33 skills reads as a skill package.
+ */
+export function resourceKinds(resources: readonly PiResource[]): PiResourceKind[] {
+  const count = (kind: PiResourceKind): number =>
+    resources.filter((resource) => resource.kind === kind).length;
+  return PI_RESOURCE_KINDS.filter((kind) => count(kind) > 0).sort((a, b) => count(b) - count(a));
 }

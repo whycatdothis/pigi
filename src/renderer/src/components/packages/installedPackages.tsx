@@ -1,36 +1,30 @@
 import { useState } from 'react';
 import {
   IconAlertTriangle,
-  IconChevronRight,
-  IconDots,
-  IconExternalLink,
+  IconArrowUp,
+  IconDownload,
   IconLoader2,
   IconTrash,
+  type Icon,
 } from '@tabler/icons-react';
 import {
-  npmNameFromSource,
-  npmPackageUrl,
   PI_RESOURCE_KINDS,
-  piDevPackageUrl,
   type InstalledPiPackage,
   type PiExtensionLoadError,
   type PiPackageOperation,
   type PiResource,
 } from '../../../../shared/piPackages';
 import { Button } from '../ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
 import { SpinningIcon } from '../ui/spinningIcon';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { cn } from '@/lib/utils';
+import { PackageCard, PackageThumbnail } from './packageCards';
 import {
   errorsForPackage,
+  packageTitle,
   RESOURCE_KIND_ICONS,
   RESOURCE_KIND_LABELS,
+  resourceKinds,
   resourceSummary,
 } from './packageLabels';
 
@@ -42,7 +36,11 @@ export function ScopeBadge(): React.JSX.Element {
   );
 }
 
-function ResourceList({ resources }: { resources: readonly PiResource[] }): React.JSX.Element {
+export function ResourceList({
+  resources,
+}: {
+  resources: readonly PiResource[];
+}): React.JSX.Element {
   if (resources.length === 0) {
     return (
       <p className="text-caption text-muted-foreground">
@@ -51,7 +49,7 @@ function ResourceList({ resources }: { resources: readonly PiResource[] }): Reac
     );
   }
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {PI_RESOURCE_KINDS.map((kind) => {
         const ofKind = resources.filter((resource) => resource.kind === kind);
         if (ofKind.length === 0) return null;
@@ -59,7 +57,7 @@ function ResourceList({ resources }: { resources: readonly PiResource[] }): Reac
         return (
           <div key={kind} className="flex flex-col gap-1">
             <h4 className="text-caption font-semibold text-muted-foreground capitalize">
-              {RESOURCE_KIND_LABELS[kind].many}
+              {RESOURCE_KIND_LABELS[kind].many} · {ofKind.length}
             </h4>
             <ul className="flex flex-col">
               {ofKind.map((resource) => (
@@ -69,7 +67,7 @@ function ResourceList({ resources }: { resources: readonly PiResource[] }): Reac
                     'flex min-w-0 items-start gap-2 py-1',
                     !resource.enabled && 'opacity-50',
                   )}
-                  title={[resource.description, resource.path].filter(Boolean).join('\n\n')}
+                  title={resource.path}
                 >
                   <KindIcon size={14} className="mt-[3px] shrink-0 text-muted-foreground" />
                   <div className="flex min-w-0 flex-1 flex-col">
@@ -83,7 +81,7 @@ function ResourceList({ resources }: { resources: readonly PiResource[] }): Reac
                       )}
                     </div>
                     {resource.description && (
-                      <span className="line-clamp-1 text-caption text-muted-foreground">
+                      <span className="text-caption text-muted-foreground">
                         {resource.description}
                       </span>
                     )}
@@ -98,101 +96,73 @@ function ResourceList({ resources }: { resources: readonly PiResource[] }): Reac
   );
 }
 
-function ExpandableRow({
-  title,
-  meta,
-  description,
-  details,
-  notice,
-  actions,
-  testId,
+function IconAction({
+  icon: ActionIcon,
+  label,
+  onClick,
+  disabled,
+  className,
 }: {
-  title: React.ReactNode;
-  meta?: React.ReactNode;
-  description?: string | null;
-  details: React.ReactNode;
-  notice?: React.ReactNode;
-  actions?: React.ReactNode;
-  testId?: string;
+  icon: Icon;
+  label: string;
+  onClick: () => void;
+  disabled: boolean;
+  className?: string;
 }): React.JSX.Element {
-  const [expanded, setExpanded] = useState(false);
   return (
-    <div className="flex flex-col gap-3 px-5 py-3.5" data-testid={testId}>
-      <div className="flex items-start gap-3">
-        <button
-          type="button"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((value) => !value)}
-          className="group/row flex min-w-0 flex-1 flex-col gap-0.5 text-left outline-none"
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label={label}
+          disabled={disabled}
+          onClick={onClick}
+          className={cn('text-muted-foreground', className)}
         >
-          <div className="flex min-w-0 items-center gap-2">
-            {title}
-            <IconChevronRight
-              size={14}
-              className={cn(
-                'shrink-0 text-muted-foreground opacity-0 transition-[opacity,transform] group-hover/row:opacity-100 group-focus-visible/row:opacity-100',
-                expanded && 'rotate-90 opacity-100',
-              )}
-            />
-          </div>
-          {description && (
-            <span className="line-clamp-1 text-caption text-muted-foreground">{description}</span>
-          )}
-          {meta && <span className="truncate text-caption text-muted-foreground/80">{meta}</span>}
-          {notice}
-        </button>
-        {actions && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
-      </div>
-      {expanded && <div className="pl-0.5">{details}</div>}
-    </div>
+          <ActionIcon size={16} />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
-/** `https://github.com/a/b.git` reads as `github.com/a/b`. */
-function displaySource(source: string): string {
-  return source
-    .replace(/^git:/, '')
-    .replace(/^(https?|ssh|git):\/\/(git@)?/, '')
-    .replace(/\.git(@|$)/, '$1');
-}
-
-export function InstalledPackageRow({
+/**
+ * Install (when settings name it but it is missing), Update, Remove. Icons on
+ * a card, labelled buttons in the details; Remove asks first in both.
+ */
+export function InstalledActions({
   pkg,
   hasUpdate,
-  loadErrors,
   busy,
   disabled,
   onRun,
+  labelled = false,
 }: {
   pkg: InstalledPiPackage;
   hasUpdate: boolean;
-  loadErrors: readonly PiExtensionLoadError[];
   /** This package's operation is running. */
   busy: boolean;
   /** Another operation is running. */
   disabled: boolean;
   onRun: (operation: PiPackageOperation) => void;
+  labelled?: boolean;
 }): React.JSX.Element {
   const [confirmingRemove, setConfirmingRemove] = useState(false);
-  const npmName = npmNameFromSource(pkg.source);
-  // What the user installed, not package.json's name: a git repo's manifest
-  // can name something it no longer contains.
-  const title = npmName ?? displaySource(pkg.source);
-  const errors = errorsForPackage(pkg, loadErrors);
-  const missing = pkg.installedPath === null;
   const run = (action: PiPackageOperation['action']): void =>
     onRun({ action, source: pkg.source, scope: pkg.scope });
-  const summary = resourceSummary(pkg.resources);
+  const missing = pkg.installedPath === null;
 
-  let actions: React.ReactNode;
   if (busy) {
-    actions = (
-      <SpinningIcon className="mx-2 text-muted-foreground">
+    return (
+      <SpinningIcon className="m-1.5 text-muted-foreground">
         <IconLoader2 size={16} />
       </SpinningIcon>
     );
-  } else if (confirmingRemove) {
-    actions = (
+  }
+  if (confirmingRemove) {
+    return (
       <>
         <Button size="sm" variant="ghost" onClick={() => setConfirmingRemove(false)}>
           Cancel
@@ -210,128 +180,179 @@ export function InstalledPackageRow({
         </Button>
       </>
     );
-  } else {
-    actions = (
+  }
+  if (labelled) {
+    return (
       <>
-        {missing ? (
-          <Button size="sm" variant="outline" disabled={disabled} onClick={() => run('install')}>
+        {missing && (
+          <Button size="sm" disabled={disabled} onClick={() => run('install')}>
             Install
           </Button>
-        ) : (
-          hasUpdate && (
-            <Button size="sm" variant="outline" disabled={disabled} onClick={() => run('update')}>
-              Update
-            </Button>
-          )
         )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label={`More actions for ${title}`}
-              className="text-muted-foreground"
-            >
-              <IconDots size={16} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            {npmName && (
-              <DropdownMenuItem
-                onSelect={() => window.piApi.openExternal(piDevPackageUrl(npmName))}
-              >
-                <IconExternalLink />
-                View on pi.dev
-              </DropdownMenuItem>
-            )}
-            {npmName && (
-              <DropdownMenuItem onSelect={() => window.piApi.openExternal(npmPackageUrl(npmName))}>
-                <IconExternalLink />
-                View on npm
-              </DropdownMenuItem>
-            )}
-            {pkg.repositoryUrl && (
-              <DropdownMenuItem
-                onSelect={() => pkg.repositoryUrl && window.piApi.openExternal(pkg.repositoryUrl)}
-              >
-                <IconExternalLink />
-                Open repository
-              </DropdownMenuItem>
-            )}
-            {(npmName || pkg.repositoryUrl) && <DropdownMenuSeparator />}
-            <DropdownMenuItem
-              variant="destructive"
-              disabled={disabled}
-              onSelect={() => setConfirmingRemove(true)}
-            >
-              <IconTrash />
-              Remove…
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {!missing && hasUpdate && (
+          <Button size="sm" disabled={disabled} onClick={() => run('update')}>
+            Update
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={disabled}
+          onClick={() => setConfirmingRemove(true)}
+        >
+          Remove
+        </Button>
       </>
     );
   }
-
   return (
-    <ExpandableRow
+    <>
+      {missing && (
+        <IconAction
+          icon={IconDownload}
+          label="Install"
+          disabled={disabled}
+          onClick={() => run('install')}
+          className="text-foreground"
+        />
+      )}
+      {!missing && hasUpdate && (
+        <IconAction
+          icon={IconArrowUp}
+          label="Update"
+          disabled={disabled}
+          onClick={() => run('update')}
+          className="text-primary hover:text-primary"
+        />
+      )}
+      <IconAction
+        icon={IconTrash}
+        label="Remove"
+        disabled={disabled}
+        onClick={() => setConfirmingRemove(true)}
+      />
+    </>
+  );
+}
+
+export function PackageNotice({
+  missing,
+  errors,
+}: {
+  missing: boolean;
+  errors: readonly PiExtensionLoadError[];
+}): React.JSX.Element | null {
+  if (missing) {
+    return (
+      <span className="mt-1 flex items-center gap-1.5 text-caption text-warning-fg">
+        <IconAlertTriangle size={14} className="shrink-0" />
+        In settings but not installed
+      </span>
+    );
+  }
+  if (errors.length === 0) return null;
+  return (
+    <span className="mt-1 flex items-start gap-1.5 text-caption text-danger-fg">
+      <IconAlertTriangle size={14} className="mt-[3px] shrink-0" />
+      <span className="line-clamp-2">
+        {errors.length === 1
+          ? `Failed to load: ${errors[0]?.error}`
+          : `${errors.length} extensions failed to load`}
+      </span>
+    </span>
+  );
+}
+
+export function PackageTitle({
+  title,
+  version,
+  scope,
+}: {
+  title: string;
+  version: string | null;
+  scope: InstalledPiPackage['scope'] | null;
+}): React.JSX.Element {
+  return (
+    <>
+      <span className="truncate text-ui font-medium text-foreground" title={title}>
+        {title}
+      </span>
+      {version && <span className="shrink-0 text-caption text-muted-foreground">{version}</span>}
+      {scope === 'project' && <ScopeBadge />}
+    </>
+  );
+}
+
+export function InstalledPackageCard({
+  pkg,
+  hasUpdate,
+  loadErrors,
+  busy,
+  disabled,
+  onRun,
+  onOpen,
+}: {
+  pkg: InstalledPiPackage;
+  hasUpdate: boolean;
+  loadErrors: readonly PiExtensionLoadError[];
+  busy: boolean;
+  disabled: boolean;
+  onRun: (operation: PiPackageOperation) => void;
+  onOpen: () => void;
+}): React.JSX.Element {
+  const title = packageTitle(pkg);
+  return (
+    <PackageCard
       testId={`installed-package-${title}`}
-      title={
-        <>
-          <span className="truncate text-ui font-medium text-foreground">{title}</span>
-          {pkg.version && (
-            <span className="shrink-0 text-caption text-muted-foreground">{pkg.version}</span>
-          )}
-          {pkg.scope === 'project' && <ScopeBadge />}
-        </>
+      onOpen={onOpen}
+      thumbnail={
+        <PackageThumbnail
+          name={title}
+          image={pkg.installedPath ? { path: pkg.installedPath } : null}
+          kinds={resourceKinds(pkg.resources)}
+        />
       }
+      title={<PackageTitle title={title} version={pkg.version} scope={pkg.scope} />}
       description={pkg.description}
-      meta={summary || null}
+      meta={resourceSummary(pkg.resources) || null}
       notice={
-        missing ? (
-          <span className="mt-1 flex items-center gap-1.5 text-caption text-warning-fg">
-            <IconAlertTriangle size={14} className="shrink-0" />
-            In settings but not installed
-          </span>
-        ) : errors.length > 0 ? (
-          <span className="mt-1 flex items-start gap-1.5 text-caption text-danger-fg">
-            <IconAlertTriangle size={14} className="mt-[3px] shrink-0" />
-            <span className="line-clamp-2">
-              {errors.length === 1
-                ? `Failed to load: ${errors[0]?.error}`
-                : `${errors.length} extensions failed to load`}
-            </span>
-          </span>
-        ) : null
+        <PackageNotice
+          missing={pkg.installedPath === null}
+          errors={errorsForPackage(pkg, loadErrors)}
+        />
       }
-      details={
-        <div className="flex flex-col gap-3">
-          {errors.length > 0 && (
-            <pre className="max-h-48 overflow-auto rounded-control bg-danger-bg px-3 py-2 font-mono text-code-compact whitespace-pre-wrap text-danger-fg">
-              {errors.map((error) => `${error.path}\n${error.error}`).join('\n\n')}
-            </pre>
-          )}
-          <ResourceList resources={pkg.resources} />
-        </div>
+      actions={
+        <InstalledActions
+          pkg={pkg}
+          hasUpdate={hasUpdate}
+          busy={busy}
+          disabled={disabled}
+          onRun={onRun}
+        />
       }
-      actions={actions}
     />
   );
 }
 
+export const LOCAL_RESOURCES_DESCRIPTION =
+  'Not from a package: ~/.pi/agent, ~/.agents/skills, project .pi/ and paths in settings.';
+
 /** Resources from pi's own directories and settings paths, which no package owns. */
-export function LocalResourcesRow({
+export function LocalResourcesCard({
   resources,
+  onOpen,
 }: {
   resources: readonly PiResource[];
+  onOpen: () => void;
 }): React.JSX.Element {
   return (
-    <ExpandableRow
+    <PackageCard
       testId="local-resources"
-      title={<span className="truncate text-ui font-medium text-foreground">Local</span>}
-      description="Not from a package: ~/.pi/agent, ~/.agents/skills, project .pi/ and paths in settings."
+      onOpen={onOpen}
+      thumbnail={<PackageThumbnail name="Local" image={null} kinds={resourceKinds(resources)} />}
+      title={<PackageTitle title="Local" version={null} scope={null} />}
+      description={LOCAL_RESOURCES_DESCRIPTION}
       meta={resourceSummary(resources)}
-      details={<ResourceList resources={resources} />}
     />
   );
 }

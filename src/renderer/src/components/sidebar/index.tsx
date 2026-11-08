@@ -6,7 +6,7 @@ import {
   IconLogin2,
   IconRefresh,
   IconDownload,
-  IconPackage,
+  IconCube,
 } from '@tabler/icons-react';
 import { SidebarToggle } from './sidebarToggle';
 import type { PiSessionInfo } from '../../../../shared/ipcContract';
@@ -256,7 +256,7 @@ export default memo(function Sidebar({
                 onClick={openPackages}
                 data-testid="sidebar-packages"
               >
-                <IconPackage data-icon="inline-start" />
+                <IconCube data-icon="inline-start" />
                 <span>Packages</span>
               </SidebarMenuButton>
             </SidebarMenuItem>

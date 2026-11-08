@@ -1852,7 +1852,6 @@ function App(): React.JSX.Element {
               <PackagesPage
                 key={activeProjectPath ?? ''}
                 projectPath={activeProjectPath}
-                projectName={activeProject?.name ?? null}
                 onPackagesChanged={handlePackagesChanged}
               />
             ) : (

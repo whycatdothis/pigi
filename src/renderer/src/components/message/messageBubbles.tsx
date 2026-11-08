@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { IconCheck, IconCopy, IconCube, IconPencil, IconTerminal2 } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconPencil, IconTerminal2, IconWand } from '@tabler/icons-react';
 import {
   type SystemNode,
   type TranscriptNode,
@@ -288,7 +288,7 @@ function SkillLinkBubble({
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <button type="button" className={INTERACTIVE_REFERENCE_CHIP_CLASS}>
-                <IconCube className="size-4 shrink-0" />
+                <IconWand className="size-4 shrink-0" />
                 <span className="truncate">{skillBlock.name}</span>
               </button>
             </PopoverTrigger>
@@ -298,7 +298,7 @@ function SkillLinkBubble({
               className="w-[32rem] max-h-[60vh] overflow-y-auto p-4"
             >
               <div className="mb-3 flex items-center gap-2 text-body font-medium text-foreground">
-                <IconCube className="size-4 shrink-0" />
+                <IconWand className="size-4 shrink-0" />
                 <span>{skillBlock.name}</span>
               </div>
               <MarkdownMessage text={skillBlock.body} />

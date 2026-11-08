@@ -189,6 +189,51 @@ export function repositoryUrlFromManifest(manifest: Record<string, unknown> | nu
   return /^[\w.-]+\/[\w.-]+$/.test(url) ? `https://github.com/${url}` : null;
 }
 
+// =============================================================================
+// Preview images
+// =============================================================================
+
+/**
+ * Package images reach the renderer through main: the CSP loads no remote
+ * image, and the address names a package, not a URL, so a page cannot use
+ * it to fetch an arbitrary address.
+ */
+export const PACKAGE_IMAGE_SCHEME = 'package-image';
+
+export type PackageImageTarget = { npm: string } | { path: string };
+
+export function packageImageUrl(target: PackageImageTarget): string {
+  return 'npm' in target
+    ? `${PACKAGE_IMAGE_SCHEME}://npm/${encodeURIComponent(target.npm)}`
+    : `${PACKAGE_IMAGE_SCHEME}://path/${encodeURIComponent(target.path)}`;
+}
+
+export function parsePackageImageUrl(url: string): PackageImageTarget | null {
+  const match = url.match(new RegExp(`^${PACKAGE_IMAGE_SCHEME}://(npm|path)/([^?#]+)`));
+  if (!match?.[2]) return null;
+  try {
+    const value = decodeURIComponent(match[2]);
+    return match[1] === 'npm' ? { npm: value } : { path: value };
+  } catch {
+    return null;
+  }
+}
+
+/** package.json `pi.image`, held to what pi.dev shows: an http(s) PNG, JPEG, GIF or WebP. */
+export function imageUrlFromManifest(manifest: Record<string, unknown> | null): string | null {
+  const pi = manifest?.['pi'];
+  const image = typeof pi === 'object' && pi !== null && 'image' in pi ? pi.image : null;
+  if (typeof image !== 'string') return null;
+  try {
+    const url = new URL(image);
+    return /^https?:$/.test(url.protocol) && /\.(png|jpe?g|gif|webp)$/i.test(url.pathname)
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The npm name a source installs, or null for git and local sources. */
 export function npmNameFromSource(source: string): string | null {
   if (!source.startsWith('npm:')) return null;
@@ -205,8 +250,7 @@ export function npmNameFromSource(source: string): string | null {
 export type PackageInput =
   | { kind: 'empty' }
   | { kind: 'search'; query: string }
-  /** `scope` is set only when the line said so (`-l`). */
-  | { kind: 'source'; source: string; scope: PiPackageScope | null };
+  | { kind: 'source'; source: string };
 
 const NPM_NAME = /^(@[a-z0-9][\w.-]*\/)?[a-z0-9][\w.-]*(@[^\s/]+)?$/i;
 const PROTOCOL_SOURCE = /^(https?|ssh|git):\/\//;
@@ -232,21 +276,20 @@ function sourceFromToken(token: string, fromInstallCommand: boolean): string | n
 
 /**
  * What a line in the packages field asks for: a source to install (`pi install
- * npm:foo -l`, `npm:foo`, a git URL, a path, an npm or pi.dev package page),
- * or a catalog search. A bare word is a search; after `pi install` it is an
- * npm name.
+ * npm:foo`, `npm:foo`, a git URL, a path, an npm or pi.dev package page), or a
+ * catalog search. A bare word is a search; after `pi install` it is an npm
+ * name. Flags are dropped: pigi installs every package globally, `-l` too.
  */
 export function parsePackageInput(text: string): PackageInput {
   const tokens = text.trim().split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return { kind: 'empty' };
   const fromInstallCommand = tokens[0] === 'pi' && tokens[1] === 'install' && tokens.length > 2;
   const rest = fromInstallCommand ? tokens.slice(2) : tokens;
-  const local = rest.some((token) => token === '-l' || token === '--local');
   const words = rest.filter((token) => !token.startsWith('-'));
   const [word] = words;
   if (words.length === 1 && word) {
     const source = sourceFromToken(word, fromInstallCommand);
-    if (source) return { kind: 'source', source, scope: local ? 'project' : null };
+    if (source) return { kind: 'source', source };
   }
   return { kind: 'search', query: text.trim() };
 }

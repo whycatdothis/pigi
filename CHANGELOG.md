@@ -4,13 +4,19 @@
 
 ### Added
 
-- A Packages page, below Open project in the sidebar, for pi packages: see what
-  is installed with its extensions, skills, prompts and themes, update or remove
-  a package, and install from npm, git or a folder by typing or pasting its
-  source (`pi install …` lines included). Browse and search the pi package
-  catalog and read a package's README before installing. Changes apply to open
-  sessions without restarting, and a failed install shows npm's or git's reason
-  with the full output
+- A Packages page, below Open project in the sidebar, for pi packages. The
+  Installed tab shows each package as a card with its preview image; open one
+  to see its extensions, skills, prompts and themes, and update or remove it in
+  place. The Marketplace tab browses and searches the pi package catalog, with
+  each package's README before installing. Any npm, git or folder source can be
+  typed or pasted to install it for every project (`pi install …` lines
+  included). Changes apply to open sessions without restarting, and a failed
+  install shows npm's or git's reason with the full output.
+
+### Changed
+
+- Skills in the chat and the message box show a wand instead of a cube, the
+  same icon the Packages page uses for skills.
 
 ## [0.5.5] - 2026-11-07
 
