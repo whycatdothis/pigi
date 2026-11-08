@@ -1,13 +1,15 @@
 /**
  * Installed pi packages and the marketplace (the pi.dev catalog), one tab
- * each, with one field: a source (`npm:…`, a git URL, a path, a
- * `pi install …` line) installs directly on either tab; other text filters
- * the installed packages or searches the marketplace.
+ * each. The field filters the installed packages or searches the marketplace;
+ * installing from npm, git or a folder has its own dialog, though a source
+ * pasted into the field (`npm:…`, a git URL, a path, a `pi install …` line)
+ * installs from there too.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   IconAlertTriangle,
+  IconArrowUp,
   IconCopy,
   IconDownload,
   IconExternalLink,
@@ -19,8 +21,10 @@ import {
   npmNameFromSource,
   parsePackageInput,
   PI_DEV_PACKAGES_URL,
+  PI_RESOURCE_KINDS,
   type CatalogPackage,
   type InstalledPiPackage,
+  type PiExtensionLoadError,
   type PiPackageOperation,
   type PiPackageScope,
   type PiPackagesSnapshot,
@@ -35,12 +39,14 @@ import { TooltipProvider } from '../ui/tooltip';
 import { InstalledPackageCard, LocalResourcesCard } from './installedPackages';
 import { CatalogPackageCard, type CatalogInstallState } from './catalogPackages';
 import { CardGrid, CardsSkeleton } from './packageCards';
+import { InstallSourceDialog } from './installSourceDialog';
 import { LocalResourcesDialog, PackageDialog } from './packageDialog';
 import {
   ACTION_FAILURE_LABELS,
   ACTION_PROGRESS_LABELS,
   ACTION_SUCCESS_LABELS,
   packageTitle,
+  resourceKinds,
   sourceKindLabel,
 } from './packageLabels';
 
@@ -52,7 +58,8 @@ type PackagesTab = 'installed' | 'marketplace';
 type DialogTarget =
   | { kind: 'installed'; key: string }
   | { kind: 'catalog'; pkg: CatalogPackage }
-  | { kind: 'local' };
+  | { kind: 'local' }
+  | { kind: 'source' };
 
 interface PackagesPageProps {
   projectPath: string | null;
@@ -225,6 +232,12 @@ function installedByNpmName(snapshot: PiPackagesSnapshot | null): Map<string, In
   return byName;
 }
 
+/** Groups the installed cards by the kind each mostly holds; empty ones last. */
+function kindRank(pkg: InstalledPiPackage): number {
+  const kind = resourceKinds(pkg.resources)[0];
+  return kind ? PI_RESOURCE_KINDS.indexOf(kind) : PI_RESOURCE_KINDS.length;
+}
+
 function matchesFilter(query: string, ...texts: (string | null | undefined)[]): boolean {
   const needle = query.toLowerCase();
   return texts.some((text) => text?.toLowerCase().includes(needle));
@@ -264,13 +277,10 @@ export default function PackagesPage({
     activity.operation.source === input.source;
   const installedByName = useMemo(() => installedByNpmName(snapshot), [snapshot]);
 
-  /** Resolves true on success; a failure is shown by the activity card. */
-  const run = useCallback(
-    async (operation: PiPackageOperation): Promise<boolean> => {
-      const loadErrors = await packages.run(operation);
-      if (!loadErrors) return false;
+  /** Applies finished changes to running sessions and says so. */
+  const announce = useCallback(
+    (label: string, loadErrors: readonly PiExtensionLoadError[]) => {
       const { reloaded, waiting } = onPackagesChanged();
-      const label = `${ACTION_SUCCESS_LABELS[operation.action]} ${operation.source}`;
       const [firstError, ...otherErrors] = loadErrors;
       if (firstError) {
         // An install from the marketplace tab keeps the card's own notice out of sight.
@@ -280,7 +290,7 @@ export default function PackagesPage({
               ? `${loadErrors.length} extensions failed. ${firstError.error}`
               : firstError.error,
         });
-        return true;
+        return;
       }
       toast.success(label, {
         description:
@@ -290,10 +300,39 @@ export default function PackagesPage({
               ? `Reloaded ${reloaded === 1 ? 'the open session' : `${reloaded} open sessions`}.`
               : 'New sessions will load it.',
       });
+    },
+    [onPackagesChanged],
+  );
+
+  /** Resolves true on success; a failure is shown by the activity card. */
+  const run = useCallback(
+    async (operation: PiPackageOperation): Promise<boolean> => {
+      const loadErrors = await packages.run(operation);
+      if (!loadErrors) return false;
+      announce(`${ACTION_SUCCESS_LABELS[operation.action]} ${operation.source}`, loadErrors);
       return true;
     },
-    [onPackagesChanged, packages],
+    [announce, packages],
   );
+
+  const updatable = (snapshot?.packages ?? []).filter((pkg) =>
+    health?.updates.includes(pkg.source),
+  );
+
+  /** One after another, as the queue in main runs them anyway; stops at the first failure. */
+  const updateAll = async (): Promise<void> => {
+    let updated = 0;
+    const loadErrors: PiExtensionLoadError[] = [];
+    for (const pkg of updatable) {
+      const errors = await packages.run({ action: 'update', source: pkg.source, scope: pkg.scope });
+      if (!errors) break;
+      updated += 1;
+      loadErrors.push(...errors);
+    }
+    if (updated > 0) {
+      announce(`Updated ${updated === 1 ? '1 package' : `${updated} packages`}`, loadErrors);
+    }
+  };
 
   const installSource = useCallback(() => {
     if (input.kind !== 'source' || running) return;
@@ -315,6 +354,11 @@ export default function PackagesPage({
     [activity, installedByName, running],
   );
 
+  const installFromDialog = (source: string): void => {
+    setDialog(null);
+    void run({ action: 'install', source, scope: 'user' });
+  };
+
   const installFromCatalog = useCallback(
     (name: string) => {
       void run({ action: 'install', source: `npm:${name}`, scope: 'user' });
@@ -326,9 +370,9 @@ export default function PackagesPage({
     running && activity.operation.source === pkg.source && activity.operation.scope === pkg.scope;
   const runInstalled = (operation: PiPackageOperation): void => void run(operation);
 
-  const filteredInstalled = (snapshot?.packages ?? []).filter(
-    (pkg) => !searchText || packageMatches(pkg, searchText),
-  );
+  const filteredInstalled = (snapshot?.packages ?? [])
+    .filter((pkg) => !searchText || packageMatches(pkg, searchText))
+    .sort((a, b) => kindRank(a) - kindRank(b));
   const localResources = snapshot?.local ?? [];
   const showLocal =
     localResources.length > 0 &&
@@ -361,6 +405,22 @@ export default function PackagesPage({
           Could not read installed packages: {listError}
         </ErrorCard>
       )}
+      {updatable.length > 0 && (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-caption text-muted-foreground">
+            {updatable.length === 1 ? '1 update' : `${updatable.length} updates`} available
+          </span>
+          <Button
+            size="sm"
+            disabled={running}
+            onClick={() => void updateAll()}
+            data-testid="packages-update-all"
+          >
+            <IconArrowUp data-icon="inline-start" />
+            Update all
+          </Button>
+        </div>
+      )}
       {snapshot !== null && listError !== null && (
         <p className="text-caption text-danger-fg">Could not refresh the list: {listError}</p>
       )}
@@ -386,6 +446,7 @@ export default function PackagesPage({
                 key={packageKey(pkg)}
                 pkg={pkg}
                 hasUpdate={health?.updates.includes(pkg.source) ?? false}
+                releasedAt={health?.releasedAt[pkg.source] ?? null}
                 loadErrors={health?.loadErrors ?? []}
                 busy={isBusy(pkg)}
                 disabled={running}
@@ -502,52 +563,61 @@ export default function PackagesPage({
             </Tabs>
 
             <div className="flex flex-col gap-3">
-              <div className="flex h-10 items-center gap-2 rounded-control border border-input bg-card px-3 transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/25">
-                {catalog.loading && tab === 'marketplace' && catalogQuery !== null ? (
-                  <SpinningIcon className="text-muted-foreground">
-                    <IconLoader2 size={16} />
-                  </SpinningIcon>
-                ) : (
-                  <IconSearch size={16} className="shrink-0 text-muted-foreground" />
-                )}
-                <input
-                  ref={fieldRef}
-                  // The page exists to find or add a package; the field is the first thing to use.
-                  autoFocus
-                  value={text}
-                  onChange={(event) => setText(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') installSource();
-                    if (event.key === 'Escape' && text) {
-                      event.preventDefault();
-                      setText('');
-                    }
-                  }}
-                  placeholder={
-                    tab === 'installed'
-                      ? 'Filter installed, or paste npm:…, a git URL or a path to install'
-                      : 'Search the marketplace, or paste npm:…, a git URL or a path'
-                  }
-                  spellCheck={false}
-                  autoComplete="off"
-                  aria-label="Search packages or enter a package source"
-                  className="h-full min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-muted-foreground"
-                  data-testid="packages-field"
-                />
-                {text && (
-                  <Button
-                    size="icon-xs"
-                    variant="ghost"
-                    aria-label="Clear"
-                    className="text-muted-foreground"
-                    onClick={() => {
-                      setText('');
-                      fieldRef.current?.focus();
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex h-10 w-1/4 items-center gap-2 rounded-control border border-input bg-card px-3 transition-colors">
+                  {catalog.loading && tab === 'marketplace' && catalogQuery !== null ? (
+                    <SpinningIcon className="text-muted-foreground">
+                      <IconLoader2 size={16} />
+                    </SpinningIcon>
+                  ) : (
+                    <IconSearch size={16} className="shrink-0 text-muted-foreground" />
+                  )}
+                  <input
+                    ref={fieldRef}
+                    // The page exists to find or add a package; the field is the first thing to use.
+                    autoFocus
+                    value={text}
+                    onChange={(event) => setText(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') installSource();
+                      if (event.key === 'Escape' && text) {
+                        event.preventDefault();
+                        setText('');
+                      }
                     }}
-                  >
-                    <IconX />
-                  </Button>
-                )}
+                    placeholder={
+                      tab === 'installed' ? 'Filter installed packages' : 'Search the marketplace'
+                    }
+                    spellCheck={false}
+                    autoComplete="off"
+                    aria-label="Search packages"
+                    className="h-full min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-muted-foreground"
+                    data-testid="packages-field"
+                  />
+                  {text && (
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label="Clear"
+                      className="text-muted-foreground"
+                      onClick={() => {
+                        setText('');
+                        fieldRef.current?.focus();
+                      }}
+                    >
+                      <IconX />
+                    </Button>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-10"
+                  onClick={() => setDialog({ kind: 'source' })}
+                  data-testid="packages-install-source"
+                >
+                  <IconDownload data-icon="inline-start" />
+                  Install from…
+                </Button>
               </div>
               {input.kind === 'source' && !failedSameSource && (
                 <SourceInstallCard
@@ -569,6 +639,13 @@ export default function PackagesPage({
             {input.kind !== 'source' && (tab === 'installed' ? installedTab : marketplaceTab)}
           </div>
         </div>
+        {dialog?.kind === 'source' && (
+          <InstallSourceDialog
+            disabled={running}
+            onInstall={installFromDialog}
+            onClose={() => setDialog(null)}
+          />
+        )}
         {dialog?.kind === 'local' && (
           <LocalResourcesDialog resources={localResources} onClose={() => setDialog(null)} />
         )}
@@ -579,6 +656,9 @@ export default function PackagesPage({
             catalog={dialogCatalog}
             hasUpdate={
               dialogInstalled ? (health?.updates.includes(dialogInstalled.source) ?? false) : false
+            }
+            releasedAt={
+              dialogInstalled ? (health?.releasedAt[dialogInstalled.source] ?? null) : null
             }
             loadErrors={health?.loadErrors ?? []}
             busy={dialogInstalled ? isBusy(dialogInstalled) : false}

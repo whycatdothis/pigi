@@ -657,6 +657,8 @@ export enum PiChannel {
   CheckPiPackages = 'pi:check_pi_packages',
   /** renderer → main: install, remove or update one package; operations run one at a time */
   RunPiPackageOperation = 'pi:run_pi_package_operation',
+  /** renderer → main: a folder picked in the system dialog to install as a package, or null */
+  PickPackageFolder = 'pi:pick_package_folder',
   /** renderer → main: search the npm registry for pi packages */
   SearchPiPackageCatalog = 'pi:search_pi_package_catalog',
   /** renderer → main: one catalog package's README and manifest */

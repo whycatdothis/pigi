@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { formatTimeAgo } from '@/lib/utils';
 import { PackageCard, PackageThumbnail } from './packageCards';
 import { PackageTitle } from './installedPackages';
-import { formatDownloads, RESOURCE_KIND_LABELS } from './packageLabels';
+import { formatDownloads } from './packageLabels';
 
 export interface CatalogInstallState {
   installed: boolean;
@@ -24,7 +24,6 @@ export function CatalogMeta({ pkg }: { pkg: CatalogPackage }): React.JSX.Element
     pkg.author,
     pkg.monthlyDownloads !== null ? formatDownloads(pkg.monthlyDownloads) : null,
     pkg.date ? formatTimeAgo(pkg.date, now) : null,
-    pkg.kinds.map((kind) => RESOURCE_KIND_LABELS[kind].one).join(', ') || null,
   ].filter(Boolean);
   return (
     <span className="truncate text-caption text-muted-foreground/80">{parts.join(' · ')}</span>
@@ -96,10 +95,11 @@ export function CatalogPackageCard({
     <PackageCard
       testId={`catalog-package-${pkg.name}`}
       onOpen={onOpen}
-      thumbnail={<PackageThumbnail name={pkg.name} image={{ npm: pkg.name }} kinds={pkg.kinds} />}
+      thumbnail={<PackageThumbnail image={{ npm: pkg.name }} kinds={pkg.kinds} />}
       title={<PackageTitle title={pkg.name} version={pkg.version} scope={null} />}
       description={pkg.description}
       meta={<CatalogMeta pkg={pkg} />}
+      kinds={pkg.kinds}
       actions={<CatalogInstallButton state={installState} onInstall={onInstall} />}
     />
   );

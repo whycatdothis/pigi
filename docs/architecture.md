@@ -864,11 +864,14 @@ Two data paths:
 The sidebar's Packages entry shows `components/packages/PackagesPage.tsx` in
 the main area beside the normal sidebar (`appStore.packagesOpen`); showing a
 session, a new chat or another workspace tab closes it. It has an Installed
-and a Marketplace tab of package cards, and one field over both:
-`parsePackageInput` (`shared/piPackages.ts`) reads `pi install …`,
-`npm:`/`git:` sources, git URLs, paths and npm or pi.dev package pages as a
-source to install on either tab, and anything else as a filter of the
-installed packages or a marketplace search.
+and a Marketplace tab of package cards and one field over both, which filters
+the installed packages or searches the marketplace. Installing from a source
+has its own dialog ("Install from…", with a folder picker), because a search
+field that also installs hid the install from everyone who did not already
+know. `parsePackageInput` (`shared/piPackages.ts`) still reads `pi install …`,
+`npm:`/`git:` sources, git URLs, paths and npm or pi.dev package pages pasted
+into the field as a source to install; the dialog's `parseInstallSource` also
+takes a bare word as an npm name.
 
 **Installed packages** come from pi's own `DefaultPackageManager`, run in
 `processes/utility/packageWorker.ts`, one process per request (list, check,
@@ -880,7 +883,8 @@ process is per operation; and the check loads every extension, which runs
 their code and may leave timers or children that a long-lived worker would
 collect. The list itself never executes package code (resolve with `skip` for
 missing sources); the check, which the page runs after every list, does: npm
-`view`/`git ls-remote` for updates and `discoverAndLoadExtensions` for load
+`view`/`git ls-remote` for updates, the installed version's npm publish time or
+git commit time for the card's age, and `discoverAndLoadExtensions` for load
 errors, against agentDir rather than the project so an untrusted project's
 `.pi/extensions` is not loaded. Operations queue in main, since two npm
 installs into one prefix race on its lockfile, and the running operation is
@@ -917,9 +921,8 @@ on disk for an installed package, the registry's `/latest` manifest for a
 catalog one, then the image itself. The address names a package rather than a
 URL, so the scheme in the CSP cannot be turned into a fetch of an arbitrary
 address by a markdown image in chat. No image, or a failed one, is a 404 and
-the card keeps the icon of what the package holds, on a tile whose hue comes
-from the package name (`tileHue`: eight fixed hues, so each one is chosen to
-look right in both themes).
+the card keeps the icon of what the package holds most of, tinted by that
+kind (`.package-tile` in `main.css`).
 
 ## File Map
 

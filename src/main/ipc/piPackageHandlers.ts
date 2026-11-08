@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { dialog, ipcMain, type OpenDialogOptions } from 'electron';
 import {
   PiChannel,
   type PackageWorkerCommand,
@@ -16,6 +16,7 @@ import {
 } from '../../shared/piPackages';
 import { createPackageWorkerProcess } from '../processes/createPiAgentProcess';
 import { getCatalogPackage, searchCatalog } from '../packages/packageCatalog';
+import { getMainWindow } from '../windows/createMainWindow';
 import { reloadAfterPackageChange } from './piAgentBridge';
 
 const TIMEOUT_MS: Record<PackageWorkerCommand['type'], number> = {
@@ -155,6 +156,15 @@ export function registerPiPackageHandlers(): void {
       return enqueueOperation(cwd, operation);
     },
   );
+
+  ipcMain.handle(PiChannel.PickPackageFolder, async (): Promise<string | null> => {
+    const options: OpenDialogOptions = { properties: ['openDirectory'] };
+    const win = getMainWindow();
+    const result = win
+      ? await dialog.showOpenDialog(win, options)
+      : await dialog.showOpenDialog(options);
+    return result.canceled ? null : (result.filePaths[0] ?? null);
+  });
 
   ipcMain.handle(
     PiChannel.SearchPiPackageCatalog,

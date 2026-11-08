@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  authorFromManifest,
   failureReason,
   imageUrlFromManifest,
   npmNameFromSource,
   packageImageUrl,
   parsePackageImageUrl,
+  parseInstallSource,
   parsePackageInput,
   resourceKindsFromKeywords,
 } from './piPackages';
@@ -101,5 +103,34 @@ describe('package images', () => {
     expect(imageUrlFromManifest({ pi: { image: 'https://x.dev/a.svg' } })).toBeNull();
     expect(imageUrlFromManifest({ pi: { image: 'file:///etc/a.png' } })).toBeNull();
     expect(imageUrlFromManifest({ pi: { video: 'https://x.dev/a.mp4' } })).toBeNull();
+  });
+});
+
+describe('authorFromManifest', () => {
+  it('reads the name from either form, without email or url', () => {
+    expect(authorFromManifest({ author: 'Ada Lovelace <ada@example.com> (https://ada.dev)' })).toBe(
+      'Ada Lovelace',
+    );
+    expect(authorFromManifest({ author: { name: 'Ada', email: 'ada@example.com' } })).toBe('Ada');
+    expect(authorFromManifest({ author: '' })).toBeNull();
+    expect(authorFromManifest(null)).toBeNull();
+  });
+});
+
+describe('parseInstallSource', () => {
+  it('reads a bare word as an npm name and keeps other sources', () => {
+    expect(parseInstallSource('pi-web-access')).toBe('npm:pi-web-access');
+    expect(parseInstallSource('pi install npm:@scope/pkg')).toBe('npm:@scope/pkg');
+    expect(parseInstallSource('https://github.com/user/repo')).toBe('https://github.com/user/repo');
+    expect(parseInstallSource('~/code/pkg')).toBe('~/code/pkg');
+    expect(parseInstallSource('npm:@scope/name@1.2.0')).toBe('npm:@scope/name@1.2.0');
+    expect(parseInstallSource('git@github.com:user/repo.git')).toBe(
+      'git:git@github.com:user/repo.git',
+    );
+  });
+
+  it('rejects text that is not one source', () => {
+    expect(parseInstallSource('')).toBeNull();
+    expect(parseInstallSource('two words')).toBeNull();
   });
 });

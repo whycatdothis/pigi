@@ -6,7 +6,7 @@ import {
 } from '../../../../shared/piPackages';
 import { Skeleton } from '../ui/skeleton';
 import { cn } from '@/lib/utils';
-import { RESOURCE_KIND_ICONS, UNKNOWN_KIND_ICON, tileHue } from './packageLabels';
+import { RESOURCE_KIND_ICONS, RESOURCE_KIND_LABELS, UNKNOWN_KIND_ICON } from './packageLabels';
 
 /** At most two columns, one when a column would get narrower than 18rem; gap-3 is 12px. */
 const GRID_COLUMNS = 'repeat(auto-fill, minmax(max(18rem, calc(50% - 6px)), 1fr))';
@@ -24,16 +24,11 @@ export function CardGrid({ children }: { children: React.ReactNode }): React.JSX
  * holds. The icon shows until the image loads, so a slow or missing image
  * never shows a broken one.
  */
-const PACKAGE_HUE_PROPERTY = '--package-hue';
-
 export function PackageThumbnail({
-  name,
   image,
   kinds,
   size = 'md',
 }: {
-  /** Picks the tile colour. */
-  name: string;
   image: PackageImageTarget | null;
   kinds: readonly PiResourceKind[];
   size?: 'md' | 'lg';
@@ -41,18 +36,16 @@ export function PackageThumbnail({
   const [status, setStatus] = useState<'loading' | 'loaded' | 'failed'>('loading');
   const kind = kinds[0];
   const KindIcon = kind ? RESOURCE_KIND_ICONS[kind] : UNKNOWN_KIND_ICON;
-  const style: React.CSSProperties & { [PACKAGE_HUE_PROPERTY]: number } = {
-    [PACKAGE_HUE_PROPERTY]: tileHue(name),
-  };
+  // A transparent logo was drawn for a plain background, not a kind's tint.
+  const tinted = kind !== undefined && status !== 'loaded';
   return (
     <div
+      data-kind={tinted ? kind : undefined}
       className={cn(
-        'package-tile relative flex shrink-0 items-center justify-center overflow-hidden rounded-control',
+        'relative flex shrink-0 items-center justify-center overflow-hidden rounded-control',
         size === 'md' ? 'size-11' : 'size-14',
-        // A transparent logo was drawn for a plain background, not the tile's hue.
-        status === 'loaded' && 'bg-muted',
+        tinted ? 'package-tile' : 'bg-muted text-muted-foreground',
       )}
-      style={style}
     >
       {/* Gone once the image shows: a transparent logo would sit on top of it. */}
       {status !== 'loaded' && <KindIcon size={size === 'md' ? 26 : 32} stroke={1.5} />}
@@ -74,6 +67,22 @@ export function PackageThumbnail({
   );
 }
 
+/** What a package holds, as pi.dev labels it. */
+export function KindLabels({ kinds }: { kinds: readonly PiResourceKind[] }): React.JSX.Element {
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1">
+      {kinds.map((kind) => (
+        <span
+          key={kind}
+          className="rounded-inline border border-border px-1.5 py-0.5 text-3xs leading-none font-medium tracking-wider text-foreground uppercase"
+        >
+          {RESOURCE_KIND_LABELS[kind].one}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 /**
  * One package: the card opens its details, the actions act in place. The
  * actions sit outside the card's button, so clicking one does not open it.
@@ -83,6 +92,7 @@ export function PackageCard({
   title,
   description,
   meta,
+  kinds = [],
   notice,
   actions,
   onOpen,
@@ -92,6 +102,7 @@ export function PackageCard({
   title: React.ReactNode;
   description?: string | null;
   meta?: React.ReactNode;
+  kinds?: readonly PiResourceKind[];
   notice?: React.ReactNode;
   actions?: React.ReactNode;
   onOpen: () => void;
@@ -115,6 +126,7 @@ export function PackageCard({
           <p className="line-clamp-2 text-caption text-muted-foreground">{description}</p>
         )}
         {meta && <span className="truncate text-caption text-muted-foreground/80">{meta}</span>}
+        {kinds.length > 0 && <KindLabels kinds={kinds} />}
         {notice}
       </div>
       {actions && (

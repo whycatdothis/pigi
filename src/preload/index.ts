@@ -547,6 +547,8 @@ const piApi = {
   ): Promise<PiPackageOperationResult> =>
     ipcRenderer.invoke(PiChannel.RunPiPackageOperation, cwd, operation),
 
+  pickPackageFolder: (): Promise<string | null> => ipcRenderer.invoke(PiChannel.PickPackageFolder),
+
   searchPiPackageCatalog: (query: string): Promise<CatalogSearchResult> =>
     ipcRenderer.invoke(PiChannel.SearchPiPackageCatalog, query),
 

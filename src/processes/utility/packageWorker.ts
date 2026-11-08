@@ -18,11 +18,14 @@ import {
   type ResolvedResource,
   SettingsManager,
 } from '@earendil-works/pi-coding-agent';
+import { execFile } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import type { PackageWorkerCommand, PackageWorkerResponse } from '../../shared/ipcContract';
 import {
+  authorFromManifest,
+  npmNameFromSource,
   PI_RESOURCE_KINDS,
   type InstalledPiPackage,
   type PiExtensionLoadError,
@@ -42,6 +45,9 @@ const NO_SUCH_DIRECTORY = '.pigi-no-extensions';
 
 /** Extension factories run arbitrary code; one that never settles must not hang the page. */
 const EXTENSION_LOAD_TIMEOUT_MS = 20_000;
+
+/** pi's own `npm view` for updates waits as long. */
+const RELEASE_DATE_TIMEOUT_MS = 15_000;
 
 interface PackageContext {
   agentDir: string;
@@ -174,6 +180,7 @@ async function readSnapshot(context: PackageContext): Promise<PiPackagesSnapshot
         scope: configured.scope,
         version: stringField(manifest, 'version'),
         description: stringField(manifest, 'description'),
+        author: authorFromManifest(manifest),
         installedPath,
         repositoryUrl: repositoryUrlFromManifest(manifest),
         resources: byPackage.get(packageKey(configured.scope, configured.source)) ?? [],
@@ -228,14 +235,60 @@ async function loadErrors(
     }));
 }
 
+function capture(command: string, args: string[], cwd: string): Promise<string> {
+  return new Promise((resolvePromise, reject) => {
+    execFile(command, args, { cwd, timeout: RELEASE_DATE_TIMEOUT_MS }, (error, stdout) => {
+      if (error) reject(error);
+      else resolvePromise(stdout.trim());
+    });
+  });
+}
+
+/** When the installed version was published (npm) or committed (git); null for a folder. */
+async function releaseDate(
+  context: PackageContext,
+  source: string,
+  installedPath: string,
+): Promise<string | null> {
+  const name = npmNameFromSource(source);
+  if (name) {
+    const version = stringField(readJson(join(installedPath, 'package.json')), 'version');
+    if (!version) return null;
+    // The npm pi itself runs, so a configured registry, proxy or token applies.
+    const [command = 'npm', ...args] = context.settingsManager.getNpmCommand() ?? [];
+    const times: unknown = JSON.parse(
+      await capture(command, [...args, 'view', name, 'time', '--json'], context.cwd),
+    );
+    const time: unknown =
+      typeof times === 'object' && times !== null ? Reflect.get(times, version) : null;
+    return typeof time === 'string' ? time : null;
+  }
+  if (!existsSync(join(installedPath, '.git'))) return null;
+  return (await capture('git', ['log', '-1', '--format=%cI'], installedPath)) || null;
+}
+
+async function releaseDates(context: PackageContext): Promise<Record<string, string>> {
+  const entries = await Promise.all(
+    context.packageManager
+      .listConfiguredPackages()
+      .map(async ({ source, installedPath }): Promise<[string, string] | null> => {
+        if (!installedPath || !existsSync(installedPath)) return null;
+        const date = await releaseDate(context, source, installedPath).catch(() => null);
+        return date ? [source, date] : null;
+      }),
+  );
+  return Object.fromEntries(entries.filter((entry) => entry !== null));
+}
+
 async function checkHealth(context: PackageContext): Promise<PiPackagesHealth> {
-  const [updates, errors] = await Promise.all([
+  const [updates, errors, releasedAt] = await Promise.all([
     context.packageManager.checkForAvailableUpdates().catch(() => []),
     loadErrors(context).catch((error: unknown): PiExtensionLoadError[] => [
       { path: '', error: error instanceof Error ? error.message : String(error) },
     ]),
+    releaseDates(context),
   ]);
-  return { updates: updates.map((update) => update.source), loadErrors: errors };
+  return { updates: updates.map((update) => update.source), loadErrors: errors, releasedAt };
 }
 
 function expandHome(source: string): string {

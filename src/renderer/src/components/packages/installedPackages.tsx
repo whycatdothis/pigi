@@ -21,11 +21,11 @@ import { cn } from '@/lib/utils';
 import { PackageCard, PackageThumbnail } from './packageCards';
 import {
   errorsForPackage,
+  installedMeta,
   packageTitle,
   RESOURCE_KIND_ICONS,
   RESOURCE_KIND_LABELS,
   resourceKinds,
-  resourceSummary,
 } from './packageLabels';
 
 export function ScopeBadge(): React.JSX.Element {
@@ -286,6 +286,7 @@ export function PackageTitle({
 export function InstalledPackageCard({
   pkg,
   hasUpdate,
+  releasedAt,
   loadErrors,
   busy,
   disabled,
@@ -294,6 +295,7 @@ export function InstalledPackageCard({
 }: {
   pkg: InstalledPiPackage;
   hasUpdate: boolean;
+  releasedAt: string | null;
   loadErrors: readonly PiExtensionLoadError[];
   busy: boolean;
   disabled: boolean;
@@ -301,20 +303,22 @@ export function InstalledPackageCard({
   onOpen: () => void;
 }): React.JSX.Element {
   const title = packageTitle(pkg);
+  // An age read once is precise enough for "3d ago".
+  const [now] = useState(() => Date.now());
   return (
     <PackageCard
       testId={`installed-package-${title}`}
       onOpen={onOpen}
       thumbnail={
         <PackageThumbnail
-          name={title}
           image={pkg.installedPath ? { path: pkg.installedPath } : null}
           kinds={resourceKinds(pkg.resources)}
         />
       }
       title={<PackageTitle title={title} version={pkg.version} scope={pkg.scope} />}
       description={pkg.description}
-      meta={resourceSummary(pkg.resources) || null}
+      meta={installedMeta(pkg, releasedAt, now)}
+      kinds={resourceKinds(pkg.resources)}
       notice={
         <PackageNotice
           missing={pkg.installedPath === null}
@@ -349,10 +353,10 @@ export function LocalResourcesCard({
     <PackageCard
       testId="local-resources"
       onOpen={onOpen}
-      thumbnail={<PackageThumbnail name="Local" image={null} kinds={resourceKinds(resources)} />}
+      thumbnail={<PackageThumbnail image={null} kinds={resourceKinds(resources)} />}
       title={<PackageTitle title="Local" version={null} scope={null} />}
       description={LOCAL_RESOURCES_DESCRIPTION}
-      meta={resourceSummary(resources)}
+      kinds={resourceKinds(resources)}
     />
   );
 }

@@ -15,6 +15,7 @@ import {
   type PiResource,
   type PiResourceKind,
 } from '../../../../shared/piPackages';
+import { formatTimeAgo } from '@/lib/utils';
 
 export const RESOURCE_KIND_LABELS: Record<PiResourceKind, { one: string; many: string }> = {
   extensions: { one: 'extension', many: 'extensions' },
@@ -92,18 +93,6 @@ function displaySource(source: string): string {
     .replace(/\.git(@|$)/, '$1');
 }
 
-/** oklch hues for image-less tiles, about 45° apart; no pure red, which reads as an error. */
-const TILE_HUES: readonly number[] = [55, 85, 145, 185, 225, 265, 300, 340];
-
-/** One fixed hue per package name (FNV-1a), the same on both tabs and across restarts. */
-export function tileHue(name: string): number {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < name.length; index++) {
-    hash = Math.imul(hash ^ name.charCodeAt(index), 0x01000193) >>> 0;
-  }
-  return TILE_HUES[hash % TILE_HUES.length] ?? 0;
-}
-
 /** A git source's web page, for a manifest without `repository`. */
 export function gitWebUrl(source: string): string | null {
   if (sourceKindLabel(source) !== 'Git repository') return null;
@@ -117,7 +106,7 @@ export function gitWebUrl(source: string): string | null {
  * What the user installed, not package.json's name: a git repo's manifest can
  * name something it no longer contains.
  */
-export function packageTitle(pkg: InstalledPiPackage): string {
+export function packageTitle(pkg: Pick<InstalledPiPackage, 'source'>): string {
   return npmNameFromSource(pkg.source) ?? displaySource(pkg.source);
 }
 
@@ -129,4 +118,16 @@ export function resourceKinds(resources: readonly PiResource[]): PiResourceKind[
   const count = (kind: PiResourceKind): number =>
     resources.filter((resource) => resource.kind === kind).length;
   return PI_RESOURCE_KINDS.filter((kind) => count(kind) > 0).sort((a, b) => count(b) - count(a));
+}
+
+/** "Nico · 3d ago": who wrote it and how old the installed version is. */
+export function installedMeta(
+  pkg: InstalledPiPackage,
+  releasedAt: string | null,
+  now: number,
+): string | null {
+  return (
+    [pkg.author, releasedAt ? formatTimeAgo(releasedAt, now) : null].filter(Boolean).join(' · ') ||
+    null
+  );
 }

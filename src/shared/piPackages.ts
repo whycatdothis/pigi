@@ -27,6 +27,7 @@ export interface InstalledPiPackage {
   scope: PiPackageScope;
   version: string | null;
   description: string | null;
+  author: string | null;
   /** Null when settings name the package but it is not installed. */
   installedPath: string | null;
   repositoryUrl: string | null;
@@ -51,6 +52,8 @@ export interface PiPackagesHealth {
   /** Sources with a newer version than the one installed. */
   updates: string[];
   loadErrors: PiExtensionLoadError[];
+  /** By source: when the installed version was published (npm) or committed (git). */
+  releasedAt: Record<string, string>;
 }
 
 export type PiPackageAction = 'install' | 'remove' | 'update';
@@ -167,6 +170,15 @@ export const PI_DEV_PACKAGES_URL = 'https://pi.dev/packages';
 
 export function piDevPackageUrl(name: string): string {
   return `${PI_DEV_PACKAGES_URL}/${name}`;
+}
+
+/** A package.json `author`: `"Name <email> (url)"` or `{ name }`. */
+export function authorFromManifest(manifest: Record<string, unknown> | null): string | null {
+  const author = manifest?.['author'];
+  const raw =
+    typeof author === 'object' && author !== null && 'name' in author ? author.name : author;
+  if (typeof raw !== 'string') return null;
+  return raw.replace(/\s*[<(].*$/, '').trim() || null;
 }
 
 /** A package.json `repository` (string, object, `git+`, scp-like or `user/repo`) as a browsable URL. */
@@ -292,4 +304,11 @@ export function parsePackageInput(text: string): PackageInput {
     if (source) return { kind: 'source', source };
   }
   return { kind: 'search', query: text.trim() };
+}
+
+/** A line typed where only an install makes sense: a bare word is an npm name. */
+export function parseInstallSource(text: string): string | null {
+  const line = text.trim();
+  const input = parsePackageInput(/^pi\s+install\s/.test(line) ? line : `pi install ${line}`);
+  return input.kind === 'source' ? input.source : null;
 }

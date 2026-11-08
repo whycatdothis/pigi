@@ -5,12 +5,13 @@
 ### Added
 
 - A Packages page, below Open project in the sidebar, for pi packages. The
-  Installed tab shows each package as a card with its preview image; open one
-  to see its extensions, skills, prompts and themes, and update or remove it in
-  place. The Marketplace tab browses and searches the pi package catalog, with
-  each package's README before installing. Any npm, git or folder source can be
-  typed or pasted to install it for every project (`pi install …` lines
-  included). Changes apply to open sessions without restarting, and a failed
+  Installed tab shows each package as a card with its preview image, author and
+  how old the installed version is; open one to see its extensions, skills,
+  prompts and themes, and update or remove it in place, or update them all at
+  once. The Marketplace tab browses and searches the pi package catalog, with
+  each package's README before installing. Install from… installs any npm, git or
+  folder source for every project (`pi install …` lines included, or pick the
+  folder). Changes apply to open sessions without restarting, and a failed
   install shows npm's or git's reason with the full output.
 
 ### Changed

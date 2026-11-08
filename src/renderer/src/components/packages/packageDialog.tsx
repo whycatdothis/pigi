@@ -19,7 +19,7 @@ import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
 import { Skeleton } from '../ui/skeleton';
 import MarkdownMessage from '../message/markdownMessage';
-import { PackageThumbnail } from './packageCards';
+import { KindLabels, PackageThumbnail } from './packageCards';
 import { CatalogInstallButton, CatalogMeta, type CatalogInstallState } from './catalogPackages';
 import {
   InstalledActions,
@@ -29,6 +29,7 @@ import {
 } from './installedPackages';
 import {
   errorsForPackage,
+  installedMeta,
   gitWebUrl,
   packageTitle,
   resourceKinds,
@@ -159,6 +160,7 @@ export function PackageDialog({
   installed,
   catalog,
   hasUpdate,
+  releasedAt,
   loadErrors,
   busy,
   disabled,
@@ -171,6 +173,7 @@ export function PackageDialog({
   installed: InstalledPiPackage | null;
   catalog: CatalogPackage | null;
   hasUpdate: boolean;
+  releasedAt: string | null;
   loadErrors: readonly PiExtensionLoadError[];
   busy: boolean;
   disabled: boolean;
@@ -190,6 +193,7 @@ export function PackageDialog({
   const readme = ready?.readme ? readmeForDisplay(ready.readme, repositoryUrl) : null;
   const errors = installed ? errorsForPackage(installed, loadErrors) : [];
   const title = installed ? packageTitle(installed) : (catalog?.name ?? '');
+  const [now] = useState(() => Date.now());
   const description = installed?.description ?? catalog?.description ?? null;
 
   const header = (
@@ -197,7 +201,6 @@ export function PackageDialog({
       <div className="flex items-start gap-4 pr-8">
         <PackageThumbnail
           size="lg"
-          name={title}
           image={
             installed?.installedPath
               ? { path: installed.installedPath }
@@ -219,11 +222,16 @@ export function PackageDialog({
             {description || 'No description.'}
           </DialogDescription>
           {catalog ? (
-            <CatalogMeta pkg={catalog} />
+            <>
+              <CatalogMeta pkg={catalog} />
+              {catalog.kinds.length > 0 && <KindLabels kinds={catalog.kinds} />}
+            </>
           ) : (
             installed && (
               <span className="text-caption text-muted-foreground/80">
-                {resourceSummary(installed.resources)}
+                {[installedMeta(installed, releasedAt, now), resourceSummary(installed.resources)]
+                  .filter(Boolean)
+                  .join(' · ')}
               </span>
             )
           )}
@@ -310,7 +318,7 @@ export function LocalResourcesDialog({
       onClose={onClose}
       header={
         <div className="flex items-start gap-4 pr-8">
-          <PackageThumbnail size="lg" name="Local" image={null} kinds={resourceKinds(resources)} />
+          <PackageThumbnail size="lg" image={null} kinds={resourceKinds(resources)} />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <DialogTitle className="text-lg leading-tight">Local</DialogTitle>
             <DialogDescription className="text-caption text-muted-foreground">

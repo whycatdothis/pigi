@@ -129,6 +129,7 @@ interface PiApi {
     cwd: string | null,
     operation: PiPackageOperation,
   ) => Promise<PiPackageOperationResult>;
+  pickPackageFolder: () => Promise<string | null>;
   searchPiPackageCatalog: (query: string) => Promise<CatalogSearchResult>;
   getPiCatalogPackage: (name: string) => Promise<CatalogPackageDetailResult>;
 
