@@ -26,6 +26,7 @@ import {
   RESOURCE_KIND_ICONS,
   RESOURCE_KIND_LABELS,
   resourceKinds,
+  LOCAL_RESOURCES_ICON,
 } from './packageLabels';
 
 function ScopeBadge(): React.JSX.Element {
@@ -43,7 +44,7 @@ export function ResourceList({
 }): React.JSX.Element {
   if (resources.length === 0) {
     return (
-      <p className="text-caption text-muted-foreground">
+      <p className="text-ui text-muted-foreground">
         Nothing for pi in this package, or a filter in settings excludes all of it.
       </p>
     );
@@ -56,7 +57,7 @@ export function ResourceList({
         const KindIcon = RESOURCE_KIND_ICONS[kind];
         return (
           <div key={kind} className="flex flex-col gap-1">
-            <h4 className="text-caption font-semibold text-muted-foreground capitalize">
+            <h4 className="text-ui font-semibold text-muted-foreground capitalize">
               {RESOURCE_KIND_LABELS[kind].many} · {ofKind.length}
             </h4>
             <ul className="flex flex-col">
@@ -69,21 +70,21 @@ export function ResourceList({
                   )}
                   title={resource.path}
                 >
-                  <KindIcon size={14} className="mt-[3px] shrink-0 text-muted-foreground" />
+                  <KindIcon size={16} className="mt-1 shrink-0 text-muted-foreground" />
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="flex min-w-0 items-center gap-2">
-                      <span className="truncate text-caption font-medium text-foreground">
+                      <span className="truncate text-body font-medium text-foreground">
                         {resource.name}
                       </span>
                       {resource.scope === 'project' && <ScopeBadge />}
                       {!resource.enabled && (
-                        <span className="shrink-0 text-2xs text-muted-foreground">Disabled</span>
+                        <span className="shrink-0 text-caption text-muted-foreground">
+                          Disabled
+                        </span>
                       )}
                     </div>
                     {resource.description && (
-                      <span className="text-caption text-muted-foreground">
-                        {resource.description}
-                      </span>
+                      <span className="text-ui text-muted-foreground">{resource.description}</span>
                     )}
                   </div>
                 </li>
@@ -353,7 +354,7 @@ export function LocalResourcesCard({
     <PackageCard
       testId="local-resources"
       onOpen={onOpen}
-      thumbnail={<PackageThumbnail image={null} kinds={resourceKinds(resources)} />}
+      thumbnail={<PackageThumbnail image={null} kinds={[]} icon={LOCAL_RESOURCES_ICON} />}
       title={<PackageTitle title="Local" version={null} scope={null} />}
       description={LOCAL_RESOURCES_DESCRIPTION}
       kinds={resourceKinds(resources)}

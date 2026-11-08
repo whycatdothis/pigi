@@ -4,7 +4,7 @@ import type { CatalogPackage } from '../../../../shared/piPackages';
 import { Button } from '../ui/button';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { formatTimeAgo } from '@/lib/utils';
+import { cn, formatTimeAgo } from '@/lib/utils';
 import { PackageCard, PackageThumbnail } from './packageCards';
 import { PackageTitle } from './installedPackages';
 import { formatDownloads } from './packageLabels';
@@ -17,7 +17,13 @@ export interface CatalogInstallState {
   disabled: boolean;
 }
 
-export function CatalogMeta({ pkg }: { pkg: CatalogPackage }): React.JSX.Element {
+export function CatalogMeta({
+  pkg,
+  className,
+}: {
+  pkg: CatalogPackage;
+  className?: string;
+}): React.JSX.Element {
   // An age read once is precise enough for "3d ago".
   const [now] = useState(() => Date.now());
   const parts = [
@@ -26,7 +32,9 @@ export function CatalogMeta({ pkg }: { pkg: CatalogPackage }): React.JSX.Element
     pkg.date ? formatTimeAgo(pkg.date, now) : null,
   ].filter(Boolean);
   return (
-    <span className="truncate text-caption text-muted-foreground/80">{parts.join(' · ')}</span>
+    <span className={cn('truncate text-caption text-muted-foreground/80', className)}>
+      {parts.join(' · ')}
+    </span>
   );
 }
 

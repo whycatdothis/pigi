@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { Icon } from '@tabler/icons-react';
 import {
   packageImageUrl,
   type PackageImageTarget,
@@ -27,15 +28,18 @@ export function CardGrid({ children }: { children: React.ReactNode }): React.JSX
 export function PackageThumbnail({
   image,
   kinds,
+  icon,
   size = 'md',
 }: {
   image: PackageImageTarget | null;
   kinds: readonly PiResourceKind[];
+  /** Not a package: this icon on the theme colour instead of a kind's. */
+  icon?: Icon;
   size?: 'md' | 'lg';
 }): React.JSX.Element {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'failed'>('loading');
-  const kind = kinds[0];
-  const KindIcon = kind ? RESOURCE_KIND_ICONS[kind] : UNKNOWN_KIND_ICON;
+  const kind = icon ? undefined : kinds[0];
+  const KindIcon = icon ?? (kind ? RESOURCE_KIND_ICONS[kind] : UNKNOWN_KIND_ICON);
   // A transparent logo was drawn for a plain background, not a kind's tint.
   const tinted = kind !== undefined && status !== 'loaded';
   return (
@@ -44,7 +48,11 @@ export function PackageThumbnail({
       className={cn(
         'relative flex shrink-0 items-center justify-center overflow-hidden rounded-control',
         size === 'md' ? 'size-11' : 'size-14',
-        tinted ? 'package-tile' : 'bg-muted text-muted-foreground',
+        tinted
+          ? 'package-tile'
+          : icon
+            ? 'bg-primary/10 text-primary'
+            : 'bg-muted text-muted-foreground',
       )}
     >
       {/* Gone once the image shows: a transparent logo would sit on top of it. */}

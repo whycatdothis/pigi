@@ -1,6 +1,7 @@
 import {
   IconArchive,
   IconCube,
+  IconDeviceLaptop,
   IconMessageDots,
   IconPalette,
   IconWand,
@@ -35,6 +36,9 @@ export const RESOURCE_KIND_ICONS: Record<PiResourceKind, Icon> = {
 
 /** A catalog package whose keywords name no kind. */
 export const UNKNOWN_KIND_ICON: Icon = IconArchive;
+
+/** Resources no package owns: they live on this machine. */
+export const LOCAL_RESOURCES_ICON: Icon = IconDeviceLaptop;
 
 /** "2 extensions · 1 skill" */
 export function resourceSummary(resources: readonly PiResource[]): string {

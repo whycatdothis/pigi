@@ -32,12 +32,12 @@ function Examples(): React.JSX.Element {
     <dl className="grid grid-cols-[3.5rem_1fr] items-baseline gap-x-3 gap-y-2.5">
       {EXAMPLES.map(({ kind, sources }) => (
         <div key={kind} className="contents">
-          <dt className="text-caption text-muted-foreground">{kind}</dt>
+          <dt className="text-ui text-muted-foreground">{kind}</dt>
           <dd className="flex flex-wrap gap-1.5">
             {sources.map((example) => (
               <code
                 key={example}
-                className="rounded-inline bg-muted px-1.5 py-0.5 font-mono text-code-compact text-foreground select-text"
+                className="rounded-inline bg-muted px-1.5 py-0.5 font-mono text-code text-foreground select-text"
               >
                 {example}
               </code>
@@ -88,16 +88,16 @@ function SourcePreview({
             <span className="truncate font-mono text-code text-foreground" title={source}>
               {packageTitle({ source })}
             </span>
-            <span className="text-caption text-muted-foreground">
+            <span className="text-ui text-muted-foreground">
               {busy ? `${kind} · another change is running` : kind}
             </span>
           </>
         ) : empty ? (
-          <span className="text-caption text-muted-foreground">
+          <span className="text-ui text-muted-foreground">
             Type or paste a source, or open a folder
           </span>
         ) : (
-          <span className="text-caption text-danger-fg">Not an npm name, git URL or path</span>
+          <span className="text-ui text-danger-fg">Not an npm name, git URL or path</span>
         )}
       </div>
     </div>

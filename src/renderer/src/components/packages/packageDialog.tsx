@@ -29,6 +29,7 @@ import {
 } from './installedPackages';
 import {
   errorsForPackage,
+  LOCAL_RESOURCES_ICON,
   installedMeta,
   gitWebUrl,
   packageTitle,
@@ -126,7 +127,7 @@ function DialogSection({
 }): React.JSX.Element {
   return (
     <section className="flex flex-col gap-3">
-      <h3 className="text-caption font-semibold text-muted-foreground">{title}</h3>
+      <h3 className="text-ui font-semibold text-muted-foreground">{title}</h3>
       {children}
     </section>
   );
@@ -218,17 +219,17 @@ export function PackageDialog({
               scope={installed?.scope ?? null}
             />
           </DialogTitle>
-          <DialogDescription className="line-clamp-4 text-caption text-muted-foreground">
+          <DialogDescription className="line-clamp-4 text-ui text-muted-foreground">
             {description || 'No description.'}
           </DialogDescription>
           {catalog ? (
             <>
-              <CatalogMeta pkg={catalog} />
+              <CatalogMeta pkg={catalog} className="text-ui" />
               {catalog.kinds.length > 0 && <KindLabels kinds={catalog.kinds} />}
             </>
           ) : (
             installed && (
-              <span className="text-caption text-muted-foreground/80">
+              <span className="text-ui text-muted-foreground/80">
                 {[installedMeta(installed, releasedAt, now), resourceSummary(installed.resources)]
                   .filter(Boolean)
                   .join(' · ')}
@@ -260,12 +261,12 @@ export function PackageDialog({
         {npmName && <LinkButton href={npmPackageUrl(npmName)}>npm</LinkButton>}
         {repositoryUrl && <LinkButton href={repositoryUrl}>Repository</LinkButton>}
         {ready?.license && (
-          <span className="px-2 text-caption text-muted-foreground">{ready.license}</span>
+          <span className="px-2 text-ui text-muted-foreground">{ready.license}</span>
         )}
       </div>
       {!installed && (
-        <p className="flex items-start gap-1.5 text-caption text-muted-foreground">
-          <IconShieldExclamation size={14} className="mt-[3px] shrink-0" />
+        <p className="flex items-start gap-1.5 text-ui text-muted-foreground">
+          <IconShieldExclamation size={16} className="mt-[3px] shrink-0" />
           Packages run with full access to your computer. Read the source before installing one you
           do not know.
         </p>
@@ -276,13 +277,13 @@ export function PackageDialog({
   return (
     <PackageDialogFrame header={header} onClose={onClose}>
       {errors.length > 0 && (
-        <pre className="max-h-48 shrink-0 overflow-auto rounded-control bg-danger-bg px-3 py-2 font-mono text-code-compact whitespace-pre-wrap text-danger-fg">
+        <pre className="max-h-48 shrink-0 overflow-auto rounded-control bg-danger-bg px-3 py-2 font-mono text-code whitespace-pre-wrap text-danger-fg">
           {errors.map((error) => `${error.path}\n${error.error}`).join('\n\n')}
         </pre>
       )}
       {installed &&
         (installed.installedPath === null ? (
-          <p className="text-caption text-warning-fg">
+          <p className="text-ui text-warning-fg">
             Settings list this package, but it is not installed.
           </p>
         ) : (
@@ -292,13 +293,13 @@ export function PackageDialog({
         <DialogSection title="README">
           {detail.status === 'loading' && <ReadmeSkeleton />}
           {detail.status === 'error' && (
-            <p className="text-caption text-danger-fg">Could not load the README: {detail.error}</p>
+            <p className="text-ui text-danger-fg">Could not load the README: {detail.error}</p>
           )}
           {detail.status === 'ready' &&
             (readme ? (
               <MarkdownMessage text={readme} />
             ) : (
-              <p className="text-caption text-muted-foreground">This package has no README.</p>
+              <p className="text-ui text-muted-foreground">This package has no README.</p>
             ))}
         </DialogSection>
       )}
@@ -318,15 +319,13 @@ export function LocalResourcesDialog({
       onClose={onClose}
       header={
         <div className="flex items-start gap-4 pr-8">
-          <PackageThumbnail size="lg" image={null} kinds={resourceKinds(resources)} />
+          <PackageThumbnail size="lg" image={null} kinds={[]} icon={LOCAL_RESOURCES_ICON} />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <DialogTitle className="text-lg leading-tight">Local</DialogTitle>
-            <DialogDescription className="text-caption text-muted-foreground">
+            <DialogDescription className="text-ui text-muted-foreground">
               {LOCAL_RESOURCES_DESCRIPTION}
             </DialogDescription>
-            <span className="text-caption text-muted-foreground/80">
-              {resourceSummary(resources)}
-            </span>
+            <span className="text-ui text-muted-foreground/80">{resourceSummary(resources)}</span>
           </div>
         </div>
       }

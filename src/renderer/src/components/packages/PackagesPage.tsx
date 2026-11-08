@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import {
   IconAlertTriangle,
   IconArrowUp,
+  IconCheck,
   IconCopy,
   IconDownload,
   IconExternalLink,
@@ -33,6 +34,7 @@ import { Button } from '../ui/button';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { TooltipProvider } from '../ui/tooltip';
+import { cn } from '@/lib/utils';
 import { InstalledPackageCard, LocalResourcesCard } from './installedPackages';
 import { CatalogPackageCard, type CatalogInstallState } from './catalogPackages';
 import { CardGrid, CardsSkeleton } from './packageCards';
@@ -115,7 +117,7 @@ function ActivityCard({
   if (activity.status === 'running') {
     return (
       <div
-        className="flex items-center gap-3 rounded-surface-sm border border-border bg-card px-4 py-3"
+        className="flex items-center gap-3 rounded-surface-sm border border-border bg-popover px-4 py-3 shadow-popover"
         data-testid="package-activity"
       >
         <SpinningIcon className="text-muted-foreground">
@@ -130,7 +132,7 @@ function ActivityCard({
   }
   return (
     <div
-      className="flex flex-col gap-2 rounded-surface-sm border border-danger-border bg-danger-bg px-4 py-3"
+      className="flex flex-col gap-2 rounded-surface-sm border border-danger-border bg-danger-bg px-4 py-3 shadow-popover"
       data-testid="package-activity"
       role="alert"
     >
@@ -184,6 +186,51 @@ function ActivityCard({
   );
 }
 
+interface ActivityResult {
+  title: string;
+  detail: string;
+  /** Some extension failed to load: stays until dismissed. */
+  failed: boolean;
+}
+
+/** How long a clean result stays in the corner. */
+const RESULT_VISIBLE_MS = 4000;
+
+function ResultCard({
+  result,
+  onDismiss,
+}: {
+  result: ActivityResult;
+  onDismiss: () => void;
+}): React.JSX.Element {
+  const ResultIcon = result.failed ? IconAlertTriangle : IconCheck;
+  return (
+    <div
+      className="flex items-start gap-3 rounded-surface-sm border border-border bg-popover px-4 py-3 shadow-popover"
+      data-testid="package-result"
+      role="status"
+    >
+      <ResultIcon
+        size={16}
+        className={cn('mt-[3px] shrink-0', result.failed ? 'text-warning-fg' : 'text-success-fg')}
+      />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-ui font-medium text-foreground">{result.title}</span>
+        <span className="text-caption break-words text-muted-foreground">{result.detail}</span>
+      </div>
+      <Button
+        size="icon-xs"
+        variant="ghost"
+        aria-label="Dismiss"
+        className="text-muted-foreground"
+        onClick={onDismiss}
+      >
+        <IconX />
+      </Button>
+    </div>
+  );
+}
+
 function packageKey(pkg: { scope: PiPackageScope; source: string }): string {
   return `${pkg.scope}:${pkg.source}`;
 }
@@ -232,6 +279,12 @@ export default function PackagesPage({
   const { state: catalog, retry: retryCatalog } = usePackageCatalog(catalogQuery);
   const [popularCount, setPopularCount] = useState(POPULAR_PAGE_SIZE);
   const [dialog, setDialog] = useState<DialogTarget | null>(null);
+  const [result, setResult] = useState<ActivityResult | null>(null);
+  useEffect(() => {
+    if (!result || result.failed) return;
+    const timer = window.setTimeout(() => setResult(null), RESULT_VISIBLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [result]);
   const fieldRef = useRef<HTMLInputElement>(null);
 
   const running = activity?.status === 'running';
@@ -244,21 +297,25 @@ export default function PackagesPage({
       const [firstError, ...otherErrors] = loadErrors;
       if (firstError) {
         // An install from the marketplace tab keeps the card's own notice out of sight.
-        toast.error(`${label}, but not everything loaded`, {
-          description:
+        setResult({
+          title: `${label}, but not everything loaded`,
+          detail:
             otherErrors.length > 0
               ? `${loadErrors.length} extensions failed. ${firstError.error}`
               : firstError.error,
+          failed: true,
         });
         return;
       }
-      toast.success(label, {
-        description:
+      setResult({
+        title: label,
+        detail:
           waiting > 0
             ? `Applies to ${waiting === 1 ? 'a running session' : `${waiting} running sessions`} once ${waiting === 1 ? 'it finishes' : 'they finish'}.`
             : reloaded > 0
               ? `Reloaded ${reloaded === 1 ? 'the open session' : `${reloaded} open sessions`}.`
               : 'New sessions will load it.',
+        failed: false,
       });
     },
     [onPackagesChanged],
@@ -267,6 +324,7 @@ export default function PackagesPage({
   /** Resolves true on success; a failure is shown by the activity card. */
   const run = useCallback(
     async (operation: PiPackageOperation): Promise<boolean> => {
+      setResult(null);
       const loadErrors = await packages.run(operation);
       if (!loadErrors) return false;
       announce(`${ACTION_SUCCESS_LABELS[operation.action]} ${operation.source}`, loadErrors);
@@ -280,6 +338,7 @@ export default function PackagesPage({
   );
 
   const updateAll = async (): Promise<void> => {
+    setResult(null);
     const { done, loadErrors } = await packages.runAll(
       updatable.map((pkg) => ({ action: 'update', source: pkg.source, scope: pkg.scope })),
     );
@@ -354,22 +413,6 @@ export default function PackagesPage({
           Could not read installed packages: {listError}
         </ErrorCard>
       )}
-      {updatable.length > 0 && (
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-caption text-muted-foreground">
-            {updatable.length === 1 ? '1 update' : `${updatable.length} updates`} available
-          </span>
-          <Button
-            size="sm"
-            disabled={running}
-            onClick={() => void updateAll()}
-            data-testid="packages-update-all"
-          >
-            <IconArrowUp data-icon="inline-start" />
-            Update all
-          </Button>
-        </div>
-      )}
       {snapshot !== null && listError !== null && (
         <p className="text-caption text-danger-fg">Could not refresh the list: {listError}</p>
       )}
@@ -390,6 +433,14 @@ export default function PackagesPage({
           </EmptyCard>
         ) : (
           <CardGrid>
+            {showLocal && (
+              <div className="col-span-full">
+                <LocalResourcesCard
+                  resources={localResources}
+                  onOpen={() => setDialog({ kind: 'local' })}
+                />
+              </div>
+            )}
             {filteredInstalled.map((pkg) => (
               <InstalledPackageCard
                 key={packageKey(pkg)}
@@ -403,12 +454,6 @@ export default function PackagesPage({
                 onOpen={() => setDialog({ kind: 'installed', key: packageKey(pkg) })}
               />
             ))}
-            {showLocal && (
-              <LocalResourcesCard
-                resources={localResources}
-                onOpen={() => setDialog({ kind: 'local' })}
-              />
-            )}
           </CardGrid>
         ))}
     </div>
@@ -465,7 +510,7 @@ export default function PackagesPage({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-full min-h-0 flex-col" data-testid="packages-page">
+      <div className="relative flex h-full min-h-0 flex-col" data-testid="packages-page">
         <div className="h-11 shrink-0 [-webkit-app-region:drag]" />
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div
@@ -503,52 +548,67 @@ export default function PackagesPage({
               </TabsList>
             </Tabs>
 
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex h-10 w-1/4 items-center gap-2 rounded-control border border-input bg-card px-3 transition-colors">
-                  {catalog.loading && tab === 'marketplace' && catalogQuery !== null ? (
-                    <SpinningIcon className="text-muted-foreground">
-                      <IconLoader2 size={16} />
-                    </SpinningIcon>
-                  ) : (
-                    <IconSearch size={16} className="shrink-0 text-muted-foreground" />
-                  )}
-                  <input
-                    ref={fieldRef}
-                    // The page exists to find or add a package; the field is the first thing to use.
-                    autoFocus
-                    value={text}
-                    onChange={(event) => setText(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Escape' && text) {
-                        event.preventDefault();
-                        setText('');
-                      }
-                    }}
-                    placeholder={
-                      tab === 'installed' ? 'Filter installed packages' : 'Search the marketplace'
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex h-10 w-1/4 items-center gap-2 rounded-control border border-input bg-card px-3 transition-colors">
+                {catalog.loading && tab === 'marketplace' && catalogQuery !== null ? (
+                  <SpinningIcon className="text-muted-foreground">
+                    <IconLoader2 size={16} />
+                  </SpinningIcon>
+                ) : (
+                  <IconSearch size={16} className="shrink-0 text-muted-foreground" />
+                )}
+                <input
+                  ref={fieldRef}
+                  // The page exists to find or add a package; the field is the first thing to use.
+                  autoFocus
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape' && text) {
+                      event.preventDefault();
+                      setText('');
                     }
-                    spellCheck={false}
-                    autoComplete="off"
-                    aria-label="Search packages"
-                    className="h-full min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-muted-foreground"
-                    data-testid="packages-field"
-                  />
-                  {text && (
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      aria-label="Clear"
-                      className="text-muted-foreground"
-                      onClick={() => {
-                        setText('');
-                        fieldRef.current?.focus();
-                      }}
-                    >
-                      <IconX />
-                    </Button>
-                  )}
-                </div>
+                  }}
+                  placeholder={
+                    tab === 'installed' ? 'Filter installed packages' : 'Search the marketplace'
+                  }
+                  spellCheck={false}
+                  autoComplete="off"
+                  aria-label="Search packages"
+                  className="h-full min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-muted-foreground"
+                  data-testid="packages-field"
+                />
+                {text && (
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label="Clear"
+                    className="text-muted-foreground"
+                    onClick={() => {
+                      setText('');
+                      fieldRef.current?.focus();
+                    }}
+                  >
+                    <IconX />
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {updatable.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="h-10"
+                    disabled={running}
+                    onClick={() => void updateAll()}
+                    data-testid="packages-update-all"
+                  >
+                    <IconArrowUp data-icon="inline-start" />
+                    Update all
+                    <span className="text-caption font-normal text-muted-foreground tabular-nums">
+                      {updatable.length}
+                    </span>
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   className="h-10"
@@ -559,19 +619,26 @@ export default function PackagesPage({
                   Install from…
                 </Button>
               </div>
-              {activity && (
-                <ActivityCard
-                  key={`${activity.operation.action}:${activity.operation.source}`}
-                  activity={activity}
-                  onRetry={() => void run(activity.operation)}
-                  onDismiss={packages.dismissActivity}
-                />
-              )}
             </div>
 
             {tab === 'installed' ? installedTab : marketplaceTab}
           </div>
         </div>
+        {(activity || result) && (
+          // Floats over the page so starting or finishing a change moves no card.
+          <div className="absolute bottom-4 left-4 z-10 w-96 max-w-[calc(100%-2rem)] animate-in duration-slow fade-in-0 slide-in-from-bottom-2">
+            {activity ? (
+              <ActivityCard
+                key={`${activity.operation.action}:${activity.operation.source}`}
+                activity={activity}
+                onRetry={() => void run(activity.operation)}
+                onDismiss={packages.dismissActivity}
+              />
+            ) : (
+              result && <ResultCard result={result} onDismiss={() => setResult(null)} />
+            )}
+          </div>
+        )}
         {dialog?.kind === 'source' && (
           <InstallSourceDialog
             disabled={running}
