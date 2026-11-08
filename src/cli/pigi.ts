@@ -17,8 +17,15 @@ import {
   type RemoteMethod,
   type RemoteResults,
   type RemoteSessionCreated,
+  type RemoteSessionReply,
 } from '../shared/remoteCommandContract';
+import { clipText, toSingleLine } from '../shared/messageText';
 import { parseCliArguments, type CliParams } from './cliArguments';
+import { shortIds } from './shortIds';
+
+function oneLine(text: string, length: number): string {
+  return clipText(toSingleLine(text), length);
+}
 
 const EXIT_OK = 0;
 const EXIT_FAILED = 1;
@@ -27,6 +34,8 @@ const EXIT_NOT_RUNNING = 3;
 const EXIT_STILL_RUNNING = 4;
 
 const TITLE_COLUMN_LENGTH = 80;
+const STATUS_TEXT_LENGTH = 600;
+const STATUS_ARGUMENTS_LENGTH = 200;
 
 const USAGE_ERRORS = new Set(['INVALID_PARAMS', 'UNSUPPORTED_PARAM', 'METHOD_NOT_FOUND']);
 
@@ -58,11 +67,13 @@ class RemoteClient {
   /** Settled with the raw line, parsed where its method's type is known. */
   private readonly waiting = new Map<number, (line: string) => void>();
   private onNotification: (method: string, line: string) => void = () => {};
+  closed = false;
 
   private constructor(private readonly socket: net.Socket) {
     socket.setEncoding('utf8');
     socket.on('data', (chunk: string) => this.receive(chunk));
     socket.on('close', () => {
+      this.closed = true;
       // Exit 1, not 3: the request may have half run (a child created), so
       // retrying it after starting pigi is not safe the way a refused connect is.
       const closed = JSON.stringify({
@@ -156,19 +167,22 @@ function describeCreated(created: RemoteSessionCreated): string {
     requested && effective && requested !== effective
       ? `thinking ${effective} (${requested} is not supported)`
       : `thinking ${effective ?? 'off'}`;
-  return `${created.path} (${created.model ?? 'default model'}, ${thinking})`;
+  // An app older than this CLI sends no id.
+  const name = created.id ? `${created.id} ${created.path}` : created.path;
+  return `${name} (${created.model ?? 'default model'}, ${thinking})`;
 }
 
 const PRINTERS: { [M in RemoteMethod]: (result: RemoteResults[M]) => void } = {
   'system.hello': (hello) => out(`pigi ${hello.appVersion} (protocol ${hello.protocolVersion})`),
   'session.list': ({ sessions }) => {
-    for (const session of sessions) {
+    const ids = shortIds(sessions.map((session) => session.id));
+    sessions.forEach((session, index) => {
       const marks = [session.running && 'running', session.isSubagent && 'subagent']
         .filter(Boolean)
-        .join(', ');
-      const title = session.title.replace(/\s+/g, ' ').slice(0, TITLE_COLUMN_LENGTH);
-      out(`${session.path}\t${title}${marks ? `\t[${marks}]` : ''}`);
-    }
+        .join(',');
+      const columns = [ids[index], marks || '-'];
+      out(`${columns.join('\t')}\t${oneLine(session.title, TITLE_COLUMN_LENGTH)}`);
+    });
   },
   'session.create': (created) => {
     note(`created ${describeCreated(created)}`);
@@ -176,6 +190,22 @@ const PRINTERS: { [M in RemoteMethod]: (result: RemoteResults[M]) => void } = {
   },
   'session.prompt': () => {},
   'session.wait': ({ reply }) => out(reply),
+  'session.status': (status) => {
+    out(`${status.running ? 'running' : 'idle'} · ${status.messageCount} messages`);
+    out(`title: ${oneLine(status.title, TITLE_COLUMN_LENGTH)}`);
+    if (status.lastToolCall) {
+      const { name, arguments: args } = status.lastToolCall;
+      out(`last tool call: ${name} ${oneLine(JSON.stringify(args), STATUS_ARGUMENTS_LENGTH)}`);
+    }
+    if (status.lastText) {
+      const text = status.lastText.trim();
+      out(
+        `last text:\n${text.length > STATUS_TEXT_LENGTH ? `…${text.slice(-STATUS_TEXT_LENGTH)}` : text}`,
+      );
+    }
+  },
+  'session.abort': ({ path, aborted }) =>
+    note(aborted ? `stopped ${path}` : `${path} was not running`),
   'subagent.run': (result) => out(result.reply ?? result.path),
 };
 
@@ -191,6 +221,38 @@ function printResult<M extends RemoteMethod>(
   }
   const printer: (result: RemoteResults[M]) => void = PRINTERS[method];
   printer(result);
+}
+
+/**
+ * A window reload fails the call in flight, not the session: it runs on in its
+ * own process, so wait for it again on the same connection, as often as the
+ * window reloads. A window that does not come back ends it.
+ */
+async function waitAcrossReloads(
+  client: RemoteClient,
+  waitParams: CliParams & { path: string },
+  deadline: number | null,
+): Promise<{ result: RemoteSessionReply } | { error: RemoteError }> {
+  const { path } = waitParams;
+  for (;;) {
+    note(`the pigi window reloaded; waiting for ${path} again`);
+    const params: CliParams = { ...waitParams };
+    if (deadline !== null) params.timeout = Math.max(0, (deadline - Date.now()) / 1000);
+    const answer = await client.call('session.wait', params);
+    if (!('error' in answer)) return answer;
+    const { code } = answer.error.data ?? {};
+    if (code === 'WINDOW_RELOADED') continue;
+    if (code === 'APP_NOT_READY' && !client.closed) {
+      return {
+        error: remoteError(
+          'TIMEOUT',
+          `the pigi window did not come back; ${path} may still be running: pigi session wait ${path}`,
+          { path },
+        ),
+      };
+    }
+    return answer;
+  }
 }
 
 async function run(argv: string[]): Promise<number> {
@@ -226,12 +288,31 @@ async function run(argv: string[]): Promise<number> {
       return EXIT_OK;
     }
 
+    const child: { created?: RemoteSessionCreated } = {};
     client.listen((notification, line) => {
-      if (notification !== SUBAGENT_STARTED_NOTIFICATION || json) return;
-      const started = fromServer<{ params: RemoteSessionCreated }>(line);
-      note(`subagent ${describeCreated(started.params)}`);
+      if (notification !== SUBAGENT_STARTED_NOTIFICATION) return;
+      child.created = fromServer<{ params: RemoteSessionCreated }>(line).params;
+      // On stderr even with --json: whatever fails later, the caller can reach the child.
+      note(`subagent ${describeCreated(child.created)}`);
     });
-    const answer = await client.call(method, params);
+    const calledAt = Date.now();
+    let answer = await client.call(method, params);
+    // Waits the reloaded window took on itself: a subagent's, which stops it at
+    // its timeout or when this call goes away, or a `session wait`.
+    const waitParams: (CliParams & { path: string }) | null =
+      method === 'session.wait'
+        ? { ...params, path: String(params.path) }
+        : method === 'subagent.run' && !params.detach && child.created
+          ? { path: child.created.path, stop: true }
+          : null;
+    if ('error' in answer && answer.error.data?.code === 'WINDOW_RELOADED' && waitParams) {
+      const deadline = typeof params.timeout === 'number' ? calledAt + params.timeout * 1000 : null;
+      const waited = await waitAcrossReloads(client, waitParams, deadline);
+      answer =
+        'error' in waited || !child.created
+          ? waited
+          : { result: { ...child.created, ...waited.result } };
+    }
     if ('error' in answer) {
       const { error } = answer;
       if (json) out(JSON.stringify({ error }, null, 2));

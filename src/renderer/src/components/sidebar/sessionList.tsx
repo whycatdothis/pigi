@@ -6,6 +6,7 @@ import { useAppStore, type SessionEntry } from '../../state/appStore';
 import {
   buildLineage,
   flattenLineage,
+  rowsOfFirstRoots,
   subagentGroupsContaining,
   type LineageRow,
   type SessionLineageRow,
@@ -222,9 +223,10 @@ export function SessionItem({
 }
 
 /**
- * A parent's subagents folded into one row: how many, whether any is running,
- * and the latest activity among them. Clicking opens the group. No unread dot:
- * subagents finish unattended all the time; their own rows show it.
+ * A parent's subagents folded into one row: how many, how many are running,
+ * and the latest activity among them. Clicking opens the group. Neither a
+ * spinner nor an unread dot: subagents run and finish unattended all the
+ * time, and the label already says how many run; their own rows show more.
  */
 function SubagentGroupItem({
   row,
@@ -259,7 +261,7 @@ function SubagentGroupItem({
           <span className="min-w-0 flex-1 truncate text-left text-muted-foreground">{label}</span>
           <SessionTrailing
             session={latest}
-            isRunning={runningCount > 0}
+            isRunning={false}
             isUnread={false}
             relativeTimeBase={relativeTimeBase}
           />
@@ -268,6 +270,9 @@ function SubagentGroupItem({
     </SidebarMenuSubItem>
   );
 }
+
+/** Sessions a project shows before "Show more"; forks and subagents come with their root. */
+const VISIBLE_ROOT_COUNT = 5;
 
 interface SessionListProps {
   sessions: Map<string, SessionEntry>;
@@ -291,7 +296,6 @@ export function SessionList({
   onRenameSession,
 }: SessionListProps): React.JSX.Element {
   const [showAll, setShowAll] = useState(false);
-  const visibleSessionCount = 5;
 
   const isCollapsedWithPinned =
     !isExpanded && visibleWhenCollapsedSessionIds && visibleWhenCollapsedSessionIds.size > 0;
@@ -320,6 +324,7 @@ export function SessionList({
   const lineage = useMemo(() => buildLineage(renderedSessions), [renderedSessions]);
   const expandedGroups = useAppStore((state) => state.expandedSubagentGroups);
   const rows = useMemo(() => flattenLineage(lineage, expandedGroups), [lineage, expandedGroups]);
+  const collapsedRowCount = useMemo(() => rowsOfFirstRoots(rows, VISIBLE_ROOT_COUNT), [rows]);
 
   // A selection inside a collapsed subagent group (from the CLI, the switcher
   // or navigation history) opens the group, so the selected row exists; the
@@ -358,7 +363,7 @@ export function SessionList({
     if (showAllRef.current) {
       return;
     }
-    const hidden = rows.slice(visibleSessionCount);
+    const hidden = rows.slice(collapsedRowCount);
     if (hidden.some((row) => row.kind === 'session' && row.session.path === selectedSessionPath)) {
       // Expand at most once per selection; after that the user owns showAll.
       suppressAutoExpandPathRef.current = selectedSessionPath;
@@ -368,9 +373,9 @@ export function SessionList({
         }
       });
     }
-  }, [selectedSessionPath, rows]);
+  }, [selectedSessionPath, rows, collapsedRowCount]);
 
-  const visibleRows = showAll ? rows : rows.slice(0, visibleSessionCount);
+  const visibleRows = showAll ? rows : rows.slice(0, collapsedRowCount);
   const hiddenCount = rows.length - visibleRows.length;
 
   function handleSessionSwitch(session: PiSessionInfo): void {
@@ -440,7 +445,7 @@ export function SessionList({
           </SidebarMenuSub>
         </div>
       </div>
-      {showList && showAll && rows.length > visibleSessionCount && !isCollapsedWithPinned && (
+      {showList && showAll && rows.length > collapsedRowCount && !isCollapsedWithPinned && (
         <SidebarMenuSub
           data-show-all
           className="sticky bottom-0 z-10 mx-0 border-l-0 px-0 py-0 gap-0 bg-muted rounded-control hover:bg-accent"

@@ -317,6 +317,8 @@ const piApi = {
   touchSession: (sessionPath: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke(PiChannel.TouchSession, sessionPath),
 
+  getBusySessions: (): Promise<string[]> => ipcRenderer.invoke(PiChannel.GetBusySessions),
+
   getProjects: (): Promise<ProjectStateResult> => ipcRenderer.invoke(PiChannel.GetProjects),
 
   getGitBranch: (cwd: string): Promise<GitBranchResult> =>

@@ -7,6 +7,7 @@ import {
   PIGI_SESSION_ENV,
   REMOTE_METHODS,
   isRemoteMethod,
+  isSessionFileRef,
   type RemoteMethod,
   type RemoteMethodSpec,
   type RemoteParamSpec,
@@ -63,8 +64,11 @@ export function generalHelp(): string {
     '',
     'Every command takes --json and --help.',
     '',
+    'A <path> argument takes a session file, id or unique id prefix.',
+    '',
     'Exit codes: 0 success, 1 failed, 2 usage error, 3 pigi not reachable,',
-    '4 still running (session wait --timeout ran out).',
+    '4 still running (session wait --timeout ran out, or the pigi window',
+    'did not come back after a reload).',
   );
   return lines.join('\n');
 }
@@ -190,7 +194,9 @@ export function parseCliArguments(argv: string[], context: CliEnvironment): CliI
     }
     params.parent = callerSession;
   }
-  if (method === 'session.list' && params.cwd === undefined) params.cwd = context.cwd;
+  if (method === 'session.list' && params.cwd === undefined && !params.all && !params.parent) {
+    params.cwd = context.cwd;
+  }
   if (method === 'session.create' && params.cwd === undefined && params.parent === undefined) {
     params.cwd = context.cwd;
   }
@@ -204,9 +210,10 @@ export function parseCliArguments(argv: string[], context: CliEnvironment): CliI
       }
       continue;
     }
-    if (value === '-' && param.type === 'string' && !param.filesystemPath) {
+    if (typeof value !== 'string') continue;
+    if (value === '-' && !param.filesystemPath && !param.session) {
       stdinParam = name;
-    } else if (param.filesystemPath && typeof value === 'string') {
+    } else if (param.filesystemPath || (param.session && isSessionFileRef(value))) {
       params[name] = resolve(context.cwd, value);
     }
   }

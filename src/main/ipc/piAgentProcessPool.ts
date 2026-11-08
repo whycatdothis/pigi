@@ -92,6 +92,12 @@ export class PiAgentProcessPool {
     return this.sessionProcesses.get(sessionPath);
   }
 
+  busySessionPaths(): string[] {
+    return Array.from(this.sessionProcesses.values())
+      .filter((entry) => entry.isBusy)
+      .map((entry) => entry.sessionPath);
+  }
+
   updateBusyState(proc: Electron.UtilityProcess, isBusy: boolean): void {
     const entry = this.findSessionProcessByProcess(proc);
     if (!entry) {

@@ -10,6 +10,7 @@ import type { PiSessionInfo } from '../../../shared/ipcContract';
 import {
   buildLineage,
   flattenLineage,
+  rowsOfFirstRoots,
   subagentGroupsContaining,
   type LineageRow,
 } from './sessionLineage';
@@ -194,5 +195,27 @@ describe('subagent groups', () => {
       'review/fork',
     ]);
     expect(subagentGroupsContaining(buildLineage(nested), 'fork')).toEqual([]);
+  });
+});
+
+describe('rowsOfFirstRoots', () => {
+  it('counts roots only, keeping every row nested under them', () => {
+    const rows = flattenLineage(
+      buildLineage([
+        session('a', { modified: '2026-01-03T00:00:00.000Z' }),
+        session('a/fork', { parent: 'a', modified: '2026-01-03T00:00:00.000Z' }),
+        session('a/review', { parent: 'a', subagent: true }),
+        session('b', { modified: '2026-01-02T00:00:00.000Z' }),
+        session('c', { modified: '2026-01-01T00:00:00.000Z' }),
+      ]),
+    );
+
+    expect(outline(rows.slice(0, rowsOfFirstRoots(rows, 2)))).toEqual([
+      'a@0!',
+      '[1 subagents of a]@1',
+      'a/fork@1!',
+      'b@0!',
+    ]);
+    expect(rowsOfFirstRoots(rows, 5)).toBe(rows.length);
   });
 });

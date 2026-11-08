@@ -14,6 +14,7 @@ exports[`remote command contract > keeps its surface 1`] = `
     "SESSION_FAILED": -32003,
     "TIMEOUT": -32004,
     "UNSUPPORTED_PARAM": -32000,
+    "WINDOW_RELOADED": -32006,
   },
   "protocol": 1,
   "surface": [
@@ -27,7 +28,11 @@ exports[`remote command contract > keeps its surface 1`] = `
       "command": "session list",
       "method": "session.list",
       "params": [
-        "cwd: string!",
+        "cwd: string",
+        "all: boolean",
+        "running: boolean",
+        "subagent: boolean",
+        "parent: string",
       ],
       "positional": [],
     },
@@ -60,6 +65,27 @@ exports[`remote command contract > keeps its surface 1`] = `
       "params": [
         "path: string!",
         "timeout: number",
+        "stop: boolean",
+      ],
+      "positional": [
+        "path",
+      ],
+    },
+    {
+      "command": "session status",
+      "method": "session.status",
+      "params": [
+        "path: string!",
+      ],
+      "positional": [
+        "path",
+      ],
+    },
+    {
+      "command": "session abort",
+      "method": "session.abort",
+      "params": [
+        "path: string!",
       ],
       "positional": [
         "path",
@@ -74,6 +100,7 @@ exports[`remote command contract > keeps its surface 1`] = `
         "model: string",
         "thinkingLevel: string --thinking",
         "detach: boolean",
+        "timeout: number",
       ],
       "positional": [
         "task",

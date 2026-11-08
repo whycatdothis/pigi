@@ -14,10 +14,33 @@
   folder). Changes apply to open sessions without restarting, and a failed
   install shows npm's or git's reason with the full output.
 
+- `pigi session status` shows whether a session is running, its message count
+  and its latest tool call and text; `pigi session abort` stops it.
+- `pigi session list` filters by `--running`, `--subagent` and `--parent`, lists
+  every project with `--all`, and prints short ids. Every command takes a
+  session id or a unique prefix of one in place of the file path.
+- `pigi subagent --timeout <s>` stops the child when the time runs out, and
+  `pigi session wait --stop` stops the session when the wait times out or is
+  cancelled.
+
 ### Changed
 
 - Skills in the chat and the message box show a wand instead of a cube, the
   same icon the Packages page uses for skills.
+- The sidebar's "show more" limit counts five top-level sessions; their forks
+  and subagents no longer use up the rows.
+- The subagent group row no longer spins while subagents run; its label says
+  how many are running.
+- `pigi subagent` prints the child's id and path as it starts, also with
+  `--json`.
+
+### Fixed
+
+- `pigi subagent` and `pigi session wait` keep waiting when the pigi window
+  reloads, instead of failing while the session runs on; a child aborted by its
+  caller or timeout is still stopped after a reload.
+- `pigi session wait` on a session the window had not opened returned at once
+  with an empty reply while it was still running.
 
 ## [0.5.5] - 2026-11-07
 

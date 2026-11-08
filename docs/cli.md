@@ -145,7 +145,8 @@ methods }`. The CLI calls it first and reports "pigi is too old"
 `0` success · `1` the request failed, including the session erroring or being
 aborted and pigi closing the connection mid-request · `2` usage error · `3` pigi
 could not be reached, so nothing ran · `4` still running: `session wait
---timeout` ran out (`--timeout 0` polls without waiting).
+--timeout` ran out (`--timeout 0` polls without waiting), or the window did not
+come back after a reload (§13).
 
 stdout carries only the result (what an agent reads); progress and the child
 session path go to stderr. `--json` gives the structured result on stdout.
@@ -155,18 +156,32 @@ session path go to stderr. `--json` gives the structured result on stdout.
 ```
 pigi                                         help; opens the app once installed (§11)
 pigi ping                                    → system.hello
-pigi session list [--cwd <dir>]
-pigi session create [--parent <path> | --parent-self] [--cwd <dir>]
+pigi session list [--cwd <dir> | --all] [--running] [--subagent] [--parent <session>]
+                                             → id, running/subagent marks, title per row
+pigi session create [--parent <session> | --parent-self] [--cwd <dir>]
                     [--model <provider/id>] [--thinking <level>]
                                              → new session path on stdout
-pigi session prompt <path> "<text>"          returns once the run has started
-pigi session wait <path> [--timeout <s>]     → final assistant reply on stdout
-pigi subagent "<task>" [--model <provider/id>] [--thinking <level>] [--detach]
-                       [--parent <path>]     = create linked to $PIGI_SESSION + prompt + wait
+pigi session prompt <session> "<text>"       returns once the run has started
+pigi session wait <session> [--timeout <s>] [--stop]
+                                             → final assistant reply on stdout
+pigi session status <session>                running, message count, latest tool call and text
+pigi session abort <session>                 stop a running session
+pigi subagent "<task>" [--model <provider/id>] [--thinking <level>]
+                       [--detach | --timeout <s>]
+                       [--parent <session>]  = create linked to $PIGI_SESSION + prompt + wait
 ```
 
+- `<session>` is a session file, an id, or an id prefix. Ids are UUIDv7, whose
+  first 13 characters are the creation time in milliseconds, so `session list`
+  prints each id cut to the shortest unique prefix of at least 13 characters.
+  An ambiguous prefix is a usage error listing the matches; nothing is picked.
 - `-` as the text or task reads it from stdin; relative paths resolve against
   the caller's working directory.
+- `subagent` prints the child's id and path on stderr as it starts, also with
+  `--json`, so a caller can always come back to it with `session wait`.
+- `subagent --timeout` and `session wait --timeout --stop` abort the session
+  when the time runs out and fail with its partial reply. `--stop` also aborts
+  it when the wait is cancelled, as a blocking `subagent` does.
 - `prompt` and `wait` attach to a listed session the window has not opened
   (after a reload, say), as selecting it would, without selecting it.
 
@@ -275,7 +290,7 @@ assistant message, so there is no half-written case to handle.
 
 ```
 ● Implement login                         2m
-  ├ 3 subagents · 1 running  ⟳            ← group row, collapsed, first child
+  ├ 3 subagents · 1 running               ← group row, collapsed, first child
   ├ Login (fork)                          5m
   └ Other approach (fork)                 1h
 ```
@@ -283,11 +298,11 @@ assistant message, so there is no half-written case to handle.
 1. A parent's subagents form one group row, always its **first** child,
    regardless of activity order. Inside the group, newest first. Forks keep
    today's ordering.
-2. The group is **collapsed by default** and counts as one row toward the
-   five-row "show more" limit. Expansion is in-memory per parent path, not a
+2. The group is **collapsed by default**. The "show more" limit counts five
+   root sessions; their forks and subagents come along without counting. Expansion is in-memory per parent path, not a
    setting. A new running subagent does not expand it.
-3. The group row shows the count, running (spinner) and latest activity, but
-   no unread dot: subagents finish unattended all the time. Expanded, each
+3. The group row shows the count, how many run and latest activity, but no
+   spinner (the label says it) and no unread dot: subagents finish unattended all the time. Expanded, each
    subagent row shows its own.
 4. Selecting a session hidden in a collapsed group (CLI path, navigation
    history) expands that group, as the "show more" auto-expand does today.
@@ -363,15 +378,15 @@ own skills, not here.
 
 ## 13. Failure behavior
 
-| Case                                | Behavior                                                                                                   |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| A aborts the bash call (CLI killed) | Socket closes → main tells the renderer → the child session is aborted, unless `--detach`                  |
-| Renderer reloads mid-request        | Pending requests fail; the child keeps running; A can `pigi session wait <path>` with the path from stderr |
-| Renderer crashes mid-request        | Same as a reload: pending requests fail, new ones wait for the renderer to come back                       |
-| No window (macOS)                   | Main reopens the window, then relays                                                                       |
-| Created session never prompted      | Idle, it can be closed when other sessions finish (the pool keeps three idle); prompt it right away        |
-| Long reviewer run                   | The skill tells agents to set a long bash timeout                                                          |
-| pigi not running                    | Exit code 3 with a clear message                                                                           |
+| Case                                | Behavior                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A aborts the bash call (CLI killed) | Socket closes → main tells the renderer → the child session is aborted, unless `--detach`                                                                                                                                                                                                                                                                                                                          |
+| Renderer reloads mid-request        | Pending requests fail with `WINDOW_RELOADED`; sessions keep running. A blocking `subagent` or `session wait` waits again on the same connection, for as many reloads as come, keeping its timeout and abort-on-cancel (`--stop`). A child still in its first turn has no file yet; lookup falls back to main's running processes. A window that does not come back: exit 4, `pigi session wait <path>` to continue |
+| Renderer crashes mid-request        | Same as a reload                                                                                                                                                                                                                                                                                                                                                                                                   |
+| No window (macOS)                   | Main reopens the window, then relays                                                                                                                                                                                                                                                                                                                                                                               |
+| Created session never prompted      | Idle, it can be closed when other sessions finish (the pool keeps three idle); prompt it right away                                                                                                                                                                                                                                                                                                                |
+| Long reviewer run                   | The skill tells agents to set a long bash timeout                                                                                                                                                                                                                                                                                                                                                                  |
+| pigi not running                    | Exit code 3 with a clear message                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ## 14. Phases
 

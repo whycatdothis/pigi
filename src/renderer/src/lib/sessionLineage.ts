@@ -220,3 +220,10 @@ export function flattenLineage(
   });
   return rows;
 }
+
+/** How many rows the first `count` roots take, each with every row nested under it. */
+export function rowsOfFirstRoots(rows: LineageRow[], count: number): number {
+  let roots = 0;
+  const index = rows.findIndex((row) => row.depth === 0 && ++roots > count);
+  return index === -1 ? rows.length : index;
+}

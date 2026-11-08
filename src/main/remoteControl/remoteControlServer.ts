@@ -120,7 +120,7 @@ function watchContents(contents: WebContents): void {
     for (const requestId of [...relayed.keys()]) {
       failRelayed(
         requestId,
-        remoteError('APP_NOT_READY', 'the pigi window reloaded or closed during the request'),
+        remoteError('WINDOW_RELOADED', 'the pigi window reloaded or closed during the request'),
       );
     }
   };

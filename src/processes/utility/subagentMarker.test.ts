@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { SUBAGENT_ENTRY_TYPE } from '../../shared/remoteCommandContract';
-import { isSubagentSession } from './subagentMarker';
+import { hasSubagentMarker, isSubagentSession } from './subagentMarker';
 
 const directory = mkdtempSync(join(tmpdir(), 'pigi-subagent-marker-'));
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
@@ -57,5 +57,13 @@ describe('isSubagentSession', () => {
   it('treats an unreadable file as not a subagent', async () => {
     const path = join(directory, 'missing.jsonl');
     expect(await isSubagentSession({ path, id: 'f', parentSessionPath: PARENT })).toBe(false);
+  });
+});
+
+describe('hasSubagentMarker', () => {
+  it('reads a live session’s entries by the same rule', () => {
+    expect(hasSubagentMarker([marker('g'), message('task')], 'g')).toBe(true);
+    expect(hasSubagentMarker([message('task'), marker('g')], 'g')).toBe(false);
+    expect(hasSubagentMarker([marker('fork-source')], 'g')).toBe(false);
   });
 });
