@@ -305,6 +305,10 @@ Umami binds `data-umami-event` attributes itself, which is why the download clic
 though it starts a navigation away from the page. The theme toggle is deliberately not tracked: it
 says nothing about whether a reader is interested in the app.
 
+The tracker only reports from `pigi.pink` and `www.pigi.pink` (`data-domains`, derived from `site`
+in `BaseLayout.astro`): `npm run verify` on localhost, `astro dev`, Pages previews and forks stay out
+of the numbers.
+
 ## The download button
 
 The href is

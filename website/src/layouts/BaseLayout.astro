@@ -24,6 +24,14 @@ const { title, description, noindex = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 
 /*
+ * Umami reports from whatever host serves the page, so a CI run on localhost, a
+ * Pages preview or a fork's deploy would land in this site's numbers. The tracker
+ * matches the exact hostname, so the www alias is listed too.
+ */
+const siteHost = new URL(canonical).hostname;
+const analyticsDomains = `${siteHost},www.${siteHost}`;
+
+/*
  * The accent, written the way the app writes it: `applyThemeAccent` sets both
  * `--accent-light` and `--accent-dark` on <html>, and the app's tokens map
  * `--system-accent` to one or the other by theme. Everything that reads
@@ -99,7 +107,11 @@ const accentStyle = `--accent-light:${SITE_ACCENT_LIGHT};--accent-dark:${SITE_AC
       })}
     />
 
-    <script defer src={UMAMI_SCRIPT_URL} data-website-id={UMAMI_WEBSITE_ID}></script>
+    <script
+      defer
+      src={UMAMI_SCRIPT_URL}
+      data-website-id={UMAMI_WEBSITE_ID}
+      data-domains={analyticsDomains}></script>
   </head>
   <body>
     <slot />

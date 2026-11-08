@@ -124,15 +124,3 @@ afterwards. Pin `nsis.guid: d8e79033-b579-5adb-9605-820525010f54` so a Windows
 build keeps upgrading the old install, and set the AppUserModelID to the same
 id. The PATH launcher (`docs/cli.md` §11) opens the app by bundle id and waits
 for this.
-
-## Website: restrict Umami to the production hostnames
-
-`BaseLayout.astro` loads Umami with no `data-domains`, so every host that serves
-the page reports into the pigi.pink dashboard: `npm run verify` in CI (Playwright
-on `localhost`), `astro dev`/`preview`, Cloudflare's per-PR `*.pigi.pages.dev`
-previews and any fork that deploys the site. Add
-`data-domains="pigi.pink,www.pigi.pink"` — the tracker compares the exact
-hostname, so both are needed — ideally derived from `site` in
-`astro.config.mjs`, and note it under Analytics in `website/README.md`. Injecting
-the website id from CI would not help: it is public in the served HTML anyway,
-and CI and preview builds would get it too.
