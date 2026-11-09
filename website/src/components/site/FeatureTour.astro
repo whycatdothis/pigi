@@ -41,10 +41,10 @@ import {
  * So the window is pinned: the words are chapters that scroll past it, and
  * the window shows whichever chapter is being read. Same window, same position,
  * same size — only what is inside it changes, and the window itself answers the
- * pointer while it is pinned (the filter menu picks a density, a minimap bar
- * jumps, the tree's `?` opens the help, the session field filters, Preview and
- * Source swap, Quote adds the selection to the panel, a terminal tab activates,
- * the Packages tabs switch, and the Appearance controls re-colour the page).
+ * pointer while it is pinned (the Appearance controls re-colour the page, the
+ * filter menu picks a density, the Packages tabs switch, Preview and Source swap,
+ * Quote adds the selection to the panel, the tree's `?` opens the help, a
+ * terminal tab activates, the session field filters, a minimap bar jumps).
  *
  * **The scroll is the page's own.** No wheel is captured and nothing is pinned by
  * force: `position: sticky` holds the window while its chapters go by, and a
@@ -176,8 +176,83 @@ const active = 0;
           </StageLayer>
 
           <StageLayer>
+            <AppWindow title="Appearance" page>
+              <SettingsSidebar slot="sidebar" />
+              <AppearanceSettings />
+            </AppWindow>
+          </StageLayer>
+
+          <StageLayer>
             <AppWindow title="The transcript flickers" viewMode="compact" viewMenuOpen>
               <ViewModes />
+            </AppWindow>
+          </StageLayer>
+
+          <StageLayer>
+            <AppWindow
+              title="Packages"
+              page
+              packagesActive
+              sessions={sidebarRows(COPY_SESSION_TITLE)}
+            >
+              <PackagesPage />
+            </AppWindow>
+          </StageLayer>
+
+          <StageLayer>
+            <AppWindow title={COPY_SESSION_TITLE} tab="git">
+              <GitSidebar slot="sidebar" />
+              <GitView />
+            </AppWindow>
+          </StageLayer>
+
+          <StageLayer>
+            <!-- Files while the agent works: the Chat tab carries its spinner. -->
+            <AppWindow title={COPY_SESSION_TITLE} tab="files" running>
+              <FilesSidebar slot="sidebar" />
+              <FilesView />
+            </AppWindow>
+          </StageLayer>
+
+          <StageLayer>
+            <AppWindow title={COPY_SESSION_TITLE} rightSidebarOpen>
+              <Transcript turns={quoteTurns} />
+              <QuotePanel slot="right" quotes={quotePanelQuotes} />
+            </AppWindow>
+          </StageLayer>
+
+          <StageLayer>
+            <AppWindow title="Keep the session tree from blanking">
+              <Transcript turns={forkTurns} />
+            </AppWindow>
+          </StageLayer>
+
+          <StageLayer>
+            <!-- The tree dialog with its `?` live: the explanation is one click away. -->
+            <AppWindow title="Add the chat minimap" overlayOpen>
+              <Transcript turns={treeTurns} />
+              <SessionTreeDialog slot="overlay" />
+              <SessionTreeHelp slot="overlay" />
+            </AppWindow>
+          </StageLayer>
+
+          <StageLayer>
+            <AppWindow title={COPY_SESSION_TITLE} sessions={subagentSessionRows} running>
+              <Transcript turns={subagentTurns} />
+            </AppWindow>
+          </StageLayer>
+
+          <StageLayer>
+            <AppWindow title="Fix the tree header overlap" terminalOpen>
+              <Transcript turns={terminalTurns} />
+              <TerminalPanel slot="panel" />
+            </AppWindow>
+          </StageLayer>
+
+          <StageLayer>
+            <AppWindow title="Add the chat minimap">
+              <Transcript turns={treeTurns} />
+              <SessionSwitcher slot="overlay" />
             </AppWindow>
           </StageLayer>
 
@@ -207,81 +282,6 @@ const active = 0;
                 ))
               }
             </div>
-          </StageLayer>
-
-          <StageLayer>
-            <AppWindow title="Keep the session tree from blanking">
-              <Transcript turns={forkTurns} />
-            </AppWindow>
-          </StageLayer>
-
-          <StageLayer>
-            <!-- The tree dialog with its `?` live: the explanation is one click away. -->
-            <AppWindow title="Add the chat minimap" overlayOpen>
-              <Transcript turns={treeTurns} />
-              <SessionTreeDialog slot="overlay" />
-              <SessionTreeHelp slot="overlay" />
-            </AppWindow>
-          </StageLayer>
-
-          <StageLayer>
-            <AppWindow title="Add the chat minimap">
-              <Transcript turns={treeTurns} />
-              <SessionSwitcher slot="overlay" />
-            </AppWindow>
-          </StageLayer>
-
-          <StageLayer>
-            <!-- Files while the agent works: the Chat tab carries its spinner. -->
-            <AppWindow title={COPY_SESSION_TITLE} tab="files" running>
-              <FilesSidebar slot="sidebar" />
-              <FilesView />
-            </AppWindow>
-          </StageLayer>
-
-          <StageLayer>
-            <AppWindow title={COPY_SESSION_TITLE} tab="git">
-              <GitSidebar slot="sidebar" />
-              <GitView />
-            </AppWindow>
-          </StageLayer>
-
-          <StageLayer>
-            <AppWindow title={COPY_SESSION_TITLE} rightSidebarOpen>
-              <Transcript turns={quoteTurns} />
-              <QuotePanel slot="right" quotes={quotePanelQuotes} />
-            </AppWindow>
-          </StageLayer>
-
-          <StageLayer>
-            <AppWindow title="Fix the tree header overlap" terminalOpen>
-              <Transcript turns={terminalTurns} />
-              <TerminalPanel slot="panel" />
-            </AppWindow>
-          </StageLayer>
-
-          <StageLayer>
-            <AppWindow title={COPY_SESSION_TITLE} sessions={subagentSessionRows} running>
-              <Transcript turns={subagentTurns} />
-            </AppWindow>
-          </StageLayer>
-
-          <StageLayer>
-            <AppWindow
-              title="Packages"
-              page
-              packagesActive
-              sessions={sidebarRows(COPY_SESSION_TITLE)}
-            >
-              <PackagesPage />
-            </AppWindow>
-          </StageLayer>
-
-          <StageLayer>
-            <AppWindow title="Appearance" page>
-              <SettingsSidebar slot="sidebar" />
-              <AppearanceSettings />
-            </AppWindow>
           </StageLayer>
         </div>
       </div>

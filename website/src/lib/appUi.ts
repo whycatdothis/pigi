@@ -216,6 +216,24 @@ export const MENU_ITEM = {
  * The base's `p-4` is left out: both dialogs in the app override it with `p-0` and
  * pad their own rows, and both dialogs on this page do the same.
  */
+/**
+ * The slash-command popover: the app's translucent overlay surface
+ * (`VIBRANCY_OVERLAY_CONTENT`) at the `bg-popover/50` and `p-1` the popover
+ * asks for, the transcript blurred through it.
+ */
+export const SLASH_MENU_SURFACE = {
+  classes:
+    'rounded-surface bg-popover/50 backdrop-blur-sm p-1 text-body text-popover-foreground shadow-md outline-[0.5px] outline-foreground/25',
+  source: 'src/renderer/src/lib/layoutConstants.ts',
+  alsoFrom: [`${RENDERER}/chatInput/slashCommandPopover.tsx`],
+} satisfies CopiedClasses;
+
+/** A row of it; the selected one sits on the accent's subtle tint, its name in the accent. */
+export const SLASH_MENU_ITEM = {
+  classes: 'flex w-full items-center gap-2 rounded-control px-2 py-1 text-left text-ui',
+  source: `${RENDERER}/chatInput/slashCommandPopover.tsx`,
+} satisfies CopiedClasses;
+
 export const DIALOG_SURFACE = {
   classes:
     'rounded-surface text-body text-popover-foreground shadow-md outline-[0.5px] outline-foreground/25 bg-[var(--dialog-solid)]',
@@ -460,6 +478,8 @@ export const APP_UI_GROUPS: Record<string, CopiedClasses> = {
   TOOLTIP_CONTENT,
   MENU_CONTENT,
   MENU_ITEM,
+  SLASH_MENU_SURFACE,
+  SLASH_MENU_ITEM,
   DIALOG_SURFACE,
   OVERLAY_BG,
   TERMINAL_TABS,

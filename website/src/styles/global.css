@@ -41,14 +41,13 @@
   --brand-ink: #ffffff;
 
   /*
-   * The page is a neutral sheet a shade off the app's white, so a window on it
-   * reads as its own surface. The pig's pink is only the hero's: `--hero-tint`
-   * is where the page starts, and the hero's wash fades it into the sheet before
-   * the tour begins. The two `theme-color` metas in BaseLayout are sampled from
-   * the tints, since the top of the page is what the browser's chrome touches.
+   * The page is the pig's pink all the way down, not a white sheet with a tint at
+   * the top: the hue is in the surface itself (a fifth of a percent of chroma at
+   * this lightness), so the foot of a long page is the same page as its head.
+   * The window stays on the app's own white, which is what keeps it reading as a
+   * surface *on* the page rather than a hole in it.
    */
-  --page-background: oklch(0.975 0 0);
-  --hero-tint: oklch(0.972 0.011 356);
+  --page-background: oklch(0.972 0.011 356);
   --window-border: rgb(0 0 0 / 0.07);
   --window-shadow:
     0 1px 2px rgb(0 0 0 / 0.04), 0 12px 24px rgb(0 0 0 / 0.05), 0 32px 64px -16px rgb(0 0 0 / 0.1);
@@ -63,12 +62,14 @@
  */
 .dark {
   /*
-   * At night a tint this faint drowns in the surface, so the hero carries three
-   * percent of the hue — burgundy rather than a tint — and the glow over it
-   * (below) is where the colour is actually seen.
+   * The page is the pig's pink here too, and it has to carry it: at night a hue
+   * this dark drowns in the surface, and a page that differed from black by a
+   * fifth of a percent of chroma read as no colour at all. Three percent is
+   * burgundy rather than a tint — the same hue the button is, at the lightness a
+   * page can live at — and the wash over it (below) is where the colour is
+   * actually seen.
    */
-  --page-background: oklch(0.12 0 0);
-  --hero-tint: oklch(0.155 0.03 356);
+  --page-background: oklch(0.155 0.03 356);
   --window-border: rgb(255 255 255 / 0.1);
   --window-shadow:
     0 1px 2px rgb(0 0 0 / 0.4), 0 12px 24px rgb(0 0 0 / 0.35), 0 32px 64px -16px rgb(0 0 0 / 0.5);
@@ -436,18 +437,13 @@
 }
 
 /*
- * The hero's backdrop: the pink tint the page starts on, fading into the neutral
- * sheet by the bottom of the hero, then a grid and a glow over it. Flat
- * background-images and a mask — no canvas, no animated gradient, nothing that
- * runs after the first paint.
+ * The hero's backdrop: a grid, and a wash of the pig's pink, both fading out
+ * before they reach the window. Two flat background-images and a mask — no
+ * canvas, no animated gradient, nothing that runs after the first paint.
  *
  * The pink is `--brand`, not `--system-accent`: the accent is the reader's to
  * change in the Appearance still, and the pig's colour is not.
  */
-.hero-wash {
-  background-image: linear-gradient(to bottom, var(--hero-tint) 55%, var(--page-background));
-}
-
 .hero-grid {
   background-image:
     linear-gradient(

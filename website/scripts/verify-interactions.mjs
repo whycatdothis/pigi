@@ -152,7 +152,7 @@ async function showStep(index) {
    * which is visible at rest and reaches the dialog it opens.
    */
   // The tree's chapter, where the dialog and its header are actually drawn.
-  await showStep(4);
+  await showStep(await stepIndex('tree'));
   const toggles = await page.evaluate(() =>
     [...document.querySelectorAll('[data-tree-help-toggle]')].map((toggle) => {
       const tooltip = toggle.closest('.app-tooltip');
@@ -205,10 +205,11 @@ async function showStep(index) {
    * sticky rule stops applying — `align-self` on the grid item, or a taller
    * sibling — and the window scrolls off with its chapters.
    */
+  // A chapter whose still has no timer: passing one that cycles would start it.
   const pinned = await page.evaluate(async () => {
     const settle = () =>
       new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-    const chapter = document.querySelectorAll('[data-stage-copy]')[2];
+    const chapter = document.getElementById('stage-copy-git');
     const still = document.querySelector('[data-stage-scene]');
     document.documentElement.style.scrollBehavior = 'auto';
     window.scrollTo({
@@ -292,7 +293,7 @@ async function showStep(index) {
    * one drawn at a time, the next one a second after the last. A portrait of a
    * single session cannot show what the chapter claims.
    */
-  await showStep(2);
+  await showStep(await stepIndex('switch'));
   const cycleState = () =>
     page.evaluate(() => {
       const frames = [...document.querySelectorAll('[data-session-frame]')];
@@ -356,11 +357,11 @@ async function showStep(index) {
   const withoutList = lists.filter((list) => list.count === 0).map((list) => list.title);
   check(
     'sidebar: only Files, Git and Settings draw a sidebar of their own',
-    JSON.stringify(withoutList) ===
+    JSON.stringify(withoutList.toSorted()) ===
       JSON.stringify([
-        'Copy file names from the Files tab',
-        'Copy file names from the Files tab',
         'Appearance',
+        'Copy file names from the Files tab',
+        'Copy file names from the Files tab',
       ]),
     JSON.stringify(withoutList),
   );
@@ -412,7 +413,7 @@ async function showStep(index) {
    * cycling itself is checked separately, before anything is clicked.
    */
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await showStep(1);
+  await showStep(await stepIndex('views'));
   const root = page.locator('[data-view-modes]');
   const menu = root.locator('[data-view-mode-menu]');
 
@@ -618,7 +619,7 @@ async function showStep(index) {
 
 // --- the tree's explanation -------------------------------------------------
 {
-  await showStep(4);
+  await showStep(await stepIndex('tree'));
   const dialog = page.locator('[data-tree-help]');
   const closed = await dialog.getAttribute('data-state');
   const hidden = await dialog.isVisible();
@@ -650,7 +651,7 @@ async function showStep(index) {
 
 // --- minimap ----------------------------------------------------------------
 {
-  await showStep(2);
+  await showStep(await stepIndex('switch'));
   /*
    * The window here opens a session a second, and the first one is the long
    * session the minimap is drawn for. A reader who asked for less motion gets
@@ -793,7 +794,7 @@ async function showStep(index) {
 
 // --- session tree -----------------------------------------------------------
 {
-  await showStep(4);
+  await showStep(await stepIndex('tree'));
   const tree = page.locator('[data-tree]');
   const rails = () =>
     tree
@@ -860,7 +861,7 @@ async function showStep(index) {
 
 // --- session switcher -------------------------------------------------------
 {
-  await showStep(5);
+  await showStep(await stepIndex('switcher'));
   const switcher = page.locator('[data-session-switcher]');
   const visibleRows = () => switcher.locator('[data-switcher-row]:visible').count();
 
@@ -934,7 +935,7 @@ async function showStep(index) {
    * and the dialog has to behave like one: focus moves in, Escape closes it and
    * hands focus back to the button it came from.
    */
-  await showStep(4);
+  await showStep(await stepIndex('tree'));
   const toggle = page.locator('[data-tree-help-toggle]');
   const dialog = page.locator('[data-tree-help]');
   await toggle.click();

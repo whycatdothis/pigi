@@ -58,12 +58,14 @@ printed on it — the same pair in both themes, because a fill that flipped woul
 too. `--brand` fills the download button and tints the hero; every button inside a window wears the
 app's `BUTTON_FILLED`, in whatever accent the page is in.
 
-The pink is only the hero's. The page is a neutral sheet a shade off the app's white
-(`--page-background`), which is what keeps a window reading as a surface _on_ it rather than a hole in
-it, and the hero starts on `--hero-tint` — the pig's hue at a fifth of a percent of chroma by day,
-three percent (burgundy) at night — and fades into the sheet before the tour begins, under a glow and
-a grid drawn in `--brand`. The two `<meta name="theme-color">` values are sampled from the tints,
-since the top of the page is what the browser's chrome touches.
+The page's surface is that pink too, not a white sheet with a wash at the top: `--page-background` is
+the hue at a fifth of a percent of chroma by day, so the foot of a long page is the same page as its
+head. Dark mode needs more than that fifth of a percent — at that lightness the hue drowns in the
+surface, and a page that differed from black by that much read as no colour at all — so the dark
+surface carries three percent of it (burgundy rather than a tint), under the hero's glow and grid drawn
+in `--brand`. A window keeps the app's own `--background`, which is what makes it read as a surface
+_on_ the page rather than a hole in it — and the two `<meta name="theme-color">` values are sampled
+from the same pair, so the browser's chrome matches the page it frames.
 
 A still shows its session the way the app shows one: a session taller than the viewport is at its
 newest message, so the still is clipped at the top edge by exactly what the app would be scrolled —
@@ -102,29 +104,32 @@ a search wants before they read anything, and it is the only one on the page: th
 links and the theme toggle, not a copy of it. Its URL is version-less (`releases/latest/download/`,
 see below), so a release published a minute ago is downloadable from a page built a month ago. The
 tour opens with the migration claim, because it is the question a pi user arrives with: the window
-there holds a `/` in the composer and the command menu open over it, so the skills in the list are
-visible as skills — pi's, not pigi's — and `/reload` says in the app's own words what it reads.
+there holds a `/` in the composer and the command menu open over it, so the skill under the rule is
+visible as a skill — pi's, not pigi's — and `/reload` says in the app's own words what it reads.
 
 The tour is the answer to what this page used to be: a section per feature, each _a paragraph and a
 picture of the app_. Sections of the same shape are the same layout over and over, and the last still
 only says what the first did — here is the app. So the window is pinned — on the left, the way a
 screenshot is read before its caption — and the chapters scroll past it on the right
-(`position: sticky`, not a captured wheel): _Your pi, unchanged_, _View modes_, _Instant session
-switch_, _Fork_, _Tree_, _Session switcher_, _Files_, _Git_, _Quote_, _Terminal_, _Subagents_,
-_Packages_, _Appearance_. Only what is inside the window changes, and the window keeps answering the
-pointer while it is pinned — the filter menu picks a density, a minimap bar jumps, the tree's `?` opens
-the help, Preview and Source swap, Quote adds the selection to the panel, a terminal tab activates,
-the Packages tabs switch, and the Appearance controls re-colour the page — so a chapter's last line is
+(`position: sticky`, not a captured wheel): _Your pi, unchanged_, _Appearance_, _View modes_,
+_Packages_, _Git_, _Files_, _Quote_, _Fork_, _Tree_, _Subagents_, _Terminal_, _Session switcher_,
+_Instant session switch_. Only what is inside the window changes, and the window keeps answering the
+pointer while it is pinned — the Appearance controls re-colour the page, the filter menu picks a
+density, the Packages tabs switch, Preview and Source swap, Quote adds the selection to the panel, the
+tree's `?` opens the help, a terminal tab activates, a minimap bar jumps — so a chapter's last line is
 an instruction rather than a caption. `initFeatureStage` only decides which chapter is current:
 the last one whose heading crossed a line at 40% of the viewport, one `data-active` write per stack,
 with the CSS fading between stills. Nothing is re-rendered and every still stays laid out, which is
 what the minimap and the transcript clip measured themselves against when the page loaded.
 
-The order is the order a pi user arrives in: first that their own pi comes through unchanged, then
-the three ways through a long session (density, jumping, forking), then the tree the tree action
-opens, then every session one line away; then the project beside the conversation — its files, its
-diff, and quoting either back into the chat — and the shell at the bottom of the same window; then
-what reaches past one session (subagents, packages), and last the app made your own.
+The order starts with the question a pi user arrives with — that their own pi comes through
+unchanged — then makes it theirs: how it looks, how densely a turn reads, what it is extended with.
+Then the work: the agent's diff, the files beside it, and quoting either back into the chat. Then the
+ways a session branches (a fork, the tree, subagents) and the shell under it, and last the ways
+between sessions: one field over all of them, and how fast one opens.
+
+Putting Appearance second means the reader can re-colour the page before most of the stills are
+seen, and every one after it follows.
 
 The Files, Git and Quote stills tell one story: a session that taught the Files tab to copy a file's
 name. The file open in the viewer is the head of this repository's own `docs/architecture.md`, read
