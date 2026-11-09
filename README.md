@@ -10,75 +10,32 @@
 <h1 align="center">pigi</h1>
 
 <p align="center">
-  <strong>A sleek desktop GUI for <a href="https://pi.dev">pi</a></strong>
+  <strong>A sleek desktop GUI for pi</strong>
 </p>
 
-<p align="center">
+<h3 align="center">
   <a href="https://pigi.pink">pigi.pink</a>
-</p>
+</h3>
 
 ---
 
 ## Features
 
 - Clean, native UI that stays out of your way
-- Faithful to the original pi experience
 - Respects your pi config — picks up models, skills, and settings automatically
 - Built with performance in mind, no compromises
+- Rich features:
+  - **Fork & tree** — branch a new session from any message, and rewind through the session tree without losing a branch.
+  - **Session search & minimap** — `Ctrl+R` fuzzy-searches every session; the minimap jumps around a long chat.
+  - **View modes** — Minimal, Compact or Show All, from a clean summary to the full pi log.
+  - **Files & Git** — browse and preview project files, review diffs and commits beside the chat.
+  - **Quote** — select text in a reply, file or diff and send it back with your comment.
+  - **Subagents** — agents can run tasks in child sessions with `pigi subagent`.
+  - **Packages** — install and update pi extensions, skills, prompts and themes.
+  - **Terminal** — a built-in shell with `Cmd+J`.
+  - **Appearance** — light/dark, named themes, accent colours and fonts.
 
-![pigi](./resources/hi-pigi.png)
-
-### Highlights
-
-#### Instant history
-
-Past sessions open instantly, even long ones.
-
-#### Fork
-
-Branch a new session from any user message. Forks stay nested under their original session in the sidebar.
-
-![Fork](./resources/fork.png)
-
-#### Session tree
-
-Browse and jump between branches of a session (`/tree` or the toolbar).
-
-![Session tree](./resources/tree.png)
-
-#### View modes
-
-Switch how the transcript renders tool activity.
-
-**Minimal** — Codex-style: working timer, tool cards, final summary.
-
-![Minimal view](./resources/minimal-view.png)
-
-**Compact** — collapses consecutive read-only tool calls into one group.
-
-![Compact view](./resources/compact-view.png)
-
-**Show All** — every tool call as its own block, like the native pi log.
-
-![Show All view](./resources/show-all-view.png)
-
-#### Session search
-
-`Ctrl+R` fuzzy-searches across all sessions.
-
-![Session search](./resources/session-switcher.png)
-
-#### Chat minimap
-
-Overview of your messages for quick navigation in long chats.
-
-![Chat minimap](./resources/minimap.png)
-
-#### Built-in terminal
-
-Toggle with `Cmd+J`.
-
-![Built-in terminal](./resources/terminal.png)
+See them in action at **[pigi.pink](https://pigi.pink)**.
 
 ## Install
 
