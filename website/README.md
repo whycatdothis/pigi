@@ -51,21 +51,15 @@ calls `deriveTokens` again in the browser and writes the result on `<html>`, the
 change, and a mode there is the page's own light/dark. Nothing is remembered but the mode; a reload is
 the page as it shipped.
 
-The page's own colour is pink too, and it is the one thing the reader cannot change. The icon
-(`public/icon-256.png`) is `#f6729b`, a 2.7:1 pink that can neither carry white text nor read as text
-on white, so `--brand` is that hue at the lightness white needs (4.8:1) and `--brand-ink` is the white
-printed on it — the same pair in both themes, because a fill that flipped would have to flip its ink
-too. `--brand` fills the download button and tints the hero; every button inside a window wears the
-app's `BUTTON_FILLED`, in whatever accent the page is in.
-
-The page's surface is that pink too, not a white sheet with a wash at the top: `--page-background` is
-the hue at a fifth of a percent of chroma by day, so the foot of a long page is the same page as its
-head. Dark mode needs more than that fifth of a percent — at that lightness the hue drowns in the
-surface, and a page that differed from black by that much read as no colour at all — so the dark
-surface carries three percent of it (burgundy rather than a tint), under the hero's glow and grid drawn
-in `--brand`. A window keeps the app's own `--background`, which is what makes it read as a surface
-_on_ the page rather than a hole in it — and the two `<meta name="theme-color">` values are sampled
-from the same pair, so the browser's chrome matches the page it frames.
+The page's own colours come out of the same call. `--brand` is the app's `--primary` and
+`--brand-ink` the ink the app solved for it, so the download button and the hero's glow and grid are
+the send button's colour. `--page-background` is the window's `--background` a step darker by day
+and lighter by night, in the primary's hue — about one percent of chroma by day, three at night,
+where less drowns. A window keeps the app's own `--background`, which is what makes it read as a
+surface _on_ the page rather than a hole in it. With the default theme and Pink that is the pig's
+pink on a white window; picking another accent or theme in the Appearance still re-colours the whole
+page with it, which is the page's one easter egg. The two `<meta name="theme-color">` values are
+sampled from the default page background.
 
 A still shows its session the way the app shows one: a session taller than the viewport is at its
 newest message, so the still is clipped at the top edge by exactly what the app would be scrolled —
@@ -239,7 +233,7 @@ Both scripts drive the built `dist/` in a real browser:
 ```bash
 npm run build
 npm run shots         # writes .shots/*.png: full page and per section
-npm run verify        # asserts the interactive pieces work, and the phone-width layout (83 checks)
+npm run verify        # asserts the interactive pieces work, and the phone-width layout (84 checks)
 npm run check:drift   # asserts the copied app classes still exist in the app
 ```
 

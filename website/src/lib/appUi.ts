@@ -116,17 +116,9 @@ export const BUTTON_OUTLINE = {
 } satisfies CopiedClasses;
 
 /**
- * The page's download button: the app's filled variant's mechanics, filled with
- * the pig's pink instead of the app's primary.
- *
- * Every button on this page that belongs to the app wears `BUTTON_FILLED`
- * unchanged, in the accent the reader can change in the Appearance still. This
- * one is the page's own call to action, so it wears the page's fixed colour:
- * `--brand`, pink, with white printed on it. The icon's own pink (`#f6729b`) is
- * 2.7:1 against white and cannot carry it, so the fill is that hue
- * deepened to where white reads (4.8:1) — the same pink the rest of the page uses
- * at text lightness. The fill does not flip with the theme, so neither does the
- * ink: the button is one pink in both.
+ * The page's download button: the app's filled variant's mechanics, in
+ * `--brand` — the app's primary and its ink, so the pig's pink until the reader
+ * picks another accent in the Appearance still (`src/lib/appTheme.ts`).
  */
 export const BUTTON_BRAND_FILLED = {
   classes:

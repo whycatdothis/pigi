@@ -1128,7 +1128,15 @@ async function showStep(index) {
     }, selector);
 
   const pinkPrimary = await appToken('--app-primary');
+  const pageColours = () =>
+    page.evaluate(() => ({
+      page: getComputedStyle(document.body).backgroundColor,
+      button: getComputedStyle(document.querySelector('[data-download-link]')).backgroundColor,
+    }));
+  const pinkPage = await pageColours();
   await clickInStill('[data-accent-option="blue"]');
+  // The download button eases into its new fill (`transition-all`).
+  await page.waitForTimeout(400);
   const accent = await page.evaluate(() => ({
     pressed: [...document.querySelectorAll('[data-accent-option][aria-pressed="true"]')].map(
       (option) => option.dataset.accentOption,
@@ -1141,6 +1149,12 @@ async function showStep(index) {
       bluePrimary !== pinkPrimary &&
       JSON.stringify(accent.pressed) === '["blue"]',
     JSON.stringify({ pinkPrimary, bluePrimary, ...accent }),
+  );
+  const bluePage = await pageColours();
+  check(
+    'appearance: the accent re-colours the page and its download button too',
+    bluePage.page !== pinkPage.page && bluePage.button !== pinkPage.button,
+    JSON.stringify({ pinkPage, bluePage }),
   );
 
   await clickInStill('[data-theme-picker]');

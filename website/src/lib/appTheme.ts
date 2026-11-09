@@ -11,7 +11,7 @@
  * `defaultThemeCss` is the build-time half: the look the page opens in, for
  * both modes, so nothing flashes. `themeTokens` is the same call at run time,
  * which is how the Appearance still re-skins the page when a reader picks a
- * theme or an accent there.
+ * theme or an accent there — the windows, and the page around them.
  */
 import {
   ACCENT_PRESETS,
@@ -19,13 +19,14 @@ import {
   type AccentChoice,
   type ColorMode,
 } from '../../../src/shared/appearance';
+import type { OklchColor } from '../../../src/shared/colorMath';
 import {
   DEFAULT_MODE_COLORS,
   deriveTokens,
   resolvedSecondaryContrast,
   type ResolvedAppearance,
 } from '../../../src/shared/appearanceTokens';
-import { formatHex, parseCssColor } from '../../../src/shared/colorMath';
+import { formatHex, formatOklch, parseCssColor } from '../../../src/shared/colorMath';
 import {
   THEME_PRESETS,
   accentSwatchHex,
@@ -72,9 +73,40 @@ function resolve(choice: ThemeChoice, mode: ColorMode): ResolvedAppearance {
   };
 }
 
-/** Every `--app-*` property the app would write for this choice in this mode. */
+function oklch(value: string): OklchColor {
+  const color = parseCssColor(value);
+  if (!color) throw new Error(`deriveTokens wrote a colour this page cannot read: ${value}`);
+  return color;
+}
+
+/**
+ * The page's own colours, from the app's: the download button is the send
+ * button (`--primary` and the ink the app solved for it), and the page is the
+ * window's background a step darker by day and lighter by night, in the
+ * primary's hue. Night needs three times the chroma, or the hue drowns.
+ *
+ * For the default theme with the Pink accent that is the pig's pink on a white
+ * window, which is the look the page opens in; any other theme or accent the
+ * reader picks re-colours the whole page with it.
+ */
+function pageTokens(tokens: Record<string, string>, mode: ColorMode): Record<string, string> {
+  const background = oklch(tokens['--app-background']);
+  const { hue } = oklch(tokens['--app-primary']);
+  const page =
+    mode === 'light'
+      ? { lightness: background.lightness - 0.028, chroma: 0.011, hue }
+      : { lightness: background.lightness + 0.01, chroma: 0.03, hue };
+  return {
+    '--brand': tokens['--app-primary'],
+    '--brand-ink': tokens['--app-primary-foreground'],
+    '--page-background': formatOklch(page),
+  };
+}
+
+/** Every `--app-*` property the app would write for this choice, and the page's three. */
 export function themeTokens(choice: ThemeChoice, mode: ColorMode): Record<string, string> {
-  return deriveTokens(resolve(choice, mode));
+  const tokens = deriveTokens(resolve(choice, mode));
+  return { ...tokens, ...pageTokens(tokens, mode) };
 }
 
 export interface AppearanceSummary {

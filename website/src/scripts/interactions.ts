@@ -1225,9 +1225,9 @@ function initQuoteStills(): void {
  *
  * A mode is the page's own light/dark switch. A theme or an accent runs the
  * app's `deriveTokens` and writes every `--app-*` property onto `<html>`, which
- * is what the app does on a change — so every window on the page, and the page's
- * own accent, re-colours. The pig's pink of the hero and the download button is
- * the page's, not the app's, and stays.
+ * is what the app does on a change — so every window on the page re-colours, and
+ * so does the page itself: its background, the hero and the download button are
+ * derived from the same tokens (`themeTokens`).
  *
  * Nothing is remembered: a reload is the page as it shipped. Until the reader
  * picks something the build-time CSS is in charge; after that the inline

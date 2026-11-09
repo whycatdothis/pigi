@@ -43,6 +43,9 @@ const lines = [
   { width: 26, accent: false, opacity: 0.7 },
 ];
 
+/** `PreviewRing`'s edge, from the light preview whichever card wears it. */
+const previewEdge = 'color-mix(in oklab, var(--preview-light-background), #000 12%)';
+
 const fonts = [
   { label: 'Text font', value: 'System' },
   { label: 'Code font', value: 'SF Mono' },
@@ -128,6 +131,19 @@ const HEX_FIELD =
                         </span>
                       </span>
                     ))}
+                    {/*
+                      The app's `PreviewRing`: a 2px band of the light background
+                      darkened, on the light preview and the light half of System,
+                      which would otherwise melt into the page. The accent ring
+                      replaces it on the checked one.
+                    */}
+                    {mode.value !== 'dark' && (
+                      <span
+                        aria-hidden="true"
+                        class="pointer-events-none absolute inset-0 rounded-surface-sm p-[2px] group-aria-checked/mode:hidden"
+                        style={`background:${mode.value === 'system' ? `linear-gradient(to right, ${previewEdge} 0 50%, transparent 50% 100%)` : previewEdge};mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);mask-composite:exclude`}
+                      />
+                    )}
                     <span
                       aria-hidden="true"
                       class="pointer-events-none absolute inset-0 hidden rounded-surface-sm shadow-[inset_0_0_0_2px_var(--system-accent)] group-aria-checked/mode:block"
