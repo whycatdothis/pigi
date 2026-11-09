@@ -23,24 +23,13 @@ interface TreeRow {
   text: string;
   time: string;
   depth: number;
-  /** A child of a fork: one of several alternatives continuing the same message. */
+  // One of several alternatives continuing the same message.
   isBranchChild: boolean;
-  /** On the active path, i.e. the chain the session's current leaf hangs from. */
   onPath?: boolean;
-  /** What the hover preview shows for this row. */
   preview: string;
 }
 
-/**
- * One session that forked twice.
- *
- * Rewound to `make the bars scale`, then to `also show a timestamp`: the chain the
- * author did not take is still here, which is the point of the tree — a jump
- * moves the session, it does not delete the messages it leaves behind.
- *
- * Depth counts forks, not messages. A straight chain stays at depth 0 however
- * long it is; only a second child indents by a column.
- */
+// Depth counts forks, not messages: a straight chain stays at depth 0.
 const rows: TreeRow[] = [
   {
     id: 'u1',
@@ -115,7 +104,6 @@ const rows: TreeRow[] = [
 ];
 
 const rowIds = rows.map((row) => row.id);
-/** Where the session actually is: the last row of the path, in reading order. */
 const currentRowId = 'u4';
 
 const pathOwners = new Map<number, string>();
@@ -131,24 +119,14 @@ const kindTextClassName: Record<TreeRow['kind'], string> = {
   tool: 'font-mono text-xs text-muted-foreground',
 };
 
-/** The elbow starts one pixel right of the line: that pixel is the corner. */
+// The elbow starts one pixel right of the line: that pixel is the corner.
 function elbowLeftPx(depth: number): number {
   return chevronCentreX(depth - 1) + RAIL_WIDTH_PX;
 }
 
-/** The kind chips, from SessionTreeToolbar's own list. */
 const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
 ---
 
-<!--
-  The session tree, as the dialog the app opens it in.
-
-  It is a dialog and not a panel because that is what the tree is for: it takes
-  the window for a moment so a jump can be made without the transcript behind it
-  competing for attention. The window behind this one dims for the same reason
-  (the app's own `bg-black/20` scrim), and the surface is the app's `--dialog-solid`
-  — a header pinned inside a translucent dialog would tint a second time.
--->
 <div
   data-tree-dialog
   role="dialog"
@@ -164,7 +142,6 @@ const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
       Search this session
     </span>
     <span class="shrink-0 text-xs text-muted-foreground/80">{rows.length} messages</span>
-    <!-- The `?` the app keeps here, which is how the dialog below it is reached. -->
     <SessionTreeHelpButton class="ml-3" />
   </div>
 
@@ -181,8 +158,6 @@ const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
 
   <div class="min-h-0 flex-1 overflow-hidden pb-3">
     <div class="no-scrollbar h-full overflow-y-auto px-2">
-      <!-- The tree's own header: which version this is, how much is in it, and
-           the span of time it covers. -->
       <button
         type="button"
         data-tree-header
@@ -206,11 +181,7 @@ const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
       </button>
 
       <div class="relative pb-6" data-tree>
-        <!--
-          The branch lines, all of them, in one inert layer. A line belongs to a
-          fork rather than to a row, which is why it can be drawn here — and why a
-          row that moves does not take its line with it.
-        -->
+        <!-- Rails belong to a fork, not a row, so they live in one layer apart from the rows. -->
         <div class="pointer-events-none absolute inset-0" aria-hidden="true" data-tree-rails>
           {
             spans.map((span) => {
@@ -312,11 +283,6 @@ const filterChips = ['User', 'Assistant', 'Tools', 'Summaries'];
           }
         </div>
 
-        <!--
-          Follows the pointer down the list; the app opens the same card on hover.
-          `data-open` is the only switch, and both the body and the time come from
-          the row the pointer is on.
-        -->
         <div
           class="pointer-events-none absolute right-3 top-0 z-20 w-[300px] rounded-lg border border-border/70 bg-popover/95 p-3 opacity-0 shadow-md backdrop-blur transition-opacity duration-150 data-[open=true]:opacity-100"
           data-tree-preview

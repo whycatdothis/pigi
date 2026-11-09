@@ -11,23 +11,11 @@ import {
   PACKAGES_TAB,
 } from '../../lib/appUi';
 
-/**
- * The Packages page (`packages/PackagesPage.tsx`, `packageCards.tsx`): the
- * Installed and Marketplace tabs, the field that filters or searches, Install
- * from…, and the cards. Both tabs are in the markup and `initPackageTabs`
- * switches between them, as the tab strip does in the app.
- */
 interface Card extends PackageInfo {
-  /** The installed tab's actions: an update waiting, or only Remove. */
   update?: boolean;
-  /** The marketplace's: already installed, or the Install icon. */
   installed?: boolean;
 }
 
-/*
- * Real packages from the pi catalog, as the app lists them on the day the
- * stills were drawn; only the installed versions and ages are this page's.
- */
 const installed: Card[] = [
   {
     name: 'pi-web-access',

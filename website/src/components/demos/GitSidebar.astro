@@ -5,11 +5,6 @@ import TreeRow from '../app/TreeRow.astro';
 import { SIDEBAR_DEFAULT_WIDTH } from '../../lib/appLayout';
 import { SEGMENTED_ITEM_OFF, SEGMENTED_ITEM_ON, TOOLBAR_BUTTON } from '../../lib/appUi';
 
-/**
- * The Git tab's sidebar (`GitSidebar.tsx`) in its Diff view: the project and its
- * branch, Git status / Diff / Commits, the diff mode and the ref it compares
- * against, then the changed files as a tree with their status and line counts.
- */
 interface ChangedFile {
   name: string;
   depth: number;
@@ -51,8 +46,7 @@ const views = ['Git status', 'Diff', 'Commits'];
       <span class="min-w-0 flex-1 truncate text-ui text-muted-foreground"
         >feature/copy-file-names</span
       >
-      <!-- The tree/list toggle (`FileListToggle`), showing the list in use: Phosphor's
-           TreeView, which the app draws from its own `fileListIcons.tsx`. -->
+      <!-- Phosphor's TreeView, as in the app's `fileListIcons.tsx`. -->
       <span
         aria-hidden="true"
         class="flex size-5 shrink-0 items-center justify-center rounded-control text-muted-foreground"

@@ -13,69 +13,22 @@ import {
 } from '../../lib/appLayout';
 import type { ViewModeName } from '../demos/ViewModeMenu.astro';
 
-/**
- * The app window, as one component.
- *
- * Every feature on this page is shown inside a real one of these rather than as
- * a cropped fragment: the app's layout is the thing that makes a feature legible
- * — the terminal is only "the terminal" because it takes the bottom of the chat
- * column and the transcript stays above it, and the tree is only a dialog because
- * the window behind it dims.
- *
- * The measurements are the app's own: 1200x800 for the default window
- * (src/main/windows/createMainWindow.ts), h-11 for the toolbar, the sidebar's
- * SIDEBAR_DEFAULT_WIDTH, the panel's TERMINAL_DEFAULT_HEIGHT.
- *
- * That height is not a prop. Every window on this page is the size the app opens
- * at, because half a window is a picture of something the app never shows: a
- * dialog is narrower than the window, not shorter, and a short session simply
- * leaves the space above its last message empty.
- *
- * A phone is narrower than the app can be, so below the app's own minimum width
- * (`WINDOW_MIN_WIDTH_PX`, from `createMainWindow.ts`) the window is drawn on a
- * fixed canvas at that minimum and scaled down to fit — `[data-window-fit]` and
- * its ResizeObserver in `src/scripts/interactions.ts`. The alternative, letting a
- * 1200px window reflow into 390px, is not a small window: it is a layout the app
- * has no such thing as, with the sidebar gone and every dialog cut to a ragged
- * truncation. Scaling keeps the picture true and hands the reader a scaled-down
- * window instead of a different app.
- */
+// Below WINDOW_MIN_WIDTH_PX the window keeps that width and is scaled down to fit
+// ([data-window-fit] in interactions.ts); reflowing it would draw a layout the app never has.
 interface Props {
-  /** The session title in the toolbar, and the sidebar row it selects. */
   title: string;
-  /** What has been typed into the composer, in place of the placeholder. */
   composerText?: string;
-  /** The slash-command menu is open above the composer, as typing `/` opens it. */
   slashMenuOpen?: boolean;
-  /** The bottom panel is open, so the chat column stops above it. */
   terminalOpen?: boolean;
-  /** The view-mode menu is open under the toolbar's filter button. */
   viewMenuOpen?: boolean;
-  /** A dialog is over the window, so the app behind it dims. */
   overlayOpen?: boolean;
-  /** Which of the app's three densities this window draws; null for none. */
   viewMode?: ViewModeName | null;
-  /**
-   * The sidebar's rows, when the window's list has to stay put while the open
-   * session changes under it. Omitted, the list is the open session, the fork off
-   * it and one older chat.
-   */
   sessions?: SessionRow[];
-  /**
-   * Which of the header's tabs is open. Files and Git replace the chat column
-   * and its composer with the default slot, the way the app swaps the view.
-   */
   tab?: WorkspaceTabName;
-  /** The agent is working: the composer offers stop, and Chat spins while another tab is open. */
   running?: boolean;
-  /**
-   * A full page instead of a session — Packages, Settings: no header tabs and no
-   * composer, only the title bar's height of empty drag region above the slot.
-   */
+  /** A full page (Packages, Settings): no header tabs, no composer. */
   page?: boolean;
-  /** The Packages page is the open one, so its sidebar row is selected. */
   packagesActive?: boolean;
-  /** The right sidebar is open, with the `right` slot in it. */
   rightSidebarOpen?: boolean;
 }
 
@@ -100,8 +53,6 @@ const chatColumn = !page && tab === 'chat';
 const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}`;
 ---
 
-<!-- `data-window-fit` carries the app's minimum width: the script scales the
-     canvas to fit only when the room is narrower than that. -->
 <div data-window-fit={WINDOW_MIN_WIDTH_PX}>
   <div data-window-canvas class="origin-top-left">
     <div
@@ -111,7 +62,6 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
       data-view-modes={viewMode !== null ? 'true' : undefined}
       data-active={viewMode ?? undefined}
     >
-      <!-- The traffic lights the window server usually draws. -->
       <div class="pointer-events-none absolute left-5 top-5 z-10 flex gap-2">
         <span class="traffic-light rounded-full bg-[#ff5f57]"></span>
         <span class="traffic-light rounded-full bg-[#febc2e]"></span>
@@ -131,16 +81,7 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
           )
         }
 
-        <!--
-      No rounding on this edge. The app's sidebar and its main area meet in a
-      straight line: `border-l-[0.5px]` is the whole separator, drawn by this
-      element and by nothing else — the sidebar has no border of its own.
-
-      A `div`, not a `main`: the app's own chat column is the app's main region,
-      and here the page has one. Ten windows each claiming to be the main region
-      of the page would make the landmark list eleven long and the page's own
-      `<main>` one of eleven equals.
-    -->
+        <!-- A div, not <main>: the page has its own main landmark. -->
         <div
           class="relative flex min-w-0 flex-1 flex-col overflow-hidden border-l-[0.5px] border-foreground/27 bg-background"
         >
@@ -161,13 +102,7 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
           }
 
           <div class="relative min-h-0 flex-1 overflow-hidden">
-            <!--
-          The chat column. In the app this is an absolutely positioned column
-          whose `bottom` is the terminal's height, animated; that is what makes the
-          transcript's scroll viewport end above the panel instead of being covered
-          by it. Files, Git and the full pages take the same box, without the
-          composer.
-        -->
+            <!-- `bottom` is the terminal's height so the transcript ends above the panel, not under it. -->
             <div class="absolute inset-x-0 top-0 flex flex-col" style={chatStyle}>
               <div class="flex min-h-0 flex-1 flex-col">
                 <slot />

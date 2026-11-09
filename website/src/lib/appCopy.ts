@@ -1,15 +1,10 @@
-/**
- * Strings the recreated UI has to say, lifted from the app so the page and the
- * app cannot drift apart on wording.
- */
+// Copied from the app; keep in sync with chatInput/index.tsx, thinkingBlock.tsx
+// and CollapsedReadGroup.tsx.
 
-/** chatInput/index.tsx */
 export const FOLLOW_UP_PLACEHOLDER = 'Ask for follow-up changes';
 
-/** thinkingBlock.tsx */
 export const THINKING_LABEL = 'Thinking';
 
-/** CollapsedReadGroup.tsx — the compact summary of folded read-only calls. */
 export function buildReadGroupLabel(
   isActive: boolean,
   fileCount: number,

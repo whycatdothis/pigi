@@ -1,12 +1,5 @@
-/**
- * Receives the desktop app's telemetry and stores it in Workers
- * Analytics Engine. The app side and the column layout are in the app repo's
- * docs/telemetry.md.
- *
- * The endpoint is public, like any analytics key, so it only accepts the shape
- * the app sends and caps its size. The country comes from Cloudflare's lookup;
- * the IP is never stored.
- */
+// Stores the desktop app's telemetry in Workers Analytics Engine; column layout is in
+// the app repo's docs/telemetry.md. Public endpoint: strict shape and size checks, IP never stored.
 
 interface DataPoint {
   indexes: string[];
@@ -24,9 +17,8 @@ interface Context {
   env: Env;
 }
 
-// The zone's rate limit on /api/telemetry covers only the site host; the
-// pages.dev aliases would bypass it and share the account's write quota.
-// localhost is a local test server; Cloudflare never serves it.
+// The zone's rate limit covers only the site host; pages.dev aliases would bypass it.
+// localhost is for local testing.
 const ALLOWED_HOSTS = new Set(['pigi.pink', 'localhost']);
 const MAX_BODY_LENGTH = 128 * 1024;
 const MAX_EVENTS = 100;
@@ -68,8 +60,7 @@ function toDataPoint(event: unknown, base: string[], installId: string): DataPoi
 
 export async function onRequestPost({ request, env }: Context): Promise<Response> {
   if (!ALLOWED_HOSTS.has(new URL(request.url).hostname)) return new Response(null, { status: 404 });
-  // Requiring JSON makes a cross-site browser post need CORS, which is never
-  // granted, so a web page cannot make its visitors send events.
+  // Requiring JSON forces a CORS preflight (never granted), so web pages cannot post events.
   if (!request.headers.get('content-type')?.startsWith('application/json')) {
     return new Response(null, { status: 415 });
   }

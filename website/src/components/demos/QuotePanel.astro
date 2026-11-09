@@ -2,19 +2,6 @@
 import Icon from '../Icon.astro';
 import { BUTTON_BASE, BUTTON_FILLED, CHIP_TAB, CHIP_TABS, QUOTE_CARD } from '../../lib/appUi';
 
-/**
- * The right sidebar's Quotes tab (`rightSidebar/RightSidebar.tsx`,
- * `quotes/QuotePanel.tsx`): one card per quote — the quoted text, muted, with
- * the reference it came from — the comment under it, a global comment at the
- * end, and Send at the foot.
- *
- * The three quotes come from the three tabs: a sentence of a reply, lines of a
- * file, lines of a diff. A file or diff quote is its `@path:lines` reference,
- * exactly the text the app sends.
- *
- * `[data-quote-list]` is where `initQuoteStills` appends the passage the still's
- * Quote button takes, as the app adds a card when a selection is quoted.
- */
 export interface Quote {
   reference?: string;
   text?: string;

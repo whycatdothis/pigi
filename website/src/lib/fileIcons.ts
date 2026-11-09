@@ -1,12 +1,5 @@
-/**
- * File icons, resolved the way the app resolves them (`src/renderer/src/lib/fileIcons.ts`):
- * Material Icon Theme's manifest, exact file name first, then the longest
- * matching extension (`foo.test.ts` tries `test.ts`, then `ts`).
- *
- * The SVGs are read at build time and handed out as data URIs for an `<img>`,
- * the element the app draws them in. Inlined as markup instead, two icons that
- * share a gradient id would paint each other's fills.
- */
+// Resolved like src/renderer/src/lib/fileIcons.ts. Served as <img> data URIs
+// because inlined SVGs that share a gradient id paint each other's fills.
 import {
   file as defaultIconName,
   fileExtensions,

@@ -7,25 +7,8 @@ import AssistantMessage from '../app/AssistantMessage.astro';
 import Icon from '../Icon.astro';
 import { buildReadGroupLabel } from '../../lib/appCopy';
 
-/**
- * One turn, drawn three ways.
- *
- * The turn is identical in all three panels — that is what the section claims, so
- * the data lives here once and each panel decides what to do with it. The switch
- * is the real one from the toolbar above: the menu is a dropdown off the filter
- * button, and picking an item writes `data-active` on the window, which is what
- * these three panels read.
- *
- * Each panel scrolls on its own, because the difference between them is how much
- * there is to scroll through.
- */
 const userText = 'the transcript flickers while the terminal panel animates open';
-/**
- * Long enough to pass the app's 120px thinking clamp, because that is what a real
- * turn's reasoning looks like and because the clamp is worth seeing: the tail of
- * the block stays, the top edge fades, and a Show more pill appears above it
- * (`thinkingBlock.tsx`).
- */
+// Long enough to pass the app's 120px thinking clamp (`thinkingBlock.tsx`).
 const thinkingText =
   "Two things resize on every frame: the panel's height and the transcript's viewport. Every one of those frames re-measures the visible rows, so the list re-lays out sixty times for one gesture, and the re-measure is what the eye reads as a flicker. The fix is to stop the transcript from seeing the intermediate heights: the panel's height becomes a custom property the compositor animates, and the transcript is told once, when the gesture ends, to re-measure. Same layout, one measurement instead of sixty. The alternatives are worse than they look. Throttling the resize observer only halves the re-lays, and the ones that remain are still visible — a 30fps flicker is still a flicker. Pausing the observer for the duration of the gesture is the honest version of the same idea: the transcript does not need to know that the panel is moving, only where it stopped.";
 
@@ -70,29 +53,12 @@ const gitOutput = [
 
 const compactLabel = buildReadGroupLabel(false, readCalls.length, 1, 1);
 
-/**
- * The app's own transcript metrics: 860px wide, 20px of inline padding, a 24px
- * inset at the top.
- *
- * A turn starts at the top and grows downwards, as it does in the app: the list
- * is a plain scroll container (`MessageList.tsx` is `pb-8 pt-6` in a scroller,
- * with no `justify-end`), so a short turn sits under the toolbar and a long one
- * scrolls. Pushing a short turn to the bottom instead would leave a gap above
- * the first message that the app never draws.
- */
+// Width, inline padding and top inset are the app's transcript metrics (`MessageList.tsx`).
 const SCROLLER = 'no-scrollbar h-full overflow-y-auto';
 const COLUMN = 'mx-auto flex max-w-[860px] flex-col px-5 pb-24 pt-6';
 ---
 
 <div class="min-h-0 flex-1" data-view-panels>
-  <!--
-    Minimal: the working timer and the answer. Everything the turn did is behind
-    the timer row, which is a real button in the app (`minimalView.tsx`): the row is
-    `flex w-full items-center gap-1.5 pt-3 pb-1` carrying a `size-4` chevron that
-    turns ninety degrees when the details are open, over a `h-px bg-border/60` rule.
-    The details it unfolds are this same turn's entries — the thinking, the read
-    group, the edit, the closing line — which is what `DetailItem` draws.
-  -->
   <div class="hidden h-full group-data-[active=minimal]/view:block" data-view-panel="minimal">
     <div class={SCROLLER}>
       <div class={COLUMN}>
@@ -165,10 +131,6 @@ const COLUMN = 'mx-auto flex max-w-[860px] flex-col px-5 pb-24 pt-6';
     </div>
   </div>
 
-  <!--
-    Compact: consecutive read-only calls folded into one line, so the edit in the
-    middle of them is what the eye lands on.
-  -->
   <div class="hidden h-full group-data-[active=compact]/view:block" data-view-panel="compact">
     <div class={SCROLLER}>
       <div class={COLUMN}>
@@ -205,10 +167,6 @@ const COLUMN = 'mx-auto flex max-w-[860px] flex-col px-5 pb-24 pt-6';
     </div>
   </div>
 
-  <!--
-      Show All: every call on its own, in order, with its output. This is the
-      native pi log, line for line.
-    -->
   <div class="hidden h-full group-data-[active=all]/view:block" data-view-panel="all">
     <div class={SCROLLER}>
       <div class={COLUMN}>

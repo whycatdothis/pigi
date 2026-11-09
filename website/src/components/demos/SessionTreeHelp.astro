@@ -2,24 +2,7 @@
 import Icon from '../Icon.astro';
 import { DIALOG_SURFACE } from '../../lib/appUi';
 
-/**
- * "Tree: a time machine for this session" — the app's own explanation dialog.
- *
- * Every word is `SessionTreeHelpDialog.tsx`: the three points, their order, the
- * icons beside them, and the note at the bottom about hovering, searching and
- * pressing Enter. The app's round `?` — the one that opens this, in three places —
- * is `SessionTreeHelpButton.astro`.
- *
- * It ships closed, and the `?` beside the tree's search field opens it
- * (`initTreeHelp`): the app's help is a click away there, so a page that printed
- * it permanently over the tree would be showing a state the app is never in.
- *
- * `max-w-[520px]`, which is the app's own override for this dialog, and `p-4`,
- * which is the padding the app's `DialogContent` gives a dialog that does not
- * replace it. The icons are the app's own 24px tiles: without them the three
- * paragraphs start at three different left edges, which is the mess the app
- * avoids with `size-6`.
- */
+// Copy, icons and order mirror the app's `SessionTreeHelpDialog.tsx`.
 const points = [
   {
     icon: 'history' as const,

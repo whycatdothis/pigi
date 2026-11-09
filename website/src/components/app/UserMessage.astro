@@ -3,18 +3,14 @@ import MessageActions, { type MessageActionTooltip } from './MessageActions.astr
 
 interface Props {
   time?: string;
-  /** Right-aligned bubbles carry the user's own words; the slot holds them. */
   actions?: 'full' | 'copy' | false;
-  /** Keep the actions visible, for a still standing in for a hover. */
   showActions?: boolean;
-  /** The label the app's tooltip would be showing for the action hovered. */
   actionTooltip?: MessageActionTooltip;
 }
 
 const { time, actions = false, showActions = false, actionTooltip } = Astro.props;
 ---
 
-<!-- pt-6 / pb-2 is the app's spacing above a user message and below it. -->
 <div class="group flex justify-end pb-2 pt-6">
   <div class="flex max-w-[85%] flex-col items-end">
     <div class="w-fit max-w-full overflow-clip rounded-surface-lg bg-accent-subtle px-3.5 py-2">

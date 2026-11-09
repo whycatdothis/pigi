@@ -6,22 +6,15 @@ import { defaultThemeCss } from '../lib/appTheme';
 interface Props {
   title: string;
   description: string;
-  /**
-   * For a page that is not an address: `404.astro` answers every path the build
-   * did not emit, so a canonical URL would name one arbitrary path as the home of
-   * the other nine hundred, and a search engine should not index it at all.
-   */
+  // For 404: it answers every unknown path, so no canonical and no indexing.
   noindex?: boolean;
 }
 
 const { title, description, noindex = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 
-/*
- * Umami reports from whatever host serves the page, so a CI run on localhost, a
- * Pages preview or a fork's deploy would land in this site's numbers. The tracker
- * matches the exact hostname, so the www alias is listed too.
- */
+// Keeps localhost, previews and forks out of the stats. Umami matches the exact
+// hostname, hence the www alias.
 const siteHost = new URL(canonical).hostname;
 const analyticsDomains = `${siteHost},www.${siteHost}`;
 ---
@@ -39,21 +32,10 @@ const analyticsDomains = `${siteHost},www.${siteHost}`;
     <meta name="theme-color" content="#fcf3f6" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#16070d" media="(prefers-color-scheme: dark)" />
 
-    <!--
-      The app's colours, as the app derives them: every `--app-*` property its
-      appearance engine writes on <html>, for both modes (src/lib/appTheme.ts).
-      Inline so the first paint already has them.
-    -->
     <style is:inline set:html={defaultThemeCss()}></style>
 
-    <!--
-      The theme, before the first paint.
-
-      Blocking and inline on purpose: the class has to be on <html> before the
-      body is painted, or a reader who chose dark gets a white flash on every
-      navigation. Same `theme` key and same three values as the app's own
-      themeProvider, so the two agree if a reader sets both.
-    -->
+    <!-- Blocking and inline so dark mode does not flash white. Same `theme` key
+      and values as the app's themeProvider. -->
     <script is:inline>
       (() => {
         const stored = localStorage.getItem('theme');
@@ -73,13 +55,6 @@ const analyticsDomains = `${siteHost},www.${siteHost}`;
     <meta property="og:image" content={new URL('/icon-256.png', Astro.site).href} />
     <meta name="twitter:card" content="summary" />
 
-    <!--
-      What this is, in the vocabulary a search engine reads.
-
-      `alternateName` is where the phrases live: nobody searches for "pigi", and
-      the thing being described is a pi agent GUI. The rest is what the page can
-      honestly claim — a free, arm64 macOS app, not affiliated with pi's authors.
-    -->
     <script
       type="application/ld+json"
       set:html={JSON.stringify({
@@ -109,15 +84,8 @@ const analyticsDomains = `${siteHost},www.${siteHost}`;
   <body>
     <slot />
 
-    <!--
-      The page's whole script, on both pages.
-
-      It used to be imported by the home page alone, which left the changelog
-      without a working theme toggle, without the download button's upgrade to the
-      DMG, and — once the header gained a scrolled state — without a fill over the
-      text scrolling under it. Every initializer looks for its own markup and
-      returns quietly, so one import here covers everything either page uses.
-    -->
+    <!-- On every page (the header and theme toggle need it); each initializer
+      no-ops when its markup is absent. -->
     <script>
       import '../scripts/interactions';
     </script>

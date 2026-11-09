@@ -2,23 +2,10 @@ import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/**
- * A build integration that takes the HTML comments out of the pages it emitted.
- *
- * The comments in the source are for whoever reads the source: why the hero is
- * pulled up under the header, why a tooltip is a sibling of its button, where a
- * class came from. Astro copies them into the build, which sends a reader's
- * bandwidth to notes about the page's own implementation and ships the reasoning
- * to every visitor. They are worth ~34 KB of the home page.
- *
- * Comments inside `<script>`, `<style>`, `<pre>` and `<textarea>` are left alone:
- * those are content, not markup, and a `<!--` in a code sample is part of the code
- * sample. Everything is removed in one pass, so a block that opens before a comment
- * cannot be reached into.
- */
+// Source comments are for readers of the source (~34 KB of the home page).
+// Comments inside script/style/pre/textarea are content and are left alone.
 const COMMENT_OR_BLOCK = /(?<block><(script|style|pre|textarea)\b[\s\S]*?<\/\2>)|<!--[\s\S]*?-->/gi;
 
-/** Every `.html` file under a directory, at any depth. */
 async function htmlFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = [];
@@ -46,8 +33,6 @@ export function stripHtmlComments() {
           );
           if (stripped === html) continue;
           saved += Buffer.byteLength(html) - Buffer.byteLength(stripped);
-          // Counted the way the strip counts: a `<!--` inside a `<pre>` is part
-          // of the code sample, and the next pass would leave it alone.
           remaining += [...stripped.matchAll(COMMENT_OR_BLOCK)].filter(
             ([, block]) => block === undefined,
           ).length;

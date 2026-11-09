@@ -13,28 +13,13 @@ import {
 
 export type WorkspaceTabName = 'chat' | 'files' | 'git';
 
-/**
- * The window's header: the Chat, Files and Git tabs (`app/WorkspaceTabs.tsx`)
- * on the left, the session's own buttons on the right (`session/SessionToolbar.tsx`)
- * — session tree, terminal, view mode — and the right sidebar's toggle.
- *
- * Chat is the session's title rather than a label, and while Files or Git is
- * open it carries the agent's state: a spinner while it runs.
- *
- * A tooltip is a **sibling** of its button, not a child of it, and here it is a
- * label rather than a surface: the app's tree tooltip also carries the round `?`
- * in a Radix portal, which can hold a button because it is positioned over the
- * page and takes the pointer. On this page the tooltip is a span that fades in
- * under the pointer and never accepts one. The `?` lives where it can be reached
- * instead: in the session tree's own header (`SessionTreeDialog.astro`).
- */
+// Tooltips here never take the pointer, so unlike the app the tree tooltip has no `?`
+// button; it lives in the session tree's header (SessionTreeDialog.astro) instead.
 interface Props {
   title: string;
   tab?: WorkspaceTabName;
-  /** The agent is working, shown on the Chat tab while another tab is open. */
   running?: boolean;
   terminalOpen?: boolean;
-  /** Which view mode this window draws; null hides the menu behind the button. */
   viewMode?: ViewModeName | null;
   viewMenuOpen?: boolean;
   rightSidebarOpen?: boolean;
@@ -59,12 +44,7 @@ const TAB_KBD = `${KBD.classes} h-4 min-w-4 text-3xs [grid-area:1/1] opacity-0 t
 const TAB = 'group/tab @max-[320px]:px-2 @max-[220px]:px-1';
 ---
 
-<!-- h-11 and the hairline below it are the app's header measurements. The @max
-     breakpoints are the header's own width, as in `WorkspaceTabs.tsx` and
-     `SessionToolbar.tsx`: below 600px Chat may shrink and the keycaps go, below
-     500px Files and Git lose their labels (the phone's 680px window), below 430px
-     the session's buttons fold into ⋯, below 320px Chat is an icon, and below
-     220px the right sidebar's toggle goes too (the Quote still on a phone). -->
+<!-- @max breakpoints are the header's container width, copied from WorkspaceTabs.tsx and SessionToolbar.tsx. -->
 <div
   class="@container relative z-10 flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 pr-3 @max-[320px]:pr-2 @max-[220px]:pr-1"
 >
@@ -114,8 +94,7 @@ const TAB = 'group/tab @max-[320px]:px-2 @max-[220px]:px-1';
   <div class="flex-1"></div>
 
   <div class="flex shrink-0 items-center gap-2 @max-[430px]:hidden">
-    <!-- `binary-tree-2` carries the app's own scale factor: Tabler draws it small
-         in its box, so it is scaled up and the stroke divides the factor back out. -->
+    <!-- Tabler draws binary-tree-2 small: scale up and divide the stroke back out, as the app does. -->
     <div class="group relative">
       <button type="button" aria-label="Session tree" class:list={[TOOLBAR_BUTTON.classes]}>
         <Icon name="binary-tree-2" size={15} class="scale-[1.15] [stroke-width:calc(1.5/1.15)]" />

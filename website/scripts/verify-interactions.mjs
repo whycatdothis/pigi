@@ -1,18 +1,4 @@
-/**
- * Checks that the page's interactive pieces actually work.
- *
- * Not a unit test suite: this drives the built page in a real browser, the way a
- * visitor would, and asserts on what changed. Run it after changing anything in
- * src/scripts or the components those scripts bind to.
- *
- * The last section is the one exception to "interactions": it opens the page at
- * phone and tablet widths and asserts the shape a window has to keep there — the
- * app's own minimum width, scaled, with nothing sideways and no dialog hanging
- * out of it. That contract lives in `AppWindow.astro` and `initWindowFits`, and
- * the way it breaks is quietly.
- *
- *   node scripts/verify-interactions.mjs
- */
+// Drives the built page in a real browser and asserts interactions and narrow-viewport layout.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
@@ -47,12 +33,7 @@ const { port } = server.address();
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
-/*
- * Every request to the releases API, if the page ever makes one. It should not:
- * the download href is a `releases/latest/download/` URL that GitHub resolves
- * itself, so the page needs no lookup at all. The download block asserts this is
- * still empty.
- */
+// The download href needs no API lookup; the download checks assert this stays empty.
 const releaseApiRequests = [];
 page.on('request', (request) => {
   if (request.url().startsWith('https://api.github.com/')) releaseApiRequests.push(request.url());
@@ -60,11 +41,10 @@ page.on('request', (request) => {
 
 await page.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
 
-/** How many chapters the tour has; `src/lib/features.ts` is the list. */
+// Must match the chapter list in src/lib/features.ts.
 const CHAPTER_COUNT = 13;
 const ALL_CHAPTERS = Array.from({ length: CHAPTER_COUNT }, (_, index) => index);
 
-/** A chapter's position, from its id, so a new chapter does not shift every check. */
 const stepIndex = (id) =>
   page.evaluate(
     (chapterId) =>
@@ -79,22 +59,13 @@ function check(name, passed, detail = '') {
   results.push({ name, passed, detail });
 }
 
-/**
- * Shows one step of the feature tour.
- *
- * From `lg` up the tour is driven by the scroll: the window is pinned and each
- * chapter brings its own still, so showing a step means scrolling that chapter to
- * the line the page reads at. Below `lg` the index is the control and showing a
- * step means clicking its chip. Both are what a visitor does, which is the point
- * of driving the page instead of calling into it.
- */
+// From `lg` up the tour is scroll-driven; below it the chip is the control.
 async function showStep(index) {
   const outcome = await page.evaluate((position) => {
     const chapter = document.querySelectorAll('[data-stage-copy]')[position];
     const chip = document.querySelectorAll('[data-stage-chip]')[position];
     if (!(chapter instanceof HTMLElement)) return 'missing';
-    // `checkVisibility` rather than the chip's own `display`: below `lg` the whole
-    // index row is what is hidden, so the chip itself still computes to `flex`.
+    // `checkVisibility`, not the chip's `display`: it is the parent row that gets hidden.
     if (!(chip instanceof HTMLElement) || !chip.checkVisibility()) {
       document.documentElement.style.scrollBehavior = 'auto';
       const line = window.innerHeight * 0.4;
@@ -111,7 +82,6 @@ async function showStep(index) {
   return outcome !== 'missing';
 }
 
-// --- theme ------------------------------------------------------------------
 {
   await page.evaluate(() => localStorage.removeItem('theme'));
   await page.emulateMedia({ colorScheme: 'dark' });
@@ -140,18 +110,9 @@ async function showStep(index) {
   await page.emulateMedia({ colorScheme: 'light' });
 }
 
-// --- the toolbar's tooltips -------------------------------------------------
 {
-  /*
-   * The app's `?` is a button, and its home is inside a Radix tooltip — a portal
-   * that floats over the page and takes the pointer. A still's tooltip is a span
-   * that fades in under the pointer and keeps `pointer-events: none`, so the same
-   * button there can never be pressed, and at `opacity: 0` it is still in the tab
-   * order: ten windows meant ten invisible tab stops whose only action was
-   * nothing. The `?` that survives is the one in the tree dialog's own header,
-   * which is visible at rest and reaches the dialog it opens.
-   */
-  // The tree's chapter, where the dialog and its header are actually drawn.
+  // Tooltip content has `pointer-events: none`, so a `?` inside one could never be pressed
+  // yet stayed in the tab order. The only `?` belongs in the tree dialog header.
   await showStep(await stepIndex('tree'));
   const toggles = await page.evaluate(() =>
     [...document.querySelectorAll('[data-tree-help-toggle]')].map((toggle) => {
@@ -176,7 +137,6 @@ async function showStep(index) {
   await showStep(0);
 }
 
-// --- feature tour -----------------------------------------------------------
 {
   const state = () =>
     page.evaluate(() => ({
@@ -200,12 +160,8 @@ async function showStep(index) {
     JSON.stringify(atLoad),
   );
 
-  /*
-   * The pinned window is the whole trick, and the way it breaks is that the
-   * sticky rule stops applying — `align-self` on the grid item, or a taller
-   * sibling — and the window scrolls off with its chapters.
-   */
-  // A chapter whose still has no timer: passing one that cycles would start it.
+  // The sticky rule breaks silently (grid `align-self`, a taller sibling).
+  // Use a chapter whose still has no timer; scrolling past a cycling one would start it.
   const pinned = await page.evaluate(async () => {
     const settle = () =>
       new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
@@ -227,7 +183,6 @@ async function showStep(index) {
     JSON.stringify(pinned),
   );
 
-  // Window on the left, words on the right: the still is read before its caption.
   const columns = await page.evaluate(() => {
     const rail = document.querySelector('[data-stage-rail]').getBoundingClientRect();
     const scene = document.querySelector('[data-stage-scene]').getBoundingClientRect();
@@ -239,11 +194,8 @@ async function showStep(index) {
     JSON.stringify(columns),
   );
 
-  /*
-   * The still is the app's 1200x800 shrunk in one transform. If the scaler is
-   * left at the frame's width the app is laid out narrower and scaled anyway,
-   * which draws a window smaller than its column — the gap this catches.
-   */
+  // If the scaler stays at the frame's width, the app lays out narrower and draws
+  // smaller than its column.
   const still = await page.evaluate(() => {
     const frame = document.querySelector('[data-stage-frame]').getBoundingClientRect();
     const canvas = document
@@ -269,7 +221,6 @@ async function showStep(index) {
     JSON.stringify(midTour),
   );
 
-  // The still has to fit the screen it is pinned to, not just be scaled by width.
   const fitted = await page.evaluate(() => {
     const frame = document.querySelectorAll('[data-stage-frame]')[3].getBoundingClientRect();
     const header = document.querySelector('[data-site-header]').getBoundingClientRect();
@@ -288,11 +239,6 @@ async function showStep(index) {
     JSON.stringify(fitted),
   );
 
-  /*
-   * The instant-switch still has to switch: three sessions stacked in one cell,
-   * one drawn at a time, the next one a second after the last. A portrait of a
-   * single session cannot show what the chapter claims.
-   */
   await showStep(await stepIndex('switch'));
   const cycleState = () =>
     page.evaluate(() => {
@@ -313,7 +259,7 @@ async function showStep(index) {
       };
     });
 
-  // Off the still, so the pointer does not hold it, and past one advance.
+  // Pointer off the still (hover pauses it), then wait past one advance.
   await page.mouse.move(4, 4);
   const firstCycle = await cycleState();
   await page.waitForTimeout(1700);
@@ -334,11 +280,6 @@ async function showStep(index) {
     JSON.stringify({ rows: secondCycle.rows, selected: secondCycle.selected }),
   );
 
-  /*
-   * A session's window lists the session it has open, selected, with the fork
-   * under it; Files, Git and Settings draw their own sidebars, and the Packages
-   * page selects its own row instead of a session.
-   */
   const lists = await page.evaluate(() =>
     [...document.querySelectorAll('[data-window-fit]')].map((fit) => {
       const rows = [...fit.querySelectorAll('[data-sidebar-row]')];
@@ -387,7 +328,7 @@ async function showStep(index) {
     JSON.stringify(sessionLists.map((list) => [list.title, list.count, list.selected])),
   );
 
-  // The instant-switch still's three sessions are the ones without a fork.
+  // `- 3`: the switch still's three sessions have no fork.
   const forkLists = sessionLists.filter((list) => !isSubagentList(list));
   check(
     'sidebar: the fork is listed under the session it came from',
@@ -404,14 +345,9 @@ async function showStep(index) {
   await showStep(0);
 }
 
-// --- view modes -------------------------------------------------------------
 {
-  /*
-   * The window opens the next density by itself every 1.5s, which is the claim the
-   * chapter makes. The checks below have to be deterministic, so they run with the
-   * timer held — the still's reduced-motion path, which is a real one — and the
-   * cycling itself is checked separately, before anything is clicked.
-   */
+  // Hold the 1.5s cycle (reduced motion) so the checks are deterministic; cycling is
+  // checked once below.
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await showStep(await stepIndex('views'));
   const root = page.locator('[data-view-modes]');
@@ -442,7 +378,6 @@ async function showStep(index) {
       return { active: window_.dataset.active, shown, ticked, open: menu_.dataset.open };
     });
 
-  // Off the still, so the pointer does not hold it, and back to full motion.
   await page.emulateMedia({ reducedMotion: null });
   await page.mouse.move(4, 4);
   const before = await density();
@@ -460,11 +395,8 @@ async function showStep(index) {
     JSON.stringify({ before: before.active, cycled }),
   );
 
-  // The window keeps what a reader picks: the timer stops for good.
   await page.emulateMedia({ reducedMotion: 'reduce' });
 
-  // The menu closes as soon as an item is taken, so every choice after the first
-  // starts by reopening it — which is also what a visitor does.
   const chooseMode = async (mode) => {
     if ((await menu.getAttribute('data-open')) !== 'true') {
       await page.click('[data-view-modes] [data-view-menu-trigger]');
@@ -480,20 +412,15 @@ async function showStep(index) {
       const shown = [...window.querySelectorAll('[data-view-panel]')].filter(
         (panel) => getComputedStyle(panel).display !== 'none',
       );
-      // `data-state=checked` is the attribute the app's menu styles off, so it is
-      // the one this asserts on.
+      // The app's menu styles off `data-state`, so assert on that.
       const checked = [...menu.querySelectorAll('[data-view-mode-button]')]
         .filter((button) => button.dataset.state === 'checked')
         .map((button) => button.dataset.viewModeButton);
       const selected = [...menu.querySelectorAll('[data-view-mode-button]')].filter(
         (button) => button.getAttribute('aria-checked') === 'true',
       );
-      /*
-       * The tick a visitor actually sees. Every item carries the icon and the
-       * checked state shows it, so this counts the drawn ones rather than the
-       * markup: an icon that exists only on the item that shipped active is
-       * exactly the bug this catches, and it passes every attribute check above.
-       */
+      // Count drawn ticks, not markup: an icon present only on the initially active item
+      // passed every attribute check.
       const ticked = [...menu.querySelectorAll('[data-view-mode-button]')]
         .filter((button) =>
           [...button.querySelectorAll('svg')].some(
@@ -525,15 +452,10 @@ async function showStep(index) {
     );
   }
 
-  /*
-   * Minimal keeps the turn folded behind its timer row, which is a button in the
-   * app and has to be one here: the row opens the same entries the other two
-   * panels draw, and the chevron turns with it.
-   */
   await chooseMode('minimal');
   const timer = page.locator('[data-minimal-timer]');
   await timer.click();
-  // The chevron rotates over the transition, so read it once it has arrived.
+  // Wait out the chevron's rotate transition.
   await page.waitForTimeout(250);
   const unfolded = await page.evaluate(() => {
     const turn = document.querySelector('[data-minimal-turn]');
@@ -582,8 +504,6 @@ async function showStep(index) {
     JSON.stringify(folded),
   );
 
-  // A short turn sits under the toolbar: the app's list has no `justify-end`, so
-  // there is no gap above the first message to push it away from.
   await chooseMode('minimal');
   const above = await page.evaluate(() => {
     const panel = [...document.querySelectorAll('[data-view-panel]')].find(
@@ -595,7 +515,6 @@ async function showStep(index) {
   });
   check('view modes: a short turn starts at the top', above <= 40, `gap=${above}px`);
 
-  // A choice is final: nothing moves the window after one.
   await page.emulateMedia({ reducedMotion: null });
   const settled = await density();
   await page.waitForTimeout(1700);
@@ -617,7 +536,6 @@ async function showStep(index) {
   );
 }
 
-// --- the tree's explanation -------------------------------------------------
 {
   await showStep(await stepIndex('tree'));
   const dialog = page.locator('[data-tree-help]');
@@ -629,8 +547,6 @@ async function showStep(index) {
     `state=${closed} visible=${hidden}`,
   );
 
-  // The `?` on the dialog itself: the window's own toolbar sits under the scrim the
-  // dialog puts over everything, which is what the app does too.
   await page.locator('[data-tree-dialog] [data-tree-help-toggle]').first().click();
   await page.waitForTimeout(300);
   const opened = await dialog.getAttribute('data-state');
@@ -649,15 +565,9 @@ async function showStep(index) {
   await showStep(0);
 }
 
-// --- minimap ----------------------------------------------------------------
 {
   await showStep(await stepIndex('switch'));
-  /*
-   * The window here opens a session a second, and the first one is the long
-   * session the minimap is drawn for. A reader who asked for less motion gets
-   * that one and nothing else, which is also what makes these checks measure a
-   * known list instead of whichever session happened to be open.
-   */
+  // Reduced motion holds the still on session 0, the long one the minimap is drawn for.
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.waitForTimeout(200);
   const openSession = await page.evaluate(() => {
@@ -700,13 +610,7 @@ async function showStep(index) {
     `lit=${atBottom}`,
   );
 
-  /*
-   * A bar moves the transcript it belongs to, not the page.
-   *
-   * `scrollIntoView` also scrolls every scrollable ancestor, and the page is one:
-   * the reader who clicked a bar in the window was thrown out of the chapter they
-   * were reading, which on this page means the still they clicked in changed.
-   */
+  // `scrollIntoView` also scrolled the page, which changed the tour chapter.
   const pageBefore = await page.evaluate(() => {
     window.scrollBy({ top: 30, behavior: 'instant' });
     return window.scrollY;
@@ -721,11 +625,10 @@ async function showStep(index) {
     `${Math.round(pageBefore)} -> ${Math.round(pageAfter)}`,
   );
 
-  // Off the strip: hovering it opens the list, and the list covers the bars.
+  // Pointer off the strip: hover opens the list, which covers the bars.
   await page.mouse.move(4, 4);
   await page.waitForTimeout(500);
 
-  // Back to the newest message, which is what the bar above would have picked.
   await scope.locator('[data-minimap-scroll]').evaluate((node) => {
     node.scrollTop = node.scrollHeight;
   });
@@ -741,11 +644,6 @@ async function showStep(index) {
     `open=${panelOpen} visible=${panelVisible}`,
   );
 
-  /*
-   * The list is the bars in words, so the two have to agree about where the
-   * reader is. The markup ships the last entry lit — the app opens a session at
-   * its newest message — and from then on it is `data-selected` and the CSS.
-   */
   const litEntries = async () =>
     scope.evaluate((node) =>
       [...node.querySelectorAll('[data-minimap-entry]')]
@@ -762,11 +660,7 @@ async function showStep(index) {
 
   await scope.locator('[data-minimap-entry]').first().click();
   await page.waitForTimeout(800);
-  /*
-   * "Jumped to it" is the message at the top of the transcript, not scrollTop
-   * near zero: the transcript starts with the session's own padding, so the first
-   * message is already ~260px down the content.
-   */
+  // The transcript has top padding, so measure the first message, not scrollTop.
   const landed = await scope.evaluate((node) => {
     const scroller = node.querySelector('[data-minimap-scroll]');
     const message = scroller.querySelector('[data-message-index]');
@@ -778,12 +672,6 @@ async function showStep(index) {
     (await scope.locator('[data-minimap-panel]').getAttribute('data-open')) === 'false',
     `open=${await scope.locator('[data-minimap-panel]').getAttribute('data-open')}`,
   );
-  /*
-   * The list and the bars answer the same question — where is the reader — and
-   * after the jump they have to still agree. Which message counts as current near
-   * a boundary is the app's centre rule; what matters here is that one list entry
-   * is lit and it is the one the strip is lit at.
-   */
   check(
     'minimap: the light follows the jump',
     JSON.stringify(await litEntries()) === JSON.stringify([await litIndex()]),
@@ -792,7 +680,6 @@ async function showStep(index) {
   await page.emulateMedia({ reducedMotion: null });
 }
 
-// --- session tree -----------------------------------------------------------
 {
   await showStep(await stepIndex('tree'));
   const tree = page.locator('[data-tree]');
@@ -801,12 +688,11 @@ async function showStep(index) {
       .locator('[data-tree-rails] > span')
       .evaluateAll((spans) => spans.map((span) => span.style.height));
 
-  // Off the tree first: a pointer left on it would already be the resting state.
   await page.mouse.move(4, 4);
   await page.waitForTimeout(200);
   const restingRails = await rails();
 
-  // The last row is on the wrong branch, so lighting it must change the lines.
+  // u5 is on another branch, so lighting it must change the rails.
   await tree.locator('[data-row-id="u5"]').hover();
   await page.waitForTimeout(450);
 
@@ -817,12 +703,7 @@ async function showStep(index) {
     `${JSON.stringify(restingRails)} -> ${JSON.stringify(hoveredRails)}`,
   );
 
-  /*
-   * The preview is a card of the row under the pointer, so it has to be drawn
-   * (`data-open` alone used to change nothing, and the card stayed at
-   * `opacity: 0` for the whole life of the page) and it has to carry that row's
-   * time — it shipped the first row's and never moved.
-   */
+  // Regressions: the card stayed at opacity 0, and kept the first row's time.
   const preview = await tree.evaluate((node) => {
     const card = node.querySelector('[data-tree-preview]');
     const time = card.querySelector('[data-tree-preview-time]');
@@ -859,7 +740,6 @@ async function showStep(index) {
   await page.mouse.move(10, 10);
 }
 
-// --- session switcher -------------------------------------------------------
 {
   await showStep(await stepIndex('switcher'));
   const switcher = page.locator('[data-session-switcher]');
@@ -928,13 +808,7 @@ async function showStep(index) {
   check('switcher: escape clears the query', reset === 9, `visible=${reset}`);
 }
 
-// --- the tree's explanation -------------------------------------------------
 {
-  /*
-   * The `?` is the only control that opens the dialog, so it has to be reachable
-   * and the dialog has to behave like one: focus moves in, Escape closes it and
-   * hands focus back to the button it came from.
-   */
   await showStep(await stepIndex('tree'));
   const toggle = page.locator('[data-tree-help-toggle]');
   const dialog = page.locator('[data-tree-help]');
@@ -964,12 +838,7 @@ async function showStep(index) {
   );
 }
 
-// --- structure --------------------------------------------------------------
 {
-  /*
-   * One main region a page: the windows are pictures of an app that has its own,
-   * and eleven landmarks would tell a screen reader nothing about this page.
-   */
   const structure = await page.evaluate(() => ({
     mains: document.querySelectorAll('main').length,
     inWindows: document.querySelectorAll('[data-window-canvas] main').length,
@@ -987,12 +856,7 @@ async function showStep(index) {
     JSON.stringify({ features: structure.features, githubName: structure.githubName }),
   );
 
-  /*
-   * The app draws a command as the tool's own prefix and the body: `read` and the
-   * path, `edit` and the path, `$` only for bash (`toolDisplay.ts`). The stills
-   * had `→ edit` and `$ read` — a prefix the app never draws, and a bash prompt in
-   * front of a tool that has none.
-   */
+  // The app prefixes a command with its tool name, `$` only for bash (toolDisplay.ts).
   const home = await readFile(join(ROOT, 'index.html'), 'utf8');
   const strayPrefixes = ['$ read', '$ edit', '$ write', '→'].filter((needle) =>
     home.includes(needle),
@@ -1012,15 +876,9 @@ async function showStep(index) {
   await showStep(0);
 }
 
-// --- files, git, quote, packages ----------------------------------------------
 {
-  /*
-   * The stills that answer the pointer since the window grew tabs: Preview and
-   * Source swap the viewer's halves, the Packages tabs swap the page, and the
-   * quote chapter's Quote button turns its selection into a card. Clicked
-   * through `evaluate`, as a pointer on a pinned still would: Playwright's own
-   * click scrolls the page to "reveal" the element first, which moves the tour.
-   */
+  // Click via `evaluate`: Playwright's click scrolls the element into view, which moves
+  // the pinned tour.
   const clickIn = (id, selector) =>
     page.evaluate(
       ([chapterId, target]) => {
@@ -1103,13 +961,7 @@ async function showStep(index) {
   await showStep(0);
 }
 
-// --- appearance ---------------------------------------------------------------
 {
-  /*
-   * The Appearance still is the app's own colour code: a theme or an accent runs
-   * `deriveTokens` and writes the `--app-*` properties on <html>, and a mode is the
-   * page's light/dark. Each is checked by what it does to the page.
-   */
   await page.evaluate(() => localStorage.removeItem('theme'));
   await page.reload({ waitUntil: 'networkidle' });
   await showStep(await stepIndex('appearance'));
@@ -1135,7 +987,7 @@ async function showStep(index) {
     }));
   const pinkPage = await pageColours();
   await clickInStill('[data-accent-option="blue"]');
-  // The download button eases into its new fill (`transition-all`).
+  // The download button transitions to its new fill.
   await page.waitForTimeout(400);
   const accent = await page.evaluate(() => ({
     pressed: [...document.querySelectorAll('[data-accent-option][aria-pressed="true"]')].map(
@@ -1196,7 +1048,6 @@ async function showStep(index) {
   await page.reload({ waitUntil: 'networkidle' });
 }
 
-// --- terminal ---------------------------------------------------------------
 {
   await showStep(await stepIndex('terminal'));
   const tabs = page.locator('[data-terminal-tab]');
@@ -1204,8 +1055,7 @@ async function showStep(index) {
   const state = await tabs.evaluateAll((nodes) =>
     nodes.map((node) => ({
       tab: node.dataset.terminalTab,
-      // The app's own attribute for it: Radix writes `data-state=active`, and the
-      // tab's classes read it.
+      // Radix's `data-state` is what the tab's classes read.
       active: String(node.dataset.state === 'active'),
     })),
   );
@@ -1216,18 +1066,9 @@ async function showStep(index) {
   );
 }
 
-// --- download ---------------------------------------------------------------
 {
-  /*
-   * The expected href is written out rather than imported from the page's own
-   * constants, because what is worth asserting is the shape of the string that
-   * ships: `/releases/latest/download/<file>`, with no version in it. GitHub
-   * answers that URL with the asset of whichever release is newest at the moment
-   * of the click, which is what makes a published release downloadable without a
-   * rebuild. A version in the path would rot on the next release, and a lookup in
-   * the browser — the API — is a request per visitor that can be rate-limited,
-   * blocked by an extension, or unreachable.
-   */
+  // Written out to assert the shipped shape: `latest/download`, no version, so a new
+  // release needs no rebuild and visitors need no API lookup.
   const EXPECTED_DOWNLOAD_URL =
     'https://github.com/whycatdothis/pigi/releases/latest/download/pigi-arm64.dmg';
 
@@ -1259,8 +1100,6 @@ async function showStep(index) {
     JSON.stringify(releaseApiRequests),
   );
 
-  // The page's primary action sits under the title, with one icon and no arrow:
-  // a second glyph after the label is decoration the app's button never carries.
   const hero = await page.evaluate(() => {
     const button = document.querySelector('main > section a[data-download-link]');
     return button === null
@@ -1281,19 +1120,9 @@ async function showStep(index) {
   );
 }
 
-// --- a window scaled twice ---------------------------------------------
 {
-  /*
-   * A window that has been scaled once and then has to be scaled again.
-   *
-   * `initWindowFits` reads the window's height to reserve the room its picture
-   * takes. Read as a rect on a page that is already wide, the tour's stills hand
-   * back the height their stage has shrunk them to — 677 for an 800px window —
-   * and the next scale shrinks that a second time, so the page reserves 341 where
-   * the window draws 402 and the next section starts on top of it. Only a window
-   * at its natural size is measured correctly, which is why a page loaded narrow
-   * (the block below) looks fine and a page narrowed from a desktop does not.
-   */
+  // Regression: after a wide load, initWindowFits measured the already-scaled rect and
+  // scaled it again, reserving 341px for a 402px window.
   const resized = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await resized.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
   await resized.setViewportSize({ width: 390, height: 844 });
@@ -1316,16 +1145,7 @@ async function showStep(index) {
   await resized.close();
 }
 
-// --- no script --------------------------------------------------------------
 {
-  /*
-   * The tour without the script, on a phone.
-   *
-   * Every chapter ships visible, and the one attribute `initFeatureStage` writes
-   * is what stacks them in a single cell below `lg`. With no script nothing
-   * writes it, so every chapter reads as an article — which is what the component
-   * promises, and what all the headings in one cell would break.
-   */
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     javaScriptEnabled: false,
@@ -1354,14 +1174,7 @@ async function showStep(index) {
   await context.close();
 }
 
-// --- narrow viewports -------------------------------------------------------
 {
-  /*
-   * The same page on a phone. Nothing here is an interaction — it is the shape
-   * the page promises at a width the app itself cannot go to: a window drawn at
-   * the app's minimum and scaled, overlays that stay inside it, and no sideways
-   * scroll anywhere.
-   */
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await phone.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
 
@@ -1372,8 +1185,7 @@ async function showStep(index) {
       const window_ = canvas.firstElementChild;
       const fitBox = fit.getBoundingClientRect();
       const windowBox = window_.getBoundingClientRect();
-      // Everything inside the canvas is drawn full size and then scaled, so the
-      // drawn geometry is the rendered one divided back out by that scale.
+      // 680 is the app's minimum width; divide the scale out to get drawn sizes.
       const scale = windowBox.width / 680;
       const sidebar = window_.querySelector('aside');
       return {
@@ -1440,8 +1252,6 @@ async function showStep(index) {
     JSON.stringify(windows.map((window_) => window_.dialogsOutside)),
   );
 
-  // Below `lg` there is no room to pin the window beside the words: the index is
-  // the control, and it shows one chapter over one still.
   await phone.evaluate(() => document.querySelectorAll('[data-stage-chip]')[2].click());
   await phone.waitForTimeout(400);
   const phoneTour = await phone.evaluate(() => ({
@@ -1478,7 +1288,6 @@ async function showStep(index) {
   await tablet.close();
 }
 
-// --- reporting --------------------------------------------------------------
 let failed = 0;
 for (const result of results) {
   if (!result.passed) failed += 1;

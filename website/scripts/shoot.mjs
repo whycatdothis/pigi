@@ -1,16 +1,5 @@
-/**
- * Screenshots the built site for visual review.
- *
- * Serves `website/dist` from a throwaway static server, opens it in Chromium at a
- * desktop viewport, and writes one full-page PNG plus one per section, so a
- * change can be looked at instead of imagined.
- *
- *   node scripts/shoot.mjs              # both pages, 1440 wide
- *   node scripts/shoot.mjs 1280         # a different viewport width
- *
- * Playwright comes from the repository root, which already depends on it for the
- * app's browser test layer — the site does not install a second copy.
- */
+// Screenshots dist/ into .shots/: node scripts/shoot.mjs [width=1440]
+// Playwright resolves from the repo root's install; the site does not depend on it.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
@@ -55,9 +44,6 @@ page.on('console', (message) => {
 });
 page.on('pageerror', (error) => failures.push(`pageerror: ${error.message}`));
 
-// Same canned release the verify script uses: a screenshot run should not depend
-// on GitHub's rate limit, and a rate-limited API is not a console error to fix.
-
 for (const [slug, route] of [
   ['home', '/'],
   ['changelog', '/changelog/'],
@@ -67,9 +53,7 @@ for (const [slug, route] of [
 
   await page.screenshot({ path: join(OUT_DIR, `${slug}-full-${width}.png`), fullPage: true });
 
-  // Per-section shots: a full page this tall is unreadable in one image.
-  // The page's own bands, not the `<main>` inside every recreated window: those are
-  // transcripts, and a shot of one is a shot of the app, not of a section.
+  // `body > main`, not the `<main>` inside each recreated app window.
   const sections = await page.evaluate(() => {
     const page = document.querySelector('body > main');
     if (page === null) return [];
@@ -96,11 +80,8 @@ for (const [slug, route] of [
     });
   }
 
-  /*
-   * The tour's window is pinned, and a sticky element is painted once in a
-   * full-page capture — at the top of its section, with the rest of the section
-   * empty. So it gets scrolled through instead: one viewport shot per chapter.
-   */
+  // The tour window is sticky and paints only once in a full-page capture, so scroll
+  // through it and take one viewport shot per chapter.
   if (route === '/' && width >= 1024) {
     const stops = await page.evaluate(() =>
       [...document.querySelectorAll('[data-stage-copy]')].map((chapter) =>

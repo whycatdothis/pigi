@@ -16,18 +16,9 @@ import {
 export interface Turn {
   user: string;
   time: string;
-  /**
-   * The actions a message shows on hover, left visible, and which message of the
-   * turn is carrying them — the app offers them on both. `MessageActionTooltip`
-   * holds the app's own label for the action under the pointer.
-   */
   actionTooltip?: MessageActionTooltip & { on: 'user' | 'assistant' };
   thinking?: string;
-  /**
-   * One tool call. `prefix` is the app's own naming: `$` for bash, the tool's
-   * name for everything else (`read`, `edit`, `write`), with the path or command
-   * as the body — never `$ read`.
-   */
+  // `prefix` is `$` for bash, the tool's name otherwise (`read`, `edit`) — never `$ read`.
   tool?: {
     command: string;
     prefix?: string;
@@ -37,50 +28,23 @@ export interface Turn {
     duration: string;
   };
   reply?: string;
-  /**
-   * A passage of the reply that is selected, with the Quote button the
-   * selection raises over it. Must be a substring of `reply`.
-   */
+  // Must be a substring of `reply`.
   quote?: string;
-  /** The last reply of a session carries its time; the ones above do not. */
   last?: boolean;
 }
 
 interface Props {
   turns: Turn[];
-  /** Whether the transcript is the thing being demonstrated, so it scrolls. */
   scroll?: boolean;
-  /** The strip of bars on the right — the app's own minimap. */
   minimap?: boolean;
 }
 
-/**
- * A transcript, laid out the way the app lays one out.
- *
- * The metrics are the app's: a centred column of MESSAGE_LIST_MAX_WIDTH with
- * MESSAGE_LIST_HORIZONTAL_PADDING of inline padding inside it, a
- * MESSAGE_LIST_TOP_INSET inset at the top, and one gap step between stacked
- * blocks. All three come from the app's layoutConstants, not from here.
- *
- * `scroll` is the difference between a still and a demo. A still is clipped by the
- * window, which is what a reader expects of a picture; the instant-history section
- * is about scrolling an old session, so there the transcript is a real scroll
- * container with a real minimap beside it.
- */
 const { turns, scroll = false, minimap = false } = Astro.props;
 
-/** The tooltip to keep visible, when this turn is the one carrying a hover. */
 function tooltipFor(turn: Turn, on: 'user' | 'assistant'): MessageActionTooltip | undefined {
   return turn.actionTooltip?.on === on ? turn.actionTooltip : undefined;
 }
 
-/**
- * The app's own vertical insets and nothing else: MESSAGE_LIST_TOP_INSET above the
- * first row, MESSAGE_LIST_END_INSET_PX below the last one. The column is not
- * floated anywhere — in the app a session shorter than the window starts at the
- * top, and a session that overflows is scrolled to its newest message, which for a
- * still is `initTranscriptClips` moving a clipped box to its end.
- */
 const column = 'mx-auto flex w-full flex-col';
 const columnStyle = [
   `max-width:${MESSAGE_LIST_MAX_WIDTH}px`,
@@ -91,12 +55,7 @@ const columnStyle = [
 ---
 
 <div class="relative min-h-0 flex-1" data-minimap-scope={minimap ? '' : undefined}>
-  <!--
-    The app's scroll viewport, clipped for a still: `scroll` demos scrolling, so it
-    keeps a real scroller and the minimap beside it; a still is not something to get
-    stuck inside, so it stays hidden — and because `overflow: hidden` is still a
-    scroll container, a session that overflows can be shown at its end anyway.
-  -->
+  <!-- `overflow: hidden` is still a scroll container, so `initTranscriptClips` can show a still at its end. -->
   <div
     class:list={[scroll ? 'no-scrollbar h-full overflow-y-auto' : 'h-full overflow-hidden']}
     data-minimap-scroll={scroll ? '' : undefined}

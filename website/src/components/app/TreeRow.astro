@@ -3,16 +3,9 @@ import Icon from '../Icon.astro';
 import { fileIconUrl } from '../../lib/fileIcons';
 import { TREE_ROW, TREE_ROW_IDLE, TREE_ROW_SELECTED } from '../../lib/appUi';
 
-/**
- * One row of the Files tree or the Git tab's file list (`FileTreeSidebar.tsx`,
- * `GitSidebar.tsx`): 12px of indent per level plus 6, a chevron for a folder or
- * its 12px of empty room for a file, then the folder or the file's own icon.
- * The trailing slot holds the Git list's status and line counts.
- */
 interface Props {
   name: string;
   depth?: number;
-  /** A folder, open or shut; omitted for a file. */
   folder?: 'open' | 'closed';
   selected?: boolean;
 }

@@ -5,12 +5,6 @@ import TreeRow from '../app/TreeRow.astro';
 import { SIDEBAR_DEFAULT_WIDTH } from '../../lib/appLayout';
 import { SIDEBAR_MENU_BUTTON, TOOLBAR_BUTTON } from '../../lib/appUi';
 
-/**
- * The Files tab's sidebar (`FileTreeSidebar.tsx`): the project's name with the
- * ⌘P hint behind its info icon, then the tree. The tree is this repository's own
- * top level, with `docs` open on the file the viewer shows, and Settings at the
- * foot as in the session sidebar.
- */
 const folders = ['.github', '.pi', 'build', 'docs', 'resources', 'scripts', 'src', 'website'];
 const docs = [
   'appearance.md',

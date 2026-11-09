@@ -7,26 +7,13 @@ import { highlightLines } from '../../lib/highlight';
 import { MESSAGE_LIST_MAX_WIDTH } from '../../lib/appLayout';
 import { SEGMENTED, SEGMENTED_ITEM, SEGMENTED_ITEM_OFF } from '../../lib/appUi';
 
-/**
- * The Files tab's viewer (`FileViewer.tsx`) on a markdown file: the path bar
- * with Preview / Source, the rendered page, and the highlighted source with line
- * numbers behind the other half of the toggle. Both halves are in the markup;
- * `initFileViewers` flips `data-view` on the root, which is all the toggle does
- * in a still.
- *
- * The file is the head of this repository's own `docs/architecture.md`, and the
- * preview holds a selection with its Quote button over it — the same popover
- * the chat and the diff viewer raise.
- */
 const path = 'docs/architecture.md';
 
-/** The file's first four blocks, read from the repository at build time. */
 const source = readFileSync(resolve(process.cwd(), '..', path), 'utf8')
   .split('\n\n')
   .slice(0, 4)
   .join('\n\n');
 
-/** The sentence the still has selected, quoted verbatim from `source`. */
 const selected = 'Both a panel and its adjacent content consume that same property';
 
 const lines = await highlightLines(source, 'markdown');
@@ -43,7 +30,7 @@ if (!source.replace(/\n/g, ' ').includes(selected)) {
   throw new Error(`${path} no longer contains the sentence the Files still selects: "${selected}"`);
 }
 
-/** Just enough markdown for this file: headings and paragraphs with inline code. */
+// Just enough markdown for this file: headings and paragraphs with inline code.
 const blocks = source.split('\n\n').map((block) => {
   if (block.startsWith('## ')) return { tag: 'h2', before: inline(block.slice(3)) };
   if (block.startsWith('# ')) return { tag: 'h1', before: inline(block.slice(2)) };

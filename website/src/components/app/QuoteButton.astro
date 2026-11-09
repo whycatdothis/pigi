@@ -1,14 +1,8 @@
 ---
 import { KBD, QUOTE_SELECTION_BUTTON } from '../../lib/appUi';
 
-/**
- * The button a selection raises (`QuoteSelectionPopover.tsx`), hung above the
- * start of the selection it belongs to. Its parent is the selection's own
- * `relative` box, so it follows the text wherever the text wraps.
- *
- * Inert by default: only the quote chapter's still has a panel for it to add to,
- * and there it is a real button (`initQuoteStills`).
- */
+// The parent must be the selection's `relative` box. Inert unless `interactive`:
+// only the quote chapter has a panel to add to (initQuoteStills).
 interface Props {
   interactive?: boolean;
 }

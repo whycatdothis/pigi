@@ -1,12 +1,7 @@
 ---
 import { superellipseRectPath } from '../../../../src/renderer/src/lib/squirclePath';
 
-/**
- * The app's panel toggle glyph (`components/panelIcon.tsx`): a superellipse
- * window outline with a muted strip on the side the panel lives. The rects are
- * repeated here because that file is a React component; the outline comes from
- * the same `superellipseRectPath` the app draws it with.
- */
+// Copy of the app's components/panelIcon.tsx, which is React so can't be imported here.
 interface Props {
   side: 'left' | 'right';
 }

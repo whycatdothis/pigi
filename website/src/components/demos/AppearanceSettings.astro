@@ -12,19 +12,6 @@ import { DEFAULT_CODE_FONT_SIZE, DEFAULT_UI_FONT_SIZE } from '../../../../src/sh
 import { accentSwatchHex } from '../../../../src/shared/themePresets';
 import { MENU_ITEM, SETTINGS_CARD, SETTINGS_ROW } from '../../lib/appUi';
 
-/**
- * Settings → Appearance (`settings/appearanceSettings.tsx`,
- * `appearanceControls.tsx`), live.
- *
- * Every control a reader can reach here does what it does in the app, to the
- * whole page: a mode switches the page between light and dark, a theme or an
- * accent re-derives every `--app-*` property with the app's own `deriveTokens`
- * (`initAppearanceStill`). The rows that would need a file dialog or a colour
- * picker — import, copy, the hex fields — are drawn, not wired.
- *
- * The mode previews paint from `--preview-*` properties on their group, so the
- * script can redraw them for a new theme by setting a dozen values.
- */
 const summary = appearanceSummary(SITE_THEME, 'light');
 
 const modes = [
@@ -43,7 +30,6 @@ const lines = [
   { width: 26, accent: false, opacity: 0.7 },
 ];
 
-/** `PreviewRing`'s edge, from the light preview whichever card wears it. */
 const previewEdge = 'color-mix(in oklab, var(--preview-light-background), #000 12%)';
 
 const fonts = [
@@ -94,11 +80,7 @@ const HEX_FIELD =
                     data-theme-mode={mode.value}
                     class="group/mode relative flex h-[66px] w-[84px] overflow-hidden rounded-surface-sm"
                   >
-                    {/*
-                      System is the left half of the light preview beside the left
-                      half of the dark one: each half draws a whole miniature at
-                      twice its width and crops it, as the app's `PreviewHalf` does.
-                    */}
+                    {/* System crops a double-width miniature per half, as the app's `PreviewHalf` does. */}
                     {(mode.value === 'system' ? ['light', 'dark'] : [mode.value]).map((half) => (
                       <span class="relative h-full min-w-0 flex-1 overflow-hidden">
                         <span
@@ -131,12 +113,7 @@ const HEX_FIELD =
                         </span>
                       </span>
                     ))}
-                    {/*
-                      The app's `PreviewRing`: a 2px band of the light background
-                      darkened, on the light preview and the light half of System,
-                      which would otherwise melt into the page. The accent ring
-                      replaces it on the checked one.
-                    */}
+                    {/* Edge ring so the light preview doesn't melt into the page (app's `PreviewRing`). */}
                     {mode.value !== 'dark' && (
                       <span
                         aria-hidden="true"
@@ -155,7 +132,7 @@ const HEX_FIELD =
           </div>
         </div>
 
-        <!-- The card clips its rows, so the theme menu hangs off this wrapper instead. -->
+        <!-- The card clips its rows, so the theme menu hangs off this wrapper. -->
         <div class="relative">
           <div class={SETTINGS_CARD.classes}>
             <div class={SETTINGS_ROW.classes}>

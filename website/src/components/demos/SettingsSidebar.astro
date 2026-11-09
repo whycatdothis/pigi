@@ -4,11 +4,7 @@ import type { IconName } from '../../lib/icons';
 import { SIDEBAR_DEFAULT_WIDTH } from '../../lib/appLayout';
 import { SIDEBAR_MENU_BUTTON } from '../../lib/appUi';
 
-/**
- * The settings view's sidebar (`settings/SettingsSidebar.tsx`): Back to app,
- * then pigi's own pages and pi's, with the icons and labels of the app's
- * section registry (`lib/settingsSections.ts`, a React module, so copied here).
- */
+// Copied from the app's `lib/settingsSections.ts`, which is a React module.
 const groups: { label: string; sections: { label: string; icon: IconName }[] }[] = [
   {
     label: 'pigi',

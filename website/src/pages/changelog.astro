@@ -10,11 +10,7 @@ const title = 'Changelog — pigi';
 const description =
   'Every change to pigi, newest first. The same file the GitHub release notes are written from.';
 
-/**
- * The collection holds exactly the one file, so it is taken rather than looked up
- * by id — the id comes from slugifying the filename, and nothing here should
- * depend on what that slug turns out to be.
- */
+// Destructured rather than looked up by id, which is a slug of the filename.
 const [entry] = await getCollection('changelog');
 if (!entry) {
   throw new Error(
@@ -45,10 +41,6 @@ const { Content } = await render(entry);
     </p>
 
     <div class="mt-10 border-t border-border/70 pt-8">
-      {
-        /* The app's own markdown typography, so the changelog reads exactly like an
-          assistant message does inside pigi. */
-      }
       <div class="changelog-body">
         <div class="markdown-body text-[15px] text-foreground">
           <Content />

@@ -5,16 +5,6 @@ import { fileIconUrl } from '../../lib/fileIcons';
 import { highlightLines, type Token } from '../../lib/highlight';
 import { SEGMENTED, SEGMENTED_ITEM, SEGMENTED_ITEM_OFF, SEGMENTED_ITEM_ON } from '../../lib/appUi';
 
-/**
- * The Git tab's diff viewer (`GitDiffViewer.tsx`, `GitDiffBody.tsx`), unified:
- * two gutters, a sign column, the code highlighted, the changed words of a
- * modified line marked, and the unmodified stretches folded into a row that
- * expands them. Three of the added lines are selected, with the Quote button the
- * selection raises.
- *
- * The change is the one the Files chapter's path bar shows — the copy button
- * beside a file's path — so the stills tell one story.
- */
 type Kind = 'context' | 'add' | 'remove';
 
 interface Line {
@@ -22,7 +12,6 @@ interface Line {
   old?: number;
   new?: number;
   text: string;
-  /** The changed words of a modified line, as a character range. */
   mark?: [number, number];
   selected?: boolean;
 }
@@ -118,7 +107,6 @@ const highlighted = await highlightLines(lines.map((line) => line.text).join('\n
 const firstSelected = lines.find((line) => line.selected);
 const tokensOf = new Map(lines.map((line, index) => [line, highlighted[index] ?? []]));
 
-/** The line's tokens, cut where the mark starts and ends. */
 function pieces(line: Line): { token: Token; marked: boolean }[] {
   const result: { token: Token; marked: boolean }[] = [];
   let offset = 0;

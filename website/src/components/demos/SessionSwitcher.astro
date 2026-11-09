@@ -2,37 +2,12 @@
 import Icon from '../Icon.astro';
 import { DIALOG_SURFACE } from '../../lib/appUi';
 
-/**
- * The session switcher.
- *
- * `Ctrl+R` from anywhere in the app raises this over the window: a command
- * palette, not a panel — the window keeps its size and the palette sits near the
- * top of it, offset right by the sidebar's width so it centres over the chat
- * column rather than the window.
- *
- * The chrome is the app's (SessionSwitcher.tsx over the dialog and command
- * primitives): 550px wide, rounded-xl, a 44px input row, and one line per session
- * carrying the project under the title and the age on the right.
- *
- * The surface is the app's opaque stand-in for a translucent dialog
- * (`--dialog-solid`): the app floats this palette over the window's vibrancy, and a
- * recreation without that material behind it would let the transcript read through
- * the list.
- *
- * Everything below the input works: type to filter, up and down to move, enter to
- * take the session. That is the feature, so a still of it would be a picture of
- * a search box.
- */
 interface Session {
   title: string;
   project: string;
   time: string;
 }
 
-/**
- * Long enough that typing beats reading, with a cluster on "minimap" to find and
- * a decoy in another project.
- */
 const sessions: Session[] = [
   { title: 'Add the chat minimap', project: 'pigi', time: '4m' },
   { title: 'Minimap widths while resizing', project: 'pigi', time: '18m' },
@@ -45,7 +20,6 @@ const sessions: Session[] = [
   { title: 'Skill block parsing', project: 'test-playground', time: 'Mon' },
 ];
 
-/** What the app shows as the first match, so the demo opens on something. */
 const initiallySelected = sessions[0].title;
 ---
 
@@ -59,7 +33,6 @@ const initiallySelected = sessions[0].title;
     DIALOG_SURFACE.classes,
   ]}
 >
-  <!-- The input row. 44px, the app's own height for it. -->
   <div class="p-1 pb-0">
     <div class="flex h-11 items-center gap-2 rounded-lg border border-input/30 bg-input/50 px-2">
       <Icon name="search" size={16} class="shrink-0 text-muted-foreground opacity-50" />

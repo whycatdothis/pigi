@@ -1,16 +1,7 @@
 ---
 import Icon from '../Icon.astro';
 
-/**
- * The app's round `?` — `SessionTreeHelpButton` in `SessionTreeHelpDialog.tsx`.
- *
- * It has three homes in the app, and all three are on this page: to the right of
- * the tree's message count, inside the tree button's toolbar tooltip, and inside
- * the tree action's message tooltip. In the app it is a button that opens the
- * explanation, so here it is a button too: `initTreeHelp` toggles the
- * `SessionTreeHelp` dialog in the same window, and a placement that has no dialog
- * beside it simply does nothing.
- */
+// initTreeHelp toggles the SessionTreeHelp dialog in the same window; with none there it does nothing.
 interface Props {
   class?: string;
 }

@@ -2,31 +2,19 @@
 import Icon from '../Icon.astro';
 import { ACTION_BUTTON, TOOLTIP_CONTENT } from '../../lib/appUi';
 
-/**
- * The label a message's actions carry in the app: one tooltip, anchored to the
- * group of icons, following the pointer from icon to icon.
- *
- * `action` is which icon is under the pointer, because that decides two things the
- * app decides the same way — which icon is lit, and which words are in the tooltip.
- * A user message's tree action carries the extra line about the input box, and the
- * tree action is the only one with the `?` in its tooltip (`messageBubbles.tsx`).
- */
 export interface MessageActionTooltip {
+  /** The hovered icon: it is lit and the tooltip is its label. */
   action: 'tree' | 'fork';
   label: string;
   hint?: string;
-  /** The tree action's tooltip carries the round `?` as well. */
   help?: boolean;
 }
 
 interface Props {
-  /** `full` is what the app shows on an assistant or user message; `copy` is what
-   *  a tool card gets. */
+  /** `full` for an assistant or user message, `copy` for a tool card. */
   kind?: 'full' | 'copy';
   time?: string;
-  /** Keep the actions visible, for a still standing in for a hover. */
   visible?: boolean;
-  /** The label the app would be showing for the action under the pointer. */
   tooltip?: MessageActionTooltip;
 }
 
@@ -36,7 +24,6 @@ const button = ACTION_BUTTON.classes;
 const lit = visible && tooltip !== undefined;
 ---
 
-<!-- Hidden until the message is hovered, exactly as the app reveals it. -->
 <div
   class:list={[
     'group/actions relative flex items-center justify-end gap-1 transition-opacity',

@@ -1,20 +1,5 @@
-/**
- * The icon set.
- *
- * Every glyph is a Tabler SVG, imported as source at build time and inlined
- * into the page. That is deliberately the same set the app draws from
- * (`@tabler/icons-react`), so the UI recreated on this page carries the app's
- * own glyphs rather than lookalikes — and it costs no client-side JavaScript and
- * no icon-font request.
- *
- * The app also draws a handful of Lucide glyphs (the folders, the Git tab's
- * branch, the diff's expand chevrons); those are listed as `lucide-*`, from
- * `lucide-static` at the version the app's `lucide-react` is on. Both sets share
- * the 24-unit grid, so one renderer serves them.
- *
- * A glyph is only listed here if something on the site renders it. Astro has to
- * see a static import path to bundle the file, so the map is written out longhand.
- */
+// Imports are written out longhand because the bundler needs static paths.
+// lucide-static stays on the version the app's lucide-react uses.
 import arrowsMinimize from '@tabler/icons/outline/arrows-minimize.svg?raw';
 import arrowFork from '@tabler/icons/outline/arrow-fork.svg?raw';
 import arrowRight from '@tabler/icons/outline/arrow-right.svg?raw';
@@ -147,27 +132,17 @@ export const ICONS = {
 
 export type IconName = keyof typeof ICONS;
 
-/** Everything between the `<svg>` tags of a source file. */
 const SVG_BODY = /<svg[^>]*>([\s\S]*)<\/svg>/;
 
 export interface IconOptions {
-  /** Rendered box, in pixels. Tabler draws on a 24-unit grid at any size. */
   size?: number;
-  /** Overrides the 1.5 the app dials Tabler's 2px stroke down to. */
+  // The app draws Tabler at 1.5 instead of its default 2.
   stroke?: number;
-  /** Extra classes for the `<svg>` element. */
   className?: string;
-  /** Set when the icon is the only content of a control with no label of its own. */
   label?: string;
 }
 
-/**
- * An icon as an HTML string.
- *
- * The wrapper is written here rather than reused from the source file because
- * Tabler bakes `width="24" height="24" stroke-width="2"` and its own classes into
- * every one of them, and none of those are what this page wants.
- */
+// Our own <svg> wrapper: Tabler's bakes in width/height 24 and stroke-width 2.
 export function renderIcon(name: IconName, options: IconOptions = {}): string {
   const { size = 16, stroke = 1.5, className = '', label } = options;
   const body = ICONS[name].match(SVG_BODY)?.[1].trim() ?? '';

@@ -3,28 +3,12 @@ import Icon from '../Icon.astro';
 import { REPO_URL, UMAMI_EVENT_REPO } from '../../lib/site';
 
 const navLinks = [
-  // Absolute, because the header is on every page and `#features` is only on the
-  // homepage: on the changelog and the 404 it was a link to nowhere.
+  // Absolute: `#features` only exists on the homepage.
   { href: '/#features', label: 'Features' },
   { href: '/changelog/', label: 'Changelog' },
 ];
 ---
 
-<!--
-  No rule under the header, and nothing there either.
-
-  A border drew a line across a page that has no seam at the top: the bar sits on
-  the page's own colour, so the line was the only thing making the header a
-  surface. It is gone, and so is the fill at rest — a translucent bar is still a
-  bar, and the hero's wash begins right beneath it, which made an edge of the 15%
-  it let through. At the top of the page the header is now exactly the page.
-
-  Once the page moves, content would run into the links, so `interactions.ts` sets
-  `data-scrolled` and the bar takes the translucent fill with a blur behind it —
-  the idea the app uses for its own floating surfaces (`bg-background/90
-  backdrop-blur-sm`). No border, so what separates the links from the text under
-  them is softness rather than a line.
--->
 <header
   data-site-header
   class="sticky top-0 z-50 transition-colors data-[scrolled]:bg-[var(--page-background)]/85 data-[scrolled]:backdrop-blur-md"
@@ -45,12 +29,6 @@ const navLinks = [
       }
     </nav>
 
-    <!--
-      Outside the nav, because a phone keeps this one: the two section links have
-      somewhere else to be reached from, and the repository does not. The label
-      goes with the width — the icon alone is the whole link until there is room
-      for the word — so the link names itself for a reader who cannot see it.
-    -->
     <a
       href={REPO_URL}
       data-umami-event={UMAMI_EVENT_REPO}
@@ -61,11 +39,6 @@ const navLinks = [
       <span class="hidden md:inline">GitHub</span>
     </a>
 
-    <!--
-      The icon names what the click gives you: a moon in the light theme, a sun in
-      the dark one. Both are in the markup and the theme class picks one, so the
-      button is correct before any script runs.
-    -->
     <button
       type="button"
       data-theme-toggle

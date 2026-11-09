@@ -1,31 +1,8 @@
-/**
- * The tour, one entry per step.
- *
- * Each step is a name, a paragraph and the window it shows (the window itself is
- * `FeatureTour.astro`, because each one is a different shape: a slash menu, three
- * densities, a dialog, a terminal). The order here is the order of the chips and
- * of the windows, and the three are addressed by index.
- *
- * `label` is the headline of its step, not an eyebrow above one. The paragraph
- * under it opens with the line the section used to set in 30px type: a name says
- * what a feature is, and a sentence like "It is the pi you already have" only says
- * it again, so the sentence became the paragraph's first line and the name became
- * the thing set large.
- *
- * The paragraphs carry the one thing a still cannot say — what to click. Each ends
- * on the affordance the still actually answers to: the Appearance controls, the
- * filter menu, the Packages tabs, Preview and Source, the Quote button, the `?`
- * beside the tree's search field, a terminal tab, the session field, a minimap bar.
- */
+// Order must match the windows in FeatureTour.astro; they are paired by index.
 export interface FeatureStep {
-  /** Ties a chip, its paragraph and its window together. */
   id: string;
-  /** The step's headline. */
   label: string;
-  /**
-   * The paragraph, with the page's own inline markup where a UI glyph is quoted
-   * (`?`). Rendered with `set:html`; it is this file's copy, not input.
-   */
+  // Rendered with set:html; trusted copy, never user input.
   body: string;
 }
 

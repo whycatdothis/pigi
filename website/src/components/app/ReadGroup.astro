@@ -7,7 +7,6 @@ export interface ReadEntry {
 }
 
 interface Props {
-  /** The one-line summary the app builds from the entries it folded in. */
   label: string;
   entries: ReadEntry[];
 }
@@ -15,8 +14,7 @@ interface Props {
 const { label, entries } = Astro.props;
 ---
 
-<!-- The app's compact mode: consecutive read-only calls folded into one card.
-     `mb-[22px]` is the margin the group carries in the app. -->
+<!-- mb-[22px] is the read group's margin in the app. -->
 <div class="mb-[22px] rounded-md border border-border/65 bg-muted/25">
   <div class="rounded-t-md px-3 py-1.5">
     <div class="inline-flex items-center gap-1 text-[15px] leading-6 text-foreground">

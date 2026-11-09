@@ -1,30 +1,5 @@
 import type { Turn } from '../components/demos/Transcript.astro';
 
-/**
- * The sessions this site shows.
- *
- * They are written, not captured: the app reads a developer's own sessions off
- * disk, so a recreation has to author the content the way it authors the sidebar.
- * The work they describe is the work this site is about — the transcript, the
- * minimap, the tree and the terminal are all real parts of pigi, and each session
- * here is about one of them.
- *
- * A turn renders as: the message, then whatever the agent did about it (a
- * thought, a tool call), then the reply.
- */
-
-/**
- * The hero's window: what a session looks like, at a glance.
- *
- * Two short turns, because this is the first picture a reader meets and the app's
- * own README opens on the same kind of exchange — a question, what the agent did
- * about it, a reply. The cards are the transcript's three shapes: a thought, a
- * file read, an edit. The read and the edit are named the way the app names them
- * (`read`, `edit`, and `$` only for bash), so nothing here says `$ read`.
- *
- * The last turn is also the session the terminal section's window has open, one
- * turn later (`terminalTurns`).
- */
 export const heroTurns: Turn[] = [
   {
     user: 'the tree header overlaps the row underneath',
@@ -64,13 +39,6 @@ export const heroTurns: Turn[] = [
   },
 ];
 
-/**
- * The window of the pi-configuration section: a session about the release build.
- *
- * It is here to be the window behind the composer's command menu, so its newest
- * turn is complete and the field is holding a `/` — a session you were in, with
- * the skills a keystroke away. The title matches a row in the sidebar.
- */
 export const builderTurns: Turn[] = [
   {
     user: 'the release DMG has been unsigned since the electron-builder bump',
@@ -105,22 +73,7 @@ export const builderTurns: Turn[] = [
   },
 ];
 
-/**
- * The fork window.
- *
- * One finished turn and one the user is hovering: the still stands in for a
- * pointer over the newest message, which is where the app's fork action appears.
- * The tooltip's words are the app's own label for that action, and the fork has
- * no second line in the app — the extra line about the input box belongs to the
- * tree action on a user message (`messageBubbles.tsx`).
- *
- * The title matches a row in the sidebar, and the row under that one is a chat
- * forked from it.
- *
- * Four turns, so the session overflows its window the way the app's does: the
- * thing being shown is the newest turn, under a pointer, not a conversation that
- * would still fit.
- */
+// Four turns so the transcript overflows its window, as a real session would.
 export const forkTurns: Turn[] = [
   {
     user: 'does the tree keep a fork under the session it came from',
@@ -161,15 +114,12 @@ export const forkTurns: Turn[] = [
   {
     user: 'and the header should stay put while the rows scroll',
     time: '11:05',
+    // Label verbatim from the app's fork action.
     actionTooltip: { on: 'user', action: 'fork', label: 'Fork this msg in new session' },
   },
 ];
 
-/**
- * The instant-history window: eight turns, long enough that the only way back to
- * the top is the minimap. That is the section's claim, so the panel has to be
- * worth navigating.
- */
+// Long enough that the minimap is the only quick way back to the top.
 export const historyTurns: Turn[] = [
   {
     user: 'the terminal panel drops frames while it animates open',
@@ -267,14 +217,6 @@ export const historyTurns: Turn[] = [
   },
 ];
 
-/**
- * The window behind the tree dialog, and the one the tree action is hovered in.
- *
- * The tree is the feature, so the transcript behind it is the session the tree
- * belongs to, cut off where the dialog covers it. Three sections show this one
- * session — the entry, the dialog and the switcher's window — because in the app
- * they are the same session, and only the overlay changes.
- */
 export const treeTurns: Turn[] = [
   {
     user: 'Add a minimap to the transcript',
@@ -306,11 +248,6 @@ export const treeTurns: Turn[] = [
   },
 ];
 
-/**
- * The terminal window: the hero's session, one turn later, with the panel open
- * instead of closed. The test run is the newest thing in it, which is what the
- * panel is showing.
- */
 export const terminalTurns: Turn[] = [
   ...heroTurns.map((turn): Turn => ({ ...turn, last: false })),
   {
@@ -326,39 +263,20 @@ export const terminalTurns: Turn[] = [
   },
 ];
 
-/**
- * One row of a window's sidebar: a session, or a fork of the one above it.
- *
- * The list is short on purpose. A developer's own sidebar is a column of thirty
- * chats, but a still is read in a second, and thirty rows say nothing that three
- * do not — the open session, the fork that came off it, and one older chat. The
- * fork is the part that cannot be dropped: it is where the fork action's result
- * lives, and the one row that shows the tree is a tree.
- */
 export interface SessionRow {
   title: string;
   time: string;
-  /** 0 for a session, 1+ for a fork or subagent of one above it. */
   depth?: number;
-  /** Forks or subagents are listed under it, so its gutter has the fold chevron. */
   hasChildren?: boolean;
-  /** The row that folds a parent's subagents ("2 subagents, 1 running"), not a session. */
+  // The "2 subagents, 1 running" row that folds a parent's subagents, not a session.
   subagentGroup?: boolean;
-  /** Working right now: the time gives way to the spinner. */
   running?: boolean;
 }
 
-/** The fork the sidebar keeps under the open session. */
 export const FORK_ROW: SessionRow = { title: 'Fork from message 12', time: '3d', depth: 1 };
 
-/** An older chat, for the third row — whatever the open session is not. */
 const OLDER_ROW: SessionRow = { title: 'Terminal panel resize jank', time: '18m' };
 
-/**
- * The rows a window shows: the session it has open, the fork made from it, and one
- * chat from before. `now` is the app's own word for the session you are in
- * (`formatRelativeTime`), which is what the open one always is.
- */
 export function sidebarRows(activeTitle: string): SessionRow[] {
   return [
     { title: activeTitle, time: 'now', hasChildren: true },
@@ -367,38 +285,18 @@ export function sidebarRows(activeTitle: string): SessionRow[] {
   ];
 }
 
-/**
- * The sessions the instant-switch still opens in turn.
- *
- * Switching sessions is the claim, so the still has to switch: one second each,
- * the way the app redraws a window when a session is taken from the sidebar. All
- * three are already on this page — the hero's session, the one the tree belongs
- * to, and the long one the minimap is drawn for — so nothing here is a session the
- * reader has not met.
- */
 export const switchSessions: { title: string; turns: Turn[] }[] = [
   { title: 'Terminal panel resize jank', turns: historyTurns },
   { title: 'Add the chat minimap', turns: treeTurns },
   { title: 'Fix the tree header overlap', turns: heroTurns },
 ];
 
-/**
- * The list the switch still shows, fixed while the selection moves through it —
- * which is what switching sessions looks like. No fork row here: the row this
- * chapter is about is the one that lights up.
- */
 export const switchSessionRows: SessionRow[] = [
   { title: 'Fix the tree header overlap', time: 'now' },
   { title: 'Add the chat minimap', time: '4m' },
   { title: 'Terminal panel resize jank', time: '18m' },
 ];
 
-/**
- * The session the Files, Git and Quote chapters share: the feature that let the
- * Files tab copy a file's name, worked on in this very app. The Files still has
- * the project's docs open, the Git still shows the feature's diff, and this
- * transcript is the turn a passage is quoted from.
- */
 export const COPY_SESSION_TITLE = 'Copy file names from the Files tab';
 
 export const quoteTurns: Turn[] = [
@@ -424,7 +322,6 @@ export const quoteTurns: Turn[] = [
   },
 ];
 
-/** What the quotes panel already holds: one quote from each tab. */
 export const quotePanelQuotes = [
   {
     text: 'the path in the viewer’s title bar is selectable now',
@@ -441,12 +338,7 @@ export const quotePanelQuotes = [
   },
 ];
 
-/**
- * The subagent window: the same session, asking a second one to review it.
- * The output is what `pigi subagent` prints — the child's id, path, model and
- * level on stderr as it starts (`describeCreated` in `src/cli/pigi.ts`), then
- * the child's final reply on stdout.
- */
+// Output mirrors `pigi subagent` (describeCreated in src/cli/pigi.ts).
 export const subagentTurns: Turn[] = [
   {
     user: 'have a second session review this before I commit',
@@ -483,7 +375,6 @@ export const subagentTurns: Turn[] = [
   },
 ];
 
-/** The subagent window's sidebar: the session, its group row, and the two children. */
 export const subagentSessionRows: SessionRow[] = [
   { title: COPY_SESSION_TITLE, time: 'now', hasChildren: true, running: true },
   { title: '2 subagents, 1 running', time: 'now', depth: 1, subagentGroup: true },

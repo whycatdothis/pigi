@@ -10,27 +10,13 @@ import {
   TOOLBAR_BUTTON,
 } from '../../lib/appUi';
 
-/**
- * The app's main sidebar (`components/sidebar/`): the toggle, New chat, Open
- * project and Packages, the projects with their sessions, and Settings.
- *
- * The lineage geometry is `LineagePrefix` in `sessionList.tsx`: a 12px column
- * per ancestor level and an 8px tick into the row, the line stopping at the
- * row's edge.
- */
+// Lineage geometry mirrors LineagePrefix in the app's sessionList.tsx.
 const LINEAGE_INDENT_PX = 12;
 const LINEAGE_TICK_PX = 8;
 
 interface Props {
-  /** The open session's title; the matching row is the selected one. */
   activeTitle?: string;
-  /**
-   * The rows to list, when a window has to keep its list still while the open
-   * session moves through it, or show a subagent group. Otherwise the list is
-   * the open session, the fork off it, and one older chat.
-   */
   sessions?: SessionRow[];
-  /** The Packages page is open, so its row is the selected one. */
   packagesActive?: boolean;
 }
 
@@ -40,10 +26,8 @@ const {
   packagesActive = false,
 } = Astro.props;
 
-/**
- * Whether a row's line at `column` runs on past it: a later row hangs off the
- * same ancestor before the list climbs back above it.
- */
+// Whether the line at `column` runs on below this row: a later row hangs off the
+// same ancestor before the list climbs back above it.
 function continues(rows: SessionRow[], index: number, column: number): boolean {
   for (const row of rows.slice(index + 1)) {
     const depth = row.depth ?? 0;
@@ -60,17 +44,12 @@ const projects: { name: string; sessions?: SessionRow[] }[] = [
 ];
 ---
 
-<!--
-  Always drawn. The app has no window without a sidebar, and this page never
-  draws a window narrower than the app's own minimum: a narrow viewport scales
-  the whole window instead (`AppWindow.astro`).
--->
 <aside
   class="flex shrink-0 flex-col bg-[var(--sidebar-solid)] text-sidebar-foreground"
   style={`width:${SIDEBAR_DEFAULT_WIDTH}px`}
 >
   <div class="flex flex-col gap-2 p-2">
-    <!-- The traffic lights sit in this row; the toggle is its right end. -->
+    <!-- The traffic lights sit in this row. -->
     <div class="flex h-10 items-start justify-end">
       <span class:list={[TOOLBAR_BUTTON.classes, 'rounded-control']} aria-hidden="true">
         <PanelIcon side="left" />

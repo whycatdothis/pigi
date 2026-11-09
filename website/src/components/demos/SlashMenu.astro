@@ -2,23 +2,7 @@
 import { CHAT_INPUT_MAX_WIDTH, WINDOW_HEIGHT_PX } from '../../lib/appLayout';
 import { SLASH_MENU_ITEM, SLASH_MENU_SURFACE } from '../../lib/appUi';
 
-/**
- * The slash-command menu, open above the composer.
- *
- * The app shows this when the input starts with `/` (`slashCommandPopover.tsx`):
- * a translucent popover 6px above the field, as wide as the field, every built-in
- * command first and then the skills, divided by a rule. The rows are the app's:
- * the name in mono, the description beside it for a command, and — because a
- * skill's description can be a paragraph — nothing beside the name for a skill.
- *
- * Which makes this the picture of the section it is in. The commands are the
- * app's own, and their descriptions say what it reads: `/reload` reloads
- * "extensions, skills, prompts, settings and context files". The row under the
- * rule is a skill, and it is here because it is installed in pi, not because
- * pigi knows it.
- */
-
-/** `BUILTIN_COMMANDS` in `src/renderer/src/lib/slashCommands.ts`, verbatim. */
+// Mirrors `BUILTIN_COMMANDS` in `src/renderer/src/lib/slashCommands.ts`.
 const commands: { name: string; description: string }[] = [
   { name: 'compact', description: 'Compact session context' },
   { name: 'login', description: 'Configure provider authentication' },
@@ -29,13 +13,11 @@ const commands: { name: string; description: string }[] = [
   { name: 'tree', description: 'Browse session branches' },
 ];
 
-/** A skill this project's own pi setup has, as any reader's menu is full of theirs. */
 const skills = ['code-review'];
 
-/** The first command is the one under the cursor, as it is when the menu opens. */
 const selectedIndex = 0;
 
-/** The popover's `max-h-[40vh]`, of the window rather than of this page's viewport. */
+// The app's `max-h-[40vh]`, of the window rather than of this page's viewport.
 const MAX_HEIGHT_PX = WINDOW_HEIGHT_PX * 0.4;
 ---
 
@@ -68,7 +50,6 @@ const MAX_HEIGHT_PX = WINDOW_HEIGHT_PX * 0.4;
     ))
   }
 
-  <!-- The app's `Separator`: `my-0.5 mx-auto h-px !w-[98%] opacity-90`. -->
   <div class="mx-auto my-0.5 h-px w-[98%] bg-border opacity-90"></div>
 
   {

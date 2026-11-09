@@ -2,20 +2,6 @@
 import Icon from '../Icon.astro';
 import { TERMINAL_TAB, TERMINAL_TAB_CLOSE, TERMINAL_TABS } from '../../lib/appUi';
 
-/**
- * The terminal panel.
- *
- * Docked to the bottom of the window's chat column, which is where the app puts
- * it — not a floating card. The header is the app's own: one chip per tab, a
- * "+" that follows the last tab, and the close that collapses the panel.
- *
- * A tab's title is what the shell reports, falling back to the directory name
- * (terminalController.ts), so a fresh tab is named after the project.
- *
- * The colours are the site's `--terminal-*` tokens, which are the app's own
- * palette read out of terminalTheme.css at runtime — Atom One Light, or Atom One
- * Dark when the theme is dark.
- */
 interface Props {
   activeTab?: string;
   tabs?: string[];

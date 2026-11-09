@@ -8,7 +8,7 @@ export interface DiffLine {
 }
 
 interface Props {
-  /** `$` for a shell command, `→` for a file edit — the app's two prefixes. */
+  /** `$` for a shell command, `→` for a file edit. */
   prefix?: string;
   command: string;
   output?: string[];
@@ -26,7 +26,6 @@ const {
   duration = '0.3s',
 } = Astro.props;
 
-/** The app's status tokens (`ToolBlock.tsx`, `DiffView.tsx`), solved per theme. */
 const statusClassName = {
   success: 'text-success-fg',
   error: 'text-danger-fg',
@@ -74,9 +73,7 @@ const diffLineClassName = {
 
   {
     output.length > 0 && (
-      // `set:text` rather than a template child: whitespace inside a `<pre>` is
-      // content, so the newline and indent the formatter puts around an
-      // expression would appear as an indented first line of output.
+      // set:text, not a child: the formatter's whitespace inside <pre> would render.
       <pre
         class="overflow-x-auto overscroll-x-none whitespace-pre font-mono text-code leading-5 text-muted-foreground"
         set:text={output.join('\n')}

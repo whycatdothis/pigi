@@ -14,21 +14,11 @@ interface Props {
 
 const { messages, activeIndex } = Astro.props;
 
-/**
- * The widest bar, at the app's own default window: 1200px leaves a 48px strip in
- * the gutter and `LINE_WIDTH_MAX_CAP` is 48. The markup is built at that width and
- * `interactions.ts` re-measures it from the transcript it sits beside, so a
- * narrower window — down to the phone-scaled one — gets the strip that fits it
- * instead of one lying over the text.
- */
+// Built at the app's default window width; interactions.ts re-measures it so a
+// narrower window doesn't get bars lying over the text.
 const MAX_LINE_WIDTH = LINE_WIDTH_MAX_CAP;
 ---
 
-<!--
-  Two elements that have to move together: the strip of bars, and the list it
-  opens. Where both are present, src/scripts/interactions.ts binds them to the
-  transcript they sit beside.
--->
 <div
   class="absolute right-0 top-1/2 z-10 flex -translate-y-1/2 flex-col items-end gap-1.5 rounded-l py-2 pl-1 opacity-60 transition-opacity hover:opacity-90"
   data-minimap
