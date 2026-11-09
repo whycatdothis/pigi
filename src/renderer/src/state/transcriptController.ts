@@ -89,9 +89,11 @@ export interface SystemNode {
   /** This visual marker occurred inside an active user turn and must not
    *  become a logical turn boundary (for example, automatic compaction). */
   continuesUserTurn?: boolean;
-  /** Which marker this is; `branch` renders as a collapsible card, `custom`
-   *  as a message an extension injected, and `cacheWarm` as a quiet note. */
-  kind?: 'branch' | 'custom' | 'cacheWarm';
+  /** Which marker this is; `compaction` and `compactionCount` render as the
+   *  centred rule, `branch` as a collapsible card, `custom` as a message an
+   *  extension injected, and `cacheWarm` as the default notice bubble plus its
+   *  explanation. */
+  kind?: 'branch' | 'custom' | 'cacheWarm' | 'compaction' | 'compactionCount';
   /** Long-form body (the branch summary or the injected message's text). */
   detail?: string;
   /** Images an injected message carried, as data URLs. */
@@ -343,20 +345,19 @@ export class TranscriptController {
     this._runPromptPending = false;
     const nodes = this.createNodesFromMessages(messages, cacheWarmEntries);
 
-    // If the last message is a compaction marker, update it with the count
-    // instead of adding a duplicate line.
+    // A transcript that ends on a compaction rule shows the total there rather
+    // than two lines about the same events.
     if (compactionCount && compactionCount > 0) {
+      const tally = `Compacted ${compactionCount} time${compactionCount !== 1 ? 's' : ''}`;
       const lastNode = nodes[nodes.length - 1];
-      if (lastNode?.role === 'system' && lastNode.text === 'Context compacted') {
-        nodes[nodes.length - 1] = {
-          ...lastNode,
-          text: `Compacted ${compactionCount} time${compactionCount !== 1 ? 's' : ''}`,
-        };
+      if (lastNode?.role === 'system' && lastNode.kind === 'compaction') {
+        nodes[nodes.length - 1] = { ...lastNode, kind: 'compactionCount', text: tally };
       } else {
         nodes.push({
           id: nextNodeId(),
           role: 'system',
-          text: `Compacted ${compactionCount} time${compactionCount !== 1 ? 's' : ''}`,
+          kind: 'compactionCount',
+          text: tally,
           isLoading: false,
         });
       }
@@ -459,6 +460,7 @@ export class TranscriptController {
           nodes.push({
             id: nextNodeId(),
             role: 'system',
+            kind: 'compaction',
             text: 'Context compacted',
             isLoading: false,
             continuesUserTurn: parsed.role !== 'user',
@@ -593,6 +595,7 @@ export class TranscriptController {
       nodes.push({
         id: nextNodeId(),
         role: 'system',
+        kind: 'compaction',
         text: 'Context compacted',
         isLoading: false,
       });
@@ -1342,6 +1345,7 @@ export class TranscriptController {
     const node: SystemNode = {
       id,
       role: 'system',
+      kind: 'compaction',
       text: 'Compacting context...',
       isLoading: true,
       continuesUserTurn,
@@ -1353,7 +1357,7 @@ export class TranscriptController {
     const nodes = this._state.nodes;
     for (let i = nodes.length - 1; i >= 0; i--) {
       const n = nodes[i];
-      if (n.role === 'system' && n.isLoading && n.text.startsWith('Compacting')) {
+      if (n.role === 'system' && n.kind === 'compaction' && n.isLoading) {
         const text = aborted
           ? 'Compaction cancelled'
           : errorMessage

@@ -301,3 +301,51 @@ describe('cache warmed markers', () => {
     expect(last).toMatchObject({ id: 'entry-1', role: 'system', text: 'Cache warmed' });
   });
 });
+
+/**
+ * Compaction is the one system notice that keeps the centred rule, and the
+ * controller finds the running notice by its kind instead of its text.
+ */
+describe('compaction markers', () => {
+  it('marks the running notice as a compaction', () => {
+    const controller = new TranscriptController();
+
+    controller.processEvent({ type: 'compaction_start', reason: 'manual' });
+
+    expect(controller.state.nodes.at(-1)).toMatchObject({
+      role: 'system',
+      kind: 'compaction',
+      text: 'Compacting context...',
+      isLoading: true,
+    });
+  });
+
+  it('gives the boundary marker and the tally their own kinds when hydrated', () => {
+    const controller = new TranscriptController();
+    const first = 1_767_000_000_000;
+
+    controller.hydrate(
+      [
+        { role: 'compactionSummary', summary: 'so far', timestamp: first },
+        cacheWarmMessage('user', 'after', first + 1000),
+      ],
+      1,
+      [],
+    );
+
+    expect(
+      controller.state.nodes.filter((node) => node.role === 'system').map((node) => node.kind),
+    ).toEqual(['compaction', 'compactionCount']);
+  });
+
+  it('turns a trailing compaction rule into the tally instead of stacking two', () => {
+    const controller = new TranscriptController();
+    const first = 1_767_000_000_000;
+
+    controller.hydrate([{ role: 'compactionSummary', summary: 'so far', timestamp: first }], 3, []);
+
+    expect(controller.state.nodes).toMatchObject([
+      { role: 'system', kind: 'compactionCount', text: 'Compacted 3 times' },
+    ]);
+  });
+});
