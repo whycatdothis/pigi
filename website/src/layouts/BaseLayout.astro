@@ -1,13 +1,7 @@
 ---
 import '../styles/global.css';
-import {
-  DOWNLOAD_URL,
-  LICENSE_URL,
-  SITE_ACCENT_DARK,
-  SITE_ACCENT_LIGHT,
-  UMAMI_SCRIPT_URL,
-  UMAMI_WEBSITE_ID,
-} from '../lib/site';
+import { DOWNLOAD_URL, LICENSE_URL, UMAMI_SCRIPT_URL, UMAMI_WEBSITE_ID } from '../lib/site';
+import { defaultThemeCss } from '../lib/appTheme';
 
 interface Props {
   title: string;
@@ -30,18 +24,10 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
  */
 const siteHost = new URL(canonical).hostname;
 const analyticsDomains = `${siteHost},www.${siteHost}`;
-
-/*
- * The accent, written the way the app writes it: `applyThemeAccent` sets both
- * `--accent-light` and `--accent-dark` on <html>, and the app's tokens map
- * `--system-accent` to one or the other by theme. Everything that reads
- * `--system-accent` — in a window or on the page — follows, in both themes.
- */
-const accentStyle = `--accent-light:${SITE_ACCENT_LIGHT};--accent-dark:${SITE_ACCENT_DARK}`;
 ---
 
 <!doctype html>
-<html lang="en" style={accentStyle}>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -52,6 +38,13 @@ const accentStyle = `--accent-light:${SITE_ACCENT_LIGHT};--accent-dark:${SITE_AC
     <link rel="apple-touch-icon" href="/icon-256.png" />
     <meta name="theme-color" content="#fcf3f6" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#16070d" media="(prefers-color-scheme: dark)" />
+
+    <!--
+      The app's colours, as the app derives them: every `--app-*` property its
+      appearance engine writes on <html>, for both modes (src/lib/appTheme.ts).
+      Inline so the first paint already has them.
+    -->
+    <style is:inline set:html={defaultThemeCss()}></style>
 
     <!--
       The theme, before the first paint.

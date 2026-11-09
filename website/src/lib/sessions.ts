@@ -338,8 +338,14 @@ export const terminalTurns: Turn[] = [
 export interface SessionRow {
   title: string;
   time: string;
-  /** 0 for a session, 1+ for a fork of one above it. */
+  /** 0 for a session, 1+ for a fork or subagent of one above it. */
   depth?: number;
+  /** Forks or subagents are listed under it, so its gutter has the fold chevron. */
+  hasChildren?: boolean;
+  /** The row that folds a parent's subagents ("2 subagents, 1 running"), not a session. */
+  subagentGroup?: boolean;
+  /** Working right now: the time gives way to the spinner. */
+  running?: boolean;
 }
 
 /** The fork the sidebar keeps under the open session. */
@@ -355,7 +361,7 @@ const OLDER_ROW: SessionRow = { title: 'Terminal panel resize jank', time: '18m'
  */
 export function sidebarRows(activeTitle: string): SessionRow[] {
   return [
-    { title: activeTitle, time: 'now' },
+    { title: activeTitle, time: 'now', hasChildren: true },
     FORK_ROW,
     activeTitle === OLDER_ROW.title ? { title: 'The transcript flickers', time: '2h' } : OLDER_ROW,
   ];
@@ -384,5 +390,104 @@ export const switchSessions: { title: string; turns: Turn[] }[] = [
 export const switchSessionRows: SessionRow[] = [
   { title: 'Fix the tree header overlap', time: 'now' },
   { title: 'Add the chat minimap', time: '4m' },
+  { title: 'Terminal panel resize jank', time: '18m' },
+];
+
+/**
+ * The session the Files, Git and Quote chapters share: the feature that let the
+ * Files tab copy a file's name, worked on in this very app. The Files still has
+ * the project's docs open, the Git still shows the feature's diff, and this
+ * transcript is the turn a passage is quoted from.
+ */
+export const COPY_SESSION_TITLE = 'Copy file names from the Files tab';
+
+export const quoteTurns: Turn[] = [
+  {
+    user: 'right-click a file in the Files tree to copy its name or path',
+    time: '12:53',
+    tool: {
+      prefix: 'read',
+      command: 'src/renderer/src/components/files/FileTreeSidebar.tsx',
+      output: ['412          <ContextMenuTrigger asChild>'],
+      duration: '0.1s',
+    },
+    reply:
+      'Done: a tree row opens a context menu with Copy Name and Copy Relative Path, and the path in the viewer’s title bar is selectable now, with a copy button beside it on hover.',
+  },
+  {
+    user: 'does the copy button work from the keyboard',
+    time: '12:58',
+    reply:
+      'It does. The button is in the tab order right after the path, and it shows itself on focus as well as on hover, so the keyboard gets the same affordance the pointer does.',
+    quote: 'it shows itself on focus as well as on hover',
+    last: true,
+  },
+];
+
+/** What the quotes panel already holds: one quote from each tab. */
+export const quotePanelQuotes = [
+  {
+    text: 'the path in the viewer’s title bar is selectable now',
+    comment: 'Selectable, but keep it from being dragged out',
+  },
+  {
+    reference: '@docs/architecture.md',
+    text: 'Both a panel and its adjacent content consume that same property',
+    comment: 'Does the right sidebar follow this too?',
+  },
+  {
+    reference: '@src/renderer/src/components/files/FileViewer.tsx:265-267',
+    comment: 'Use the shared copy button here',
+  },
+];
+
+/**
+ * The subagent window: the same session, asking a second one to review it.
+ * The output is what `pigi subagent` prints — the child's id, path, model and
+ * level on stderr as it starts (`describeCreated` in `src/cli/pigi.ts`), then
+ * the child's final reply on stdout.
+ */
+export const subagentTurns: Turn[] = [
+  {
+    user: 'have a second session review this before I commit',
+    time: '13:02',
+    thinking:
+      'A fresh session reads the diff without my context, so it will not take my reasons for granted.',
+    tool: {
+      command:
+        'pigi subagent "Review the uncommitted changes against origin/main. Read-only: report bugs and anything that could be simpler, with file:line."',
+      output: [
+        'pigi: subagent 01a1bb3c ~/.pi/agent/sessions/--Users-me-pigi--/01a1bb3c.jsonl (deepseek/deepseek-v4.1-flash, thinking max)',
+        '1. FileViewer.tsx:265 — after a click the button still says "Copy path";',
+        '   the copied state is only a changed icon.',
+        '2. useCopyFeedback.ts:14 — the reset timer is not cleared on unmount.',
+      ],
+      duration: '2m 14s',
+    },
+    reply:
+      'Both findings are real. The copied state is announced now, and the timer is cleared when the viewer unmounts; the tests pass.',
+  },
+  {
+    user: 'and have one check the changelog entry while you wait',
+    time: '13:06',
+    tool: {
+      command:
+        'pigi subagent "Check this branch’s CHANGELOG entry: user-facing, one line per change, no file names."',
+      output: [
+        'pigi: subagent 01a1bb41 ~/.pi/agent/sessions/--Users-me-pigi--/01a1bb41.jsonl (deepseek/deepseek-v4.1-flash, thinking max)',
+      ],
+      status: 'running',
+      duration: '18s',
+    },
+    last: true,
+  },
+];
+
+/** The subagent window's sidebar: the session, its group row, and the two children. */
+export const subagentSessionRows: SessionRow[] = [
+  { title: COPY_SESSION_TITLE, time: 'now', hasChildren: true, running: true },
+  { title: '2 subagents, 1 running', time: 'now', depth: 1, subagentGroup: true },
+  { title: 'Review the uncommitted changes against origin/main', time: '4m', depth: 2 },
+  { title: 'Check this branch’s CHANGELOG entry', time: 'now', depth: 2, running: true },
   { title: 'Terminal panel resize jank', time: '18m' },
 ];

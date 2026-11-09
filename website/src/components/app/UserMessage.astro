@@ -17,8 +17,8 @@ const { time, actions = false, showActions = false, actionTooltip } = Astro.prop
 <!-- pt-6 / pb-2 is the app's spacing above a user message and below it. -->
 <div class="group flex justify-end pb-2 pt-6">
   <div class="flex max-w-[85%] flex-col items-end">
-    <div class="w-fit max-w-full overflow-clip rounded-2xl bg-muted px-3.5 py-2">
-      <div class="whitespace-pre-wrap break-words text-[15px] leading-6 text-foreground">
+    <div class="w-fit max-w-full overflow-clip rounded-surface-lg bg-accent-subtle px-3.5 py-2">
+      <div class="whitespace-pre-wrap break-words text-body leading-6 text-foreground">
         <slot />
       </div>
     </div>
@@ -33,7 +33,7 @@ const { time, actions = false, showActions = false, actionTooltip } = Astro.prop
           />
         )
       }
-      {actions === false && time && <span class="text-xs text-muted-foreground">{time}</span>}
+      {actions === false && time && <span class="text-caption text-muted-foreground">{time}</span>}
     </div>
   </div>
 </div>

@@ -1,0 +1,28 @@
+---
+import { KBD, QUOTE_SELECTION_BUTTON } from '../../lib/appUi';
+
+/**
+ * The button a selection raises (`QuoteSelectionPopover.tsx`), hung above the
+ * start of the selection it belongs to. Its parent is the selection's own
+ * `relative` box, so it follows the text wherever the text wraps.
+ *
+ * Inert by default: only the quote chapter's still has a panel for it to add to,
+ * and there it is a real button (`initQuoteStills`).
+ */
+interface Props {
+  interactive?: boolean;
+}
+
+const { interactive = false } = Astro.props;
+const Tag = interactive ? 'button' : 'span';
+---
+
+<Tag
+  type={interactive ? 'button' : undefined}
+  aria-hidden={interactive ? undefined : 'true'}
+  data-quote-button={interactive ? '' : undefined}
+  class:list={[QUOTE_SELECTION_BUTTON.classes, 'bottom-full left-0 mb-1.5 whitespace-nowrap']}
+>
+  Quote
+  <kbd data-slot="kbd" class:list={[KBD.classes, 'h-4 min-w-4 text-2xs']}>Q</kbd>
+</Tag>

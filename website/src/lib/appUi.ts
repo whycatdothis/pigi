@@ -63,12 +63,16 @@ export const TOOLBAR_BUTTON_ON = {
 } satisfies CopiedClasses;
 
 /**
- * The shortcut inside that button's tooltip: the app's `ui/kbd.tsx` key cap.
+ * The app's `ui/kbd.tsx` key cap, without its size: a tooltip's is
+ * `h-5 min-w-5 text-caption`, a tab's or the Quote button's `h-4 min-w-4` with
+ * a smaller type. The app overrides the size through `cn()`; with no
+ * tailwind-merge here, two heights in one class list would leave the
+ * stylesheet's order to pick, so each call site adds the one it wants.
  * Give the element `data-slot="kbd"` so the tooltip's kbd padding applies.
  */
-export const TOOLTIP_KBD = {
+export const KBD = {
   classes:
-    'pointer-events-none inline-flex h-5 w-fit min-w-5 items-center justify-center gap-1 rounded-inline border border-foreground/10 bg-muted px-1 font-sans text-caption font-normal text-muted-foreground select-none',
+    'pointer-events-none inline-flex w-fit items-center justify-center gap-1 rounded-inline border border-foreground/10 bg-muted px-1 font-sans font-normal text-muted-foreground select-none',
   source: `${UI}/kbd.tsx`,
 } satisfies CopiedClasses;
 
@@ -86,13 +90,28 @@ export const TOOLTIP_KBD = {
  */
 export const BUTTON_BASE = {
   classes:
-    "group/button inline-flex shrink-0 items-center justify-center rounded-control border border-transparent bg-clip-padding font-normal whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    "group/button inline-flex shrink-0 items-center justify-center rounded-control border bg-clip-padding font-normal whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   source: `${UI}/button.tsx`,
 } satisfies CopiedClasses;
 
-/** `variant="default"`, the one filled button in the app. */
+/**
+ * `variant="default"`, the one filled button in the app. `--primary` is the
+ * accent's fill once the app's tokens are written (`src/lib/appTheme.ts`), so
+ * this follows whatever accent the page is in.
+ */
 export const BUTTON_FILLED = {
-  classes: 'bg-primary text-primary-foreground hover:bg-primary-hover',
+  classes: 'border-transparent bg-primary text-primary-foreground hover:bg-primary-hover',
+  source: `${UI}/button.tsx`,
+} satisfies CopiedClasses;
+
+/**
+ * `variant="outline"`. The base's border colour (`border-transparent`) lives in
+ * the variants here rather than in `BUTTON_BASE`, which is where `cn()` would
+ * have dropped it.
+ */
+export const BUTTON_OUTLINE = {
+  classes:
+    'border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
   source: `${UI}/button.tsx`,
 } satisfies CopiedClasses;
 
@@ -100,17 +119,18 @@ export const BUTTON_FILLED = {
  * The page's download button: the app's filled variant's mechanics, filled with
  * the pig's pink instead of the app's primary.
  *
- * Inside a window the primary control is neutral, and it stays that way here —
- * every button on this page that belongs to the app wears `BUTTON_FILLED`
- * unchanged. This one is the page's own call to action, so it wears the page's
- * colour: `--brand`, pink, with white printed on it. The icon's own pink
- * (`#f6729b`) is 2.7:1 against white and cannot carry it, so the fill is that hue
+ * Every button on this page that belongs to the app wears `BUTTON_FILLED`
+ * unchanged, in the accent the reader can change in the Appearance still. This
+ * one is the page's own call to action, so it wears the page's fixed colour:
+ * `--brand`, pink, with white printed on it. The icon's own pink (`#f6729b`) is
+ * 2.7:1 against white and cannot carry it, so the fill is that hue
  * deepened to where white reads (4.8:1) — the same pink the rest of the page uses
  * at text lightness. The fill does not flip with the theme, so neither does the
  * ink: the button is one pink in both.
  */
 export const BUTTON_BRAND_FILLED = {
-  classes: 'bg-[var(--brand)] text-[var(--brand-ink)] [a]:hover:bg-[var(--brand)]/85',
+  classes:
+    'border-transparent bg-[var(--brand)] text-[var(--brand-ink)] [a]:hover:bg-[var(--brand)]/85',
   source: `${UI}/button.tsx`,
   siteClasses: ['bg-[var(--brand)]', 'text-[var(--brand-ink)]', '[a]:hover:bg-[var(--brand)]/85'],
 } satisfies CopiedClasses;
@@ -277,6 +297,151 @@ export const CHAT_CARD = {
 } satisfies CopiedClasses;
 
 /**
+ * A row of the sidebar's top menu (New chat, Open project, Packages, Settings)
+ * and a project row: `sidebarMenuButtonVariants` at its default size. The
+ * selected row is `data-active`, which is what puts the accent tint behind it.
+ */
+export const SIDEBAR_MENU_BUTTON = {
+  classes:
+    'flex w-full items-center gap-1.5 overflow-hidden rounded-control p-2 text-left text-body outline-hidden hover:bg-primary/5 hover:text-sidebar-accent-foreground data-active:bg-primary/10 data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate h-8',
+  source: `${UI}/sidebar.tsx`,
+} satisfies CopiedClasses;
+
+/**
+ * A session row: `SidebarMenuSubButton` at `md`, with the session list's own
+ * indent and colour (`SESSION_ROW_CLASS_NAME`).
+ */
+export const SESSION_ROW = {
+  classes:
+    'flex h-7 min-w-0 items-center gap-1.5 overflow-hidden rounded-control px-2 outline-hidden hover:bg-primary/5 hover:text-sidebar-accent-foreground data-active:bg-primary/10 data-active:text-sidebar-accent-foreground w-full justify-start pl-6 text-left text-sidebar-foreground/85',
+  source: `${UI}/sidebar.tsx`,
+  alsoFrom: [`${RENDERER}/sidebar/sessionList.tsx`],
+} satisfies CopiedClasses;
+
+/** The chevron in a session row's gutter that folds its forks and subagents. */
+export const SESSION_COLLAPSE_TOGGLE = {
+  classes:
+    'absolute left-1 top-1/2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+  source: `${RENDERER}/sidebar/sessionList.tsx`,
+} satisfies CopiedClasses;
+
+/**
+ * The header's Chat / Files / Git tabs and the right sidebar's Quotes tab:
+ * `ui/tabs.tsx` in its `chip` variant, where the active tab is a muted pill.
+ * The list carries `data-variant="chip"` for the trigger's group selectors.
+ */
+export const CHIP_TABS = {
+  classes:
+    'group/tabs-list inline-flex w-fit items-center justify-center rounded-control text-muted-foreground gap-1 bg-transparent p-0',
+  source: `${UI}/tabs.tsx`,
+} satisfies CopiedClasses;
+
+/**
+ * A header tab — `ui/tabs.tsx`'s trigger as `WorkspaceTabs.tsx` merges it, with
+ * the conflicting base classes already dropped.
+ */
+export const CHIP_TAB = {
+  classes:
+    "relative inline-flex items-center rounded-control-sm border border-transparent py-0.5 whitespace-nowrap transition-all hover:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 group-data-[variant=chip]/tabs-list:data-[state=active]:bg-muted dark:group-data-[variant=chip]/tabs-list:data-[state=active]:bg-muted h-8 gap-1.5 px-3 font-normal text-foreground",
+  source: `${UI}/tabs.tsx`,
+  alsoFrom: [`${RENDERER}/app/WorkspaceTabs.tsx`],
+} satisfies CopiedClasses;
+
+/**
+ * The Packages page's Installed / Marketplace tabs: the same trigger left at its
+ * own medium weight and dimmed idle colour, with the page's `px-3`.
+ */
+export const PACKAGES_TAB = {
+  classes:
+    'relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-control-sm border border-transparent px-3 py-0.5 text-body font-medium whitespace-nowrap text-foreground/60 transition-all hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground group-data-[variant=chip]/tabs-list:data-[state=active]:bg-muted dark:group-data-[variant=chip]/tabs-list:data-[state=active]:border-transparent dark:group-data-[variant=chip]/tabs-list:data-[state=active]:bg-muted data-[state=active]:text-foreground dark:data-[state=active]:text-foreground',
+  source: `${UI}/tabs.tsx`,
+  alsoFrom: [`${RENDERER}/packages/PackagesPage.tsx`],
+} satisfies CopiedClasses;
+
+/**
+ * A row of the Files tree and of the Git tab's file list. The two sidebars
+ * share the string, idle and selected.
+ */
+export const TREE_ROW = {
+  classes:
+    'flex h-7 w-full items-center gap-1.5 rounded-control pr-2 text-left text-body transition-colors',
+  source: `${RENDERER}/files/FileTreeSidebar.tsx`,
+  alsoFrom: [`${RENDERER}/git/GitSidebar.tsx`],
+} satisfies CopiedClasses;
+
+export const TREE_ROW_IDLE = {
+  classes: 'text-sidebar-foreground/80 hover:bg-primary/5 hover:text-accent-foreground',
+  source: `${RENDERER}/files/FileTreeSidebar.tsx`,
+} satisfies CopiedClasses;
+
+export const TREE_ROW_SELECTED = {
+  classes: 'bg-accent-subtle text-[var(--system-accent)]',
+  source: `${RENDERER}/files/FileTreeSidebar.tsx`,
+} satisfies CopiedClasses;
+
+/** Preview / Source in the file viewer, Unified / Split in the diff viewer. */
+export const SEGMENTED = {
+  classes: 'flex h-6 shrink-0 items-center gap-0.5 rounded-control bg-muted p-0.5',
+  source: `${RENDERER}/files/FileViewer.tsx`,
+  alsoFrom: [`${RENDERER}/git/SegmentedToggle.tsx`],
+} satisfies CopiedClasses;
+
+export const SEGMENTED_ITEM = {
+  classes: 'h-5 rounded-control-sm px-2.5 text-caption leading-none transition-colors',
+  source: `${RENDERER}/files/FileViewer.tsx`,
+} satisfies CopiedClasses;
+
+export const SEGMENTED_ITEM_ON = {
+  classes: 'bg-background text-foreground shadow-xs',
+  source: `${RENDERER}/files/FileViewer.tsx`,
+} satisfies CopiedClasses;
+
+export const SEGMENTED_ITEM_OFF = {
+  classes: 'text-muted-foreground hover:text-foreground',
+  source: `${RENDERER}/files/FileViewer.tsx`,
+} satisfies CopiedClasses;
+
+/** One quote in the right sidebar's panel. */
+export const QUOTE_CARD = {
+  classes:
+    'group relative flex flex-col gap-2 rounded-surface-sm bg-muted/50 p-2.5 ring-[0.5px] ring-foreground/10',
+  source: `${RENDERER}/quotes/QuotePanel.tsx`,
+} satisfies CopiedClasses;
+
+/** The button that appears over a selection, before it becomes the comment editor. */
+export const QUOTE_SELECTION_BUTTON = {
+  classes:
+    'absolute z-20 flex h-7 items-center gap-1.5 rounded-control bg-popover/88 px-2.5 text-caption font-medium text-popover-foreground shadow-md ring-[0.5px] ring-foreground/25 backdrop-blur-sm transition-colors hover:bg-muted/88',
+  source: `${RENDERER}/quotes/QuoteSelectionPopover.tsx`,
+} satisfies CopiedClasses;
+
+/** A card on the Packages page, installed or from the marketplace. */
+export const PACKAGE_CARD = {
+  classes:
+    'relative flex min-w-0 gap-3.5 rounded-surface-lg border border-border bg-card p-4 transition-colors hover:bg-muted/40',
+  source: `${RENDERER}/packages/packageCards.tsx`,
+} satisfies CopiedClasses;
+
+/** The resource kinds a package ships, as the small capitals under its card. */
+export const PACKAGE_KIND_BADGE = {
+  classes:
+    'rounded-inline border border-border px-1.5 py-0.5 text-3xs leading-none font-medium tracking-wider text-foreground uppercase',
+  source: `${RENDERER}/packages/packageCards.tsx`,
+} satisfies CopiedClasses;
+
+/** A settings card: rows separated by inset hairlines, the page's largest radius. */
+export const SETTINGS_CARD = {
+  classes:
+    "overflow-hidden rounded-container border border-border bg-card [&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-x-5 [&>*+*]:before:top-0 [&>*+*]:before:h-px [&>*+*]:before:bg-border [&>*+*]:before:content-['']",
+  source: `${RENDERER}/settings/settingsControls.tsx`,
+} satisfies CopiedClasses;
+
+export const SETTINGS_ROW = {
+  classes: 'flex items-center justify-between gap-6 px-5 min-h-12',
+  source: `${RENDERER}/settings/settingsControls.tsx`,
+} satisfies CopiedClasses;
+
+/**
  * Every group, for `scripts/checkAppClassDrift.mjs`.
  *
  * The check imports this file directly (Node strips the types), so a group added
@@ -286,11 +451,12 @@ export const APP_UI_GROUPS: Record<string, CopiedClasses> = {
   BUTTON_BASE,
   BUTTON_BRAND_FILLED,
   BUTTON_FILLED,
+  BUTTON_OUTLINE,
   BUTTON_HERO_SIZE,
   TOOLBAR_BUTTON,
   TOOLBAR_BUTTON_ON,
   ACTION_BUTTON,
-  TOOLTIP_KBD,
+  KBD,
   TOOLTIP_CONTENT,
   MENU_CONTENT,
   MENU_ITEM,
@@ -300,4 +466,23 @@ export const APP_UI_GROUPS: Record<string, CopiedClasses> = {
   TERMINAL_TAB,
   TERMINAL_TAB_CLOSE,
   CHAT_CARD,
+  SIDEBAR_MENU_BUTTON,
+  SESSION_ROW,
+  SESSION_COLLAPSE_TOGGLE,
+  CHIP_TABS,
+  CHIP_TAB,
+  PACKAGES_TAB,
+  TREE_ROW,
+  TREE_ROW_IDLE,
+  TREE_ROW_SELECTED,
+  SEGMENTED,
+  SEGMENTED_ITEM,
+  SEGMENTED_ITEM_ON,
+  SEGMENTED_ITEM_OFF,
+  QUOTE_CARD,
+  QUOTE_SELECTION_BUTTON,
+  PACKAGE_CARD,
+  PACKAGE_KIND_BADGE,
+  SETTINGS_CARD,
+  SETTINGS_ROW,
 };

@@ -1,0 +1,52 @@
+---
+import Icon from '../Icon.astro';
+import { fileIconUrl } from '../../lib/fileIcons';
+import { TREE_ROW, TREE_ROW_IDLE, TREE_ROW_SELECTED } from '../../lib/appUi';
+
+/**
+ * One row of the Files tree or the Git tab's file list (`FileTreeSidebar.tsx`,
+ * `GitSidebar.tsx`): 12px of indent per level plus 6, a chevron for a folder or
+ * its 12px of empty room for a file, then the folder or the file's own icon.
+ * The trailing slot holds the Git list's status and line counts.
+ */
+interface Props {
+  name: string;
+  depth?: number;
+  /** A folder, open or shut; omitted for a file. */
+  folder?: 'open' | 'closed';
+  selected?: boolean;
+}
+
+const { name, depth = 0, folder, selected = false } = Astro.props;
+const INDENT_STEP_PX = 12;
+---
+
+<li>
+  <div
+    class:list={[TREE_ROW.classes, selected ? TREE_ROW_SELECTED.classes : TREE_ROW_IDLE.classes]}
+    style={`padding-left:${depth * INDENT_STEP_PX + 6}px`}
+  >
+    {
+      folder ? (
+        <>
+          <Icon
+            name="chevron-right"
+            size={12}
+            class:list={['shrink-0 text-muted-foreground', folder === 'open' && 'rotate-90']}
+          />
+          <Icon
+            name={folder === 'open' ? 'lucide-folder-open' : 'lucide-folder-closed'}
+            class="size-4 shrink-0 text-muted-foreground"
+          />
+        </>
+      ) : (
+        <>
+          <span class="size-3 shrink-0" />
+          <img alt="" class="size-4 shrink-0" src={fileIconUrl(name)} />
+        </>
+      )
+    }
+    <span class="min-w-0 flex-1 truncate">{name}</span>
+    <slot />
+  </div>
+</li>

@@ -1,0 +1,118 @@
+---
+import Icon from '../Icon.astro';
+import PanelIcon from '../app/PanelIcon.astro';
+import TreeRow from '../app/TreeRow.astro';
+import { SIDEBAR_DEFAULT_WIDTH } from '../../lib/appLayout';
+import { SEGMENTED_ITEM_OFF, SEGMENTED_ITEM_ON, TOOLBAR_BUTTON } from '../../lib/appUi';
+
+/**
+ * The Git tab's sidebar (`GitSidebar.tsx`) in its Diff view: the project and its
+ * branch, Git status / Diff / Commits, the diff mode and the ref it compares
+ * against, then the changed files as a tree with their status and line counts.
+ */
+interface ChangedFile {
+  name: string;
+  depth: number;
+  status: 'A' | 'M';
+  additions: number;
+  deletions: number;
+  selected?: boolean;
+}
+
+type Row = { folder: string; depth: number } | ChangedFile;
+
+const rows: Row[] = [
+  { folder: 'src/renderer/src', depth: 0 },
+  { folder: 'components/files', depth: 1 },
+  { name: 'FileTreeSidebar.tsx', depth: 2, status: 'M', additions: 38, deletions: 2 },
+  { name: 'FileViewer.tsx', depth: 2, status: 'M', additions: 7, deletions: 2, selected: true },
+  { folder: 'hooks', depth: 1 },
+  { name: 'useCopyFeedback.ts', depth: 2, status: 'A', additions: 24, deletions: 0 },
+  { name: 'CHANGELOG.md', depth: 0, status: 'M', additions: 6, deletions: 0 },
+];
+
+const views = ['Git status', 'Diff', 'Commits'];
+---
+
+<aside
+  class="flex shrink-0 flex-col bg-[var(--sidebar-solid)] text-sidebar-foreground"
+  style={`width:${SIDEBAR_DEFAULT_WIDTH}px`}
+>
+  <div class="flex flex-col gap-0 border-b-[0.5px] border-foreground/15 p-2 pb-0">
+    <div class="flex h-10 items-start justify-end">
+      <span class:list={[TOOLBAR_BUTTON.classes, 'rounded-control']} aria-hidden="true">
+        <PanelIcon side="left" />
+      </span>
+    </div>
+    <div class="mt-2 flex min-w-0 items-center gap-1.5 px-2">
+      <span class="min-w-0 truncate text-lg font-medium text-sidebar-foreground/80">pigi</span>
+    </div>
+    <div class="flex min-w-0 items-center gap-1 pb-2 pl-2">
+      <span class="min-w-0 flex-1 truncate text-ui text-muted-foreground"
+        >feature/copy-file-names</span
+      >
+      <!-- The tree/list toggle (`FileListToggle`), showing the list in use: Phosphor's
+           TreeView, which the app draws from its own `fileListIcons.tsx`. -->
+      <span
+        aria-hidden="true"
+        class="flex size-5 shrink-0 items-center justify-center rounded-control text-muted-foreground"
+      >
+        <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+          <path
+            d="M176,152h32a16,16,0,0,0,16-16V104a16,16,0,0,0-16-16H176a16,16,0,0,0-16,16v8H88V80h8a16,16,0,0,0,16-16V32A16,16,0,0,0,96,16H64A16,16,0,0,0,48,32V64A16,16,0,0,0,64,80h8V192a24,24,0,0,0,24,24h64v8a16,16,0,0,0,16,16h32a16,16,0,0,0,16-16V192a16,16,0,0,0-16-16H176a16,16,0,0,0-16,16v8H96a8,8,0,0,1-8-8V128h72v8A16,16,0,0,0,176,152ZM64,32H96V64H64ZM176,192h32v32H176Zm0-88h32v32H176Z"
+          ></path>
+        </svg>
+      </span>
+    </div>
+    <div class="-mx-2 flex flex-col gap-2 border-t-[0.5px] border-foreground/15 p-2">
+      <div class="flex items-center gap-0.5 rounded-control bg-foreground/7 p-0.5">
+        {
+          views.map((view) => (
+            <span
+              class:list={[
+                'flex h-6 flex-1 items-center justify-center rounded-control-sm px-1 text-ui leading-none whitespace-nowrap transition-colors',
+                view === 'Diff' ? SEGMENTED_ITEM_ON.classes : SEGMENTED_ITEM_OFF.classes,
+              ]}
+            >
+              {view}
+            </span>
+          ))
+        }
+      </div>
+      <div
+        class="flex h-7 w-full min-w-0 items-center gap-1.5 rounded-control border border-input px-2 text-left text-body"
+      >
+        <span class="min-w-0 flex-1 truncate">All changes since origin/main</span>
+        <Icon name="chevron-down" size={14} class="shrink-0 text-muted-foreground" />
+      </div>
+      <div class="flex min-w-0 items-center gap-2">
+        <span class="shrink-0 text-caption text-muted-foreground">Compare vs</span>
+        <div
+          class="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-control border border-input px-2 text-body"
+        >
+          <span class="min-w-0 flex-1 truncate">origin/main</span>
+          <Icon name="selector" size={14} class="shrink-0 text-muted-foreground" />
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="min-h-0 flex-1 overflow-hidden px-1 pb-3">
+    <ul>
+      {
+        rows.map((row) =>
+          'folder' in row ? (
+            <TreeRow name={row.folder} depth={row.depth} folder="open" />
+          ) : (
+            <TreeRow name={row.name} depth={row.depth} selected={row.selected}>
+              <span class="shrink-0 text-2xs text-muted-foreground">{row.status}</span>
+              <span class="flex shrink-0 gap-1 text-2xs tabular-nums">
+                <span class="text-success-fg">+{row.additions}</span>
+                <span class="text-danger-fg">-{row.deletions}</span>
+              </span>
+            </TreeRow>
+          ),
+        )
+      }
+    </ul>
+  </div>
+</aside>

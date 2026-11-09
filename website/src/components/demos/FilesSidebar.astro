@@ -1,0 +1,71 @@
+---
+import Icon from '../Icon.astro';
+import PanelIcon from '../app/PanelIcon.astro';
+import TreeRow from '../app/TreeRow.astro';
+import { SIDEBAR_DEFAULT_WIDTH } from '../../lib/appLayout';
+import { SIDEBAR_MENU_BUTTON, TOOLBAR_BUTTON } from '../../lib/appUi';
+
+/**
+ * The Files tab's sidebar (`FileTreeSidebar.tsx`): the project's name with the
+ * ⌘P hint behind its info icon, then the tree. The tree is this repository's own
+ * top level, with `docs` open on the file the viewer shows, and Settings at the
+ * foot as in the session sidebar.
+ */
+const folders = ['.github', '.pi', 'build', 'docs', 'resources', 'scripts', 'src', 'website'];
+const docs = [
+  'appearance.md',
+  'architecture.md',
+  'auto-update.md',
+  'cli.md',
+  'design-system.md',
+  'sessionTree.md',
+  'testing.md',
+  'todo.md',
+];
+const files = ['.editorconfig', '.gitignore', 'AGENTS.md', 'CHANGELOG.md', 'package.json'];
+---
+
+<aside
+  class="flex shrink-0 flex-col bg-[var(--sidebar-solid)] text-sidebar-foreground"
+  style={`width:${SIDEBAR_DEFAULT_WIDTH}px`}
+>
+  <div class="flex flex-col gap-2 p-2 pb-0">
+    <div class="flex h-10 items-start justify-end">
+      <span class:list={[TOOLBAR_BUTTON.classes, 'rounded-control']} aria-hidden="true">
+        <PanelIcon side="left" />
+      </span>
+    </div>
+    <div class="flex min-w-0 items-center gap-1.5 px-2 pb-1">
+      <span class="min-w-0 truncate text-lg font-medium text-sidebar-foreground/80">pigi</span>
+      <span class="ml-auto inline-flex shrink-0 items-center text-muted-foreground">
+        <Icon name="lucide-info" class="size-3.5" />
+      </span>
+    </div>
+  </div>
+  <div class="min-h-0 flex-1 overflow-hidden px-1 pb-3">
+    <ul>
+      {
+        folders.map((folder) =>
+          folder === 'docs' ? (
+            <>
+              <TreeRow name={folder} folder="open" />
+              {docs.map((file) => (
+                <TreeRow name={file} depth={1} selected={file === 'architecture.md'} />
+              ))}
+            </>
+          ) : (
+            <TreeRow name={folder} folder="closed" />
+          ),
+        )
+      }
+      {files.map((file) => <TreeRow name={file} />)}
+    </ul>
+  </div>
+
+  <div class="p-2 pt-0">
+    <div class={SIDEBAR_MENU_BUTTON.classes}>
+      <Icon name="settings" />
+      <span>Settings</span>
+    </div>
+  </div>
+</aside>

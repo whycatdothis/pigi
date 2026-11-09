@@ -15,7 +15,7 @@ import { heroTurns } from '../lib/sessions';
  */
 const title = 'pigi — a pi agent GUI for macOS';
 const description =
-  'A sleek pi GUI for macOS: a desktop window on the pi coding agent, with instant session switching, forking, a session tree and a terminal — on the pi config and sessions already on your machine.';
+  'A sleek pi GUI for macOS: a desktop window on the pi coding agent, with instant session switching, forking, a session tree, files, git, quotes, subagents, packages and themes — on the pi config and sessions already on your machine.';
 ---
 
 <BaseLayout title={title} description={description}>
@@ -31,8 +31,12 @@ const description =
       Its masks are strongest at their centre, which would otherwise draw a soft but
       straight step across the page right where the header ends — the line the header
       no longer has. The header is transparent at rest, so the wash runs behind it.
+
+      The hero is the only pink part of the page: `hero-wash` starts on the pig's tint
+      and has faded into the neutral sheet by the time the tour begins.
     -->
     <section class="relative -mt-14 overflow-hidden pt-14">
+      <div class="hero-wash pointer-events-none absolute inset-0"></div>
       <div class="hero-grid pointer-events-none absolute inset-x-0 top-0 h-[720px]"></div>
       <div class="hero-glow pointer-events-none absolute inset-x-0 top-0 h-[720px]"></div>
 

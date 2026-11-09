@@ -1,0 +1,339 @@
+---
+import Icon from '../Icon.astro';
+import {
+  ACCENT_PRESETS,
+  SITE_THEME,
+  THEME_PRESETS,
+  appearanceSummary,
+  previewProperties,
+} from '../../lib/appTheme';
+import { SETTINGS_CONTENT_MAX_WIDTH } from '../../lib/appLayout';
+import { DEFAULT_CODE_FONT_SIZE, DEFAULT_UI_FONT_SIZE } from '../../../../src/shared/appearance';
+import { accentSwatchHex } from '../../../../src/shared/themePresets';
+import { MENU_ITEM, SETTINGS_CARD, SETTINGS_ROW } from '../../lib/appUi';
+
+/**
+ * Settings → Appearance (`settings/appearanceSettings.tsx`,
+ * `appearanceControls.tsx`), live.
+ *
+ * Every control a reader can reach here does what it does in the app, to the
+ * whole page: a mode switches the page between light and dark, a theme or an
+ * accent re-derives every `--app-*` property with the app's own `deriveTokens`
+ * (`initAppearanceStill`). The rows that would need a file dialog or a colour
+ * picker — import, copy, the hex fields — are drawn, not wired.
+ *
+ * The mode previews paint from `--preview-*` properties on their group, so the
+ * script can redraw them for a new theme by setting a dozen values.
+ */
+const summary = appearanceSummary(SITE_THEME, 'light');
+
+const modes = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+] as const;
+
+const lines = [
+  { width: 52, accent: true, opacity: 0.9 },
+  { width: 66, accent: false, opacity: 1 },
+  { width: 44, accent: false, opacity: 0.8 },
+  { width: 86, accent: true, opacity: 0.9 },
+  { width: 70, accent: true, opacity: 0.8 },
+  { width: 46, accent: false, opacity: 0.8 },
+  { width: 26, accent: false, opacity: 0.7 },
+];
+
+const fonts = [
+  { label: 'Text font', value: 'System' },
+  { label: 'Code font', value: 'SF Mono' },
+];
+const sizes = [
+  { label: 'Text size', value: DEFAULT_UI_FONT_SIZE },
+  { label: 'Code font size', value: DEFAULT_CODE_FONT_SIZE },
+];
+
+const CHIP =
+  'flex size-[22px] shrink-0 items-center justify-center rounded-chip text-3xs font-medium';
+const PICKER =
+  'flex h-8 w-field-picker items-center gap-2 rounded-control border border-input py-[3px] pl-1 pr-2 text-left outline-none transition-colors hover:bg-muted data-[state=open]:bg-muted dark:bg-input/30';
+const HEX_FIELD =
+  'flex h-7 items-center gap-2 rounded-control border border-input pr-2 pl-1.5 dark:bg-input/30';
+---
+
+<div class="h-full overflow-hidden">
+  <div
+    class="mx-auto flex w-full flex-col gap-9 px-5 pt-7 pb-7"
+    style={`max-width:${SETTINGS_CONTENT_MAX_WIDTH}px`}
+  >
+    <h1 class="text-2xl font-semibold tracking-[-0.02em] text-foreground">Appearance</h1>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-caption font-semibold text-muted-foreground">Visual style</h2>
+      <div class="flex flex-col gap-3">
+        <div class={SETTINGS_CARD.classes}>
+          <div class:list={[SETTINGS_ROW.classes, 'py-1.5']}>
+            <span class="text-ui font-medium text-foreground">Mode</span>
+            <div
+              role="radiogroup"
+              aria-label="Theme"
+              data-mode-previews
+              class="flex items-center gap-4"
+              style={previewProperties(SITE_THEME)}
+            >
+              {
+                modes.map((mode) => (
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={mode.value === 'system' ? 'true' : 'false'}
+                    aria-label={mode.label}
+                    title={mode.label}
+                    data-theme-mode={mode.value}
+                    class="group/mode relative flex h-[66px] w-[84px] overflow-hidden rounded-surface-sm"
+                  >
+                    {/*
+                      System is the left half of the light preview beside the left
+                      half of the dark one: each half draws a whole miniature at
+                      twice its width and crops it, as the app's `PreviewHalf` does.
+                    */}
+                    {(mode.value === 'system' ? ['light', 'dark'] : [mode.value]).map((half) => (
+                      <span class="relative h-full min-w-0 flex-1 overflow-hidden">
+                        <span
+                          class:list={[
+                            'absolute inset-y-0 left-0 flex p-[8px]',
+                            mode.value === 'system' ? 'w-[200%]' : 'w-full',
+                          ]}
+                          style={`background-color:var(--preview-${half}-background)`}
+                        >
+                          <span
+                            class="flex h-full w-full min-w-0 overflow-hidden rounded-control border-[0.5px]"
+                            style={`background-color:color-mix(in oklab, var(--preview-${half}-background), var(--preview-${half}-foreground) 4%);border-color:color-mix(in oklab, var(--preview-${half}-card), var(--preview-${half}-foreground) ${half === 'dark' ? 32 : 22}%);box-shadow:0 2px 4px rgb(0 0 0 / 0.18)`}
+                          >
+                            <span
+                              class="w-[11px] shrink-0"
+                              style={`background-color:color-mix(in oklab, var(--preview-${half}-card), var(--preview-${half}-foreground) 11%)`}
+                            />
+                            <span
+                              class="flex min-w-0 flex-1 flex-col gap-[2px] p-[4px]"
+                              style={`background-color:var(--preview-${half}-card)`}
+                            >
+                              {lines.map((line) => (
+                                <span
+                                  class:list={['h-[2.5px] rounded-full', line.accent && 'self-end']}
+                                  style={`width:${line.width}%;opacity:${line.opacity};background-color:var(--preview-${half}-${line.accent ? 'accent' : 'muted'})`}
+                                />
+                              ))}
+                            </span>
+                          </span>
+                        </span>
+                      </span>
+                    ))}
+                    <span
+                      aria-hidden="true"
+                      class="pointer-events-none absolute inset-0 hidden rounded-surface-sm shadow-[inset_0_0_0_2px_var(--system-accent)] group-aria-checked/mode:block"
+                    />
+                  </button>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- The card clips its rows, so the theme menu hangs off this wrapper instead. -->
+        <div class="relative">
+          <div class={SETTINGS_CARD.classes}>
+            <div class={SETTINGS_ROW.classes}>
+              <span class="text-ui font-medium text-foreground">Theme</span>
+              <div class="flex items-center gap-2">
+                <span
+                  class="flex size-7 items-center justify-center rounded-control text-muted-foreground"
+                >
+                  <Icon name="download" />
+                </span>
+                <span
+                  class="flex size-7 items-center justify-center rounded-control text-muted-foreground"
+                >
+                  <Icon name="copy" />
+                </span>
+                <button
+                  type="button"
+                  aria-label="Theme"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  data-theme-picker
+                  data-state="closed"
+                  class={PICKER}
+                >
+                  <span
+                    data-theme-badge
+                    aria-hidden="true"
+                    class={CHIP}
+                    style={`color:${summary.badgeHex};background-color:${summary.badgeHex}1f`}
+                  >
+                    Aa
+                  </span>
+                  <span data-theme-name class="flex-1 truncate text-caption text-foreground">
+                    {summary.themeName}
+                  </span>
+                  <Icon name="chevron-down" size={14} class="shrink-0 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+
+            <div class={SETTINGS_ROW.classes}>
+              <span class="text-ui font-medium text-foreground">Accent</span>
+              <div class="flex items-center gap-1.5">
+                {
+                  ACCENT_PRESETS.map((accent) => (
+                    <button
+                      type="button"
+                      aria-label={accent.name}
+                      title={accent.name}
+                      aria-pressed={accent.id === summary.accentId ? 'true' : 'false'}
+                      data-accent-option={accent.id}
+                      class="group/accent flex size-5 items-center justify-center rounded-full transition-transform hover:scale-110 aria-pressed:ring-2 aria-pressed:ring-ring aria-pressed:ring-offset-2 aria-pressed:ring-offset-card"
+                      style={`background-color:${accent.swatchHex}`}
+                    >
+                      <Icon
+                        name="check"
+                        size={14}
+                        stroke={2}
+                        class="hidden text-white group-aria-pressed/accent:block"
+                      />
+                    </button>
+                  ))
+                }
+                <span
+                  title="Custom color"
+                  class="relative flex size-5 items-center justify-center rounded-full"
+                  style="background:conic-gradient(#f87171, #fbbf24, #34d399, #38bdf8, #a78bfa, #f87171)"
+                >
+                  <span class="size-2.5 rounded-full ring-1 ring-black/20"></span>
+                </span>
+              </div>
+            </div>
+
+            {
+              (['background', 'foreground'] as const).map((role) => (
+                <div class={SETTINGS_ROW.classes}>
+                  <span class="text-ui font-medium capitalize text-foreground">{role}</span>
+                  <span class={HEX_FIELD}>
+                    <span
+                      data-color-swatch={role}
+                      class="relative size-3.5 shrink-0 rounded-full ring-1 ring-foreground/15"
+                      style={`background-color:${summary[role]}`}
+                    />
+                    <span
+                      data-color-hex={role}
+                      class="w-[4.25rem] font-mono text-caption uppercase tabular-nums text-foreground"
+                    >
+                      {summary[role]}
+                    </span>
+                  </span>
+                </div>
+              ))
+            }
+
+            <div class={SETTINGS_ROW.classes}>
+              <span class="text-ui font-medium text-foreground">Contrast</span>
+              <div class="flex items-center gap-3">
+                <span class="relative h-1.5 w-40 rounded-full bg-muted">
+                  <span
+                    class="absolute top-1/2 left-[30%] size-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-xs"
+                  ></span>
+                </span>
+                <span
+                  data-contrast
+                  class="w-24 shrink-0 text-right font-mono text-caption whitespace-nowrap tabular-nums text-muted-foreground"
+                >
+                  {summary.contrast}
+                </span>
+              </div>
+            </div>
+
+            <div class={SETTINGS_ROW.classes}>
+              <span class="min-w-0 truncate text-ui font-medium text-foreground">
+                Separate light and dark modes
+              </span>
+              <span
+                data-separate-switch
+                data-state={summary.separate ? 'checked' : 'unchecked'}
+                class="group/switch inline-flex h-5 w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all data-[state=checked]:bg-primary data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-input/80"
+              >
+                <span
+                  class="block size-4 rounded-full bg-background transition-transform group-data-[state=checked]/switch:translate-x-[calc(100%-2px)] dark:group-data-[state=checked]/switch:bg-primary-foreground dark:group-data-[state=unchecked]/switch:bg-foreground"
+                ></span>
+              </span>
+            </div>
+          </div>
+          <div
+            data-theme-menu
+            role="menu"
+            aria-label="Theme"
+            class="absolute top-11 right-5 z-30 hidden w-field-picker flex-col gap-0.5 rounded-surface bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 data-[open=true]:flex"
+          >
+            {
+              THEME_PRESETS.map((preset) => {
+                const hex = accentSwatchHex(preset.light.accent);
+                return (
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked="false"
+                    data-state="unchecked"
+                    data-theme-option={preset.id}
+                    class:list={['group/theme gap-2.5', MENU_ITEM.classes]}
+                  >
+                    <span
+                      aria-hidden="true"
+                      class={CHIP}
+                      style={`color:${hex};background-color:${hex}1f`}
+                    >
+                      Aa
+                    </span>
+                    <span class="flex-1">{preset.name}</span>
+                    <Icon
+                      name="check"
+                      stroke={2}
+                      class="invisible group-data-[state=checked]/theme:visible"
+                    />
+                  </button>
+                );
+              })
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-caption font-semibold text-muted-foreground">Typography</h2>
+      <div class={SETTINGS_CARD.classes}>
+        {
+          fonts.map((font) => (
+            <div class={SETTINGS_ROW.classes}>
+              <span class="text-ui font-medium text-foreground">{font.label}</span>
+              <span class="flex h-8 w-field-picker items-center justify-between rounded-control border border-input pr-2 pl-2.5 text-caption">
+                {font.value}
+                <Icon name="chevron-down" size={14} class="text-muted-foreground" />
+              </span>
+            </div>
+          ))
+        }
+        {
+          sizes.map((size) => (
+            <div class={SETTINGS_ROW.classes}>
+              <span class="text-ui font-medium text-foreground">{size.label}</span>
+              <span class="flex items-center gap-2 text-caption text-muted-foreground">
+                <span class="flex h-8 w-24 items-center justify-center rounded-control border border-input text-body text-foreground tabular-nums">
+                  {size.value}
+                </span>
+                px
+              </span>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+  </div>
+</div>

@@ -1,53 +1,121 @@
 ---
 import Icon from '../Icon.astro';
+import PanelIcon from './PanelIcon.astro';
 import ViewModeMenu, { type ViewModeName } from '../demos/ViewModeMenu.astro';
-import { TOOLBAR_BUTTON, TOOLBAR_BUTTON_ON, TOOLTIP_CONTENT, TOOLTIP_KBD } from '../../lib/appUi';
+import {
+  CHIP_TAB,
+  CHIP_TABS,
+  TOOLBAR_BUTTON,
+  TOOLBAR_BUTTON_ON,
+  TOOLTIP_CONTENT,
+  KBD,
+} from '../../lib/appUi';
+
+export type WorkspaceTabName = 'chat' | 'files' | 'git';
 
 /**
- * The session toolbar.
+ * The window's header: the Chat, Files and Git tabs (`app/WorkspaceTabs.tsx`)
+ * on the left, the session's own buttons on the right (`session/SessionToolbar.tsx`)
+ * — session tree, terminal, view mode — and the right sidebar's toggle.
  *
- * Three buttons, in the app's order: session tree, terminal, view mode. The
- * buttons are the app's own toolbar string (plain buttons, not `ui/button.tsx`),
- * and the hover tooltips carry the same surface, the same strings and the same
- * shortcuts the app puts on them (SessionToolbar.tsx), so the keys on this page
- * are the keys in the app.
+ * Chat is the session's title rather than a label, and while Files or Git is
+ * open it carries the agent's state: a spinner while it runs.
  *
  * A tooltip is a **sibling** of its button, not a child of it, and here it is a
  * label rather than a surface: the app's tree tooltip also carries the round `?`
- * (`SessionTreeHelpButton`) in a Radix portal, which can hold a button because it
- * is positioned over the page and takes the pointer. On this page the tooltip is
- * a span that fades in under the pointer and never accepts one — a button inside
- * it would be a control nobody can press, and ten of them across the windows
- * would be ten invisible stops in the tab order. The `?` lives where it can be
- * reached instead: in the session tree's own header (`SessionTreeDialog.astro`),
- * which is the one place on the page where the dialog it opens is also drawn.
+ * in a Radix portal, which can hold a button because it is positioned over the
+ * page and takes the pointer. On this page the tooltip is a span that fades in
+ * under the pointer and never accepts one. The `?` lives where it can be reached
+ * instead: in the session tree's own header (`SessionTreeDialog.astro`).
  */
 interface Props {
   title: string;
+  tab?: WorkspaceTabName;
+  /** The agent is working, shown on the Chat tab while another tab is open. */
+  running?: boolean;
   terminalOpen?: boolean;
   /** Which view mode this window draws; null hides the menu behind the button. */
   viewMode?: ViewModeName | null;
   viewMenuOpen?: boolean;
+  rightSidebarOpen?: boolean;
 }
 
-const { title, terminalOpen = false, viewMode = null, viewMenuOpen = false } = Astro.props;
+const {
+  title,
+  tab = 'chat',
+  running = false,
+  terminalOpen = false,
+  viewMode = null,
+  viewMenuOpen = false,
+  rightSidebarOpen = false,
+} = Astro.props;
+
+const tabs = [
+  { id: 'files', label: 'Files', icon: 'lucide-folder-open', key: '⌘ 2' },
+  { id: 'git', label: 'Git', icon: 'lucide-git-branch', key: '⌘ 3' },
+] as const;
+
+const TAB_KBD = `${KBD.classes} h-4 min-w-4 text-3xs [grid-area:1/1] opacity-0 transition-opacity group-hover/tab:opacity-100 @max-[600px]:hidden`;
+const TAB = 'group/tab @max-[320px]:px-2 @max-[220px]:px-1';
 ---
 
-<!-- h-11 and the hairline below it are the app's toolbar measurements. -->
+<!-- h-11 and the hairline below it are the app's header measurements. The @max
+     breakpoints are the header's own width, as in `WorkspaceTabs.tsx` and
+     `SessionToolbar.tsx`: below 600px Chat may shrink and the keycaps go, below
+     500px Files and Git lose their labels (the phone's 680px window), below 430px
+     the session's buttons fold into ⋯, below 320px Chat is an icon, and below
+     220px the right sidebar's toggle goes too (the Quote still on a phone). -->
 <div
-  class="relative z-10 flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 px-3"
+  class="@container relative z-10 flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 pr-3 @max-[320px]:pr-2 @max-[220px]:pr-1"
 >
-  <div class="flex min-w-0 max-w-[33%] items-center gap-1.5">
-    <Icon name="notebook" size={16} stroke={2} class="shrink-0 text-foreground" />
-    <span class="truncate text-sm font-medium text-foreground">{title}</span>
+  <div
+    data-variant="chip"
+    class:list={[CHIP_TABS.classes, 'min-w-0 max-w-full shrink @max-[220px]:gap-0']}
+  >
+    <span
+      data-state={tab === 'chat' ? 'active' : 'inactive'}
+      class:list={[
+        TAB,
+        CHIP_TAB.classes,
+        'ml-2 w-78 min-w-36 shrink basis-auto justify-start pl-2 text-body @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none',
+      ]}
+    >
+      <Icon name="message-circle" class="hidden @max-[320px]:inline" />
+      <span class="min-w-0 truncate @max-[320px]:hidden">{title}</span>
+      <span class="ml-auto grid shrink-0 place-items-center">
+        <kbd data-slot="kbd" class={TAB_KBD}>⌘ 1</kbd>
+        {
+          running && tab !== 'chat' && (
+            <span class="flex animate-[spin_1.8s_linear_infinite] transition-opacity [grid-area:1/1] group-hover/tab:opacity-0 motion-reduce:animate-none @max-[600px]:group-hover/tab:opacity-100">
+              <Icon name="loader-2" size={14} />
+            </span>
+          )
+        }
+      </span>
+    </span>
+    {
+      tabs.map((item) => (
+        <span
+          data-state={tab === item.id ? 'active' : 'inactive'}
+          class:list={[TAB, CHIP_TAB.classes, 'flex-none justify-center text-ui']}
+        >
+          <Icon name={item.icon} />
+          <span class="min-w-0 truncate @max-[500px]:hidden">{item.label}</span>
+          <span class="grid shrink-0 place-items-center">
+            <kbd data-slot="kbd" class={TAB_KBD}>
+              {item.key}
+            </kbd>
+          </span>
+        </span>
+      ))
+    }
   </div>
 
   <div class="flex-1"></div>
 
-  <div class="flex shrink-0 items-center gap-0.5">
-    <!-- Session tree. `binary-tree-2` carries the app's own scale factor: Tabler
-         draws it small in its box, so it is scaled up and the stroke divides the
-         same factor back out. -->
+  <div class="flex shrink-0 items-center gap-2 @max-[430px]:hidden">
+    <!-- `binary-tree-2` carries the app's own scale factor: Tabler draws it small
+         in its box, so it is scaled up and the stroke divides the factor back out. -->
     <div class="group relative">
       <button type="button" aria-label="Session tree" class:list={[TOOLBAR_BUTTON.classes]}>
         <Icon name="binary-tree-2" size={15} class="scale-[1.15] [stroke-width:calc(1.5/1.15)]" />
@@ -67,7 +135,7 @@ const { title, terminalOpen = false, viewMode = null, viewMenuOpen = false } = A
       </button>
       <span class:list={['app-tooltip', TOOLTIP_CONTENT.classes]}>
         Toggle terminal
-        <kbd data-slot="kbd" class={TOOLTIP_KBD.classes}>⌘ J</kbd>
+        <kbd data-slot="kbd" class:list={[KBD.classes, 'h-5 min-w-5 text-caption']}>⌘ J</kbd>
       </span>
     </div>
 
@@ -84,5 +152,26 @@ const { title, terminalOpen = false, viewMode = null, viewMenuOpen = false } = A
       </button>
       {viewMode !== null && <ViewModeMenu open={viewMenuOpen} active={viewMode} />}
     </div>
+  </div>
+
+  <span
+    aria-hidden="true"
+    class="hidden size-7 items-center justify-center rounded p-1 text-muted-foreground @max-[430px]:flex @max-[220px]:size-5"
+  >
+    <Icon name="dots" size={16} />
+  </span>
+
+  <div class="group relative @max-[220px]:hidden">
+    <button
+      type="button"
+      aria-label="Toggle right sidebar"
+      aria-pressed={rightSidebarOpen}
+      class:list={[TOOLBAR_BUTTON.classes, rightSidebarOpen && TOOLBAR_BUTTON_ON.classes]}
+    >
+      <PanelIcon side="right" />
+    </button>
+    <span class:list={['app-tooltip app-tooltip-end', TOOLTIP_CONTENT.classes]}>
+      Toggle right sidebar
+    </span>
   </div>
 </div>

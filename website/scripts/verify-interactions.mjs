@@ -60,6 +60,20 @@ page.on('request', (request) => {
 
 await page.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
 
+/** How many chapters the tour has; `src/lib/features.ts` is the list. */
+const CHAPTER_COUNT = 13;
+const ALL_CHAPTERS = Array.from({ length: CHAPTER_COUNT }, (_, index) => index);
+
+/** A chapter's position, from its id, so a new chapter does not shift every check. */
+const stepIndex = (id) =>
+  page.evaluate(
+    (chapterId) =>
+      [...document.querySelectorAll('[data-stage-copy]')].findIndex(
+        (panel) => panel.id === `stage-copy-${chapterId}`,
+      ),
+    id,
+  );
+
 const results = [];
 function check(name, passed, detail = '') {
   results.push({ name, passed, detail });
@@ -182,8 +196,7 @@ async function showStep(index) {
   const atLoad = await state();
   check(
     'tour: every chapter is on the page, the first one on the window',
-    JSON.stringify(atLoad) ===
-      JSON.stringify({ chapters: [0, 1, 2, 3, 4, 5, 6], stills: [0], current: 0 }),
+    JSON.stringify(atLoad) === JSON.stringify({ chapters: ALL_CHAPTERS, stills: [0], current: 0 }),
     JSON.stringify(atLoad),
   );
 
@@ -251,8 +264,7 @@ async function showStep(index) {
   const midTour = await state();
   check(
     'tour: the chapter at the reading line is the one on the window',
-    JSON.stringify(midTour) ===
-      JSON.stringify({ chapters: [0, 1, 2, 3, 4, 5, 6], stills: [3], current: 3 }),
+    JSON.stringify(midTour) === JSON.stringify({ chapters: ALL_CHAPTERS, stills: [3], current: 3 }),
     JSON.stringify(midTour),
   );
 
@@ -287,7 +299,7 @@ async function showStep(index) {
       const open = frames.findIndex((frame) => frame.dataset.active === 'true');
       const check = (frame) =>
         [...frame.querySelectorAll('[data-sidebar-row]')]
-          .filter((row) => row.className.includes('text-foreground'))
+          .filter((row) => row.querySelector('[data-active]') !== null)
           .map((row) => row.dataset.sidebarRow);
       return {
         open,
@@ -322,34 +334,70 @@ async function showStep(index) {
   );
 
   /*
-   * Three rows a window, one of them the fork under the session it came from.
+   * A session's window lists the session it has open, selected, with the fork
+   * under it; Files, Git and Settings draw their own sidebars, and the Packages
+   * page selects its own row instead of a session.
    */
   const lists = await page.evaluate(() =>
     [...document.querySelectorAll('[data-window-fit]')].map((fit) => {
       const rows = [...fit.querySelectorAll('[data-sidebar-row]')];
-      const marked = rows.filter((row) => row.className.includes('text-foreground'));
       return {
         title: fit.querySelector('[data-window-title]').dataset.windowTitle,
         count: rows.length,
-        selected: marked.map((row) => row.dataset.sidebarRow),
+        selected: rows
+          .filter((row) => row.querySelector('[data-active]') !== null)
+          .map((row) => row.dataset.sidebarRow),
         forks: rows
           .filter((row) => row.querySelector('[data-lineage-depth]') !== null)
           .map((row) => row.dataset.sidebarRow),
       };
     }),
   );
+  const withoutList = lists.filter((list) => list.count === 0).map((list) => list.title);
   check(
-    'sidebar: every window lists three sessions, and the open one is one of them',
-    lists.length > 0 &&
-      lists.every(
-        (list) => list.count === 3 && list.selected.length === 1 && list.selected[0] === list.title,
-      ),
-    JSON.stringify(lists.map((list) => [list.title, list.count, list.selected])),
+    'sidebar: only Files, Git and Settings draw a sidebar of their own',
+    JSON.stringify(withoutList) ===
+      JSON.stringify([
+        'Copy file names from the Files tab',
+        'Copy file names from the Files tab',
+        'Appearance',
+      ]),
+    JSON.stringify(withoutList),
   );
+
+  const packagesList = lists.find((list) => list.title === 'Packages');
+  check(
+    'sidebar: the Packages page selects no session',
+    packagesList?.count === 3 && packagesList.selected.length === 0,
+    JSON.stringify(packagesList),
+  );
+
+  const sessionLists = lists.filter((list) => list.count > 0 && list.title !== 'Packages');
+  const isSubagentList = (list) => list.forks.some((title) => title.includes('subagents'));
+  check(
+    'sidebar: every session window lists three rows, its open session selected',
+    sessionLists.length > 0 &&
+      sessionLists.every(
+        (list) =>
+          list.count === (isSubagentList(list) ? 5 : 3) &&
+          list.selected.length === 1 &&
+          list.selected[0] === list.title,
+      ),
+    JSON.stringify(sessionLists.map((list) => [list.title, list.count, list.selected])),
+  );
+
+  // The instant-switch still's three sessions are the ones without a fork.
+  const forkLists = sessionLists.filter((list) => !isSubagentList(list));
   check(
     'sidebar: the fork is listed under the session it came from',
-    lists.filter((list) => list.forks.length === 1).length >= lists.length - 3,
-    JSON.stringify(lists.map((list) => list.forks)),
+    forkLists.filter((list) => list.forks.length === 1).length === forkLists.length - 3,
+    JSON.stringify(forkLists.map((list) => list.forks)),
+  );
+  const subagentList = sessionLists.find(isSubagentList);
+  check(
+    'sidebar: the subagents fold under their session, two of them',
+    subagentList?.forks.length === 3,
+    JSON.stringify(subagentList?.forks),
   );
 
   await showStep(0);
@@ -963,9 +1011,179 @@ async function showStep(index) {
   await showStep(0);
 }
 
+// --- files, git, quote, packages ----------------------------------------------
+{
+  /*
+   * The stills that answer the pointer since the window grew tabs: Preview and
+   * Source swap the viewer's halves, the Packages tabs swap the page, and the
+   * quote chapter's Quote button turns its selection into a card. Clicked
+   * through `evaluate`, as a pointer on a pinned still would: Playwright's own
+   * click scrolls the page to "reveal" the element first, which moves the tour.
+   */
+  const clickIn = (id, selector) =>
+    page.evaluate(
+      ([chapterId, target]) => {
+        const chapters = [...document.querySelectorAll('[data-stage-copy]')];
+        const index = chapters.findIndex((panel) => panel.id === `stage-copy-${chapterId}`);
+        const layer = document.querySelectorAll('[data-stage-layer]')[index];
+        const element = layer?.querySelector(target);
+        if (!(element instanceof HTMLElement)) return false;
+        element.click();
+        return true;
+      },
+      [id, selector],
+    );
+
+  await showStep(await stepIndex('files'));
+  await clickIn('files', '[data-file-view="source"]');
+  const viewer = await page.evaluate(() => {
+    const root = document.querySelector('[data-file-viewer]');
+    const visible = (selector) => root.querySelector(selector)?.checkVisibility() ?? false;
+    return {
+      view: root.dataset.view,
+      source: visible('[data-file-source]'),
+      preview: visible('[data-file-preview]'),
+      pressed: root.querySelector('[data-file-view="source"]').getAttribute('aria-pressed'),
+    };
+  });
+  check(
+    'files: Source swaps the rendered page for the highlighted file',
+    viewer.view === 'source' && viewer.source && !viewer.preview && viewer.pressed === 'true',
+    JSON.stringify(viewer),
+  );
+
+  const tokens = await page.evaluate(
+    () =>
+      new Set(
+        [...document.querySelectorAll('[data-file-viewer] .code-token')].map(
+          (token) => getComputedStyle(token).color,
+        ),
+      ).size,
+  );
+  check('files: the source is highlighted, more than one colour', tokens > 1, `colours=${tokens}`);
+
+  await showStep(await stepIndex('quote'));
+  const before = await page.evaluate(
+    () => document.querySelector('[data-quote-list]').children.length,
+  );
+  await clickIn('quote', '[data-quote-button]');
+  const quoted = await page.evaluate(() => ({
+    cards: document.querySelector('[data-quote-list]').children.length,
+    count: document.querySelector('[data-quote-count]').textContent.trim(),
+    last: document.querySelector('[data-quote-list]').lastElementChild?.textContent ?? '',
+    button: document.querySelector('[data-quote-button]') !== null,
+  }));
+  check(
+    'quote: the Quote button adds the selection to the panel and counts it',
+    quoted.cards === before + 1 &&
+      quoted.count === String(before + 1) &&
+      quoted.last.includes('as well as on hover') &&
+      !quoted.button,
+    JSON.stringify(quoted),
+  );
+
+  await showStep(await stepIndex('packages'));
+  await clickIn('packages', '[data-packages-tab="marketplace"]');
+  const packages = await page.evaluate(() => {
+    const root = document.querySelector('[data-packages]');
+    return {
+      tab: root.dataset.tab,
+      popular: [...root.querySelectorAll('h2')].some(
+        (heading) => heading.textContent.trim() === 'Popular' && heading.checkVisibility(),
+      ),
+      selected: root.querySelector('[data-packages-tab="marketplace"]').dataset.state,
+    };
+  });
+  check(
+    'packages: the Marketplace tab shows the catalog',
+    packages.tab === 'marketplace' && packages.popular && packages.selected === 'active',
+    JSON.stringify(packages),
+  );
+  await showStep(0);
+}
+
+// --- appearance ---------------------------------------------------------------
+{
+  /*
+   * The Appearance still is the app's own colour code: a theme or an accent runs
+   * `deriveTokens` and writes the `--app-*` properties on <html>, and a mode is the
+   * page's light/dark. Each is checked by what it does to the page.
+   */
+  await page.evaluate(() => localStorage.removeItem('theme'));
+  await page.reload({ waitUntil: 'networkidle' });
+  await showStep(await stepIndex('appearance'));
+  const appToken = (name) =>
+    page.evaluate(
+      (property) => getComputedStyle(document.documentElement).getPropertyValue(property).trim(),
+      name,
+    );
+  const clickInStill = (selector) =>
+    page.evaluate((target) => {
+      const element = document
+        .querySelector('[data-mode-previews]')
+        .closest('[data-window-canvas]')
+        .querySelector(target);
+      element.click();
+    }, selector);
+
+  const pinkPrimary = await appToken('--app-primary');
+  await clickInStill('[data-accent-option="blue"]');
+  const accent = await page.evaluate(() => ({
+    pressed: [...document.querySelectorAll('[data-accent-option][aria-pressed="true"]')].map(
+      (option) => option.dataset.accentOption,
+    ),
+  }));
+  const bluePrimary = await appToken('--app-primary');
+  check(
+    'appearance: an accent re-derives the page’s accent and moves the check',
+    bluePrimary !== '' &&
+      bluePrimary !== pinkPrimary &&
+      JSON.stringify(accent.pressed) === '["blue"]',
+    JSON.stringify({ pinkPrimary, bluePrimary, ...accent }),
+  );
+
+  await clickInStill('[data-theme-picker]');
+  await clickInStill('[data-theme-option="nord"]');
+  const nord = await page.evaluate(() => ({
+    name: document.querySelector('[data-theme-name]').textContent.trim(),
+    background: getComputedStyle(document.documentElement)
+      .getPropertyValue('--app-background')
+      .trim(),
+    menu: document.querySelector('[data-theme-menu]').dataset.open,
+  }));
+  check(
+    'appearance: a named theme re-skins the page and names itself',
+    nord.name === 'Nord' && nord.background !== '' && nord.menu === 'false',
+    JSON.stringify(nord),
+  );
+
+  await clickInStill('[data-theme-mode="dark"]');
+  const dark = await page.evaluate(() => ({
+    className: document.documentElement.className,
+    stored: localStorage.getItem('theme'),
+    checked: document.querySelector('[data-theme-mode][aria-checked="true"]')?.dataset.themeMode,
+  }));
+  check(
+    'appearance: the Dark preview puts the whole page in dark mode, remembered',
+    dark.className === 'dark' && dark.stored === 'dark' && dark.checked === 'dark',
+    JSON.stringify(dark),
+  );
+
+  await clickInStill('[data-theme-mode="system"]');
+  const system = await page.evaluate(() => localStorage.getItem('theme'));
+  check(
+    'appearance: System forgets the choice and follows the system',
+    system === null,
+    `${system}`,
+  );
+
+  await page.evaluate(() => localStorage.removeItem('theme'));
+  await page.reload({ waitUntil: 'networkidle' });
+}
+
 // --- terminal ---------------------------------------------------------------
 {
-  await showStep(6);
+  await showStep(await stepIndex('terminal'));
   const tabs = page.locator('[data-terminal-tab]');
   await tabs.nth(1).click();
   const state = await tabs.evaluateAll((nodes) =>
@@ -1090,8 +1308,8 @@ async function showStep(index) {
    *
    * Every chapter ships visible, and the one attribute `initFeatureStage` writes
    * is what stacks them in a single cell below `lg`. With no script nothing
-   * writes it, so all seven read as an article — which is what the component
-   * promises, and what seven headings in one cell would break.
+   * writes it, so every chapter reads as an article — which is what the component
+   * promises, and what all the headings in one cell would break.
    */
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -1109,12 +1327,12 @@ async function showStep(index) {
   }));
   check(
     'tour: without the script the chapters are an article, not one cell',
-    withoutScript.tops.length === 7 &&
+    withoutScript.tops.length === CHAPTER_COUNT &&
       new Set(withoutScript.tops).size === withoutScript.tops.length,
     JSON.stringify(withoutScript.tops),
   );
   check(
-    'tour: without the script one still is drawn, not seven',
+    'tour: without the script one still is drawn, not all of them',
     withoutScript.stills === 1,
     `stills=${withoutScript.stills}`,
   );

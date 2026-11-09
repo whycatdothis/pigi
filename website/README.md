@@ -24,43 +24,46 @@ a feature legible: the terminal is only "the terminal" because it takes the bott
 with the transcript above it, the tree is only a dialog because the window behind it dims, and the
 view-mode menu only means something hanging off the toolbar button that opens it.
 
-Each window is self-contained — sidebar, toolbar, transcript, optional panel and overlay — and takes
-its state as props (`terminalOpen`, `viewModes`, `viewMenuOpen`, `overlayOpen`, `slashMenuOpen`), so
-a section is a window plus a short paragraph. The transcripts live in `src/lib/sessions.ts`; the
+Each window is self-contained — sidebar, header, transcript, optional panel, overlay and right
+sidebar — and takes its state as props (`tab`, `terminalOpen`, `viewMode`, `viewMenuOpen`,
+`overlayOpen`, `slashMenuOpen`, `rightSidebarOpen`, `page`), so a section is a window plus a short
+paragraph. The header is the app's: the Chat, Files and Git tabs on the left, the session's buttons
+and the right sidebar's toggle on the right. Files and Git replace the chat column and its composer
+with their own view, and a `sidebar` slot takes their sidebar's place; `page` is a full page with no
+tabs (Packages, Settings). The transcripts live in `src/lib/sessions.ts`; the
 geometry of a window (the app's 800px height, the sidebar's 244px, the terminal's 280px) lives in
 `src/lib/appLayout.ts`.
 
-### The accent
+### The colours
 
-The app paints links, focus rings, the minimap's lit bar, the selected session and search highlights
-with an accent the user picks from `src/renderer/src/lib/themeAccents.ts` (eight of them, default
-Indigo), and `applyThemeAccent` publishes the choice as `--accent-light` and `--accent-dark` on
-`<html>`. `BaseLayout.astro` writes those same two properties the same way, from `src/lib/site.ts`,
-and everything that reads `--system-accent` — in a window or on the page — follows, in both themes.
+The app never paints with the fallbacks in `designTokens.css`: on launch its appearance engine runs
+`deriveTokens` (`src/shared/appearanceTokens.ts`) over the user's settings and writes every `--app-*`
+property onto `<html>` — the accent's fill behind the send button and the selected sidebar row, the
+solved secondary text, the status colours. The page runs the same function (`src/lib/appTheme.ts`):
+`BaseLayout.astro` inlines its output for both modes as a `:root` and a `.dark` rule, so the first
+paint is already the app's colours, and everything that reads them — in a window or on the page —
+follows.
 
-The page's colour is pink, the pig's. The icon (`public/icon-256.png`) is `#f6729b`, but that is a
-2.7:1 pink: it can neither carry white text nor read as text on white, so the page uses its hue at
-the lightness each job needs. `BRAND_PINK` fills the download button and `BRAND_PINK_INK` (white)
-prints on it — 4.8:1, and the same pair in both themes, because a fill that flipped would have to
-flip its ink too. Anything that has to read (the eyebrows, the lit minimap bar, the selected session,
-the focus ring) uses the accent instead: `SITE_ACCENT_LIGHT`/`SITE_ACCENT_DARK`, the same hue tuned
-per theme (4.9:1 on the page, 9.6:1 on the dark page).
+The look the page opens in is the default `pigi` theme with the app's own **Pink** accent, the one of
+its eight that is the pig's. The theme picker names that **Custom**, as the app would: the accent is no
+longer the theme's own, so the colours match no preset. The Appearance still changes it live: a named theme or an accent there
+calls `deriveTokens` again in the browser and writes the result on `<html>`, the way the app does on a
+change, and a mode there is the page's own light/dark. Nothing is remembered but the mode; a reload is
+the page as it shipped.
 
-The page's surface is that pink too, not a white sheet with a wash at the top: `--page-background` is
-the hue at a fifth of a percent of chroma by day, so the foot of a seven-screen page is the same page
-as its head. Dark mode needs more than that fifth of a percent — at that lightness the hue drowns in
-the surface, and a page that differed from black by that much read as no colour at all — so the dark
-surface carries three percent of it (burgundy rather than a tint) and the hero's wash goes to 26%, on
-a grid whose hairlines are the accent too. A window keeps the app's own `--background`, which is what
-makes it read as a surface _on_ the page rather than a hole in it — and the two
-`<meta name="theme-color">` values are sampled from the same pair, so the browser's chrome matches the
-page it frames.
+The page's own colour is pink too, and it is the one thing the reader cannot change. The icon
+(`public/icon-256.png`) is `#f6729b`, a 2.7:1 pink that can neither carry white text nor read as text
+on white, so `--brand` is that hue at the lightness white needs (4.8:1) and `--brand-ink` is the white
+printed on it — the same pair in both themes, because a fill that flipped would have to flip its ink
+too. `--brand` fills the download button and tints the hero; every button inside a window wears the
+app's `BUTTON_FILLED`, in whatever accent the page is in.
 
-None of the app's eight accents is the pig's, which makes this the one colour the page names for
-itself; it is also the one thing on the page that is not the app's, together with the download
-button's fill — the app's filled variant is neutral `bg-primary`, and this button is the page's own
-action rather than a control in a window. Every button inside a window still wears the app's
-`BUTTON_FILLED`, unchanged.
+The pink is only the hero's. The page is a neutral sheet a shade off the app's white
+(`--page-background`), which is what keeps a window reading as a surface _on_ it rather than a hole in
+it, and the hero starts on `--hero-tint` — the pig's hue at a fifth of a percent of chroma by day,
+three percent (burgundy) at night — and fades into the sheet before the tour begins, under a glow and
+a grid drawn in `--brand`. The two `<meta name="theme-color">` values are sampled from the tints,
+since the top of the page is what the browser's chrome touches.
 
 A still shows its session the way the app shows one: a session taller than the viewport is at its
 newest message, so the still is clipped at the top edge by exactly what the app would be scrolled —
@@ -90,7 +93,7 @@ strip rather than letting it lie over the text.
 
 ### What is on the page
 
-Hero, then the tour — seven chapters and one window — then the footer. That is the whole page: no install section, no shortcut table, no FAQ. Nothing that is
+Hero, then the tour — a chapter per feature and one window — then the footer. That is the whole page: no install section, no shortcut table, no FAQ. Nothing that is
 not a feature or a claim about one.
 
 The hero is the title, the page's own download button, and the window — no subtitle, no badge, no
@@ -102,22 +105,34 @@ tour opens with the migration claim, because it is the question a pi user arrive
 there holds a `/` in the composer and the command menu open over it, so the skills in the list are
 visible as skills — pi's, not pigi's — and `/reload` says in the app's own words what it reads.
 
-The tour is the answer to what this page used to be: seven sections of _a paragraph and a picture of
-the app_. Seven of the same shape is seven times the same layout, and the seventh still only says
-what the first did — here is the app. So the window is pinned — on the left, the way a
+The tour is the answer to what this page used to be: a section per feature, each _a paragraph and a
+picture of the app_. Sections of the same shape are the same layout over and over, and the last still
+only says what the first did — here is the app. So the window is pinned — on the left, the way a
 screenshot is read before its caption — and the chapters scroll past it on the right
 (`position: sticky`, not a captured wheel): _Your pi, unchanged_, _View modes_, _Instant session
-switch_, _Fork_, _Tree_, _Session switcher_, _Terminal_. Only what is inside the window changes, and
-the window keeps answering the pointer while it is pinned — the filter menu picks a density, a
-minimap bar jumps, the tree's `?` opens the help, a terminal tab activates — so a chapter's last line
-is an instruction rather than a caption. `initFeatureStage` only decides which chapter is current:
+switch_, _Fork_, _Tree_, _Session switcher_, _Files_, _Git_, _Quote_, _Terminal_, _Subagents_,
+_Packages_, _Appearance_. Only what is inside the window changes, and the window keeps answering the
+pointer while it is pinned — the filter menu picks a density, a minimap bar jumps, the tree's `?` opens
+the help, Preview and Source swap, Quote adds the selection to the panel, a terminal tab activates,
+the Packages tabs switch, and the Appearance controls re-colour the page — so a chapter's last line is
+an instruction rather than a caption. `initFeatureStage` only decides which chapter is current:
 the last one whose heading crossed a line at 40% of the viewport, one `data-active` write per stack,
 with the CSS fading between stills. Nothing is re-rendered and every still stays laid out, which is
 what the minimap and the transcript clip measured themselves against when the page loaded.
 
 The order is the order a pi user arrives in: first that their own pi comes through unchanged, then
 the three ways through a long session (density, jumping, forking), then the tree the tree action
-opens, then every session one line away, then the shell at the bottom of the same window.
+opens, then every session one line away; then the project beside the conversation — its files, its
+diff, and quoting either back into the chat — and the shell at the bottom of the same window; then
+what reaches past one session (subagents, packages), and last the app made your own.
+
+The Files, Git and Quote stills tell one story: a session that taught the Files tab to copy a file's
+name. The file open in the viewer is the head of this repository's own `docs/architecture.md`, read
+at build time; the diff is that feature's change; and the quotes panel holds one quote from each tab.
+Code is highlighted at build time by Shiki in the app's default code theme (`src/lib/highlight.ts`),
+both modes at once, and file icons are Material Icon Theme's, resolved the way the app resolves them
+(`src/lib/fileIcons.ts`). Each of those stills has a selection with the Quote button over it, because
+every tab quotes.
 
 Each chapter's heading is its name — _View modes_, _Tree_ — not a sentence, and the sentence that
 used to be the headline is the paragraph's first line: a name says what a feature is, and "It is the
@@ -131,7 +146,7 @@ a width it does not have — and leaves the still sitting short of its column's 
 
 Below `lg` there is no room to pin a window beside the words, so the same markup falls back to what
 it was: an index row that shows one chapter over one window. `initFeatureStage` decides which
-chapters are visible by marking all seven as active where the pinned layout applies, so the CSS keys
+chapters are visible by marking all of them as active where the pinned layout applies, so the CSS keys
 off one attribute at both sizes and there is no second breakpoint to keep in step.
 
 Every window is the app's own size — a dialog is 520px wide, not 520px tall, and a shorter window
@@ -146,8 +161,9 @@ Its panels start at the top and grow downwards: the app's list is a plain scroll
 pt-6`, no `justify-end`), so a short turn sits under the toolbar rather than being pushed down to the
 composer.
 
-The sidebar lists three rows in every window — the session that is open, the fork that came off it,
-and one older chat. A developer's own sidebar is a column of thirty, but a still is read in a second
+The sidebar lists three rows in most windows — the session that is open, the fork that came off it,
+and one older chat. The subagent still lists two more: the row that folds the session's subagents
+and the two children under it, one of them still running. A developer's own sidebar is a column of thirty, but a still is read in a second
 and thirty rows say nothing three do not; the fork is the row that cannot go, because it is where the
 fork action's result lives. The windows that have to keep their list still take it as a prop
 (`Sidebar`'s `sessions`), which is what the instant-switch still does.
@@ -218,7 +234,7 @@ Both scripts drive the built `dist/` in a real browser:
 ```bash
 npm run build
 npm run shots         # writes .shots/*.png: full page and per section
-npm run verify        # asserts the interactive pieces work, and the phone-width layout (70 checks)
+npm run verify        # asserts the interactive pieces work, and the phone-width layout (83 checks)
 npm run check:drift   # asserts the copied app classes still exist in the app
 ```
 

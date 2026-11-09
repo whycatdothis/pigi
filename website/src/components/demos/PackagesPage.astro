@@ -1,0 +1,251 @@
+---
+import Icon from '../Icon.astro';
+import PackageCard, { type PackageInfo } from './PackageCard.astro';
+import { PACKAGES_CONTENT_MAX_WIDTH } from '../../lib/appLayout';
+import {
+  BUTTON_BASE,
+  BUTTON_OUTLINE,
+  CHIP_TABS,
+  PACKAGE_CARD,
+  PACKAGE_KIND_BADGE,
+  PACKAGES_TAB,
+} from '../../lib/appUi';
+
+/**
+ * The Packages page (`packages/PackagesPage.tsx`, `packageCards.tsx`): the
+ * Installed and Marketplace tabs, the field that filters or searches, Install
+ * from…, and the cards. Both tabs are in the markup and `initPackageTabs`
+ * switches between them, as the tab strip does in the app.
+ */
+interface Card extends PackageInfo {
+  /** The installed tab's actions: an update waiting, or only Remove. */
+  update?: boolean;
+  /** The marketplace's: already installed, or the Install icon. */
+  installed?: boolean;
+}
+
+/*
+ * Real packages from the pi catalog, as the app lists them on the day the
+ * stills were drawn; only the installed versions and ages are this page's.
+ */
+const installed: Card[] = [
+  {
+    name: 'pi-web-access',
+    version: '0.46.2',
+    description:
+      'Web search, URL fetching, GitHub repo cloning, PDF extraction, YouTube video understanding, and local video analysis for Pi coding agent.',
+    meta: 'Nico Bailon · 3w ago',
+    kind: 'extensions',
+    badges: ['extension'],
+    update: true,
+  },
+  {
+    name: 'pi-mcp-adapter',
+    version: '7.0.1',
+    description: 'MCP (Model Context Protocol) adapter extension for Pi coding agent',
+    meta: 'Nico Bailon · 4d ago',
+    kind: 'extensions',
+    badges: ['extension'],
+  },
+  {
+    name: 'github.com/whycatdothis/pi-extension',
+    version: '0.1.0',
+    description: 'A pi skill for automated code review workflow using pi itself',
+    meta: '23h ago',
+    kind: 'skills',
+    badges: ['skill', 'extension'],
+  },
+];
+
+const marketplace: Card[] = [
+  {
+    name: 'pi-web-access',
+    version: '0.47.0',
+    description:
+      'Web search, URL fetching, GitHub repo cloning, PDF extraction, YouTube video understanding, and local video analysis for Pi coding agent.',
+    meta: 'nicopreme · 3d ago',
+    kind: 'extensions',
+    badges: ['extension'],
+    installed: true,
+  },
+  {
+    name: 'pi-mcp-adapter',
+    version: '7.0.1',
+    description: 'MCP (Model Context Protocol) adapter extension for Pi coding agent',
+    meta: 'nicopreme · 4d ago',
+    kind: 'extensions',
+    badges: ['extension'],
+    installed: true,
+  },
+  {
+    name: 'pi-subagents',
+    version: '0.87.0',
+    description: 'Pi extension for single-agent delegation and scripted multi-agent workflows',
+    meta: 'nicopreme · 1d ago',
+    kind: 'extensions',
+    badges: ['extension'],
+  },
+  {
+    name: 'pi-mcp-extension',
+    version: '1.14.4',
+    description:
+      'Full-featured, lightweight MCP extension for the Pi coding agent: stdio, SSE & Streamable HTTP transports, OAuth 2.1 and more.',
+    meta: 'irahardianto · 10h ago',
+    kind: 'extensions',
+    badges: ['extension'],
+  },
+];
+
+const GRID = 'grid-template-columns:repeat(auto-fill, minmax(max(18rem, 50% - 6px), 1fr))';
+const OUTLINE_BUTTON = `${BUTTON_BASE.classes} ${BUTTON_OUTLINE.classes} h-10 gap-1.5 px-2.5 text-body`;
+const tabs = [
+  { id: 'installed', label: 'Installed', count: installed.length },
+  { id: 'marketplace', label: 'Marketplace' },
+];
+---
+
+<div
+  data-packages
+  data-tab="installed"
+  class="group/packages relative flex h-full min-h-0 flex-col"
+>
+  <div class="min-h-0 flex-1 overflow-hidden">
+    <div
+      class="mx-auto flex w-full flex-col gap-6 px-8 pt-7 pb-10"
+      style={`max-width:${PACKAGES_CONTENT_MAX_WIDTH}px`}
+    >
+      <h1 class="text-2xl font-semibold tracking-[-0.02em] text-foreground">Packages</h1>
+
+      <div role="tablist" data-variant="chip" class={CHIP_TABS.classes}>
+        {
+          tabs.map((tab) => (
+            <button
+              type="button"
+              role="tab"
+              id={`packages-tab-${tab.id}`}
+              aria-controls={`packages-panel-${tab.id}`}
+              data-packages-tab={tab.id}
+              aria-selected={tab.id === 'installed'}
+              data-state={tab.id === 'installed' ? 'active' : 'inactive'}
+              class={PACKAGES_TAB.classes}
+            >
+              {tab.label}
+              {tab.count !== undefined && (
+                <span class="text-caption font-normal text-muted-foreground tabular-nums">
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))
+        }
+      </div>
+
+      <div class="flex items-center justify-between gap-3">
+        <div
+          class="flex h-10 w-1/4 items-center gap-2 rounded-control border border-input bg-card px-3"
+        >
+          <Icon name="search" class="shrink-0 text-muted-foreground" />
+          <span
+            class="truncate text-body text-muted-foreground group-data-[tab=marketplace]/packages:hidden"
+          >
+            Filter installed packages
+          </span>
+          <span
+            class="hidden truncate text-body text-muted-foreground group-data-[tab=marketplace]/packages:inline"
+          >
+            Search the marketplace
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class:list={[OUTLINE_BUTTON, 'group-data-[tab=marketplace]/packages:hidden']}>
+            <Icon name="arrow-up" />
+            Update all
+            <span class="text-caption font-normal text-muted-foreground tabular-nums">1</span>
+          </span>
+          <span class={OUTLINE_BUTTON}>
+            <Icon name="download" />
+            Install from…
+          </span>
+        </div>
+      </div>
+
+      <div
+        id="packages-panel-installed"
+        role="tabpanel"
+        aria-labelledby="packages-tab-installed"
+        class="grid gap-3 group-data-[tab=marketplace]/packages:hidden"
+        style={GRID}
+      >
+        <div class="col-span-full">
+          <div class={PACKAGE_CARD.classes}>
+            <div
+              class="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-control bg-primary/10 text-primary"
+            >
+              <Icon name="device-laptop" />
+            </div>
+            <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+              <div class="flex min-h-7 min-w-0 items-center gap-2">
+                <span class="truncate text-ui font-medium text-foreground">Local</span>
+              </div>
+              <p class="line-clamp-2 text-caption text-muted-foreground">
+                Not from a package: ~/.pi/agent, ~/.agents/skills, project .pi/ and paths in
+                settings.
+              </p>
+              <div class="mt-1.5 flex flex-wrap gap-1">
+                <span class={PACKAGE_KIND_BADGE.classes}>skill</span>
+                <span class={PACKAGE_KIND_BADGE.classes}>theme</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        {
+          installed.map((card) => (
+            <PackageCard card={card}>
+              {card.update && (
+                <span class="flex size-7 items-center justify-center rounded-control text-primary">
+                  <Icon name="arrow-up" />
+                </span>
+              )}
+              <span class="flex size-7 items-center justify-center rounded-control text-muted-foreground">
+                <Icon name="trash" />
+              </span>
+            </PackageCard>
+          ))
+        }
+      </div>
+
+      <div
+        id="packages-panel-marketplace"
+        role="tabpanel"
+        aria-labelledby="packages-tab-marketplace"
+        class="hidden flex-col gap-4 group-data-[tab=marketplace]/packages:flex"
+      >
+        <div class="flex min-h-7 items-center justify-between gap-3">
+          <h2 class="text-caption font-semibold text-muted-foreground">Popular</h2>
+          <span class="flex items-center gap-1 text-caption text-muted-foreground">
+            Browse pi.dev
+            <Icon name="external-link" size={14} />
+          </span>
+        </div>
+        <div class="grid gap-3" style={GRID}>
+          {
+            marketplace.map((card) => (
+              <PackageCard card={card}>
+                {card.installed ? (
+                  <span class="flex h-7 items-center gap-1 px-1.5 text-caption text-muted-foreground">
+                    <Icon name="check" size={14} />
+                    Installed
+                  </span>
+                ) : (
+                  <span class="flex size-7 items-center justify-center rounded-control text-foreground">
+                    <Icon name="download" />
+                  </span>
+                )}
+              </PackageCard>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

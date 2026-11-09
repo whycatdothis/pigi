@@ -5,6 +5,7 @@ import ThinkingBlock from '../app/ThinkingBlock.astro';
 import ToolCard, { type DiffLine } from '../app/ToolCard.astro';
 import { type MessageActionTooltip } from '../app/MessageActions.astro';
 import Minimap from './Minimap.astro';
+import QuoteButton from '../app/QuoteButton.astro';
 import {
   MESSAGE_LIST_END_INSET_PX,
   MESSAGE_LIST_HORIZONTAL_PADDING,
@@ -30,11 +31,17 @@ export interface Turn {
   tool?: {
     command: string;
     prefix?: string;
+    status?: 'success' | 'error' | 'running';
     output?: string[];
     diff?: DiffLine[];
     duration: string;
   };
   reply?: string;
+  /**
+   * A passage of the reply that is selected, with the Quote button the
+   * selection raises over it. Must be a substring of `reply`.
+   */
+  quote?: string;
   /** The last reply of a session carries its time; the ones above do not. */
   last?: boolean;
 }
@@ -116,6 +123,7 @@ const columnStyle = [
                   command={turn.tool.command}
                   output={turn.tool.output}
                   diff={turn.tool.diff}
+                  status={turn.tool.status}
                   duration={turn.tool.duration}
                 />
               )}
@@ -128,7 +136,18 @@ const columnStyle = [
                   showActions={tooltipFor(turn, 'assistant') !== undefined}
                   actionTooltip={tooltipFor(turn, 'assistant')}
                 >
-                  <p>{turn.reply}</p>
+                  {turn.quote && turn.reply.includes(turn.quote) ? (
+                    <p>
+                      {turn.reply.slice(0, turn.reply.indexOf(turn.quote))}
+                      <span class="relative">
+                        <mark class="selection-tint text-inherit">{turn.quote}</mark>
+                        <QuoteButton interactive />
+                      </span>
+                      {turn.reply.slice(turn.reply.indexOf(turn.quote) + turn.quote.length)}
+                    </p>
+                  ) : (
+                    <p>{turn.reply}</p>
+                  )}
                 </AssistantMessage>
               </div>
             )}

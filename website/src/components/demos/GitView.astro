@@ -1,0 +1,232 @@
+---
+import Icon from '../Icon.astro';
+import QuoteButton from '../app/QuoteButton.astro';
+import { fileIconUrl } from '../../lib/fileIcons';
+import { highlightLines, type Token } from '../../lib/highlight';
+import { SEGMENTED, SEGMENTED_ITEM, SEGMENTED_ITEM_OFF, SEGMENTED_ITEM_ON } from '../../lib/appUi';
+
+/**
+ * The Git tab's diff viewer (`GitDiffViewer.tsx`, `GitDiffBody.tsx`), unified:
+ * two gutters, a sign column, the code highlighted, the changed words of a
+ * modified line marked, and the unmodified stretches folded into a row that
+ * expands them. Three of the added lines are selected, with the Quote button the
+ * selection raises.
+ *
+ * The change is the one the Files chapter's path bar shows — the copy button
+ * beside a file's path — so the stills tell one story.
+ */
+type Kind = 'context' | 'add' | 'remove';
+
+interface Line {
+  kind: Kind;
+  old?: number;
+  new?: number;
+  text: string;
+  /** The changed words of a modified line, as a character range. */
+  mark?: [number, number];
+  selected?: boolean;
+}
+
+type Row = Line | { fold: number };
+
+function changed(text: string, words: string): [number, number] {
+  const start = text.indexOf(words);
+  return [start, start + words.length];
+}
+
+const importAfter =
+  "import { IconAlertTriangle, IconCheck, IconCopy, IconLoader2 } from '@tabler/icons-react';";
+const spanAfter =
+  '        <span className="min-w-0 truncate text-caption text-muted-foreground select-text">';
+
+const rows: Row[] = [
+  {
+    kind: 'remove',
+    old: 1,
+    text: "import { IconAlertTriangle, IconLoader2 } from '@tabler/icons-react';",
+  },
+  { kind: 'add', new: 1, text: importAfter, mark: changed(importAfter, 'IconCheck, IconCopy, ') },
+  {
+    kind: 'context',
+    old: 2,
+    new: 2,
+    text: "import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';",
+  },
+  { kind: 'add', new: 3, text: "import { useCopyFeedback } from '../../hooks/useCopyFeedback';" },
+  { kind: 'context', old: 3, new: 4, text: "import { cn } from '../../lib/utils';" },
+  { fold: 250 },
+  {
+    kind: 'context',
+    old: 254,
+    new: 255,
+    text: "  const showsPreview = isMarkdown && view === 'preview';",
+  },
+  { kind: 'add', new: 256, text: '  const [copied, copy] = useCopyFeedback();' },
+  { kind: 'context', old: 255, new: 257, text: '' },
+  { kind: 'context', old: 256, new: 258, text: '  return (' },
+  {
+    kind: 'context',
+    old: 257,
+    new: 259,
+    text: '    <div className="flex min-h-0 flex-1 flex-col">',
+  },
+  {
+    kind: 'context',
+    old: 258,
+    new: 260,
+    text: '      <div className="flex h-8 shrink-0 items-center gap-2 px-3">',
+  },
+  {
+    kind: 'context',
+    old: 259,
+    new: 261,
+    text: '        <FileIcon path={filePath} className="size-4" />',
+  },
+  {
+    kind: 'remove',
+    old: 260,
+    text: '        <span className="min-w-0 truncate text-caption text-muted-foreground">',
+  },
+  { kind: 'add', new: 262, text: spanAfter, mark: changed(spanAfter, ' select-text') },
+  { kind: 'context', old: 261, new: 263, text: '          {filePath}' },
+  { kind: 'context', old: 262, new: 264, text: '        </span>' },
+  {
+    kind: 'add',
+    new: 265,
+    text: '        <button type="button" aria-label="Copy path" onClick={() => copy(filePath)}>',
+    selected: true,
+  },
+  {
+    kind: 'add',
+    new: 266,
+    text: '          {copied ? <IconCheck /> : <IconCopy />}',
+    selected: true,
+  },
+  { kind: 'add', new: 267, text: '        </button>', selected: true },
+  {
+    kind: 'context',
+    old: 263,
+    new: 268,
+    text: '        {isMarkdown && <PreviewSourceToggle view={view} onChange={setView} />}',
+  },
+  { kind: 'context', old: 264, new: 269, text: '      </div>' },
+  { fold: 62 },
+];
+
+const lines = rows.filter((row): row is Line => 'kind' in row);
+const highlighted = await highlightLines(lines.map((line) => line.text).join('\n'), 'tsx');
+const firstSelected = lines.find((line) => line.selected);
+const tokensOf = new Map(lines.map((line, index) => [line, highlighted[index] ?? []]));
+
+/** The line's tokens, cut where the mark starts and ends. */
+function pieces(line: Line): { token: Token; marked: boolean }[] {
+  const result: { token: Token; marked: boolean }[] = [];
+  let offset = 0;
+  for (const token of tokensOf.get(line) ?? []) {
+    const end = offset + token.content.length;
+    const [from, to] = line.mark ?? [0, 0];
+    const cuts = [
+      offset,
+      Math.max(offset, Math.min(from, end)),
+      Math.max(offset, Math.min(to, end)),
+      end,
+    ];
+    for (let index = 0; index < 3; index += 1) {
+      const start = cuts[index];
+      const stop = cuts[index + 1];
+      if (stop > start) {
+        result.push({
+          token: { ...token, content: token.content.slice(start - offset, stop - offset) },
+          marked: index === 1,
+        });
+      }
+    }
+    offset = end;
+  }
+  return result;
+}
+
+const LINE = {
+  add: 'bg-success-bg text-success-fg',
+  remove: 'bg-danger-bg text-danger-fg',
+  context: 'bg-background text-foreground',
+};
+const MARK = { add: 'bg-success-fg/20', remove: 'bg-danger-fg/20', context: '' };
+const GUTTER =
+  'w-10 shrink-0 select-none bg-inherit pr-2 text-right text-muted-foreground tabular-nums';
+const path = 'src/renderer/src/components/files/FileViewer.tsx';
+---
+
+<div class="@container flex min-h-0 flex-1 flex-col">
+  <div class="flex h-9 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 px-3">
+    <img alt="" class="size-4 shrink-0" src={fileIconUrl(path)} />
+    <span class="flex min-w-0 flex-1 items-center gap-1.5 text-caption text-muted-foreground">
+      <span class="min-w-0 truncate text-foreground/80">{path}</span>
+    </span>
+    <span class="shrink-0 text-caption text-muted-foreground">Modified</span>
+    <span class="flex shrink-0 gap-1 text-2xs tabular-nums">
+      <span class="text-success-fg">+7</span>
+      <span class="text-danger-fg">-2</span>
+    </span>
+    <span class="hidden max-w-48 shrink-0 truncate text-2xs text-muted-foreground @[900px]:inline"
+      >origin/main</span
+    >
+    <div class={SEGMENTED.classes}>
+      <span
+        class:list={[SEGMENTED_ITEM.classes, 'flex items-center px-2', SEGMENTED_ITEM_ON.classes]}
+      >
+        Unified
+      </span>
+      <span
+        class:list={[SEGMENTED_ITEM.classes, 'flex items-center px-2', SEGMENTED_ITEM_OFF.classes]}
+      >
+        Split
+      </span>
+    </div>
+    <span
+      class="flex size-6 shrink-0 items-center justify-center rounded-control text-muted-foreground"
+    >
+      <Icon name="message-plus" size={14} />
+    </span>
+    <span
+      class="flex size-6 shrink-0 items-center justify-center rounded-control text-muted-foreground"
+    >
+      <Icon name="lucide-chevrons-up-down" size={14} />
+    </span>
+  </div>
+
+  <div class="relative min-h-0 flex-1 overflow-hidden bg-background">
+    <div class="w-max min-w-full py-1 font-mono text-code-compact leading-5">
+      {
+        rows.map((row) =>
+          'fold' in row ? (
+            <div class="flex min-h-6 w-full items-center gap-2 bg-muted/40 px-3 text-left font-sans text-caption text-muted-foreground">
+              <Icon name="lucide-chevrons-up-down" size={13} class="shrink-0" />
+              <span class="shrink-0">{row.fold} unmodified lines</span>
+            </div>
+          ) : (
+            <div class:list={['flex min-h-5 w-max min-w-full', LINE[row.kind]]}>
+              <span class={GUTTER}>{row.old ?? ''}</span>
+              <span class:list={[GUTTER, 'border-r-[0.5px] border-foreground/15']}>
+                {row.new ?? ''}
+              </span>
+              <span class="w-4 shrink-0 select-none text-center opacity-50">
+                {row.kind === 'add' ? '+' : row.kind === 'remove' ? '-' : ' '}
+              </span>
+              <span class="min-w-0 whitespace-pre pr-4">
+                <span class:list={['relative', row.selected && 'selection-tint']}>
+                  {pieces(row).map(({ token, marked }) => (
+                    <span class:list={['code-token', marked && MARK[row.kind]]} style={token.style}>
+                      {token.content}
+                    </span>
+                  ))}
+                  {row === firstSelected && <QuoteButton />}
+                </span>
+              </span>
+            </div>
+          ),
+        )
+      }
+    </div>
+  </div>
+</div>

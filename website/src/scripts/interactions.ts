@@ -27,6 +27,14 @@ import {
   type TreeRowShape,
 } from '../lib/treeGeometry';
 import { WINDOW_HEIGHT_PX, WINDOW_WIDTH_PX } from '../lib/appLayout';
+import {
+  ACCENT_PRESETS,
+  SITE_THEME,
+  appearanceSummary,
+  previewProperties,
+  themeTokens,
+  type ThemeChoice,
+} from '../lib/appTheme';
 import { getLineWidth, measureMaxLineWidth } from '../lib/minimapGeometry';
 
 // ---------------------------------------------------------------------------
@@ -782,7 +790,7 @@ const STAGE_FLOOR_GAP_PX = 24;
 const STAGE_TRIGGER_RATIO = 0.4;
 
 /**
- * The tour: one window, seven chapters.
+ * The tour: one window, a chapter per feature.
  *
  * From `lg` up the window is pinned (`position: sticky` in the markup) and the
  * chapters scroll past it. This only decides which chapter is current — the last
@@ -791,7 +799,7 @@ const STAGE_TRIGGER_RATIO = 0.4;
  * chapters are ordinary sections, so the page still reads as an article.
  *
  * Below `lg` there is no room for both, and the layout is the one this section
- * had before the window was pinned: the index chooses a chapter and all seven
+ * had before the window was pinned: the index chooses a chapter and all the
  * stills stay stacked. That is the difference the `wide` query drives — the
  * chapters are hidden down to the current one only there, which is one attribute
  * write per chapter rather than a second set of styles.
@@ -1067,27 +1075,52 @@ function initHeaderScroll(): void {
 // Theme
 // ---------------------------------------------------------------------------
 
+type ColorModeChoice = 'light' | 'dark' | 'system';
+
+const THEME_STORAGE_KEY = 'theme';
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+
+function storedColorMode(): ColorModeChoice {
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    return stored === 'light' || stored === 'dark' ? stored : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
 /**
- * Light or dark, remembered.
- *
- * The initial value is decided by the inline script in BaseLayout (before the
- * first paint); this only handles the click. `theme` is the key the app itself
- * uses, and the two values it stores are the same two this does — `system` is
- * the absence of an entry, which is what an untouched browser has.
+ * Puts the page in a mode and remembers it. `theme` is the key the app itself
+ * uses, and the two values it stores are the same two this does — `system` is the
+ * absence of an entry, which is what an untouched browser has. In private mode
+ * the write fails and the mode still holds for this page view.
+ */
+function setColorMode(mode: ColorModeChoice): void {
+  const dark = mode === 'dark' || (mode === 'system' && window.matchMedia(DARK_QUERY).matches);
+  document.documentElement.classList.toggle('dark', dark);
+  document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+  try {
+    if (mode === 'system') localStorage.removeItem(THEME_STORAGE_KEY);
+    else localStorage.setItem(THEME_STORAGE_KEY, mode);
+  } catch {
+    // Private mode: the mode still holds for this page view.
+  }
+}
+
+/**
+ * The header's light/dark button, and a page left on `system` following the
+ * system when it changes. The initial mode is decided by the inline script in
+ * BaseLayout, before the first paint.
  */
 function initThemeToggle(): void {
+  window.matchMedia(DARK_QUERY).addEventListener('change', () => {
+    if (storedColorMode() === 'system') setColorMode('system');
+  });
+
   const button = document.querySelector<HTMLElement>('[data-theme-toggle]');
   if (button === null) return;
-
   button.addEventListener('click', () => {
-    const dark = !document.documentElement.classList.contains('dark');
-    document.documentElement.classList.toggle('dark', dark);
-    document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-    try {
-      localStorage.setItem('theme', dark ? 'dark' : 'light');
-    } catch {
-      // Private mode: the toggle still works for this page view.
-    }
+    setColorMode(document.documentElement.classList.contains('dark') ? 'light' : 'dark');
   });
 }
 
@@ -1118,6 +1151,202 @@ function initTerminalTabs(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Files, Packages and Quote stills
+// ---------------------------------------------------------------------------
+
+/** Preview / Source: the viewer's root carries the view, the CSS shows that half. */
+function initFileViewers(): void {
+  for (const root of document.querySelectorAll<HTMLElement>('[data-file-viewer]')) {
+    const buttons = Array.from(root.querySelectorAll<HTMLElement>('[data-file-view]'));
+    for (const button of buttons) {
+      button.addEventListener('click', () => {
+        root.dataset.view = button.dataset.fileView ?? 'preview';
+        for (const other of buttons) other.setAttribute('aria-pressed', String(other === button));
+      });
+    }
+  }
+}
+
+/** Installed / Marketplace, the Packages page's tab strip. */
+function initPackageTabs(): void {
+  for (const root of document.querySelectorAll<HTMLElement>('[data-packages]')) {
+    const tabs = Array.from(root.querySelectorAll<HTMLElement>('[data-packages-tab]'));
+    for (const tab of tabs) {
+      tab.addEventListener('click', () => {
+        root.dataset.tab = tab.dataset.packagesTab ?? 'installed';
+        for (const other of tabs) {
+          other.dataset.state = other === tab ? 'active' : 'inactive';
+          other.setAttribute('aria-selected', String(other === tab));
+        }
+      });
+    }
+  }
+}
+
+/**
+ * The quote chapter's Quote button: the selection becomes a card at the end of
+ * the panel, waiting for its comment, and the selection is gone — which is what
+ * quoting does in the app. Once: the still has one selection to give.
+ */
+function initQuoteStills(): void {
+  for (const button of document.querySelectorAll<HTMLElement>('[data-quote-button]')) {
+    const scope = button.closest<HTMLElement>('[data-window-canvas]');
+    const list = scope?.querySelector<HTMLElement>('[data-quote-list]');
+    const template = scope?.querySelector<HTMLTemplateElement>('[data-quote-template]');
+    const count = scope?.querySelector<HTMLElement>('[data-quote-count]');
+    const selection = button.parentElement?.querySelector<HTMLElement>('mark');
+    if (!list || !template || !count || !selection) continue;
+
+    button.addEventListener('click', () => {
+      const card = template.content.cloneNode(true);
+      if (!(card instanceof DocumentFragment)) return;
+      const text = card.querySelector<HTMLElement>('[data-quote-text]');
+      if (text) text.textContent = selection.textContent?.trim() ?? '';
+      const item = card.firstElementChild;
+      list.append(card);
+      count.textContent = String(list.children.length);
+      selection.replaceWith(document.createTextNode(selection.textContent ?? ''));
+      // The button is gone, so focus goes where its work went.
+      if (item instanceof HTMLElement) {
+        item.tabIndex = -1;
+        item.focus({ preventScroll: true });
+      }
+      button.remove();
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Appearance
+// ---------------------------------------------------------------------------
+
+/**
+ * Settings → Appearance, live, over the whole page.
+ *
+ * A mode is the page's own light/dark switch. A theme or an accent runs the
+ * app's `deriveTokens` and writes every `--app-*` property onto `<html>`, which
+ * is what the app does on a change — so every window on the page, and the page's
+ * own accent, re-colours. The pig's pink of the hero and the download button is
+ * the page's, not the app's, and stays.
+ *
+ * Nothing is remembered: a reload is the page as it shipped. Until the reader
+ * picks something the build-time CSS is in charge; after that the inline
+ * properties are, and a mode switch re-derives them for the new mode.
+ */
+function initAppearanceStill(): void {
+  const previews = document.querySelector<HTMLElement>('[data-mode-previews]');
+  const root = previews?.closest<HTMLElement>('[data-window-canvas]');
+  if (!previews || !root) return;
+  const modeButtons = Array.from(root.querySelectorAll<HTMLElement>('[data-theme-mode]'));
+  const picker = root.querySelector<HTMLElement>('[data-theme-picker]');
+  const menu = root.querySelector<HTMLElement>('[data-theme-menu]');
+  const options = Array.from(root.querySelectorAll<HTMLElement>('[data-theme-option]'));
+  const accents = Array.from(root.querySelectorAll<HTMLElement>('[data-accent-option]'));
+  if (!picker || !menu) return;
+
+  let choice: ThemeChoice = SITE_THEME;
+  let chosen = false;
+  const html = document.documentElement;
+  const currentMode = (): 'light' | 'dark' => (html.classList.contains('dark') ? 'dark' : 'light');
+
+  const setText = (selector: string, text: string): void => {
+    for (const element of root.querySelectorAll<HTMLElement>(selector)) element.textContent = text;
+  };
+
+  const render = (): void => {
+    const mode = currentMode();
+    if (chosen) {
+      for (const [name, value] of Object.entries(themeTokens(choice, mode))) {
+        html.style.setProperty(name, value);
+      }
+    }
+    for (const [name, value] of Object.entries(previewProperties(choice))) {
+      previews.style.setProperty(name, value);
+    }
+
+    const summary = appearanceSummary(choice, mode);
+    setText('[data-theme-name]', summary.themeName);
+    const badge = root.querySelector<HTMLElement>('[data-theme-badge]');
+    if (badge) {
+      badge.style.color = summary.badgeHex;
+      badge.style.backgroundColor = `${summary.badgeHex}1f`;
+    }
+    for (const role of ['background', 'foreground'] as const) {
+      setText(`[data-color-hex="${role}"]`, summary[role]);
+      const swatch = root.querySelector<HTMLElement>(`[data-color-swatch="${role}"]`);
+      if (swatch) swatch.style.backgroundColor = summary[role];
+    }
+    setText('[data-contrast]', summary.contrast);
+    const separate = root.querySelector<HTMLElement>('[data-separate-switch]');
+    if (separate) separate.dataset.state = summary.separate ? 'checked' : 'unchecked';
+    for (const accent of accents) {
+      accent.setAttribute('aria-pressed', String(accent.dataset.accentOption === summary.accentId));
+    }
+    for (const option of options) {
+      const on = option.dataset.themeOption === choice.themeId && summary.themeName !== 'Custom';
+      option.dataset.state = on ? 'checked' : 'unchecked';
+      option.setAttribute('aria-checked', String(on));
+    }
+    const stored = storedColorMode();
+    for (const button of modeButtons) {
+      button.setAttribute('aria-checked', String(button.dataset.themeMode === stored));
+    }
+  };
+
+  const choose = (next: ThemeChoice): void => {
+    choice = next;
+    chosen = true;
+    render();
+  };
+
+  const setMenuOpen = (open: boolean): void => {
+    menu.dataset.open = String(open);
+    picker.dataset.state = open ? 'open' : 'closed';
+    picker.setAttribute('aria-expanded', String(open));
+  };
+
+  for (const button of modeButtons) {
+    button.addEventListener('click', () => {
+      const mode = button.dataset.themeMode;
+      if (mode !== 'light' && mode !== 'dark' && mode !== 'system') return;
+      setColorMode(mode);
+      // The class only changes when the mode it resolves to does; the stored
+      // choice, which the radios show, changes either way.
+      render();
+    });
+  }
+  for (const accent of accents) {
+    const preset = ACCENT_PRESETS.find((candidate) => candidate.id === accent.dataset.accentOption);
+    if (!preset) continue;
+    accent.addEventListener('click', () => {
+      choose({ ...choice, accent: { presetId: preset.id } });
+    });
+  }
+  picker.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setMenuOpen(menu.dataset.open !== 'true');
+  });
+  for (const option of options) {
+    option.addEventListener('click', (event) => {
+      event.stopPropagation();
+      choose({ themeId: option.dataset.themeOption ?? SITE_THEME.themeId });
+      setMenuOpen(false);
+    });
+  }
+  document.addEventListener('click', () => setMenuOpen(false));
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || menu.dataset.open !== 'true') return;
+    setMenuOpen(false);
+    picker.focus({ preventScroll: true });
+  });
+
+  // A mode switch from anywhere — the header's button, the system, these
+  // previews — lands here as a class change on <html>.
+  new MutationObserver(render).observe(html, { attributes: true, attributeFilter: ['class'] });
+  render();
+}
+
+// ---------------------------------------------------------------------------
 
 initFeatureStage();
 initTreeHelp();
@@ -1132,3 +1361,7 @@ initMinimaps();
 initSessionTrees();
 initSessionSwitcher();
 initTerminalTabs();
+initFileViewers();
+initPackageTabs();
+initQuoteStills();
+initAppearanceStill();

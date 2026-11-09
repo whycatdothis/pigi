@@ -11,6 +11,8 @@ interface Props {
   thinking?: string;
   gitBranch?: string;
   contextUsage?: string;
+  /** The agent is working: the send button is the stop button. */
+  running?: boolean;
 }
 
 const {
@@ -19,6 +21,7 @@ const {
   thinking = 'max',
   gitBranch = 'main',
   contextUsage = '1.2%/1000k (auto)',
+  running = false,
 } = Astro.props;
 
 /** The app's container padding and card width: `px-5`, CHAT_INPUT_MAX_WIDTH. */
@@ -38,7 +41,7 @@ const cardStyle = `max-width:${CHAT_INPUT_MAX_WIDTH}px`;
     <div class:list={['flex', CHAT_CARD.classes, 'min-h-28']}>
       <div
         class:list={[
-          'min-h-16 flex-initial px-4 pt-4 pb-2 text-sm leading-5',
+          'min-h-16 flex-initial px-4 pt-4 pb-2 text-body leading-6',
           text ? 'text-foreground' : 'text-muted-foreground/70',
         ]}
       >
@@ -54,21 +57,28 @@ const cardStyle = `max-width:${CHAT_INPUT_MAX_WIDTH}px`;
           </span>
         </div>
         <div class="flex shrink-0 items-baseline gap-1.5 pl-2">
-          <span class="text-sm text-foreground">{model}</span>
-          <span class="text-xs text-muted-foreground">{thinking}</span>
+          <span class="text-body text-foreground">{model}</span>
+          <span class="text-caption text-muted-foreground">{thinking}</span>
           <Icon name="chevron-down" size={14} class="shrink-0 self-center text-muted-foreground" />
         </div>
+        <!-- PRIMARY_ACTION_CLASS_NAME: the accent's fill, send and stop alike. -->
         <span
-          class="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted-foreground text-background"
+          class="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
         >
-          <Icon name="arrow-up" size={16} />
+          {
+            running ? (
+              <Icon name="square" size={16} class="fill-current" />
+            ) : (
+              <Icon name="arrow-up" size={16} />
+            )
+          }
         </span>
       </div>
     </div>
   </div>
 
   <div
-    class="mx-auto flex w-full items-center justify-between gap-4 bg-background px-4 pt-1.5 pb-3 text-sm text-muted-foreground"
+    class="mx-auto flex w-full items-center justify-between gap-4 bg-background px-4 pt-1.5 pb-3 text-body text-muted-foreground"
     style={cardStyle}
   >
     <span class="flex min-w-0 items-center gap-1.5">

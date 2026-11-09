@@ -1,10 +1,11 @@
 ---
 import Sidebar from './Sidebar.astro';
 import type { SessionRow } from '../../lib/sessions';
-import SessionToolbar from './SessionToolbar.astro';
+import SessionToolbar, { type WorkspaceTabName } from './SessionToolbar.astro';
 import ChatInput from './ChatInput.astro';
 import SlashMenu from '../demos/SlashMenu.astro';
 import {
+  RIGHT_SIDEBAR_DEFAULT_WIDTH,
   TERMINAL_DEFAULT_HEIGHT,
   WINDOW_HEIGHT_PX,
   WINDOW_MIN_WIDTH_PX,
@@ -60,6 +61,22 @@ interface Props {
    * it and one older chat.
    */
   sessions?: SessionRow[];
+  /**
+   * Which of the header's tabs is open. Files and Git replace the chat column
+   * and its composer with the default slot, the way the app swaps the view.
+   */
+  tab?: WorkspaceTabName;
+  /** The agent is working: the composer offers stop, and Chat spins while another tab is open. */
+  running?: boolean;
+  /**
+   * A full page instead of a session — Packages, Settings: no header tabs and no
+   * composer, only the title bar's height of empty drag region above the slot.
+   */
+  page?: boolean;
+  /** The Packages page is the open one, so its sidebar row is selected. */
+  packagesActive?: boolean;
+  /** The right sidebar is open, with the `right` slot in it. */
+  rightSidebarOpen?: boolean;
 }
 
 const {
@@ -71,7 +88,14 @@ const {
   overlayOpen = false,
   viewMode = null,
   sessions,
+  tab = 'chat',
+  running = false,
+  page = false,
+  packagesActive = false,
+  rightSidebarOpen = false,
 } = Astro.props;
+
+const chatColumn = !page && tab === 'chat';
 
 const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}`;
 ---
@@ -95,7 +119,17 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
       </div>
 
       <div class="flex h-full">
-        <Sidebar activeTitle={title} sessions={sessions} />
+        {
+          Astro.slots.has('sidebar') ? (
+            <slot name="sidebar" />
+          ) : (
+            <Sidebar
+              activeTitle={page ? undefined : title}
+              sessions={sessions}
+              packagesActive={packagesActive}
+            />
+          )
+        }
 
         <!--
       No rounding on this edge. The app's sidebar and its main area meet in a
@@ -110,27 +144,41 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
         <div
           class="relative flex min-w-0 flex-1 flex-col overflow-hidden border-l-[0.5px] border-foreground/27 bg-background"
         >
-          <SessionToolbar
-            title={title}
-            terminalOpen={terminalOpen}
-            viewMode={viewMode}
-            viewMenuOpen={viewMenuOpen}
-          />
+          {
+            page ? (
+              <div class="h-11 shrink-0" />
+            ) : (
+              <SessionToolbar
+                title={title}
+                tab={tab}
+                running={running}
+                terminalOpen={terminalOpen}
+                viewMode={viewMode}
+                viewMenuOpen={viewMenuOpen}
+                rightSidebarOpen={rightSidebarOpen}
+              />
+            )
+          }
 
           <div class="relative min-h-0 flex-1 overflow-hidden">
             <!--
           The chat column. In the app this is an absolutely positioned column
           whose `bottom` is the terminal's height, animated; that is what makes the
           transcript's scroll viewport end above the panel instead of being covered
-          by it.
+          by it. Files, Git and the full pages take the same box, without the
+          composer.
         -->
             <div class="absolute inset-x-0 top-0 flex flex-col" style={chatStyle}>
               <div class="flex min-h-0 flex-1 flex-col">
                 <slot />
               </div>
-              <ChatInput text={composerText}>
-                {slashMenuOpen && <SlashMenu slot="menu" />}
-              </ChatInput>
+              {
+                chatColumn && (
+                  <ChatInput text={composerText} running={running}>
+                    {slashMenuOpen && <SlashMenu slot="menu" />}
+                  </ChatInput>
+                )
+              }
             </div>
 
             {
@@ -148,6 +196,17 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
           {overlayOpen && <div class="absolute inset-0 z-20 bg-black/20" aria-hidden="true" />}
           <slot name="overlay" />
         </div>
+
+        {
+          rightSidebarOpen && (
+            <div
+              class="flex h-full shrink-0 border-l-[0.5px] border-foreground/27 bg-background"
+              style={`width:${RIGHT_SIDEBAR_DEFAULT_WIDTH}px`}
+            >
+              <slot name="right" />
+            </div>
+          )
+        }
       </div>
     </div>
   </div>

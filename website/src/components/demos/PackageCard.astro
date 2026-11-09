@@ -1,0 +1,55 @@
+---
+import Icon from '../Icon.astro';
+import type { IconName } from '../../lib/icons';
+import { PACKAGE_CARD, PACKAGE_KIND_BADGE } from '../../lib/appUi';
+
+/**
+ * One package on the Packages page (`packageCards.tsx`): the kind's tile, the
+ * name and version, the description, the author and age, the badges, and the
+ * tab's own actions in the slot.
+ *
+ * A card without a preview image wears the tile of what it mostly ships — the
+ * cube for extensions, the wand for skills — in the hue the app gives that kind
+ * (`.package-tile` in `assets/main.css`, copied into `global.css`).
+ */
+export type PackageKind = 'extensions' | 'skills';
+
+export interface PackageInfo {
+  name: string;
+  version: string;
+  description: string;
+  meta: string;
+  kind: PackageKind;
+  badges: string[];
+}
+
+interface Props {
+  card: PackageInfo;
+}
+
+const KIND_ICON: Record<PackageKind, IconName> = { extensions: 'cube', skills: 'wand' };
+const { card } = Astro.props;
+---
+
+<div class={PACKAGE_CARD.classes}>
+  <div
+    data-kind={card.kind}
+    class="package-tile relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-control"
+  >
+    <Icon name={KIND_ICON[card.kind]} />
+  </div>
+  <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+    <div class="flex min-h-7 min-w-0 items-center gap-2">
+      <span class="truncate text-ui font-medium text-foreground">{card.name}</span>
+      <span class="shrink-0 text-caption text-muted-foreground">{card.version}</span>
+    </div>
+    <p class="line-clamp-2 text-caption text-muted-foreground">{card.description}</p>
+    <span class="truncate text-caption text-muted-foreground/80">{card.meta}</span>
+    <div class="mt-1.5 flex flex-wrap gap-1">
+      {card.badges.map((badge) => <span class={PACKAGE_KIND_BADGE.classes}>{badge}</span>)}
+    </div>
+  </div>
+  <div class="relative flex shrink-0 items-start gap-0.5 self-start">
+    <slot />
+  </div>
+</div>

@@ -22,9 +22,12 @@
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.19.17",
     "astro": "^7.4.0",
+    "lucide-static": "^1.60.0",
+    "material-icon-theme": "^5.39.0",
     "playwright": "1.63.0",
     "prettier": "^3.7.4",
     "prettier-plugin-astro": "^0.14.1",
+    "shiki": "^4.6.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3"
   },

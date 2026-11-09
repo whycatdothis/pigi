@@ -7,6 +7,11 @@
  * own glyphs rather than lookalikes — and it costs no client-side JavaScript and
  * no icon-font request.
  *
+ * The app also draws a handful of Lucide glyphs (the folders, the Git tab's
+ * branch, the diff's expand chevrons); those are listed as `lucide-*`, from
+ * `lucide-static` at the version the app's `lucide-react` is on. Both sets share
+ * the 24-unit grid, so one renderer serves them.
+ *
  * A glyph is only listed here if something on the site renders it. Astro has to
  * see a static import path to bundle the file, so the map is written out longhand.
  */
@@ -23,6 +28,7 @@ import chevronDown from '@tabler/icons/outline/chevron-down.svg?raw';
 import chevronRight from '@tabler/icons/outline/chevron-right.svg?raw';
 import chevronUp from '@tabler/icons/outline/chevron-up.svg?raw';
 import command from '@tabler/icons/outline/command.svg?raw';
+import dots from '@tabler/icons/outline/dots.svg?raw';
 import copy from '@tabler/icons/outline/copy.svg?raw';
 import download from '@tabler/icons/outline/download.svg?raw';
 import externalLink from '@tabler/icons/outline/external-link.svg?raw';
@@ -50,6 +56,28 @@ import sun from '@tabler/icons/outline/sun.svg?raw';
 import terminal2 from '@tabler/icons/outline/terminal-2.svg?raw';
 import user from '@tabler/icons/outline/user.svg?raw';
 import x from '@tabler/icons/outline/x.svg?raw';
+import adjustmentsHorizontal from '@tabler/icons/outline/adjustments-horizontal.svg?raw';
+import arrowLeft from '@tabler/icons/outline/arrow-left.svg?raw';
+import box from '@tabler/icons/outline/box.svg?raw';
+import cpu from '@tabler/icons/outline/cpu.svg?raw';
+import cube from '@tabler/icons/outline/cube.svg?raw';
+import deviceLaptop from '@tabler/icons/outline/device-laptop.svg?raw';
+import messageCircle from '@tabler/icons/outline/message-circle.svg?raw';
+import messageCirclePlus from '@tabler/icons/outline/message-circle-plus.svg?raw';
+import messagePlus from '@tabler/icons/outline/message-plus.svg?raw';
+import palette from '@tabler/icons/outline/palette.svg?raw';
+import quote from '@tabler/icons/outline/quote.svg?raw';
+import refresh from '@tabler/icons/outline/refresh.svg?raw';
+import selector from '@tabler/icons/outline/selector.svg?raw';
+import send from '@tabler/icons/outline/send.svg?raw';
+import shieldCheck from '@tabler/icons/outline/shield-check.svg?raw';
+import trash from '@tabler/icons/outline/trash.svg?raw';
+import wand from '@tabler/icons/outline/wand.svg?raw';
+import lucideFolderClosed from 'lucide-static/icons/folder-closed.svg?raw';
+import lucideFolderOpen from 'lucide-static/icons/folder-open.svg?raw';
+import lucideGitBranch from 'lucide-static/icons/git-branch.svg?raw';
+import lucideChevronsUpDown from 'lucide-static/icons/chevrons-up-down.svg?raw';
+import lucideInfo from 'lucide-static/icons/info.svg?raw';
 
 export const ICONS = {
   'arrows-minimize': arrowsMinimize,
@@ -66,6 +94,7 @@ export const ICONS = {
   'chevron-up': chevronUp,
   command,
   copy,
+  dots,
   download,
   'external-link': externalLink,
   'filter-2': filter2,
@@ -92,6 +121,28 @@ export const ICONS = {
   'terminal-2': terminal2,
   user,
   x,
+  'adjustments-horizontal': adjustmentsHorizontal,
+  'arrow-left': arrowLeft,
+  box: box,
+  cpu: cpu,
+  cube: cube,
+  'device-laptop': deviceLaptop,
+  'message-circle': messageCircle,
+  'message-circle-plus': messageCirclePlus,
+  'message-plus': messagePlus,
+  palette: palette,
+  quote: quote,
+  refresh: refresh,
+  selector,
+  send: send,
+  'shield-check': shieldCheck,
+  trash: trash,
+  wand: wand,
+  'lucide-folder-closed': lucideFolderClosed,
+  'lucide-folder-open': lucideFolderOpen,
+  'lucide-git-branch': lucideGitBranch,
+  'lucide-chevrons-up-down': lucideChevronsUpDown,
+  'lucide-info': lucideInfo,
 } as const;
 
 export type IconName = keyof typeof ICONS;

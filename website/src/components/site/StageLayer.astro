@@ -1,0 +1,25 @@
+---
+/**
+ * One still of the tour's scene: every layer sits in the same grid cell, and
+ * only the active one is visible and reachable. The frame and the scaler are
+ * the boxes `initFeatureStage` sizes to draw the app at its own 1200x800 and
+ * shrink it in one transform.
+ */
+interface Props {
+  active?: boolean;
+}
+
+const { active = false } = Astro.props;
+---
+
+<div
+  data-stage-layer
+  data-active={active ? 'true' : 'false'}
+  class="col-start-1 row-start-1 transition-opacity duration-300 data-[active=false]:invisible data-[active=false]:opacity-0 data-[active=true]:z-10"
+>
+  <div data-stage-frame class="mx-auto w-full lg:w-[1200px]">
+    <div data-stage-scaler class="origin-top-left">
+      <slot />
+    </div>
+  </div>
+</div>

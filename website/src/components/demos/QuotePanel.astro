@@ -1,0 +1,104 @@
+---
+import Icon from '../Icon.astro';
+import { BUTTON_BASE, BUTTON_FILLED, CHIP_TAB, CHIP_TABS, QUOTE_CARD } from '../../lib/appUi';
+
+/**
+ * The right sidebar's Quotes tab (`rightSidebar/RightSidebar.tsx`,
+ * `quotes/QuotePanel.tsx`): one card per quote — the quoted text, muted, with
+ * the reference it came from — the comment under it, a global comment at the
+ * end, and Send at the foot.
+ *
+ * The three quotes come from the three tabs: a sentence of a reply, lines of a
+ * file, lines of a diff. A file or diff quote is its `@path:lines` reference,
+ * exactly the text the app sends.
+ *
+ * `[data-quote-list]` is where `initQuoteStills` appends the passage the still's
+ * Quote button takes, as the app adds a card when a selection is quoted.
+ */
+export interface Quote {
+  reference?: string;
+  text?: string;
+  comment?: string;
+}
+
+interface Props {
+  quotes: Quote[];
+}
+
+const { quotes } = Astro.props;
+---
+
+<div class="flex h-full w-full flex-col bg-background">
+  <div class="flex h-11 shrink-0 items-center border-b-[0.5px] border-foreground/27 px-2">
+    <div data-variant="chip" class={CHIP_TABS.classes}>
+      <span data-state="active" class:list={[CHIP_TAB.classes, 'flex-none justify-center text-ui']}>
+        <Icon name="quote" />
+        Quotes
+        <span
+          data-quote-count
+          class="rounded-full bg-foreground/10 px-1.5 text-3xs leading-4 tabular-nums"
+        >
+          {quotes.length}
+        </span>
+      </span>
+    </div>
+  </div>
+
+  <div class="min-h-0 flex-1 overflow-hidden p-3">
+    <div class="mx-auto flex min-h-full max-w-160 flex-col gap-2">
+      <ol data-quote-list class="flex flex-col gap-2">
+        {
+          quotes.map((quote) => (
+            <li class={QUOTE_CARD.classes}>
+              <blockquote class="flex flex-col">
+                <div class="flex flex-col overflow-hidden whitespace-pre-wrap break-words text-ui leading-[22px] text-muted-foreground [overflow-wrap:anywhere]">
+                  {[quote.reference, quote.text].filter(Boolean).join('\n')}
+                </div>
+              </blockquote>
+              {quote.comment ? (
+                <p class="whitespace-pre-wrap break-words text-body leading-6 text-foreground [overflow-wrap:anywhere]">
+                  {quote.comment}
+                </p>
+              ) : (
+                <span class="text-left text-body leading-6 text-muted-foreground italic">
+                  Add a comment...
+                </span>
+              )}
+            </li>
+          ))
+        }
+      </ol>
+      <span
+        class="flex h-8 items-center justify-center gap-1.5 self-center rounded-control px-3 text-caption font-medium text-foreground/75"
+      >
+        <Icon name="plus" class="size-4" />
+        Add global comment
+      </span>
+    </div>
+  </div>
+
+  <div class="flex shrink-0 justify-center border-t-[0.5px] border-foreground/27 px-3 py-2">
+    <span
+      class:list={[
+        BUTTON_BASE.classes,
+        BUTTON_FILLED.classes,
+        'h-8 w-3/5 max-w-60 gap-1.5 px-2.5 text-body',
+      ]}
+    >
+      Send
+    </span>
+  </div>
+</div>
+
+<template data-quote-template>
+  <li class={QUOTE_CARD.classes}>
+    <blockquote class="flex flex-col">
+      <div
+        data-quote-text
+        class="flex flex-col overflow-hidden whitespace-pre-wrap break-words text-ui leading-[22px] text-muted-foreground [overflow-wrap:anywhere]"
+      >
+      </div>
+    </blockquote>
+    <span class="text-left text-body leading-6 text-muted-foreground italic">Add a comment...</span>
+  </li>
+</template>
