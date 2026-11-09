@@ -4,7 +4,7 @@
 
 ### Added
 
-- Prompt cache: when pi refreshes the prompt cache in the background during a long tool run, the transcript shows a `Cache warmed` line where it happened — the markers are stored in the session, so they come back when the session is reopened
+- Prompt cache: when pi refreshes the prompt cache in the background during a long tool run, the transcript shows a small `Cache warmed` notice where it happened, with a `?` that explains what the refresh bought — the notices are stored in the session, so they come back when the session is reopened
 
 ### Changed
 

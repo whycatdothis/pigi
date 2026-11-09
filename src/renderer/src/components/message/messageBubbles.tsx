@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { IconCheck, IconCopy, IconPencil, IconTerminal2, IconWand } from '@tabler/icons-react';
+import {
+  IconCheck,
+  IconCopy,
+  IconPencil,
+  IconQuestionMark,
+  IconTerminal2,
+  IconWand,
+} from '@tabler/icons-react';
 import {
   type SystemNode,
   type TranscriptNode,
@@ -459,6 +466,41 @@ export function SystemBubble({
   }
 
   const label = highlightMatches(node.text, searchQuery, activeOccurrenceIndex);
+
+  // Background housekeeping rather than a milestone: a small bubble with the
+  // theme-coloured `system` chip in its top-left corner, so the notice reads as
+  // an aside instead of the centred rule that marks a compaction.
+  if (node.kind === 'cacheWarm') {
+    return (
+      <div className="flex max-w-[85%]" data-testid="system-message">
+        <div className="flex w-fit max-w-full flex-col items-start gap-1 rounded-surface-sm bg-muted/50 px-3 py-2">
+          <span className="rounded-chip bg-[var(--system-accent)]/15 px-1 py-0.5 text-3xs font-semibold uppercase leading-none text-[var(--system-accent)]">
+            System
+          </span>
+          <div className="flex items-start gap-1">
+            <span className="text-caption break-words text-muted-foreground">{label}</span>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    tabIndex={0}
+                    aria-label="What cache warming does"
+                    className="mt-0.5 flex size-5 shrink-0 cursor-help items-center justify-center rounded-full border border-border text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+                  >
+                    <IconQuestionMark size={12} />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="start">
+                  The prompt cache was refreshed in the background during a long tool run — the next
+                  request reuses it instead of paying full price.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-3 py-2" data-testid="system-message">

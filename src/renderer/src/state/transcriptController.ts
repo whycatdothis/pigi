@@ -89,9 +89,9 @@ export interface SystemNode {
   /** This visual marker occurred inside an active user turn and must not
    *  become a logical turn boundary (for example, automatic compaction). */
   continuesUserTurn?: boolean;
-  /** Which marker this is; `branch` renders as a collapsible card and
-   *  `custom` as a message an extension injected. */
-  kind?: 'branch' | 'custom';
+  /** Which marker this is; `branch` renders as a collapsible card, `custom`
+   *  as a message an extension injected, and `cacheWarm` as a quiet note. */
+  kind?: 'branch' | 'custom' | 'cacheWarm';
   /** Long-form body (the branch summary or the injected message's text). */
   detail?: string;
   /** Images an injected message carried, as data URLs. */
@@ -137,7 +137,13 @@ export function getToolArgs(node: ToolNode): Record<string, unknown> | undefined
 const CACHE_WARMED_TEXT = 'Cache warmed';
 
 function createCacheWarmNode(id: string): SystemNode {
-  return { id, role: 'system', text: CACHE_WARMED_TEXT, continuesUserTurn: true };
+  return {
+    id,
+    role: 'system',
+    kind: 'cacheWarm',
+    text: CACHE_WARMED_TEXT,
+    continuesUserTurn: true,
+  };
 }
 
 export interface TranscriptState {

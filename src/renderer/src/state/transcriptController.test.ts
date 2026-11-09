@@ -236,6 +236,7 @@ describe('cache warmed markers', () => {
     expect(controller.state.nodes[0]).toMatchObject({
       id: 'entry-1',
       role: 'system',
+      kind: 'cacheWarm',
       text: 'Cache warmed',
       continuesUserTurn: true,
     });
@@ -278,8 +279,8 @@ describe('cache warmed markers', () => {
       'user',
     ]);
     expect(controller.state.nodes.filter((node) => node.role === 'system')).toMatchObject([
-      { id: 'entry-1', text: 'Cache warmed' },
-      { id: 'entry-2', text: 'Cache warmed' },
+      { id: 'entry-1', kind: 'cacheWarm', text: 'Cache warmed' },
+      { id: 'entry-2', kind: 'cacheWarm', text: 'Cache warmed' },
     ]);
   });
 
