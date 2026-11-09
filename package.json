@@ -32,9 +32,9 @@
     "build:mac:dist": "electron-vite build && electron-builder --mac"
   },
   "dependencies": {
-    "@earendil-works/pi-agent-core": "^1.0.0",
-    "@earendil-works/pi-ai": "^1.0.0",
-    "@earendil-works/pi-coding-agent": "^1.0.0",
+    "@earendil-works/pi-agent-core": "^1.5.0",
+    "@earendil-works/pi-ai": "^1.5.0",
+    "@earendil-works/pi-coding-agent": "^1.5.0",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@ff-labs/fff-node": "0.11.1-nightly.51649e1",

@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Prompt cache: when pi refreshes the prompt cache in the background during a long tool run, the transcript shows a `Cache warmed` line where it happened — the markers are stored in the session, so they come back when the session is reopened
+
+### Changed
+
+- Upgraded pi SDK from v0.80.10 to v1.5.0, bringing the current model catalog (GPT-6.1 Terra included; Realtime and image-only models no longer appear as chat models), MCP servers configured in `mcp.json`, and prompt cache warming for Anthropic models during long tool runs. The Azure provider is now `azure` instead of `azure-openai-responses` — sign in again if you use Azure, and the default OpenAI model is now `gpt-6.1-sol`
+
 ## [0.5.9] - 2026-11-08
 
 ### Fixed
@@ -260,7 +270,6 @@
 
 ### Added
 
-- Prompt cache: when pi refreshes the prompt cache in the background during a long tool run, the transcript shows a `Cache warmed` line where it happened — the markers are stored in the session, so they come back when the session is reopened
 - The main window has fixed Chat, Files and Diff tabs (⌘1/⌘2/⌘3, shown on
   hover). Files puts the project tree in the sidebar with file icons and a
   ⌘P file search, shows source with line numbers or rendered markdown, quotes
@@ -272,14 +281,11 @@
 
 ### Changed
 
-- Upgraded pi SDK from v0.80.10 to v1.0.0, bringing the current model catalog, MCP servers configured in `mcp.json`, and prompt cache warming for Anthropic models during long tool runs
 - The Chat tab is wider (240px) and the Files tab uses the same closed-folder
   icon as the sidebar's project rows
 - The file palette and session switcher sit near the top of the window,
   inside the title-bar padding, and the palette's search field and rows are
   more compact
-- The Files sidebar uses the Chat sidebar's folder icons and shows a larger
-  project name with an info icon that reveals the ⌘P hint on hover
 - The Files sidebar uses the Chat sidebar's folder icons and shows a larger
   project name with an info icon that reveals the ⌘P hint on hover
 
