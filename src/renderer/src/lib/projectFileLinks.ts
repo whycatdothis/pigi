@@ -107,3 +107,9 @@ export function projectRelativePath(projectPath: string, path: string): string {
   const root = `${projectPath.replace(/\\/g, '/').replace(/\/+$/, '')}/`;
   return normalized.startsWith(root) ? normalized.slice(root.length) : path;
 }
+
+/** A project file's absolute path, for a reference read from another project. */
+export function projectAbsolutePath(projectPath: string, path: string): string {
+  if (isAbsoluteFilePath(path)) return path;
+  return `${projectPath.replace(/[\\/]+$/, '')}/${path.replace(/\\/g, '/')}`;
+}

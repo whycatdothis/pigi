@@ -1,7 +1,12 @@
 import { useEffect, useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { useShallow } from 'zustand/react/shallow';
-import { loadLastSessionPath, useAppStore, type SessionEntry } from './state/appStore';
+import {
+  loadLastSessionPath,
+  useAppStore,
+  workspaceProjectForSession,
+  type SessionEntry,
+} from './state/appStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useShortcutsStore } from './state/shortcutsStore';
 import { useSessionTreeNavigation } from './hooks/useSessionTreeNavigation';
@@ -184,6 +189,7 @@ function App(): React.JSX.Element {
     setSettingsSection,
     workspaceTab,
     lastFileByProject,
+    workspaceProjectBySession,
   } = useAppStore(
     useShallow((state) => ({
       activeSessionPath: state.activeSessionPath,
@@ -215,6 +221,7 @@ function App(): React.JSX.Element {
       setSettingsSection: state.setSettingsSection,
       workspaceTab: state.workspaceTab,
       lastFileByProject: state.lastFileByProject,
+      workspaceProjectBySession: state.workspaceProjectBySession,
     })),
   );
 
@@ -248,8 +255,18 @@ function App(): React.JSX.Element {
 
   const activeSession = activeSessionPath ? (sessions.get(activeSessionPath) ?? null) : null;
   const activeProjectPath = activeProject?.path ?? null;
+  const workspaceProject = workspaceProjectForSession({
+    recentProjects,
+    activeProject,
+    activeSessionPath,
+    workspaceProjectBySession,
+  });
+  const workspaceProjectPath = workspaceProject?.path ?? null;
+  // What the session works in. Quotes from another project need an absolute
+  // reference, because the agent resolves relative paths against this one.
+  const sessionProjectPath = activeSession?.cwd ?? activeProjectPath;
   const gitWorkspace = useGitWorkspace({
-    cwd: activeProjectPath,
+    cwd: workspaceProjectPath,
     enabled: workspaceTab === WORKSPACE_TABS.git,
   });
   const activeCwd = activeSession?.cwd ?? activeProjectPath ?? window.piApi.getCwd();
@@ -631,12 +648,14 @@ function App(): React.JSX.Element {
   }, [refreshProjectSessions]);
 
   useEffect(() => {
-    if (!activeProjectPath) return;
-    // Warm the fuzzy index when the project becomes active instead of making
-    // the first Cmd+P wait for the initial scan. The renderer ignores the
-    // result; the search that follows reuses the finder this created.
-    void window.piApi.searchProjectFiles(activeProjectPath, '', 1).catch(() => {});
-  }, [activeProjectPath]);
+    // Warm the fuzzy indices for the session's project and the one Files/Git
+    // browse, so neither the first Cmd+P nor the first @ mention waits for a
+    // scan after the project changes.
+    const paths = new Set([activeProjectPath, workspaceProjectPath]);
+    for (const path of paths) {
+      if (path) void window.piApi.searchProjectFiles(path, '', 1).catch(() => {});
+    }
+  }, [activeProjectPath, workspaceProjectPath]);
 
   useEffect(() => {
     if (!activeSessionPath) {
@@ -1065,6 +1084,8 @@ function App(): React.JSX.Element {
     if (isDraftChat && !activeSessionPath && draftControllerRef.current.state.status !== 'error') {
       return;
     }
+    // A new chat follows the project picked for it, not the old draft's Files/Git choice.
+    useAppStore.getState().setWorkspaceProject(null, null);
     selectionRequestRef.current += 1;
     // Push current active session to navigation history so it's not lost.
     // Pass empty string as sentinel (no real session path is empty) so the
@@ -1335,7 +1356,9 @@ function App(): React.JSX.Element {
   const handleOpenProject = useCallback(async () => {
     const result = await openProjectDirectory();
     if (result.success) {
-      useAppStore.getState().setProjects(result.recentProjects, result.activeProject);
+      const store = useAppStore.getState();
+      store.setProjects(result.recentProjects, result.activeProject);
+      store.setWorkspaceProject(null, null);
       await refreshProjectSessions(result.recentProjects);
       setPendingSelectedPath(null);
       setActiveSession(null);
@@ -1381,16 +1404,50 @@ function App(): React.JSX.Element {
     }
   }, []);
 
-  const handleOpenFile = useCallback((path: string, lines?: LineRange | null) => {
+  const openFileInProject = useCallback(
+    (project: ProjectDirectory, path: string, lines?: LineRange | null) => {
+      const store = useAppStore.getState();
+      // Opening a file from another view (a chat link) brings Files back to the
+      // project that file belongs to.
+      store.setWorkspaceProject(
+        store.activeSessionPath,
+        project.path === store.activeProject?.path ? null : project.path,
+      );
+      const filePath = projectRelativePath(project.path, path);
+      store.setLastFile(project.path, filePath);
+      setFileLineTarget(lines ? { projectPath: project.path, filePath, lines } : null);
+      setFileRevision((revision) => revision + 1);
+      store.setWorkspaceTab(WORKSPACE_TABS.files);
+      store.setSidebarExpanded(true);
+    },
+    [],
+  );
+
+  /** A chat link or file mention: the file lives in the session's own project. */
+  const handleOpenFile = useCallback(
+    (path: string, lines?: LineRange | null) => {
+      const project = useAppStore.getState().activeProject;
+      if (project) openFileInProject(project, path, lines);
+    },
+    [openFileInProject],
+  );
+
+  /** A file picked inside Files or Git: it belongs to the project they are browsing. */
+  const handleOpenWorkspaceFile = useCallback(
+    (path: string, lines?: LineRange | null) => {
+      const store = useAppStore.getState();
+      const project = workspaceProjectForSession(store);
+      if (project) openFileInProject(project, path, lines);
+    },
+    [openFileInProject],
+  );
+
+  const handleSelectWorkspaceProject = useCallback((path: string) => {
     const store = useAppStore.getState();
-    const project = store.activeProject;
-    if (!project) return;
-    const filePath = projectRelativePath(project.path, path);
-    store.setLastFile(project.path, filePath);
-    setFileLineTarget(lines ? { projectPath: project.path, filePath, lines } : null);
-    setFileRevision((revision) => revision + 1);
-    store.setWorkspaceTab(WORKSPACE_TABS.files);
-    store.setSidebarExpanded(true);
+    store.setWorkspaceProject(
+      store.activeSessionPath,
+      path === store.activeProject?.path ? null : path,
+    );
   }, []);
 
   const chatFiles = useMemo<ChatFiles>(
@@ -1506,7 +1563,9 @@ function App(): React.JSX.Element {
   const handleSelectProject = useCallback(async (path: string) => {
     const result = await setActiveProject(path);
     if (result.success) {
-      useAppStore.getState().setProjects(result.recentProjects, result.activeProject);
+      const store = useAppStore.getState();
+      store.setProjects(result.recentProjects, result.activeProject);
+      store.setWorkspaceProject(null, null);
       void listProjectSessions([path]);
     }
   }, []);
@@ -1544,7 +1603,14 @@ function App(): React.JSX.Element {
       setAuthProviders(result.providers);
     }
     setLoginDialogOpen(true);
-  }, [activeSessionPath, activeProject, addSession, setActiveSession]);
+  }, [
+    activeSessionPath,
+    activeProject,
+    addSession,
+    setActiveSession,
+    setAuthProviders,
+    setLoginDialogOpen,
+  ]);
 
   const handleRenameSession = useCallback(
     async (sessionPath: string, name: string) => {
@@ -1710,6 +1776,8 @@ function App(): React.JSX.Element {
       refreshSessionState,
       setActiveSession,
       openTreeDialog,
+      setAuthProviders,
+      setLoginDialogOpen,
     ],
   );
 
@@ -1748,8 +1816,8 @@ function App(): React.JSX.Element {
     [RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY]: `${rightSidebarWidth}px`,
     [RIGHT_SIDEBAR_WIDTH_PROPERTY]: `min(var(${RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY}), max(${RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH}px, 100vw - ${RIGHT_SIDEBAR_RESERVED_WIDTH}px))`,
   };
-  const selectedFilePath = activeProjectPath
-    ? (lastFileByProject.get(activeProjectPath) ?? null)
+  const selectedFilePath = workspaceProjectPath
+    ? (lastFileByProject.get(workspaceProjectPath) ?? null)
     : null;
   const workspaceTitle = isDraftChat ? 'New chat' : (activeProject?.name ?? 'Chat');
   const workspaceHeaderInset = sidebarExpanded
@@ -1782,22 +1850,26 @@ function App(): React.JSX.Element {
                   onSelectSection={setSettingsSection}
                   onClose={closeSettings}
                 />
-              ) : workspaceTab === WORKSPACE_TABS.files && activeProject ? (
+              ) : workspaceTab === WORKSPACE_TABS.files && workspaceProject ? (
                 <FileTreeSidebar
-                  key={activeProject.path}
-                  projectPath={activeProject.path}
-                  projectName={activeProject.name}
+                  key={workspaceProject.path}
+                  projectPath={workspaceProject.path}
+                  projectName={workspaceProject.name}
+                  projects={recentProjects}
                   selectedFilePath={selectedFilePath}
-                  onOpenFile={handleOpenFile}
+                  onSelectProject={handleSelectWorkspaceProject}
+                  onOpenFile={handleOpenWorkspaceFile}
                   onOpenSettings={openSettings}
                   onActiveFileChanged={handleActiveFileChanged}
                   shortcutBindings={shortcutBindings}
                 />
-              ) : workspaceTab === WORKSPACE_TABS.git && activeProject ? (
+              ) : workspaceTab === WORKSPACE_TABS.git && workspaceProject ? (
                 <GitSidebar
-                  key={activeProject.path}
-                  projectPath={activeProject.path}
-                  projectName={activeProject.name}
+                  key={workspaceProject.path}
+                  projectPath={workspaceProject.path}
+                  projectName={workspaceProject.name}
+                  projects={recentProjects}
+                  onSelectProject={handleSelectWorkspaceProject}
                   workspace={gitWorkspace}
                   shortcutBindings={shortcutBindings}
                 />
@@ -1900,11 +1972,12 @@ function App(): React.JSX.Element {
                     <div className={workspaceLayoutClassName} style={workspaceLayoutStyle}>
                       {workspaceTab === WORKSPACE_TABS.files && (
                         <FilesTab
-                          projectPath={activeProject?.path ?? null}
+                          projectPath={workspaceProject?.path ?? null}
+                          sessionProjectPath={sessionProjectPath}
                           filePath={selectedFilePath}
                           fileRevision={fileRevision}
                           lineTarget={
-                            fileLineTarget?.projectPath === activeProject?.path &&
+                            fileLineTarget?.projectPath === workspaceProject?.path &&
                             fileLineTarget?.filePath === selectedFilePath
                               ? fileLineTarget
                               : null
@@ -1912,13 +1985,14 @@ function App(): React.JSX.Element {
                           sessionPath={activeSessionPath}
                           findFileShortcut={shortcutBindings?.get('files.search')}
                           onFindFile={handleOpenFileSearch}
-                          onOpenFile={handleOpenFile}
+                          onOpenFile={handleOpenWorkspaceFile}
                           onOpenProject={handleOpenProject}
                         />
                       )}
                       {workspaceTab === WORKSPACE_TABS.git && (
                         <GitTab
-                          projectPath={activeProjectPath}
+                          projectPath={workspaceProjectPath}
+                          sessionProjectPath={sessionProjectPath}
                           sessionPath={activeSessionPath}
                           workspace={gitWorkspace}
                           onOpenProject={handleOpenProject}
@@ -2146,11 +2220,14 @@ function App(): React.JSX.Element {
           />
 
           <FileSearchPalette
+            // A project switch remounts the palette, so results from the
+            // project just left can never be opened under the new one.
+            key={workspaceProjectPath ?? ''}
             open={fileSearchOpen}
             onOpenChange={setFileSearchOpen}
-            projectPath={activeProjectPath}
+            projectPath={workspaceProjectPath}
             container={fileSearchContainer}
-            onSelect={handleOpenFile}
+            onSelect={handleOpenWorkspaceFile}
           />
 
           <SessionTreeHelpDialog open={tree.helpOpen} onOpenChange={tree.onHelpOpenChange} />

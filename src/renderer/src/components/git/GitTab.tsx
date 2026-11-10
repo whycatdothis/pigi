@@ -56,11 +56,14 @@ function compareLabel(
 // props are stable, so the Git tab skips those renders.
 const GitTab = memo(function GitTab({
   projectPath,
+  sessionProjectPath,
   sessionPath,
   workspace,
   onOpenProject,
 }: {
   projectPath: string | null;
+  /** The session's own project; another project's quotes need absolute references. */
+  sessionProjectPath: string | null;
   sessionPath: string | null;
   workspace: GitWorkspace;
   onOpenProject: () => void;
@@ -168,6 +171,7 @@ const GitTab = memo(function GitTab({
   return (
     <GitDiffViewer
       projectPath={projectPath}
+      sessionProjectPath={sessionProjectPath}
       source={source}
       baseLabel={summary.baseLabel}
       compareLabel={compareLabel(selection, commit, workspace.mode, summary.baseLabel)}

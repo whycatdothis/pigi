@@ -1,7 +1,11 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { IconChevronRight, IconCopy, IconLoader2, IconSettings } from '@tabler/icons-react';
 import { FolderClosed, FolderOpen, Info } from 'lucide-react';
-import type { ProjectDirectoryEntry, ShortcutBinding } from '../../../../shared/ipcContract';
+import type {
+  ProjectDirectory,
+  ProjectDirectoryEntry,
+  ShortcutBinding,
+} from '../../../../shared/ipcContract';
 import { cn } from '../../lib/utils';
 import { isAbsoluteFilePath } from '../../lib/projectFileLinks';
 import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
@@ -24,6 +28,7 @@ import {
   SidebarMenuItem,
 } from '../ui/sidebar';
 import { SidebarToggle } from '../sidebar/sidebarToggle';
+import { ProjectPicker } from '../projectPicker';
 import { FileIcon } from '../fileIcon';
 
 const INDENT_STEP_PX = 12;
@@ -41,7 +46,9 @@ interface DirectoryContent {
 interface FileTreeSidebarProps {
   projectPath: string;
   projectName: string;
+  projects: ProjectDirectory[];
   selectedFilePath: string | null;
+  onSelectProject: (path: string) => void;
   onOpenFile: (path: string) => void;
   onOpenSettings: () => void;
   onActiveFileChanged: () => void;
@@ -80,14 +87,16 @@ function EntryContextMenu({
 }
 
 /**
- * The left panel while the Files tab is active: the active project's tree,
+ * The left panel while the Files tab is active: the browsed project's tree,
  * loaded one directory at a time so a large `node_modules` is only read when
  * someone actually opens it.
  */
 export default memo(function FileTreeSidebar({
   projectPath,
   projectName,
+  projects,
   selectedFilePath,
+  onSelectProject,
   onOpenFile,
   onOpenSettings,
   onActiveFileChanged,
@@ -399,12 +408,13 @@ export default memo(function FileTreeSidebar({
           <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
         </div>
         <div className="flex min-w-0 items-center gap-1.5 px-2 pb-1">
-          <span
-            className="min-w-0 truncate text-lg font-medium text-sidebar-foreground/80"
-            title={projectPath}
-          >
-            {projectName}
-          </span>
+          <ProjectPicker
+            variant="sidebarTitle"
+            projectName={projectName}
+            selectedProjectPath={projectPath}
+            recentProjects={projects}
+            onSelectProject={onSelectProject}
+          />
           {findFileBinding && (
             <TooltipProvider delayDuration={300}>
               <Tooltip>

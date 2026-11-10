@@ -2,6 +2,22 @@ import { formatFileReference } from './chatReferences';
 import { formatLineSuffix } from './filePathCandidates';
 import { DIFF_LINE_PREFIX, type GitDiffSourceLine } from './gitDiffPatch';
 import type { QuoteContent } from './messageQuotes';
+import { projectAbsolutePath } from './projectFileLinks';
+
+/**
+ * A quote's path: project-relative while viewing the session's own project,
+ * absolute when browsing another, because the agent resolves references
+ * against the session's project.
+ */
+export function projectQuotePath(
+  projectPath: string,
+  sessionProjectPath: string | null,
+  path: string,
+): string {
+  return sessionProjectPath && sessionProjectPath !== projectPath
+    ? projectAbsolutePath(projectPath, path)
+    : path;
+}
 
 /** A path as a pi file reference, relative to the project root. */
 export function formatFileLineQuote(

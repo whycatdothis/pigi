@@ -58,6 +58,14 @@ interface AppState {
   recentProjects: ProjectDirectory[];
   activeProject: ProjectDirectory | null;
   projectSessions: Record<string, PiSessionInfo[]>;
+  /**
+   * The project Files and Git browse per session (sessionPath, or '' before the
+   * first message). Choosing one changes only those tabs, never the session or
+   * the global active project, and the map is not persisted.
+   */
+  workspaceProjectBySession: Map<string, string>;
+  /** An empty `projectPath` removes that session's choice. */
+  setWorkspaceProject: (sessionPath: string | null, projectPath: string | null) => void;
 
   addSession: (sessionPath: string, cwd: string) => void;
   addSessionEntry: (entry: SessionEntry) => void;
@@ -284,6 +292,26 @@ function withPaths(
   return next;
 }
 
+/** The Files/Git project of a session: its own choice while that project still exists, else the active one. */
+export function workspaceProjectForSession({
+  recentProjects,
+  activeProject,
+  activeSessionPath,
+  workspaceProjectBySession,
+}: {
+  recentProjects: ProjectDirectory[];
+  activeProject: ProjectDirectory | null;
+  activeSessionPath: string | null;
+  workspaceProjectBySession: Map<string, string>;
+}): ProjectDirectory | null {
+  const chosenPath = workspaceProjectBySession.get(activeSessionPath ?? '');
+  if (chosenPath) {
+    const chosen = recentProjects.find((project) => project.path === chosenPath);
+    if (chosen) return chosen;
+  }
+  return activeProject;
+}
+
 export const useAppStore = create<AppState>((set) => ({
   sessions: new Map(),
   activeSessionPath: null,
@@ -298,6 +326,16 @@ export const useAppStore = create<AppState>((set) => ({
   recentProjects: [],
   activeProject: null,
   projectSessions: {},
+  workspaceProjectBySession: new Map(),
+  setWorkspaceProject: (sessionPath, projectPath) =>
+    set((state) => {
+      const key = sessionPath ?? '';
+      if ((state.workspaceProjectBySession.get(key) ?? null) === projectPath) return {};
+      const workspaceProjectBySession = new Map(state.workspaceProjectBySession);
+      if (projectPath) workspaceProjectBySession.set(key, projectPath);
+      else workspaceProjectBySession.delete(key);
+      return { workspaceProjectBySession };
+    }),
 
   addSession: (sessionPath, cwd) =>
     set((state) => {

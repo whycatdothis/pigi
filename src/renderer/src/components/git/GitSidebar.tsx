@@ -5,6 +5,7 @@ import type {
   GitDiffCommit,
   GitDiffFile,
   GitDiffSummary,
+  ProjectDirectory,
   ShortcutBinding,
 } from '../../../../shared/ipcContract';
 import type {
@@ -18,6 +19,7 @@ import { GIT_DIFF_STATUS_BADGES } from '../../lib/gitDiffLabels';
 import { buildGitDiffTree, type GitDiffTreeDirectory } from '../../lib/gitDiffTree';
 import { cn, formatTimeAgo } from '../../lib/utils';
 import { SidebarToggle } from '../sidebar/sidebarToggle';
+import { ProjectPicker } from '../projectPicker';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
@@ -521,11 +523,15 @@ function CommitsView({
 const GitSidebar = memo(function GitSidebar({
   projectPath,
   projectName,
+  projects,
+  onSelectProject,
   workspace,
   shortcutBindings,
 }: {
   projectPath: string;
   projectName: string;
+  projects: ProjectDirectory[];
+  onSelectProject: (path: string) => void;
   workspace: GitWorkspace;
   shortcutBindings: Map<string, ShortcutBinding> | null;
 }): React.JSX.Element {
@@ -542,9 +548,13 @@ const GitSidebar = memo(function GitSidebar({
             <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
           </div>
           <div className="mt-2 flex min-w-0 items-center gap-1.5 px-2">
-            <span className="min-w-0 truncate text-lg font-medium text-sidebar-foreground/80">
-              {projectName}
-            </span>
+            <ProjectPicker
+              variant="sidebarTitle"
+              projectName={projectName}
+              selectedProjectPath={projectPath}
+              recentProjects={projects}
+              onSelectProject={onSelectProject}
+            />
           </div>
           <div className="flex min-w-0 items-center gap-1 pb-2 pl-2">
             <span className="min-w-0 flex-1 truncate text-ui text-muted-foreground">

@@ -37,7 +37,9 @@ function renderSidebar(
       <FileTreeSidebar
         projectPath="/repo"
         projectName="repo"
+        projects={[{ path: '/repo', name: 'repo' }]}
         selectedFilePath={selectedFilePath}
+        onSelectProject={vi.fn()}
         onOpenFile={vi.fn()}
         onOpenSettings={vi.fn()}
         onActiveFileChanged={onActiveFileChanged}

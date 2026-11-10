@@ -13,6 +13,7 @@ import {
   formatFileDiffQuote,
   formatFileLineQuote,
   formatFileScopeQuote,
+  projectQuotePath,
 } from '../../lib/fileQuotes';
 import type { QuoteContent } from '../../lib/messageQuotes';
 import { splitFileLines } from '../../lib/gitDiffPatch';
@@ -95,6 +96,7 @@ const LAYOUTS: readonly { value: GitDiffLayout; label: string }[] = [
 
 export default function GitDiffViewer({
   projectPath,
+  sessionProjectPath,
   source,
   compareLabel,
   baseLabel,
@@ -104,6 +106,8 @@ export default function GitDiffViewer({
   sessionPath,
 }: {
   projectPath: string;
+  /** The session's own project; another project's quotes need absolute references. */
+  sessionProjectPath: string | null;
   source: GitDiffSource;
   compareLabel: string;
   /** What a base diff compares with (`origin/main`, `HEAD`), for quotes of deleted lines. */
@@ -194,6 +198,10 @@ export default function GitDiffViewer({
 
   const { shown, incoming, error } = patchState;
   const shownPath = shown?.file.path;
+  const shownQuotePath = shownPath
+    ? projectQuotePath(projectPath, sessionProjectPath, shownPath)
+    : null;
+  const fileQuotePath = projectQuotePath(projectPath, sessionProjectPath, file.path);
   // Another file starts at its top; a refresh of the same file keeps its place.
   const shownKey = shown ? `${shown.sourceKind} ${shown.file.path}` : undefined;
   const scrolledKeyRef = useRef(shownKey);
@@ -223,7 +231,7 @@ export default function GitDiffViewer({
       if (!isInsideDiffLine(range.startContainer) || !isInsideDiffLine(range.endContainer)) {
         return null;
       }
-      if (!shownPath || !containerRef.current) return null;
+      if (!shownQuotePath || !containerRef.current) return null;
       const lines = diffLinesFromSelection(containerRef.current, range);
       if (lines.length === 0) return null;
       // Added and context rows carry the working tree's line numbers, so they
@@ -238,11 +246,11 @@ export default function GitDiffViewer({
         first !== null &&
         numbers.every((number, index) => number === first + index)
       ) {
-        return formatFileLineQuote(shownPath, first, first + numbers.length - 1);
+        return formatFileLineQuote(shownQuotePath, first, first + numbers.length - 1);
       }
-      return formatFileDiffQuote(shownPath, diffScope, lines);
+      return formatFileDiffQuote(shownQuotePath, diffScope, lines);
     },
-    [shownPath, sourceKind, diffScope],
+    [shownQuotePath, sourceKind, diffScope],
   );
 
   const saveFileComment = useCallback(
@@ -250,11 +258,11 @@ export default function GitDiffViewer({
       if (sessionPath) {
         useAppStore
           .getState()
-          .addQuote(sessionPath, formatFileScopeQuote(file.path, diffScope), comment);
+          .addQuote(sessionPath, formatFileScopeQuote(fileQuotePath, diffScope), comment);
       }
       setCommentingTarget(null);
     },
-    [sessionPath, file.path, diffScope],
+    [sessionPath, fileQuotePath, diffScope],
   );
 
   const renamed = file.oldPath !== null && file.oldPath !== file.path;

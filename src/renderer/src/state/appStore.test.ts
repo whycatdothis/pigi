@@ -6,6 +6,7 @@ import {
   LAST_FILE_STORAGE_KEY,
   QUOTES_STORAGE_KEY,
   useAppStore,
+  workspaceProjectForSession,
 } from './appStore';
 
 const backgroundPath = '/sessions/background.jsonl';
@@ -186,6 +187,49 @@ describe('last opened file', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('workspace project per session', () => {
+  it('keeps the Files/Git project per session without touching the active project', () => {
+    useAppStore.setState({
+      workspaceProjectBySession: new Map(),
+      activeProject: { path: '/project-a', name: 'a' },
+    });
+    const store = useAppStore.getState();
+    store.setWorkspaceProject('/s/a.jsonl', '/project-b');
+
+    expect(useAppStore.getState().workspaceProjectBySession.get('/s/a.jsonl')).toBe('/project-b');
+    expect(useAppStore.getState().workspaceProjectBySession.get('/s/b.jsonl')).toBeUndefined();
+    expect(useAppStore.getState().activeProject).toEqual({ path: '/project-a', name: 'a' });
+
+    store.setWorkspaceProject('/s/a.jsonl', null);
+    expect(useAppStore.getState().workspaceProjectBySession.size).toBe(0);
+  });
+
+  it("resolves each session's own choice and falls back when that project is gone", () => {
+    const projects = [
+      { path: '/project-a', name: 'a' },
+      { path: '/project-b', name: 'b' },
+    ];
+    const state = {
+      recentProjects: projects,
+      activeProject: projects[0],
+      workspaceProjectBySession: new Map([
+        ['/s/a.jsonl', '/project-b'],
+        ['/s/b.jsonl', '/project-removed'],
+      ]),
+    };
+
+    expect(workspaceProjectForSession({ ...state, activeSessionPath: '/s/a.jsonl' })).toEqual(
+      projects[1],
+    );
+    expect(workspaceProjectForSession({ ...state, activeSessionPath: '/s/c.jsonl' })).toEqual(
+      projects[0],
+    );
+    expect(workspaceProjectForSession({ ...state, activeSessionPath: '/s/b.jsonl' })).toEqual(
+      projects[0],
+    );
   });
 });
 

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { projectRelativePath, resolveProjectFileReference } from './projectFileLinks';
+import {
+  projectAbsolutePath,
+  projectRelativePath,
+  resolveProjectFileReference,
+} from './projectFileLinks';
 
 describe('resolveProjectFileReference', () => {
   const projectPath = '/repo';
@@ -111,5 +115,17 @@ describe('projectRelativePath', () => {
     expect(projectRelativePath('/repo/', '/repo/src/a.ts')).toBe('src/a.ts');
     expect(projectRelativePath('/repo', '/repository/a.ts')).toBe('/repository/a.ts');
     expect(projectRelativePath('/repo', 'src/a.ts')).toBe('src/a.ts');
+  });
+});
+
+describe('projectAbsolutePath', () => {
+  it('joins a project-relative path and passes an absolute one through', () => {
+    expect(projectAbsolutePath('/repo', 'src/a.ts')).toBe('/repo/src/a.ts');
+    expect(projectAbsolutePath('/repo/', 'src/a.ts')).toBe('/repo/src/a.ts');
+    expect(projectAbsolutePath('/repo', '/elsewhere/a.ts')).toBe('/elsewhere/a.ts');
+  });
+
+  it('normalizes backslashes in the file path', () => {
+    expect(projectAbsolutePath('/repo', 'src\\a.ts')).toBe('/repo/src/a.ts');
   });
 });

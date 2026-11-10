@@ -52,7 +52,7 @@ import {
 import { pathTokenDirectory } from '../../lib/pathReferences';
 import { formatContextUsage, UNKNOWN_STATUS } from './formatters';
 import { ContextUsageTooltip } from './contextUsageTooltip';
-import { ProjectPicker } from './projectPicker';
+import { ProjectPicker } from '../projectPicker';
 import { ModelSettingsPicker } from './modelSettingsPicker';
 import { SlashCommandPopover } from './slashCommandPopover';
 import { AttachmentChips, AttachmentPickerButton } from './attachmentPicker';

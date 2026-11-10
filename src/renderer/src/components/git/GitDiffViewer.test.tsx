@@ -20,10 +20,16 @@ const FILE: GitDiffFile = {
   binary: false,
 };
 
-function viewer(sessionPath: string, source: GitDiffSource): React.JSX.Element {
+function viewer(
+  sessionPath: string,
+  source: GitDiffSource,
+  projectPath = '/repo',
+  sessionProjectPath = '/repo',
+): React.JSX.Element {
   return (
     <GitDiffViewer
-      projectPath="/repo"
+      projectPath={projectPath}
+      sessionProjectPath={sessionProjectPath}
       source={source}
       compareLabel="main"
       baseLabel="origin/main"
@@ -59,6 +65,21 @@ describe('GitDiffViewer file comment', () => {
       }),
     ]);
     expect(screen.queryByRole('textbox', { name: 'Quote comment' })).toBeNull();
+  });
+
+  it('quotes another project with an absolute path, so the session can still open it', () => {
+    render(viewer('/s/one.jsonl', { kind: 'base', base: 'main' }, '/other/repo', '/repo'));
+    fireEvent.click(screen.getByRole('button', { name: 'Comment on file' }));
+    const editor = screen.getByRole('textbox', { name: 'Quote comment' });
+    fireEvent.change(editor, { target: { value: 'Move this helper.' } });
+    fireEvent.keyDown(editor, { key: 'Enter' });
+
+    expect(useAppStore.getState().quotesBySession.get('/s/one.jsonl')).toEqual([
+      expect.objectContaining({
+        reference: '@/other/repo/src/app.ts, diff against origin/main',
+        comment: 'Move this helper.',
+      }),
+    ]);
   });
 
   it('closes the editor when the session or diff changes under it', () => {

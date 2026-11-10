@@ -22,8 +22,9 @@ function splitFilePath(path: string): { name: string; directory: string } {
 }
 
 /**
- * Cmd+P over the active project. Selecting a result opens it in the Files tab;
- * main owns the fuzzy index, so this only debounces and renders.
+ * Cmd+P over the project Files and Git are browsing. Selecting a result opens
+ * it in the Files tab; main owns the fuzzy index, so this only debounces and
+ * renders.
  */
 const FileSearchPalette = memo(function FileSearchPalette({
   open,
@@ -41,7 +42,7 @@ const FileSearchPalette = memo(function FileSearchPalette({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<string[]>([]);
   const [selectedValue, setSelectedValue] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(open);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
 
@@ -125,7 +126,7 @@ const FileSearchPalette = memo(function FileSearchPalette({
       onOpenChange={handleOpenChange}
       modal={false}
       title="Find file"
-      description="Search the active project's files"
+      description="Search the project's files"
       container={container}
       overlayClassName="absolute inset-0"
       className="absolute top-2 left-1/2 w-[calc(100%-2rem)] max-w-[550px] -translate-x-1/2 translate-y-0"

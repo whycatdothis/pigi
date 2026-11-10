@@ -6,11 +6,12 @@ import type { ProjectFileSearchResult } from '../../shared/ipcContract';
 const DEFAULT_MAX_MATCHES = 20;
 const MAX_MATCHES = 200;
 /**
- * Each finder keeps an index and a file watcher alive. Only the active
- * project needs one: a cold scan is ~150ms per 100k files, so caching more
- * buys little and keeps idle watchers and indexes in memory.
+ * Each finder keeps an index and a file watcher alive. Files/Git may browse a
+ * different project than the session's, so keep both hot; a cold scan is
+ * ~150ms per 100k files, and more than two would leave unused watchers and
+ * indexes in memory.
  */
-const MAX_OPEN_FINDERS = 1;
+const MAX_OPEN_FINDERS = 2;
 /** First search in a project waits this long for the initial scan before using a partial index. */
 const INITIAL_SCAN_WAIT_MS = 3000;
 const LIBRARY_PATH_ENV = 'FFF_C_LIB';

@@ -19,6 +19,7 @@ import FileViewer, { type FileLineTarget } from './FileViewer';
  */
 export default function FilesTab({
   projectPath,
+  sessionProjectPath,
   filePath,
   fileRevision,
   lineTarget,
@@ -29,6 +30,8 @@ export default function FilesTab({
   onOpenProject,
 }: {
   projectPath: string | null;
+  /** The session's own project; another project's quotes need absolute references. */
+  sessionProjectPath: string | null;
   filePath: string | null;
   fileRevision: number;
   lineTarget: FileLineTarget | null;
@@ -89,6 +92,7 @@ export default function FilesTab({
     <FileViewer
       key={`${projectPath}:${filePath}`}
       projectPath={projectPath}
+      sessionProjectPath={sessionProjectPath}
       filePath={filePath}
       fileRevision={fileRevision}
       lineTarget={lineTarget}

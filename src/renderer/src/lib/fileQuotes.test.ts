@@ -4,6 +4,7 @@ import {
   formatFileDiffQuote,
   formatFileLineQuote,
   formatFileScopeQuote,
+  projectQuotePath,
 } from './fileQuotes';
 
 describe('formatFileLineQuote', () => {
@@ -59,5 +60,13 @@ describe('formatFileScopeQuote', () => {
       reference: '@"docs/my notes.md", diff in commit abc1234',
       text: '',
     });
+  });
+});
+
+describe('projectQuotePath', () => {
+  it('keeps a file relative inside the session project and absolute in another', () => {
+    expect(projectQuotePath('/repo', '/repo', 'src/a.ts')).toBe('src/a.ts');
+    expect(projectQuotePath('/other', '/repo', 'src/a.ts')).toBe('/other/src/a.ts');
+    expect(projectQuotePath('/other', null, 'src/a.ts')).toBe('src/a.ts');
   });
 });

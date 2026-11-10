@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { IconAlertTriangle, IconCheck, IconCopy, IconLoader2 } from '@tabler/icons-react';
 import { cn, formatFileSize } from '../../lib/utils';
-import { formatFileContentQuote, formatFileLineQuote } from '../../lib/fileQuotes';
+import {
+  formatFileContentQuote,
+  formatFileLineQuote,
+  projectQuotePath,
+} from '../../lib/fileQuotes';
 import type { LineRange } from '../../lib/filePathCandidates';
 import type { QuoteContent } from '../../lib/messageQuotes';
 import {
@@ -18,7 +22,7 @@ import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import ContainerFind from '../ui/containerFind';
 import { ZoomableImage } from '../zoomableImage';
 import { localFileUrl } from '../../lib/chatAttachments';
-import { isAbsoluteFilePath } from '../../lib/projectFileLinks';
+import { projectAbsolutePath } from '../../lib/projectFileLinks';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
@@ -128,6 +132,7 @@ function FileImage({ src, alt }: { src: string; alt: string }): React.JSX.Elemen
  */
 export default function FileViewer({
   projectPath,
+  sessionProjectPath,
   filePath,
   fileRevision,
   lineTarget,
@@ -135,6 +140,8 @@ export default function FileViewer({
   onOpenFile,
 }: {
   projectPath: string;
+  /** The session's own project; another project's quotes need absolute references. */
+  sessionProjectPath: string | null;
   filePath: string;
   fileRevision: number;
   lineTarget: FileLineTarget | null;
@@ -162,7 +169,6 @@ export default function FileViewer({
   }, []);
   const showsPreview = (isMarkdown || isSvg) && viewMode === 'preview';
   const containerRef = useRef<HTMLDivElement>(null);
-  const { copied: pathCopied, copy: copyPath } = useCopyFeedback(filePath);
   useBottomAnchoredScroll(containerRef);
   useRememberedScroll(
     containerRef,
@@ -170,8 +176,11 @@ export default function FileViewer({
     fileState.status === 'ready' ? `${projectPath}\0${filePath}\0${showsPreview}` : null,
   );
   // The revision busts the image cache, which would otherwise keep showing the old file.
-  const absolutePath = isAbsoluteFilePath(filePath) ? filePath : `${projectPath}/${filePath}`;
+  const absolutePath = projectAbsolutePath(projectPath, filePath);
   const imageSource = `${localFileUrl(absolutePath)}?v=${fileRevision}`;
+  const quoteFilePath = projectQuotePath(projectPath, sessionProjectPath, filePath);
+  // Copy what a paste into chat needs: an absolute path outside the session's project.
+  const { copied: pathCopied, copy: copyPath } = useCopyFeedback(quoteFilePath);
   const language = languageForPath(filePath);
   const markdownProjectFile = useMemo(
     () => ({ projectPath, filePath, onOpenFile }),
@@ -234,14 +243,14 @@ export default function FileViewer({
   const formatSourceQuote = useCallback(
     ({ range }: { text: string; range: Range }): QuoteContent | null => {
       const lines = sourceLineRangeFromSelection(range);
-      return lines ? formatFileLineQuote(filePath, lines.start, lines.end) : null;
+      return lines ? formatFileLineQuote(quoteFilePath, lines.start, lines.end) : null;
     },
-    [filePath],
+    [quoteFilePath],
   );
   const formatPreviewQuote = useCallback(
     ({ text }: { text: string; range: Range }): QuoteContent =>
-      formatFileContentQuote(filePath, text),
-    [filePath],
+      formatFileContentQuote(quoteFilePath, text),
+    [quoteFilePath],
   );
   const formatQuoteContent = showsPreview ? formatPreviewQuote : formatSourceQuote;
 
@@ -259,7 +268,7 @@ export default function FileViewer({
         <div className="group/path flex min-w-0 flex-1 items-center gap-1">
           <span
             className="min-w-0 truncate text-caption text-muted-foreground select-text"
-            title={filePath}
+            title={quoteFilePath}
           >
             {filePath}
           </span>
