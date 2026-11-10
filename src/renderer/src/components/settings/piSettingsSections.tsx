@@ -59,6 +59,53 @@ function isFieldDisabled(field: PiSettingFieldId, scope: PiSettingsScope): boole
   return scope === 'project' && findPiSettingField(field)?.globalOnly === true;
 }
 
+/**
+ * What a field does when neither settings file sets it. The info icon exists
+ * because a value on its own ("On", "60000") does not say what the reader gets;
+ * every entry is a sentence about the behaviour, not the number.
+ */
+const FIELD_UNSET_HINTS: Record<PiSettingFieldId, string> = {
+  defaultProvider: 'Unset, the first provider you signed in to is used.',
+  defaultModel: "Unset, the provider's first model is used.",
+  defaultThinkingLevel: 'Unset, the model decides how much it thinks.',
+  steeringMode: 'Unset, messages sent mid-run are handled one at a time.',
+  followUpMode: 'Unset, messages queued behind the current run are handled one at a time.',
+  transport: 'Unset, the transport is picked automatically.',
+  httpIdleTimeoutMs: 'Unset, a request that stalls for five minutes is dropped.',
+  'compaction.enabled': 'Unset, compaction runs when the context fills up.',
+  'compaction.reserveTokens':
+    'Unset, 16384 tokens of the window stay free for the reply and the next request.',
+  'compaction.keepRecentTokens': 'Unset, the last 20000 tokens of the conversation are kept.',
+  'retry.enabled': 'Unset, failed requests are retried.',
+  'retry.maxRetries': 'Unset, a failed request is tried three more times.',
+  'retry.baseDelayMs': 'Unset, the first retry waits two seconds, then backs off.',
+  'retry.maxAgentDelayMs': 'Unset, the agent waits up to a minute before giving the turn back.',
+  'retry.provider.timeoutMs': 'Unset, a provider request may run as long as it needs.',
+  'retry.provider.maxRetries': 'Unset, a provider error is not retried.',
+  'retry.provider.maxRetryDelayMs': "Unset, the provider's own retry delay is respected.",
+  enableSkillCommands: 'Unset, skills are registered as /skill: commands.',
+  extensions: 'Unset, only the extensions pi discovers itself are loaded.',
+  skills: 'Unset, only the skills pi discovers itself are loaded.',
+  prompts: 'Unset, only the prompt templates pi discovers itself are loaded.',
+  themes: 'Unset, only the themes pi discovers itself are loaded.',
+  defaultTools:
+    'Unset, the agent gets read, bash, edit and write. This app adds +codemode unless you list -codemode, and writes that entry here the first time it loads the settings.',
+  sessionDir: 'Unset, sessions are saved in the pi agent directory.',
+  httpProxy: 'Unset, requests go out directly.',
+  defaultProjectTrust: 'Unset, a project is asked about before its settings and resources load.',
+  'warnings.anthropicExtraUsage':
+    'Unset, the warning appears when subscription auth may use paid extra usage.',
+  shellPath: 'Unset, bash runs under the login shell from the system.',
+  shellCommandPrefix: 'Unset, commands run without a prefix.',
+  npmCommand: 'Unset, npm is run from PATH.',
+};
+
+type FieldSettingProps = PiSectionProps & {
+  field: PiSettingFieldId;
+  label: string;
+  description?: string;
+};
+
 /** Source tag, or a "Global only" note for fields with no project form. */
 function FieldHint({
   field,
@@ -74,14 +121,15 @@ function FieldHint({
   if (findPiSettingField(field)?.globalOnly === true) {
     return <span className="text-caption text-muted-foreground/70">Global only</span>;
   }
-  return <SettingSourceTag isOverridden={isOverridden} scope={scope} onReset={onReset} />;
+  return (
+    <SettingSourceTag
+      isOverridden={isOverridden}
+      scope={scope}
+      onReset={onReset}
+      hint={FIELD_UNSET_HINTS[field]}
+    />
+  );
 }
-
-type FieldSettingProps = PiSectionProps & {
-  field: PiSettingFieldId;
-  label: string;
-  description?: string;
-};
 
 /** Toggle wired to an explicit field, with a source/reset hint. */
 function BooleanSetting({
@@ -260,6 +308,7 @@ function ListSetting({
           isOverridden={isOverridden(field)}
           scope={scope}
           onReset={() => setValue(field, null)}
+          hint={FIELD_UNSET_HINTS[field]}
         />
       }
     >
@@ -369,6 +418,7 @@ export function ModelsSettings(props: PiSectionProps): React.JSX.Element {
               isOverridden={props.isOverridden('defaultThinkingLevel')}
               scope={props.scope}
               onReset={() => props.setValue('defaultThinkingLevel', null)}
+              hint={FIELD_UNSET_HINTS.defaultThinkingLevel}
             />
           }
         >
@@ -564,7 +614,7 @@ export function AdvancedSettings(props: PiSectionProps): React.JSX.Element {
       <SettingsGroup title="Tools">
         <SettingsRow
           label="Default tools"
-          description="Comma separated. Plain names replace the defaults (read, bash, edit, write); +name adds one and -name removes one. codemode is added unless -codemode is listed."
+          description="Comma separated. Plain names replace the defaults; +name adds one and -name removes one."
           hint={
             <FieldHint
               field="defaultTools"

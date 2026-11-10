@@ -5,12 +5,19 @@
  * reset-when-the-value-changes rule live in `hooks/useDraft`.
  */
 import { type ReactNode } from 'react';
-import { IconChevronDown, IconChevronUp, IconPlus, IconX } from '@tabler/icons-react';
+import {
+  IconChevronDown,
+  IconChevronUp,
+  IconInfoCircle,
+  IconPlus,
+  IconX,
+} from '@tabler/icons-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { SETTINGS_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
 import { useDraft } from '../../hooks/useDraft';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 /** Page-level content column shared by every section. */
 export function SettingsContent({ children }: { children: ReactNode }): React.JSX.Element {
@@ -144,17 +151,22 @@ export function SettingsStackRow({
 }
 
 /**
- * Shows where a value comes from and resets it. `project` scope reads
- * "Using global" for inherited values.
+ * Shows where a value comes from and resets it: `Reset` when the file being
+ * edited sets the field, `Using global` when a project inherits it, and an info
+ * icon with the fallback for a field left unset. The word "Default" is not used
+ * — next to an empty box it reads as the value instead of as its absence.
  */
 export function SettingSourceTag({
   isOverridden,
   scope,
   onReset,
+  hint,
 }: {
   isOverridden: boolean;
   scope: 'global' | 'project';
   onReset: () => void;
+  /** What the field falls back to; read from the field's registry entry. */
+  hint: string;
 }): React.JSX.Element {
   if (isOverridden) {
     return (
@@ -167,10 +179,31 @@ export function SettingSourceTag({
       </button>
     );
   }
+  if (scope === 'project') {
+    return <span className="text-caption text-muted-foreground/70">Using global</span>;
+  }
+  return <TooltipHint text={hint} />;
+}
+
+/** The fallback for a setting, behind an info icon so it cannot be mistaken for a value. */
+export function TooltipHint({ text }: { text: string }): React.JSX.Element {
   return (
-    <span className="text-caption text-muted-foreground/70">
-      {scope === 'project' ? 'Using global' : 'Default'}
-    </span>
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            tabIndex={0}
+            aria-label="Default value"
+            className="cursor-help text-muted-foreground/70 outline-none transition-colors hover:text-foreground focus-visible:text-foreground"
+          >
+            <IconInfoCircle size={13} />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" align="start">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
