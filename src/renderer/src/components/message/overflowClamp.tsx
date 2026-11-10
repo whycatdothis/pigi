@@ -28,8 +28,8 @@ export default function OverflowClamp({
 }: {
   /** Min height in px while collapsed */
   minHeight?: number;
-  /** Max visible height in px while collapsed */
-  maxHeight: number;
+  /** Max visible height in px while collapsed; omit to never clamp. */
+  maxHeight?: number;
   children: React.ReactNode;
   /** Classes for the clamped content wrapper. */
   className?: string;
@@ -47,7 +47,9 @@ export default function OverflowClamp({
   useEffect(() => {
     const inner = innerRef.current;
     if (!inner) return;
-    const measure = (): void => setIsOverflowing(inner.offsetHeight > maxHeight);
+    const measure = (): void => {
+      setIsOverflowing(maxHeight !== undefined && inner.offsetHeight > maxHeight);
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(inner);
@@ -137,7 +139,7 @@ export default function OverflowClamp({
       style={{
         ...contentStyle,
         minHeight: expanded ? undefined : minHeight,
-        maxHeight: expanded ? undefined : maxHeight,
+        maxHeight: expanded || maxHeight === undefined ? undefined : maxHeight,
         maskImage: clamped ? fadeMask : undefined,
         WebkitMaskImage: clamped ? fadeMask : undefined,
       }}

@@ -109,6 +109,7 @@ export const PI_SETTING_FIELDS = [
   { id: 'prompts', type: 'stringList', defaultValue: [] },
   { id: 'themes', type: 'stringList', defaultValue: [] },
   // Advanced.
+  { id: 'defaultTools', type: 'stringList', defaultValue: [] },
   { id: 'sessionDir', type: 'string', globalOnly: true },
   { id: 'httpProxy', type: 'string', globalOnly: true },
   {
@@ -270,6 +271,19 @@ export function extractPiSettingsValues(source: object): PiSettingsValues {
     }
   }
   return values;
+}
+
+/**
+ * The `tools` option that puts codemode into a new session: `+codemode` adds the
+ * script tool to whatever the settings select, so a list the user never touched
+ * still gets it. Only an explicit `-codemode` entry — what the Advanced settings
+ * page writes when the tool is turned off — keeps it out.
+ */
+export function codemodeToolModifiers(
+  defaultTools: PiSettingValue | undefined,
+): string[] | undefined {
+  const entries = Array.isArray(defaultTools) ? defaultTools : [];
+  return entries.includes('-codemode') ? undefined : ['+codemode'];
 }
 
 export function isPiSettingValueValid(field: PiSettingField, value: PiSettingValue): boolean {

@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { cn } from '../../lib/utils';
-import { type ToolNode, getToolArgs } from '../../state/transcriptController';
-import { MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
+import {
+  type ToolNode,
+  getCodemodeDetails,
+  getEditDiffDetails,
+  getToolArgs,
+} from '../../state/transcriptController';
+import { CODEMODE_SCRIPT_MAX_HEIGHT, MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
 import { localFileUrl } from '../../lib/chatAttachments';
 import SyntaxHighlightedCode from './syntaxHighlightedCode';
 import DiffView from './DiffView';
@@ -10,15 +15,79 @@ import { parseDiffString } from '../../lib/diffUtils';
 import { ZoomableImage } from '../zoomableImage';
 import {
   getToolCommandParts,
-  cleanReadOutput,
+  cleanToolOutput,
+  getCodemodeCallParts,
+  getCodemodeScript,
   getToolBlockBodyHeightRange,
   READ_IMAGE_RE,
 } from '../../lib/toolDisplay';
 import OverflowClamp from './overflowClamp';
 import { Skeleton } from '../ui/skeleton';
-import { IconCheck, IconX, IconMinus } from '@tabler/icons-react';
+import { IconCheck, IconMinus, IconX } from '@tabler/icons-react';
 
-function WritePreview({
+type CodemodeCalls = NonNullable<ReturnType<typeof getCodemodeDetails>>['calls'];
+type CodemodeCall = CodemodeCalls[number];
+
+/**
+ * The calls a codemode script made inside its sandbox. They never reach the
+ * model as tool calls of their own, so the script's card is the only place
+ * they can show what ran.
+ */
+function CodemodeCallRows({ calls }: { calls: CodemodeCalls }): React.JSX.Element {
+  // Formatting parses each call's arguments; every transcript delta re-renders
+  // this card, so it happens once per set of calls instead of once per frame.
+  const rows = useMemo(
+    () => calls.map((call) => ({ call, parts: getCodemodeCallParts(call) })),
+    [calls],
+  );
+  return (
+    <div className="flex flex-col gap-0.5 font-mono text-code-compact leading-5">
+      {rows.map(({ call, parts }) => (
+        <div key={call.id}>
+          <div className="flex items-baseline gap-1.5" title={call.args}>
+            <CodemodeCallIcon status={call.status} />
+            <span className="sr-only">{call.status}</span>
+            {/* The name stays whole; the arguments are what gives way. */}
+            <span className="shrink-0 text-foreground">{parts.prefix}</span>{' '}
+            <span className="min-w-0 truncate text-muted-foreground">{parts.body}</span>
+            {call.durationMs !== undefined && (
+              <span className="ml-auto shrink-0 tabular-nums text-caption text-muted-foreground/60">
+                {formatCallDuration(call.durationMs)}
+              </span>
+            )}
+          </div>
+          {call.error && <div className="pl-5 text-caption text-danger-fg/90">{call.error}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * A nested call's own duration: most are sub-second, where the footer's `0.1s`
+ * floor would make 9ms and 99ms read the same.
+ */
+function formatCallDuration(durationMs: number): string {
+  return durationMs < 1000 ? `${Math.round(durationMs)}ms` : `${(durationMs / 1000).toFixed(1)}s`;
+}
+
+function CodemodeCallIcon({ status }: { status: CodemodeCall['status'] }): React.JSX.Element {
+  if (status === 'running') {
+    return <span className="shrink-0 self-center text-warning-fg">…</span>;
+  }
+  if (status === 'error') {
+    return <IconX className="size-3.5 shrink-0 self-center text-danger-fg [stroke-width:2]" />;
+  }
+  if (status === 'cancelled') {
+    return (
+      <IconMinus className="size-3.5 shrink-0 self-center text-muted-foreground [stroke-width:2]" />
+    );
+  }
+  return <IconCheck className="size-3.5 shrink-0 self-center text-success-fg [stroke-width:2]" />;
+}
+
+/** A tool's code input — a file about to be written, or a codemode script. */
+function CodePreview({
   content,
   language,
   isStreaming,
@@ -30,12 +99,63 @@ function WritePreview({
   // Strip trailing newline to avoid rendering an extra empty line
   const trimmed = content.endsWith('\n') ? content.slice(0, -1) : content;
   return (
-    <div className="overflow-hidden rounded font-mono text-code-compact leading-5">
+    <div className="overflow-hidden font-mono text-code-compact leading-5">
       <pre className="overflow-x-auto overscroll-x-none whitespace-pre text-muted-foreground">
         <SyntaxHighlightedCode code={trimmed} language={language} isStreaming={isStreaming} />
         {isStreaming && <span className="animate-pulse text-muted-foreground/50">▋</span>}
       </pre>
     </div>
+  );
+}
+
+/** A well for a run of code or output inside a tool card. */
+const CODE_WELL_CLASS_NAME =
+  'overflow-hidden rounded-control border border-border/60 bg-background/40 px-2 py-1.5';
+
+/**
+ * The body of a codemode card: the script the model wrote, in its own well, the
+ * calls it made inside the sandbox, and what it printed, in a second one.
+ *
+ * Only the script is clamped, and from the top: its tail is what produced the
+ * output below. The card itself grows with its output — a script's result can
+ * be long and hiding it behind one more "Show more" helps nobody.
+ */
+function CodemodeBody({
+  script,
+  calls,
+  output,
+  showOutput,
+}: {
+  script: string | null;
+  calls: CodemodeCalls;
+  output: string;
+  showOutput: boolean;
+}): React.JSX.Element | null {
+  const hasOutput = showOutput && output.length > 0;
+  // The title pays for the body's gap only when something follows it.
+  if (!script && calls.length === 0 && !hasOutput) return null;
+  return (
+    <>
+      {script && (
+        <div className={`${CODE_WELL_CLASS_NAME} mb-2`}>
+          <OverflowClamp maxHeight={CODEMODE_SCRIPT_MAX_HEIGHT} tailAnchor>
+            <CodePreview content={script} language="javascript" isStreaming={false} />
+          </OverflowClamp>
+        </div>
+      )}
+      {calls.length > 0 && (
+        <div className="mb-2">
+          <CodemodeCallRows calls={calls} />
+        </div>
+      )}
+      {hasOutput && (
+        <div className={CODE_WELL_CLASS_NAME}>
+          <pre className="overflow-x-auto overscroll-x-none whitespace-pre font-mono text-code leading-5 text-muted-foreground">
+            {output}
+          </pre>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -133,7 +253,7 @@ function ElapsedTimer({ startedAt }: { startedAt?: number }): React.JSX.Element 
 }
 
 /** Tools that stream output while running (shown immediately, not gated on completion) */
-const STREAMING_OUTPUT_TOOLS = new Set(['bash', 'read']);
+const STREAMING_OUTPUT_TOOLS = new Set(['bash', 'read', 'codemode']);
 
 const SECONDS_PER_MILLISECOND = 1 / 1000;
 
@@ -184,8 +304,9 @@ function getLanguageFromPath(path: string): string | null {
 /** Extract pre-computed DiffLines from tool result details (used by tagged-edit and similar tools) */
 function getEditDiffFromDetails(node: ToolNode): DiffLine[][] | null {
   if (node.name !== 'edit') return null;
-  if (!node.details?.diff) return null;
-  const parsed = parseDiffString(node.details.diff);
+  const details = getEditDiffDetails(node);
+  if (!details?.diff) return null;
+  const parsed = parseDiffString(details.diff);
   return parsed.length > 0 ? parsed : null;
 }
 
@@ -221,7 +342,9 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
   const [isCommandTruncated, setIsCommandTruncated] = useState(false);
 
   // For read tool: filter hint lines and detect images
-  const cleanedOutput = useMemo(() => cleanReadOutput(node), [node]);
+  const cleanedOutput = useMemo(() => cleanToolOutput(node), [node]);
+  const codemodeScript = useMemo(() => getCodemodeScript(node), [node]);
+  const codemodeCalls = useMemo(() => getCodemodeDetails(node)?.calls ?? [], [node]);
   const imagePath = useMemo(() => getReadImagePath(node), [node]);
 
   useEffect(() => {
@@ -246,6 +369,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
   const showWriteSkeleton =
     node.name === 'write' && node.status === 'running' && (writeEntries?.length ?? 0) === 0;
   const showBashSkeleton = node.name === 'bash' && node.status === 'running' && !hasOutput;
+  const isCodemode = node.name === 'codemode';
   const outputLanguage = getToolOutputLanguage(node);
   const bodyHeightRange = getToolBlockBodyHeightRange(node);
   // The body is one array so its "is there anything to show" and the padding that
@@ -258,7 +382,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
     showEditSkeleton ? <DiffSkeleton key="diff-skeleton" /> : null,
     // Write preview shown during running (streaming) unlike edit which waits for completion
     writeEntries && writeEntries.length > 0 && node.status !== 'error' ? (
-      <WritePreview
+      <CodePreview
         key="write-preview"
         content={writeEntries[0].newText}
         language={outputLanguage}
@@ -266,6 +390,16 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
       />
     ) : null,
     showWriteSkeleton ? <WriteSkeleton key="write-skeleton" /> : null,
+    isCodemode ? (
+      <CodemodeBody
+        key="codemode"
+        script={codemodeScript}
+        calls={codemodeCalls}
+        output={cleanedOutput}
+        showOutput={node.status !== 'running' || STREAMING_OUTPUT_TOOLS.has(node.name)}
+      />
+    ) : null,
+    !isCodemode &&
     (node.status !== 'running' || STREAMING_OUTPUT_TOOLS.has(node.name)) &&
     hasOutput &&
     ((node.name !== 'edit' && node.name !== 'write') || node.status === 'error') ? (
@@ -330,7 +464,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
         <OverflowClamp
           minHeight={bodyHeightRange.minHeight}
           maxHeight={bodyHeightRange.maxHeight}
-          tailAnchor={node.name !== 'edit'}
+          tailAnchor={node.name !== 'edit' && node.name !== 'codemode'}
         >
           {bodyParts}
         </OverflowClamp>

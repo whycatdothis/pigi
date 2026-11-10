@@ -1,4 +1,4 @@
-import type { EditToolDetails } from '@earendil-works/pi-coding-agent';
+import type { CodemodeToolDetails, EditToolDetails } from '@earendil-works/pi-coding-agent';
 import type {
   CacheWarmEntry,
   PromptAttachment,
@@ -67,6 +67,10 @@ export interface AssistantNode {
   hasToolCalls?: boolean;
 }
 
+/** What a tool result carries beyond its text: a diff for `edit`, the nested
+ *  calls and truncation path for `codemode`. */
+export type ToolResultDetails = EditToolDetails | CodemodeToolDetails;
+
 export interface ToolNode {
   id: string;
   role: 'tool';
@@ -78,7 +82,7 @@ export interface ToolNode {
   isError: boolean;
   startedAt?: number;
   durationMs?: number;
-  details?: EditToolDetails;
+  details?: ToolResultDetails;
 }
 
 export interface SystemNode {
@@ -122,6 +126,26 @@ function findToolNodeByCallId(
   const index = nodes.findIndex((n) => isToolNode(n) && n.toolCallId === toolCallId);
   if (index === -1) return undefined;
   return { node: nodes[index] as ToolNode, index };
+}
+
+/**
+ * Details are whatever the tool returned, so only the tool that owns a shape may
+ * read it: an extension's `{ calls }` is not a codemode result.
+ */
+function hasDetails(node: ToolNode): node is ToolNode & { details: ToolResultDetails } {
+  return typeof node.details === 'object' && node.details !== null;
+}
+
+/** The `edit` diff, when this tool result carries one. */
+export function getEditDiffDetails(node: ToolNode): EditToolDetails | undefined {
+  if (node.name !== 'edit' || !hasDetails(node) || !('diff' in node.details)) return undefined;
+  return node.details;
+}
+
+/** The `codemode` script's nested calls, when this tool result carries them. */
+export function getCodemodeDetails(node: ToolNode): CodemodeToolDetails | undefined {
+  if (node.name !== 'codemode' || !hasDetails(node) || !('calls' in node.details)) return undefined;
+  return node.details;
 }
 
 export function getToolArgs(node: ToolNode): Record<string, unknown> | undefined {
@@ -540,7 +564,7 @@ export class TranscriptController {
             content?: unknown[];
             isError?: boolean;
             timestamp?: number | string;
-            details?: EditToolDetails;
+            details?: ToolResultDetails;
           };
           const call = toolMessage.toolCallId ? toolCalls.get(toolMessage.toolCallId) : undefined;
           const completedAt = tryNormalizeTimestamp(toolMessage.timestamp);
@@ -1308,10 +1332,13 @@ export class TranscriptController {
     // But handle here as fallback
     if (!event.partialResult) return;
     const text = extractToolResultText(event.partialResult);
-    if (!text) return;
+    // A codemode script publishes only details while it runs, so the calls it
+    // has made so far arrive without any text.
+    const details = extractToolResultDetails(event.partialResult);
+    if (!text && !details) return;
     const nodes = this._state.nodes.map((n) => {
       if (!isToolNode(n) || n.toolCallId !== event.toolCallId) return n;
-      return { ...n, output: text };
+      return { ...n, output: text || n.output, details: details ?? n.details };
     });
     this.setState({ nodes });
   }
@@ -1607,9 +1634,9 @@ function extractToolResultText(result: unknown): string {
   return '';
 }
 
-function extractToolResultDetails(result: unknown): EditToolDetails | undefined {
+function extractToolResultDetails(result: unknown): ToolResultDetails | undefined {
   if (!result || typeof result !== 'object') return undefined;
-  const r = result as { details?: EditToolDetails };
+  const r = result as { details?: ToolResultDetails };
   return r.details;
 }
 

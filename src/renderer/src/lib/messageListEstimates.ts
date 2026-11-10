@@ -3,11 +3,15 @@ import {
   type AssistantNode,
   type SystemNode,
   type ToolNode,
+  getCodemodeDetails,
+  getEditDiffDetails,
   getToolArgs,
 } from '../state/transcriptController';
+import { cleanToolOutput, getCodemodeScript } from './toolDisplay';
 import type { RenderItem } from './readGrouping';
 import {
   BLOCK_CONTENT_MAX_HEIGHT,
+  CODEMODE_SCRIPT_MAX_HEIGHT,
   CUSTOM_MESSAGE_MAX_HEIGHT,
   READ_GROUP_MAX_COLLAPSED_ENTRIES,
   TOOL_BLOCK_LINE_HEIGHT,
@@ -117,8 +121,13 @@ function estimateAssistantHeight(node: AssistantNode): number {
 function estimateToolHeight(node: ToolNode): number {
   const { minHeight = 0, maxHeight } = getToolBlockBodyHeightRange(node);
   const contentHeight = estimateToolBodyLineCount(node) * TOOL_BLOCK_LINE_HEIGHT;
-  const bodyHeight = Math.min(Math.max(contentHeight, minHeight), maxHeight);
-  const showMoreHeight = contentHeight > maxHeight ? TOOL_BLOCK_SHOW_MORE_HEIGHT : 0;
+  // An unclamped body takes its content's height, and shows no Show more.
+  const bodyHeight =
+    maxHeight === undefined
+      ? contentHeight
+      : Math.min(Math.max(contentHeight, minHeight), maxHeight);
+  const showMoreHeight =
+    maxHeight !== undefined && contentHeight > maxHeight ? TOOL_BLOCK_SHOW_MORE_HEIGHT : 0;
   return (
     estimateToolCommandLineCount(node) * TOOL_BLOCK_COMMAND_LINE_HEIGHT +
     bodyHeight +
@@ -129,11 +138,22 @@ function estimateToolHeight(node: ToolNode): number {
 
 function estimateToolBodyLineCount(node: ToolNode): number {
   if (node.name === 'edit') {
-    return countLines(node.details?.diff ?? '');
+    return countLines(getEditDiffDetails(node)?.diff ?? '');
   }
   if (node.name === 'write') {
     const content = getToolArgs(node)?.content;
     return countLines(typeof content === 'string' ? content : '');
+  }
+  if (node.name === 'codemode') {
+    const script = getCodemodeScript(node);
+    const calls = getCodemodeDetails(node)?.calls.length ?? 0;
+    // The card shows the tail of the script, at most CODEMODE_SCRIPT_MAX_HEIGHT
+    // of it, and the output without codemode's own header lines.
+    const scriptLines = Math.min(
+      script ? countLines(script) : 0,
+      Math.floor(CODEMODE_SCRIPT_MAX_HEIGHT / TOOL_BLOCK_LINE_HEIGHT),
+    );
+    return scriptLines + calls + countLines(cleanToolOutput(node));
   }
   return countLines(node.output ?? '');
 }

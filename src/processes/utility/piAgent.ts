@@ -17,6 +17,7 @@ import {
   type AgentSessionServices,
   createAgentSessionFromServices,
   createAgentSessionRuntime,
+  createCodemodeExtension,
   type CreateAgentSessionRuntimeFactory,
   createAgentSessionServices,
   getAgentDir,
@@ -28,6 +29,7 @@ import {
   type EditToolInput,
   type ExtensionUIContext,
 } from '@earendil-works/pi-coding-agent';
+import { codemodeToolModifiers } from '../../shared/piSettings';
 import type {
   AuthProviderInfo,
   CreateSessionOptions,
@@ -241,6 +243,9 @@ function createServicesForCwd(cwd: string): Promise<AgentSessionServices> {
         resourceLoaderOptions: {
           appendSystemPromptOverride: (base) => [...base, PIGI_SYSTEM_PROMPT],
           additionalSkillPaths: [BUNDLED_SKILLS_DIRECTORY],
+          // The SDK registers `codemode` as a built-in extension only in its
+          // own CLI; an SDK host adds it itself.
+          extensionFactories: [createCodemodeExtension()],
         },
       });
     } finally {
@@ -336,6 +341,7 @@ function createRuntimeFactory(
         sessionStartEvent,
         model,
         thinkingLevel: options.thinkingLevel,
+        tools: codemodeToolModifiers(services.settingsManager.getSettings().defaultTools),
       })),
       services,
       diagnostics: services.diagnostics,

@@ -544,6 +544,16 @@ export function ResourcesSettings(props: PiSectionProps): React.JSX.Element {
 export function AdvancedSettings(props: PiSectionProps): React.JSX.Element {
   return (
     <>
+      <SettingsGroup title="Tools">
+        <ListSetting
+          {...props}
+          field="defaultTools"
+          label="Default tools"
+          description="Plain names replace the defaults (read, bash, edit, write); +name adds one and -name removes one. codemode is added unless -codemode is listed."
+          placeholder="+name or -name"
+          addLabel="Add tool entry"
+        />
+      </SettingsGroup>
       <SettingsGroup title="Sessions">
         <TextSetting
           {...props}

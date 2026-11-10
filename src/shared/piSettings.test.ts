@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  codemodeToolModifiers,
   findPiSettingField,
   isPiSettingValueValid,
   setPiSettingValue,
@@ -103,5 +104,19 @@ describe('setPiSettingValue', () => {
 
     expect(() => setPiSettingValue(target, 'compaction.reserveTokens', undefined)).not.toThrow();
     expect(target).toEqual({});
+  });
+});
+
+describe('codemodeToolModifiers', () => {
+  it('adds codemode to a settings file that never mentions it', () => {
+    expect(codemodeToolModifiers(undefined)).toEqual(['+codemode']);
+    expect(codemodeToolModifiers([])).toEqual(['+codemode']);
+    expect(codemodeToolModifiers(['read', 'bash'])).toEqual(['+codemode']);
+    expect(codemodeToolModifiers(['+codemode'])).toEqual(['+codemode']);
+  });
+
+  it('leaves the session alone once the settings removed codemode', () => {
+    expect(codemodeToolModifiers(['-codemode'])).toBeUndefined();
+    expect(codemodeToolModifiers(['read', 'bash', '-codemode'])).toBeUndefined();
   });
 });
