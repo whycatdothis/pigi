@@ -1004,7 +1004,7 @@ export class TranscriptController {
    * each batch can update React state and let the virtualizer measure real heights.
    */
   applyStreamBatch(
-    batch: Pick<StreamBatch, 'text' | 'thinking' | 'toolOutput' | 'toolArgs'>,
+    batch: Pick<StreamBatch, 'text' | 'thinking' | 'toolOutput' | 'toolDetails' | 'toolArgs'>,
   ): void {
     let changed = false;
 
@@ -1033,6 +1033,17 @@ export class TranscriptController {
         const found = findToolNodeByCallId(this._state.nodes, toolCallId);
         if (found) {
           this._state.nodes[found.index] = { ...found.node, output };
+          changed = true;
+        }
+      }
+    }
+
+    if (batch.toolDetails) {
+      for (const [toolCallId, raw] of Object.entries(batch.toolDetails)) {
+        const details = extractToolResultDetails({ details: raw });
+        const found = findToolNodeByCallId(this._state.nodes, toolCallId);
+        if (found && details && found.node.status === 'running') {
+          this._state.nodes[found.index] = { ...found.node, details };
           changed = true;
         }
       }
@@ -1349,6 +1360,9 @@ export class TranscriptController {
       if (!isToolNode(n) || n.toolCallId !== event.toolCallId) return n;
       const text = extractToolResultText(event.result);
       const status: ToolNode['status'] = event.isError ? 'error' : 'success';
+      // A tool that threw finalizes with empty details (the agent loop wraps it
+      // in an error result), which would drop the partial details — a codemode
+      // script's calls — the node already carries.
       const details = extractToolResultDetails(event.result);
       return {
         ...n,
@@ -1356,7 +1370,7 @@ export class TranscriptController {
         isError: event.isError,
         output: text || n.output,
         durationMs: getElapsedMs(n.startedAt, endedAt),
-        details,
+        details: details && Object.keys(details).length > 0 ? details : n.details,
       };
     });
 

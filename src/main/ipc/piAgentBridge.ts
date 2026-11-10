@@ -643,7 +643,7 @@ export function registerIpcHandlers(): void {
           return { success: false, error: 'each update value must be a setting value or null' };
         }
       }
-      return requestFromSessionWorker(PI_SETTINGS_REQUEST, (requestId) => ({
+      const result = await requestFromSessionWorker(PI_SETTINGS_REQUEST, (requestId) => ({
         type: 'write_settings',
         requestId,
         cwd,
@@ -651,6 +651,13 @@ export function registerIpcHandlers(): void {
         // Safe narrowing: the worker validates every field against the registry.
         updates: updates as PiSettingUpdate[],
       }));
+      // The warm process read the settings file when it started, and a session
+      // claimed from it selects its tools and model from that snapshot; drop it
+      // so the next session sees what was just written.
+      if (result.success) {
+        processPool.recycleWarmProcess();
+      }
+      return result;
     },
   );
 }

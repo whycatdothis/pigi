@@ -47,6 +47,9 @@ export function getToolCommandParts(node: ToolNode): ToolCommandParts {
 }
 
 /** The header `codemode` puts in front of every script's output. */
+// Owned by the SDK: `extensions/codemode/execute.js` builds this header as its
+// own content item ("Script completed\nWall time <n> seconds\nOutput:\n"), so a
+// wording or unit change there is what to look for when the strip stops matching.
 const CODEMODE_OUTPUT_HEADER = /^Script (?:completed|failed)\nWall time [\d.]+ seconds\nOutput:\n+/;
 
 /**
@@ -174,10 +177,14 @@ export function getToolSearchText(node: ToolNode): string {
     return getEditDiffDetails(node)?.diff ?? '';
   }
   if (node.name === 'codemode') {
-    // The script renders above the output, so the two are one search target in
-    // that order.
-    const output = cleanToolOutput(node);
-    return [getCodemodeScript(node), output].filter(Boolean).join('\n');
+    // One target, in the order the card renders: the script, one line per nested
+    // call, then the output. The search counts matches in this text and then
+    // highlights the n-th match in the DOM, so the two must agree.
+    const calls = (getCodemodeDetails(node)?.calls ?? []).map((call) => {
+      const { prefix, body } = getCodemodeCallParts(call);
+      return [prefix, body, call.error].filter(Boolean).join(' ');
+    });
+    return [getCodemodeScript(node), ...calls, cleanToolOutput(node)].filter(Boolean).join('\n');
   }
   return cleanReadOutput(node);
 }

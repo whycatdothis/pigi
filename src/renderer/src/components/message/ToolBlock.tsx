@@ -42,8 +42,11 @@ function CodemodeCallRows({ calls }: { calls: CodemodeCalls }): React.JSX.Elemen
   );
   return (
     <div className="flex flex-col gap-0.5 font-mono text-code-compact leading-5">
-      {rows.map(({ call, parts }) => (
-        <div key={call.id}>
+      {/* The SDK keys every in-flight call `${toolCallId}/?` and only assigns the
+          real id when it settles, so the id is not unique while calls overlap;
+          the list only ever appends, which makes the position stable. */}
+      {rows.map(({ call, parts }, index) => (
+        <div key={index}>
           <div className="flex items-baseline gap-1.5" title={call.args}>
             <CodemodeCallIcon status={call.status} />
             <span className="sr-only">{call.status}</span>

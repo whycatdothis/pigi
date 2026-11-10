@@ -111,6 +111,12 @@ class StreamBatcher {
     this.markDirty();
   }
 
+  setToolDetails(toolCallId: string, details: Record<string, unknown>): void {
+    if (!this.batch.toolDetails) this.batch.toolDetails = {};
+    this.batch.toolDetails[toolCallId] = details;
+    this.markDirty();
+  }
+
   setToolArgs(toolCallId: string, entry: StreamBatchToolArgs): void {
     if (!this.batch.toolArgs) this.batch.toolArgs = {};
     this.batch.toolArgs[toolCallId] = entry;
@@ -516,11 +522,26 @@ function subscribeToSession(rt: AgentSessionRuntime, port: Port, batch: StreamBa
         push({ type: 'event', event });
         break;
 
+      case 'tool_execution_end':
+        // A tool's last update (its output, or a codemode script's final call)
+        // may still be buffered; the renderer must see it before the result
+        // replaces the node.
+        batch.flushNow();
+        push({ type: 'event', event });
+        break;
+
       case 'tool_execution_update': {
         const { toolCallId, partialResult } = event;
         const text = partialResult?.content?.[0]?.text;
         if (typeof text === 'string' && text && toolCallId) {
           batch.setToolOutput(toolCallId, text);
+          return;
+        }
+        // codemode publishes its calls this way, once per call start and end:
+        // the details are cumulative, so only the last value per call matters.
+        const details = partialResult?.details;
+        if (toolCallId && details && typeof details === 'object') {
+          batch.setToolDetails(toolCallId, details as Record<string, unknown>);
           return;
         }
         push({ type: 'event', event });

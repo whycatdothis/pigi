@@ -24,6 +24,12 @@ import { parseSkillBlock } from './skillBlock';
 const TOOL_BLOCK_CHROME_HEIGHT = 56;
 /** The "Show more" row, present only when the body is clamped. */
 const TOOL_BLOCK_SHOW_MORE_HEIGHT = 20;
+/** A codemode card's two wells: a border and py-1.5 each, plus the mb-2 gaps between parts. */
+const CODEMODE_WELL_CHROME_HEIGHT = 14 + 14 + 8 + 8;
+/** A failed nested call prints a caption line under its row. */
+const CODEMODE_CALL_ERROR_HEIGHT = 16;
+/** The 2px gap between nested-call rows (gap-0.5). */
+const CODEMODE_CALL_ROW_GAP = 2;
 /** An injected message card: the mono header row plus the card's padding. */
 const CUSTOM_CARD_CHROME_HEIGHT = 38;
 /** Deliberately conservative: mono lines hold more, and over-estimating a row
@@ -119,6 +125,16 @@ function estimateAssistantHeight(node: AssistantNode): number {
 }
 
 function estimateToolHeight(node: ToolNode): number {
+  if (node.name === 'codemode') {
+    // Its body is wells and rows, not one run of mono lines: the two wells'
+    // borders and padding, the gaps between parts, the clamp's own button and
+    // the caption under a failed call all sit outside the line boxes.
+    return (
+      estimateToolCommandLineCount(node) * TOOL_BLOCK_COMMAND_LINE_HEIGHT +
+      estimateCodemodeBodyHeight(node) +
+      TOOL_BLOCK_CHROME_HEIGHT
+    );
+  }
   const { minHeight = 0, maxHeight } = getToolBlockBodyHeightRange(node);
   const contentHeight = estimateToolBodyLineCount(node) * TOOL_BLOCK_LINE_HEIGHT;
   // An unclamped body takes its content's height, and shows no Show more.
@@ -145,17 +161,30 @@ function estimateToolBodyLineCount(node: ToolNode): number {
     return countLines(typeof content === 'string' ? content : '');
   }
   if (node.name === 'codemode') {
-    const script = getCodemodeScript(node);
-    const calls = getCodemodeDetails(node)?.calls.length ?? 0;
-    // The card shows the tail of the script, at most CODEMODE_SCRIPT_MAX_HEIGHT
-    // of it, and the output without codemode's own header lines.
-    const scriptLines = Math.min(
-      script ? countLines(script) : 0,
-      Math.floor(CODEMODE_SCRIPT_MAX_HEIGHT / TOOL_BLOCK_LINE_HEIGHT),
-    );
-    return scriptLines + calls + countLines(cleanToolOutput(node));
+    return 0;
   }
   return countLines(node.output ?? '');
+}
+
+function estimateCodemodeBodyHeight(node: ToolNode): number {
+  const scriptLines = countLines(getCodemodeScript(node) ?? '');
+  const visibleScriptLines = Math.min(
+    scriptLines,
+    Math.floor(CODEMODE_SCRIPT_MAX_HEIGHT / TOOL_BLOCK_LINE_HEIGHT),
+  );
+  const clamped = scriptLines > visibleScriptLines;
+  const calls = getCodemodeDetails(node)?.calls ?? [];
+  const errors = calls.filter((call) => call.error !== undefined).length;
+  const outputLines = countLines(cleanToolOutput(node));
+  return (
+    visibleScriptLines * TOOL_BLOCK_LINE_HEIGHT +
+    (clamped ? TOOL_BLOCK_SHOW_MORE_HEIGHT : 0) +
+    calls.length * TOOL_BLOCK_LINE_HEIGHT +
+    Math.max(0, calls.length - 1) * CODEMODE_CALL_ROW_GAP +
+    errors * CODEMODE_CALL_ERROR_HEIGHT +
+    outputLines * TOOL_BLOCK_LINE_HEIGHT +
+    (scriptLines > 0 || calls.length > 0 || outputLines > 0 ? CODEMODE_WELL_CHROME_HEIGHT : 0)
+  );
 }
 
 function countLines(text: string): number {
@@ -167,6 +196,10 @@ function countLines(text: string): number {
 
 function estimateToolCommandLineCount(node: ToolNode): number {
   const args = getToolArgs(node);
+  // A codemode title is a summary (`codemode read ×2`), never the script.
+  if (node.name === 'codemode') {
+    return 1;
+  }
   const command =
     node.name === 'bash'
       ? `$ ${String(args?.command ?? '')}`

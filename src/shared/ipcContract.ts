@@ -512,6 +512,8 @@ export interface StreamBatch {
   text?: string;
   thinking?: string;
   toolOutput?: Record<string, string>;
+  /** Partial tool details, last write wins; codemode publishes its calls this way. */
+  toolDetails?: Record<string, Record<string, unknown>>;
   toolArgs?: Record<string, StreamBatchToolArgs>;
 }
 

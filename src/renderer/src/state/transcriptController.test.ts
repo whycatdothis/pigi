@@ -349,3 +349,52 @@ describe('compaction markers', () => {
     ]);
   });
 });
+
+describe('codemode tool results', () => {
+  const call = { id: 'call-1/1', name: 'read', args: '{"path":"src/a.ts"}', status: 'ok' };
+
+  function startCodemode(controller: TranscriptController): void {
+    controller.processEvent({
+      type: 'tool_execution_start',
+      toolCallId: 'call-1',
+      toolName: 'codemode',
+      args: { code: 'await tools.read({ path: "src/a.ts" });' },
+    });
+  }
+
+  it('takes the calls from an update that carries no text', () => {
+    // What the SDK publishes while the script runs: details only, so the rows
+    // can appear before the script finishes.
+    const controller = new TranscriptController();
+    startCodemode(controller);
+    controller.processEvent({
+      type: 'tool_execution_update',
+      toolCallId: 'call-1',
+      partialResult: { content: [], details: { calls: [call] } },
+    });
+
+    expect(controller.state.nodes).toMatchObject([{ role: 'tool', details: { calls: [call] } }]);
+  });
+
+  it('keeps those calls when the final result has no details of its own', () => {
+    // A script that throws is finalized with an error result whose details are
+    // empty; the card must not lose the calls it already showed.
+    const controller = new TranscriptController();
+    startCodemode(controller);
+    controller.processEvent({
+      type: 'tool_execution_update',
+      toolCallId: 'call-1',
+      partialResult: { content: [], details: { calls: [call] } },
+    });
+    controller.processEvent({
+      type: 'tool_execution_end',
+      toolCallId: 'call-1',
+      isError: true,
+      result: { content: [{ type: 'text', text: 'worker crashed' }], details: {} },
+    });
+
+    expect(controller.state.nodes).toMatchObject([
+      { role: 'tool', status: 'error', output: 'worker crashed', details: { calls: [call] } },
+    ]);
+  });
+});
