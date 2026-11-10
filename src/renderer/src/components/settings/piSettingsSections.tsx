@@ -637,7 +637,6 @@ export function AdvancedSettings(props: PiSectionProps): React.JSX.Element {
           {...props}
           field="sessionDir"
           label="Session directory"
-          description="Absolute, relative, or ~ paths."
           placeholder="Default pi sessions directory"
         />
       </SettingsGroup>
@@ -688,7 +687,6 @@ export function AdvancedSettings(props: PiSectionProps): React.JSX.Element {
           {...props}
           field="warnings.anthropicExtraUsage"
           label="Anthropic extra usage warning"
-          description="Warn when subscription auth may use paid extra usage."
         />
       </SettingsGroup>
     </>
