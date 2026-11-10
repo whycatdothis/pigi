@@ -21,6 +21,7 @@ import {
   findPiSettingField,
   type PiSettingFieldId,
   type PiSettingsScope,
+  type PiSettingValue,
 } from '../../../../shared/piSettings';
 
 const THINKING_LEVEL_OPTIONS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
@@ -35,6 +36,22 @@ function stringValue(
 ): string | undefined {
   const value = values[field];
   return typeof value === 'string' ? value : undefined;
+}
+
+/** One line for the list editor: the entries as the user typed them. */
+function toolListValue(value: PiSettingValue | undefined): string | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter((entry): entry is string => typeof entry === 'string').join(', ');
+}
+
+/** Empty commits as null, which clears the field instead of writing `[]`. */
+function parseToolList(value: string | null): string[] | null {
+  if (value === null) return null;
+  const entries = value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  return entries.length > 0 ? entries : null;
 }
 
 /** Global-only fields cannot be written to a project file. */
@@ -545,14 +562,25 @@ export function AdvancedSettings(props: PiSectionProps): React.JSX.Element {
   return (
     <>
       <SettingsGroup title="Tools">
-        <ListSetting
-          {...props}
-          field="defaultTools"
+        <SettingsRow
           label="Default tools"
-          description="Plain names replace the defaults (read, bash, edit, write); +name adds one and -name removes one. codemode is added unless -codemode is listed."
-          placeholder="+name or -name"
-          addLabel="Add tool entry"
-        />
+          description="Comma separated. Plain names replace the defaults (read, bash, edit, write); +name adds one and -name removes one. codemode is added unless -codemode is listed."
+          hint={
+            <FieldHint
+              field="defaultTools"
+              scope={props.scope}
+              isOverridden={props.isOverridden('defaultTools')}
+              onReset={() => props.setValue('defaultTools', null)}
+            />
+          }
+        >
+          <TextField
+            value={toolListValue(props.values.defaultTools)}
+            placeholder="read, bash, edit, write"
+            className="w-field-text"
+            onCommit={(value) => props.setValue('defaultTools', parseToolList(value))}
+          />
+        </SettingsRow>
       </SettingsGroup>
       <SettingsGroup title="Sessions">
         <TextSetting
