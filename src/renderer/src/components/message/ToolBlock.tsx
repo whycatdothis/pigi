@@ -6,7 +6,7 @@ import {
   getEditDiffDetails,
   getToolArgs,
 } from '../../state/transcriptController';
-import { CODEMODE_SCRIPT_MAX_HEIGHT, MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
+import { CODEMODE_WELL_MAX_HEIGHT, MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
 import { localFileUrl } from '../../lib/chatAttachments';
 import SyntaxHighlightedCode from './syntaxHighlightedCode';
 import DiffView from './DiffView';
@@ -119,9 +119,9 @@ const CODE_WELL_CLASS_NAME =
  * The body of a codemode card: the script the model wrote, in its own well, the
  * calls it made inside the sandbox, and what it printed, in a second one.
  *
- * Only the script is clamped, and from the top: its tail is what produced the
- * output below. The card itself grows with its output — a script's result can
- * be long and hiding it behind one more "Show more" helps nobody.
+ * Both wells clamp from the top at the same height: the tail of the script is
+ * what ran last, and the tail of the output is what the script was for. The
+ * call rows between them never clamp — they are one line each.
  */
 function CodemodeBody({
   script,
@@ -141,7 +141,7 @@ function CodemodeBody({
     <>
       {script && (
         <div className={`${CODE_WELL_CLASS_NAME} mb-2`}>
-          <OverflowClamp maxHeight={CODEMODE_SCRIPT_MAX_HEIGHT} tailAnchor>
+          <OverflowClamp maxHeight={CODEMODE_WELL_MAX_HEIGHT} tailAnchor>
             <CodePreview content={script} language="javascript" isStreaming={false} />
           </OverflowClamp>
         </div>
@@ -153,9 +153,11 @@ function CodemodeBody({
       )}
       {hasOutput && (
         <div className={CODE_WELL_CLASS_NAME}>
-          <pre className="overflow-x-auto overscroll-x-none whitespace-pre font-mono text-code leading-5 text-muted-foreground">
-            {output}
-          </pre>
+          <OverflowClamp maxHeight={CODEMODE_WELL_MAX_HEIGHT} tailAnchor>
+            <pre className="overflow-x-auto overscroll-x-none whitespace-pre font-mono text-code leading-5 text-muted-foreground">
+              {output}
+            </pre>
+          </OverflowClamp>
         </div>
       )}
     </>

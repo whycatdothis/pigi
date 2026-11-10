@@ -11,7 +11,7 @@ import { cleanToolOutput, getCodemodeScript } from './toolDisplay';
 import type { RenderItem } from './readGrouping';
 import {
   BLOCK_CONTENT_MAX_HEIGHT,
-  CODEMODE_SCRIPT_MAX_HEIGHT,
+  CODEMODE_WELL_MAX_HEIGHT,
   CUSTOM_MESSAGE_MAX_HEIGHT,
   READ_GROUP_MAX_COLLAPSED_ENTRIES,
   TOOL_BLOCK_LINE_HEIGHT,
@@ -30,6 +30,8 @@ const CODEMODE_WELL_CHROME_HEIGHT = 14 + 14 + 8 + 8;
 const CODEMODE_CALL_ERROR_HEIGHT = 16;
 /** The 2px gap between nested-call rows (gap-0.5). */
 const CODEMODE_CALL_ROW_GAP = 2;
+/** Lines a codemode well shows before it clamps. */
+const CODEMODE_WELL_LINES = Math.floor(CODEMODE_WELL_MAX_HEIGHT / TOOL_BLOCK_LINE_HEIGHT);
 /** An injected message card: the mono header row plus the card's padding. */
 const CUSTOM_CARD_CHROME_HEIGHT = 38;
 /** Deliberately conservative: mono lines hold more, and over-estimating a row
@@ -168,21 +170,20 @@ function estimateToolBodyLineCount(node: ToolNode): number {
 
 function estimateCodemodeBodyHeight(node: ToolNode): number {
   const scriptLines = countLines(getCodemodeScript(node) ?? '');
-  const visibleScriptLines = Math.min(
-    scriptLines,
-    Math.floor(CODEMODE_SCRIPT_MAX_HEIGHT / TOOL_BLOCK_LINE_HEIGHT),
-  );
-  const clamped = scriptLines > visibleScriptLines;
+  const outputLines = countLines(cleanToolOutput(node));
+  // Both wells clamp at the same height, each paying for its own Show more.
+  const visibleScriptLines = Math.min(scriptLines, CODEMODE_WELL_LINES);
+  const visibleOutputLines = Math.min(outputLines, CODEMODE_WELL_LINES);
+  const clamps =
+    (scriptLines > visibleScriptLines ? 1 : 0) + (outputLines > visibleOutputLines ? 1 : 0);
   const calls = getCodemodeDetails(node)?.calls ?? [];
   const errors = calls.filter((call) => call.error !== undefined).length;
-  const outputLines = countLines(cleanToolOutput(node));
   return (
-    visibleScriptLines * TOOL_BLOCK_LINE_HEIGHT +
-    (clamped ? TOOL_BLOCK_SHOW_MORE_HEIGHT : 0) +
+    (visibleScriptLines + visibleOutputLines) * TOOL_BLOCK_LINE_HEIGHT +
+    clamps * TOOL_BLOCK_SHOW_MORE_HEIGHT +
     calls.length * TOOL_BLOCK_LINE_HEIGHT +
     Math.max(0, calls.length - 1) * CODEMODE_CALL_ROW_GAP +
     errors * CODEMODE_CALL_ERROR_HEIGHT +
-    outputLines * TOOL_BLOCK_LINE_HEIGHT +
     (scriptLines > 0 || calls.length > 0 || outputLines > 0 ? CODEMODE_WELL_CHROME_HEIGHT : 0)
   );
 }

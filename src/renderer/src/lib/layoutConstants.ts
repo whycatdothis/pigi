@@ -16,8 +16,10 @@ export const CUSTOM_MESSAGE_MAX_HEIGHT = 200;
 export const TOOL_BLOCK_BODY_MAX_HEIGHT = 100;
 export const TOOL_BLOCK_BODY_MIN_HEIGHT_LARGE = 120;
 export const TOOL_BLOCK_BODY_MAX_HEIGHT_LARGE = 300;
-/** How much of a codemode script stays in view; its tail is what produced the output. */
-export const CODEMODE_SCRIPT_MAX_HEIGHT = 200;
+/** How much of a codemode script or its output stays in view. Both keep their
+ *  tail: the end of the script is what ran last, the end of the output is the
+ *  answer. */
+export const CODEMODE_WELL_MAX_HEIGHT = 200;
 /** Line height (px) of monospace body rows; the heights above are multiples of it. */
 export const TOOL_BLOCK_LINE_HEIGHT = 20;
 

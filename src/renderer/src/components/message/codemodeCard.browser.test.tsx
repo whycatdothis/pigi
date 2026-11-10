@@ -110,3 +110,17 @@ test('a short script with one call is estimated without the clamp chrome', async
   expect(estimate).toBeGreaterThanOrEqual(actual);
   expect(estimate - actual).toBeLessThanOrEqual(24);
 });
+
+test('a long output clamps in its well instead of stretching the card', async () => {
+  const lines = Array.from({ length: 40 }, (_, index) => `line ${index}`);
+  const { actual, estimate } = await measuredCard(
+    codemodeNode({
+      output: ['Script completed\nWall time 0.3 seconds\nOutput:\n', lines.join('\n')].join(''),
+    }),
+  );
+
+  // Ten 20px rows plus the well and its Show more, not forty rows (about 800).
+  expect(actual).toBeLessThan(400);
+  expect(estimate).toBeGreaterThanOrEqual(actual);
+  expect(estimate - actual).toBeLessThanOrEqual(24);
+});
