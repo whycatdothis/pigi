@@ -18,6 +18,8 @@ import {
   createAgentSessionFromServices,
   createAgentSessionRuntime,
   createCodemodeExtension,
+  createMcpExtension,
+  createToolSearchExtension,
   type CreateAgentSessionRuntimeFactory,
   createAgentSessionServices,
   getAgentDir,
@@ -274,9 +276,25 @@ function createServicesForCwd(cwd: string): Promise<AgentSessionServices> {
         resourceLoaderOptions: {
           appendSystemPromptOverride: (base) => [...base, PIGI_SYSTEM_PROMPT],
           additionalSkillPaths: [BUNDLED_SKILLS_DIRECTORY],
-          // The SDK registers `codemode` as a built-in extension only in its
-          // own CLI; an SDK host adds it itself.
-          extensionFactories: [createCodemodeExtension()],
+          // The SDK registers these as built-in extensions only in its own CLI;
+          // an SDK host adds them itself. Same entries as the CLI's, so
+          // `-builtin:<name>` in the shared settings and an extension that
+          // replaces one behave the same in both.
+          extensionFactories: [
+            {
+              name: 'codemode',
+              factory: createCodemodeExtension(),
+              replaceable: true,
+              builtin: true,
+            },
+            {
+              name: 'tool-search',
+              factory: createToolSearchExtension(),
+              replaceable: true,
+              builtin: true,
+            },
+            { name: 'mcp', factory: createMcpExtension(), replaceable: true, builtin: true },
+          ],
         },
       });
     } finally {

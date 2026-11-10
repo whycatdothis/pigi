@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- MCP servers configured in `mcp.json` now load in every session, as 0.6.0 promised; 0.6.0 never connected them. `-builtin:mcp` in pi's `extensions` setting turns MCP off, as in the pi CLI
+
 ## [0.6.0] - 2026-11-10
 
 ### Added
