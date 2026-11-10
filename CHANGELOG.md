@@ -4,7 +4,7 @@
 
 ### Added
 
-- codemode: the agent can run one JavaScript script that calls several tools at once, or filters a large result before it reaches the model. The card shows the script, the calls it made and what it printed. It is on by default — added to whatever tools the settings select, even a list that never names it — and adds up to about 3000 tokens of tool declarations to every request. To turn it off, add `-codemode` to _Default tools_ in Settings → Advanced.
+- codemode: the agent can run one JavaScript script that calls several tools at once, or filters a large result before it reaches the model. The card shows the script, the calls it made and what it printed. It is on by default: added to whatever tools the settings select, even a list that never names it, and written into pi's `defaultTools` as `+codemode` the first time the app loads the settings so the Tools row shows it. It adds up to about 3000 tokens of tool declarations to every request; to turn it off, list `-codemode` in _Default tools_ under Settings → Advanced.
 - Prompt cache: when pi refreshes the prompt cache in the background during a long tool run, the transcript shows a small `Cache warmed` notice where it happened, with a `?` that explains what the refresh bought — the notices are stored in the session, so they come back when the session is reopened
 
 ### Changed

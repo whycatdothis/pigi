@@ -286,6 +286,18 @@ export function codemodeToolModifiers(
   return entries.includes('-codemode') ? undefined : ['+codemode'];
 }
 
+/**
+ * The `defaultTools` entries to write so the list names codemode: the app adds
+ * `+codemode` to every session, and recording it in the settings keeps that out
+ * of the invisible-behaviour category. Nothing to write once the list mentions
+ * codemode — including a `-codemode`, which is the user turning it off.
+ */
+export function recordCodemode(defaultTools: PiSettingValue | undefined): string[] | undefined {
+  const entries = Array.isArray(defaultTools) ? defaultTools : [];
+  const names = entries.map((entry) => entry.replace(/^[+-]/, ''));
+  return names.includes('codemode') ? undefined : [...entries, '+codemode'];
+}
+
 export function isPiSettingValueValid(field: PiSettingField, value: PiSettingValue): boolean {
   switch (field.type) {
     case 'boolean':

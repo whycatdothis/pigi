@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   codemodeToolModifiers,
   findPiSettingField,
+  recordCodemode,
   isPiSettingValueValid,
   setPiSettingValue,
   type PiSettingValue,
@@ -104,6 +105,21 @@ describe('setPiSettingValue', () => {
 
     expect(() => setPiSettingValue(target, 'compaction.reserveTokens', undefined)).not.toThrow();
     expect(target).toEqual({});
+  });
+});
+
+describe('recordCodemode', () => {
+  it('writes +codemode when the list never mentions it', () => {
+    expect(recordCodemode(undefined)).toEqual(['+codemode']);
+    expect(recordCodemode([])).toEqual(['+codemode']);
+    expect(recordCodemode(['-bash'])).toEqual(['-bash', '+codemode']);
+    expect(recordCodemode(['read', 'bash'])).toEqual(['read', 'bash', '+codemode']);
+  });
+
+  it('leaves a list that already names codemode alone', () => {
+    expect(recordCodemode(['+codemode'])).toBeUndefined();
+    expect(recordCodemode(['read', 'codemode'])).toBeUndefined();
+    expect(recordCodemode(['-codemode'])).toBeUndefined();
   });
 });
 

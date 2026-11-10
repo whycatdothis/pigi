@@ -29,7 +29,8 @@ import {
   type EditToolInput,
   type ExtensionUIContext,
 } from '@earendil-works/pi-coding-agent';
-import { codemodeToolModifiers } from '../../shared/piSettings';
+import { codemodeToolModifiers, recordCodemode } from '../../shared/piSettings';
+import { writePiSettingsDocument } from './piSettingsWrite';
 import type {
   AuthProviderInfo,
   CreateSessionOptions,
@@ -219,12 +220,36 @@ function enqueueServiceCreation<T>(task: () => Promise<T>): Promise<T> {
   return queuedTask;
 }
 
+/**
+ * The app adds codemode to every session, so the first thing that reads the
+ * settings writes that addition into the global file: the Tools row then shows
+ * `+codemode` instead of an empty field whose behaviour nobody can see. Users who
+ * wrote `-codemode` keep their decision, and a settings file that cannot be
+ * written still gets codemode from `codemodeToolModifiers()`.
+ */
+async function recordCodemodeInSettings(
+  settingsManager: SettingsManager,
+  agentDir: string,
+): Promise<void> {
+  const entries = recordCodemode(settingsManager.getSettings().defaultTools);
+  if (!entries) return;
+  try {
+    await writePiSettingsDocument(join(agentDir, 'settings.json'), [
+      { field: 'defaultTools', value: entries },
+    ]);
+    await settingsManager.reload();
+  } catch (error) {
+    console.error('Failed to record the codemode default in pi settings:', error);
+  }
+}
+
 function createServicesForCwd(cwd: string): Promise<AgentSessionServices> {
   return enqueueServiceCreation(async () => {
     const previousCwd = process.cwd();
     try {
       const agentDir = getAgentDir();
       const settingsManager = SettingsManager.create(cwd, agentDir);
+      await recordCodemodeInSettings(settingsManager, agentDir);
 
       // Some Pi extensions read process.cwd() while they register tools. Match the
       // Pi SDK cwd option during service construction so extension-local tools bind
