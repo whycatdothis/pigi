@@ -12,7 +12,11 @@ const WINDOWS_PLATFORM = 'win32';
  * must match the terminal goes here, resolved from the interactive login shell.
  */
 export const DO_NOT_TRACK_ENV = 'DO_NOT_TRACK';
-const SHELL_ENV_ALLOWLIST = ['PI_SUBAGENT_PI_BINARY', DO_NOT_TRACK_ENV] as const;
+const SHELL_ENV_ALLOWLIST = [
+  'PI_SUBAGENT_PI_BINARY',
+  'PI_CURSOR_SETTING_SOURCES',
+  DO_NOT_TRACK_ENV,
+] as const;
 
 let resolved = false;
 

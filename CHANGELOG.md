@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- `PI_CURSOR_SETTING_SOURCES` set in your shell config now takes effect when pigi is launched from Finder or the Dock, as it does in the pi CLI
+
 ## [0.6.1] - 2026-11-10
 
 ### Fixed
