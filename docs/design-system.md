@@ -156,6 +156,23 @@ sides, since it separates sections too.
 Fixed chrome, deliberately not scaling: the 25px hover action band, the 4px base
 row gap, `pt-6`/`pb-2` on a user message.
 
+## Text-bound boxes follow the text size
+
+The root font size never moves, so Tailwind's `--spacing` (0.25rem) keeps the
+layout fixed at every text size. A box that only exists to hold text — a
+sidebar row, a message bubble, the composer — puts `follows-text-size` on its
+root instead. The utility (`main.css`) redefines `--spacing` as
+`0.25rem × --app-font-ui-scale`, and every spacing utility reads `var(--spacing)`
+where it is used, so `h-8`, `p-2`, `size-4` and `leading-6` inside the box all
+grow with the text; nothing at the call site changes, and at the default size
+the box is pixel-identical. Arbitrary `[Npx]` values and the semantic px tokens
+stay fixed.
+
+Put it on the box, not on a layout container: panel widths, gutters between
+panels, the title bar (aligned with the native traffic lights) and section gaps
+stay fixed. Changing the root font size instead would scale all of those and
+turn the text-size setting into a second copy of View → Zoom.
+
 ## Corners are superellipses
 
 `designTokens.css` declares `corner-shape: superellipse(1.5)` for every rounded

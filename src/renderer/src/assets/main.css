@@ -9,6 +9,13 @@
    invalidates every font and re-lays out the whole document on window resize. */
 @source not inline('container');
 
+/* Text-bound boxes (rows, bubbles, the composer) put this on their root so
+   every spacing utility inside, plus `leading-*`, grows with the UI text size.
+   Layout around them keeps the fixed root `--spacing`. */
+@utility follows-text-size {
+  --spacing: calc(0.25rem * var(--app-font-ui-scale, 1));
+}
+
 /* Focus rings only for keyboard navigation; see lib/focusModality.ts. */
 @custom-variant focus-visible (&:focus-visible:not([data-pointer-focus]));
 

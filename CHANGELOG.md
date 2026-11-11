@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- A larger or smaller UI text size now resizes sidebar rows, message bubbles and the composer with the text, so icons, row heights and padding keep their proportions instead of the text crowding a fixed box
+
 ### Fixed
 
 - `PI_CURSOR_SETTING_SOURCES` set in your shell config now takes effect when pigi is launched from Finder or the Dock, as it does in the pi CLI
