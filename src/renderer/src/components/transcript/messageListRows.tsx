@@ -207,7 +207,7 @@ function AssistantBubble({
 
         {node.errorMessage && (
           <div
-            className="w-fit rounded-surface bg-destructive/10 px-3 py-2 text-ui text-destructive"
+            className="w-fit max-w-full rounded-surface bg-destructive/10 px-2.5 py-1.5 text-ui whitespace-pre-wrap text-destructive wrap-anywhere"
             style={{ marginTop: 'var(--message-kind-change-spacing)' }}
           >
             {node.errorMessage}

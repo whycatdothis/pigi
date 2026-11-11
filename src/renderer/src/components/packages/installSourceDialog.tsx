@@ -133,7 +133,7 @@ export function InstallSourceDialog({
         <DialogHeader>
           <DialogTitle className="text-body">Install a package</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-2">
+        <div className="flex min-w-0 flex-col gap-2">
           <div className="flex h-9 items-center gap-1 rounded-control border border-input pr-1 pl-2.5 transition-colors has-[input[aria-invalid=true]]:border-destructive">
             <input
               ref={fieldRef}

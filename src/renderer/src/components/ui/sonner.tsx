@@ -16,6 +16,15 @@ function Toaster({ ...props }: ToasterProps): React.JSX.Element {
       className="toaster group"
       position="bottom-right"
       gap={8}
+      toastOptions={{
+        // !important: sonner pins an expanded toast to the height it measured at mount (unlayered CSS).
+        classNames: {
+          toast: 'group/toast hover:h-auto!',
+          content: 'group-hover/toast:max-h-[60vh] group-hover/toast:overflow-y-auto',
+          title: 'line-clamp-3 group-hover/toast:line-clamp-none',
+          description: 'line-clamp-3 group-hover/toast:line-clamp-none',
+        },
+      }}
       icons={{
         success: <IconCircleCheck className="size-4" />,
         info: <IconInfoCircle className="size-4" />,
