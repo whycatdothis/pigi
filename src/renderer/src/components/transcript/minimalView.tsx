@@ -21,7 +21,13 @@ import {
 import MarkdownMessage from '../message/markdownMessage';
 import ToolBlock from '../message/ToolBlock';
 import ThinkingBlock from '../message/thinkingBlock';
-import { MessageToolbar, RunEndStamp, SystemBubble, UserBubble } from '../message/messageBubbles';
+import {
+  AssistantError,
+  MessageToolbar,
+  RunEndStamp,
+  SystemBubble,
+  UserBubble,
+} from '../message/messageBubbles';
 import { getToolCommandParts } from '../../lib/toolDisplay';
 import ShimmerText from '../message/shimmerText';
 import { cn } from '../../lib/utils';
@@ -468,14 +474,7 @@ function AssistantText({
       data-testid={testId}
     >
       {node.text.length > 0 && <MarkdownMessage text={node.text} isStreaming={node.isStreaming} />}
-      {node.errorMessage && (
-        <div
-          className="w-fit max-w-full rounded-surface bg-destructive/10 px-2.5 py-1.5 text-ui whitespace-pre-wrap text-destructive wrap-anywhere"
-          style={{ marginTop: 'var(--message-kind-change-spacing)' }}
-        >
-          {node.errorMessage}
-        </div>
-      )}
+      {node.errorMessage && <AssistantError message={node.errorMessage} />}
     </div>
   );
 }

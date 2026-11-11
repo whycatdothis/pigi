@@ -5,7 +5,7 @@
 ### Fixed
 
 - `PI_CURSOR_SETTING_SOURCES` set in your shell config now takes effect when pigi is launched from Finder or the Dock, as it does in the pi CLI
-- A long error under an assistant reply now wraps inside its box and keeps its line breaks instead of running off the side, and the box is more compact
+- A long error under an assistant reply now wraps inside its box and keeps its line breaks instead of running off the side; the box matches your message bubbles in width and shape, and folds past seven lines behind Show more
 - A long URL or path in _Install a package_ no longer stretches the dialog past its edge; the preview truncates it instead
 - A long toast shows its first three lines; hover it to read the rest
 

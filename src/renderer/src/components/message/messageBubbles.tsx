@@ -22,7 +22,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import MarkdownMessage from './markdownMessage';
 import OverflowClamp from './overflowClamp';
 import { highlightMatches, useHighlightTextNodes } from '../../lib/highlightMatches';
-import { CUSTOM_MESSAGE_MAX_HEIGHT, MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
+import {
+  CUSTOM_MESSAGE_MAX_HEIGHT,
+  ERROR_MESSAGE_MAX_HEIGHT,
+  MESSAGE_CONTENT_MAX_WIDTH,
+} from '../../lib/layoutConstants';
 import ShimmerText from './shimmerText';
 import { parseSkillBlock, type ParsedSkillBlock } from '../../lib/skillBlock';
 import {
@@ -576,6 +580,22 @@ function CustomMessageCard({
           {node.imageSources && <MessageAttachments imageSources={node.imageSources} />}
         </div>
       </div>
+    </div>
+  );
+}
+
+export function AssistantError({ message }: { message: string }): React.JSX.Element {
+  return (
+    <div
+      className="flex w-fit max-w-[85%] flex-col overflow-clip rounded-surface-lg bg-destructive/10 px-3.5 py-2 text-body leading-6 text-destructive"
+      style={{ marginTop: 'var(--message-kind-change-spacing)' }}
+    >
+      <OverflowClamp
+        maxHeight={ERROR_MESSAGE_MAX_HEIGHT}
+        className="whitespace-pre-wrap wrap-anywhere"
+      >
+        {message}
+      </OverflowClamp>
     </div>
   );
 }

@@ -10,7 +10,12 @@ import ToolBlock from '../message/ToolBlock';
 import MarkdownMessage from '../message/markdownMessage';
 import { useHighlightTextNodes } from '../../lib/highlightMatches';
 import ThinkingBlock from '../message/thinkingBlock';
-import { MessageToolbar, UserBubble, SystemBubble } from '../message/messageBubbles';
+import {
+  AssistantError,
+  MessageToolbar,
+  UserBubble,
+  SystemBubble,
+} from '../message/messageBubbles';
 import CollapsedReadGroup from '../message/CollapsedReadGroup';
 
 // Memoized so that virtualizer-driven re-renders (e.g. while the bottom terminal
@@ -205,14 +210,7 @@ function AssistantBubble({
           </div>
         )}
 
-        {node.errorMessage && (
-          <div
-            className="w-fit max-w-full rounded-surface bg-destructive/10 px-2.5 py-1.5 text-ui whitespace-pre-wrap text-destructive wrap-anywhere"
-            style={{ marginTop: 'var(--message-kind-change-spacing)' }}
-          >
-            {node.errorMessage}
-          </div>
-        )}
+        {node.errorMessage && <AssistantError message={node.errorMessage} />}
 
         {showActions && (
           <MessageToolbar node={node} runEndedAt={runEndedAt} runDurationMs={runDurationMs} />
