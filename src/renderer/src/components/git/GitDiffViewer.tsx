@@ -129,9 +129,8 @@ export default function GitDiffViewer({
   const sourceKind = source.kind;
   const sourceRef =
     source.kind === 'base' ? source.base : source.kind === 'commit' ? source.commit : '';
-  // What an open file comment would be saved to. Shortcuts can switch the
-  // session, project or diff without a click outside the editor, so a change
-  // here closes it instead of saving the comment somewhere else.
+  // What an open file comment would be saved to. A change here closes the
+  // editor, which saves a typed comment to the target it was written for.
   const commentTarget = `${sessionPath}\0${projectPath}\0${sourceKind}\0${sourceRef}\0${file.path}`;
   const [commentingTarget, setCommentingTarget] = useState<string | null>(null);
   if (commentingTarget !== null && commentingTarget !== commentTarget) {
@@ -321,7 +320,7 @@ export default function GitDiffViewer({
                   onClick={() => setCommentingTarget(commentTarget)}
                   className={cn(
                     'flex size-6 shrink-0 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                    // The open editor closes on any press outside it; letting
+                    // An unchanged editor closes on any press outside it; letting
                     // this one fall through keeps a second click from reopening it.
                     commentingFile && 'pointer-events-none bg-accent text-foreground',
                   )}
@@ -423,12 +422,15 @@ export default function GitDiffViewer({
             initialComment=""
             onSave={saveFileComment}
             onCancel={() => setCommentingTarget(null)}
+            keepOpenOnOutsidePress
             className={cn(FLOATING_QUOTE_EDITOR_CLASS_NAME, 'top-2 right-3')}
             style={{ width: FLOATING_QUOTE_EDITOR_WIDTH_PX }}
           />
         )}
         {sessionPath && (
           <QuoteSelectionPopover
+            // Another file or session remounts it, which saves an open comment.
+            key={commentTarget}
             containerRef={containerRef}
             sessionPath={sessionPath}
             formatQuoteContent={formatQuoteContent}

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { useAppStore } from '../../state/appStore';
 import { bindingMatches } from '../../hooks/useKeyboardShortcuts';
+import { saveOpenQuoteEditors } from '../../lib/openQuoteEditors';
 import { formatQuotesMessage, NO_QUOTES, type MessageQuote } from '../../lib/messageQuotes';
 import { ShortcutKbd } from '../../shortcuts/shortcutKbd';
 import { Button } from '../ui/button';
@@ -188,9 +189,9 @@ export default React.memo(function QuotePanel({
   const [sending, setSending] = useState(false);
 
   const handleSend = async (): Promise<void> => {
+    saveOpenQuoteEditors();
+    // From the store, not the render: the editors just saved into it.
     const store = useAppStore.getState();
-    // From the store, not the render: a comment being edited is saved by the
-    // pointerdown that precedes this click.
     const sentQuotes = store.quotesBySession.get(sessionPath) ?? [];
     const sentGlobalComment = store.globalCommentBySession.get(sessionPath) ?? '';
     setSending(true);

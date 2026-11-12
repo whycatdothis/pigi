@@ -41,6 +41,11 @@ interface PopoverState {
   text: string;
   range: Range;
   anchor: SelectionAnchor;
+  /**
+   * Taken when the selection is measured: an open editor can outlive the rows
+   * it quotes (the diff switches file or layout), and the range is dead then.
+   */
+  content: QuoteContent;
 }
 
 /** The caret box at the selection's focus, or null when the focus is between elements. */
@@ -120,8 +125,16 @@ function sameAnchor(first: SelectionAnchor, second: SelectionAnchor): boolean {
   );
 }
 
-/** The current selection when it lies inside the container and is at least partly in view. */
-function measureSelection(container: HTMLElement): PopoverState | null {
+/**
+ * The current selection when it lies inside the container, is at least partly
+ * in view, and can be turned into a quote. One that cannot (for example, a
+ * range that starts in the file viewer's truncation notice) must not offer a
+ * button: saving it would silently discard the comment.
+ */
+function measureSelection(
+  container: HTMLElement,
+  formatQuoteContent: (selection: { text: string; range: Range }) => QuoteContent | null,
+): PopoverState | null {
   const selection = window.getSelection();
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
     return null;
@@ -137,7 +150,11 @@ function measureSelection(container: HTMLElement): PopoverState | null {
   const backward =
     selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
   const anchor = measureAnchor(container, range, backward);
-  return anchor ? { mode: 'button', text, range, anchor } : null;
+  if (!anchor) {
+    return null;
+  }
+  const content = formatQuoteContent({ text, range });
+  return content ? { mode: 'button', text, range, anchor, content } : null;
 }
 
 /**
@@ -222,11 +239,8 @@ export default function QuoteSelectionPopover({
         const anchor = measureAnchor(container, previous.range, previous.anchor.backward, true);
         return anchor && !sameAnchor(anchor, previous.anchor) ? { ...previous, anchor } : previous;
       }
-      const next = measureSelection(container);
-      // Selections that cannot be turned into a quote (for example, a range
-      // that starts in the file viewer's truncation notice) must not offer a
-      // button: saving it would silently discard the comment.
-      if (!next || !formatQuoteContent({ text: next.text, range: next.range })) {
+      const next = measureSelection(container, formatQuoteContent);
+      if (!next) {
         return null;
       }
       return previous && next.text === previous.text && sameAnchor(next.anchor, previous.anchor)
@@ -347,15 +361,12 @@ export default function QuoteSelectionPopover({
   const handleSave = useCallback(
     (comment: string) => {
       if (state) {
-        const content = formatQuoteContent({ text: state.text, range: state.range });
-        if (content) {
-          useAppStore.getState().addQuote(sessionPath, content, comment);
-        }
+        useAppStore.getState().addQuote(sessionPath, state.content, comment);
       }
       window.getSelection()?.removeAllRanges();
       setState(null);
     },
-    [formatQuoteContent, sessionPath, state],
+    [sessionPath, state],
   );
 
   const handleCancel = useCallback(() => setState(null), []);
@@ -386,6 +397,7 @@ export default function QuoteSelectionPopover({
       initialComment=""
       onSave={handleSave}
       onCancel={handleCancel}
+      keepOpenOnOutsidePress
       className={FLOATING_QUOTE_EDITOR_CLASS_NAME}
       style={{
         ...placementStyle(state.anchor, FLOATING_QUOTE_EDITOR_WIDTH_PX, EDITOR_ESTIMATED_HEIGHT_PX),

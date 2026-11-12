@@ -91,6 +91,16 @@ describe('QuotePanel send shortcut', () => {
     expect(onSend).toHaveBeenCalledWith('Comments on quotes:\n1. > quoted');
   });
 
+  it('sends a comment still open in an editor', () => {
+    const onSend = renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Add a comment...' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Quote comment' }), {
+      target: { value: 'Typed, not saved.' },
+    });
+    fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
+    expect(onSend).toHaveBeenCalledWith('Comments on quotes:\n1. > quoted\nTyped, not saved.');
+  });
+
   it('ignores the shortcut while the sidebar is closed or on a plain Enter', () => {
     const onSend = renderPanel();
     fireEvent.keyDown(window, { key: 'Enter' });

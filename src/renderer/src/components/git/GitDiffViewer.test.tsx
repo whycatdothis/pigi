@@ -65,6 +65,8 @@ describe('GitDiffViewer file comment', () => {
       }),
     ]);
     expect(screen.queryByRole('textbox', { name: 'Quote comment' })).toBeNull();
+    cleanup();
+    expect(useAppStore.getState().quotesBySession.get('/s/one.jsonl')).toHaveLength(1);
   });
 
   it('quotes another project with an absolute path, so the session can still open it', () => {
@@ -80,6 +82,60 @@ describe('GitDiffViewer file comment', () => {
         comment: 'Move this helper.',
       }),
     ]);
+  });
+
+  it('keeps a typed comment open on a press outside, and closes an empty one', () => {
+    render(viewer('/s/one.jsonl', { kind: 'unstaged' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Comment on file' }));
+    const editor = screen.getByRole('textbox', { name: 'Quote comment' });
+    fireEvent.change(editor, { target: { value: 'Not done yet' } });
+    fireEvent.pointerDown(document.body);
+
+    expect(screen.getByRole('textbox', { name: 'Quote comment' })).toHaveValue('Not done yet');
+    expect(useAppStore.getState().quotesBySession.get('/s/one.jsonl')).toBeUndefined();
+
+    fireEvent.change(editor, { target: { value: '' } });
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('textbox', { name: 'Quote comment' })).toBeNull();
+  });
+
+  it('closes an editor left open on Escape in its view, before it reaches the window', () => {
+    const windowEscape = vi.fn();
+    window.addEventListener('keydown', windowEscape);
+    render(viewer('/s/one.jsonl', { kind: 'unstaged' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Comment on file' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Quote comment' }), {
+      target: { value: 'Not done yet' },
+    });
+    const diff = screen.getByTestId('git-diff-viewer');
+    fireEvent.pointerDown(diff);
+    // A menu or dialog elsewhere keeps its Escape.
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.getByRole('textbox', { name: 'Quote comment' })).toBeInTheDocument();
+    expect(windowEscape).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(diff, { key: 'Escape' });
+    window.removeEventListener('keydown', windowEscape);
+    expect(screen.queryByRole('textbox', { name: 'Quote comment' })).toBeNull();
+    expect(windowEscape).toHaveBeenCalledTimes(1);
+  });
+
+  it('saves a typed comment to the session it was written for when the session changes', () => {
+    const { rerender } = render(viewer('/s/one.jsonl', { kind: 'unstaged' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Comment on file' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Quote comment' }), {
+      target: { value: 'Not done yet' },
+    });
+    rerender(viewer('/s/two.jsonl', { kind: 'unstaged' }));
+
+    expect(screen.queryByRole('textbox', { name: 'Quote comment' })).toBeNull();
+    expect(useAppStore.getState().quotesBySession.get('/s/one.jsonl')).toEqual([
+      expect.objectContaining({
+        reference: '@src/app.ts, unstaged diff',
+        comment: 'Not done yet',
+      }),
+    ]);
+    expect(useAppStore.getState().quotesBySession.get('/s/two.jsonl')).toBeUndefined();
   });
 
   it('closes the editor when the session or diff changes under it', () => {

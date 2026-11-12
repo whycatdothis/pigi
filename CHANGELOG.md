@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- A quote or file comment you have started typing stays open where it is when you click elsewhere, instead of being saved; Enter or Save saves it, Escape discards it. Switching session or file saves it to the session and file it was written for, and Send in the quote panel includes it
+- The Git tab remembers whether you last chose Split or Unified diffs, across projects and restarts
+
 ## [0.6.4] - 2026-11-12
 
 ### Fixed

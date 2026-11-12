@@ -58,6 +58,8 @@ export default React.memo(function RightSidebar({
       </div>
       <TabsContent value={RIGHT_SIDEBAR_TABS.quotes} className="min-h-0">
         <QuotePanel
+          // Another session remounts it, so an open comment saves to the session it was for.
+          key={sessionPath}
           sessionPath={sessionPath}
           onSend={onSendQuotes}
           sendShortcut={sendQuotesShortcut}

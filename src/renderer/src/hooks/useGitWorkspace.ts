@@ -22,6 +22,12 @@ export type GitDiffLayout = 'unified' | 'split';
 /** The collapsible groups of the Git status and Commits views. */
 export type GitSection = 'staged' | 'unstaged' | 'branchCommits' | 'baseCommits';
 
+const DIFF_LAYOUT_STORAGE_KEY = 'pigi.gitDiffLayout';
+
+function loadDiffLayout(): GitDiffLayout {
+  return localStorage.getItem(DIFF_LAYOUT_STORAGE_KEY) === 'split' ? 'split' : 'unified';
+}
+
 /** A file and the list it was picked from: the comparison, a Git status group or one commit. */
 export type GitSelection =
   | { list: 'files' | 'staged' | 'unstaged'; path: string }
@@ -142,7 +148,11 @@ export function useGitWorkspace({
   // show, say, "No commits since HEAD" in the Commits view.
   const scopeKey = `${scopeKind} ${scopeBase ?? ''}`;
   const summary = summaries.get(scopeKey) ?? null;
-  const [layout, setLayout] = useState<GitDiffLayout>('unified');
+  const [layout, setLayoutState] = useState(loadDiffLayout);
+  const setLayout = useCallback((next: GitDiffLayout) => {
+    localStorage.setItem(DIFF_LAYOUT_STORAGE_KEY, next);
+    setLayoutState(next);
+  }, []);
   const [openCommit, setOpenCommit] = useState<string | null>(null);
   const [commitFiles, setCommitFiles] = useState<ReadonlyMap<string, GitCommitFiles>>(
     () => new Map(),
@@ -443,6 +453,7 @@ export function useGitWorkspace({
       selectMode,
       selectBase,
       resetBase,
+      setLayout,
       toggleCommit,
     ],
   );

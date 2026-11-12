@@ -334,6 +334,8 @@ export default function FileViewer({
         <ContainerFind containerRef={containerRef} active placeholder="Find in file…" />
         {sessionPath && (
           <QuoteSelectionPopover
+            // Another session remounts it, so an open comment saves to the session it was for.
+            key={sessionPath}
             containerRef={containerRef}
             sessionPath={sessionPath}
             formatQuoteContent={formatQuoteContent}
