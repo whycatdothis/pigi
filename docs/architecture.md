@@ -785,6 +785,15 @@ Rules that the code depends on:
   serves every content image through `ZoomableImage`: markdown and tool-output
   images, message and composer attachments, and the Files tab's image preview.
   An image inside a markdown link is not zoomable; the click is the link's.
+  What the overlay fits to the window is a copy of the block that was clicked, so
+  a drawing the transcript had shrunk would open at that same unreadable size. An
+  SVG is therefore shown at the size mermaid laid it out at — up to the
+  overlay's zoom limit — from the moment the overlay opens, and panned from
+  there. Shown at the fitted size first and resized after, the drawing arrives
+  small and then changes size, a second event where the reader asked for one. It
+  also follows the window when the window changes, until the reader zooms the
+  drawing themselves. Images keep the library's fit, which enlarges them from
+  their own pixels already.
 - **A diagram is drawn in mermaid's own theme.** The light window gets mermaid's
   `default` and the dark one its `dark`; no theme variable is overridden, so the
   drawing looks like the diagram it is rather than like the app's chrome around
