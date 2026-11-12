@@ -162,110 +162,78 @@ function parseColor(value: string | null, fallback: string): OklchColor {
 
 /**
  * An accent does two different jobs, and one colour cannot do both in dark
- * mode. Filled surfaces carry an inset label, so they have to stay dark enough
- * for white text. Accent-coloured text, icons and rails sit on the page, so
- * they have to stay light enough to read against a dark background. Those two
- * constraints point in opposite directions once the background is near black,
- * which is why GitHub ships `accent.emphasis` and `accent.fg` as separate
- * values. We do the same: one band per role.
+ * mode. A filled button carries a label, so it stays dark enough for white
+ * text; accent-coloured text, icons and rings sit on the page, so on a dark
+ * page they stay light enough to read. GitHub ships `accent.emphasis` and
+ * `accent.fg` for the same reason. On a light page both are one colour.
  *
- * Chroma stays below the point where a hue clips out of sRGB on either end. No
- * floor: Graphite is meant to be grey, and a floor tinted it pink.
+ * Accents are scaled, not walked to a fixed contrast: walking until white read
+ * at 4.5:1 turned Yellow mustard and Pink raspberry. Chroma stays below the
+ * point where a hue clips out of sRGB; no floor, since Graphite is meant to be
+ * grey.
  */
 const WHITE = requireColor('#ffffff');
 const NEAR_BLACK = requireColor('#0b0b0b');
 
-type AccentRole = 'fill' | 'text';
-
-const ACCENT_BANDS: Record<ColorMode, Record<AccentRole, readonly [number, number]>> = {
-  light: { fill: [0.45, 0.58], text: [0.45, 0.58] },
-  dark: { fill: [0.5, 0.6], text: [0.66, 0.8] },
-};
+/** Fill lightness scale: Yellow 0.86 → 0.80 on a light page; further on a dark one, where a bright fill glares. */
+const ACCENT_FILL_RATIO: Record<ColorMode, number> = { light: 0.93, dark: 0.85 };
 const ACCENT_CHROMA_MAX = 0.22;
+/** Where dark-mode text, icons and rings sit, light enough to read on near-black. */
+const DARK_TEXT_BAND = [0.66, 0.8] as const;
+/** The non-text floor: labels on fills, fills against the page, accent text. */
+const NON_TEXT_CONTRAST = 3;
+/** Below this white is unreadable (Yellow, 1.9:1), so the label goes near-black. */
+const DARK_LABEL_BELOW = 2.5;
+/**
+ * A near-black label carries a light fill on its own, so the fill only has to
+ * show as a shape: Yellow on white is 1.9:1, a picked #ffffff would vanish.
+ */
+const LIGHT_FILL_PAGE_CONTRAST = 1.5;
 
-/** Clamps an accent into its role's band, then steps it until the label clears 4.5:1. */
-function fitAccent(color: OklchColor, mode: ColorMode, role: AccentRole): OklchColor {
-  const [minLightness, maxLightness] = ACCENT_BANDS[mode][role];
-  const fitted = {
-    ...color,
-    lightness: Math.min(maxLightness, Math.max(minLightness, color.lightness)),
-    chroma: Math.min(ACCENT_CHROMA_MAX, color.chroma),
-  };
-  if (role === 'text') {
-    return fitted;
-  }
-  // A filled button always carries white text, so walk the lightness down until
-  // that holds. 40 steps of 0.005 spans the band; the loop is a guarantee, not
-  // a tuning knob. The target sits a hair above 4.5 so rounding never lands a
-  // theme exactly on the floor.
-  for (let step = 0; step < 40; step += 1) {
-    if (contrastRatio(WHITE, fitted) >= 4.6) {
-      return fitted;
-    }
-    fitted.lightness -= 0.005;
-  }
-  return fitted;
+function labelFor(fill: OklchColor): OklchColor {
+  return contrastRatio(WHITE, fill) >= DARK_LABEL_BELOW ? WHITE : NEAR_BLACK;
 }
 
 /**
- * A filled accent and the label that reads on it.
- *
- * `fitAccent` walks a fill down until white text reads on it, but the fill then
- * has to keep 3:1 against the page, and on a mid-tone background those two rules
- * cannot both hold: the fill is pushed away from the page, ends up light, and
- * white text on it is 1.73:1. So the label is chosen first (white while it reads,
- * near-black when it does not) and the fill is then walked in the direction that
- * keeps that label legible. The usual dark fill on a light page is untouched.
+ * The fill is pushed off the page first, then its label is chosen and wins: on
+ * a mid-tone page both cannot hold, and a label that cannot be read is worse
+ * than a fill that sits close to the page. A fill that starts too light for
+ * white keeps its near-black label, so a grey page cannot walk Yellow to
+ * mustard under white.
  */
-function fitFillWithLabel(
-  fill: OklchColor,
+function fitFill(
+  accent: OklchColor,
+  mode: ColorMode,
   background: OklchColor,
 ): { fill: OklchColor; label: OklchColor } {
-  const separated = ensureContrast(fill, background, 3);
-  const label =
-    contrastRatio(WHITE, separated) >= contrastRatio(NEAR_BLACK, separated) ? WHITE : NEAR_BLACK;
-  const direction = label === WHITE ? -0.005 : 0.005;
-  const fitted = { ...separated };
-  for (let step = 0; step < 40 && contrastRatio(label, fitted) < 4.6; step += 1) {
-    fitted.lightness = Math.min(1, Math.max(0, fitted.lightness + direction));
-  }
-  return { fill: fitted, label };
+  const scaled = { ...accent, lightness: accent.lightness * ACCENT_FILL_RATIO[mode] };
+  const darkLabel = labelFor(scaled) === NEAR_BLACK;
+  const separated = ensureContrast(
+    scaled,
+    background,
+    darkLabel ? LIGHT_FILL_PAGE_CONTRAST : NON_TEXT_CONTRAST,
+  );
+  const label = darkLabel ? NEAR_BLACK : labelFor(separated);
+  return { fill: ensureContrast(separated, label, NON_TEXT_CONTRAST), label };
 }
 
 /**
- * Below this white-on-accent ratio a hue would have to be darkened to carry a
- * white label (Blue, Pink, Red, Orange, Yellow, Green, Graphite). Walking it
- * down turned Yellow into mustard and Pink into raspberry, so these get one
- * colour for fill and text, darkened by a ratio instead, below the 4.5:1 text
- * floor.
+ * The fill on a light page, the dark text band on a dark one, then walked to
+ * 3:1 against the page. 4.5:1 turned Yellow brown on white, and lifting a
+ * saturated hue off a mid-grey page clips before it gets there.
  */
-const WHITE_LABEL_FLOOR = 4.5;
-/**
- * Lightness scale for such a hue's fill: Yellow 0.86 → 0.80 on a light page. A
- * dark page scales further, since a bright fill glares on near-black.
- */
-const LIGHT_HUE_FILL_RATIO: Record<ColorMode, number> = { light: 0.93, dark: 0.85 };
-
-function scaleLightHue(color: OklchColor, mode: ColorMode): OklchColor {
-  return {
-    ...color,
-    lightness: color.lightness * LIGHT_HUE_FILL_RATIO[mode],
-    chroma: Math.min(ACCENT_CHROMA_MAX, color.chroma),
-  };
-}
-
-/** The fill on a light page, the dark text band on a dark one; a page darker than it lifts it to 4.5:1. */
-function fitLightHueText(color: OklchColor, mode: ColorMode, background: OklchColor): OklchColor {
-  const [darkMin, darkMax] = ACCENT_BANDS.dark.text;
-  const fitted =
+function fitText(
+  accent: OklchColor,
+  fill: OklchColor,
+  mode: ColorMode,
+  background: OklchColor,
+): OklchColor {
+  const [darkMin, darkMax] = DARK_TEXT_BAND;
+  const text =
     mode === 'light'
-      ? scaleLightHue(color, mode)
-      : {
-          ...color,
-          lightness: Math.min(darkMax, Math.max(darkMin, color.lightness)),
-          chroma: Math.min(ACCENT_CHROMA_MAX, color.chroma),
-        };
-  return background.lightness < fitted.lightness ? ensureContrast(fitted, background, 4.5) : fitted;
+      ? fill
+      : { ...accent, lightness: Math.min(darkMax, Math.max(darkMin, accent.lightness)) };
+  return ensureContrast(text, background, NON_TEXT_CONTRAST);
 }
 
 /** The accent the user picked, before any fitting. */
@@ -385,55 +353,38 @@ export function deriveTokens(resolved: ResolvedAppearance): Record<string, strin
   // guarantees the band is lighter than the text it crosses in every theme.
   const shimmerHighlight = mixOklch(secondaryText, WHITE, SHIMMER_WHITE_MIX);
 
-  const accentBase = readAccent(slot.accent, mode);
-  // The fill only needs to separate from the page (3:1 is the non-text floor);
-  // its label is guaranteed by the band. The text accent needs the full 4.5:1,
-  // because it is read as a link, a rail or an icon. Light hues skip both
-  // floors (see WHITE_LABEL_FLOOR).
-  const isLightHue = contrastRatio(WHITE, accentBase) < WHITE_LABEL_FLOOR;
-  const fillStep = isLightHue
-    ? { fill: scaleLightHue(accentBase, mode), label: WHITE }
-    : fitFillWithLabel(fitAccent(accentBase, mode, 'fill'), background);
-  const fillAccent = fillStep.fill;
-  const fillLabel = fillStep.label;
-  const textAccent = isLightHue
-    ? fitLightHueText(accentBase, mode, background)
-    : ensureContrast(fitAccent(accentBase, mode, 'text'), background, 4.5);
-  // Light mode tints with the fill: the text accent is walked dark for 4.5:1,
-  // which turned a Yellow tint beige. A light fill barely moves luminance at
-  // 8%, so the mix grows until the tint still separates from the page.
-  const accentSubtle =
+  const picked = readAccent(slot.accent, mode);
+  const accentBase = { ...picked, chroma: Math.min(ACCENT_CHROMA_MAX, picked.chroma) };
+  const { fill: fillAccent, label: fillLabel } = fitFill(accentBase, mode, background);
+  const textAccent = fitText(accentBase, fillAccent, mode, background);
+  // Light mode tints with the fill, dark mode with the lighter text accent;
+  // either way the mix grows until the tint separates from the page. A flat 8%
+  // left a Yellow tint invisible on white and every tint invisible on near-black.
+  const [tintSource, tintContrast] =
     mode === 'light'
-      ? mixOklch(
-          background,
-          fillAccent,
-          Math.min(
-            ACCENT_SUBTLE_MAX_MIX,
-            Math.max(
-              ACCENT_SUBTLE_MIX,
-              solveMixAmount(background, fillAccent, background, ACCENT_SUBTLE_LIGHT_CONTRAST),
-            ),
-          ),
-        )
-      : mixOklch(
-          background,
-          textAccent,
-          Math.min(
-            ACCENT_SUBTLE_MAX_MIX,
-            Math.max(
-              ACCENT_SUBTLE_MIX,
-              solveMixAmount(background, textAccent, background, ACCENT_SUBTLE_DARK_CONTRAST),
-            ),
-          ),
-        );
+      ? [fillAccent, ACCENT_SUBTLE_LIGHT_CONTRAST]
+      : [textAccent, ACCENT_SUBTLE_DARK_CONTRAST];
+  const accentSubtle = mixOklch(
+    background,
+    tintSource,
+    Math.min(
+      ACCENT_SUBTLE_MAX_MIX,
+      Math.max(ACCENT_SUBTLE_MIX, solveMixAmount(background, tintSource, background, tintContrast)),
+    ),
+  );
   // Hover moves away from the page in both modes: darker on light, lighter on
   // dark. Fading the fill toward the background, the usual shortcut, would
-  // darken it in dark mode and read as pressed.
-  const hoverAccent = mixOklch(
+  // darken it in dark mode and read as pressed. A fill already at 3:1 against
+  // its label would lose it that way, so it moves away from the label instead.
+  const awayFromPage = mixOklch(
     fillAccent,
     mode === 'dark' ? WHITE : NEAR_BLACK,
     mode === 'dark' ? 0.12 : 0.1,
   );
+  const hoverAccent =
+    contrastRatio(awayFromPage, fillLabel) >= NON_TEXT_CONTRAST
+      ? awayFromPage
+      : mixOklch(fillAccent, fillLabel === WHITE ? NEAR_BLACK : WHITE, 0.1);
 
   const card = mixOklch(background, foreground, CARD_STEPS[mode]);
   const popover = card;

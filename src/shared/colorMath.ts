@@ -272,9 +272,8 @@ export function solveMaxMixAmount(
 }
 
 /**
- * Moves `color` away from `reference` along lightness until it reaches
- * `target` contrast. Used to enforce a foreground floor for user-entered
- * colors without touching their hue.
+ * Moves `color` along lightness, keeping its hue, until it reaches `target`
+ * contrast against `reference`; away from it when that end can.
  */
 export function ensureContrast(
   color: OklchColor,
@@ -285,15 +284,20 @@ export function ensureContrast(
     return color;
   }
 
-  const direction = reference.lightness >= color.lightness ? -1 : 1;
-  for (let step = 1; step <= 100; step += 1) {
-    const lightness = color.lightness + direction * (step / 100);
-    if (lightness < 0 || lightness > 1) {
-      break;
-    }
-    const candidate = withLightness(color, lightness);
-    if (contrastRatio(candidate, reference) >= target) {
-      return candidate;
+  // Away from the reference first; if that end cannot reach the target (a
+  // saturated pink lifted off mid-grey clips before 3:1, black on near-black
+  // has nowhere darker to go), cross to the other side before giving up.
+  const away = reference.lightness >= color.lightness ? -1 : 1;
+  for (const direction of [away, -away]) {
+    for (let step = 1; step <= 100; step += 1) {
+      const lightness = color.lightness + direction * (step / 100);
+      if (lightness < 0 || lightness > 1) {
+        break;
+      }
+      const candidate = withLightness(color, lightness);
+      if (contrastRatio(candidate, reference) >= target) {
+        return candidate;
+      }
     }
   }
 

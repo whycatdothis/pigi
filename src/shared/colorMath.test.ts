@@ -106,6 +106,22 @@ describe('ensureContrast', () => {
     expect(contrastRatio(darkResult, require('#0b0b0b'))).toBeGreaterThanOrEqual(6.99);
   });
 
+  it('crosses the reference when the far end cannot reach the target', () => {
+    // Black has nothing darker than near-black; a saturated pink lifted off
+    // mid-grey clips at 2.6:1. Both used to fall back to pure white or black.
+    const page = require('#0b0b0b');
+    const lifted = ensureContrast(require('#000000'), page, 3);
+    expect(contrastRatio(lifted, page)).toBeGreaterThanOrEqual(3);
+    expect(lifted.lightness).toBeLessThan(0.6);
+
+    const grey = require('#808080');
+    const pink = { lightness: 0.633, chroma: 0.215, hue: 355.5 };
+    const darkened = ensureContrast(pink, grey, 3);
+    expect(contrastRatio(darkened, grey)).toBeGreaterThanOrEqual(3);
+    expect(darkened.lightness).toBeGreaterThan(0);
+    expect(darkened.lightness).toBeLessThan(pink.lightness);
+  });
+
   it('keeps hue while moving lightness', () => {
     const source = require('#c05050');
     const result = ensureContrast(source, require('#ffffff'), 7);

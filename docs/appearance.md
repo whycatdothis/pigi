@@ -280,11 +280,9 @@ ratio)` binary searches the mix amount (16 iterations) to hit a floor
    The steps are the shipped palette expressed as mixes, so defaults are
    unchanged and custom backgrounds still get proportional surfaces.
 
-6. **Accent.** Preset → the mode's `lightOklch` / `darkOklch`. Custom hex →
-   convert to oklch, clamp `L` to `[0.50, 0.62]` (light) / `[0.68, 0.78]` (dark)
-   and `C` to `[0.08, 0.22]`, then raise `L` until `contrast(accent, bg) >= 4.5`.
-   `accentForeground` is the stronger of white and near-black against the
-   accent, so a light accent gets dark text instead of unreadable white.
+6. **Accent.** Preset → the mode's `lightOklch` / `darkOklch`; custom hex →
+   oklch. Both are then scaled into a fill and a text accent, as described under
+   [Default palette](#default-palette).
 7. **Status colors.** Four roles × three tokens (`-fg`, `-bg`, `-border`),
    derived from fixed hues (`success 145`, `warning 75`, `danger 27`, `info 250`)
    with the mode's lightness, each solved to 4.5:1 against the background.
@@ -318,49 +316,48 @@ buttons and the checked switch, because shadcn wires `primary` to
 "high-emphasis actions and brand surfaces".
 
 One accent value cannot do both of its jobs in dark mode, so there are two, the
-same way GitHub separates `accent.emphasis` from `accent.fg`:
+same way GitHub separates `accent.emphasis` from `accent.fg`. Both start from the
+picked colour, preset or hand-picked alike, and are scaled rather than walked to
+a fixed contrast: walking until white read at 4.5:1 turned Yellow mustard and
+Pink raspberry.
 
-|                                                         | Light     | Dark      | Why                                                                                                          |
-| ------------------------------------------------------- | --------- | --------- | ------------------------------------------------------------------------------------------------------------ |
-| filled surfaces (`--primary`)                           | 0.45-0.58 | 0.50-0.60 | carries a white label, so it stays dark; needs only 3:1 against the page (most presets skip this: see below) |
-| accent text, icons, rails (`--system-accent`, `--ring`) | 0.45-0.58 | 0.66-0.80 | is read on the page, so dark mode lifts it until it clears 4.5:1 (most presets skip this: see below)         |
+|                                                         | Light            | Dark                     | Then                                         |
+| ------------------------------------------------------- | ---------------- | ------------------------ | -------------------------------------------- |
+| filled surfaces (`--primary`)                           | lightness × 0.93 | lightness × 0.85         | 3:1 against the page, then 3:1 for its label |
+| accent text, icons, rings (`--system-accent`, `--ring`) | the fill         | lightness held 0.66-0.80 | walked to 3:1 against the page               |
 
-Contrast is symmetric: white text on the accent and accent text on white are the
-same number. In light mode the two roles therefore coincide. In dark mode they
-cannot — an accent light enough to read on near-black is too light for a white
-label (2.85:1 at 0.70) — which is why the fill stays put and the text accent
-lifts. Filled buttons keep a white label in both modes, so their weight does not
-change when the mode does.
+- **One ratio for every hue.** Yellow 0.86 → 0.80, Blue 0.60 → 0.56 on a light
+  page. A dark page scales further because a bright fill glares on near-black
+  (Blue 0.62 → 0.53, Purple 0.57 → 0.48, lifted back to 0.50 for 3:1 against the
+  page).
+- **Label.** White while white on the fill is at least 2.5:1; the fill is then
+  walked down to 3:1 (only Green moves, 0.659 → 0.649). Below 2.5:1 white is
+  unreadable (Yellow: 1.9:1 light, 2.4:1 dark), so the label is near-black, stays
+  near-black whatever the page, and the fill keeps its scaled colour; such a fill only has to show as a shape against
+  the page (1.5:1: Yellow on white is 1.9:1, a picked `#ffffff` is pulled to
+  `#d1d1d1`). 0.5.3 to 0.6.2 also flipped Orange, Green and Graphite; at 3:1 white
+  still reads on them and the button keeps the weight of the other accents. The
+  page floor comes first and the label floor wins: on a mid-grey page both cannot
+  hold, and an unreadable label is worse than a fill close to the page.
+- **Text.** 3:1, the non-text floor, not 4.5:1: 4.5:1 turned Yellow links brown
+  (`#a06b00`); at 3:1 they stay gold (`#c08a00`). On a light page the text is the
+  fill for every preset but Yellow. On white that gives Purple 7.2:1, Red 5.2:1,
+  Blue 4.75:1, Pink 3.9:1, Graphite 3.5:1, Orange 3.1:1, Green and Yellow 3.05:1;
+  dark-mode text clears 5.9:1 on the default page. Controls that colour their
+  text with the accent use `--system-accent`, never `--primary`.
+- **Hover** moves away from the page (`--primary-hover`: mixed toward black on
+  light, toward white on dark); fading toward the background would darken it in
+  dark mode and read as pressed. Where that would drop the label below 3:1, it
+  moves away from the label instead.
+- **Tint** (`--accent-subtle`, behind user messages and the queue bar) mixes the
+  fill (light) or the text accent (dark) into the page until it reaches 1.08:1 /
+  1.3:1, between 8% and 25%. The dark 1.3:1 is the step of `--muted`; a flat 8%
+  left it at 1.15:1, too close to the page to see.
 
-An accent that white text does not clear 4.5:1 on at its own colour (every
-preset but Purple) skips both bands. Walking it down until white read turned
-Yellow mustard and Pink raspberry, and 0.5.3 to 0.6.2 gave the lightest ones a
-near-black label instead, which was dropped so every filled button carries
-white. Such an accent is scaled instead:
-
-- on a light page, fill and text accent are one colour, its lightness × 0.93
-  (Yellow 0.86 → 0.80, Blue 0.60 → 0.56), so every hue darkens by the same
-  proportion;
-- on a dark page, the fill is its lightness × 0.85, because a bright fill glares
-  on near-black (Blue 0.62 → 0.53), and the text accent is held in the dark text
-  band, 0.66-0.80;
-- the text accent is lifted until it clears 4.5:1 only when the page is darker
-  than it.
-
-The cost is legibility on a light page. White on the fill, and the text accent
-on white: Blue 4.75:1, Red 5.21:1, Pink 3.87:1, Graphite 3.47:1, Orange 3.11:1,
-Green 2.93:1, Yellow 1.91:1. Controls that colour their text with the accent use
-`--system-accent`, never `--primary`.
-
-The dark-mode accent tint (`--accent-subtle`, behind user messages and the queue
-bar) is mixed from the text accent until it reaches 1.3:1 on the page, the step
-of `--muted`, capped at a 25% mix; a flat 8% left it at 1.15:1, too close to the
-page to see.
-
-Both bands cap chroma at 0.22, with no floor so Graphite stays grey, and the
-remaining fills are walked down until their label clears 4.6:1. Hover moves away from the page in both modes
-(`--primary-hover`: mixed toward black on light, toward white on dark); fading
-the fill toward the background would darken it in dark mode and read as pressed.
+Chroma is capped at 0.22 with no floor, so Graphite stays grey. `ensureContrast`
+walks away from the page first and crosses to the other side when that end clips
+(a saturated pink lifted off mid-grey tops out near 2.6:1), so a mid-tone page
+gets a dark, hued accent rather than pure black.
 
 Two token families are unified with the rest of the theme rather than kept as
 their old one-off values: `--primary` / `--secondary-foreground` /
@@ -390,9 +387,9 @@ verbatim):
 | `--app-muted`, `--app-muted-foreground`                            | surface(1.0) / mutedText                    |
 | `--app-shimmer-highlight`                                          | mutedText mixed 90% toward white            |
 | `--app-minimap-tick`                                               | tick target, solved like the border         |
-| `--app-accent-subtle`                                              | 8% accent; light: fill, raised to 1.08:1    |
+| `--app-accent-subtle`                                              | fill / text accent mixed to 1.08 / 1.3:1    |
 | `--app-accent`, `--app-accent-foreground`                          | surface(1.6) / fg                           |
-| `--app-primary`, `--app-primary-foreground`                        | accent fill / white                         |
+| `--app-primary`, `--app-primary-foreground`                        | accent fill / white or near-black           |
 | `--app-primary-hover`                                              | fill stepped away from the page             |
 | `--app-destructive`                                                | status.danger.fg                            |
 | `--app-border`, `--app-input`, `--app-ring`                        | border / border / accent                    |
@@ -417,8 +414,8 @@ mid-grey):
 
 - `contrast(fg, bg) >= 7`
 - `contrast(mutedText, bg) >= target(contrast, mode).secondaryText`
-- `contrast(accent, bg) >= 4.5`
-- `contrast(accentForeground, accent) >= 4.5`
+- `contrast(accent, bg) >= 3`
+- `contrast(accentForeground, accent) >= 3`, also on hover
 - `contrast(successFg, bg) >= 4.5`, same for warning/danger/info
 - `contrast(border, bg) >= target(contrast, mode).border`, and the border ratio
   is monotonic in `contrast`

@@ -4,9 +4,11 @@
 
 ### Changed
 
-- Accent colors are darkened far less: buttons, links, selected rows, dots and focus rings stay close to the color you picked, every color darkened by the same small proportion; on a light theme buttons and links are one color. Yellow links are no longer dark gold, Pink buttons no longer raspberry. On a light theme the lighter colors are lower contrast than before
+- Accent colors stay close to the color you picked, custom colors included: every color is darkened by the same small proportion instead of being pushed dark until white text passes, so Pink buttons are no longer raspberry. On a light theme the lighter colors are lower contrast than before
 - In dark mode, accent buttons are a little darker so they no longer glare, and the tint behind your messages and the Working bar is strong enough to see
-- Orange, Yellow, Green and Graphite buttons have white text again instead of dark text, like every other accent color
+- Orange, Green and Graphite buttons have white text again instead of dark text, like every other accent color; Yellow buttons, and custom accents as light as Yellow, keep dark text, since white is unreadable on them
+- With Yellow or a similarly light accent, links, icons and focus rings on a light theme use a deeper shade than the buttons so they stay readable on white; Yellow links are gold rather than brown
+- On a custom mid-grey or tinted background, accent buttons and links stay visible instead of blending into the page or turning black
 - Link buttons and the package icons and Update button use the accent's text color, as links do, instead of the button fill
 
 ## [0.6.2] - 2026-11-12
