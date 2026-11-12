@@ -30,7 +30,7 @@ import GitDiffModeMenu from './GitDiffModeMenu';
 
 const INDENT_STEP_PX = 12;
 const ROW_CLASS_NAME =
-  'flex h-7 w-full items-center gap-1.5 rounded-control pr-2 text-left text-body transition-colors';
+  'follows-text-size flex h-7 w-full items-center gap-1.5 rounded-control pr-2 text-left text-body transition-colors';
 const ROW_IDLE_CLASS_NAME =
   'text-sidebar-foreground/80 hover:bg-primary/5 hover:text-accent-foreground';
 const ROW_SELECTED_CLASS_NAME = 'bg-accent-subtle text-[var(--system-accent)]';

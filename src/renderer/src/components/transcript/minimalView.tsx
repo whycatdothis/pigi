@@ -407,7 +407,7 @@ const TurnSection = React.memo(function TurnSection({
               type="button"
               onClick={handleToggleDetails}
               aria-expanded={detailsOpen}
-              className="flex w-full items-center gap-1.5 pt-3 pb-1 text-left"
+              className="follows-text-size flex w-full items-center gap-1.5 pt-3 pb-1 text-left"
               data-testid="minimal-timer-row"
             >
               <WorkingTimer

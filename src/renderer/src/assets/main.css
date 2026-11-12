@@ -9,11 +9,18 @@
    invalidates every font and re-lays out the whole document on window resize. */
 @source not inline('container');
 
-/* Text-bound boxes (rows, bubbles, the composer) put this on their root so
+/* Text-bound boxes (rows, bubbles, menus, controls) put this on their root so
    every spacing utility inside, plus `leading-*`, grows with the UI text size.
    Layout around them keeps the fixed root `--spacing`. */
 @utility follows-text-size {
-  --spacing: calc(0.25rem * var(--app-font-ui-scale, 1));
+  --spacing: calc(0.25rem * var(--font-ui-scale));
+}
+
+/* The same for the 44px header, which is pinned to the native traffic lights
+   and cannot grow: its contents follow the text size up to a 17px UI size. */
+@utility follows-text-size-capped {
+  --font-ui-scale: min(var(--app-font-ui-scale, 1), calc(17 / 15));
+  --spacing: calc(0.25rem * var(--font-ui-scale));
 }
 
 /* Focus rings only for keyboard navigation; see lib/focusModality.ts. */
@@ -45,7 +52,7 @@
     background: transparent;
     height: 100%;
     overflow: hidden;
-    font-size: calc(14px * var(--app-font-ui-scale, 1));
+    font-size: calc(14px * var(--font-ui-scale));
     line-height: 1.6;
     user-select: none;
     -webkit-user-select: none;
@@ -725,7 +732,7 @@
 
   .menu-content {
     border-radius: var(--radius-surface);
-    padding: 0.25rem;
+    padding: calc(var(--spacing) * 1);
   }
 }
 

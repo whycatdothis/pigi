@@ -38,19 +38,20 @@ const TAB_ITEMS = [
 
 /** A header chip tab; the right sidebar's tabs use it too, so both headers match. */
 export const HEADER_TAB_CLASS_NAME =
-  'h-8 gap-1.5 px-3 text-ui font-normal text-foreground dark:text-foreground';
+  'follows-text-size-capped h-8 gap-1.5 px-3 text-ui font-normal text-foreground dark:text-foreground';
 
 const TAB_CLASS_NAME = `${HEADER_TAB_CLASS_NAME} @max-[320px]:px-2 @max-[220px]:px-1`;
 
 // The header has no left padding of its own; Chat's left margin keeps the
 // active chip off the header edge, and the title sits where it does unselected.
-// 312px plus the 8px margin is the 320px Chat takes.
+// At the default text size, 312px plus the 8px margin is the 320px Chat takes.
 const CHAT_TAB_CLASS_NAME =
   'ml-2 pl-2 text-body w-78 min-w-36 shrink basis-auto justify-start @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none';
 
 /**
  * The main window's fixed views. Chat carries no icon so its title gets the
- * room, at a fixed 320px so Files and Git keep their place whatever the title.
+ * room, at a fixed width (320px at the default text size) so Files and Git
+ * keep their place whatever the title.
  * Every tab reserves room for its keycap, shown on hover or focus; Chat's slot
  * also holds the agent's status while another tab is open, so the title never
  * shifts when it appears. The

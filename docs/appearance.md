@@ -387,7 +387,7 @@ verbatim):
 | `--app-warning-*`, `--app-danger-*`, `--app-info-*`                | status ramp                                 |
 | `--app-chart-1..5`                                                 | fixed (documented as not user-customizable) |
 | `--font-ui`, `--font-code`                                         | fonts (`--font-sans` reads `--font-ui`)     |
-| `--font-ui-scale`, `--font-code-scale`                             | sizes                                       |
+| `--app-font-ui-scale`, `--app-font-code-scale`                     | sizes                                       |
 
 `--dialog-solid` and `--search-highlight-bg` stay as `color-mix()` rules in
 CSS that reference the tokens, so they follow automatically.
@@ -514,9 +514,12 @@ One UI scale plus one code scale, both anchored on today's values:
 | `--text-code-compact` | 13px    | code  |
 | `--text-code`         | 14px    | code  |
 
-`--font-ui-scale = uiSize / 15`, `--font-code-scale = codeSize / 14`, and each
-token is `calc(<default>px * var(--app-font-*-scale))`. Root font size is
-**not** touched: spacing is rem-based and must not scale with text. `body`
+`--app-font-ui-scale = uiSize / 15`, `--app-font-code-scale = codeSize / 14`.
+UI tokens are `calc(<default>px * var(--font-ui-scale))`, where
+`--font-ui-scale` is `--app-font-ui-scale` unless a region caps it; code tokens
+read `--app-font-code-scale` directly. Root font size is **not** touched, so
+layout spacing stays fixed; boxes that hold text opt in with
+`follows-text-size` (`docs/design-system.md`). `body`
 (14px), the type scale above, and the code sizes all use the scales;
 `--text-xs` / `--text-sm` / `--text-base` keep their existing rem anchors so
 their line-height ratios stay put.

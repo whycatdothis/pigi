@@ -37,14 +37,17 @@ interface SessionItemProps {
 }
 
 /**
- * Fork connector: one 12px column per ancestor level, so a row's line runs
+ * Fork connector: one 12px column (at the default text size) per ancestor
+ * level, so a row's line runs
  * under its parent's title, plus a short tick into this row. The row's own
  * column is only as wide as the tick, and the title follows it closely: the
  * sidebar has little room. Lines stop at the row's edge, leaving a break
  * between rows.
  */
-const LINEAGE_INDENT_PX = 12;
-const LINEAGE_TICK_PX = 8;
+// In --spacing units, so the columns scale with the row's padding.
+const LINEAGE_INDENT_UNITS = 3;
+const LINEAGE_TICK_UNITS = 2;
+const spacingUnits = (units: number): string => `calc(var(--spacing) * ${units})`;
 const LINEAGE_MAX_DEPTH = 3;
 
 function LineagePrefix({
@@ -63,7 +66,7 @@ function LineagePrefix({
       aria-hidden="true"
       data-lineage-depth={row.depth}
       className="-mr-0.5 flex shrink-0 self-stretch"
-      style={{ width: (columnCount - 1) * LINEAGE_INDENT_PX + LINEAGE_TICK_PX }}
+      style={{ width: spacingUnits((columnCount - 1) * LINEAGE_INDENT_UNITS + LINEAGE_TICK_UNITS) }}
     >
       {Array.from({ length: columnCount }, (_, offset) => {
         const column = firstColumn + offset;
@@ -73,7 +76,7 @@ function LineagePrefix({
           <span
             key={column}
             className="relative shrink-0"
-            style={{ width: isOwnColumn ? LINEAGE_TICK_PX : LINEAGE_INDENT_PX }}
+            style={{ width: spacingUnits(isOwnColumn ? LINEAGE_TICK_UNITS : LINEAGE_INDENT_UNITS) }}
           >
             {continues ? (
               <span className="absolute inset-y-0 left-0 w-px bg-foreground/15" />

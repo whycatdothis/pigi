@@ -318,7 +318,7 @@ export default memo(function Sidebar({
                   side="top"
                   align="start"
                   sideOffset={2}
-                  className="w-60 menu-content flex flex-col gap-1"
+                  className="follows-text-size w-60 menu-content flex flex-col gap-1"
                 >
                   {/* The hint is hover-only, so the row carries its own group. */}
                   <MenuItem onClick={onOpenSettings} className="group/menu-item">

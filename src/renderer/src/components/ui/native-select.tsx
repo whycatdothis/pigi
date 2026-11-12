@@ -13,7 +13,7 @@ function NativeSelect({ className, size = 'default', icon, ...props }: NativeSel
   return (
     <div
       className={cn(
-        'group/native-select relative w-fit has-[select:disabled]:opacity-50',
+        'follows-text-size group/native-select relative w-fit has-[select:disabled]:opacity-50',
         className,
       )}
       data-slot="native-select-wrapper"

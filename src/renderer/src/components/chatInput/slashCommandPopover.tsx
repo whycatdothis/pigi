@@ -55,7 +55,7 @@ export function SlashCommandPopover({
         side="top"
         align="start"
         sideOffset={6}
-        className="max-h-[40vh] overflow-y-auto p-1 bg-popover/50"
+        className="follows-text-size max-h-[40vh] overflow-y-auto p-1 bg-popover/50"
         style={{ width: `${CHAT_INPUT_MAX_WIDTH}px` }}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >

@@ -17,7 +17,7 @@ const ContextMenuContent = React.forwardRef<
       ref={ref}
       className={cn(
         VIBRANCY_OVERLAY_CONTENT,
-        'z-50 w-48 overflow-hidden rounded-surface p-1',
+        'follows-text-size z-50 w-48 overflow-hidden rounded-surface p-1',
         'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
         'data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
         className,
@@ -97,7 +97,7 @@ const ContextMenuSubContent = React.forwardRef<
   <ContextMenu.SubContent
     ref={ref}
     className={cn(
-      'z-50 min-w-32 overflow-hidden rounded-surface border bg-popover p-1 text-popover-foreground shadow-lg',
+      'follows-text-size z-50 min-w-32 overflow-hidden rounded-surface border bg-popover p-1 text-popover-foreground shadow-lg',
       'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
       'data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
       className,

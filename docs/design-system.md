@@ -60,8 +60,9 @@ Rules that come up every time:
 `--text-3xs` 10 / `--text-2xs` 11 / `--text-caption` 13 / `--text-ui` 14 /
 `--text-body` 15 / `--text-lg` 20 / `--text-xl` 24 / `--text-2xl` 28, plus
 `--text-code-compact` 13 and `--text-code` 14. Every step multiplies by
-`--app-font-ui-scale` (or `--app-font-code-scale`) so the size settings scale the
-whole ramp instead of the root font size.
+`--font-ui-scale` (or `--app-font-code-scale`) so the size settings scale the
+whole ramp instead of the root font size; `--font-ui-scale` is the setting's
+`--app-font-ui-scale` unless a region caps it (below).
 
 One scale, one set of names. Tailwind's `text-xs` / `text-sm` / `text-base`
 (13 / 15 / 17px) are the steps this ramp replaced, and app code must not use
@@ -160,9 +161,9 @@ row gap, `pt-6`/`pb-2` on a user message.
 
 The root font size never moves, so Tailwind's `--spacing` (0.25rem) keeps the
 layout fixed at every text size. A box that only exists to hold text — a
-sidebar row, a message bubble, the composer — puts `follows-text-size` on its
-root instead. The utility (`main.css`) redefines `--spacing` as
-`0.25rem × --app-font-ui-scale`, and every spacing utility reads `var(--spacing)`
+sidebar row, a message bubble, the composer, a menu, a text button — puts
+`follows-text-size` on its root instead. The utility (`main.css`) redefines
+`--spacing` as `0.25rem × --font-ui-scale`, and every spacing utility reads `var(--spacing)`
 where it is used, so `h-8`, `p-2`, `size-4` and `leading-6` inside the box all
 grow with the text; nothing at the call site changes, and at the default size
 the box is pixel-identical. Arbitrary `[Npx]` values and the semantic px tokens
@@ -172,6 +173,13 @@ Put it on the box, not on a layout container: panel widths, gutters between
 panels, the title bar (aligned with the native traffic lights) and section gaps
 stay fixed. Changing the root font size instead would scale all of those and
 turn the text-size setting into a second copy of View → Zoom.
+
+The 44px header is the one box that holds text but cannot grow: its height
+keeps the traffic lights centred. Header tabs use `follows-text-size-capped`,
+which also redefines `--font-ui-scale` — the scale every `--text-*` step reads,
+`--app-font-ui-scale` by default — to stop at a 17px UI size, so the tab's text,
+height and icon stop growing together (the tab at about 36px). A `follows-text-size` box nested inside
+it inherits the cap.
 
 ## Corners are superellipses
 

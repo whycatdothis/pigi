@@ -4,7 +4,7 @@
 
 ### Changed
 
-- A larger or smaller UI text size now resizes sidebar rows, message bubbles and the composer with the text, so icons, row heights and padding keep their proportions instead of the text crowding a fixed box
+- A larger or smaller UI text size now resizes what holds the text along with it — sidebar, file and Git rows, message bubbles, the composer, menus, buttons and form fields — so icons, row heights and padding keep their proportions instead of the text crowding a fixed box. The header tabs follow up to a 17px text size, so they always fit the title bar
 
 ### Fixed
 
