@@ -320,28 +320,45 @@ buttons and the checked switch, because shadcn wires `primary` to
 One accent value cannot do both of its jobs in dark mode, so there are two, the
 same way GitHub separates `accent.emphasis` from `accent.fg`:
 
-|                                                         | Light     | Dark      | Why                                                                                              |
-| ------------------------------------------------------- | --------- | --------- | ------------------------------------------------------------------------------------------------ |
-| filled surfaces (`--primary`)                           | 0.45-0.58 | 0.50-0.60 | carries a white label, so it stays dark; needs only 3:1 against the page (light hues: see below) |
-| accent text, icons, rails (`--system-accent`, `--ring`) | 0.45-0.58 | 0.66-0.80 | is read on the page, so dark mode lifts it until it clears 4.5:1                                 |
+|                                                         | Light     | Dark      | Why                                                                                                          |
+| ------------------------------------------------------- | --------- | --------- | ------------------------------------------------------------------------------------------------------------ |
+| filled surfaces (`--primary`)                           | 0.45-0.58 | 0.50-0.60 | carries a white label, so it stays dark; needs only 3:1 against the page (most presets skip this: see below) |
+| accent text, icons, rails (`--system-accent`, `--ring`) | 0.45-0.58 | 0.66-0.80 | is read on the page, so dark mode lifts it until it clears 4.5:1 (most presets skip this: see below)         |
 
 Contrast is symmetric: white text on the accent and accent text on white are the
 same number. In light mode the two roles therefore coincide. In dark mode they
 cannot — an accent light enough to read on near-black is too light for a white
 label (2.85:1 at 0.70) — which is why the fill stays put and the text accent
-lifts. A white-labelled button keeps that label in both modes, so its weight
-does not change when the mode does.
+lifts. Filled buttons keep a white label in both modes, so their weight does not
+change when the mode does.
 
-A hue too light for white at its own colour (white on it below 3:1: Orange,
-Yellow, Green, light Graphite) skips the fill band instead. It keeps its colour,
-capped at lightness 0.88, and carries a near-black label, the way Radix labels
-its bright scales. Walking Yellow down until white read turned it mustard. The
-cost is the 3:1 separation: a yellow fill on a white page is 1.56:1, as macOS's
-own yellow controls are. The text accent is unchanged; it still clears 4.5:1, so
-yellow links stay dark gold.
+An accent that white text does not clear 4.5:1 on at its own colour (every
+preset but Purple) skips both bands. Walking it down until white read turned
+Yellow mustard and Pink raspberry, and 0.5.3 to 0.6.2 gave the lightest ones a
+near-black label instead, which was dropped so every filled button carries
+white. Such an accent is scaled instead:
 
-Both bands cap chroma at 0.22, with no floor so Graphite stays grey, and a
-white-labelled fill is walked down until its label clears 4.6:1. Hover moves away from the page in both modes
+- on a light page, fill and text accent are one colour, its lightness × 0.93
+  (Yellow 0.86 → 0.80, Blue 0.60 → 0.56), so every hue darkens by the same
+  proportion;
+- on a dark page, the fill is its lightness × 0.85, because a bright fill glares
+  on near-black (Blue 0.62 → 0.53), and the text accent is held in the dark text
+  band, 0.66-0.80;
+- the text accent is lifted until it clears 4.5:1 only when the page is darker
+  than it.
+
+The cost is legibility on a light page. White on the fill, and the text accent
+on white: Blue 4.75:1, Red 5.21:1, Pink 3.87:1, Graphite 3.47:1, Orange 3.11:1,
+Green 2.93:1, Yellow 1.91:1. Controls that colour their text with the accent use
+`--system-accent`, never `--primary`.
+
+The dark-mode accent tint (`--accent-subtle`, behind user messages and the queue
+bar) is mixed from the text accent until it reaches 1.3:1 on the page, the step
+of `--muted`, capped at a 25% mix; a flat 8% left it at 1.15:1, too close to the
+page to see.
+
+Both bands cap chroma at 0.22, with no floor so Graphite stays grey, and the
+remaining fills are walked down until their label clears 4.6:1. Hover moves away from the page in both modes
 (`--primary-hover`: mixed toward black on light, toward white on dark); fading
 the fill toward the background would darken it in dark mode and read as pressed.
 

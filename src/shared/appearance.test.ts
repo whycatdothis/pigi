@@ -28,6 +28,10 @@ function color(value: string | undefined): OklchColor {
   return parsed;
 }
 
+function isLightHue(accent: OklchColor): boolean {
+  return contrastRatio(color('#ffffff'), accent) < 4.5;
+}
+
 function tokensFor(
   overrides: {
     mode?: 'light' | 'dark';
@@ -128,7 +132,7 @@ describe('resolveAppearance', () => {
 });
 
 describe('deriveTokens', () => {
-  it('labels the fill legibly and keeps the text accent legible in both modes', () => {
+  it('keeps the fill white-labelled and the text accent legible in both modes', () => {
     for (const mode of ['light', 'dark'] as const) {
       for (const preset of ACCENT_PRESETS) {
         const tokens = tokensFor({ mode, accent: { presetId: preset.id } });
@@ -138,19 +142,24 @@ describe('deriveTokens', () => {
         const background = color(tokens['--app-background']);
         const base = color(mode === 'dark' ? preset.darkOklch : preset.lightOklch);
 
-        expect(contrastRatio(label, fill)).toBeGreaterThanOrEqual(4.5);
-        if (contrastRatio(color('#ffffff'), base) >= 3) {
-          // A white label: the fill is walked dark and separates from the page
-          // (non-text floor).
-          expect(label.lightness).toBeGreaterThan(0.95);
-          expect(contrastRatio(fill, background)).toBeGreaterThanOrEqual(3);
+        // Solid buttons read the same in every theme: white label on the
+        // fill, never a flipped black label that would change their weight.
+        expect(label.lightness).toBeGreaterThan(0.95);
+        if (isLightHue(base)) {
+          // Scaled, not walked: 0.93 on a light page, where text shares the
+          // fill; 0.85 on a dark one, where text sits in the 0.66-0.80 band.
+          expect(fill.lightness).toBeCloseTo(base.lightness * (mode === 'light' ? 0.93 : 0.85), 3);
+          expect(textAccent.lightness).toBeCloseTo(
+            mode === 'light' ? fill.lightness : Math.min(0.8, Math.max(0.66, base.lightness)),
+            3,
+          );
         } else {
-          // Too light for white (Yellow): it keeps its own colour, dark label.
-          expect(label.lightness).toBeLessThan(0.2);
-          expect(fill.lightness).toBeCloseTo(Math.min(0.88, base.lightness), 2);
+          expect(contrastRatio(label, fill)).toBeGreaterThanOrEqual(4.5);
+          // The fill only has to separate from the page (non-text floor).
+          expect(contrastRatio(fill, background)).toBeGreaterThanOrEqual(3);
+          // Text, icons and rails use their own value, which clears AA.
+          expect(contrastRatio(textAccent, background)).toBeGreaterThanOrEqual(4.5);
         }
-        // Text, icons and rails use their own value, which clears AA.
-        expect(contrastRatio(textAccent, background)).toBeGreaterThanOrEqual(4.5);
         expect(tokens['--app-sidebar-primary']).toBe(tokens['--app-primary']);
         expect(tokens['--app-ring']).toBe(tokens['--app-system-accent']);
       }
@@ -169,6 +178,16 @@ describe('deriveTokens', () => {
     }
   });
 
+  it('keeps the accent tint apart from a dark page for every preset', () => {
+    // At 8% of the text accent the tint was 1.15:1 on near-black and vanished.
+    for (const preset of ACCENT_PRESETS) {
+      const tokens = tokensFor({ mode: 'dark', accent: { presetId: preset.id } });
+      const tint = color(tokens['--app-accent-subtle']);
+      expect(contrastRatio(tint, color(tokens['--app-background']))).toBeGreaterThanOrEqual(1.29);
+      expect(contrastRatio(color(tokens['--app-foreground']), tint)).toBeGreaterThanOrEqual(7);
+    }
+  });
+
   it('keeps the fill labelled on a mid-tone page', () => {
     // A user-set mid-tone background is where the two rules collide: the fill has
     // to move away from the page to keep its 3:1 separation, ends up light, and a
@@ -177,7 +196,10 @@ describe('deriveTokens', () => {
     // way.
     for (const mode of ['light', 'dark'] as const) {
       for (const backgroundHex of ['#6b6b6b', '#555555', '#3a3a3a', '#808080']) {
-        for (const preset of ACCENT_PRESETS) {
+        for (const preset of ACCENT_PRESETS.filter(
+          (candidate) =>
+            !isLightHue(color(mode === 'dark' ? candidate.darkOklch : candidate.lightOklch)),
+        )) {
           const tokens = tokensFor({
             mode,
             background: backgroundHex,
@@ -187,10 +209,7 @@ describe('deriveTokens', () => {
           const fill = color(tokens['--app-primary']);
           const label = color(tokens['--app-primary-foreground']);
 
-          // A dark-label fill keeps its own colour and does not chase the page.
-          if (label.lightness > 0.95) {
-            expect(contrastRatio(fill, background)).toBeGreaterThanOrEqual(3);
-          }
+          expect(contrastRatio(fill, background)).toBeGreaterThanOrEqual(3);
           expect(contrastRatio(label, fill)).toBeGreaterThanOrEqual(4.5);
           expect(tokens['--app-sidebar-primary-foreground']).toBe(
             tokens['--app-primary-foreground'],
@@ -202,12 +221,11 @@ describe('deriveTokens', () => {
 
   it('lifts the text accent above the fill in dark mode', () => {
     const tokens = tokensFor({ mode: 'dark' });
-    // The fill stays dark enough for a white label; only the text accent is
-    // lifted, which is the whole point of not sharing one value.
+    // Only the text accent is lifted to read on the dark page, which is the
+    // whole point of not sharing one value.
     expect(color(tokens['--app-system-accent']).lightness).toBeGreaterThan(
       color(tokens['--app-primary']).lightness,
     );
-    expect(color(tokens['--app-primary']).lightness).toBeLessThanOrEqual(0.6);
   });
 
   it('clamps a hand-picked accent into both bands', () => {
@@ -220,10 +238,12 @@ describe('deriveTokens', () => {
 
         expect(fill.chroma).toBeLessThanOrEqual(0.22);
         expect(textAccent.chroma).toBeLessThanOrEqual(0.22);
-        expect(
-          contrastRatio(color(tokens['--app-primary-foreground']), fill),
-        ).toBeGreaterThanOrEqual(4.5);
-        expect(contrastRatio(textAccent, background)).toBeGreaterThanOrEqual(4.5);
+        if (!isLightHue(color(hex))) {
+          expect(
+            contrastRatio(color(tokens['--app-primary-foreground']), fill),
+          ).toBeGreaterThanOrEqual(4.5);
+          expect(contrastRatio(textAccent, background)).toBeGreaterThanOrEqual(4.5);
+        }
         expect(color(tokens['--app-primary-hover']).lightness).not.toBeCloseTo(fill.lightness, 3);
       }
     }
@@ -290,15 +310,17 @@ describe('deriveTokens', () => {
           expect(
             contrastRatio(color(tokens['--app-muted-foreground']), background),
           ).toBeGreaterThanOrEqual(targets.secondaryText - 0.05);
-          expect(contrastRatio(color(tokens['--app-system-accent']), background)).toBeGreaterThan(
-            4.4,
-          );
-          expect(
-            contrastRatio(
-              color(tokens['--app-primary-foreground']),
-              color(tokens['--app-primary']),
-            ),
-          ).toBeGreaterThan(4.4);
+          if (!isLightHue(color(mode === 'dark' ? preset.darkOklch : preset.lightOklch))) {
+            expect(contrastRatio(color(tokens['--app-system-accent']), background)).toBeGreaterThan(
+              4.4,
+            );
+            expect(
+              contrastRatio(
+                color(tokens['--app-primary-foreground']),
+                color(tokens['--app-primary']),
+              ),
+            ).toBeGreaterThan(4.4);
+          }
           expect(contrastRatio(color(tokens['--app-border']), background)).toBeGreaterThanOrEqual(
             targets.border - 0.02,
           );
@@ -315,7 +337,9 @@ describe('deriveTokens', () => {
   it('hits the foreground floor on custom backgrounds where it is reachable', () => {
     for (const background of ['#ffffff', '#f6f1e8', '#1f2430'] as const) {
       for (const mode of ['light', 'dark'] as const) {
-        const tokens = tokensFor({ mode, background });
+        // Purple: a light hue such as the default Blue is never darkened for
+        // the page, so it would not reach the floor on a white dark-mode page.
+        const tokens = tokensFor({ mode, background, accent: { presetId: 'purple' } });
         const parsedBackground = color(background);
         expect(
           contrastRatio(color(tokens['--app-foreground']), parsedBackground),

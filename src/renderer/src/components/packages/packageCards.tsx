@@ -51,7 +51,7 @@ export function PackageThumbnail({
         tinted
           ? 'package-tile'
           : icon
-            ? 'bg-primary/10 text-primary'
+            ? 'bg-[var(--system-accent)]/10 text-[var(--system-accent)]'
             : 'bg-muted text-muted-foreground',
       )}
     >

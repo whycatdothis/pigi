@@ -86,7 +86,7 @@ function ProjectItem({
           className={cn(
             'group/project',
             isExpanded && 'mb-3',
-            isDragOver && 'border-t-2 border-primary',
+            isDragOver && 'border-t-2 border-[var(--system-accent)]',
           )}
         >
           <div

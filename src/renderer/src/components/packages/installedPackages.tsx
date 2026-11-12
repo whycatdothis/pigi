@@ -223,7 +223,7 @@ export function InstalledActions({
           label="Update"
           disabled={disabled}
           onClick={() => run('update')}
-          className="text-primary hover:text-primary"
+          className="text-[var(--system-accent)] hover:text-[var(--system-accent)]"
         />
       )}
       <IconAction
