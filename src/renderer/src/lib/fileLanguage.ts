@@ -1,81 +1,61 @@
-const LANGUAGE_BY_EXTENSION: Record<string, string> = {
-  bash: 'bash',
-  c: 'c',
+import { bundledLanguages } from 'shiki/bundle/full';
+
+// A Map, so a file named `constructor` does not read Object.prototype.
+function languageMap(entries: Record<string, string>): Map<string, string> {
+  return new Map(Object.entries(entries));
+}
+
+// Only extensions that are not already a shiki language id or alias.
+const LANGUAGE_BY_EXTENSION = languageMap({
+  // Starlark: shiki has no grammar for it, and its syntax is a subset of Python.
+  bazel: 'python',
+  bzl: 'python',
+  bzlmod: 'python',
   cc: 'cpp',
-  clj: 'clojure',
   cljs: 'clojure',
-  cjs: 'javascript',
-  cpp: 'cpp',
-  cs: 'csharp',
-  css: 'css',
   cxx: 'cpp',
-  dart: 'dart',
-  diff: 'diff',
-  dockerfile: 'docker',
-  el: 'elixir',
-  erl: 'erlang',
+  el: 'emacs-lisp',
   ex: 'elixir',
   exs: 'elixir',
-  fish: 'fish',
-  go: 'go',
-  gql: 'graphql',
-  graphql: 'graphql',
   h: 'c',
   hpp: 'cpp',
-  hs: 'haskell',
   htm: 'html',
-  html: 'html',
-  ini: 'ini',
-  java: 'java',
-  js: 'javascript',
-  json: 'json',
-  json5: 'json5',
-  jsonc: 'jsonc',
-  jsx: 'jsx',
-  kt: 'kotlin',
-  kts: 'kotlin',
-  less: 'less',
-  lua: 'lua',
+  hx: 'haxe',
   m: 'objective-c',
-  md: 'markdown',
-  mdx: 'mdx',
-  mjs: 'javascript',
+  mk: 'make',
+  ml: 'ocaml',
   mm: 'objective-cpp',
-  nix: 'nix',
+  pas: 'pascal',
   patch: 'diff',
-  php: 'php',
   pl: 'perl',
-  ps1: 'powershell',
-  py: 'python',
-  r: 'r',
-  rb: 'ruby',
-  rs: 'rust',
-  sass: 'sass',
-  scala: 'scala',
-  scss: 'scss',
-  sh: 'shellscript',
-  sql: 'sql',
-  svelte: 'svelte',
+  pm: 'perl',
+  psgi: 'perl',
+  star: 'python',
   svg: 'xml',
-  swift: 'swift',
-  toml: 'toml',
-  ts: 'typescript',
-  tsx: 'tsx',
-  vue: 'vue',
-  xml: 'xml',
-  yaml: 'yaml',
-  yml: 'yaml',
-  zig: 'zig',
-  zsh: 'shellscript',
-};
+  t: 'perl',
+});
 
-const LANGUAGE_BY_FILE_NAME: Record<string, string> = {
-  dockerfile: 'docker',
-  makefile: 'make',
+// Looked up as written, then lower-cased: Bazel only reads an upper-case BUILD,
+// a lower-case `build` is usually a script.
+const LANGUAGE_BY_FILE_NAME = languageMap({
+  BUILD: 'python',
+  WORKSPACE: 'python',
   'cmakelists.txt': 'cmake',
+  dockerfile: 'docker',
+  gnumakefile: 'make',
+  makefile: 'make',
   '.npmrc': 'ini',
   '.prettierrc': 'json',
-};
+});
+
+const LANGUAGE_BY_INTERPRETER = languageMap({
+  dash: 'shellscript',
+  ksh: 'shellscript',
+  node: 'javascript',
+});
+
+// Interpreter of `#!/usr/bin/perl -w`, `#!/usr/bin/env -S python3` or `#!perl`.
+const SHEBANG = /^#![ \t]*(?:\S*\/)?(?:env[ \t]+(?:-\S+[ \t]+)*)?([a-z]+)/;
 
 const MARKDOWN_EXTENSIONS = new Set(['md', 'mdx', 'markdown']);
 const BITMAP_IMAGE_EXTENSIONS = new Set([
@@ -90,20 +70,34 @@ const BITMAP_IMAGE_EXTENSIONS = new Set([
 ]);
 
 function fileNameOf(path: string): string {
-  return path.slice(path.lastIndexOf('/') + 1).toLowerCase();
+  return path.slice(path.lastIndexOf('/') + 1);
 }
 
 function extensionOf(path: string): string {
   const fileName = fileNameOf(path);
   const dot = fileName.lastIndexOf('.');
-  return dot === -1 ? '' : fileName.slice(dot + 1);
+  return dot === -1 ? '' : fileName.slice(dot + 1).toLowerCase();
 }
 
-/** Shiki language for a path, or an empty string when it cannot be highlighted. */
-export function languageForPath(path: string): string {
-  const byName = LANGUAGE_BY_FILE_NAME[fileNameOf(path)];
-  if (byName) return byName;
-  return LANGUAGE_BY_EXTENSION[extensionOf(path)] ?? '';
+function bundledLanguage(name: string): string {
+  return Object.hasOwn(bundledLanguages, name) ? name : '';
+}
+
+/**
+ * Shiki language for a file, or an empty string when it cannot be highlighted.
+ * The shebang decides only when the path does not.
+ */
+export function languageForFile(path: string, content?: string | null): string {
+  const fileName = fileNameOf(path);
+  const extension = extensionOf(path);
+  const byPath =
+    LANGUAGE_BY_FILE_NAME.get(fileName) ??
+    LANGUAGE_BY_FILE_NAME.get(fileName.toLowerCase()) ??
+    LANGUAGE_BY_EXTENSION.get(extension) ??
+    bundledLanguage(extension);
+  if (byPath || !content) return byPath;
+  const interpreter = SHEBANG.exec(content)?.[1] ?? '';
+  return LANGUAGE_BY_INTERPRETER.get(interpreter) ?? bundledLanguage(interpreter);
 }
 
 export function isMarkdownPath(path: string): boolean {

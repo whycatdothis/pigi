@@ -12,7 +12,7 @@ import {
   isBitmapImagePath,
   isMarkdownPath,
   isSvgPath,
-  languageForPath,
+  languageForFile,
 } from '../../lib/fileLanguage';
 import { sourceLineRangeFromSelection } from '../../lib/sourceLineSelection';
 import { MESSAGE_LIST_MAX_WIDTH } from '../../lib/layoutConstants';
@@ -181,7 +181,6 @@ export default function FileViewer({
   const quoteFilePath = projectQuotePath(projectPath, sessionProjectPath, filePath);
   // Copy what a paste into chat needs: an absolute path outside the session's project.
   const { copied: pathCopied, copy: copyPath } = useCopyFeedback(quoteFilePath);
-  const language = languageForPath(filePath);
   const markdownProjectFile = useMemo(
     () => ({ projectPath, filePath, onOpenFile }),
     [filePath, onOpenFile, projectPath],
@@ -227,6 +226,7 @@ export default function FileViewer({
       totalLines: lines.length,
     };
   }, [fileState]);
+  const language = languageForFile(filePath, source.content);
 
   useLayoutEffect(() => {
     const container = containerRef.current;

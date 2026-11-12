@@ -8,6 +8,7 @@ import {
 } from '../../state/transcriptController';
 import { CODEMODE_WELL_MAX_HEIGHT, MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
 import { localFileUrl } from '../../lib/chatAttachments';
+import { languageForFile } from '../../lib/fileLanguage';
 import SyntaxHighlightedCode from './syntaxHighlightedCode';
 import DiffView from './DiffView';
 import type { EditEntry, DiffLine } from '../../lib/diffUtils';
@@ -262,48 +263,10 @@ const STREAMING_OUTPUT_TOOLS = new Set(['bash', 'read', 'codemode']);
 
 const SECONDS_PER_MILLISECOND = 1 / 1000;
 
-/**
- * Override map for file extensions that don't directly match a shiki language id/alias.
- * Most extensions (e.g. rs, go, py, ts, lua, zig) are valid shiki language keys and
- * are resolved at runtime via `bundledLanguages` in SyntaxHighlightedCode.
- */
-const FILE_EXTENSION_LANGUAGE_OVERRIDE: Record<string, string> = {
-  cc: 'cpp',
-  cjs: 'javascript',
-  cts: 'typescript',
-  cxx: 'cpp',
-  h: 'c',
-  hbs: 'handlebars',
-  hpp: 'cpp',
-  hx: 'haxe',
-  kts: 'kotlin',
-  mjs: 'javascript',
-  mk: 'make',
-  mts: 'typescript',
-  pl: 'perl',
-  ex: 'elixir',
-  exs: 'elixir',
-  ml: 'ocaml',
-  pas: 'pascal',
-  ps1: 'powershell',
-  tf: 'terraform',
-};
-
-function getToolOutputLanguage(node: ToolNode): string {
+function getToolOutputLanguage(node: ToolNode, output: string): string {
   const args = getToolArgs(node);
-  const path = typeof args?.path === 'string' ? args.path : '';
-  return getLanguageFromPath(path) ?? 'text';
-}
-
-function getLanguageFromPath(path: string): string | null {
-  const fileName = path.split('/').pop() ?? '';
-  const extension = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : '';
-  if (!extension) {
-    return null;
-  }
-
-  // Most extensions (rs, go, py, ts) are already shiki language ids or aliases.
-  return FILE_EXTENSION_LANGUAGE_OVERRIDE[extension] ?? extension;
+  if (typeof args?.path !== 'string') return '';
+  return languageForFile(args.path, typeof args.content === 'string' ? args.content : output);
 }
 
 /** Extract pre-computed DiffLines from tool result details (used by tagged-edit and similar tools) */
@@ -375,7 +338,7 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
     node.name === 'write' && node.status === 'running' && (writeEntries?.length ?? 0) === 0;
   const showBashSkeleton = node.name === 'bash' && node.status === 'running' && !hasOutput;
   const isCodemode = node.name === 'codemode';
-  const outputLanguage = getToolOutputLanguage(node);
+  const outputLanguage = getToolOutputLanguage(node, cleanedOutput);
   const bodyHeightRange = getToolBlockBodyHeightRange(node);
   // The body is one array so its "is there anything to show" and the padding that
   // depends on it cannot drift apart: the title pays the status bar's own 6px

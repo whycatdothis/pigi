@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import { ChevronsUpDown } from 'lucide-react';
 import { MAX_DIFF_LINES, type GitDiffFile } from '../../../../shared/ipcContract';
 import type { GitDiffLayout } from '../../hooks/useGitWorkspace';
-import { languageForPath } from '../../lib/fileLanguage';
+import { languageForFile } from '../../lib/fileLanguage';
 import {
   buildDiffRows,
   changedRanges,
@@ -269,7 +269,7 @@ const GitDiffBody = memo(function GitDiffBody({
     () => (expansion.patch === patch ? expansion.hunks : new Set<number>()),
     [expansion, patch],
   );
-  const tokens = useDiffTokens(lines, newContent, languageForPath(file.path));
+  const tokens = useDiffTokens(lines, newContent, languageForFile(file.path, newContent));
   const changed = useMemo(() => changedRanges(lines), [lines]);
   useEffect(() => {
     if (tokens.settled) onSettled?.(id);

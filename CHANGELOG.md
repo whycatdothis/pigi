@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Perl files ending in `.pm`, `.t` or `.psgi` are now syntax-highlighted in the Files and Git tabs and in read/write tool output, not just `.pl`
+- Bazel files (`BUILD`, `WORKSPACE`, `*.bazel`, `*.bzl`) are highlighted, with Python colors since there is no Starlark grammar
+- A script with no extension (or one that does not name a language, like `.cgi`) is highlighted by its `#!` line, e.g. `#!/usr/bin/perl` or `#!/usr/bin/env python3`
+- The Files and Git tabs highlight every language the chat already did, such as Terraform, Protobuf and log files; `.el` files are highlighted as Emacs Lisp instead of Elixir
+
 ## [0.6.3] - 2026-11-12
 
 ### Changed
