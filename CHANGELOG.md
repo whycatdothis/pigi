@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- A timeline whose descriptions are long — Chinese ones especially — no longer draws the text of one column over the next: each description is broken into lines that fit the column it is centred in
 - Clicking a Mermaid diagram that the message had shrunk to fit now opens it at no less than the size it was drawn at, up to the overlay's zoom limit, so the text inside a box is readable; the part that no longer fits is panned to instead of being scaled back down to the size the message already showed, and it keeps that size when the window changes
 
 ## [0.6.5] - 2026-11-12

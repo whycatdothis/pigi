@@ -754,6 +754,13 @@ Rules that the code depends on:
   readable synchronously (`peekDiagram`) so a row scrolling back into the
   virtualized window draws in its first frame instead of showing its source
   again.
+- **A timeline's descriptions are broken before it is drawn.** Mermaid's timeline
+  wraps a label on whitespace only, so a description with no space in it — a
+  Chinese sentence, a long identifier — stays on one line, wider than the column
+  it is centred in, and runs into the label beside it. `lib/mermaidTimelineLabels.ts`
+  measures the lines with the font the labels are drawn in and puts the `<br>`es
+  into the source, which is the one break that wrapper reads; the row then grows
+  to hold the lines it makes.
 - **The drawing is part of this document.** Mermaid's markup is mounted into the
   row, so the text in the drawing is text the reader can select and the
   transcript's search can find, and its colours come from the app's own rules.

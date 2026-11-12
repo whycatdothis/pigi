@@ -19,3 +19,20 @@ export function diagramFontKey(): string {
   const style = getComputedStyle(document.body);
   return `${style.fontFamily}|${style.fontSize}`;
 }
+
+/**
+ * The size mermaid draws a diagram's labels at, in the units it lays the
+ * drawing out in. Its own default, given here because a label's width is also
+ * what decides where a timeline's text can be broken.
+ */
+export const DIAGRAM_LABEL_SIZE = '16px';
+
+let labelContext: CanvasRenderingContext2D | null = null;
+
+/** How wide the text is in a diagram label, in mermaid's own units. */
+export function diagramLabelWidth(text: string): number {
+  labelContext ??= document.createElement('canvas').getContext('2d');
+  if (labelContext === null) return 0;
+  labelContext.font = `${DIAGRAM_LABEL_SIZE} ${diagramFontFamily()}`;
+  return labelContext.measureText(text).width;
+}

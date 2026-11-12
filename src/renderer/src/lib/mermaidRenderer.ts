@@ -1,5 +1,6 @@
 import mermaid, { type MermaidConfig } from 'mermaid';
-import { diagramFontFamily, diagramFontKey } from './mermaidTheme';
+import { diagramFontFamily, diagramFontKey, diagramLabelWidth } from './mermaidTheme';
+import { breakTimelineLabels } from './mermaidTimelineLabels';
 import type { DiagramTheme } from '../../../shared/diagramTheme';
 
 export interface RenderedDiagram {
@@ -141,7 +142,7 @@ async function renderUncached(
 
     renderCount += 1;
     const renderId = `pigi-mermaid-${String(renderCount)}`;
-    const { svg } = await mermaid.render(renderId, code);
+    const { svg } = await mermaid.render(renderId, breakTimelineLabels(code, diagramLabelWidth));
     // The markup is renamed after the diagram, not the render, so the same
     // source in the same theme is the same markup however often it is drawn,
     // and a caller can mount it without a redraw taking it out from under it.

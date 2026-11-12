@@ -27,9 +27,18 @@ const WIDE_CHART = [
   'flowchart LR',
   ...Array.from(
     { length: 10 },
-    (_, index) => `  W${String(index)}[第${String(index)}步：一段中文说明]`,
+    (_, index) => `  W${String(index)}[step ${String(index)}, described in a long label]`,
   ),
   ...Array.from({ length: 9 }, (_, index) => `  W${String(index)} --> W${String(index + 1)}`),
+].join('\n');
+/** Descriptions longer than the column a timeline gives each of them. */
+const TIMELINE = [
+  'timeline',
+  '    title ShipOneRelease',
+  '    section Preparation',
+  '        week 1 : ReviewTheRequirementsWithEveryoneWhoWillBuildThemAndWhoWillUseThem',
+  '        week 2 : ReviewTheTechnicalDesignAndCheckThatTheDataModelScalesForThreeYears',
+  `        week 3 : ${'W'.repeat(26)}`,
 ].join('\n');
 /** Labels written the way a model that is trying its luck would write them. */
 const HOSTILE_LABEL = [
@@ -553,6 +562,40 @@ test('opens a diagram at the size it was fitted to, every time', async () => {
   await waitFor(() => !overlayIsOpen());
   await openOverlay(screen);
   expect(Math.round(zoomedDrawing().getBoundingClientRect().width)).toBe(Math.round(fittedWidth));
+});
+
+test('wraps a timeline description inside its column, not over the next one', async () => {
+  const screen = await render(<MermaidDiagram code={TIMELINE} />);
+  await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
+  const texts = [...svgIn(graphicIn(screen.container)).querySelectorAll('text')].filter(
+    (label) => (label.textContent ?? '').trim() !== '',
+  );
+  const labels = texts.map((label) => ({
+    text: (label.textContent ?? '').trim(),
+    box: label.getBoundingClientRect(),
+  }));
+
+  const overlapping: string[] = [];
+  for (const [index, label] of labels.entries()) {
+    for (const other of labels.slice(index + 1)) {
+      const across =
+        Math.min(label.box.right, other.box.right) - Math.max(label.box.left, other.box.left);
+      const down =
+        Math.min(label.box.bottom, other.box.bottom) - Math.max(label.box.top, other.box.top);
+      if (across > 1 && down > 1) overlapping.push(`${label.text} ~ ${other.text}`);
+    }
+  }
+  // Mermaid wraps a label on whitespace only, so a description with none stays
+  // on one line and runs into the label beside it.
+  expect(overlapping).toEqual([]);
+
+  const description = texts.find((label) =>
+    (label.textContent ?? '').startsWith('ReviewTheRequirements'),
+  );
+  const lines = [...(description?.querySelectorAll('tspan') ?? [])].filter(
+    (line) => (line.textContent ?? '') !== '',
+  );
+  expect(lines.length).toBeGreaterThanOrEqual(2);
 });
 
 test('draws a diagram someone else is already drawing once', async () => {
