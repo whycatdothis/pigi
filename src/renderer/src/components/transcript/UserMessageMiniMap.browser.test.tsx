@@ -2,6 +2,7 @@ import { expect, test, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { useRef } from 'react';
+import { buildTurns } from '../../lib/minimalTurns';
 import type { TranscriptNode } from '../../state/transcriptController';
 import { requireElement } from '../../testing/domQuery';
 import UserMessageMiniMap from './UserMessageMiniMap';
@@ -15,6 +16,8 @@ const NODES: TranscriptNode[] = [
   { id: 'u3', role: 'user', text: 'Third question', sentAt: 1_760_000_120_000 },
 ];
 
+const TURNS = buildTurns(NODES);
+
 const PANEL_SELECTOR = '[role=group][aria-label="Messages"]';
 
 /** The minimap sizes its lines from a scroll container, so it needs a real one. */
@@ -27,7 +30,7 @@ function MiniMapHarness({
   return (
     <div ref={containerRef} className="relative h-[420px] w-[640px]">
       <UserMessageMiniMap
-        nodes={NODES}
+        turns={TURNS}
         containerRef={containerRef}
         activeUserMessageIndex={0}
         onScrollToIndex={onScrollToIndex}

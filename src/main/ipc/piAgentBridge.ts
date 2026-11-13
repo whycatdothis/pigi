@@ -333,52 +333,60 @@ function listProjectSessions(cwds: string[]): SessionListResult {
   return { success: true, requestId };
 }
 
+/** Processes whose lifetime messages are already routed (a warm process is
+ *  claimed for several setup attempts over its life). */
+const routedProcesses = new WeakSet<Electron.UtilityProcess>();
+
+/**
+ * The replies a process sends for its whole life, independent of the setup
+ * handshake below: busy state on every run, credentials after a login.
+ */
+function routeLifetimeMessages(proc: Electron.UtilityProcess): void {
+  if (routedProcesses.has(proc)) return;
+  routedProcesses.add(proc);
+  proc.on('message', (message: UtilityResponse) => {
+    if (message.type === 'session_busy_changed') {
+      processPool.updateBusyState(proc, message.isBusy);
+      return;
+    }
+    // A login/logout in this session process changed stored credentials.
+    // Every process reads auth.json on demand, so only the published catalog
+    // (provider availability) needs recomputing.
+    if (message.type === 'credentials_changed') {
+      startSessionWorker();
+      sessionWorkerProcess?.postMessage({ type: 'reload_catalog' });
+    }
+  });
+}
+
 async function attemptSpawnSessionProcess(
   command: UtilityCommand,
   proc: Electron.UtilityProcess,
 ): Promise<{ success: boolean; sessionPath?: string; error?: string }> {
+  routeLifetimeMessages(proc);
   return new Promise((resolve) => {
     let resolved = false;
 
-    const timeout = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        proc.kill();
-        resolve({ success: false, error: 'session creation timed out' });
-      }
-    }, 30000);
+    /** Both listeners belong to this handshake only: a second one on the same
+     *  process would answer the same reply twice. */
+    const settle = (result: { success: boolean; sessionPath?: string; error?: string }): void => {
+      resolved = true;
+      clearTimeout(timeout);
+      proc.off('message', onMessage);
+      proc.off('exit', onExit);
+      resolve(result);
+    };
 
-    const messageHandler = (message: UtilityResponse): void => {
-      if (message.type === 'session_busy_changed') {
-        processPool.updateBusyState(proc, message.isBusy);
-        return;
-      }
-
-      // A login/logout in this session process changed stored credentials.
-      // Every process reads auth.json on demand, so only the published
-      // catalog (provider availability) needs recomputing.
-      if (message.type === 'credentials_changed') {
-        startSessionWorker();
-        sessionWorkerProcess?.postMessage({ type: 'reload_catalog' });
-        return;
-      }
-
+    const onMessage = (message: UtilityResponse): void => {
       // Ignore warm_ready during session setup (it's from the warm phase)
-      if (message.type === 'warm_ready') {
-        return;
-      }
-
-      if (resolved) return;
+      if (resolved || message.type === 'warm_ready') return;
 
       switch (message.type) {
         case 'session_created': {
-          resolved = true;
-          clearTimeout(timeout);
-
           const sessionPath = message.sessionPath;
           if (!sessionPath) {
             proc.kill();
-            resolve({ success: false, error: 'session created without a path' });
+            settle({ success: false, error: 'session created without a path' });
             break;
           }
 
@@ -397,29 +405,31 @@ async function attemptSpawnSessionProcess(
             ]);
           }
 
-          resolve({ success: true, sessionPath });
+          settle({ success: true, sessionPath });
           break;
         }
         case 'session_error': {
-          resolved = true;
-          clearTimeout(timeout);
           proc.kill();
-          resolve({ success: false, error: message.error });
+          settle({ success: false, error: message.error });
           break;
         }
       }
     };
 
-    proc.on('message', messageHandler);
-
-    proc.on('exit', (code) => {
+    const onExit = (code: number): void => {
       if (!resolved) {
-        resolved = true;
-        clearTimeout(timeout);
-        resolve({ success: false, error: `process exited with code ${code} during setup` });
+        settle({ success: false, error: `process exited with code ${code} during setup` });
       }
-    });
+    };
 
+    const timeout = setTimeout(() => {
+      if (resolved) return;
+      proc.kill();
+      settle({ success: false, error: 'session creation timed out' });
+    }, 30000);
+
+    proc.on('message', onMessage);
+    proc.on('exit', onExit);
     proc.postMessage(command);
   });
 }

@@ -25,6 +25,7 @@ import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node
 import type { PackageWorkerCommand, PackageWorkerResponse } from '../../shared/ipcContract';
 import {
   authorFromManifest,
+  isNpmPackageName,
   npmNameFromSource,
   PI_RESOURCE_KINDS,
   piSourceType,
@@ -257,6 +258,9 @@ async function releaseDate(
 ): Promise<string | null> {
   const name = npmNameFromSource(source);
   if (name) {
+    // The name comes from settings on disk and npm runs through a shell on
+    // Windows; anything but a package name is skipped rather than executed.
+    if (!isNpmPackageName(name)) return null;
     const version = stringField(readJson(join(installedPath, 'package.json')), 'version');
     if (!version) return null;
     // The npm pi itself runs, so a configured registry, proxy or token applies.

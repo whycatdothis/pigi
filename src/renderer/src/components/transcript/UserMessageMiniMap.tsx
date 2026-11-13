@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { TranscriptNode, UserNode } from '../../state/transcriptController';
+import type { UserNode } from '../../state/transcriptController';
+import type { MinimalTurn } from '../../lib/minimalTurns';
 import {
   MESSAGE_LIST_HORIZONTAL_PADDING,
   MESSAGE_LIST_MAX_WIDTH,
@@ -10,7 +11,9 @@ import { cn } from '../../lib/utils';
 import { computeTickLayout, TICK_EDGE_INSET_DEVICE_PX } from './minimapTickLayout';
 
 interface UserMessageMiniMapProps {
-  nodes: TranscriptNode[];
+  /** Turns keep their identity while a batch only rewrites the last one (see
+   *  buildTurns), which is what lets the memo below hold during streaming. */
+  turns: MinimalTurn[];
   containerRef: React.RefObject<HTMLDivElement | null>;
   /** Index in the displayNodes array of the user message closest to viewport center */
   activeUserMessageIndex: number;
@@ -74,8 +77,17 @@ function getLineWidth(index: number, total: number, maxWidth: number): number {
   return Math.round(LINE_WIDTH_MIN_CAP + factor * (maxWidth - LINE_WIDTH_MIN_CAP));
 }
 
-export default React.memo(function UserMessageMiniMap({
-  nodes,
+function sameTurns(left: MinimalTurn[], right: MinimalTurn[]): boolean {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index++) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+}
+
+function UserMessageMiniMap({
+  turns,
   containerRef,
   activeUserMessageIndex,
   onScrollToIndex,
@@ -129,17 +141,20 @@ export default React.memo(function UserMessageMiniMap({
 
   const userMessages = useMemo(() => {
     const result: { node: UserNode; index: number; preview: string }[] = [];
-    for (let index = 0; index < nodes.length; index++) {
-      const node = nodes[index];
-      if (node.role === 'user') {
-        // The preview is the first line, and both the row's text and its title
-        // show it: splitting here keeps it once per node instead of twice per
-        // render, which matters at a few hundred messages.
-        result.push({ node, index, preview: node.text.split('\n')[0] || EMPTY_MESSAGE_PREVIEW });
-      }
+    for (const turn of turns) {
+      const node = turn.userNode;
+      if (!node) continue;
+      // The preview is the first line, and both the row's text and its title
+      // show it: splitting here keeps it once per node instead of twice per
+      // render, which matters at a few hundred messages.
+      result.push({
+        node,
+        index: turn.userIndex,
+        preview: node.text.split('\n')[0] || EMPTY_MESSAGE_PREVIEW,
+      });
     }
     return result;
-  }, [nodes]);
+  }, [turns]);
 
   const activePosition = useMemo(() => {
     for (let position = 0; position < userMessages.length; position++) {
@@ -379,4 +394,13 @@ export default React.memo(function UserMessageMiniMap({
       )}
     </div>
   );
-});
+}
+
+export default React.memo(
+  UserMessageMiniMap,
+  (previous, next) =>
+    previous.activeUserMessageIndex === next.activeUserMessageIndex &&
+    previous.containerRef === next.containerRef &&
+    previous.onScrollToIndex === next.onScrollToIndex &&
+    sameTurns(previous.turns, next.turns),
+);

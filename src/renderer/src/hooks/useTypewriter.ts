@@ -4,6 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  * Typewriter effect: when `text` changes, animates deletion of old text
  * then types in the new text character by character.
  *
+ * A change during the animation (or an unmount) stops it and shows the new
+ * text at once — a half-typed title must never outlive the text it came from.
+ *
  * Returns [displayedText, skipNext] where skipNext() suppresses the
  * animation for the next text change (e.g. after a manual rename).
  */

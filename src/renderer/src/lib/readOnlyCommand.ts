@@ -85,7 +85,7 @@ export function isReadOnlyBashCommand(command: string): boolean {
 
   for (const prefix of READ_ONLY_COMMAND_PREFIXES) {
     if (effectiveCommand.startsWith(prefix)) {
-      if (hasMutatingPipe(effectiveCommand)) {
+      if (hasMutatingSideEffect(effectiveCommand)) {
         return false;
       }
       return true;
@@ -93,7 +93,7 @@ export function isReadOnlyBashCommand(command: string): boolean {
   }
 
   if (/^git\s/.test(effectiveCommand) && isReadOnlyGitCommand(effectiveCommand)) {
-    if (!hasMutatingPipe(effectiveCommand)) {
+    if (!hasMutatingSideEffect(effectiveCommand)) {
       return true;
     }
   }
@@ -101,19 +101,40 @@ export function isReadOnlyBashCommand(command: string): boolean {
   // sed is read-only unless -i (in-place edit) appears anywhere in flags
   // Catches: sed -i, sed -ni, sed -e 'expr' -i, sed -i.bak
   if (/^sed\s/.test(effectiveCommand) && !hasInPlaceFlag(effectiveCommand)) {
-    if (!hasMutatingPipe(effectiveCommand)) {
+    if (!hasMutatingSideEffect(effectiveCommand)) {
       return true;
     }
   }
 
   // perl with flags is read-only unless -i appears: perl -i, perl -ni, perl -pi -e '...'
   if (/^perl\s+-./.test(effectiveCommand) && !hasInPlaceFlag(effectiveCommand)) {
-    if (!hasMutatingPipe(effectiveCommand)) {
+    if (!hasMutatingSideEffect(effectiveCommand)) {
       return true;
     }
   }
 
   return false;
+}
+
+/**
+ * Whether a git call only reads. Everything below is either a subcommand that
+ * never writes or a subcommand whose write forms are the ones I left out.
+ */
+export function isReadOnlyGitCommand(command: string): boolean {
+  const match = command.match(/^git\s+(\S+)/);
+  if (!match) return false;
+  const subcommand = match[1];
+  if (READ_ONLY_GIT_SUBCOMMANDS.has(subcommand)) return true;
+  const form = GIT_LISTING_FORMS.get(subcommand);
+  if (!form) return false;
+  const args = command.slice(match[0].length);
+  // `git branch --set-upstream-to=origin/main` writes just like the spaced form.
+  const argumentTokens = args.split(/\s+/);
+  const writes = form.writes.some((token) =>
+    argumentTokens.some((arg) => arg === token || arg.startsWith(`${token}=`)),
+  );
+  if (writes) return false;
+  return form.listing.test(args);
 }
 
 /** Strips leading `# ...` lines and `cd ... &&` segments: `cd /path && rg foo` → `rg foo`. */
@@ -149,30 +170,91 @@ const READ_ONLY_GIT_SUBCOMMANDS = new Set([
   'show',
   'status',
   'blame',
-  'branch',
-  'remote',
-  'tag',
   'shortlog',
   'describe',
-  'config',
   'ls-files',
   'ls-tree',
   'cat-file',
   'rev-parse',
   'rev-list',
   'name-rev',
-  'reflog',
   'symbolic-ref',
 ]);
 
-export function isReadOnlyGitCommand(command: string): boolean {
-  const match = command.match(/^git\s+(\S+)/);
-  if (!match) return false;
-  return READ_ONLY_GIT_SUBCOMMANDS.has(match[1]);
-}
+/**
+ * The subcommands that both read and write: the argument forms that list, and
+ * the arguments that make them write whatever else is on the line
+ * (`git branch -v -D x` lists first and deletes second).
+ */
+const GIT_LISTING_FORMS = new Map<string, { listing: RegExp; writes: readonly string[] }>([
+  [
+    'branch',
+    {
+      listing:
+        /^(?:$|\s+(?:-a|--all|-r|--remotes|-v|--verbose|-l|--list|--show-current|--contains|--no-contains|--merged|--no-merged|--points-at)(?:\s|$))/,
+      writes: [
+        '-d',
+        '-D',
+        '-m',
+        '-M',
+        '-c',
+        '-C',
+        '-f',
+        '-u',
+        '--delete',
+        '--move',
+        '--copy',
+        '--force',
+        '--set-upstream-to',
+        '--unset-upstream',
+        '--edit-description',
+      ],
+    },
+  ],
+  [
+    'tag',
+    {
+      listing: /^(?:$|\s+(?:-l|--list|-n\d*|--contains|--no-contains|--points-at)(?:\s|$))/,
+      writes: ['-d', '--delete', '-f', '--force'],
+    },
+  ],
+  [
+    'remote',
+    {
+      listing: /^(?:$|\s+(?:-v|--verbose|show|get-url)(?:\s|$))/,
+      writes: ['add', 'remove', 'rm', 'rename', 'set-url', 'set-head', 'set-branches', 'prune'],
+    },
+  ],
+  [
+    'config',
+    {
+      listing: /^\s+(?:--get|--get-all|--get-regexp|--list|-l)(?:\s|$)/,
+      writes: [
+        '--unset',
+        '--unset-all',
+        '--replace-all',
+        '--add',
+        '--rename-section',
+        '--remove-section',
+        '--edit',
+      ],
+    },
+  ],
+  [
+    'reflog',
+    {
+      listing: /^(?:$|\s+(?:show|--oneline|-n\d*)(?:\s|$))/,
+      writes: ['expire', 'delete'],
+    },
+  ],
+]);
 
-/** Only catches pipes into obviously mutating commands. */
-function hasMutatingPipe(command: string): boolean {
+/**
+ * The write side effects a read can still have: a pipe into an obviously
+ * mutating command, or a `>` that is not a descriptor duplicate (`2>&1`) or a
+ * discard (`/dev/null`).
+ */
+function hasMutatingSideEffect(command: string): boolean {
   const pipeSegments = command.split('|').slice(1);
   const mutatingCommands = ['tee ', 'xargs rm', 'xargs mv', 'dd ', 'sh ', 'bash '];
 
@@ -184,5 +266,7 @@ function hasMutatingPipe(command: string): boolean {
       }
     }
   }
-  return false;
+  // `=>` and `->` are not redirections; `2>&1` duplicates a descriptor. `&>`
+  // and `<>` write, so a preceding `&` or `<` still counts.
+  return /(?:^|[^=-])>>?(?!&)\s*(?!\/dev\/null)\S/.test(command);
 }

@@ -175,6 +175,13 @@ export function setProjectFileWatch(
 ): void {
   if (projectPath.trim().length === 0) return;
 
+  // One sidebar watches one project at a time, so a set for another project
+  // means the previous one is gone — including a renderer that reloaded before
+  // its cleanup could run, which would otherwise keep those watchers forever.
+  for (const [watchedPath, watched] of states) {
+    if (watchedPath !== projectPath) disposeState(watchedPath, watched);
+  }
+
   const treeDirectories = new Set<string>();
   for (const directory of directories) {
     const normalized = normalizeRelativePath(directory);

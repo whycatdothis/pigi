@@ -26,7 +26,7 @@ import UserMessageMiniMap from './UserMessageMiniMap';
 import { ThinScrollbar } from '../ui/thinScrollbar';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import MinimalView from './minimalView';
-import { analyzeTurn, buildTurns, turnRunEnd, type RunEnd } from '../../lib/minimalTurns';
+import { analyzeTurns, buildTurns, turnRunEnd, type RunEnd } from '../../lib/minimalTurns';
 
 interface MessageListProps {
   nodes: TranscriptNode[];
@@ -76,20 +76,20 @@ export default React.memo(function MessageList({
   );
 
   const displayNodes = useMemo(() => nodes.filter(isRenderableNode), [nodes]);
-  const { lastMinimalTurn, isLastMinimalTurnActive, runEnds } = useMemo(() => {
-    const turns = buildTurns(displayNodes);
-    const lastTurn = turns[turns.length - 1] ?? null;
+  const { turns, analyses, lastMinimalTurn, isLastMinimalTurnActive, runEnds } = useMemo(() => {
+    const builtTurns = buildTurns(displayNodes);
+    const builtAnalyses = analyzeTurns(builtTurns, sessionStatus);
+    const lastTurn = builtTurns[builtTurns.length - 1] ?? null;
     const runEnds = new Map<TranscriptNode, RunEnd>();
-    let isLastTurnActive = false;
-    for (const turn of turns) {
-      const analysis = analyzeTurn(turn, sessionStatus, turn === lastTurn);
-      if (turn === lastTurn) isLastTurnActive = analysis.isActive;
-      const end = turnRunEnd(turn, analysis);
+    for (let index = 0; index < builtTurns.length; index++) {
+      const end = turnRunEnd(builtTurns[index], builtAnalyses[index]);
       if (end) runEnds.set(end.node, end);
     }
     return {
+      turns: builtTurns,
+      analyses: builtAnalyses,
       lastMinimalTurn: lastTurn,
-      isLastMinimalTurnActive: isLastTurnActive,
+      isLastMinimalTurnActive: lastTurn ? builtAnalyses[builtTurns.length - 1].isActive : false,
       runEnds,
     };
   }, [displayNodes, sessionStatus]);
@@ -341,8 +341,8 @@ export default React.memo(function MessageList({
                switches and streaming commits can never lose it). */
             <div ref={rowsWrapperRef} className="pb-8 pt-6">
               <MinimalView
-                nodes={displayNodes}
-                sessionStatus={sessionStatus}
+                turns={turns}
+                analyses={analyses}
                 onExpandDetails={releaseAutoScrollPin}
                 onTurnEnd={handleMinimalTurnEnd}
                 onCollapseDetails={handleCollapseDetails}
@@ -443,7 +443,7 @@ export default React.memo(function MessageList({
         <QuoteSelectionPopover containerRef={containerRef} sessionPath={sessionPath} />
       )}
       <UserMessageMiniMap
-        nodes={displayNodes}
+        turns={turns}
         containerRef={containerRef}
         activeUserMessageIndex={activeUserMessageIndex}
         onScrollToIndex={handleScrollToIndex}

@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import {
   analyzeTurn,
+  analyzeTurns,
   buildTurns,
   shouldShowTimer,
   turnRunEnd,
@@ -138,4 +139,62 @@ test('a finished run ends on its last message, timed from the prompt', () => {
     durationMs: 60_000,
   });
   expect(turnRunEnd(turn, analyzeTurn(turn, 'streaming', true))).toBeNull();
+});
+
+test('history keeps its turn and analysis across a streaming batch', () => {
+  const first = user('first', 1_000);
+  const firstReply = assistant({ text: 'one', messageStartedAt: 2_000, messageEndedAt: 3_000 });
+  const second = user('second', 10_000);
+  const live = assistant({ text: 't', isStreaming: true, messageStartedAt: 11_000 });
+
+  const before = buildTurns([first, firstReply, second, live]);
+  const beforeAnalyses = analyzeTurns(before, 'streaming');
+
+  // The utility process replaces the tail node on every batch, nothing else.
+  const streamedLive = { ...live, text: 'two' };
+  const after = buildTurns([first, firstReply, second, streamedLive]);
+  const afterAnalyses = analyzeTurns(after, 'streaming');
+
+  expect(after[0]).toBe(before[0]);
+  expect(afterAnalyses[0]).toBe(beforeAnalyses[0]);
+  expect(after[1]).not.toBe(before[1]);
+  expect(afterAnalyses[1]).not.toBe(beforeAnalyses[1]);
+});
+
+test('streaming text mutated in place rebuilds the live turn', () => {
+  // applyStreamBatch mutates the active assistant node in place and bumps its
+  // revision (see readGrouping.ts); the node reference never changes.
+  const first = user('first', 1_000);
+  const reply = assistant({ text: 'one', messageStartedAt: 2_000, messageEndedAt: 3_000 });
+  const second = user('second', 10_000);
+  const live = assistant({ text: 'a', isStreaming: true, messageStartedAt: 11_000 });
+
+  const before = buildTurns([first, reply, second, live]);
+  const beforeAnalyses = analyzeTurns(before, 'streaming');
+
+  live.text += 'b';
+  live.revision = 1;
+
+  const after = buildTurns([first, reply, second, live]);
+  const afterAnalyses = analyzeTurns(after, 'streaming');
+
+  expect(after[0]).toBe(before[0]);
+  expect(afterAnalyses[0]).toBe(beforeAnalyses[0]);
+  expect(after[1]).not.toBe(before[1]);
+  expect(afterAnalyses[1]).not.toBe(beforeAnalyses[1]);
+});
+
+test('a status flip does not recompute the finished turns', () => {
+  const nodes = [
+    user('first', 1_000),
+    assistant({ text: 'one', messageStartedAt: 2_000, messageEndedAt: 3_000 }),
+    user('second', 10_000),
+  ];
+  const turns = buildTurns(nodes);
+
+  const streaming = analyzeTurns(turns, 'streaming');
+  const idle = analyzeTurns(turns, 'idle');
+
+  expect(idle[0]).toBe(streaming[0]);
+  expect(idle[1]).not.toBe(streaming[1]);
 });

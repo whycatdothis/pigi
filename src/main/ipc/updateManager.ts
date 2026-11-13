@@ -5,9 +5,10 @@
  * (`autoInstallOnAppQuit` is off, `autoDownload` too). Two paths share one
  * status:
  *
- *   silent  — on launch and every two hours (spread by a few minutes of
- *             jitter). A found update downloads with no UI; the blue dot in
- *             Settings is the only announcement.
+ *   silent  — on launch and every two hours, each timer drawn ±10 minutes
+ *             (BACKGROUND_CHECK_JITTER_MS) so a fleet of installs does not
+ *             hit the release feed at the same second. A found update downloads
+ *             with no UI; the blue dot in Settings is the only announcement.
  *   manual  — from Settings. A found update shows the progress window, which
  *             carries the progress bar, Cancel, and Restart.
  *

@@ -42,6 +42,11 @@ configureDebugPanel();
 installMainDebugHandle({ piAgent: getPiAgentDebugSnapshot });
 
 protocol.registerSchemesAsPrivileged([
+  // `local-file` reads any path the renderer names and bypasses the page's CSP.
+  // That is only sound because the renderer never runs untrusted content: model
+  // output reaches the DOM through escaped markdown, and this window never
+  // navigates (see windows/windowNavigation.ts). A remote page loaded in it
+  // would turn this scheme into an arbitrary-file read.
   { scheme: 'local-file', privileges: { bypassCSP: true, supportFetchAPI: true } },
   { scheme: PACKAGE_IMAGE_SCHEME, privileges: { secure: true } },
 ]);

@@ -57,8 +57,12 @@ export function countAbandonedEntries(tree: SessionTree, targetId: string): numb
 
 function pathToRoot(byId: Map<string, SessionTreeEntry>, startId: string): SessionTreeEntry[] {
   const path: SessionTreeEntry[] = [];
+  const visited = new Set<string>();
   let current = byId.get(startId);
   while (current) {
+    // A parent cycle in a hand-edited session file would otherwise hang here.
+    if (visited.has(current.id)) break;
+    visited.add(current.id);
     path.push(current);
     current = current.parentId ? byId.get(current.parentId) : undefined;
   }

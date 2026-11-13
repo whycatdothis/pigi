@@ -317,7 +317,16 @@ async function listProjectSessions(requestId: string, cwd: string): Promise<void
 process.parentPort?.on('message', async (messageEvent) => {
   // parentPort only receives SessionWorkerCommand from main — safe narrowing
   const command: SessionWorkerCommand = messageEvent.data;
+  try {
+    await handleCommand(command);
+  } catch (error) {
+    // A command that throws must not take the worker down with it: the reply
+    // is the only place the renderer can learn about it.
+    console.error(`[session worker] ${command.type} failed:`, error);
+  }
+});
 
+async function handleCommand(command: SessionWorkerCommand): Promise<void> {
   switch (command.type) {
     case 'list_project_sessions': {
       await Promise.all(command.cwds.map((cwd) => listProjectSessions(command.requestId, cwd)));
@@ -430,7 +439,7 @@ process.parentPort?.on('message', async (messageEvent) => {
       break;
     }
   }
-});
+}
 
 // Load and publish the model catalog as soon as the worker starts. The main
 // process caches and rebroadcasts it, so renderer timing does not matter.

@@ -131,18 +131,25 @@ function sortNodes(nodes: LineageNode[]): void {
     sortNodes(node.children);
     sortNodes(node.subagents);
   }
+  // Once per level, not once per comparison: the comparator used to walk the
+  // whole subtree on both sides of every comparison.
+  const activity = new Map<LineageNode, number>();
+  for (const node of nodes) activity.set(node, subtreeActivity(node, activity));
   nodes.sort((left, right) => {
-    const byActivity = subtreeActivity(right) - subtreeActivity(left);
+    const byActivity = (activity.get(right) ?? 0) - (activity.get(left) ?? 0);
     if (byActivity !== 0) return byActivity;
     return left.session.path.localeCompare(right.session.path);
   });
 }
 
-function subtreeActivity(node: LineageNode): number {
+function subtreeActivity(node: LineageNode, known: Map<LineageNode, number>): number {
+  const cached = known.get(node);
+  if (cached !== undefined) return cached;
   let latest = activityTime(node.session);
   for (const child of [...node.children, ...node.subagents]) {
-    latest = Math.max(latest, subtreeActivity(child));
+    latest = Math.max(latest, subtreeActivity(child, known));
   }
+  known.set(node, latest);
   return latest;
 }
 

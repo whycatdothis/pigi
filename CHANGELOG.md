@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Long sessions stay smooth in Minimal view while the agent writes: only the message being streamed is redrawn, not every message above it, and the minimap updates only when the session actually changes
+- Typing in the composer while a reply streams no longer stutters: the input is left alone as text arrives
+- Sessions with many tool calls no longer slow down as the count grows, and a very long session reopens faster
+- The packages catalog keeps the icons of the 100 most recently shown packages instead of every one seen in the run
+
+### Fixed
+
+- A terminal keeps the output that arrives while the window is reloading instead of dropping it
+- A theme with a malformed `rgb()` or `oklch()` value is rejected instead of writing `NaN` into every color token and breaking the whole color scheme
+- Pasting a truncated package link, such as an npmjs.com URL that ends in `%`, no longer throws
+- `pigi` rejects a `--timeout` outside 1 to 86400 seconds instead of reporting a timeout immediately
+
 ## [0.6.6] - 2026-11-12
 
 ### Fixed

@@ -1,15 +1,12 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { IconChevronRight } from '@tabler/icons-react';
 import {
-  type AgentStatus,
   type AssistantNode,
   type ToolNode,
   type TranscriptNode,
 } from '../../state/transcriptController';
 import { MESSAGE_CONTENT_MAX_WIDTH } from '../../lib/layoutConstants';
 import {
-  analyzeTurn,
-  buildTurns,
   formatWorkingDuration,
   shouldShowTimer,
   turnRunEnd,
@@ -47,8 +44,8 @@ import { useSettingsStore } from '../../state/settingsStore';
  */
 
 interface MinimalViewProps {
-  nodes: TranscriptNode[];
-  sessionStatus: AgentStatus;
+  turns: MinimalTurn[];
+  analyses: MinimalTurnAnalysis[];
   /** Called when the user expands a turn's details — MessageList preserves
    *  active output-follow state or releases a finished turn's pin. */
   onExpandDetails: (isActive: boolean) => void;
@@ -67,8 +64,8 @@ interface MinimalViewProps {
 }
 
 export default function MinimalView({
-  nodes,
-  sessionStatus,
+  turns,
+  analyses,
   onExpandDetails,
   onTurnEnd,
   onCollapseDetails,
@@ -76,12 +73,6 @@ export default function MinimalView({
   onOutputGrowth,
   scrollContainerRef,
 }: MinimalViewProps): React.JSX.Element {
-  const turns = useMemo(() => buildTurns(nodes), [nodes]);
-  const analyses = useMemo(
-    () => turns.map((turn, index) => analyzeTurn(turn, sessionStatus, index === turns.length - 1)),
-    [turns, sessionStatus],
-  );
-
   return (
     <div data-testid="minimal-view">
       {turns.map((turn, index) => (

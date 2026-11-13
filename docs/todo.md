@@ -23,6 +23,34 @@ The `pigi` CLI has the same gap: a second instance of the same build serves no
 socket, and its sessions' `pigi` calls reach the first instance
 (`docs/cli.md` §8). The lock fixes this too.
 
+## Shell environment resolution blocks launch
+
+`initializeShellEnv` (`src/main/processes/shellEnvResolver.ts`) runs
+`execFileSync` over every candidate login shell, each with a 5s timeout, plus a
+`dscl` call — synchronously, inside `app.whenReady()` and before the window is
+created. A slow `.zshrc` (nvm, a corporate prompt, a cold network mount) is a
+white screen for as long as the slowest shell takes.
+
+The fix is to resolve with `execFile` instead and have the three spawn paths
+that inherit `process.env` wait on it: `createPiAgentProcess` (both the warm
+process and a claimed one), `createTerminalProcess` and
+`createPackageWorkerProcess`. That means making `PiAgentProcessPool.ensureWarmProcess`
+/ `claimWarmProcess` and `startTerminal` async, which is why it is its own
+change: a spawn that slips ahead of the resolution silently gives the agent the
+launchd PATH (no brew, no nvm) instead of failing loudly.
+
+## Transcript controllers are never evicted
+
+`useTranscript` keeps one controller and one push subscription per session path
+(`controllersBySession`, `subscriptionsBySession`) and only drops them on
+session close or a failed resume. Keeping a closed tab's transcript warm is
+deliberate; with a hundred sessions opened in a day, every one of them keeps its
+node text (large tool output included) and processes its background pushes
+forever. An LRU over the subscriptions (drop the least recently shown session
+that is idle and not the active one) would bound it; check first that reopening
+a session re-hydrates from the file, since a dropped controller only has
+`getMessages` to come back from.
+
 ## Reserve a minimum width for the main area
 
 At 560px and below the right sidebar's always-allowed width wins, leaving the
@@ -136,10 +164,6 @@ for this.
 - README images are dropped because the CSP loads no remote image. Showing
   them means extending the `package-image://` proxy (which serves only a
   package's `pi.image`) or a scoped `img-src`.
-- `package-image://` keeps every fetched image in main for the window's
-  lifetime and checks the 5 MB limit only after the download; failed fetches
-  are cached as misses until a restart. Bound the cache, reject on
-  `content-length`, and stop reading past the limit.
 - A timed-out operation kills the package worker, but npm or git started by
   pi's package manager keep running as orphans, and the queue moves on while
   they still write the install folder. Killing the worker's children (or its

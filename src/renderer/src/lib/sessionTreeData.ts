@@ -126,13 +126,19 @@ export function createSessionTreeData(
   if (normalizedQuery !== '') {
     matchingIds = new Set<string>();
     for (const entry of eligibleEntries) {
+      // Matched against the row's label and text; the label is needed again
+      // below, so the description is built once.
+      const description = describeSessionTreeEntry(entry);
+      const target = description.label
+        ? `${description.label} ${description.text}`
+        : description.text;
       // Fuzzy, not substring: "astmsg" finds "assistant message".
-      const match = fuzzysort.single(normalizedQuery, fuzzyTarget(entry));
+      const match = fuzzysort.single(normalizedQuery, target);
       if (!match) continue;
       matchingIds.add(entry.id);
       // The description carries a label (a tool's name) that the row no longer
       // prints; the row's text follows it, so drop the leading indexes.
-      const label = describeSessionTreeEntry(entry).label;
+      const label = description.label;
       const offset = label ? label.length + 1 : 0;
       matchIndexesById.set(
         entry.id,
@@ -426,6 +432,9 @@ function collectActivePathIds(
   const ids = new Set<string>();
   let current = leafId ? entryById.get(leafId) : undefined;
   while (current) {
+    // A hand-edited session file can point an entry at its own descendant; the
+    // set also stops the walk at the point the path closes on itself.
+    if (ids.has(current.id)) break;
     ids.add(current.id);
     current = current.parentId ? entryById.get(current.parentId) : undefined;
   }
@@ -480,20 +489,18 @@ function collectAncestorIds(
   return ids;
 }
 
-/** The string a query is matched against: the row's label and text. */
-function fuzzyTarget(entry: SessionTreeEntry): string {
-  const description = describeSessionTreeEntry(entry);
-  return description.label ? `${description.label} ${description.text}` : description.text;
-}
-
 function findSurvivingParentId(
   parentId: string | null,
   survivingIds: Set<string> | null,
   entryById: Map<string, SessionTreeEntry>,
 ): string | null {
   let currentId = parentId;
+  const visited = new Set<string>();
   while (currentId !== null) {
     if (!survivingIds || survivingIds.has(currentId)) return currentId;
+    // Same guard as collectActivePathIds: a parent cycle must not hang the row.
+    if (visited.has(currentId)) return null;
+    visited.add(currentId);
     currentId = entryById.get(currentId)?.parentId ?? null;
   }
   return null;
@@ -534,9 +541,12 @@ function findRootId(
 ): string | null {
   if (!leafId) return null;
   let current = entryById.get(leafId);
+  const visited = new Set<string>();
   while (current?.parentId) {
     const parent: SessionTreeEntry | undefined = entryById.get(current.parentId);
     if (!parent) break;
+    if (visited.has(parent.id)) return null;
+    visited.add(parent.id);
     current = parent;
   }
   return current?.id ?? null;

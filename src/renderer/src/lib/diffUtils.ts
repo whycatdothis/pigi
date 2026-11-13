@@ -92,7 +92,11 @@ function addIntraLineDiffs(lines: DiffLine[]): void {
     const addCount = addEnd - addStart;
 
     // Only do intra-line for 1:1 pairs (like pi-mono)
-    if (removeCount === 1 && addCount === 1) {
+    if (
+      removeCount === 1 &&
+      addCount === 1 &&
+      isWordDiffable(lines[removeStart], lines[addStart])
+    ) {
       const removedLine = lines[removeStart];
       const addedLine = lines[addStart];
       const { removedSegments, addedSegments } = computeIntraLineDiff(
@@ -106,6 +110,17 @@ function addIntraLineDiffs(lines: DiffLine[]): void {
     // Skip context lines
     if (i === removeStart) i++;
   }
+}
+
+// Past this a word diff of one line is slow (minified code) and unreadable
+// anyway; gitDiffPatch.ts caps its word diff for the same reason.
+const MAX_WORD_DIFF_LINE_LENGTH = 500;
+
+function isWordDiffable(removed: DiffLine, added: DiffLine): boolean {
+  return (
+    removed.content.length <= MAX_WORD_DIFF_LINE_LENGTH &&
+    added.content.length <= MAX_WORD_DIFF_LINE_LENGTH
+  );
 }
 
 /**

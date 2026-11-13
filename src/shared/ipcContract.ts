@@ -664,7 +664,6 @@ export enum PiChannel {
   ChangePigiSettings = 'pi:change_pigi_settings',
   /** renderer → main: a prompt, a feature used or an uncaught error, for telemetry (main decides whether to send) */
   ReportTelemetry = 'pi:report_telemetry',
-  /** main → renderer: the merged settings snapshot every window shares */
   /** renderer → main: get all keyboard shortcut definitions with current bindings */
   GetShortcuts = 'pi:get_shortcuts',
   /** renderer → main: update a keyboard shortcut binding */
@@ -685,7 +684,6 @@ export enum PiChannel {
   SearchPiPackageCatalog = 'pi:search_pi_package_catalog',
   /** renderer → main: one catalog package's README and manifest */
   GetPiCatalogPackage = 'pi:get_pi_catalog_package',
-  /** renderer → main: app/electron/runtime version info */
   /** renderer → main: get the cached model catalog snapshot */
   GetModelCatalog = 'pi:get_model_catalog',
   /** renderer → main: kick a background catalog reload and get the current snapshot back immediately */

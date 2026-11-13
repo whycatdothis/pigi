@@ -86,7 +86,9 @@ export function formatQuotesMessage(
       : [];
     const [first, ...rest] = quote.reference ? [quote.reference, ...quotedLines] : quotedLines;
     const comment = quote.comment.trim();
-    const lines = [`${index + 1}. ${first}`, ...rest];
+    // An empty quote with no reference has no first line; a label with a
+    // trailing space and "undefined" is worse than the number alone.
+    const lines = [first === undefined ? `${index + 1}.` : `${index + 1}. ${first}`, ...rest];
     if (comment) {
       lines.push(comment);
     }

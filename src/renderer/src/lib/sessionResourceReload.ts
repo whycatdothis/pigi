@@ -34,18 +34,21 @@ export function reloadSessionResources(onReloaded: (sessionPath: string) => void
     }
   }
   if (waitingSessionPaths.size > 0 && !unsubscribe) {
-    unsubscribe = useAppStore.subscribe((state) => {
-      for (const sessionPath of waitingSessionPaths) {
-        const session = state.sessions.get(sessionPath);
-        if (session && isAgentBusy(session.status)) continue;
-        waitingSessionPaths.delete(sessionPath);
-        if (session) reloadSession(sessionPath, onReloaded);
-      }
-      if (waitingSessionPaths.size === 0) {
-        unsubscribe?.();
-        unsubscribe = null;
-      }
-    });
+    unsubscribe = useAppStore.subscribe(
+      (state) => state.sessions,
+      (sessions) => {
+        for (const sessionPath of waitingSessionPaths) {
+          const session = sessions.get(sessionPath);
+          if (session && isAgentBusy(session.status)) continue;
+          waitingSessionPaths.delete(sessionPath);
+          if (session) reloadSession(sessionPath, onReloaded);
+        }
+        if (waitingSessionPaths.size === 0) {
+          unsubscribe?.();
+          unsubscribe = null;
+        }
+      },
+    );
   }
   return { reloaded, waiting: waitingSessionPaths.size };
 }

@@ -1,4 +1,5 @@
 import {
+  memo,
   useRef,
   useCallback,
   useEffect,
@@ -122,7 +123,29 @@ interface ComposerHandlers {
   drop: (event: globalThis.DragEvent) => boolean;
 }
 
-export default function ChatInput({
+/** Props are stable while a turn streams except the prompt history, which the
+ *  transcript rebuilds on every batch: compare that one by content, so a token
+ *  arriving does not reconcile the whole composer. */
+function sameProps(previous: ChatInputProps, next: ChatInputProps): boolean {
+  const keys = Object.keys(next) as (keyof ChatInputProps)[];
+  if (keys.length !== Object.keys(previous).length) return false;
+  return keys.every((key) =>
+    key === 'userHistory'
+      ? sameStrings(previous.userHistory, next.userHistory)
+      : Object.is(previous[key], next[key]),
+  );
+}
+
+function sameStrings(left: string[], right: string[]): boolean {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index++) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+}
+
+export default memo(function ChatInput({
   ref,
   onSend,
   onFollowUp,
@@ -978,4 +1001,4 @@ export default function ChatInput({
       </div>
     </div>
   );
-}
+}, sameProps);

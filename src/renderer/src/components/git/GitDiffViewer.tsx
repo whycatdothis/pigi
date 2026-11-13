@@ -138,9 +138,24 @@ export default function GitDiffViewer({
   }
   const commentingFile = commentingTarget === commentTarget;
 
-  // A summary refresh hands in a new `file` object and reads the patch again;
-  // an unchanged result keeps the state.
+  // A summary refresh hands in a new `file` object built from the same numbers.
+  // Reading only when its contents change keeps that refresh from paying for an
+  // IPC round trip and a git child process per file.
+  const readKey = [
+    projectPath,
+    sourceKind,
+    sourceRef,
+    file.path,
+    file.oldPath ?? '',
+    file.status,
+    file.additions,
+    file.deletions,
+    file.binary,
+  ].join('\u0000');
+  const lastReadKeyRef = useRef<string | null>(null);
   useEffect(() => {
+    if (lastReadKeyRef.current === readKey) return;
+    lastReadKeyRef.current = readKey;
     let cancelled = false;
     const request: GitDiffSource =
       sourceKind === 'base'
@@ -185,7 +200,7 @@ export default function GitDiffViewer({
     return () => {
       cancelled = true;
     };
-  }, [projectPath, sourceKind, sourceRef, file]);
+  }, [readKey, file, projectPath, sourceKind, sourceRef]);
 
   const promote = useCallback((id: number) => {
     setPatchState((previous) =>

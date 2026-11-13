@@ -11,6 +11,9 @@ import { onProjectActivity } from './projectActivity';
  * message often names a file before the tool call that creates it.
  */
 
+// Bounded like measuredRowHeights: a long session names thousands of paths and
+// a hit never expires on its own, so the oldest entries go first.
+const MAX_RESOLVED_PATHS = 5_000;
 const resolved = new Map<string, ExistingPath | null>();
 const inFlight = new Set<string>();
 const queued = new Map<string, Set<string>>();
@@ -37,6 +40,10 @@ async function resolveBatch(cwd: string, paths: string[]): Promise<void> {
     const key = cacheKey(cwd, path);
     inFlight.delete(key);
     resolved.set(key, results[index] ?? null);
+    if (resolved.size > MAX_RESOLVED_PATHS) {
+      const oldest = resolved.keys().next();
+      if (!oldest.done) resolved.delete(oldest.value);
+    }
   });
   notify();
 }

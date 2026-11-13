@@ -7,7 +7,8 @@
  * handshake works before a window exists.
  */
 import { app, ipcMain, type BrowserWindow, type WebContents } from 'electron';
-import { chmod, rm } from 'node:fs/promises';
+import { chmodSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import net from 'node:net';
 import { delimiter, join } from 'node:path';
 import { userInfo } from 'node:os';
@@ -31,6 +32,10 @@ import {
 
 /** A request waits this long for a renderer (a reopened window loading). */
 const RENDERER_READY_TIMEOUT_MS = 30 * 1000;
+/** How long an EADDRINUSE probe may hang before it is given up on. */
+const PROBE_TIMEOUT_MS = 1000;
+/** Requests a runaway script may park before it is told to back off. */
+const MAX_QUEUED_REQUESTS = 64;
 
 interface RemoteControlHost {
   getWindow: () => BrowserWindow | null;
@@ -140,6 +145,15 @@ function relay(pending: PendingRequest): void {
 }
 
 function enqueue(pending: PendingRequest): void {
+  if (queued.length >= MAX_QUEUED_REQUESTS) {
+    write(
+      pending.socket,
+      encode(pending.request.id, {
+        error: remoteError('APP_NOT_READY', 'too many requests are waiting for the window'),
+      }),
+    );
+    return;
+  }
   const timer = setTimeout(() => {
     queued = queued.filter((entry) => entry.pending !== pending);
     write(
@@ -274,6 +288,12 @@ function listen(server: net.Server, path: string): void {
       return;
     }
     const probe = net.createConnection(path);
+    // A probe that never answers leaves the server unlistened and the CLI
+    // unusable, with nothing in the log to say why.
+    probe.setTimeout(PROBE_TIMEOUT_MS, () => {
+      probe.destroy();
+      console.error(`[remoteControl] ${path} did not answer a stale-socket probe`);
+    });
     probe.once('connect', () => {
       probe.destroy();
       console.error(`[remoteControl] ${path} is served by another pigi instance`);
@@ -295,11 +315,17 @@ export function startRemoteControlServer(nextHost: RemoteControlHost): void {
   registerRendererIpc();
   const path = remoteControlSocketPath();
   const server = net.createServer(handleConnection);
-  // userData is per user already; the mode keeps the socket private if it
-  // ever is not.
+  // userData is per user already; the mode keeps the socket private if it ever
+  // is not. Synchronous so the 0755 the umask gives the bind is never outside
+  // this tick, and fatal because serving an 0755 socket is worse than not
+  // serving one at all: the renderer reconnects, another user should not.
   server.on('listening', () => {
-    if (process.platform !== 'win32') {
-      chmod(path, 0o600).catch((error) => console.error('[remoteControl] chmod failed:', error));
+    if (process.platform === 'win32') return;
+    try {
+      chmodSync(path, 0o600);
+    } catch (error) {
+      console.error('[remoteControl] chmod failed, closing the socket:', error);
+      server.close();
     }
   });
   // sockaddr_un holds 104 bytes on macOS (108 on Linux), terminator included.

@@ -15,6 +15,13 @@ export const REMOTE_PROTOCOL_VERSION = 1;
 export const PIGI_SOCKET_ENV = 'PIGI_SOCKET';
 export const PIGI_SESSION_ENV = 'PIGI_SESSION';
 
+/**
+ * A timeout past this would overflow the 32-bit setTimeout the wait is built
+ * on, which fires at once and reports a timeout nobody waited for. A day is far
+ * past any real wait.
+ */
+export const MAX_TIMEOUT_SECONDS = 24 * 60 * 60;
+
 /** A request line over this many bytes closes the connection. */
 export const REMOTE_MAX_LINE_BYTES = 1024 * 1024;
 
@@ -29,6 +36,9 @@ export interface SubagentEntryData {
 export interface RemoteParamSpec {
   type: 'string' | 'number' | 'boolean';
   required?: boolean;
+  /** Bounds of a number param, both inclusive. */
+  min?: number;
+  max?: number;
   /** The CLI flag, when it is not the param name. */
   flag?: string;
   /** Allowed values of a string param. */
@@ -129,7 +139,12 @@ export const REMOTE_METHODS = {
     positional: ['path'],
     params: {
       path: SESSION_PARAM,
-      timeout: { type: 'number', description: 'seconds to wait before giving up' },
+      timeout: {
+        type: 'number',
+        min: 1,
+        max: MAX_TIMEOUT_SECONDS,
+        description: 'seconds to wait before giving up',
+      },
       stop: {
         type: 'boolean',
         description: 'stop the session when the timeout runs out or the wait is cancelled',
@@ -169,6 +184,8 @@ export const REMOTE_METHODS = {
       },
       timeout: {
         type: 'number',
+        min: 1,
+        max: MAX_TIMEOUT_SECONDS,
         description: 'seconds after which the subagent is stopped; not with --detach',
       },
     },
@@ -362,6 +379,20 @@ export function parseRemoteParams(method: RemoteMethod, raw: unknown): RemotePar
         error: remoteError('INVALID_PARAMS', `"${name}" must be a non-empty ${param.type}`, {
           param: name,
         }),
+      };
+    }
+    if (
+      typeof value === 'number' &&
+      ((param.min !== undefined && value < param.min) ||
+        (param.max !== undefined && value > param.max))
+    ) {
+      return {
+        ok: false,
+        error: remoteError(
+          'INVALID_PARAMS',
+          `"${name}" must be between ${param.min ?? '-inf'} and ${param.max ?? 'inf'}`,
+          { param: name },
+        ),
       };
     }
     if (param.values && !param.values.includes(String(value))) {

@@ -13,7 +13,10 @@ export function isDebugPanelEnabled(): boolean {
 }
 
 export function configureDebugPanel(): void {
-  if (is.dev || isDebugPanelEnabled()) {
+  // Not isDebugPanelEnabled(): the env var is a runtime switch, and this port is
+  // a full-control channel into the renderer. Only a dev run or a build made to
+  // be debugged may open it.
+  if (is.dev || __PIGI_DEBUG_PANEL__) {
     app.commandLine.appendSwitch('remote-debugging-port', REMOTE_DEBUGGING_PORT);
   }
 }

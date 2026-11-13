@@ -140,20 +140,27 @@ export function parseCssColor(value: string): OklchColor | null {
 
   const rgbMatch = RGB_PATTERN.exec(input);
   if (rgbMatch) {
-    return rgbToOklch({
-      red: Number(rgbMatch[1]),
-      green: Number(rgbMatch[2]),
-      blue: Number(rgbMatch[3]),
-    });
+    const channels = [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])];
+    // `[\d.]+` also matches `1.2.3`; a NaN channel would poison every token
+    // derived from it instead of falling back.
+    if (!channels.every(Number.isFinite)) {
+      return null;
+    }
+    return rgbToOklch({ red: channels[0], green: channels[1], blue: channels[2] });
   }
 
   const oklchMatch = OKLCH_PATTERN.exec(input);
   if (oklchMatch) {
     const lightness = Number(oklchMatch[1]) / (oklchMatch[2] === '%' ? 100 : 1);
+    const chroma = Number(oklchMatch[3]);
+    const hue = Number(oklchMatch[4]);
+    if (!Number.isFinite(lightness) || !Number.isFinite(chroma) || !Number.isFinite(hue)) {
+      return null;
+    }
     return {
       lightness: clamp(lightness, 0, 1),
-      chroma: Math.max(0, Number(oklchMatch[3])),
-      hue: ((Number(oklchMatch[4]) % 360) + 360) % 360,
+      chroma: Math.max(0, chroma),
+      hue: ((hue % 360) + 360) % 360,
     };
   }
 

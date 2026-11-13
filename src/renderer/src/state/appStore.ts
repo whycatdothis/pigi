@@ -1,4 +1,5 @@
-import { create } from 'zustand';
+import { create, type StateCreator } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
 import { TERMINAL_DEFAULT_HEIGHT } from '../lib/layoutConstants';
 import type { SettingsSectionId } from '../lib/settingsSections';
 import { DEFAULT_SETTINGS_SECTION } from '../lib/settingsSections';
@@ -216,6 +217,20 @@ export function isAgentBusy(status: AgentStatus): boolean {
   return status === 'streaming' || status === 'tool_running';
 }
 
+/**
+ * Whether `updates` would change anything. Every agent event rewrites the
+ * status, and the sessions map's identity is what the app shell and the sidebar
+ * re-render on, so an unchanged write has to stay a no-op.
+ */
+function hasSessionChange(
+  existing: SessionEntry,
+  updates: Partial<Omit<SessionEntry, 'sessionPath'>>,
+): boolean {
+  return (Object.keys(updates) as (keyof typeof updates)[]).some(
+    (key) => !Object.is(existing[key], updates[key]),
+  );
+}
+
 const UNREAD_SESSIONS_STORAGE_KEY = 'pigi.unreadSessionPaths';
 export const EXPANDED_SUBAGENT_GROUPS_STORAGE_KEY = 'pigi.expandedSubagentGroups';
 export const COLLAPSED_SESSION_PARENTS_STORAGE_KEY = 'pigi.collapsedSessionParents';
@@ -312,7 +327,7 @@ export function workspaceProjectForSession({
   return activeProject;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+const createAppState: StateCreator<AppState> = (set) => ({
   sessions: new Map(),
   activeSessionPath: null,
   scrollPositions: new Map(),
@@ -382,11 +397,11 @@ export const useAppStore = create<AppState>((set) => ({
 
   updateSession: (sessionPath, updates) =>
     set((state) => {
-      const sessions = new Map(state.sessions);
-      const existing = sessions.get(sessionPath);
-      if (!existing) {
-        return { sessions };
+      const existing = state.sessions.get(sessionPath);
+      if (!existing || !hasSessionChange(existing, updates)) {
+        return state;
       }
+      const sessions = new Map(state.sessions);
       sessions.set(sessionPath, { ...existing, ...updates });
       const finishedUnseen =
         updates.status !== undefined &&
@@ -618,7 +633,11 @@ export const useAppStore = create<AppState>((set) => ({
       next.delete(sessionPath);
       return { renamedSessionPaths: next };
     }),
-}));
+});
+
+// Field subscriptions (see sessionResourceReload): a listener that only cares
+// about one slice must not run on every commit.
+export const useAppStore = create<AppState>()(subscribeWithSelector(createAppState));
 
 useAppStore.subscribe((state, previous) => {
   if (state.activeSessionPath !== previous.activeSessionPath) {

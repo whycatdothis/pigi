@@ -334,15 +334,17 @@ function App(): React.JSX.Element {
 
   // Draft chat: shown immediately on "new", no process/session until first message.
   const [isDraftChat, setIsDraftChat] = useState(false);
-  const draftControllerRef = useRef(new TranscriptController());
+  // Lazy initializer: `useRef(new …)` would build and drop a controller on
+  // every render, and App renders on every streaming batch.
+  const [draftController] = useState(() => new TranscriptController());
   // True while the draft's createSession is in-flight (prevents duplicate spawns).
   const [isDraftSpawning, setIsDraftSpawning] = useState(false);
   const isDraftSpawningRef = useRef(false);
   const draftSubscribe = useCallback(
-    (onStoreChange: () => void) => draftControllerRef.current.subscribe(onStoreChange),
-    [],
+    (onStoreChange: () => void) => draftController.subscribe(onStoreChange),
+    [draftController],
   );
-  const draftGetSnapshot = useCallback(() => draftControllerRef.current.state, []);
+  const draftGetSnapshot = useCallback(() => draftController.state, [draftController]);
   const draftState = useSyncExternalStore(draftSubscribe, draftGetSnapshot);
   const isDraftEmpty = draftState.nodes.length === 0;
 
@@ -753,11 +755,11 @@ function App(): React.JSX.Element {
 
     // Draft chat: first message triggers session creation in background.
     if (isDraftChat || !activeSessionPath) {
-      if (!activeSessionPath && draftControllerRef.current.state.status === 'error') {
-        draftControllerRef.current.reset();
+      if (!activeSessionPath && draftController.state.status === 'error') {
+        draftController.reset();
       }
 
-      draftControllerRef.current.addUserMessage(message, {
+      draftController.addUserMessage(message, {
         imageSources,
         filePaths,
         promptAttachments,
@@ -798,7 +800,7 @@ function App(): React.JSX.Element {
         console.error('All session creation attempts failed:', lastError);
         isDraftSpawningRef.current = false;
         setIsDraftSpawning(false);
-        draftControllerRef.current.setError(
+        draftController.setError(
           'Failed to start agent process. Please try sending your message again.',
         );
         return;
@@ -813,7 +815,7 @@ function App(): React.JSX.Element {
         // Transfer draft controller content to the real session.
         // Draft only contains UserNodes (optimistic messages), so we just add them.
         const controller = getTranscriptController(sessionPath);
-        const draftNodes = draftControllerRef.current.state.nodes;
+        const draftNodes = draftController.state.nodes;
         for (const node of draftNodes) {
           if (node.role === 'user') {
             controller.addUserMessage(node.text, {
@@ -917,6 +919,13 @@ function App(): React.JSX.Element {
   useEffect(() => {
     handleSendRef.current = handleSend;
   });
+  // The composer is memoized for the same reason; a new function per render
+  // would defeat it while a turn streams.
+  const handleSendStable = useCallback(
+    (message: string, attachments: ChatAttachment[] = []): Promise<void> =>
+      handleSendRef.current(message, attachments),
+    [],
+  );
   const handleSendQuotes = useCallback((message: string): Promise<void> => {
     // A file or diff review ends in the chat, where the agent answers it.
     const store = useAppStore.getState();
@@ -986,7 +995,13 @@ function App(): React.JSX.Element {
     const localQueued = [...localState.queuedSteering, ...localState.queuedFollowUp].map(
       (message) => ({ message: sanitizeUserPromptForDisplay(message).text, attachments: [] }),
     );
-    const cleared = await clearQueue(activeSessionPath);
+    let cleared: Awaited<ReturnType<typeof clearQueue>> = null;
+    try {
+      cleared = await clearQueue(activeSessionPath);
+    } catch (error) {
+      // The local snapshot still restores the queue below.
+      console.error('clearQueue failed:', error);
+    }
     try {
       await abort(activeSessionPath);
     } catch (error) {
@@ -1081,7 +1096,7 @@ function App(): React.JSX.Element {
   /** Enter draft chat mode — instant, no process spawned. */
   const handleNewSession = useCallback((): void => {
     useAppStore.getState().closePackages();
-    if (isDraftChat && !activeSessionPath && draftControllerRef.current.state.status !== 'error') {
+    if (isDraftChat && !activeSessionPath && draftController.state.status !== 'error') {
       return;
     }
     // A new chat follows the project picked for it, not the old draft's Files/Git choice.
@@ -1091,7 +1106,7 @@ function App(): React.JSX.Element {
     // Pass empty string as sentinel (no real session path is empty) so the
     // current activeSessionPath gets pushed to backStack.
     pushNavigationHistory('');
-    draftControllerRef.current.reset();
+    draftController.reset();
     isDraftSpawningRef.current = false;
     setIsDraftSpawning(false);
     setActiveSession(null);
@@ -1100,7 +1115,7 @@ function App(): React.JSX.Element {
     // The draft picker reads the global catalog (already subscribed above);
     // the previous session's scoped list is ignored automatically because it
     // is tagged with that session's path.
-  }, [isDraftChat, activeSessionPath, pushNavigationHistory, setActiveSession]);
+  }, [draftController, isDraftChat, activeSessionPath, pushNavigationHistory, setActiveSession]);
 
   const handleNewSessionForProject = useCallback(
     (path: string): void => {
@@ -2047,7 +2062,7 @@ function App(): React.JSX.Element {
                           </div>
                           <ChatInput
                             ref={chatInputRef}
-                            onSend={handleSend}
+                            onSend={handleSendStable}
                             onFollowUp={handleFollowUp}
                             onAbort={handleAbort}
                             onSlashCommand={handleSlashCommand}
@@ -2075,7 +2090,7 @@ function App(): React.JSX.Element {
                           <div className="relative z-10 flex flex-1 flex-col">
                             <ChatInput
                               ref={chatInputRef}
-                              onSend={handleSend}
+                              onSend={handleSendStable}
                               onFollowUp={handleFollowUp}
                               onAbort={handleAbort}
                               onSlashCommand={handleSlashCommand}
@@ -2106,7 +2121,7 @@ function App(): React.JSX.Element {
                             <div className="relative z-10 shrink-0">
                               <ChatInput
                                 ref={chatInputRef}
-                                onSend={handleSend}
+                                onSend={handleSendStable}
                                 onFollowUp={handleFollowUp}
                                 onAbort={handleAbort}
                                 onSlashCommand={handleSlashCommand}

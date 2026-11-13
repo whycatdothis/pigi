@@ -119,13 +119,21 @@ function isToolNode(node: TranscriptNode): node is ToolNode {
   return node.role === 'tool';
 }
 
+/**
+ * The node a call id names. Scanned from the end: the streaming tool is the
+ * newest node, and every batch used to walk the whole transcript from the top.
+ */
 function findToolNodeByCallId(
   nodes: TranscriptNode[],
   toolCallId: string,
 ): { node: ToolNode; index: number } | undefined {
-  const index = nodes.findIndex((n) => isToolNode(n) && n.toolCallId === toolCallId);
-  if (index === -1) return undefined;
-  return { node: nodes[index] as ToolNode, index };
+  for (let index = nodes.length - 1; index >= 0; index--) {
+    const node = nodes[index];
+    if (isToolNode(node) && node.toolCallId === toolCallId) {
+      return { node, index };
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -403,8 +411,11 @@ export class TranscriptController {
   mergeHydratedMessages(messages: unknown[], cacheWarmEntries: CacheWarmEntry[] = []): void {
     const hydratedNodes = this.createNodesFromMessages(messages, cacheWarmEntries);
     const currentNodes = this._state.nodes;
+    // Keyed instead of compared pairwise: a resumed 1,000-node session used to
+    // run n×m comparisons, each joining the user node's file paths again.
+    const seen = new Set(currentNodes.flatMap(duplicateKeys));
     const missingHistoricalNodes = hydratedNodes.filter(
-      (node) => !currentNodes.some((currentNode) => areDuplicateNodes(currentNode, node)),
+      (node) => !duplicateKeys(node).some((key) => seen.has(key)),
     );
 
     if (missingHistoricalNodes.length === 0) {
@@ -1007,6 +1018,20 @@ export class TranscriptController {
     batch: Pick<StreamBatch, 'text' | 'thinking' | 'toolOutput' | 'toolDetails' | 'toolArgs'>,
   ): void {
     let changed = false;
+    // A batch usually carries several updates for the same call (args, then
+    // output); remember where each one is instead of rescanning per field.
+    const toolIndexByCallId = new Map<string, number>();
+    const locateTool = (toolCallId: string): { node: ToolNode; index: number } | undefined => {
+      const known = toolIndexByCallId.get(toolCallId);
+      if (known !== undefined) {
+        const node = this._state.nodes[known];
+        if (node && isToolNode(node) && node.toolCallId === toolCallId)
+          return { node, index: known };
+      }
+      const found = findToolNodeByCallId(this._state.nodes, toolCallId);
+      if (found) toolIndexByCallId.set(toolCallId, found.index);
+      return found;
+    };
 
     if (batch.text) {
       const assistant = this.getActiveAssistant();
@@ -1030,7 +1055,7 @@ export class TranscriptController {
 
     if (batch.toolOutput) {
       for (const [toolCallId, output] of Object.entries(batch.toolOutput)) {
-        const found = findToolNodeByCallId(this._state.nodes, toolCallId);
+        const found = locateTool(toolCallId);
         if (found) {
           this._state.nodes[found.index] = { ...found.node, output };
           changed = true;
@@ -1041,7 +1066,7 @@ export class TranscriptController {
     if (batch.toolDetails) {
       for (const [toolCallId, raw] of Object.entries(batch.toolDetails)) {
         const details = extractToolResultDetails({ details: raw });
-        const found = findToolNodeByCallId(this._state.nodes, toolCallId);
+        const found = locateTool(toolCallId);
         if (found && details && found.node.status === 'running') {
           this._state.nodes[found.index] = { ...found.node, details };
           changed = true;
@@ -1051,7 +1076,7 @@ export class TranscriptController {
 
     if (batch.toolArgs) {
       for (const [toolCallId, toolArgsEntry] of Object.entries(batch.toolArgs)) {
-        const found = findToolNodeByCallId(this._state.nodes, toolCallId);
+        const found = locateTool(toolCallId);
         if (found) {
           // Skip if tool already completed — final args came via toolcall_end push
           if (found.node.status !== 'running') continue;
@@ -1453,49 +1478,42 @@ export class TranscriptController {
   }
 }
 
-// After role equality is checked, TS can't narrow `right` via switch on `left.role`.
-// The casts below are safe because we returned early when roles differ.
-function areDuplicateNodes(left: TranscriptNode, right: TranscriptNode): boolean {
-  if (left.id === right.id) {
-    return true;
-  }
-
-  if (left.role !== right.role) {
-    return false;
-  }
-
-  switch (left.role) {
+/**
+ * The keys a node can be matched by: its id, and the shape that says two nodes
+ * carry the same message (the SDK re-derives user text, tool calls and system
+ * markers, so neither side keeps the other's id).
+ */
+function duplicateKeys(node: TranscriptNode): string[] {
+  const keys = [`id\u0000${node.id}`];
+  switch (node.role) {
     case 'user':
-      return (
-        left.text === (right as UserNode).text &&
-        // Optimistic previews use local-file:// URLs while the SDK hands back
-        // data: URLs, so compare how many images each side has.
-        (left.imageSources?.length ?? 0) === ((right as UserNode).imageSources?.length ?? 0) &&
-        (left.filePaths ?? []).join('\u0000') ===
-          ((right as UserNode).filePaths ?? []).join('\u0000') &&
-        (left.inlineFileNames?.length ?? 0) === ((right as UserNode).inlineFileNames?.length ?? 0)
+      keys.push(
+        JSON.stringify([
+          'user',
+          node.text,
+          node.imageSources?.length ?? 0,
+          node.filePaths ?? [],
+          node.inlineFileNames?.length ?? 0,
+        ]),
       );
-    case 'assistant': {
-      const assistant = right as AssistantNode;
-      return (
-        Boolean(left.text || left.thinking) &&
-        left.text === assistant.text &&
-        left.thinking === assistant.thinking
-      );
-    }
+      break;
+    case 'assistant':
+      // An empty live assistant node is never a duplicate of anything: the
+      // hydrated history has no node of the same shape to merge into.
+      if (node.text || node.thinking) {
+        keys.push(JSON.stringify(['assistant', node.text, node.thinking]));
+      }
+      break;
     case 'tool':
-      return left.toolCallId === (right as ToolNode).toolCallId;
-    case 'system': {
-      const system = right as SystemNode;
-      // Two injected messages can share a label; the body is what tells them
-      // apart when hydration is merged into a live transcript.
-      return (
-        left.text === system.text &&
-        (left.detail ?? '') === (system.detail ?? '') &&
-        (left.imageSources?.length ?? 0) === (system.imageSources?.length ?? 0)
+      keys.push(JSON.stringify(['tool', node.toolCallId]));
+      break;
+    case 'system':
+      keys.push(
+        JSON.stringify(['system', node.text, node.detail ?? '', node.imageSources?.length ?? 0]),
       );
-    }
+      break;
   }
+  return keys;
 }
 
 function extractText(content: unknown[] | undefined): string {

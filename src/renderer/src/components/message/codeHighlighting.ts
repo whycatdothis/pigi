@@ -28,9 +28,10 @@ export interface HighlightedState {
   lines: HighlightedLine[] | null;
 }
 
-// Chat, the file viewer and the diff viewer share one budget: 90k covers App.tsx (~86k, 2,091
-// lines), and 2,500 lines bounds the span count when many short lines fit under
-// the character cap. Sharing it keeps the cache key independent of the caller.
+// Chat, the file viewer and the diff viewer share one budget: 90k characters
+// covers the largest file the app opens, and 2,500 lines bounds the span count
+// when many short lines fit under the character cap. Sharing it keeps the cache
+// key independent of the caller.
 const MAX_HIGHLIGHTED_CODE_LENGTH = 90_000;
 const MAX_HIGHLIGHTED_LINES = 2_500;
 const MAX_HIGHLIGHT_CACHE_SIZE = 8;

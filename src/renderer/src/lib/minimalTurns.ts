@@ -48,6 +48,73 @@ export interface MinimalTurnAnalysis {
  *  marker joins the current user turn only when its event explicitly says it
  *  occurred during that run; manual/idle compaction remains standalone. */
 export function buildTurns(nodes: TranscriptNode[]): MinimalTurn[] {
+  return buildTurnsInto(nodes).map(reuseTurn);
+}
+
+/**
+ * A turn whose entries are unchanged keeps its object across rebuilds. Every
+ * streaming batch rewrites the tail of the last turn and nothing else, so this
+ * is what lets `TurnSection`'s memo and the analysis cache hit for history.
+ */
+const cachedTurns = new WeakMap<TranscriptNode, CachedTurn>();
+
+interface CachedTurn {
+  turn: MinimalTurn;
+  entries: TranscriptNode[];
+  userIndex: number;
+  revisions: number;
+}
+
+function sameEntries(left: readonly TranscriptNode[], right: readonly TranscriptNode[]): boolean {
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index++) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+}
+
+/**
+ * Assistant nodes are mutated in place — streaming text, message_end — and the
+ * controller bumps `revision` for that (see readGrouping.ts, which caches on the
+ * same contract). Reference equality alone would freeze a streaming turn.
+ * Summed over the turn: the bump can land on an entry a later tool node left
+ * behind, not only on the last one.
+ */
+function entryRevisions(entries: readonly TranscriptNode[]): number {
+  let total = 0;
+  for (const entry of entries) {
+    if (entry.role === 'assistant') total += entry.revision ?? 0;
+  }
+  return total;
+}
+
+function reuseTurn(turn: MinimalTurn): MinimalTurn {
+  // A user node starts exactly one turn; so does the first entry of a
+  // preamble turn. `userIndex` is in the key because prepending hydrated
+  // history shifts every index without touching any entry.
+  const start = turn.userNode ?? turn.entries[0];
+  if (start) {
+    const revisions = entryRevisions(turn.entries);
+    const cached = cachedTurns.get(start);
+    if (
+      cached &&
+      cached.userIndex === turn.userIndex &&
+      cached.revisions === revisions &&
+      sameEntries(cached.entries, turn.entries)
+    ) {
+      return cached.turn;
+    }
+    cachedTurns.set(start, {
+      turn,
+      entries: turn.entries,
+      userIndex: turn.userIndex,
+      revisions,
+    });
+  }
+  return turn;
+}
+
+function buildTurnsInto(nodes: TranscriptNode[]): MinimalTurn[] {
   const turns: MinimalTurn[] = [];
   let currentUserTurn: MinimalTurn | null = null;
   let currentPreambleTurn: MinimalTurn | null = null;
@@ -212,6 +279,35 @@ export function analyzeTurn(
     hasTools,
     isActive,
   };
+}
+
+const cachedAnalyses = new WeakMap<
+  MinimalTurn,
+  { isLastTurn: boolean; statusKey: AgentStatus | null; analysis: MinimalTurnAnalysis }
+>();
+
+/**
+ * Analyses for every turn, recomputing only the turns `buildTurns` had to
+ * recreate. `sessionStatus` only reaches the analysis of the last turn (it
+ * gates `isActive`), so history is cached without it — a status flip would
+ * otherwise invalidate the whole transcript.
+ */
+export function analyzeTurns(
+  turns: MinimalTurn[],
+  sessionStatus: AgentStatus,
+): MinimalTurnAnalysis[] {
+  const lastIndex = turns.length - 1;
+  return turns.map((turn, index) => {
+    const isLastTurn = index === lastIndex;
+    const cached = cachedAnalyses.get(turn);
+    const statusKey = isLastTurn ? sessionStatus : null;
+    if (cached && cached.isLastTurn === isLastTurn && cached.statusKey === statusKey) {
+      return cached.analysis;
+    }
+    const analysis = analyzeTurn(turn, sessionStatus, isLastTurn);
+    cachedAnalyses.set(turn, { isLastTurn, statusKey, analysis });
+    return analysis;
+  });
 }
 
 /** Whether the working timer + divider should be shown for a turn. */

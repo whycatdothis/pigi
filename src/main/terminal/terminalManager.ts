@@ -24,6 +24,9 @@ function sendToRenderer(channel: PiChannel, data: unknown): void {
   }
 }
 
+/** The renderer keeps 5 project groups alive; this is only a runaway backstop. */
+const MAX_TERMINAL_PROCESSES = 32;
+
 /**
  * Ensure the terminal process for `id` exists (spawning its shell in `cwd`),
  * then hand a fresh data MessagePort to both the utility process and the
@@ -33,6 +36,7 @@ function sendToRenderer(channel: PiChannel, data: unknown): void {
 function startTerminal(id: string, cwd: string, cols: number, rows: number): { success: boolean } {
   let proc = terminalProcesses.get(id);
   if (!proc) {
+    evictOldestTerminal();
     proc = createTerminalProcess();
     terminalProcesses.set(id, proc);
 
@@ -58,6 +62,22 @@ function startTerminal(id: string, cwd: string, cols: number, rows: number): { s
   }
 
   return { success: true };
+}
+
+/**
+ * PTY processes are only reclaimed when the renderer asks (tab close, its own
+ * LRU and TTL). This keeps a renderer that never asks, or two windows, from
+ * accumulating shells: the oldest id goes first.
+ */
+function evictOldestTerminal(): void {
+  if (terminalProcesses.size < MAX_TERMINAL_PROCESSES) return;
+  const oldest = terminalProcesses.keys().next();
+  if (oldest.done) return;
+  const id = oldest.value;
+  stopTerminal(id);
+  // `stopTerminal` forgets the id first, so the process's own exit is ignored;
+  // the renderer still needs to know the tab's shell went away.
+  sendToRenderer(PiChannel.TerminalExit, { id });
 }
 
 /** Kill the terminal process for a single id (tab close / LRU / TTL eviction). */

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   IconCheck,
   IconCopy,
@@ -36,6 +36,7 @@ import {
 import { MessageAttachments } from './messageAttachments';
 import { UserMessageText } from './userMessageText';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
+import { useViewportHeight } from '../../lib/viewportHeight';
 import { cn } from '../../lib/utils';
 import { parseSlashCommand, slashCommandDisplayName } from '../../lib/slashCommands';
 import { formatWorkingDuration } from '../../lib/minimalTurns';
@@ -376,15 +377,7 @@ export function UserBubble({
 }): React.JSX.Element {
   const { text } = node;
 
-  const [maxHeight, setMaxHeight] = useState(() =>
-    Math.round(window.innerHeight * USER_MESSAGE_MAX_HEIGHT_VH),
-  );
-  useEffect(() => {
-    const handleResize = (): void =>
-      setMaxHeight(Math.round(window.innerHeight * USER_MESSAGE_MAX_HEIGHT_VH));
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const maxHeight = Math.round(useViewportHeight() * USER_MESSAGE_MAX_HEIGHT_VH);
 
   const skillBlock = useMemo(() => parseSkillBlock(text), [text]);
   const slashCommand = useMemo(() => parseSlashCommand(text), [text]);

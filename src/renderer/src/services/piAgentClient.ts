@@ -43,7 +43,17 @@ import type {
 type CommandResult<T = unknown> = { success: boolean; error?: string } & T;
 
 async function send<T = unknown>(sessionPath: string, command: PiCommand): Promise<T> {
-  return window.piApi.send(sessionPath, command) as Promise<T>;
+  // The reply is typed by convention across two process boundaries. A build
+  // whose shapes drifted must fail here, not as an "undefined.success" in a
+  // caller. Shape-per-command is the caller's business; this only proves an
+  // envelope arrived.
+  const result: unknown = await window.piApi.send(sessionPath, command);
+  if (typeof result !== 'object' || result === null) {
+    throw new Error(`${command.type} returned no reply`);
+  }
+  // The command's reply type is only known to the caller; there is no runtime
+  // schema to check it against.
+  return result as T;
 }
 
 /** Create a new session. Resolves with sessionPath when port is received. */

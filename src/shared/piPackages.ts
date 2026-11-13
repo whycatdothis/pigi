@@ -254,6 +254,15 @@ export function npmNameFromSource(source: string): string | null {
 }
 
 const NPM_NAME = /^(@[a-z0-9][\w.-]*\/)?[a-z0-9][\w.-]*(@[^\s/]+)?$/i;
+
+/**
+ * Whether `name` is shaped like the package name an install would take: no
+ * shell metacharacters, so it can be handed to `npm view` on Windows, where npm
+ * only runs through a shell.
+ */
+export function isNpmPackageName(name: string): boolean {
+  return NPM_NAME.test(name);
+}
 const PROTOCOL_SOURCE = /^(https?|ssh|git):\/\//;
 const PACKAGE_PAGE_URLS = [
   /^https?:\/\/(?:www\.)?npmjs\.com\/package\/((?:@[^/\s]+\/)?[^/\s?#]+)/,
@@ -263,7 +272,13 @@ const PACKAGE_PAGE_URLS = [
 function sourceFromToken(token: string): string | null {
   for (const pattern of PACKAGE_PAGE_URLS) {
     const match = token.match(pattern);
-    if (match?.[1]) return `npm:${decodeURIComponent(match[1])}`;
+    if (!match?.[1]) continue;
+    try {
+      return `npm:${decodeURIComponent(match[1])}`;
+    } catch {
+      // A `%` with no valid escape is a pasted fragment, not a package.
+      return null;
+    }
   }
   if (/^(npm|git):./.test(token)) return token;
   if (PROTOCOL_SOURCE.test(token)) return token;

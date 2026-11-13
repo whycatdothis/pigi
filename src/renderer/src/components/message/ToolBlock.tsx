@@ -315,11 +315,15 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
   const codemodeCalls = useMemo(() => getCodemodeDetails(node)?.calls ?? [], [node]);
   const imagePath = useMemo(() => getReadImagePath(node), [node]);
 
+  const command = getToolCommandParts(node);
+  const editDiffFromDetails = useMemo(() => getEditDiffFromDetails(node), [node]);
+  // Keyed on the command text, not the node: a streaming output batch rewrites
+  // the node, and reading scrollHeight forces a layout of the whole transcript.
   useEffect(() => {
     if (commandRef.current) {
       setIsCommandTruncated(commandRef.current.scrollHeight > commandRef.current.clientHeight);
     }
-  }, [node, commandExpanded]);
+  }, [command.body, command.prefix, commandExpanded]);
 
   // Read tool returns fast — skip rendering the running state to avoid flicker
   if (node.name === 'read' && node.status === 'running') return null;
@@ -327,8 +331,6 @@ export default function ToolBlock({ node }: ToolBlockProps): React.JSX.Element |
   const statusConfig = STATUS_CONFIG[node.status];
   const statusClassName = statusConfig.className;
   const StatusIcon = statusConfig.Icon;
-  const command = getToolCommandParts(node);
-  const editDiffFromDetails = getEditDiffFromDetails(node);
   const writeEntries = getWriteEntries(node);
   const hasOutput = cleanedOutput.length > 0;
   // A running tool's body is empty until content loads; a placeholder shaped

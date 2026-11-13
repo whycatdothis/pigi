@@ -24,12 +24,18 @@ interface Port {
   start(): void;
   close(): void;
   on(event: 'message', listener: (messageEvent: { data: unknown }) => void): unknown;
+  /** Fires when the other end is gone (a renderer reload, a closed window). */
+  on(event: 'close', listener: () => void): unknown;
 }
 
 let ptyProcess: pty.IPty | null = null;
 let dataPort: Port | null = null;
-/** Output produced before the port attaches (e.g. the initial shell prompt) is
- *  buffered here and flushed on attach so nothing is lost. */
+/**
+ * A renderer reload drops its MessagePort while this process keeps running.
+ * Output for a port that is gone (or that throws on write) queues here instead,
+ * so the next attach replays it — the shell's screen survives the reload.
+ */
+const MAX_QUEUED_MESSAGES = 500;
 let outboundQueue: TerminalOutboundMessage[] = [];
 
 function resolveShell(): string {
@@ -41,10 +47,17 @@ function resolveShell(): string {
 
 function send(message: TerminalOutboundMessage): void {
   if (dataPort) {
-    dataPort.postMessage(message);
-  } else {
-    outboundQueue.push(message);
+    try {
+      dataPort.postMessage(message);
+      return;
+    } catch {
+      // The renderer's side is gone; drop the port and queue until the next attach.
+      dataPort = null;
+    }
   }
+  outboundQueue.push(message);
+  // A terminal nobody has attached to in a long time must not grow unbounded.
+  if (outboundQueue.length > MAX_QUEUED_MESSAGES) outboundQueue.shift();
 }
 
 function startTerminal(cwd: string, cols: number, rows: number): void {
@@ -70,6 +83,9 @@ function startTerminal(cwd: string, cols: number, rows: number): void {
 
 function attachPort(port: Port): void {
   dataPort = port;
+  port.on('close', () => {
+    if (dataPort === port) dataPort = null;
+  });
 
   port.on('message', (event) => {
     const message = event.data as TerminalInboundMessage;
