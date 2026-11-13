@@ -6,6 +6,10 @@
 
 - `pigi subagent --notify` starts a subagent and returns at once; when the child finishes, pigi writes a `pigi.subagent` message into the session that started it (a notice card, not a turn the user appears to have typed), resuming that session if it had stopped, so it can read the reply with `pigi session wait <session>` instead of holding a bash call open for minutes. The bundled `pigi-cli` skill now recommends this way of running a subagent
 
+### Fixed
+
+- A Mermaid diagram opens in the zoom overlay with the whole drawing in view, fitted to the window, instead of at the size it was drawn: a diagram larger than the window used to open as a cropped slice. Pinch, ctrl+wheel or `+` zooms in from there, and dragging pans what no longer fits
+
 ## [0.6.7] - 2026-11-13
 
 ### Changed

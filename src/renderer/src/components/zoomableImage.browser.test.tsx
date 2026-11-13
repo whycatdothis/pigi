@@ -48,9 +48,9 @@ test('opens an image at the size the overlay fits it to, not at its own', async 
     return settled;
   });
 
-  // A drawing is enlarged to its own size when the block had shrunk it; an image
-  // is not — the overlay's fit of an image is an enlargement already, and the
-  // reader's own zooming starts from it.
+  // The overlay fits an image to the window even when that enlarges it from
+  // its own pixels; a drawing is fitted the same way. The reader's own zooming
+  // starts here, from the whole thing in view.
   expect(panScale()).toBe(1);
   expect(shownBox()?.width ?? 0).toBeGreaterThan(40);
 });

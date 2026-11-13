@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { page, userEvent } from 'vitest/browser';
+import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { peekDiagram, renderDiagram } from '../../lib/mermaidRenderer';
 import { useSettingsStore } from '../../state/settingsStore';
@@ -231,91 +231,29 @@ test('caps a tall diagram without stretching it', async () => {
   expect(Math.abs((scale?.a ?? 0) - (scale?.d ?? 0))).toBeLessThan(0.01);
 });
 
-test('opens a drawing the transcript had to shrink at the size it was laid out', async () => {
+test('opens the whole drawing, fitted to the window', async () => {
   const screen = await render(<MermaidDiagram code={WIDE_CHART} />);
   await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
 
-  // The block is narrower than the drawing, so it shrinks it to fit — the size
-  // the reader is opening it to get away from.
+  // The block is narrower than the drawing, so it shrinks it — the size that
+  // sends the reader to the overlay.
   const installed = svgIn(graphicIn(screen.container));
   const laidOut = Number(installed.getAttribute('width'));
-  expect(laidOut).toBeGreaterThan(0);
   expect(installed.getBoundingClientRect().width).toBeLessThan(laidOut);
 
   await openOverlay(screen);
-  // The overlay fits its content to the window, and its content is a copy of
-  // that block: fitting the copy would hand back the small drawing, so a
-  // drawing opens at the size mermaid laid it out at instead.
-  const zoomed = zoomedDrawing();
-  const box = zoomed.getBoundingClientRect();
-  expect(box.width).toBeGreaterThanOrEqual(laidOut - 2);
-  // Its labels are drawn at that size as well: one line of mermaid's 16px type
-  // is 24 units tall, a few pixels of which is what the block showed.
-  const zoomedLabel = [...zoomed.querySelectorAll<HTMLElement>('foreignObject div')].find(
-    (label) => (label.textContent ?? '') !== '',
-  );
-  if (!zoomedLabel) throw new Error('the drawing has no label');
-  expect(zoomedLabel.getBoundingClientRect().height).toBeGreaterThan(20);
-
-  // And the part that no longer fits is the reader's to reach: a drag on the
-  // drawing takes it a real distance, and does not dismiss the overlay.
-  const from: [number, number] = [box.x + box.width / 2, box.y + box.height / 2];
-  drag(zoomed, from, [from[0] - 200, from[1]]);
-  await waitFor(() => zoomedDrawing().getBoundingClientRect().x < box.x - 100, 2000);
-  expect(overlayIsOpen()).toBe(true);
+  // The overlay hands back the whole drawing, fitted to the window: every edge
+  // of it is inside the viewport. Opening it at the size it was drawn would put
+  // a drawing bigger than the window into the overlay as a slice of itself.
+  const box = zoomedDrawing().getBoundingClientRect();
+  expect(box.left).toBeGreaterThanOrEqual(0);
+  expect(box.top).toBeGreaterThanOrEqual(0);
+  expect(box.right).toBeLessThanOrEqual(window.innerWidth + 1);
+  expect(box.bottom).toBeLessThanOrEqual(window.innerHeight + 1);
+  expect(box.width).toBeLessThan(laidOut);
 });
 
-test('keeps a drawing at its own size when the window shrinks under it', async () => {
-  const screen = await render(<MermaidDiagram code={WIDE_CHART} />);
-  await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
-  const laidOut = Number(svgIn(graphicIn(screen.container)).getAttribute('width'));
-  await openOverlay(screen);
-
-  // The width the overlay gives its copy of the block, from the style it sets.
-  const fittedCopy = (): number => {
-    const copy = document.querySelector<HTMLElement>('[data-rmiz-modal-img]');
-    return Number.parseFloat(copy?.style.width ?? '');
-  };
-  const fitted = fittedCopy();
-
-  await page.viewport(900, 700);
-  try {
-    // The overlay re-fits that copy to the smaller window…
-    await waitFor(() => fittedCopy() < fitted - 50, 2000);
-    // …and the drawing holds the size it was laid out at through it, instead of
-    // following the copy back down towards the block.
-    await waitFor(() => zoomedDrawing().getBoundingClientRect().width >= laidOut - 2, 2000);
-  } finally {
-    await userEvent.keyboard('{Escape}');
-    await page.viewport(1200, 820);
-  }
-});
-
-test('leaves a drawing the reader has zoomed alone when the window changes', async () => {
-  const screen = await render(<MermaidDiagram code={WIDE_CHART} />);
-  await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
-  const laidOut = Number(svgIn(graphicIn(screen.container)).getAttribute('width'));
-  await openOverlay(screen);
-
-  const opened = zoomedDrawing().getBoundingClientRect().width;
-  zoomedDrawing().dispatchEvent(pinch());
-  await waitFor(() => zoomedDrawing().getBoundingClientRect().width > opened + 1, 2000);
-  const pinched = zoomedDrawing().getBoundingClientRect().width;
-
-  await page.viewport(900, 700);
-  try {
-    // The auto scale is a starting point, not a leash: once the reader has
-    // zoomed, a resize leaves that zoom in place. The drawing follows the
-    // smaller window, and is not put back to its own size either.
-    await waitFor(() => zoomedDrawing().getBoundingClientRect().width < pinched - 100, 2000);
-    expect(zoomedDrawing().getBoundingClientRect().width).toBeGreaterThan(laidOut + 100);
-  } finally {
-    await userEvent.keyboard('{Escape}');
-    await page.viewport(1200, 820);
-  }
-});
-
-test('opens a tall drawing at its own height, not the box the block capped it to', async () => {
+test('opens a tall drawing whole, not the box the block capped it to', async () => {
   const screen = await render(<MermaidDiagram code={TALL_CHART} />);
   await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
   const installed = svgIn(graphicIn(screen.container));
@@ -323,7 +261,29 @@ test('opens a tall drawing at its own height, not the box the block capped it to
   expect(installed.getBoundingClientRect().height).toBeLessThan(laidOut);
 
   await openOverlay(screen);
-  expect(zoomedDrawing().getBoundingClientRect().height).toBeGreaterThanOrEqual(laidOut - 2);
+  const box = zoomedDrawing().getBoundingClientRect();
+  expect(box.top).toBeGreaterThanOrEqual(0);
+  expect(box.bottom).toBeLessThanOrEqual(window.innerHeight + 1);
+});
+
+test('zooms a drawing from the size it opened at, and pans it', async () => {
+  const screen = await render(<MermaidDiagram code={WIDE_CHART} />);
+  await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
+  await openOverlay(screen);
+
+  // Zooming in is the reader's gesture, and starts from the whole drawing the
+  // overlay fitted: the pinch is what takes the labels from small to readable.
+  const fitted = zoomedDrawing().getBoundingClientRect().width;
+  zoomedDrawing().dispatchEvent(pinch());
+  await waitFor(() => zoomedDrawing().getBoundingClientRect().width > fitted + 1, 2000);
+
+  // The zoomed drawing is bigger than the window, and the rest of it is a drag
+  // away rather than being lost or dismissed with the overlay.
+  const zoomed = zoomedDrawing().getBoundingClientRect();
+  const from: [number, number] = [zoomed.x + zoomed.width / 2, zoomed.y + zoomed.height / 2];
+  drag(zoomedDrawing(), from, [from[0] - 200, from[1]]);
+  await waitFor(() => zoomedDrawing().getBoundingClientRect().x < zoomed.x - 100, 2000);
+  expect(overlayIsOpen()).toBe(true);
 });
 
 test('leaves a mermaid fence that is still open as a code block', async () => {
