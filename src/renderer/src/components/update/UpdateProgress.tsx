@@ -5,9 +5,9 @@
  * `main/windows/createUpdateProgressWindow.ts`, not by the main window: the
  * renderer entry picks this component from the location hash.
  *
- * It only ever displays the status main pushes. Cancel and Restart send a
- * command and wait for the next status — no local optimistic state, so the
- * window cannot disagree with the updater.
+ * It only ever displays the status main pushes. The buttons send a command
+ * and wait for the next status — no local optimistic state, so the window
+ * cannot disagree with the updater.
  *
  * The window has no height of its own: this component measures what the current
  * status needs and reports it, so the window hugs the content instead of
@@ -54,7 +54,7 @@ function statusTitle(status: UpdateStatus): string {
 function statusDetail(status: UpdateStatus): string | null {
   switch (status.phase) {
     case 'downloaded':
-      return 'Restart to finish installing.';
+      return 'Install and restart to finish.';
     case 'installing':
       return 'pigi quits and reopens when the install is done.';
     case 'error':
@@ -101,8 +101,14 @@ function ClosingHint(): React.JSX.Element {
 
 const SECONDARY_BUTTON =
   'rounded-full bg-foreground/6 hover:bg-foreground/10 dark:hover:bg-foreground/12';
-const ACCENT_BUTTON =
-  'rounded-full bg-primary font-medium text-primary-foreground hover:bg-primary-hover';
+/**
+ * The one action that finishes the update. The fill is `primary`, the role the
+ * appearance model fits for a filled button (the accent, dark enough for its
+ * label); `system-accent` is the text/ornament accent and would leave white on
+ * a bright blue in dark mode. Hover keeps every colour as it is.
+ */
+const PRIMARY_BUTTON =
+  'rounded-full bg-primary font-medium text-primary-foreground hover:bg-primary';
 
 export default function UpdateProgress(): React.JSX.Element | null {
   // Null until the first status arrives: a manual check opens this window at the
@@ -173,89 +179,97 @@ export default function UpdateProgress(): React.JSX.Element | null {
   const bytes = transferredLabel(status);
   const isWorking = status.phase === 'checking' || status.phase === 'installing';
 
+  // The action sits under the status, not beside it: the row above belongs to
+  // the update, and a button on its right squeezes the text at 400px.
+  let action: React.JSX.Element | null = null;
+  if (status.phase === 'downloading') {
+    action = (
+      <Button size="sm" variant="ghost" className={SECONDARY_BUTTON} onClick={cancelUpdateDownload}>
+        Cancel
+      </Button>
+    );
+  } else if (status.phase === 'downloaded') {
+    action = (
+      <Button size="sm" className={PRIMARY_BUTTON} onClick={quitAndInstallUpdate}>
+        Install and Restart
+      </Button>
+    );
+  } else if (status.phase === 'error') {
+    action = (
+      <Button
+        size="sm"
+        variant="ghost"
+        className={SECONDARY_BUTTON}
+        onClick={() => window.piApi.openExternal(MANUAL_DOWNLOAD_URL)}
+      >
+        Download
+      </Button>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
-      className="flex items-center gap-3 bg-popover px-4 py-3.5 text-popover-foreground"
+      className="flex flex-col gap-3 bg-background px-4 py-3.5 text-foreground"
     >
-      <img
-        src={appIconUrl}
-        alt=""
-        className="size-10 shrink-0 rounded-control shadow-sm ring-1 ring-black/5"
-      />
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
-        <div className="flex items-center gap-1.5">
-          {isWorking && (
-            <SpinningIcon>
-              <IconLoader className="size-3.5 text-foreground/45" />
-            </SpinningIcon>
+      <div className="flex items-center gap-3">
+        <img
+          src={appIconUrl}
+          alt=""
+          className="size-10 shrink-0 rounded-control shadow-sm ring-1 ring-black/5"
+        />
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
+          <div className="flex items-center gap-1.5">
+            {isWorking && (
+              <SpinningIcon>
+                <IconLoader className="size-3.5 text-foreground/45" />
+              </SpinningIcon>
+            )}
+            <span className="truncate text-caption leading-5 font-semibold">
+              {statusTitle(status)}
+            </span>
+            {status.phase === 'up_to_date' && (
+              <>
+                <IconCheck
+                  className="size-4 shrink-0 text-[var(--system-accent)]"
+                  strokeWidth={2.5}
+                />
+                <ClosingHint />
+              </>
+            )}
+          </div>
+
+          {detail !== null && (
+            <div className="line-clamp-2 text-caption leading-4 break-words text-muted-foreground">
+              {detail}
+            </div>
           )}
-          <span className="truncate text-caption leading-5 font-semibold">
-            {statusTitle(status)}
-          </span>
-          {status.phase === 'up_to_date' && (
-            <>
-              <IconCheck
-                className="size-4 shrink-0 text-[var(--system-accent)]"
-                strokeWidth={2.5}
+
+          {percent !== null && (
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(percent * 100)}
+              aria-label="Update download"
+              className="mt-0.5 h-[5px] w-full overflow-hidden rounded-full bg-foreground/10"
+            >
+              <div
+                className="h-full origin-left rounded-full bg-[var(--system-accent)] transition-transform duration-200 ease-out"
+                // A transform, not a width: the bar repaints on the compositor
+                // while the main thread is busy downloading.
+                style={{ transform: `scaleX(${percent})` }}
               />
-              <ClosingHint />
-            </>
+            </div>
+          )}
+
+          {bytes !== null && (
+            <span className="text-2xs leading-4 tabular-nums text-muted-foreground">{bytes}</span>
           )}
         </div>
-
-        {detail !== null && (
-          <div className="line-clamp-2 text-caption leading-4 text-muted-foreground">{detail}</div>
-        )}
-
-        {percent !== null && (
-          <div
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(percent * 100)}
-            aria-label="Update download"
-            className="mt-0.5 h-[5px] w-full overflow-hidden rounded-full bg-foreground/10"
-          >
-            <div
-              className="h-full origin-left rounded-full bg-[var(--system-accent)] transition-transform duration-200 ease-out"
-              // A transform, not a width: the bar repaints on the compositor
-              // while the main thread is busy downloading.
-              style={{ transform: `scaleX(${percent})` }}
-            />
-          </div>
-        )}
-
-        {bytes !== null && (
-          <span className="text-2xs leading-4 tabular-nums text-muted-foreground">{bytes}</span>
-        )}
       </div>
 
-      {status.phase === 'downloading' && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className={SECONDARY_BUTTON}
-          onClick={cancelUpdateDownload}
-        >
-          Cancel
-        </Button>
-      )}
-      {status.phase === 'downloaded' && (
-        <Button size="sm" variant="ghost" className={ACCENT_BUTTON} onClick={quitAndInstallUpdate}>
-          Restart
-        </Button>
-      )}
-      {status.phase === 'error' && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className={SECONDARY_BUTTON}
-          onClick={() => window.piApi.openExternal(MANUAL_DOWNLOAD_URL)}
-        >
-          Download
-        </Button>
-      )}
+      {action !== null && <div className="flex justify-end">{action}</div>}
     </div>
   );
 }

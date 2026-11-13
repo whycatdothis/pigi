@@ -5,12 +5,14 @@
  * (`autoInstallOnAppQuit` is off, `autoDownload` too). Two paths share one
  * status:
  *
- *   silent  — on launch and every two hours, each timer drawn ±10 minutes
+ *   silent  — on launch and every hour, each timer drawn ±10 minutes
  *             (BACKGROUND_CHECK_JITTER_MS) so a fleet of installs does not
  *             hit the release feed at the same second. A found update downloads
  *             with no UI; the blue dot in Settings is the only announcement.
+ *             A check keeps running while an update sits downloaded, so a
+ *             release that lands later is downloaded too.
  *   manual  — from Settings. A found update shows the progress window, which
- *             carries the progress bar, Cancel, and Restart.
+ *             carries the progress bar, Cancel, and Install and Restart.
  *
  * Every renderer gets the status pushed on change and can read it back on
  * demand, so a window that opens mid-download still shows the right thing.
@@ -37,7 +39,7 @@ const { autoUpdater, CancellationToken } = electronUpdater;
 
 /** A launch check waits for the app to settle first; users notice a spinner. */
 const FIRST_BACKGROUND_CHECK_DELAY_MS = 15 * 1000;
-const BACKGROUND_CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000;
+const BACKGROUND_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 /**
  * Each interval is nudged by up to this much either way. Instances that start
  * at the same time would otherwise poll — and on release day download — in
@@ -94,6 +96,16 @@ function publish(next: UpdateStatus): void {
 }
 
 /**
+ * A check's own answer ("checking", "up to date", a failed lookup) must not
+ * paint over an update that is already downloaded and installable. A newer
+ * release still gets through: its download publishes as usual.
+ */
+function publishCheckAnswer(next: UpdateStatus): void {
+  if (status.phase === 'downloaded') return;
+  publish(next);
+}
+
+/**
  * One place decides how long the progress window lives.
  *
  * Keeping it here rather than at the end of `runCheck` covers both sources: a
@@ -116,7 +128,9 @@ function applyWindowPolicy(next: UpdateStatus): void {
 
 async function startDownload(version: string): Promise<void> {
   if (downloadToken !== null) return;
-  if (status.phase === 'downloaded') return;
+  // The hourly check keeps finding the release already on disk; fetching it
+  // again would only throw the downloaded copy away.
+  if (status.phase === 'downloaded' && status.version === version) return;
 
   if (manualCheck) {
     openUpdateProgressWindow();
@@ -148,15 +162,12 @@ async function startDownload(version: string): Promise<void> {
 async function runCheck(interactive: boolean): Promise<UpdateStatus> {
   if (!isSupported()) return status;
 
-  // Nothing to check: a download is running or finished, or the background
-  // check is already asking. Either way the click still has to answer, so the
-  // window opens on whatever the status says instead of doing nothing.
-  if (
-    downloadToken !== null ||
-    checkInFlight ||
-    status.phase === 'downloaded' ||
-    status.phase === 'installing'
-  ) {
+  // Nothing to check: a download is running, or the background check is
+  // already asking. Either way the click still has to answer, so the window
+  // opens on whatever the status says instead of doing nothing. A downloaded
+  // update is checkable on purpose: it does not stop a newer one from being
+  // downloaded, and the check leaves it in place when there is none.
+  if (downloadToken !== null || checkInFlight || status.phase === 'installing') {
     if (interactive) {
       openUpdateProgressWindow();
     }
@@ -168,7 +179,7 @@ async function runCheck(interactive: boolean): Promise<UpdateStatus> {
   if (interactive) {
     // The window is the feedback for a manual check: it opens on "Checking for
     // updates" instead of appearing seconds later, once a download starts.
-    publish({ phase: 'checking' });
+    publishCheckAnswer({ phase: 'checking' });
     openUpdateProgressWindow();
   }
   try {
@@ -286,9 +297,9 @@ export function initializeUpdateManager(): void {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
 
-  autoUpdater.on('checking-for-update', () => publish({ phase: 'checking' }));
+  autoUpdater.on('checking-for-update', () => publishCheckAnswer({ phase: 'checking' }));
 
-  autoUpdater.on('update-not-available', () => publish({ phase: 'up_to_date' }));
+  autoUpdater.on('update-not-available', () => publishCheckAnswer({ phase: 'up_to_date' }));
 
   autoUpdater.on('update-available', (info) => {
     void startDownload(info.version);
@@ -312,17 +323,17 @@ export function initializeUpdateManager(): void {
   });
 
   autoUpdater.on('error', (error) => {
-    // A background check runs every two hours; offline it fails every time and
-    // says nothing about the updater.
+    // A background check runs every hour; offline it fails every time and says
+    // nothing about the updater.
     if (net.isOnline()) captureError(error, 'update');
     downloadToken = null;
     downloadVersion = null;
-    publish({ phase: 'error', message: describeError(error) });
+    publishCheckAnswer({ phase: 'error', message: describeError(error) });
   });
 }
 
 /**
- * Launch check, then one roughly every two hours. Silent: no window, no toasts.
+ * Launch check, then one roughly every hour. Silent: no window, no toasts.
  *
  * A self-rescheduling timeout rather than `setInterval`, because each round gets
  * its own delay; a fixed interval would keep every instance on the same phase

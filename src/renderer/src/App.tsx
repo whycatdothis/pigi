@@ -508,7 +508,7 @@ function App(): React.JSX.Element {
     const { setUpdateStatus } = useAppStore.getState();
     // Subscribe first, and let a push win over the read: a download that starts
     // while `getStatus` is in flight would otherwise leave the dot dark until
-    // the next push, up to two hours away.
+    // the next push, up to an hour away.
     let sawPush = false;
     const unsubscribe = onUpdateStatus((status) => {
       sawPush = true;

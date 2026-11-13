@@ -1,7 +1,7 @@
 /**
  * The update progress window: a small titled window over the main window,
- * showing download progress, Cancel, and (when the download lands) Restart. It
- * loads the same renderer bundle and picks its UI from the hash.
+ * showing download progress, Cancel, and (when the download lands) Install and
+ * Restart. It loads the same renderer bundle and picks its UI from the hash.
  *
  * The window hugs its content: the renderer measures what the current status
  * needs and reports a height, and the window is sized to it. A fixed box would

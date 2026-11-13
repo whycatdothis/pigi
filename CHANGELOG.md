@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Auto-update checks every hour instead of every two hours, and a downloaded update no longer stops the checking: a release published afterwards is downloaded too, so leaving pigi running still restarts into the newest version
+- The update window puts its action under the status instead of beside it, labels it "Install and Restart", and uses the system's neutral white or dark surface instead of the app's theme colours; that button no longer changes colour on hover
+
+### Fixed
+
+- A long error in the update window wraps instead of being cut off mid-word
+
 ## [0.6.8] - 2026-11-13
 
 ### Added

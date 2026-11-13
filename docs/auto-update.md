@@ -34,7 +34,7 @@ gives the progress window a token to cancel.
 Installing is a user action:
 
 1. Settings popover: "Update to <version>" → `quitAndInstall()`
-2. Progress window: "Restart" → `quitAndInstall()`
+2. Progress window: "Install and Restart" → `quitAndInstall()`
 
 A quitter never picks up a half-decided update.
 
@@ -68,7 +68,7 @@ path for each one.
 ### Flow 1: Silent Background Check
 
 ```
-Launch (+15s) / every 2 hours, jittered by ±10 min
+Launch (+15s) / every hour, jittered by ±10 min
   → autoUpdater.checkForUpdates()
     → update-not-available: status 'up_to_date', nothing visible
     → update-available
@@ -81,10 +81,28 @@ Launch (+15s) / every 2 hours, jittered by ±10 min
 The delay exists so the main window is up before the first push; users also
 notice a launch that immediately starts downloading.
 
-The interval between later checks is jittered by ±10 minutes. A fixed two-hour
-period keeps every instance at a constant phase relative to its launch, so
-the checks — and, once a version appears, the 160 MB downloads — of a large
-user base stay clumped together instead of spreading out.
+Every round draws its own ±10-minute jitter, and the next round is scheduled
+after the current one finishes rather than by a fixed period: a fixed period
+would keep each instance at the same phase relative to its launch, so the
+checks — and, once a version appears, the 160 MB downloads — of a large user
+base would stay clumped together instead of spreading out.
+
+### Re-checking with an update downloaded
+
+A downloaded update does not stop the checks. It is exactly the situation the
+hourly check exists for: a release published after the download lands must not
+wait for the user to restart.
+
+- `startDownload` skips only the version that is already on disk, so the hourly
+  check finding the same release again does not throw the copy away.
+- A check's own answers (`checking`, `up_to_date`, a failed lookup) are dropped
+  while a download is ready (`publishCheckAnswer`): the dot and the menu item
+  keep saying "Update to <version>", and an offline check does not replace an
+  installable update with an error.
+- A newer release downloads over the old one, silently, and the status becomes
+  `downloading` → `downloaded` for it. electron-updater clears the pending
+  cache when the checksum differs, so the older copy is gone either way — a
+  failed download therefore reports `error`, not the stale version.
 
 ### Flow 2: Manual Check (Settings)
 
@@ -97,8 +115,8 @@ Settings sidebar button → popover → "Check for Updates"
       → downloadUpdate(token)
         → progress: bar + transferred/total + Cancel
         → Cancel → token.cancel(), close window, status 'idle'
-        → update-downloaded → "Restart" (closing the window leaves "Update to <version>" in Settings)
-      → Restart → status 'installing' ("Restarting to install…")
+        → update-downloaded → "Install and Restart" (closing the window leaves "Update to <version>" in Settings)
+      → Install and Restart → status 'installing' ("Restarting to install…")
       → Squirrel re-fetches the bundle from the updater's local proxy
       → the app quits and reopens on the new version
     → update-not-available → window shows "pigi is up to date" and counts
@@ -116,12 +134,15 @@ that fails closes the window and toasts the reason in the main window, which has
 room for a long message; a download that fails is different — the window is
 already open and uploads the error itself, wrapped to two lines.
 
-Checking while a download is already running (or finished) reopens the progress
-window instead of starting a second download.
+Checking while a download is already running reopens the progress window
+instead of starting a second download. While an update is downloaded, the
+Settings entry and the menu item install it instead of checking, so asking the
+feed again is the hourly background check's job; when a newer release is out,
+it replaces the downloaded one.
 
 If Squirrel never finishes an install — it neither replaces the bundle nor
 reports an error — the status falls back to "downloaded" after 20 seconds, so
-the window offers "Restart" again instead of leaving the session
+the window offers "Install and Restart" again instead of leaving the session
 unable to check for updates.
 
 The Settings popover's item swaps from "Check for Updates" to
@@ -178,11 +199,21 @@ changes; `refreshApplicationMenu` compares the rendered string first, because
 - Zoom is held at 1 on purpose: the window is a 400px box with a status bar,
   and the View menu zooms whatever has focus. It resets on every show and
   focus, which is enough for a window that is open for seconds.
-- The content follows the shape of a system update dialog: app icon, bold
-  status, progress bar, byte count on the left and actions on the right. Only
-  `checking` carries a spinner, and the bar plus buttons are drawn in the theme
-  accent. A single-line status ("up to date") is one centred row instead of a
-  block with an empty bottom half.
+- The content follows the shape of a system update dialog: app icon and bold
+  status on one row, then a button row underneath (right-aligned), not beside
+  the text — at 400px a side button squeezes the status and the version. Only
+  `checking` carries a spinner; the progress bar uses the system accent, and the
+  primary button uses `primary`, the fill role the appearance model fits so its
+  label stays readable in dark mode. That button keeps its colours on hover; the
+  secondary ones keep the usual faint hover.
+- The window does not apply the user's palette. It is a system dialog, so it
+  uses the default colours in the user's light/dark mode: white paper or a
+  neutral dark, neutral text, the default blue accent — while keeping the
+  user's fonts, so the text-size setting still scales it. `main.tsx` applies the
+  stored appearance with the colour slots replaced by `DEFAULT_APPEARANCE` for
+  this window instead of calling `initializePigiSettings()`; the app's own
+  windows are unaffected. A single-line status ("up to date") is one row instead
+  of a block with an empty bottom half.
 - The renderer only displays the pushed status; Cancel and Install send an IPC
   message and wait for the next status, so the window cannot disagree with the
   updater.
@@ -257,9 +288,11 @@ dev run:
 
 1. Install a released version (0.4.17 or later) from `~/Applications/pigi.app`.
 2. Bump, release the next version as usual.
-3. Launch the installed build: the accent dot appears within a couple of hours
-   at the latest (the launch check runs 15s in), then Settings → "Update to …" →
-   "Restart" swaps the bundle in place.
+3. Launch the installed build: the accent dot appears within an hour at the
+   latest (the launch check runs 15s in), then Settings → "Update to …" →
+   "Install and Restart" swaps the bundle in place. With the dot showing, publish one more
+   version: the next hourly check must download it too, and the dot's version
+   must move up.
 4. Manual path: Settings → "Check for Updates" on an up-to-date build shows
    "pigi is up to date" in the window, counting 2 then 1, and then closes it, with no
    toast in the main window; on an outdated one the same window becomes the
