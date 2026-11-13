@@ -182,11 +182,16 @@ export const REMOTE_METHODS = {
         type: 'boolean',
         description: 'print the child path and return without waiting',
       },
+      notify: {
+        type: 'boolean',
+        description:
+          'return at once and post the child’s outcome back to the parent session when it finishes; implies --detach',
+      },
       timeout: {
         type: 'number',
         min: 1,
         max: MAX_TIMEOUT_SECONDS,
-        description: 'seconds after which the subagent is stopped; not with --detach',
+        description: 'seconds after which the subagent is stopped; not with --detach or --notify',
       },
     },
   },
@@ -268,6 +273,7 @@ export interface RemoteParams {
     model?: string;
     thinkingLevel?: ThinkingLevel;
     detach?: boolean;
+    notify?: boolean;
     timeout?: number;
   };
 }
@@ -285,7 +291,7 @@ export interface RemoteResults {
   'session.status': RemoteSessionStatus;
   /** `aborted` is false when the session was not running. */
   'session.abort': { path: string; aborted: boolean };
-  /** Without `reply` and `stopReason` when detached. */
+  /** Without `reply` and `stopReason` when detached or notified. */
   'subagent.run': RemoteSessionCreated & Partial<RemoteSessionReply>;
 }
 

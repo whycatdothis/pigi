@@ -20,6 +20,12 @@ describe('parseCliArguments', () => {
     expect(invocation.kind).toBe('usage_error');
   });
 
+  it('returns at once and asks to be told when the child finishes', () => {
+    expect(parseCliArguments(['subagent', 'review this', '--notify'], context)).toMatchObject({
+      params: { task: 'review this', notify: true, parent: '/sessions/a.jsonl' },
+    });
+  });
+
   it('resolves paths against the working directory and reads - from stdin', () => {
     expect(parseCliArguments(['session', 'prompt', 'a.jsonl', '-'], context)).toMatchObject({
       params: { path: '/repo/a.jsonl', text: '-' },

@@ -1,8 +1,9 @@
 # pigi CLI
 
-Status: phases 1–3 implemented (§14); the PATH install (phase 4) is not. This
-document is the design reference. See `docs/architecture.md` for the process model
-it builds on and `docs/sessionTree.md` for the fork lineage it extends.
+Status: phases 1–3 implemented (§14); the PATH install (phase 4) is macOS
+only. This document is the design reference. See `docs/architecture.md` for the
+process model it builds on and `docs/sessionTree.md` for the fork lineage it
+extends.
 
 ## 1. Goal
 
@@ -81,6 +82,8 @@ notice.
 | Env injection     | `createPiAgentProcess.ts`, `terminalManager.ts`, `piAgent.ts`                           | §5                                                                                                                                                                                   |
 | CLI               | `src/cli/pigi.ts`, `src/cli/cliArguments.ts` (new), `cli` entry of the main build       | Arg parsing and output formatting derived from the contract; only `node:net`                                                                                                         |
 | Launcher          | `resources/bin/pigi`, `resources/bin/pigi.cmd`                                          | §11                                                                                                                                                                                  |
+| PATH install      | `src/main/ipc/cliInstall.ts`, Settings → Command line, app menu                         | §11                                                                                                                                                                                  |
+| Parent notice     | `src/renderer/src/lib/subagentNotices.ts`, `remoteCommands.ts`                          | §10                                                                                                                                                                                  |
 | Skill             | `resources/skills/pigi-cli`, injected with `resourceLoaderOptions.additionalSkillPaths` | §12                                                                                                                                                                                  |
 
 ## 5. Caller context
@@ -167,7 +170,7 @@ pigi session wait <session> [--timeout <s>] [--stop]
 pigi session status <session>                running, message count, latest tool call and text
 pigi session abort <session>                 stop a running session
 pigi subagent "<task>" [--model <provider/id>] [--thinking <level>]
-                       [--detach | --timeout <s>]
+                       [--notify | --detach | --timeout <s>]
                        [--parent <session>]  = create linked to $PIGI_SESSION + prompt + wait
 ```
 
@@ -179,9 +182,15 @@ pigi subagent "<task>" [--model <provider/id>] [--thinking <level>]
   the caller's working directory.
 - `subagent` prints the child's id and path on stderr as it starts, also with
   `--json`, so a caller can always come back to it with `session wait`.
+- `subagent --notify` returns as soon as the child has started, and the parent
+  session is told once it finishes (§10). It implies `--detach`: there is
+  nothing left for the call to wait for. It is the way a caller should run a
+  subagent: it ends its turn instead of holding a bash call open for minutes,
+  and the notice starts the next turn with the child's outcome in hand.
 - `subagent --timeout` and `session wait --timeout --stop` abort the session
   when the time runs out and fail with its partial reply. `--stop` also aborts
-  it when the wait is cancelled, as a blocking `subagent` does.
+  it when the wait is cancelled, as a blocking `subagent` does. `--timeout`
+  needs a wait, so it goes with neither `--notify` nor `--detach`.
 - `prompt` and `wait` attach to a listed session the window has not opened
   (after a reload, say), as selecting it would, without selecting it.
 
@@ -315,6 +324,43 @@ assistant message, so there is no half-written case to handle.
 7. A fork of a subagent nests under that subagent. A subagent has no subagents
    of its own (§2); a fork of one is an ordinary session and may.
 
+### Notifying the parent
+
+`subagent --notify` is what a caller is told to use, so its run has to end
+somewhere the caller can see it.
+
+- The renderer watches the child it started; when the child is idle (or its
+  process is gone) it writes one line into the parent session: which child,
+  `finished` or `failed: <reason>`, and `pigi session wait <child id>` for the
+  reply — or says the child produced nothing, when it died before its first
+  message, in which case that command has nothing to read. The reply is never
+  inlined — it is the reason the child exists, and it can be as long as the
+  model likes.
+- The line is a custom message (`pigi.notice`), not a prompt: the parent's
+  transcript shows a notice card rather than a turn the user appears to have
+  typed, and ↑-recall in its composer does not offer the notice as a past
+  prompt. The agent reads it as message text like any other, which is why the
+  text names pigi.
+- The parent may have stopped meanwhile (its process is pruned when idle): it is
+  resumed first, and the notice starts a fresh turn. Nothing is lost by the
+  parent ending its turn, which is the point.
+- A parent in the middle of a turn is not interrupted: the notice is queued as a
+  follow-up and gets a turn of its own when the current one ends.
+- The notice is renderer state, but the child outlives the renderer (a reload, a
+  crash, a closed window). Pending notices are therefore kept in localStorage
+  and re-armed by the next renderer: it resumes the child, waits for it to be
+  idle and then notifies. A notice is written once the child's run has started,
+  so a reload in the moment between creating the child and that start fails the
+  CLI call (exit 1) and leaves no notice: the child runs on and
+  `pigi session wait` still reads it.
+- A pending notice gets one delivery attempt. A parent session that no longer
+  exists, or a message that cannot be written, is logged and the notice
+  dropped: retrying a notice forever would hide the failure instead of
+  reporting it. The child is still in `pigi session list --subagent` either
+  way.
+- Delivering a notice is the only thing in the CLI surface that starts a turn in
+  a session the caller did not prompt.
+
 ## 11. Installing `pigi` on PATH
 
 Not needed inside pigi: sessions and the terminal get `resources/bin` on `PATH`
@@ -332,43 +378,48 @@ Not needed inside pigi: sessions and the terminal get `resources/bin` on `PATH`
 
 ### macOS
 
-Menu item **Install 'pigi' Command in PATH** and its uninstall counterpart:
+Done (`src/main/ipc/cliInstall.ts`). Menu item **Install 'pigi' Command in
+PATH** and its uninstall counterpart, and the same in Settings → Command line:
 
 - Symlink `/usr/local/bin/pigi` → `pigi.app/Contents/Resources/bin/pigi`.
   `/usr/local/bin` is in `/etc/paths`, so no shell rc edits. When it is not
   writable or missing (common on fresh Apple Silicon Macs), escalate with
-  `osascript … with administrator privileges`.
+  `osascript … with administrator privileges`; a cancelled password prompt is
+  reported, not retried.
 - Not `~/.local/bin`: it is not on the default macOS `PATH`, which would mean
   editing zsh/bash/fish rc files.
-- Require `app.isInApplicationsFolder()`: an app launched from Downloads runs
-  from a random App Translocation path that disappears.
-- An existing `/usr/local/bin/pigi` that is not ours is replaced only after
-  asking. Uninstall removes the link only when it points at pigi.
+- Refuse to install from a build macOS may move: a dev build (its launcher
+  points at `out/`) and a bundle under App Translocation (launched from
+  Downloads or the mounted DMG) would both install a link that soon breaks. The
+  Settings row says which case it is.
+- An existing `/usr/local/bin/pigi` is "ours" when it points into a bundle's
+  `app.asar.unpacked/resources/bin`, so a link left by an older copy of the app
+  (before it moved) reads as broken and is replaced without asking. Anything
+  else at the path — another program's file, or a link elsewhere — is replaced
+  only after asking, and uninstalling never touches it.
 - Auto-update replaces the bundle in place, so the link stays valid and the CLI
   always matches the installed app.
 
 Settings shows the state: installed / broken link / taken by another program /
 not installed. Nothing installs without the user asking.
 
-### Windows
+### Windows and Linux
 
-The NSIS installer (`nsis.include`) adds `<install>\resources\bin` to the
-**user** `PATH` (HKCU) and the uninstaller removes it. Never `setx`: it
-truncates `PATH` at 1024 characters. A new terminal is needed to see it.
+Not implemented.
 
-### Linux
-
-- deb: electron-builder's default after-install script appears to link
+- Windows: the NSIS installer (`nsis.include`) adds `<install>\resources\bin` to
+  the **user** `PATH` (HKCU) and the uninstaller removes it. Never `setx`: it
+  truncates `PATH` at 1024 characters. A new terminal is needed to see it.
+- Linux deb: electron-builder's default after-install script appears to link
   `/usr/bin/pigi` to the GUI binary (verify). Override `afterInstall` to link
-  the launcher instead; no-argument `pigi` still opens the app.
-- AppImage (path changes per version) and snap (confinement): unsupported,
-  documented.
+  the launcher instead. AppImage (path changes per version) and snap
+  (confinement): unsupported, documented.
 
-### Before the launcher ships
+### Opening the app
 
-`appId` in `electron-builder.yml` is still the template's `com.electron.app`.
-The launcher opens the app by bundle id, which bakes the id in, so it waits for
-the switch to `pink.pigi` (`docs/todo.md`).
+The launcher only runs the CLI; bare `pigi` prints help. Opening the app from
+it (`open -b <bundle id>` on macOS) bakes the id in, so it waits for the switch
+to `pink.pigi` (`docs/todo.md`). The link itself does not depend on that.
 
 ## 12. Agent discoverability
 
@@ -376,22 +427,29 @@ A bundled `pigi-cli` skill, loaded on demand, rather than a line in
 `PIGI_SYSTEM_PROMPT` that every session pays for. It presents `pigi` as the
 general way to operate the app and sends agents to `pigi --help` for the
 current command set, which grows. Beyond that it describes today's commands
-and their mechanics only (blocking, abort, `--detach`, no nesting, exit codes)
-and leaves flags to `pigi <command> --help`, so it does not drift from the
-contract. Workflows built on it, such as review-and-fix, belong in the user's
-own skills, not here.
+and their mechanics only (returning early, `--notify`, blocking, abort, no
+nesting, exit codes) and leaves flags to `pigi <command> --help`, so it does not
+drift from the contract. It does make one recommendation — start a subagent with
+`--notify` and end the turn — because that is the mechanics an agent gets wrong
+otherwise: holding a bash call open for minutes, or polling `session status` in
+a loop. Workflows built on it, such as review-and-fix, belong in the user's own
+skills, not here.
 
 ## 13. Failure behavior
 
-| Case                                | Behavior                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| A aborts the bash call (CLI killed) | Socket closes → main tells the renderer → the child session is aborted, unless `--detach`                                                                                                                                                                                                                                                                                                                          |
-| Renderer reloads mid-request        | Pending requests fail with `WINDOW_RELOADED`; sessions keep running. A blocking `subagent` or `session wait` waits again on the same connection, for as many reloads as come, keeping its timeout and abort-on-cancel (`--stop`). A child still in its first turn has no file yet; lookup falls back to main's running processes. A window that does not come back: exit 4, `pigi session wait <path>` to continue |
-| Renderer crashes mid-request        | Same as a reload                                                                                                                                                                                                                                                                                                                                                                                                   |
-| No window (macOS)                   | Main reopens the window, then relays                                                                                                                                                                                                                                                                                                                                                                               |
-| Created session never prompted      | Idle, it can be closed when other sessions finish (the pool keeps three idle); prompt it right away                                                                                                                                                                                                                                                                                                                |
-| Long reviewer run                   | The skill tells agents to set a long bash timeout                                                                                                                                                                                                                                                                                                                                                                  |
-| pigi not running                    | Exit code 3 with a clear message                                                                                                                                                                                                                                                                                                                                                                                   |
+| Case                                 | Behavior                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A aborts the bash call (CLI killed)  | Socket closes → main tells the renderer → the child session is aborted, unless `--detach` or `--notify`                                                                                                                                                                                                                                                                                                            |
+| Renderer reloads mid-request         | Pending requests fail with `WINDOW_RELOADED`; sessions keep running. A blocking `subagent` or `session wait` waits again on the same connection, for as many reloads as come, keeping its timeout and abort-on-cancel (`--stop`). A child still in its first turn has no file yet; lookup falls back to main's running processes. A window that does not come back: exit 4, `pigi session wait <path>` to continue |
+| Renderer crashes mid-request         | Same as a reload                                                                                                                                                                                                                                                                                                                                                                                                   |
+| No window (macOS)                    | Main reopens the window, then relays                                                                                                                                                                                                                                                                                                                                                                               |
+| Created session never prompted       | Idle, it can be closed when other sessions finish (the pool keeps three idle); prompt it right away                                                                                                                                                                                                                                                                                                                |
+| Parent stopped when the child ends   | Its process is resumed and the notice is written into it (§10), which starts a new turn: ending a turn costs nothing                                                                                                                                                                                                                                                                                               |
+| Parent is running when it ends       | The notice is queued as a follow-up and starts a turn once the current one ends; the parent is never interrupted                                                                                                                                                                                                                                                                                                   |
+| A notice cannot be written           | One attempt: it is logged and dropped rather than retried, so a deduplication bug cannot loop; the child stays in `pigi session list --subagent`                                                                                                                                                                                                                                                                   |
+| Renderer reloaded while a child runs | The pending notice is in localStorage; the next renderer resumes the child and delivers when it is idle                                                                                                                                                                                                                                                                                                            |
+| pigi quits while a child runs        | The child dies with the app; the notice survives and the next start delivers it, with whatever the child left behind                                                                                                                                                                                                                                                                                               |
+| pigi not running                     | Exit code 3 with a clear message                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ## 14. Phases
 
@@ -401,8 +459,9 @@ own skills, not here.
    and `thinkingLevel` on `create_session`; no selection change; abort on
    disconnect; `pigi.subagent` entry, `isSubagent`, sidebar group.
 3. **Agent use** (done). Bundled skill, CHANGELOG.
-4. **PATH install.** macOS first, then Windows and Linux deb. Needs the
-   `appId` switch (`docs/todo.md`).
+4. **PATH install** (macOS done, §11); Windows and Linux deb to go.
+5. **Notify** (done). `subagent --notify`, the parent notice (§10), the skill
+   recommending it.
 
 Later: UI commands (`ui.openFile`, tab switching, jump to session); a structured
 A → child link (a `custom` entry in A pointing at the child, rendered as a link
@@ -410,9 +469,13 @@ on the bash card).
 
 ## 15. Tests
 
-- Unit: contract parsers, CLI argument parsing, the contract surface snapshot.
+- Unit: contract parsers, CLI argument parsing, the contract surface snapshot,
+  `subagentNotices.test.ts` (the notice text and its storage), `cliInstall.test.ts`
+  (installed / broken / another program's link).
 - `sessionLineage.test.ts`: group placement first, collapsed row count, a fork
   of a subagent stays a fork, auto-expand on a hidden selection.
 - `subagentMarker.test.ts`: marker detection, including the fork-of-subagent case.
 - End to end with the `pigi-debug` skill: run `pigi subagent` from a real
-  session in the dev build and check the sidebar and the returned reply.
+  session in the dev build and check the sidebar and the returned reply; run
+  `pigi subagent --notify` and check that the parent gets its notice once the
+  child is idle.

@@ -150,8 +150,8 @@ the DMG by hand through the "Download pigi" action on the failure (shipped
 first, for exactly this). macOS asks again for folder and notification access
 afterwards. Pin `nsis.guid: d8e79033-b579-5adb-9605-820525010f54` so a Windows
 build keeps upgrading the old install, and set the AppUserModelID to the same
-id. The PATH launcher (`docs/cli.md` §11) opens the app by bundle id and waits
-for this.
+id. Opening the app from the PATH launcher (`docs/cli.md` §11) goes by bundle id
+and waits for this; installing the launcher itself does not.
 
 ## Packages page follow-ups
 
