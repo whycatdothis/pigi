@@ -52,7 +52,7 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.pigi');
+  electronApp.setAppUserModelId('pink.pigi');
 
   // Read before the window exists: the native theme decides the window
   // material, and the background decides the frame painted before the renderer

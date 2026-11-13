@@ -1,7 +1,7 @@
 # pigi CLI
 
 Status: phases 1–3 and 5 implemented (§14); the PATH install (phase 4) is
-parked, unshipped, because it waits for the `appId` switch (`docs/todo.md`).
+parked, unshipped, on `feat/cli-path-install` (`docs/todo.md`).
 This document is the design reference. See `docs/architecture.md` for the
 process model it builds on and `docs/sessionTree.md` for the fork lineage it
 extends.
@@ -367,9 +367,9 @@ somewhere the caller can see it.
 
 **Not shipped.** The macOS half below was written and checked against a packaged
 build, then parked on `feat/cli-path-install`: the install is the first thing
-that makes an installed copy findable and quotable outside the app, so it should
-not land before the `appId`/bundle switch it would then have to move through
-(`docs/todo.md`). What follows is what that branch does; no build installs
+that makes an installed copy findable and quotable outside the app, so it was
+held back until the bundle identity was final, which it now is (`pink.pigi`,
+`docs/todo.md`). What follows is what that branch does; no build installs
 anything today.
 
 Not needed inside pigi: sessions and the terminal get `resources/bin` on `PATH`
@@ -428,8 +428,7 @@ Not implemented.
 ### Opening the app
 
 The launcher only runs the CLI; bare `pigi` prints help. Opening the app from
-it (`open -b <bundle id>` on macOS) bakes the id in, so it waits for the switch
-to `pink.pigi` (`docs/todo.md`). The link itself does not depend on that.
+it (`open -b pink.pigi` on macOS) bakes the id in; the symlink itself does not.
 
 ## 12. Agent discoverability
 
@@ -470,9 +469,9 @@ skills, not here.
    disconnect; `pigi.subagent` entry, `isSubagent`, sidebar group.
 3. **Agent use** (done). Bundled skill, CHANGELOG.
 4. **PATH install** (parked, §11). The macOS half was written and checked
-   against a packaged build, then taken out of the branch: it waits for the
-   `appId` switch, which every installed copy has to survive once. Windows and
-   Linux deb are design only.
+   against a packaged build and sits on `feat/cli-path-install`; merging it is
+   the remaining job, now that the bundle identity is final (`pink.pigi`).
+   Windows and Linux deb are design only.
 5. **Notify** (done). `subagent --notify`, the parent notice (§10), the skill
    recommending it.
 

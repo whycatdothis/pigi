@@ -1,4 +1,4 @@
-appId: com.electron.app
+appId: pink.pigi
 productName: pigi
 directories:
   buildResources: build
@@ -22,6 +22,11 @@ asarUnpack:
 win:
   executableName: pigi
 nsis:
+  # electron-builder's default for `pink.pigi` (UUIDv5 of the appId, namespace
+  # 50e065bc-3134-11e6-9bab-38c9862bdaf3), frozen by hand: the installer keys and
+  # the in-place upgrade lookup go by this id, so it must not follow a later
+  # appId change.
+  guid: a7ddab61-935b-5134-ad45-dd5bed35a614
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}

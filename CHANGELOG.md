@@ -4,6 +4,7 @@
 
 ### Changed
 
+- The app's bundle identifier is `pink.pigi` instead of the template `com.electron.app`, which every Electron app that never changed it shares. The AppUserModelID matches it, and the Windows installer's `guid` is pinned so a Windows build upgrades over the old install. An installed macOS copy cannot update across this one switch — Squirrel checks the update against the identity the app was installed under — so its first install fails once at Restart, and the error's Download action installs the DMG by hand. macOS asks again for folder and notification access afterwards
 - Auto-update checks every hour instead of every two hours, and a downloaded update no longer stops the checking: a release published afterwards is downloaded too, so leaving pigi running still restarts into the newest version
 - The update window puts its action under the status instead of beside it, labels it "Install and Restart", and uses the system's neutral white or dark surface instead of the app's theme colours; that button no longer changes colour on hover
 
