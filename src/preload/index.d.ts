@@ -18,8 +18,6 @@ import type {
   ModelCatalogSnapshot,
   PickAttachmentsResult,
   ChatAttachmentKind,
-  CliInstallResult,
-  CliInstallState,
   ProjectSessionsChunk,
   ProjectDirectoryResult,
   ExistingPath,
@@ -167,13 +165,6 @@ interface PiApi {
     onCancel: (callback: (requestId: number) => void) => () => void;
     send: (output: RemoteCommandOutput) => void;
     ready: () => void;
-  };
-
-  /** The `pigi` command on the PATH of terminals outside pigi (docs/cli.md §11). */
-  cli: {
-    getInstallState: () => Promise<CliInstallState>;
-    setInstalled: (installed: boolean) => Promise<CliInstallResult>;
-    onInstallStateChanged: (callback: (state: CliInstallState) => void) => () => void;
   };
 
   // Bottom-panel terminals (one PTY per tab, keyed by id, I/O over a MessagePort each)

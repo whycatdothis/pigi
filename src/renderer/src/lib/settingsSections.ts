@@ -10,7 +10,6 @@ import {
   IconRefresh,
   IconSend,
   IconShieldCheck,
-  IconTerminal2,
 } from '@tabler/icons-react';
 
 /**
@@ -37,7 +36,6 @@ export const SETTINGS_SECTIONS = [
   { id: 'appearance', group: 'pigi', label: 'Appearance', icon: IconPalette },
   { id: 'chat', group: 'pigi', label: 'Chat', icon: IconMessageCircle },
   { id: 'shortcuts', group: 'pigi', label: 'Shortcuts', icon: IconKeyboard },
-  { id: 'commandLine', group: 'pigi', label: 'Command line', icon: IconTerminal2 },
   { id: 'privacy', group: 'pigi', label: 'Privacy', icon: IconShieldCheck },
   { id: 'models', group: 'pi', label: 'Models & Thinking', icon: IconCpu, piScope: 'global' },
   { id: 'delivery', group: 'pi', label: 'Message Delivery', icon: IconSend },

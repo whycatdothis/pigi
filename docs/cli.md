@@ -1,7 +1,8 @@
 # pigi CLI
 
-Status: phases 1–3 implemented (§14); the PATH install (phase 4) is macOS
-only. This document is the design reference. See `docs/architecture.md` for the
+Status: phases 1–3 and 5 implemented (§14); the PATH install (phase 4) is
+parked, unshipped, because it waits for the `appId` switch (`docs/todo.md`).
+This document is the design reference. See `docs/architecture.md` for the
 process model it builds on and `docs/sessionTree.md` for the fork lineage it
 extends.
 
@@ -25,7 +26,7 @@ on the same transport; the CLI shape does not change.
   (`INVALID_PARAMS`, exit 2), so one level is all an agent can spawn.
 - No new setting for a default subagent model.
 - No single-instance lock in this work (§8); `docs/todo.md` keeps that item.
-- AppImage and snap get no PATH install (§11).
+- AppImage and snap get no PATH install (§11); no platform has one yet.
 
 ## 3. Architecture
 
@@ -82,7 +83,7 @@ notice.
 | Env injection     | `createPiAgentProcess.ts`, `terminalManager.ts`, `piAgent.ts`                           | §5                                                                                                                                                                                   |
 | CLI               | `src/cli/pigi.ts`, `src/cli/cliArguments.ts` (new), `cli` entry of the main build       | Arg parsing and output formatting derived from the contract; only `node:net`                                                                                                         |
 | Launcher          | `resources/bin/pigi`, `resources/bin/pigi.cmd`                                          | §11                                                                                                                                                                                  |
-| PATH install      | `src/main/ipc/cliInstall.ts`, Settings → Command line, app menu                         | §11                                                                                                                                                                                  |
+| PATH install      | (parked) `src/main/ipc/cliInstall.ts`, Settings → Command line, app menu                | §11                                                                                                                                                                                  |
 | Parent notice     | `src/renderer/src/lib/subagentNotices.ts`, `remoteCommands.ts`                          | §10                                                                                                                                                                                  |
 | Skill             | `resources/skills/pigi-cli`, injected with `resourceLoaderOptions.additionalSkillPaths` | §12                                                                                                                                                                                  |
 
@@ -364,6 +365,12 @@ somewhere the caller can see it.
 
 ## 11. Installing `pigi` on PATH
 
+**Not shipped.** The macOS half below was written and checked against a packaged
+build, then parked: the install is the first thing that makes an installed copy
+findable and quotable outside the app, so it should not land before the
+`appId`/bundle switch it would then have to move through (`docs/todo.md`). What
+follows is the design it will come back as; no build installs anything today.
+
 Not needed inside pigi: sessions and the terminal get `resources/bin` on `PATH`
 (§5). Installing serves external terminals only.
 
@@ -379,8 +386,9 @@ Not needed inside pigi: sessions and the terminal get `resources/bin` on `PATH`
 
 ### macOS
 
-Done (`src/main/ipc/cliInstall.ts`). Menu item **Install 'pigi' Command in
-PATH** and its uninstall counterpart, and the same in Settings → Command line:
+Written and parked (`src/main/ipc/cliInstall.ts` on the features branch). Menu
+item **Install 'pigi' Command in PATH** and its uninstall counterpart, and the
+same in Settings → Command line:
 
 - Symlink `/usr/local/bin/pigi` → `pigi.app/Contents/Resources/bin/pigi`.
   `/usr/local/bin` is in `/etc/paths`, so no shell rc edits. When it is not
@@ -460,7 +468,10 @@ skills, not here.
    and `thinkingLevel` on `create_session`; no selection change; abort on
    disconnect; `pigi.subagent` entry, `isSubagent`, sidebar group.
 3. **Agent use** (done). Bundled skill, CHANGELOG.
-4. **PATH install** (macOS done, §11); Windows and Linux deb to go.
+4. **PATH install** (parked, §11). The macOS half was written and checked
+   against a packaged build, then taken out of the branch: it waits for the
+   `appId` switch, which every installed copy has to survive once. Windows and
+   Linux deb are design only.
 5. **Notify** (done). `subagent --notify`, the parent notice (§10), the skill
    recommending it.
 
@@ -471,8 +482,7 @@ on the bash card).
 ## 15. Tests
 
 - Unit: contract parsers, CLI argument parsing, the contract surface snapshot,
-  `subagentNotices.test.ts` (the notice text and its storage), `cliInstall.test.ts`
-  (installed / broken / another program's link).
+  `subagentNotices.test.ts` (the notice text and its storage).
 - `sessionLineage.test.ts`: group placement first, collapsed row count, a fork
   of a subagent stays a fork, auto-expand on a hidden selection.
 - `subagentMarker.test.ts`: marker detection, including the fork-of-subagent case.

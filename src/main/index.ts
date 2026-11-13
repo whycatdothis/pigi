@@ -32,7 +32,6 @@ import { initializeShellEnv } from './processes/shellEnvResolver';
 import { pigiSettingsPath, readPigiSettingsFile, windowBackgroundFor } from './pigiSettingsFile';
 import { createPigiSettingsOwner } from './pigiSettingsOwner';
 import { startRemoteControlServer } from './remoteControl/remoteControlServer';
-import { registerCliInstallHandlers, setCliInstallStateObserver } from './ipc/cliInstall';
 import { parsePigiSettingsChange } from '../shared/pigiSettings';
 import { initializeTelemetry, setTelemetryEnabled } from './telemetry';
 import { pathToFileURL } from 'node:url';
@@ -95,13 +94,10 @@ app.whenReady().then(() => {
   registerShortcutHandlers();
   registerPiPackageHandlers();
   registerTerminalHandlers();
-  registerCliInstallHandlers();
   initializeUpdateManager();
   // After the updater: the menu's one update item renders the current status.
   setupApplicationMenu();
   setUpdateStatusObserver(refreshApplicationMenu);
-  // The menu's command-line item follows the link the install writes.
-  setCliInstallStateObserver(refreshApplicationMenu);
 
   ipcMain.on(PiChannel.OpenExternal, (_event, url: string) => {
     if (typeof url !== 'string') return;

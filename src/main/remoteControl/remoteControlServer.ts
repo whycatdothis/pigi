@@ -65,7 +65,7 @@ export function remoteControlSocketPath(): string {
 }
 
 /** `resources/bin`, where the `pigi` launcher lives (unpacked from the asar). */
-export function launcherDirectory(): string {
+function launcherDirectory(): string {
   return app.isPackaged
     ? join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'bin')
     : join(app.getAppPath(), 'resources', 'bin');

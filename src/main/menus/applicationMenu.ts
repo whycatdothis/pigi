@@ -1,37 +1,28 @@
 /**
  * The application menu.
  *
- * The update and command-line items change at runtime, so the whole menu is
- * rebuilt whenever one of them would look different and left alone otherwise.
- * `download-progress` pushes status many times a second, and each push reaches
- * `refreshApplicationMenu`; comparing the rendered items first keeps those
- * ticks from allocating a menu.
+ * The update item is the only part that changes at runtime, so the whole menu
+ * is rebuilt whenever its label or enabled state changes and left alone
+ * otherwise. `download-progress` pushes status many times a second, and each
+ * push reaches `refreshApplicationMenu`; comparing the rendered item first
+ * keeps those ticks from allocating a menu.
  */
 import { app, Menu } from 'electron';
 import { is } from '@electron-toolkit/utils';
 import { getUpdateMenuItemState, runUpdateMenuItemAction } from '../ipc/updateManager';
-import { getCliMenuItemState, runCliMenuItemAction } from '../ipc/cliInstall';
 
-/** The items that change at runtime; null until the menu exists. */
+/** The update item as last built; null until the menu exists. */
 let builtUpdateItemSignature: string | null = null;
-let builtCliItemSignature: string | null = null;
 
 function updateItemSignature(): string {
   const state = getUpdateMenuItemState();
   return `${state.label}|${state.enabled}`;
 }
 
-function cliItemSignature(): string {
-  const state = getCliMenuItemState();
-  return `${state.label}|${state.visible}|${state.enabled}`;
-}
-
 export function setupApplicationMenu(): void {
   const isMac = process.platform === 'darwin';
   const updateItem = getUpdateMenuItemState();
-  const cliItem = getCliMenuItemState();
   builtUpdateItemSignature = `${updateItem.label}|${updateItem.enabled}`;
-  builtCliItemSignature = `${cliItem.label}|${cliItem.visible}|${cliItem.enabled}`;
 
   const template: Electron.MenuItemConstructorOptions[] = [
     ...(isMac
@@ -47,15 +38,6 @@ export function setupApplicationMenu(): void {
                 enabled: updateItem.enabled,
                 click: () => runUpdateMenuItemAction(),
               },
-              ...(cliItem.visible
-                ? [
-                    {
-                      label: cliItem.label,
-                      enabled: cliItem.enabled,
-                      click: () => void runCliMenuItemAction(),
-                    },
-                  ]
-                : []),
               { type: 'separator' as const },
               { role: 'services' as const },
               { type: 'separator' as const },
@@ -110,11 +92,8 @@ export function setupApplicationMenu(): void {
   Menu.setApplicationMenu(menu);
 }
 
-/** Rebuild only when an item that changes at runtime would look different. */
+/** Rebuild only when the update item would actually look different. */
 export function refreshApplicationMenu(): void {
-  const unchanged =
-    updateItemSignature() === builtUpdateItemSignature &&
-    cliItemSignature() === builtCliItemSignature;
-  if (unchanged) return;
+  if (updateItemSignature() === builtUpdateItemSignature) return;
   setupApplicationMenu();
 }
