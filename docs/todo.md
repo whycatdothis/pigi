@@ -139,18 +139,6 @@ because its rect is still inside the container. Fix by walking the scrollable
 ancestors between the match and the container, and treating the gutter width as
 an inset.
 
-## Add `pigi` to PATH
-
-Parked on `feat/cli-path-install` (`fd5c7cf`), written and checked against a
-packaged build: a `/usr/local/bin/pigi` symlink, one `osascript` elevation, the
-ownership rules, Settings → Command line and the menu item. The bundle identity
-is final now (`pink.pigi`), so it lands in that release or the one after — not
-before, so the first copy anyone can quote outside the app is the one with its
-final bundle identity. Merging that branch is then the whole job; it also
-carries the `CliInstall*` types, the three IPC channels and `docs/cli.md` §11.
-Windows NSIS (`nsis.include` adding `<install>\resources\bin` to HKCU `PATH`)
-and the Linux deb `afterInstall` are design only.
-
 ## Packages page follow-ups
 
 - Enable or disable a package's single extension, skill, prompt or theme (what

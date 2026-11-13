@@ -1,10 +1,9 @@
 # pigi CLI
 
-Status: phases 1–3 and 5 implemented (§14); the PATH install (phase 4) is
-parked, unshipped, on `feat/cli-path-install` (`docs/todo.md`).
-This document is the design reference. See `docs/architecture.md` for the
-process model it builds on and `docs/sessionTree.md` for the fork lineage it
-extends.
+Status: every phase implemented (§14); the PATH install (phase 4) ships on
+macOS, and its Windows and Linux halves are design only. This document is the
+design reference. See `docs/architecture.md` for the process model it builds
+on and `docs/sessionTree.md` for the fork lineage it extends.
 
 ## 1. Goal
 
@@ -26,7 +25,7 @@ on the same transport; the CLI shape does not change.
   (`INVALID_PARAMS`, exit 2), so one level is all an agent can spawn.
 - No new setting for a default subagent model.
 - No single-instance lock in this work (§8); `docs/todo.md` keeps that item.
-- AppImage and snap get no PATH install (§11); no platform has one yet.
+- AppImage and snap get no PATH install (§11).
 
 ## 3. Architecture
 
@@ -83,7 +82,7 @@ notice.
 | Env injection     | `createPiAgentProcess.ts`, `terminalManager.ts`, `piAgent.ts`                           | §5                                                                                                                                                                                   |
 | CLI               | `src/cli/pigi.ts`, `src/cli/cliArguments.ts` (new), `cli` entry of the main build       | Arg parsing and output formatting derived from the contract; only `node:net`                                                                                                         |
 | Launcher          | `resources/bin/pigi`, `resources/bin/pigi.cmd`                                          | §11                                                                                                                                                                                  |
-| PATH install      | (parked) `src/main/ipc/cliInstall.ts`, Settings → Command line, app menu                | §11                                                                                                                                                                                  |
+| PATH install      | `src/main/ipc/cliInstall.ts`, Settings → Command line, app menu                         | §11                                                                                                                                                                                  |
 | Parent notice     | `src/renderer/src/lib/subagentNotices.ts`, `remoteCommands.ts`                          | §10                                                                                                                                                                                  |
 | Skill             | `resources/skills/pigi-cli`, injected with `resourceLoaderOptions.additionalSkillPaths` | §12                                                                                                                                                                                  |
 
@@ -365,13 +364,6 @@ somewhere the caller can see it.
 
 ## 11. Installing `pigi` on PATH
 
-**Not shipped.** The macOS half below was written and checked against a packaged
-build, then parked on `feat/cli-path-install`: the install is the first thing
-that makes an installed copy findable and quotable outside the app, so it was
-held back until the bundle identity was final, which it now is (`pink.pigi`,
-`docs/todo.md`). What follows is what that branch does; no build installs
-anything today.
-
 Not needed inside pigi: sessions and the terminal get `resources/bin` on `PATH`
 (§5). Installing serves external terminals only.
 
@@ -381,15 +373,13 @@ Not needed inside pigi: sessions and the terminal get `resources/bin` on `PATH`
    the Electron binary and `cli.js`, as VS Code's `bin/code` does.
 2. Run `cli.js` (inside `app.asar`, which Electron reads in Node mode too) under
    `ELECTRON_RUN_AS_NODE=1`, so users need no Node install. Bare `pigi` prints
-   help today; opening the app (`open -b <bundle id>` on macOS) comes with the
-   install.
+   help.
 3. The dev build offers no install; it relies on `PATH` injection only.
 
 ### macOS
 
-Parked on `feat/cli-path-install` (`src/main/ipc/cliInstall.ts`). Menu item
-**Install 'pigi' Command in PATH** and its uninstall counterpart, and the same
-in Settings → Command line:
+Done (`src/main/ipc/cliInstall.ts`). Menu item **Install 'pigi' Command in
+PATH** and its uninstall counterpart, and the same in Settings → Command line:
 
 - Symlink `/usr/local/bin/pigi` → `pigi.app/Contents/Resources/bin/pigi`.
   `/usr/local/bin` is in `/etc/paths`, so no shell rc edits. When it is not
@@ -428,7 +418,8 @@ Not implemented.
 ### Opening the app
 
 The launcher only runs the CLI; bare `pigi` prints help. Opening the app from
-it (`open -b pink.pigi` on macOS) bakes the id in; the symlink itself does not.
+it is not implemented: it would need `open -b pink.pigi` on macOS, so the
+launcher would carry the bundle id. The link the install writes does not.
 
 ## 12. Agent discoverability
 
@@ -468,10 +459,9 @@ skills, not here.
    and `thinkingLevel` on `create_session`; no selection change; abort on
    disconnect; `pigi.subagent` entry, `isSubagent`, sidebar group.
 3. **Agent use** (done). Bundled skill, CHANGELOG.
-4. **PATH install** (parked, §11). The macOS half was written and checked
-   against a packaged build and sits on `feat/cli-path-install`; merging it is
-   the remaining job, now that the bundle identity is final (`pink.pigi`).
-   Windows and Linux deb are design only.
+4. **PATH install** (done on macOS, §11). Symlink to `resources/bin/pigi`,
+   one elevation prompt, ownership rules; Windows and Linux deb are design
+   only.
 5. **Notify** (done). `subagent --notify`, the parent notice (§10), the skill
    recommending it.
 

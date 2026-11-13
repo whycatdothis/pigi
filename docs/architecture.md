@@ -958,7 +958,7 @@ src/
 │   ├── ipc/
 │   │   └── piAgentBridge.ts    # Lifecycle handlers (~120 lines)
 │   ├── menus/
-│   │   └── applicationMenu.ts  # App menu; one update item follows update status
+│   │   └── applicationMenu.ts  # App menu; the items that follow runtime state (update, pigi command)
 │   ├── processes/
 │   │   └── createPiAgentProcess.ts  # Utility process spawner
 │   └── windows/

@@ -27,6 +27,7 @@ import {
 } from './piSettingsSections';
 import { AppearanceSettings } from './appearanceSettings';
 import { ChatSettings } from './chatSettings';
+import { CliSettings } from './cliSettings';
 import { PrivacySettings } from './privacySettings';
 import { ShortcutsSettings } from './shortcutsSettings';
 
@@ -109,6 +110,9 @@ function PigiSettingsSection({ meta }: { meta: SettingsSectionEntry }): React.JS
       break;
     case 'shortcuts':
       content = <ShortcutsSettings />;
+      break;
+    case 'commandLine':
+      content = <CliSettings />;
       break;
     case 'privacy':
       content = <PrivacySettings />;

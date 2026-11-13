@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `pigi` can be put on the `PATH` of terminals outside pigi (macOS): Settings → Command line, or the app menu's **Install 'pigi' Command in PATH**, writes a `/usr/local/bin/pigi` symlink with one administrator prompt, and removes it the same way. The command runs on pigi's own Electron, so no Node install is needed. A link left behind by a copy that has since moved is recognized and replaced, a build macOS may relocate refuses to install, and a file another program owns is only replaced after asking
+
 ### Changed
 
 - The app's bundle identifier is `pink.pigi` instead of the template `com.electron.app`, which every Electron app that never changed it shares. The AppUserModelID matches it, and the Windows installer's `guid` is pinned so a Windows build upgrades over the old install. An installed macOS copy cannot update across this one switch — Squirrel checks the update against the identity the app was installed under — so its first install fails once at Restart, and the error's Download action installs the DMG by hand. macOS asks again for folder and notification access afterwards
