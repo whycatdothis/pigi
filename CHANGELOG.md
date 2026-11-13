@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- In Minimal view, expanding the turn that is still running lands at its newest
+  output and keeps following it, even when the reader had scrolled up to reach
+  its header or another turn's expansion had released the follow
+
 ## [0.6.9] - 2026-11-13
 
 ### Added

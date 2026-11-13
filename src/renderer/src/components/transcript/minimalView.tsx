@@ -46,9 +46,10 @@ import { useSettingsStore } from '../../state/settingsStore';
 interface MinimalViewProps {
   turns: MinimalTurn[];
   analyses: MinimalTurnAnalysis[];
-  /** Called when the user expands a turn's details — MessageList preserves
-   *  active output-follow state or releases a finished turn's pin. */
-  onExpandDetails: (isActive: boolean) => void;
+  /** Called when the user expands a turn's details — MessageList keeps a
+   *  running turn following (resuming the follow if the reader scrolled away)
+   *  or releases a finished turn's pin. */
+  onExpandDetails: (isActive: boolean, turnId: string) => void;
   /** Called when a turn finishes — MessageList releases the top pin. */
   onTurnEnd?: (turnId: string) => void;
   /** Called when expanded details collapse — MessageList re-pins the
@@ -122,7 +123,7 @@ const TurnSection = React.memo(function TurnSection({
 }: {
   turn: MinimalTurn;
   analysis: MinimalTurnAnalysis;
-  onExpandDetails: (isActive: boolean) => void;
+  onExpandDetails: (isActive: boolean, turnId: string) => void;
   onTurnEnd?: (turnId: string) => void;
   onCollapseDetails?: (isActive: boolean) => void;
   onCollapseChange?: (isCollapsing: boolean) => void;
@@ -160,8 +161,8 @@ const TurnSection = React.memo(function TurnSection({
 
   const handleToggleDetails = useCallback(() => {
     if (!detailsOpen) {
-      // Expanding: preserve active output-follow or release a finished pin.
-      onExpandDetails(analysis.isActive);
+      // Expanding: follow a running turn again, or release a finished pin.
+      onExpandDetails(analysis.isActive, turn.id);
       setDetailsOpen(true);
       return;
     }
@@ -182,7 +183,14 @@ const TurnSection = React.memo(function TurnSection({
     // Suppress ResizeObserver during the transition.
     onCollapseChange?.(true);
     setDetailsOpen(false);
-  }, [detailsOpen, analysis.isActive, onExpandDetails, onCollapseChange, scrollContainerRef]);
+  }, [
+    detailsOpen,
+    analysis.isActive,
+    onExpandDetails,
+    onCollapseChange,
+    scrollContainerRef,
+    turn.id,
+  ]);
 
   // Scroll correction: runs after React commits the collapsed layout,
   // before the browser paints — no visual glitch, no compensation spacer.

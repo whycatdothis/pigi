@@ -75,7 +75,7 @@ export interface MessageListScrollController {
   followAfterContentSwap: () => void;
   handleScrollToBottom: () => void;
   handleMinimalTurnEnd: (turnId: string) => void;
-  releaseAutoScrollPin: (isActive: boolean) => void;
+  releaseAutoScrollPin: (isActive: boolean, turnId: string) => void;
   handleOutputGrowth: (sectionHeight: number) => void;
   handleCollapseChange: (isCollapsing: boolean) => void;
   handleCollapseDetails: (isActive: boolean) => void;
@@ -628,29 +628,46 @@ export function useMessageListScrollController({
     });
   }
 
-  const releaseAutoScrollPin = useCallback((isActive: boolean) => {
-    const pin = pinRef.current;
-    if (pin.phase !== 'idle') {
-      lastPinnedTurnIdRef.current = pin.turnId;
-    }
-    restoreAnimRef.current?.cancel();
-    restoreAnimRef.current = null;
+  const releaseAutoScrollPin = useCallback(
+    (isActive: boolean, turnId: string) => {
+      const pin = pinRef.current;
+      if (pin.phase !== 'idle') {
+        lastPinnedTurnIdRef.current = pin.turnId;
+      }
+      restoreAnimRef.current?.cancel();
+      restoreAnimRef.current = null;
 
-    if (isActive) {
-      // Preserve pinned/following/scrolled so expanded details use the same
-      // fill-then-follow behavior as normal streaming output.
-      return;
-    }
+      if (isActive) {
+        // Preserve pinned/following so expanded details use the same
+        // fill-then-follow behavior as normal streaming output.
+        if (pin.phase === 'pinned' || pin.phase === 'following') return;
+        // The reader scrolled up (usually to reach a header that the output
+        // pushed off-screen) or another turn's expansion dropped the pin.
+        // Expanding the running turn asks for its live output, so follow it
+        // from the end again — the details fill the viewport first.
+        lastPinnedTurnIdRef.current = turnId;
+        // Already riding the end, with no spacer below: re-pinning would
+        // jump up to the header first (scroll-to-bottom, a followed turn).
+        if (autoScrollRef.current && topPaddingPxRef.current === 0) {
+          pinRef.current = { phase: 'following', turnId };
+          engageFollow();
+          return;
+        }
+        startActiveTurn(turnId, false);
+        return;
+      }
 
-    // Finished turn: release the pin and drop the spacer after commit.
-    autoScrollRef.current = false;
-    pinRef.current = { phase: 'idle' };
-    expandSettlingRef.current = true;
-    requestAnimationFrame(() => {
-      expandSettlingRef.current = false;
-      setTopPaddingPx(0);
-    });
-  }, []);
+      // Finished turn: release the pin and drop the spacer after commit.
+      autoScrollRef.current = false;
+      pinRef.current = { phase: 'idle' };
+      expandSettlingRef.current = true;
+      requestAnimationFrame(() => {
+        expandSettlingRef.current = false;
+        setTopPaddingPx(0);
+      });
+    },
+    [engageFollow, startActiveTurn],
+  );
 
   // Content growth handler: transitions pinned → following when the turn's
   // content exceeds the viewport, then rides the content bottom.
