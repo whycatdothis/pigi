@@ -32,6 +32,8 @@ import {
   type PiRequest,
   type PickAttachmentsResult,
   type ChatAttachmentKind,
+  type CliInstallResult,
+  type CliInstallState,
   type ProjectDirectoryResult,
   type ExistingPath,
   type ProjectFileResult,
@@ -677,6 +679,21 @@ const piApi = {
     },
     ready: (): void => {
       ipcRenderer.send(PiChannel.RemoteControlReady);
+    },
+  },
+
+  /** The `pigi` command on the PATH of terminals outside pigi (docs/cli.md §11). */
+  cli: {
+    getInstallState: (): Promise<CliInstallState> =>
+      ipcRenderer.invoke(PiChannel.GetCliInstallState),
+    setInstalled: (installed: boolean): Promise<CliInstallResult> =>
+      ipcRenderer.invoke(PiChannel.SetCliInstalled, installed),
+    onInstallStateChanged: (callback: (state: CliInstallState) => void): (() => void) => {
+      const handler = (_: Electron.IpcRendererEvent, state: CliInstallState): void => {
+        callback(state);
+      };
+      ipcRenderer.on(PiChannel.CliInstallStateChanged, handler);
+      return () => ipcRenderer.removeListener(PiChannel.CliInstallStateChanged, handler);
     },
   },
 
