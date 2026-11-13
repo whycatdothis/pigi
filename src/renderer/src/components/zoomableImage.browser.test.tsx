@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
-import { ZoomableImage } from './zoomableImage';
+import { ZoomableImage, ZOOM_MARGIN_PX } from './zoomableImage';
 
 /** A 40px red square: an image small enough that the overlay enlarges it. */
 const SQUARE =
@@ -49,8 +49,9 @@ test('opens an image at the size the overlay fits it to, not at its own', async 
   });
 
   // The overlay fits an image to the window even when that enlarges it from
-  // its own pixels; a drawing is fitted the same way. The reader's own zooming
-  // starts here, from the whole thing in view.
+  // its own pixels (this one is an SVG, which scales; a raster image is never
+  // enlarged past its own). The reader's own zooming starts here, from the
+  // whole thing in view.
   expect(panScale()).toBe(1);
-  expect(shownBox()?.width ?? 0).toBeGreaterThan(40);
+  expect(shownBox()?.height ?? 0).toBeCloseTo(window.innerHeight - 2 * ZOOM_MARGIN_PX, 0);
 });

@@ -40,9 +40,11 @@ export function ZoomPanContent({
   // Every visit starts at the content as the overlay fitted it to the window,
   // rather than wherever the last one was left. The fit shows a whole drawing or
   // image; zooming in from there is the reader's own gesture, and is not reset
-  // by anything but the next visit.
+  // by anything but the next visit or the end of this one. Closing returns to
+  // the whole content first, so the flight back to the block is the drawing the
+  // block shows, not a zoomed slice of it.
   useLayoutEffect(() => {
-    if (modalState === 'LOADING') {
+    if (modalState === 'LOADING' || modalState === 'UNLOADING') {
       transformRef.current?.resetTransform(0);
     }
   }, [modalState]);

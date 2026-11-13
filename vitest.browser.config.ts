@@ -31,5 +31,8 @@ export default defineConfig({
       // The app is a desktop window; the dialog sizes itself off the viewport.
       instances: [{ browser: 'chromium', viewport: { width: 1200, height: 820 } }],
     },
+    // page.viewport resizes the shared page that every tester iframe reads, so a
+    // file that changes it cannot run beside another one.
+    fileParallelism: false,
   },
 });

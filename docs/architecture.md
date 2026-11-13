@@ -799,7 +799,8 @@ Rules that the code depends on:
   diagram bigger than the window that is a slice of itself, not the diagram the
   reader clicked. Zooming in from the fitted drawing — pinch, ctrl+wheel, the
   `+` key — is the reader's own gesture, and the zoomed drawing is panned.
-  Images are fitted the same way.
+  An image is fitted the same way, except that the overlay never enlarges a
+  raster image past its own pixels.
 - **A diagram is drawn in mermaid's own theme.** The light window gets mermaid's
   `default` and the dark one its `dark`; no theme variable is overridden, so the
   drawing looks like the diagram it is rather than like the app's chrome around

@@ -8,7 +8,7 @@
 
 ### Fixed
 
-- A Mermaid diagram opens in the zoom overlay with the whole drawing in view, fitted to the window, instead of at the size it was drawn: a diagram larger than the window used to open as a cropped slice. Pinch, ctrl+wheel or `+` zooms in from there, and dragging pans what no longer fits
+- A Mermaid diagram opens in the zoom overlay with the whole drawing in view, fitted to the window, instead of at the size it was drawn: a diagram larger than the window used to open as a cropped slice. Pinch, ctrl+wheel or `+` zooms in from there, and dragging pans what no longer fits. Closing a zoomed diagram returns to the whole drawing first, so it lands on the preview the message shows instead of a zoomed slice
 
 ## [0.6.7] - 2026-11-13
 

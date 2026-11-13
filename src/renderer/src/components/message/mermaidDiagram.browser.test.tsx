@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { peekDiagram, renderDiagram } from '../../lib/mermaidRenderer';
 import { useSettingsStore } from '../../state/settingsStore';
@@ -8,6 +8,7 @@ import { DEFAULT_APPEARANCE } from '../../../../shared/appearance';
 import { findOccurrenceRanges } from '../../lib/highlightMatches';
 import MarkdownMessage from './markdownMessage';
 import MermaidDiagram from './mermaidDiagram';
+import { ZOOM_MARGIN_PX } from '../zoomableImage';
 // The diagram is laid out from the app's own tokens and sized by its CSS: this
 // layer measures the real thing, styles included.
 import '../../assets/main.css';
@@ -117,6 +118,13 @@ function pinch(): WheelEvent {
 
 function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+/** The pan library's own scale, written into the element it transforms. */
+function panScale(): number {
+  const component = document.querySelector<HTMLElement>('.react-transform-component');
+  const match = /scale\(([^)]+)\)/.exec(component?.style.transform ?? '');
+  return match === null ? Number.NaN : Number(match[1]);
 }
 
 /**
@@ -242,15 +250,16 @@ test('opens the whole drawing, fitted to the window', async () => {
   expect(installed.getBoundingClientRect().width).toBeLessThan(laidOut);
 
   await openOverlay(screen);
-  // The overlay hands back the whole drawing, fitted to the window: every edge
-  // of it is inside the viewport. Opening it at the size it was drawn would put
-  // a drawing bigger than the window into the overlay as a slice of itself.
+  // The overlay hands back the whole drawing, fitted to the window: its width
+  // is the window less the overlay's margins, and every edge is inside the
+  // viewport. Opening it at the size it was drawn would put a drawing bigger
+  // than the window into the overlay as a slice of itself.
   const box = zoomedDrawing().getBoundingClientRect();
+  expect(box.width).toBeCloseTo(window.innerWidth - 2 * ZOOM_MARGIN_PX, 0);
   expect(box.left).toBeGreaterThanOrEqual(0);
   expect(box.top).toBeGreaterThanOrEqual(0);
   expect(box.right).toBeLessThanOrEqual(window.innerWidth + 1);
   expect(box.bottom).toBeLessThanOrEqual(window.innerHeight + 1);
-  expect(box.width).toBeLessThan(laidOut);
 });
 
 test('opens a tall drawing whole, not the box the block capped it to', async () => {
@@ -261,7 +270,10 @@ test('opens a tall drawing whole, not the box the block capped it to', async () 
   expect(installed.getBoundingClientRect().height).toBeLessThan(laidOut);
 
   await openOverlay(screen);
+  // The overlay fits the whole drawing to the window's height, which is well
+  // past the 420px box the block capped it to.
   const box = zoomedDrawing().getBoundingClientRect();
+  expect(box.height).toBeCloseTo(window.innerHeight - 2 * ZOOM_MARGIN_PX, 0);
   expect(box.top).toBeGreaterThanOrEqual(0);
   expect(box.bottom).toBeLessThanOrEqual(window.innerHeight + 1);
 });
@@ -284,6 +296,36 @@ test('zooms a drawing from the size it opened at, and pans it', async () => {
   drag(zoomedDrawing(), from, [from[0] - 200, from[1]]);
   await waitFor(() => zoomedDrawing().getBoundingClientRect().x < zoomed.x - 100, 2000);
   expect(overlayIsOpen()).toBe(true);
+});
+
+test('keeps the reader zoom when the window changes under it', async () => {
+  const screen = await render(<MermaidDiagram code={WIDE_CHART} />);
+  await expect.element(screen.getByTestId('mermaid-diagram'), { timeout: 3000 }).toBeVisible();
+  await openOverlay(screen);
+
+  zoomedDrawing().dispatchEvent(pinch());
+  await waitFor(() => panScale() > 1, 2000);
+  const zoom = panScale();
+  const before = zoomedDrawing().getBoundingClientRect().width;
+
+  await page.viewport(900, 700);
+  try {
+    // The overlay re-fits the whole drawing to the smaller window, and the
+    // reader's zoom stays on top of that fit instead of being reset by it.
+    await waitFor(() => zoomedDrawing().getBoundingClientRect().width < before - 100, 2000);
+    expect(panScale()).toBeCloseTo(zoom, 2);
+
+    const box = zoomedDrawing().getBoundingClientRect();
+    drag(
+      zoomedDrawing(),
+      [box.x + box.width / 2, box.y + box.height / 2],
+      [box.x + box.width / 2 - 120, box.y + box.height / 2],
+    );
+    await waitFor(() => zoomedDrawing().getBoundingClientRect().x < box.x - 60, 2000);
+  } finally {
+    await userEvent.keyboard('{Escape}');
+    await page.viewport(1200, 820);
+  }
 });
 
 test('leaves a mermaid fence that is still open as a code block', async () => {
