@@ -156,14 +156,15 @@ release as the switch rather than move an hour later.
 
 ## Add `pigi` to PATH
 
-Parked. The macOS half was written and checked against a packaged build — menu
-item and Settings → Command line, a `/usr/local/bin/pigi` link, one
-`osascript` elevation, ownership rules — and taken back out until the `appId`
-switch above lands; it lives on the features branch. To bring it back: Settings
-→ Command line section and its `CliInstall*` types, the three IPC channels, the
-app menu item, `src/main/ipc/cliInstall.ts` with its test, and the docs in
-`docs/cli.md` §11. Windows NSIS (`nsis.include` adding `<install>\resources\bin`
-to HKCU `PATH`) and the Linux deb `afterInstall` are design only.
+Parked on `feat/cli-path-install` (`fd5c7cf`), written and checked against a
+packaged build: a `/usr/local/bin/pigi` symlink, one `osascript` elevation, the
+ownership rules, Settings → Command line and the menu item. It waits for the
+`appId` switch above — do it in the same release or right after, not before, so
+the first copy anyone can quote outside the app is the one with its final
+bundle identity. Merging that branch is then the whole job; it also carries the
+`CliInstall*` types, the three IPC channels and `docs/cli.md` §11. Windows NSIS
+(`nsis.include` adding `<install>\resources\bin` to HKCU `PATH`) and the Linux
+deb `afterInstall` are design only.
 
 ## Packages page follow-ups
 

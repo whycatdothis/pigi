@@ -366,10 +366,11 @@ somewhere the caller can see it.
 ## 11. Installing `pigi` on PATH
 
 **Not shipped.** The macOS half below was written and checked against a packaged
-build, then parked: the install is the first thing that makes an installed copy
-findable and quotable outside the app, so it should not land before the
-`appId`/bundle switch it would then have to move through (`docs/todo.md`). What
-follows is the design it will come back as; no build installs anything today.
+build, then parked on `feat/cli-path-install`: the install is the first thing
+that makes an installed copy findable and quotable outside the app, so it should
+not land before the `appId`/bundle switch it would then have to move through
+(`docs/todo.md`). What follows is what that branch does; no build installs
+anything today.
 
 Not needed inside pigi: sessions and the terminal get `resources/bin` on `PATH`
 (§5). Installing serves external terminals only.
@@ -386,9 +387,9 @@ Not needed inside pigi: sessions and the terminal get `resources/bin` on `PATH`
 
 ### macOS
 
-Written and parked (`src/main/ipc/cliInstall.ts` on the features branch). Menu
-item **Install 'pigi' Command in PATH** and its uninstall counterpart, and the
-same in Settings → Command line:
+Parked on `feat/cli-path-install` (`src/main/ipc/cliInstall.ts`). Menu item
+**Install 'pigi' Command in PATH** and its uninstall counterpart, and the same
+in Settings → Command line:
 
 - Symlink `/usr/local/bin/pigi` → `pigi.app/Contents/Resources/bin/pigi`.
   `/usr/local/bin` is in `/etc/paths`, so no shell rc edits. When it is not
