@@ -336,11 +336,12 @@ somewhere the caller can see it.
   message, in which case that command has nothing to read. The reply is never
   inlined — it is the reason the child exists, and it can be as long as the
   model likes.
-- The line is a custom message (`pigi.notice`), not a prompt: the parent's
+- The line is a custom message (`pigi.subagent`), not a prompt: the parent's
   transcript shows a notice card rather than a turn the user appears to have
   typed, and ↑-recall in its composer does not offer the notice as a past
   prompt. The agent reads it as message text like any other, which is why the
-  text names pigi.
+  text names pigi. The same id marks the child's session entry above; only an
+  entry carries a `data.sessionId`, so the two cannot be confused.
 - The parent may have stopped meanwhile (its process is pruned when idle): it is
   resumed first, and the notice starts a fresh turn. Nothing is lost by the
   parent ending its turn, which is the point.

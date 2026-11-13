@@ -14,8 +14,10 @@ const TITLE_LENGTH = 60;
 const REASON_LENGTH = 160;
 
 /** The custom message type a notice is written as: the transcript labels the card
- *  with it, and the parent does not have to be told who wrote what. */
-export const SUBAGENT_NOTICE_TYPE = 'pigi.notice';
+ *  with it, and the parent does not have to be told who wrote what. The same id
+ *  marks a subagent session (`SUBAGENT_ENTRY_TYPE`), which the marker check
+ *  tells apart by the `data.sessionId` only an entry carries. */
+export const SUBAGENT_NOTICE_TYPE = 'pigi.subagent';
 
 export interface PendingSubagentNotice {
   childPath: string;

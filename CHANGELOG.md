@@ -4,7 +4,7 @@
 
 ### Added
 
-- `pigi subagent --notify` starts a subagent and returns at once; when the child finishes, pigi writes a `pigi.notice` message into the session that started it (a notice card, not a turn the user appears to have typed), resuming that session if it had stopped, so it can read the reply with `pigi session wait <session>` instead of holding a bash call open for minutes. The bundled `pigi-cli` skill now recommends this way of running a subagent
+- `pigi subagent --notify` starts a subagent and returns at once; when the child finishes, pigi writes a `pigi.subagent` message into the session that started it (a notice card, not a turn the user appears to have typed), resuming that session if it had stopped, so it can read the reply with `pigi session wait <session>` instead of holding a bash call open for minutes. The bundled `pigi-cli` skill now recommends this way of running a subagent
 - Settings → Command line puts `pigi` on the `PATH` of terminals outside the app, as a link from `/usr/local/bin/pigi` to the app, and removes it again; the app menu offers the same. Asking for an administrator password is the only part that leaves the app
 
 ## [0.6.7] - 2026-11-13
