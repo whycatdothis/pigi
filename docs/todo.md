@@ -150,20 +150,8 @@ the DMG by hand through the "Download pigi" action on the failure (shipped
 first, for exactly this). macOS asks again for folder and notification access
 afterwards. Pin `nsis.guid: d8e79033-b579-5adb-9605-820525010f54` so a Windows
 build keeps upgrading the old install, and set the AppUserModelID to the same
-id. The PATH install (`docs/cli.md` §11) waits for this, both because opening the
-app from the launcher goes by bundle id and because it should land in the same
-release as the switch rather than move an hour later.
-
-## Add `pigi` to PATH
-
-Parked. The macOS half was written and checked against a packaged build — menu
-item and Settings → Command line, a `/usr/local/bin/pigi` link, one
-`osascript` elevation, ownership rules — and taken back out until the `appId`
-switch above lands; it lives on the features branch. To bring it back: Settings
-→ Command line section and its `CliInstall*` types, the three IPC channels, the
-app menu item, `src/main/ipc/cliInstall.ts` with its test, and the docs in
-`docs/cli.md` §11. Windows NSIS (`nsis.include` adding `<install>\resources\bin`
-to HKCU `PATH`) and the Linux deb `afterInstall` are design only.
+id. The PATH launcher (`docs/cli.md` §11) opens the app by bundle id and waits
+for this.
 
 ## Packages page follow-ups
 

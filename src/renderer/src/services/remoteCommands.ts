@@ -49,18 +49,8 @@ import {
   readSessionMessages,
   resumeSession,
   destroySession,
-  sendCustomMessage,
   touchSession,
 } from './piAgentClient';
-import {
-  forgetSubagentNotice,
-  pendingSubagentNotices,
-  rememberSubagentNotice,
-  SUBAGENT_NOTICE_TYPE,
-  subagentNoticeText,
-  type PendingSubagentNotice,
-  type SubagentOutcome,
-} from '../lib/subagentNotices';
 
 /** How long a prompt may take to start its run before the call gives up. */
 const RUN_START_TIMEOUT_MS = 30 * 1000;
@@ -560,120 +550,6 @@ async function promptSession(path: string, text: string): Promise<void> {
   await waitForRunStart(path, () => prompt(path, text));
 }
 
-/** Children with a notice already being watched, so a re-arm cannot subscribe twice. */
-const watchedNoticePaths = new Set<string>();
-
-/** Resolves once the child is idle (`false`) or its process is gone (`true`). */
-function whenSubagentSettles(childPath: string): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
-    let settled = false;
-    const finish = (exited: boolean): void => {
-      if (settled) return;
-      settled = true;
-      unsubscribe();
-      offExit();
-      resolve(exited);
-    };
-    const unsubscribe = getTranscriptController(childPath).subscribe(() => {
-      if (isIdle(childPath)) finish(false);
-    });
-    const offExit = onSessionExit(childPath, () => finish(true));
-    if (isIdle(childPath)) finish(false);
-  });
-}
-
-/** Whether the child left an assistant message: a `pigi session wait` has something to print. */
-async function childHasReply(childPath: string): Promise<boolean> {
-  try {
-    const { messages } = await readSessionMessages(childPath);
-    return messages.some(
-      (message: unknown) =>
-        typeof message === 'object' &&
-        message !== null &&
-        Reflect.get(message, 'role') === 'assistant',
-    );
-  } catch {
-    // No file: pi writes one with the first assistant message.
-    return false;
-  }
-}
-
-/** What became of the child: its failure, if any, and whether it left a reply. */
-async function subagentOutcome(childPath: string, exited: boolean): Promise<SubagentOutcome> {
-  const readable = await childHasReply(childPath);
-  if (exited) return { failure: 'its session process exited', readable };
-  try {
-    await lastReply(childPath);
-    // Idle and never said anything: it failed before its first message, which
-    // is no reply rather than an empty one.
-    return { failure: readable ? null : 'it produced no reply', readable };
-  } catch (error) {
-    // An abort is not the child's fault; the parent needs to know someone
-    // stopped the run, not pi's stop reason.
-    if (error instanceof RemoteCommandFailure && error.error.data.stopReason === 'aborted') {
-      return { failure: 'the run was aborted', readable };
-    }
-    return { failure: error instanceof Error ? error.message : String(error), readable };
-  }
-}
-
-/**
- * The parent hears about the child even when it had stopped meanwhile: it is
- * resumed, and the notice starts a fresh turn in it (docs/cli.md §10).
- *
- * Written as a custom message rather than a prompt, so the parent's transcript
- * shows a notice card instead of a turn the user appears to have typed. A
- * parent in the middle of a turn is not steered: the notice is queued as a
- * follow-up and gets a turn of its own when the current one ends.
- */
-async function deliverSubagentNotice(
-  notice: PendingSubagentNotice,
-  exited: boolean,
-): Promise<void> {
-  const text = subagentNoticeText(notice, await subagentOutcome(notice.childPath, exited));
-  try {
-    await openSession(notice.parentPath);
-    await sendCustomMessage(notice.parentPath, SUBAGENT_NOTICE_TYPE, text, {
-      triggerTurn: true,
-      deliverAs: 'followUp',
-    });
-  } catch (error) {
-    console.error('subagent notice was not delivered:', error);
-  }
-}
-
-async function watchSubagentNotice(notice: PendingSubagentNotice): Promise<void> {
-  const { childPath } = notice;
-  watchedNoticePaths.add(childPath);
-  try {
-    // A child whose process was pruned is resumed first: an unhydrated
-    // transcript controller reads idle, and the notice would be premature.
-    await openSession(childPath);
-    await deliverSubagentNotice(notice, await whenSubagentSettles(childPath));
-  } catch (error) {
-    // Its session file is gone (deleted after it finished): nothing to report.
-    console.error('subagent notice was dropped:', error);
-  } finally {
-    watchedNoticePaths.delete(childPath);
-    // After the attempt, whatever came of it: a renderer that died mid-delivery
-    // owes the notice again, one that delivered it owes nothing.
-    forgetSubagentNotice(childPath);
-  }
-}
-
-/** Arms a notice for a child that has just started running. */
-function armSubagentNotice(notice: PendingSubagentNotice): void {
-  rememberSubagentNotice(notice);
-  void watchSubagentNotice(notice);
-}
-
-/** Re-arms the notices a reloaded or reopened window left pending. */
-function resumeSubagentNotices(): void {
-  for (const notice of pendingSubagentNotices()) {
-    if (!watchedNoticePaths.has(notice.childPath)) void watchSubagentNotice(notice);
-  }
-}
-
 const HANDLERS: { [M in HandledMethod]: Handler<M> } = {
   'session.list': async ({ cwd, all, running, subagent, parent }, { signal }) => {
     if (all && cwd !== undefined) fail('INVALID_PARAMS', 'pass --cwd or --all, not both');
@@ -756,15 +632,13 @@ const HANDLERS: { [M in HandledMethod]: Handler<M> } = {
   },
 
   'subagent.run': async (
-    { task, parent, model, thinkingLevel, detach, notify, timeout },
-    { signal, notify: sendNotification },
+    { task, parent, model, thinkingLevel, detach, timeout },
+    { signal, notify },
   ) => {
-    if ((detach || notify) && timeout !== undefined) {
-      fail(
-        'INVALID_PARAMS',
-        '--timeout needs the call to wait; it does not go with --detach or --notify',
-        { param: 'timeout' },
-      );
+    if (detach && timeout !== undefined) {
+      fail('INVALID_PARAMS', '--timeout needs the call to wait; it does not go with --detach', {
+        param: 'timeout',
+      });
     }
     const parentSession = await resolveSession(parent, signal);
     if (parentSession.isSubagent) {
@@ -772,28 +646,16 @@ const HANDLERS: { [M in HandledMethod]: Handler<M> } = {
         param: 'parent',
       });
     }
-    const title = chatMessageTitle(task, []);
     const created = await createBackgroundSession(
       { cwd: parentSession.cwd, parent: parentSession.path, model, thinkingLevel },
-      { subagent: true, title },
+      { subagent: true, title: chatMessageTitle(task, []) },
     );
     if (signal.aborted) {
       void destroySession(created.path);
       fail('SESSION_FAILED', 'cancelled', { path: created.path });
     }
-    sendNotification(SUBAGENT_STARTED_NOTIFICATION, created);
+    notify(SUBAGENT_STARTED_NOTIFICATION, created);
     await promptSession(created.path, task);
-    // `notify` returns like `--detach`, and the parent gets its own turn when
-    // the child finishes instead of holding this call open.
-    if (notify) {
-      armSubagentNotice({
-        childPath: created.path,
-        childId: created.id,
-        parentPath: parentSession.path,
-        title,
-      });
-      return created;
-    }
     if (detach) return created;
     // `stop`: a caller that is gone (its bash call aborted) takes the reason to run with it.
     return {
@@ -863,7 +725,6 @@ export function installRemoteCommands(): () => void {
   });
   const offCancel = remoteControl.onCancel((requestId) => running.get(requestId)?.abort());
   remoteControl.ready();
-  resumeSubagentNotices();
 
   // Requests still running keep their sessions: a reload fails the request in
   // main, and the caller can `pigi session wait` on the path it was given.

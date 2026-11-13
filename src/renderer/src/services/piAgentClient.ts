@@ -234,27 +234,6 @@ export async function followUp(
   }
 }
 
-/**
- * Append a message the user did not write, under a type the transcript labels
- * it with, and optionally start a run for it.
- */
-export async function sendCustomMessage(
-  sessionPath: string,
-  customType: string,
-  message: string,
-  options: { triggerTurn?: boolean; deliverAs?: 'steer' | 'followUp' } = {},
-): Promise<void> {
-  const result = await send<CommandResult>(sessionPath, {
-    type: 'custom_message',
-    customType,
-    message,
-    ...options,
-  });
-  if (!result.success) {
-    throw new Error(result.error || 'custom_message failed');
-  }
-}
-
 type ClearQueueResult = ({ success: true } & ClearedQueue) | { success: false; error?: string };
 
 /**

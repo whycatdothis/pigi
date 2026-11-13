@@ -433,19 +433,6 @@ export type PiCommand =
   | { type: 'prompt'; message: string; attachments?: PromptAttachment[] }
   | { type: 'steer'; message: string; attachments?: PromptAttachment[] }
   | { type: 'follow_up'; message: string; attachments?: PromptAttachment[] }
-  /**
-   * A message that is not the user's — what the app or an extension has to say —
-   * kept apart from their turns in the transcript. `triggerTurn` starts a run
-   * for it; while a run is active `deliverAs` decides whether it steers that
-   * run or waits for the next one.
-   */
-  | {
-      type: 'custom_message';
-      customType: string;
-      message: string;
-      triggerTurn?: boolean;
-      deliverAs?: 'steer' | 'followUp';
-    }
   | { type: 'abort' }
   | { type: 'clear_queue' }
   | { type: 'compact' }
@@ -594,6 +581,36 @@ export type UpdateStatus =
 // IPC Channels (only used for lifecycle via main process)
 // =============================================================================
 
+/** Where the `pigi` command stands on the PATH of terminals outside pigi (docs/cli.md §11). */
+export type CliInstallStatus =
+  /** The link exists and points at this bundle's launcher. */
+  | 'installed'
+  /** A link to this bundle, whose target is gone (the app moved). */
+  | 'broken'
+  /** Nothing at the path. */
+  | 'not-installed'
+  /** The path holds a file or a link some other program owns. */
+  | 'conflict'
+  /** No install is possible from this build or platform; `reason` says why. */
+  | 'unsupported';
+
+export interface CliInstallState {
+  status: CliInstallStatus;
+  /** Where the command goes, or would go. */
+  path: string;
+  /** What the path is a link to now, when it is a link. */
+  target: string | null;
+  /** Why it cannot be installed here, when the status is unsupported. */
+  reason?: string;
+}
+
+export interface CliInstallResult {
+  /** After the attempt: what the install path holds now. */
+  state: CliInstallState;
+  /** Why it failed, or that the user cancelled; absent on success and on a no-op. */
+  error?: string;
+}
+
 /** A feature a person used: a workspace tab they switched to, a shortcut they pressed. */
 export type TelemetryFeature = `tab.${string}` | `shortcut.${string}`;
 
@@ -739,6 +756,12 @@ export enum PiChannel {
   RemoteCommandOutput = 'pi:remote_command_output',
   /** renderer → main: remote commands can be executed from now on */
   RemoteControlReady = 'pi:remote_control_ready',
+  /** renderer → main: where the `pigi` command stands on the PATH of outside terminals */
+  GetCliInstallState = 'pi:get_cli_install_state',
+  /** renderer → main: install or remove the `pigi` command; answers with the new state */
+  SetCliInstalled = 'pi:set_cli_installed',
+  /** main → renderer: the `pigi` command was installed, removed or found changed */
+  CliInstallStateChanged = 'pi:cli_install_state_changed',
 }
 
 /**
