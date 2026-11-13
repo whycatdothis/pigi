@@ -433,6 +433,19 @@ export type PiCommand =
   | { type: 'prompt'; message: string; attachments?: PromptAttachment[] }
   | { type: 'steer'; message: string; attachments?: PromptAttachment[] }
   | { type: 'follow_up'; message: string; attachments?: PromptAttachment[] }
+  /**
+   * A message that is not the user's — what the app or an extension has to say —
+   * kept apart from their turns in the transcript. `triggerTurn` starts a run
+   * for it; while a run is active `deliverAs` decides whether it steers that
+   * run or waits for the next one.
+   */
+  | {
+      type: 'custom_message';
+      customType: string;
+      message: string;
+      triggerTurn?: boolean;
+      deliverAs?: 'steer' | 'followUp';
+    }
   | { type: 'abort' }
   | { type: 'clear_queue' }
   | { type: 'compact' }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `pigi subagent --notify` starts a subagent and returns at once; when the child finishes, pigi writes a `pigi.subagent` message into the session that started it (a notice card, not a turn the user appears to have typed), resuming that session if it had stopped, so it can read the reply with `pigi session wait <session>` instead of holding a bash call open for minutes. The bundled `pigi-cli` skill now recommends this way of running a subagent
+
 ## [0.6.7] - 2026-11-13
 
 ### Changed

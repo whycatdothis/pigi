@@ -643,6 +643,20 @@ function serializeCommand<T>(task: () => Promise<T>): Promise<T> {
   return result;
 }
 
+/**
+ * A run that rejects before agent_end (auth/model/network preflight) never
+ * reaches the renderer as an event, so it is released and reported here.
+ */
+function reportRunFailure(session: AgentSessionRuntime['session'], error: unknown): void {
+  setSessionBusy(session.isStreaming);
+  if (!dataPort) return;
+  const errorMessage: PiPush = {
+    type: 'error',
+    error: error instanceof Error ? error.message : String(error),
+  };
+  dataPort.postMessage(errorMessage);
+}
+
 async function handleCommand(command: PiCommand): Promise<unknown> {
   if (!runtime) return { success: false, error: 'session not initialized' };
 
@@ -655,18 +669,20 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
         const { content } = built;
         session
           .prompt(content.text, content.images.length > 0 ? { images: content.images } : undefined)
-          .catch((err) => {
-            // A rejection can happen before agent_end (auth/model/network
-            // preflight), so explicitly release the process-pool busy lease.
-            setSessionBusy(session.isStreaming);
-            if (dataPort) {
-              const errorMessage: PiPush = {
-                type: 'error',
-                error: err instanceof Error ? err.message : String(err),
-              };
-              dataPort.postMessage(errorMessage);
-            }
-          });
+          .catch((err) => reportRunFailure(session, err));
+        return { success: true };
+      });
+    }
+
+    case 'custom_message': {
+      const session = runtime.session;
+      return serializeCommand(async () => {
+        session
+          .sendCustomMessage(
+            { customType: command.customType, content: command.message, display: true },
+            { triggerTurn: command.triggerTurn, deliverAs: command.deliverAs },
+          )
+          .catch((err) => reportRunFailure(session, err));
         return { success: true };
       });
     }

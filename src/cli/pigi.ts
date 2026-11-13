@@ -302,7 +302,7 @@ async function run(argv: string[]): Promise<number> {
     const waitParams: (CliParams & { path: string }) | null =
       method === 'session.wait'
         ? { ...params, path: String(params.path) }
-        : method === 'subagent.run' && !params.detach && child.created
+        : method === 'subagent.run' && !params.detach && !params.notify && child.created
           ? { path: child.created.path, stop: true }
           : null;
     if ('error' in answer && answer.error.data?.code === 'WINDOW_RELOADED' && waitParams) {

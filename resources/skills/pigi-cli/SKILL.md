@@ -19,15 +19,24 @@ pigi session prompt <session> "<text>"
 pigi session wait <session> [--timeout <seconds>] [--stop]
 pigi session status <session>
 pigi session abort <session>
-pigi subagent "<task>" [--model provider/id] [--thinking <level>] [--detach | --timeout <seconds>]
+pigi subagent "<task>" [--model provider/id] [--thinking <level>]
+                       [--notify | --detach | --timeout <seconds>]
 ```
 
 - `<session>` is a session file, an id, or an id prefix as `session list` prints it.
 
 - `ping` checks that pigi is reachable and prints its version.
 - `session` commands work on sessions in the background; none of them changes which session the user is looking at. `session prompt` returns once the run has started; `session wait` prints the final reply once it is idle. To continue a session (a stopped subagent, say), `pigi session prompt <session> "continue"`, then `pigi session wait <session>`. Prompt a session soon after `session create`: pigi may close an idle session that has never run.
-- `subagent` creates a child session of this one (shown under it in pigi's sidebar), sends it the task, waits, and prints its final reply on stdout. The child's id and path go to stderr as it starts. The child starts with an empty context and inherits this session's model and thinking level unless overridden.
-- `subagent` blocks until the child finishes, which can take minutes. If the call is aborted, the child is aborted too; `--timeout` stops it when the time runs out. A pigi window reload does not end the call: it keeps waiting. `--detach` returns the path right away instead; `pigi session status <session>` shows its progress, `pigi session wait <session> --timeout 0` checks on it without waiting (exit 4 while it is still running, else its reply), and `pigi session abort <session>` stops it.
+- `subagent` creates a child session of this one (shown under it in pigi's sidebar) and sends it the task. The child's id and path go to stderr as it starts. The child starts with an empty context and inherits this session's model and thinking level unless overridden.
+- **Unless the reply must land in this very turn, start it with `--notify` and end your turn.**
+
+  ```
+  pigi subagent --notify "<task>"
+  ```
+
+  It returns as soon as the child has started, so no bash call sits open for minutes. When the child finishes, pigi writes a one-line notice into this session — a `pigi.subagent` card, not something the user typed — and it starts a new turn here even if this session had stopped. The notice names the child and deliberately carries no reply: read it with `pigi session wait <child>` (`pigi session status <child>` shows its latest activity if you want to know how it went first). The reply can be long, so read it once and summarise it rather than echoing it back. If there is nothing else to do until then, just end the turn — the notice brings you back; do not report the task as done before it arrives.
+
+- Without `--notify`, `subagent` blocks until the child finishes and prints its final reply on stdout: the bash call, and your turn, stay open for as long as the child runs. Keep that for a quick task whose answer you need right away, with `--timeout` so a stuck child cannot sit there all day. If the call is aborted, the child is aborted too; `--timeout` stops it when the time runs out. A pigi window reload does not end the call: it keeps waiting. `--detach` returns the path right away and reports nothing at all; `pigi session wait <session> --timeout 0` checks on it without waiting (exit 4 while it is still running, else its reply), and `pigi session abort <session>` stops it.
 - A subagent cannot start subagents; `pigi subagent` refuses inside one.
 
 ## Conventions
