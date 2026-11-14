@@ -84,7 +84,9 @@ app.whenReady().then(() => {
 
   protocol.handle(PACKAGE_IMAGE_SCHEME, handlePackageImageRequest);
 
-  initializeShellEnv();
+  // Resolves in the background so the window opens immediately; every fork
+  // that inherits process.env awaits the same promise before spawning.
+  void initializeShellEnv();
   initializeTelemetry({
     enabled: initialSettings.telemetry.enabled,
     toolView: initialSettings.chat.toolBlockViewMode,

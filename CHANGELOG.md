@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The window opens before the login-shell environment finishes resolving, so a slow shell setup no longer holds the launch on a white screen; every process pigi spawns (agent, terminal, session and package workers) waits for the resolved environment instead, so tools from the shell config are still found
+
+### Fixed
+
+- A markdown link with a line anchor (`other.md#L10`) opens the file at that line in the Files viewer instead of dropping the anchor
+- The Git tab degrades instead of failing on huge changes: a summary read that times out or overflows (say, thousands of untracked files) shows the lists that were read with a notice, and a file's diff past the buffer limit truncates with the existing notice instead of erroring
+- A right sidebar dragged wide no longer squeezes the main area to nothing at the smallest windows: the sidebar stops where the main area would fall below 240px (and at the minimum window its own 260px floor is what keeps the main area reachable)
+- A package operation that times out now kills the npm and git processes it started; they kept running after the worker died and went on writing the install folder while the next operation ran
+- The catalog reload that follows a package install can no longer be swallowed by an older in-flight reload, which left a newly added provider out of the model list until the next reload or restart
+
 ## [0.6.10] - 2026-11-14
 
 ### Added

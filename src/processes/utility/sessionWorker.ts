@@ -72,6 +72,7 @@ let lastPublishedCatalogKey: string | null = null;
 // Coalesced reload: concurrent requests join the in-flight reload instead of
 // queueing behind it, so a burst (login + picker refresh) costs one rebuild.
 let pendingReload: Promise<void> | null = null;
+let trailingReloadNeeded = false;
 // Generation guard for process.cwd(): an abandoned timed-out build must not
 // restore cwd over a newer build's registration (which pins cwd to agentDir).
 let catalogBuildGeneration = 0;
@@ -211,7 +212,19 @@ async function performCatalogReload(): Promise<void> {
 }
 
 function reloadCatalog(): Promise<void> {
-  pendingReload ??= performCatalogReload().finally(() => {
+  if (pendingReload) {
+    // The in-flight reload may have started before what this request needs
+    // to see (a just-installed package), so queue one more pass behind it.
+    trailingReloadNeeded = true;
+    return pendingReload;
+  }
+  const run = async (): Promise<void> => {
+    do {
+      trailingReloadNeeded = false;
+      await performCatalogReload();
+    } while (trailingReloadNeeded);
+  };
+  pendingReload = run().finally(() => {
     pendingReload = null;
   });
   return pendingReload;

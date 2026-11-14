@@ -11,6 +11,7 @@
 import { ipcMain, MessageChannelMain } from 'electron';
 import { getMainWindow } from '../windows/createMainWindow';
 import { createSessionWorkerProcess } from '../processes/createPiAgentProcess';
+import { initializeShellEnv } from '../processes/shellEnvResolver';
 import { PiAgentProcessPool } from './piAgentProcessPool';
 import {
   PiChannel,
@@ -33,6 +34,9 @@ import {
 import { THINKING_LEVEL_ORDER } from '../../shared/thinkingLevels';
 
 let sessionWorkerProcess: Electron.UtilityProcess | null = null;
+/** The in-flight spawn of the worker above, so joiners wait for one fork, not zero. */
+let sessionWorkerSpawn: Promise<void> | null = null;
+let sessionWorkerSpawnCancelled = false;
 let sessionWorkerRequestId = 0;
 
 /**
@@ -142,15 +146,14 @@ type SessionWorkerRequestCommand = Exclude<SessionWorkerCommand, { type: 'reload
  * Posts one command and waits for the worker's reply. A failure resolves the
  * kind's failure shape rather than throwing into ipcMain.
  */
-function requestFromSessionWorker<TReply, TResult>(
+async function requestFromSessionWorker<TReply, TResult>(
   definition: SessionWorkerRequest<TReply, TResult>,
   build: (requestId: string) => SessionWorkerRequestCommand,
 ): Promise<TResult> {
-  startSessionWorker();
-  if (!sessionWorkerProcess) {
-    return Promise.resolve(failureResult<TResult>('session worker process not available'));
+  const proc = await ensureSessionWorker();
+  if (!proc) {
+    return failureResult<TResult>('session worker process not available');
   }
-  const proc = sessionWorkerProcess;
   const command = build(`${definition.idPrefix}-${++sessionWorkerRequestId}`);
   return new Promise<TResult>((resolve) => {
     const timer = setTimeout(() => {
@@ -254,10 +257,28 @@ function startSessionWorker(): void {
     clearTimeout(sessionWorkerRespawnTimer);
     sessionWorkerRespawnTimer = null;
   }
-  if (sessionWorkerProcess) {
+  if (sessionWorkerProcess || sessionWorkerSpawn) {
     return;
   }
+  // The worker inherits process.env; forking before the shell env resolves
+  // would give it launchd's PATH. Await it here so callers below can rely on
+  // the worker existing once the returned promise settles.
+  sessionWorkerSpawn = initializeShellEnv()
+    .then(spawnSessionWorkerProcess)
+    .catch((error: unknown) => {
+      // Startup spawns without awaiting; a rejected promise here would surface
+      // as an unhandled rejection instead of a missing worker.
+      console.error('Could not spawn the session worker:', error);
+    })
+    .finally(() => {
+      sessionWorkerSpawn = null;
+    });
+}
 
+function spawnSessionWorkerProcess(): void {
+  if (sessionWorkerSpawnCancelled) {
+    return;
+  }
   const proc = createSessionWorkerProcess();
   sessionWorkerProcess = proc;
 
@@ -315,9 +336,23 @@ function startSessionWorker(): void {
   });
 }
 
-function listProjectSessions(cwds: string[]): SessionListResult {
+/** The worker, spawned if needed; null only if the spawn itself failed. */
+async function ensureSessionWorker(): Promise<Electron.UtilityProcess | null> {
   startSessionWorker();
-  if (!sessionWorkerProcess) {
+  await sessionWorkerSpawn;
+  return sessionWorkerProcess;
+}
+
+/** Ask the worker to rebuild the catalog once it is up (it may be spawning). */
+function reloadCatalogInWorker(): void {
+  void ensureSessionWorker().then((proc) => {
+    proc?.postMessage({ type: 'reload_catalog' });
+  });
+}
+
+async function listProjectSessions(cwds: string[]): Promise<SessionListResult> {
+  const proc = await ensureSessionWorker();
+  if (!proc) {
     return { success: false, error: 'session worker process not available' };
   }
 
@@ -327,7 +362,7 @@ function listProjectSessions(cwds: string[]): SessionListResult {
     requestId,
     cwds: [...new Set(cwds)],
   };
-  sessionWorkerProcess.postMessage(command);
+  proc.postMessage(command);
   // Prewarm services in the warm process for these cwds
   processPool.ensureWarmProcess(cwds);
   return { success: true, requestId };
@@ -353,8 +388,7 @@ function routeLifetimeMessages(proc: Electron.UtilityProcess): void {
     // Every process reads auth.json on demand, so only the published catalog
     // (provider availability) needs recomputing.
     if (message.type === 'credentials_changed') {
-      startSessionWorker();
-      sessionWorkerProcess?.postMessage({ type: 'reload_catalog' });
+      reloadCatalogInWorker();
     }
   });
 }
@@ -442,6 +476,7 @@ async function attemptSpawnSessionProcess(
 async function spawnSessionProcess(
   command: UtilityCommand,
 ): Promise<{ success: boolean; sessionPath?: string; error?: string }> {
+  await initializeShellEnv();
   const firstProc = processPool.claimWarmProcess() ?? processPool.createFreshProcess();
   const firstResult = await attemptSpawnSessionProcess(command, firstProc);
   if (firstResult.success) {
@@ -466,8 +501,7 @@ async function spawnSessionProcess(
 export function reloadAfterPackageChange(): void {
   if (isShuttingDown) return;
   processPool.recycleWarmProcess();
-  startSessionWorker();
-  sessionWorkerProcess?.postMessage({ type: 'reload_catalog' });
+  reloadCatalogInWorker();
 }
 
 /** Dev debug handle only (see debugConfig.ts). */
@@ -489,6 +523,9 @@ export function stopAllProcesses(): void {
   processPool.stopAllProcesses();
   sessionWorkerProcess?.kill();
   sessionWorkerProcess = null;
+  // A fork still waiting on the shell env would land after shutdown; the
+  // promise chain checks this flag instead of forking then.
+  sessionWorkerSpawnCancelled = true;
 }
 
 export function registerIpcHandlers(): void {
@@ -573,11 +610,13 @@ export function registerIpcHandlers(): void {
     const now = Date.now();
     if (now - lastPickerRefreshAt >= PICKER_REFRESH_THROTTLE_MS) {
       lastPickerRefreshAt = now;
-      if (!sessionWorkerProcess && now - lastWorkerReviveAt >= WORKER_REVIVE_COOLDOWN_MS) {
+      if (sessionWorkerProcess) {
+        sessionWorkerProcess.postMessage({ type: 'reload_catalog' });
+      } else if (now - lastWorkerReviveAt >= WORKER_REVIVE_COOLDOWN_MS) {
         lastWorkerReviveAt = now;
-        startSessionWorker();
+        // May still be spawning: deliver once it is up, instead of dropping.
+        reloadCatalogInWorker();
       }
-      sessionWorkerProcess?.postMessage({ type: 'reload_catalog' });
     }
     return { version: modelCatalogVersion, models: modelCatalogCache };
   });

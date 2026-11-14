@@ -12,6 +12,7 @@ import {
   EmptyTitle,
 } from '../ui/empty';
 import FileViewer, { type FileLineTarget } from './FileViewer';
+import type { LineRange } from '../../lib/filePathCandidates';
 
 /**
  * The Files tab: the reader when a file is open, and the two ways to get one
@@ -38,7 +39,7 @@ export default function FilesTab({
   sessionPath: string | null;
   findFileShortcut: ShortcutBinding | undefined;
   onFindFile: () => void;
-  onOpenFile: (path: string) => void;
+  onOpenFile: (path: string, lines?: LineRange | null) => void;
   onOpenProject: () => void;
 }): React.JSX.Element {
   if (!projectPath) {

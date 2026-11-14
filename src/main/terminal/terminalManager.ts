@@ -13,6 +13,7 @@
 import { ipcMain, MessageChannelMain } from 'electron';
 import { getMainWindow } from '../windows/createMainWindow';
 import { createTerminalProcess } from '../processes/createPiAgentProcess';
+import { initializeShellEnv } from '../processes/shellEnvResolver';
 import { PiChannel, type TerminalUtilityCommand } from '../../shared/ipcContract';
 
 const terminalProcesses = new Map<string, Electron.UtilityProcess>();
@@ -100,10 +101,13 @@ export function stopTerminalProcess(): void {
 export function registerTerminalHandlers(): void {
   ipcMain.handle(
     PiChannel.TerminalStart,
-    (_event, id: string, cwd: string, cols: number, rows: number) => {
+    async (_event, id: string, cwd: string, cols: number, rows: number) => {
       if (typeof id !== 'string' || typeof cwd !== 'string') {
         return { success: false };
       }
+      // The terminal shell must see the user's PATH, so wait for the shell
+      // env before startTerminal spawns the process.
+      await initializeShellEnv();
       return startTerminal(id, cwd, Number(cols) || 80, Number(rows) || 24);
     },
   );

@@ -95,6 +95,40 @@ describe('diffLinesFromSelection', () => {
     ]);
   });
 
+  it('walks over hunk headers between the selected rows', () => {
+    const root = build(
+      [cell(['remove', 'old']), '<div>@@ -1,2 +1,2 @@</div>', cell(['add', 'new', 2])].join(''),
+    );
+    expect(brief(root, select(root, 0, 1))).toEqual(['remove:old:-', 'add:new:2']);
+  });
+
+  it('quotes every row when the selection starts outside them', () => {
+    const root = build(
+      [cell(['context', 'keep', 1]), cell(['remove', 'old']), cell(['add', 'new', 2])].join(''),
+    );
+    const range = document.createRange();
+    range.selectNodeContents(root);
+    expect(brief(root, range)).toEqual(['context:keep:1', 'remove:old:-', 'add:new:2']);
+  });
+
+  it('skips the rows above a selection that starts in a hunk header', () => {
+    const root = build(
+      [
+        cell(['context', 'keep', 1]),
+        cell(['context', 'also keep', 2]),
+        '<div>@@ -3,2 +3,2 @@</div>',
+        cell(['remove', 'old']),
+        cell(['add', 'new', 3]),
+      ].join(''),
+    );
+    const header = root.children[2].firstChild;
+    if (!(header instanceof Text)) throw new Error('no header text');
+    const range = document.createRange();
+    range.setStart(header, 1);
+    range.setEnd(textAt(root, 3), 1);
+    expect(brief(root, range)).toEqual(['remove:old:-', 'add:new:3']);
+  });
+
   it('keeps a side-by-side selection in the column it starts in', () => {
     // Each row is old cell then new cell, so a drag down one column crosses the other in the DOM.
     const rows: [Cell, Cell][] = [

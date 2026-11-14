@@ -46,5 +46,11 @@ export default defineConfig({
       },
     },
     plugins: [tailwindcss(), react()],
+    build: {
+      // 'hidden' writes the maps without the sourceMappingURL comment: the
+      // release workflow uploads them as release assets to decode minified
+      // telemetry stacks; they are excluded from the app bundle.
+      sourcemap: 'hidden',
+    },
   },
 });

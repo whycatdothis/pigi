@@ -13,10 +13,12 @@ describe('resolveProjectFileReference', () => {
     expect(resolveProjectFileReference(projectPath, sourceFilePath, './images/dot.png')).toEqual({
       path: 'docs/images/dot.png',
       absolutePath: '/repo/docs/images/dot.png',
+      lines: null,
     });
     expect(resolveProjectFileReference(projectPath, sourceFilePath, 'images/dot.png')).toEqual({
       path: 'docs/images/dot.png',
       absolutePath: '/repo/docs/images/dot.png',
+      lines: null,
     });
   });
 
@@ -24,10 +26,12 @@ describe('resolveProjectFileReference', () => {
     expect(resolveProjectFileReference(projectPath, sourceFilePath, '../assets/logo.svg')).toEqual({
       path: 'assets/logo.svg',
       absolutePath: '/repo/assets/logo.svg',
+      lines: null,
     });
     expect(resolveProjectFileReference(projectPath, sourceFilePath, 'a/../../README.md')).toEqual({
       path: 'README.md',
       absolutePath: '/repo/README.md',
+      lines: null,
     });
   });
 
@@ -35,6 +39,7 @@ describe('resolveProjectFileReference', () => {
     expect(resolveProjectFileReference(projectPath, sourceFilePath, '/images/dot.png')).toEqual({
       path: 'images/dot.png',
       absolutePath: '/repo/images/dot.png',
+      lines: null,
     });
   });
 
@@ -44,6 +49,26 @@ describe('resolveProjectFileReference', () => {
     ).toEqual({
       path: 'docs/images/my dot.png',
       absolutePath: '/repo/docs/images/my dot.png',
+      lines: null,
+    });
+  });
+
+  it('carries a line anchor into lines and drops it from the path', () => {
+    expect(resolveProjectFileReference(projectPath, sourceFilePath, 'other.md#L10')).toEqual({
+      path: 'docs/other.md',
+      absolutePath: '/repo/docs/other.md',
+      lines: { start: 10, end: 10 },
+    });
+    expect(resolveProjectFileReference(projectPath, sourceFilePath, 'other.md#L5-L9')).toEqual({
+      path: 'docs/other.md',
+      absolutePath: '/repo/docs/other.md',
+      lines: { start: 5, end: 9 },
+    });
+    // A heading anchor names no line: the file still opens, at no line.
+    expect(resolveProjectFileReference(projectPath, sourceFilePath, 'other.md#section')).toEqual({
+      path: 'docs/other.md',
+      absolutePath: '/repo/docs/other.md',
+      lines: null,
     });
   });
 
@@ -51,6 +76,7 @@ describe('resolveProjectFileReference', () => {
     expect(resolveProjectFileReference('/repo/', sourceFilePath, 'dot.png')).toEqual({
       path: 'docs/dot.png',
       absolutePath: '/repo/docs/dot.png',
+      lines: null,
     });
   });
 
@@ -58,10 +84,12 @@ describe('resolveProjectFileReference', () => {
     expect(resolveProjectFileReference(projectPath, sourceFilePath, 'images\\dot.png')).toEqual({
       path: 'docs/images/dot.png',
       absolutePath: '/repo/docs/images/dot.png',
+      lines: null,
     });
     expect(resolveProjectFileReference(projectPath, sourceFilePath, '../docs/')).toEqual({
       path: 'docs',
       absolutePath: '/repo/docs',
+      lines: null,
     });
   });
 
@@ -103,6 +131,7 @@ describe('resolveProjectFileReference from a file outside the project', () => {
     expect(resolveProjectFileReference('/repo', '/notes/a/guide.md', '../b.md')).toEqual({
       path: '/notes/b.md',
       absolutePath: '/notes/b.md',
+      lines: null,
     });
     expect(resolveProjectFileReference('/repo', '/notes/guide.md', '/b.md')).toBeNull();
     expect(resolveProjectFileReference('/repo', '/guide.md', '../b.md')).toBeNull();

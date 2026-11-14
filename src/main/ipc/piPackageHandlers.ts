@@ -1,4 +1,6 @@
 import { dialog, ipcMain, type OpenDialogOptions } from 'electron';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import {
   PiChannel,
   type PackageWorkerCommand,
@@ -15,6 +17,7 @@ import {
   type PiPackagesResult,
 } from '../../shared/piPackages';
 import { createPackageWorkerProcess } from '../processes/createPiAgentProcess';
+import { initializeShellEnv } from '../processes/shellEnvResolver';
 import { getCatalogPackage, searchCatalog } from '../packages/packageCatalog';
 import { getMainWindow } from '../windows/createMainWindow';
 import { reloadAfterPackageChange } from './piAgentBridge';
@@ -31,6 +34,53 @@ const TIMEOUT_MS: Record<PackageWorkerCommand['type'], number> = {
 const MAX_LOG_CHARS = 20_000;
 const MAX_SOURCE_LENGTH = 2_048;
 const PACKAGE_ACTIONS: readonly PiPackageAction[] = ['install', 'remove', 'update'];
+const execFileAsync = promisify(execFile);
+
+/**
+ * npm and git that the worker spawned outlive `proc.kill()`: they keep writing
+ * the install folder while the queue moves on, so a timeout must take the
+ * whole tree. SIGKILL: whatever sat out the deadline gets no second chance to
+ * keep writing. Best effort — a child that forks between the walk and the kill
+ * is still leagues better than never killing any of them.
+ */
+async function killWorkerTree(proc: Electron.UtilityProcess): Promise<void> {
+  try {
+    const pid = proc.pid;
+    if (pid === undefined) return;
+    if (process.platform === 'win32') {
+      await execFileAsync('taskkill', ['/PID', String(pid), '/T', '/F'], {
+        timeout: 2000,
+      }).catch(() => {});
+      return;
+    }
+    const children: number[] = [];
+    const pending = [pid];
+    for (; pending.length > 0; ) {
+      const current = pending.pop();
+      if (current === undefined) break;
+      const outcome = await execFileAsync('pgrep', ['-P', String(current)], {
+        timeout: 2000,
+      }).catch(() => null);
+      if (!outcome) continue;
+      for (const line of outcome.stdout.split('\n')) {
+        const child = Number(line);
+        if (Number.isInteger(child) && child > 0) {
+          children.push(child);
+          pending.push(child);
+        }
+      }
+    }
+    for (const child of children) {
+      try {
+        process.kill(child, 'SIGKILL');
+      } catch {
+        // Already gone.
+      }
+    }
+  } finally {
+    proc.kill();
+  }
+}
 
 interface WorkerRun {
   response: PackageWorkerResponse | null;
@@ -38,7 +88,10 @@ interface WorkerRun {
   log: string;
 }
 
-function runPackageWorker(command: PackageWorkerCommand): Promise<WorkerRun> {
+async function runPackageWorker(command: PackageWorkerCommand): Promise<WorkerRun> {
+  // npm and git come from the user's PATH; without the shell env the worker
+  // sees launchd's PATH and every operation fails to find them.
+  await initializeShellEnv();
   const proc = createPackageWorkerProcess();
   let log = '';
   const append = (chunk: Buffer): void => {
@@ -53,7 +106,7 @@ function runPackageWorker(command: PackageWorkerCommand): Promise<WorkerRun> {
     let error: string | null = null;
     const timer = setTimeout(() => {
       error = 'Timed out; the package manager did not finish';
-      proc.kill();
+      void killWorkerTree(proc);
     }, TIMEOUT_MS[command.type]);
     proc.once('message', (message: PackageWorkerResponse) => {
       response = message;

@@ -146,7 +146,7 @@ export default function FileViewer({
   fileRevision: number;
   lineTarget: FileLineTarget | null;
   sessionPath: string | null;
-  onOpenFile: (path: string) => void;
+  onOpenFile: (path: string, lines?: LineRange | null) => void;
 }): React.JSX.Element {
   const isBitmap = isBitmapImagePath(filePath);
   const [fileState, setFileState] = useState<FileState>({ status: 'loading' });
