@@ -1,7 +1,8 @@
 // Copied from the app; keep in sync with chatInput/index.tsx, thinkingBlock.tsx
 // and CollapsedReadGroup.tsx.
 
-export const FOLLOW_UP_PLACEHOLDER = 'Ask for follow-up changes';
+export const FOLLOW_UP_PLACEHOLDER =
+  'Type @ for a file, / for a skill or command, or a path with auto complete. Paste images or files.';
 
 export const THINKING_LABEL = 'Thinking';
 

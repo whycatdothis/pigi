@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The composer's placeholder names what the input takes — `@` for a file, `/` for a skill or command, a path that auto completes, and pasting an image or a file — in a new chat and after a turn alike, so the shortcuts no longer have to be known in advance
+
 ## [0.6.11] - 2026-11-14
 
 ### Added

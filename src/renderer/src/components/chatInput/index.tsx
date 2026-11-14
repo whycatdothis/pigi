@@ -108,8 +108,8 @@ interface ChatInputProps {
 
 const MODEL_FALLBACK = 'Model';
 const THINKING_FALLBACK = 'Thinking';
-const NEW_SESSION_PLACEHOLDER = 'Type # to quick change project.';
-const FOLLOW_UP_PLACEHOLDER = 'Ask for follow-up changes';
+const COMPOSER_PLACEHOLDER =
+  'Type @ for a file, / for a skill or command, or a path with auto complete. Paste images or files.';
 const NEW_SESSION_HEADING = 'Here we go!';
 const NO_COMMANDS: ReadonlySet<string> = new Set();
 const EMPTY_FILE_MATCHES: string[] = [];
@@ -241,7 +241,7 @@ export default memo(function ChatInput({
 
   const [extensions] = useState(() =>
     createComposerExtensions({
-      placeholder: isNewSession ? NEW_SESSION_PLACEHOLDER : FOLLOW_UP_PLACEHOLDER,
+      placeholder: COMPOSER_PLACEHOLDER,
       onSuggestionChange: handleSuggestionChange,
       onPathSuggestionChange: handlePathSuggestionChange,
     }),
