@@ -1,8 +1,12 @@
+import { splitLineSuffix, type LineRange } from './filePathCandidates';
+
 export interface ProjectFileReference {
   /** Path relative to the project root, `/` separated. */
   path: string;
   /** Absolute path, ready for the local-file protocol. */
   absolutePath: string;
+  /** A `#L10` / `#L10-20` anchor, when the reference carries one. */
+  lines: LineRange | null;
 }
 
 const URL_SCHEME_PATTERN = /^[a-z][a-z\d+.-]*:/i;
@@ -29,7 +33,10 @@ export function resolveProjectFileReference(
     return null;
   }
 
-  const pathPart = rawReference.split(/[?#]/)[0];
+  // `other.md#L10` carries the target line into the viewer; the suffix
+  // patterns also cover `:12` / `:12-20` endings.
+  const { path: withQuery, lines } = splitLineSuffix(rawReference);
+  const pathPart = withQuery.split(/[?#]/)[0];
   if (!pathPart) {
     return null;
   }
@@ -86,10 +93,10 @@ export function resolveProjectFileReference(
 
   const path = segments.join('/');
   if (sourceIsAbsolute) {
-    return { path, absolutePath: path };
+    return { path, absolutePath: path, lines };
   }
   const root = projectPath.replace(/[\\/]+$/, '');
-  return { path, absolutePath: `${root}/${path}` };
+  return { path, absolutePath: `${root}/${path}`, lines };
 }
 
 /** POSIX `/…`, a Windows drive `C:\…` or a UNC `\\server\…` path. */

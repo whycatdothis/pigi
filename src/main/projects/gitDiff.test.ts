@@ -473,4 +473,56 @@ describe('long files', () => {
     if (!diff.success) return;
     expect(diff.newContent?.split('\n')).toHaveLength(6001);
   });
+
+  /** Past MAX_PATCH_CHARS (1.5M), so the reader cuts the patch instead of the
+   *  16MB buffer making the whole read fail. */
+  it('truncates a patch past the cap instead of failing the read', async () => {
+    const heavy = (seed: string): string =>
+      Array.from({ length: 1600 }, (_, index) => `${seed} ${index + 1} ${'x'.repeat(950)}`).join(
+        '\n',
+      ) + '\n';
+    await writeFile(join(root, 'huge.txt'), heavy('before'));
+    await git(root, 'add', 'huge.txt');
+    await git(root, 'commit', '-qm', 'huge');
+    await writeFile(join(root, 'huge.txt'), heavy('after'));
+
+    const diff = await getGitDiffFile(root, { kind: 'base', base: 'HEAD' }, 'huge.txt', null);
+    expect(diff).toMatchObject({ success: true, truncated: true, newContent: null });
+    if (!diff.success) return;
+    // The cut lands inside the removal block, so the additions never arrive.
+    expect(diff.patch).toContain('-before 1 ');
+    expect(diff.patch).not.toContain('+after 1 ');
+  });
+});
+
+describe('degrades instead of failing when a read cannot complete', () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(join(tmpdir(), 'pigi-git-diff-degraded-'));
+    await git(root, 'init', '-q', '-b', 'main');
+    await writeFile(join(root, 'a.txt'), 'one\n');
+    await git(root, 'add', 'a.txt');
+    await git(root, 'commit', '-qm', 'one');
+    await writeFile(join(root, 'a.txt'), 'one\ntwo\n');
+    // Every index read fails from here on, as a held `index.lock` or a damaged
+    // index would: the summary used to end in an error.
+    await writeFile(join(root, '.git', 'index'), 'not an index');
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('shows what it could read and says what it could not', async () => {
+    const result = await getGitDiffSummary(root, { kind: 'status' });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.summary.staged).toEqual([]);
+    expect(result.summary.unstaged).toEqual([]);
+    expect(result.summary.notice).toBe(
+      'Could not read untracked files, staged changes or unstaged changes; ' +
+        'the lists show only what was read.',
+    );
+  });
 });

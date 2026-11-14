@@ -10,6 +10,7 @@
  */
 import { execFile } from 'node:child_process';
 import { net } from 'electron';
+import { initializeShellEnv } from '../processes/shellEnvResolver';
 import {
   PI_PACKAGE_KEYWORD,
   PI_RESOURCE_KINDS,
@@ -40,17 +41,20 @@ function withTrailingSlash(url: string): string {
 }
 
 function readConfiguredRegistry(): Promise<string | null> {
-  configuredRegistryPromise ??= new Promise((resolve) => {
-    execFile(
-      'npm',
-      ['config', 'get', 'registry'],
-      { timeout: NPM_CONFIG_TIMEOUT_MS },
-      (error, stdout) => {
-        const url = stdout.trim();
-        resolve(!error && /^https?:\/\//.test(url) ? withTrailingSlash(url) : null);
-      },
-    );
-  });
+  configuredRegistryPromise ??= initializeShellEnv().then(
+    () =>
+      new Promise((resolve) => {
+        execFile(
+          'npm',
+          ['config', 'get', 'registry'],
+          { timeout: NPM_CONFIG_TIMEOUT_MS },
+          (error, stdout) => {
+            const url = stdout.trim();
+            resolve(!error && /^https?:\/\//.test(url) ? withTrailingSlash(url) : null);
+          },
+        );
+      }),
+  );
   return configuredRegistryPromise;
 }
 

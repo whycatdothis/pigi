@@ -236,6 +236,9 @@ export interface GitDiffSummary {
   staged: GitDiffFile[];
   /** The working tree against the index, untracked files included. Only filled for Git status. */
   unstaged: GitDiffFile[];
+  /** Why a list above is incomplete: a read that failed degrades to an empty
+   *  list with this notice instead of failing the whole summary. */
+  notice: string | null;
 }
 
 /**

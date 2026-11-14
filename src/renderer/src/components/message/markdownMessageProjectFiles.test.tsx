@@ -31,7 +31,19 @@ describe('MarkdownMessage project files', () => {
 
     fireEvent.click(screen.getByRole('link', { name: 'Other' }));
 
-    expect(projectFile.onOpenFile).toHaveBeenCalledWith('docs/other.md');
+    expect(projectFile.onOpenFile).toHaveBeenCalledWith('docs/other.md', null);
+    expect(openExternal).not.toHaveBeenCalled();
+  });
+
+  it('opens a line anchor at its lines', () => {
+    render(<MarkdownMessage text="[Other](other.md#L10-L12)" projectFile={projectFile} />);
+
+    fireEvent.click(screen.getByRole('link', { name: 'Other' }));
+
+    expect(projectFile.onOpenFile).toHaveBeenCalledWith('docs/other.md', {
+      start: 10,
+      end: 12,
+    });
     expect(openExternal).not.toHaveBeenCalled();
   });
 

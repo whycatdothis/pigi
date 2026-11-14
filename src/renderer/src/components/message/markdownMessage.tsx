@@ -9,7 +9,7 @@ import { localFileUrl } from '../../lib/chatAttachments';
 import { ZoomableImage } from '../zoomableImage';
 import { isFenceClosed } from '../../lib/markdownFence';
 import { resolveProjectFileReference } from '../../lib/projectFileLinks';
-import { filePathFromHref } from '../../lib/filePathCandidates';
+import { filePathFromHref, type LineRange } from '../../lib/filePathCandidates';
 import rehypeFilePaths, { markedFileLocation } from '../../lib/rehypeFilePaths';
 import { ChatFilesContext } from './chatFiles';
 import { FileLink } from './fileLink';
@@ -20,7 +20,7 @@ interface MarkdownProjectFile {
   projectPath: string;
   /** Path of the markdown file, relative to the project root. */
   filePath: string;
-  onOpenFile: (path: string) => void;
+  onOpenFile: (path: string, lines?: LineRange | null) => void;
 }
 
 interface MarkdownMessageProps {
@@ -98,7 +98,7 @@ function MarkdownLink({ href, children }: React.ComponentProps<'a'>): ReactNode 
         if (href.startsWith('#')) return;
         e.preventDefault();
         if (target && projectFile) {
-          projectFile.onOpenFile(target.path);
+          projectFile.onOpenFile(target.path, target.lines);
           return;
         }
         window.piApi.openExternal(href);

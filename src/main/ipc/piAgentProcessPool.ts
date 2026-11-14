@@ -1,4 +1,5 @@
 import { createPiAgentProcess } from '../processes/createPiAgentProcess';
+import { initializeShellEnv } from '../processes/shellEnvResolver';
 import { type UtilityCommand } from '../../shared/ipcContract';
 
 interface SessionProcess {
@@ -18,6 +19,8 @@ const MAX_IDLE_SESSION_PROCESS_COUNT = 3;
 export class PiAgentProcessPool {
   private readonly sessionProcesses = new Map<string, SessionProcess>();
   private warmProcess: WarmProcess | null = null;
+  /** The in-flight spawn, so a second caller joins it and a stop can cancel it. */
+  private warmSpawn: { cancelled: boolean } | null = null;
   private activeSessionPath: string | null = null;
   private warmCwds: string[] = [];
 
@@ -58,6 +61,9 @@ export class PiAgentProcessPool {
   recycleWarmProcess(): void {
     this.warmProcess?.process.kill();
     this.warmProcess = null;
+    // A fork still waiting on the shell env would land with the old services
+    // too, so drop it and start one that reads the new resources.
+    this.cancelPendingWarmSpawn();
     this.spawnWarmProcess();
   }
 
@@ -159,6 +165,9 @@ export class PiAgentProcessPool {
     this.sessionProcesses.clear();
     this.activeSessionPath = null;
 
+    // Without this the pending fork lands after shutdown and leaves a process
+    // behind.
+    this.cancelPendingWarmSpawn();
     if (this.warmProcess) {
       this.warmProcess.process.kill();
       this.warmProcess = null;
@@ -166,6 +175,39 @@ export class PiAgentProcessPool {
   }
 
   private spawnWarmProcess(): void {
+    // Idempotent across the async gap: two callers inside one shell-env
+    // resolution would otherwise fork two warm processes and leak one.
+    if (this.warmProcess || this.warmSpawn) {
+      return;
+    }
+    const spawn = { cancelled: false };
+    this.warmSpawn = spawn;
+    // Fork after the shell env resolves; one forked ahead of it inherits
+    // launchd's PATH and silently misses brew/nvm tools.
+    void initializeShellEnv()
+      .then(() => {
+        if (this.warmSpawn === spawn) {
+          this.warmSpawn = null;
+        }
+        if (spawn.cancelled) {
+          return;
+        }
+        this.forkWarmProcess();
+      })
+      .catch((error: unknown) => {
+        console.error('Could not spawn the warm session process:', error);
+      });
+  }
+
+  private cancelPendingWarmSpawn(): void {
+    if (!this.warmSpawn) {
+      return;
+    }
+    this.warmSpawn.cancelled = true;
+    this.warmSpawn = null;
+  }
+
+  private forkWarmProcess(): void {
     const proc = createPiAgentProcess();
     this.warmProcess = {
       process: proc,

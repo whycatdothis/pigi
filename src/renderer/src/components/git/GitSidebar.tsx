@@ -643,6 +643,9 @@ const GitSidebar = memo(function GitSidebar({
                 </button>
               </div>
             )}
+            {summary?.notice && (
+              <p className="mx-2 mt-1 mb-2 px-1 text-caption text-warning-fg">{summary.notice}</p>
+            )}
             {!summary && status !== 'error' && (
               <div className="flex animate-in items-center gap-2 px-2 py-2 text-caption text-muted-foreground delay-300 fade-in-0 fill-mode-backwards">
                 <SpinningIcon>

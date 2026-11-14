@@ -23,41 +23,13 @@ The `pigi` CLI has the same gap: a second instance of the same build serves no
 socket, and its sessions' `pigi` calls reach the first instance
 (`docs/cli.md` §8). The lock fixes this too.
 
-## Shell environment resolution blocks launch
+## Collapse the right sidebar when the window cannot fit both
 
-`initializeShellEnv` (`src/main/processes/shellEnvResolver.ts`) runs
-`execFileSync` over every candidate login shell, each with a 5s timeout, plus a
-`dscl` call — synchronously, inside `app.whenReady()` and before the window is
-created. A slow `.zshrc` (nvm, a corporate prompt, a cold network mount) is a
-white screen for as long as the slowest shell takes.
-
-The fix is to resolve with `execFile` instead and have the three spawn paths
-that inherit `process.env` wait on it: `createPiAgentProcess` (both the warm
-process and a claimed one), `createTerminalProcess` and
-`createPackageWorkerProcess`. That means making `PiAgentProcessPool.ensureWarmProcess`
-/ `claimWarmProcess` and `startTerminal` async, which is why it is its own
-change: a spawn that slips ahead of the resolution silently gives the agent the
-launchd PATH (no brew, no nvm) instead of failing loudly.
-
-## Transcript controllers are never evicted
-
-`useTranscript` keeps one controller and one push subscription per session path
-(`controllersBySession`, `subscriptionsBySession`) and only drops them on
-session close or a failed resume. Keeping a closed tab's transcript warm is
-deliberate; with a hundred sessions opened in a day, every one of them keeps its
-node text (large tool output included) and processes its background pushes
-forever. An LRU over the subscriptions (drop the least recently shown session
-that is idle and not the active one) would bound it; check first that reopening
-a session re-hydrates from the file, since a dropped controller only has
-`getMessages` to come back from.
-
-## Reserve a minimum width for the main area
-
-At 560px and below the right sidebar's always-allowed width wins, leaving the
-main area 1px wide and its header unreachable. Cap the sidebar so the main area
-keeps roughly 240px, and collapse the right sidebar instead of the main area
-when the window cannot fit both. This is pre-existing layout behavior, not
-introduced by the workspace tabs.
+The width cap landed (the main area keeps roughly 240px next to the right
+sidebar's always-allowed width). The remaining half of the old entry: when even
+the capped sidebar does not fit, collapse the right sidebar instead of the main
+area — a behavior change that needs a restore story (when it comes back), which
+is why it is its own change.
 
 ## Bound the file viewer's DOM by lines, not characters
 
@@ -80,12 +52,13 @@ The char cap still creates a cliff: 86k App.tsx highlights while a slightly
 larger file falls back to plain. Revisit it with the line budget and a warm
 measurement at the boundary.
 
-## Land directory links and anchors in the markdown preview
+## Land directory links in the markdown preview
 
-Relative links open files now, but a link to a directory shows the file-read
-error, and `other.md#L10` drops the anchor. Opening a directory means expanding
-the file tree; opening a line anchor means carrying a target line into the
-viewer.
+Relative file links open now, and a line anchor (`other.md#L10`) lands at its
+line. A link to a directory still shows the file-read error. Opening one means
+expanding the file tree: the resolver only returns a path, and the tree's
+expansion state is private to `FileTreeSidebar` (lazy-loaded per directory), so
+it needs a directory-kind check and an expand API.
 
 ## Fold the hand-picked type weights into a few composite roles
 
@@ -94,15 +67,10 @@ still combine them by hand (`font-semibold text-caption`). When the same
 combination appears a third time, add 2–3 roles — section label, row, page
 title — that bundle size, weight, line height and colour, so a change lands in
 one place. Do not use `h1–h6` as font-size APIs; they describe document
-structure, not visual hierarchy.
-
-## Git tab: degrade instead of failing on huge changes
-
-Two edge cases end in an error instead of a partial view: thousands of
-untracked files that are not ignored (each gets an intent-to-add numstat and
-the summary can pass the 6s timeout), and a patch larger than the 16MB
-`maxBuffer`. Both should show what fits with a notice, as the 5,000-line patch
-cap already does.
+structure, not visual hierarchy. A count found several combinations at three
+uses already, but each differed in colour, line height or role (most
+`font-normal` uses reset weight inside a semibold parent) — the trigger is a
+literally identical combination, not a nominal third use.
 
 ## Git tab: low-yield git work, measured
 
@@ -120,16 +88,6 @@ left alone because the gain is small there:
   needs the working-tree file's `mtime` and `size` in the summary; the +/-
   counts alone are not enough, since replacing one line keeps them.
 
-## Git tab: a selection's quote check walks every diff line
-
-While text is selected, `QuoteSelectionPopover` calls `formatQuoteText` on
-every scroll frame only to learn whether the selection quotes, and the Git
-viewer's `diffLinesFromSelection` answers by testing every `[data-diff-line]`
-against the range: up to 5,000 rows plus a second body while a patch swaps
-in, a millisecond or two per frame. Walking from the start row to the end row
-would cost only the selected lines; the popover could also take a cheap
-`canQuote` check and format only on click.
-
 ## Find scrolls only the outer container
 
 `ContainerFind` brings a match into view by scrolling the viewer itself. A
@@ -141,33 +99,18 @@ an inset.
 
 ## Packages page follow-ups
 
+Roughly in value-per-cost order:
+
 - Enable or disable a package's single extension, skill, prompt or theme (what
   `pi config` does: package filters and `+path`/`-path` overrides in settings).
   The page lists the resources and their enabled state but cannot change it.
 - Catalog search reads the registry from `npm config get registry`; pi's
   `npmCommand` setting (an npm wrapper such as `mise exec … npm`) is ignored
   there, though installs honour it.
-- README images are dropped because the CSP loads no remote image. Showing
-  them means extending the `package-image://` proxy (which serves only a
-  package's `pi.image`) or a scoped `img-src`.
-- A timed-out operation kills the package worker, but npm or git started by
-  pi's package manager keep running as orphans, and the queue moves on while
-  they still write the install folder. Killing the worker's children (or its
-  process group) on timeout closes that; it only matters after the 10-minute
-  limit.
-- The session worker coalesces catalog reloads, so the reload after an
-  install can join one that started before it and miss a provider the new
-  package adds, until the next reload.
 - A package on disk whose version is outside its configured range, or a user
   entry shadowed by a project entry of the same package, lists with no
   resources and the generic "nothing for pi" text instead of saying why.
-- `pi remove …` and `pi update …` lines in the field are searched for, not
-  run.
 
-## Telemetry: readable renderer stack traces
-
-Renderer `exception` events carry the production bundle's minified frames
-(`<app>/out/renderer/assets/index-<hash>.js:1:<column>`), so a renderer error
-names a column, not a function. Keeping each release's renderer source maps
-(a release asset, not shipped in the app) and mapping a reported frame with
-them would resolve it. Main-process frames are unminified and already readable.
+Dropped after review: README images (mostly badges, and showing them needs a
+CSP or proxy extension) and running `pi remove …` / `pi update …` from the
+field (the cards' buttons already cover it).

@@ -91,6 +91,10 @@ export const RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH = 520;
 /** Beyond that it stops where the rest of the window would get narrower than
  *  the widest left sidebar plus a 480px transcript. */
 export const RIGHT_SIDEBAR_RESERVED_WIDTH = SIDEBAR_MAX_WIDTH + 480;
+/** The main area keeps roughly this much while the right sidebar can still
+ *  shrink; at the smallest window the right sidebar's own minimum (260) wins,
+ *  which is what stops a dragged-wide sidebar from taking the whole window. */
+export const RIGHT_SIDEBAR_MAIN_MIN_WIDTH = 240;
 /** The dragged width; CSS caps it by the window into --right-sidebar-width. */
 export const RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY = '--right-sidebar-preferred-width';
 export const RIGHT_SIDEBAR_WIDTH_PROPERTY = '--right-sidebar-width';

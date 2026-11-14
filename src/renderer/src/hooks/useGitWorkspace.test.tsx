@@ -39,6 +39,7 @@ function summary(path: string): GitDiffSummary {
     files: [file],
     staged: [],
     unstaged: [file],
+    notice: null,
   };
 }
 

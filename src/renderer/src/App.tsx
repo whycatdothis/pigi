@@ -132,6 +132,7 @@ import {
   RIGHT_SIDEBAR_MIN_WIDTH,
   RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH,
   RIGHT_SIDEBAR_RESERVED_WIDTH,
+  RIGHT_SIDEBAR_MAIN_MIN_WIDTH,
   RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY,
   RIGHT_SIDEBAR_WIDTH_PROPERTY,
   sidebarToggleLeft,
@@ -592,8 +593,19 @@ function App(): React.JSX.Element {
   });
 
   // Mirrors the CSS cap on the sidebar's width (rightSidebarLayoutStyle).
+  // The main-area floor keeps the transcript usable when the window cannot
+  // fit the always-allowed width next to the left sidebar.
   const rightSidebarMaxWidth = (): number =>
-    Math.max(RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH, window.innerWidth - RIGHT_SIDEBAR_RESERVED_WIDTH);
+    Math.min(
+      Math.max(
+        RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH,
+        window.innerWidth - RIGHT_SIDEBAR_RESERVED_WIDTH,
+      ),
+      Math.max(
+        RIGHT_SIDEBAR_MIN_WIDTH,
+        window.innerWidth - sidebarWidth - RIGHT_SIDEBAR_MAIN_MIN_WIDTH,
+      ),
+    );
   const handleRightSidebarResizeStart = usePanelResize({
     containerRef: rightSidebarRef,
     property: RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY,
@@ -1844,9 +1856,11 @@ function App(): React.JSX.Element {
   } = {
     // The drag writes only the preferred width. The shown width caps it by the
     // window in CSS, so a window made narrower after a wide drag keeps the
-    // transcript visible without a resize listener.
+    // transcript visible without a resize listener. The main-area floor uses
+    // the committed left width: while the left sidebar is being dragged the
+    // cap lags by up to the drag delta and corrects on commit.
     [RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY]: `${rightSidebarWidth}px`,
-    [RIGHT_SIDEBAR_WIDTH_PROPERTY]: `min(var(${RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY}), max(${RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH}px, 100vw - ${RIGHT_SIDEBAR_RESERVED_WIDTH}px))`,
+    [RIGHT_SIDEBAR_WIDTH_PROPERTY]: `min(var(${RIGHT_SIDEBAR_PREFERRED_WIDTH_PROPERTY}), max(${RIGHT_SIDEBAR_ALWAYS_ALLOWED_WIDTH}px, 100vw - ${RIGHT_SIDEBAR_RESERVED_WIDTH}px), max(${RIGHT_SIDEBAR_MIN_WIDTH}px, 100vw - ${sidebarWidth}px - ${RIGHT_SIDEBAR_MAIN_MIN_WIDTH}px))`,
   };
   const selectedFilePath = workspaceProjectPath
     ? (lastFileByProject.get(workspaceProjectPath) ?? null)

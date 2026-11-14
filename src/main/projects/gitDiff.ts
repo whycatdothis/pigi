@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
@@ -104,6 +104,62 @@ async function runGit(
   } catch (error) {
     return { ok: false, stdout: '', error: errorText(error) };
   }
+}
+
+/**
+ * `runGit` for a patch: output is capped at `maxChars` instead of the 16MB
+ * `maxBuffer`, so a diff that would overflow truncates at an arbitrary point
+ * (limitPatch then cuts it to lines) instead of failing the whole read. Git
+ * is killed once the cap is reached; what was read is kept.
+ */
+function runGitCapped(
+  cwd: string,
+  args: readonly string[],
+  env: NodeJS.ProcessEnv | undefined,
+  maxChars: number,
+): Promise<GitCommandResult & { capped: boolean }> {
+  return new Promise((resolve) => {
+    const child = spawn(
+      GIT_EXECUTABLE,
+      ['--no-optional-locks', '-c', 'diff.suppressBlankEmpty=false', ...args],
+      { cwd, env, timeout: GIT_TIMEOUT_MS, windowsHide: true },
+    );
+    let stdout = '';
+    let capped = false;
+    let stderr = '';
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk: string) => {
+      if (capped) return;
+      if (stdout.length + chunk.length > maxChars) {
+        stdout += chunk.slice(0, maxChars - stdout.length);
+        capped = true;
+        child.kill();
+        return;
+      }
+      stdout += chunk;
+    });
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on('error', (failure) => {
+      resolve({ ok: false, stdout: '', error: failure.message, capped: false });
+    });
+    child.on('close', (code, signal) => {
+      if (capped) {
+        resolve({ ok: true, stdout, error: '', capped: true });
+      } else if (signal) {
+        resolve({ ok: false, stdout: '', error: 'Timed out.', capped: false });
+      } else {
+        resolve({
+          ok: code === 0,
+          stdout,
+          error: code === 0 ? '' : errorText(stderr) || `git exited with code ${String(code)}`,
+          capped: false,
+        });
+      }
+    });
+  });
 }
 
 async function commitFor(cwd: string, ref: string): Promise<string | null> {
@@ -257,6 +313,14 @@ async function withIntentToAdd<T>(
 }
 
 type Untracked = { ok: true; files: Set<string> } | { ok: false; error: string };
+
+/** The summary notice for reads that degraded to empty lists. */
+function unreadNotice(parts: string[]): string | null {
+  if (parts.length === 0) return null;
+  const joined =
+    parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} or ${parts.at(-1)}`;
+  return `Could not read ${joined}; the lists show only what was read.`;
+}
 
 async function untrackedAmong(cwd: string, paths: readonly string[]): Promise<Untracked> {
   const result = await runGit(cwd, [
@@ -480,21 +544,20 @@ export async function getGitDiffSummary(
     const untrackedPending = untrackedAmong(cwd, ['.']);
     // Each list is its own diff, so a partly staged file shows each half.
     const stagedPending = changedFiles(cwd, ['diff', '--cached', head, '--'], undefined);
-    const untracked = await untrackedPending;
-    // Without the list, new files would vanish from Unstaged with no word why.
-    if (!untracked.ok) {
-      return { success: false, error: gitError(untracked.error, 'Unable to read the diff.') };
-    }
-    const unstaged = await withIntentToAdd(cwd, untracked.files, (env) =>
+    // A read that fails (an untracked walk over thousands of files can pass
+    // the timeout) degrades to an empty list with a notice, so the rest of
+    // the summary still shows.
+    const untrackedOutcome = await untrackedPending;
+    const untrackedFiles = untrackedOutcome.ok ? untrackedOutcome.files : new Set<string>();
+    const unstaged = await withIntentToAdd(cwd, untrackedFiles, (env) =>
       changedFiles(cwd, ['diff', '--'], env),
     );
-    const staged = await stagedPending;
-    if (!staged.ok) {
-      return { success: false, error: gitError(staged.error, 'Unable to read the diff.') };
-    }
-    if (!unstaged.ok) {
-      return { success: false, error: gitError(unstaged.error, 'Unable to read the diff.') };
-    }
+    const stagedOutcome = await stagedPending;
+    const unread = [
+      ...(!untrackedOutcome.ok ? ['untracked files'] : []),
+      ...(!stagedOutcome.ok ? ['staged changes'] : []),
+      ...(!unstaged.ok ? ['unstaged changes'] : []),
+    ];
     return summaryOf({
       base: 'HEAD',
       baseLabel: 'HEAD',
@@ -504,8 +567,9 @@ export async function getGitDiffSummary(
       moreCommits: false,
       baseCommits: [],
       files: [],
-      staged: sortedFiles(staged.files),
-      unstaged: listedUntracked(unstaged.files, untracked.files),
+      staged: sortedFiles(stagedOutcome.ok ? stagedOutcome.files : []),
+      unstaged: listedUntracked(unstaged.ok ? unstaged.files : [], untrackedFiles),
+      notice: unreadNotice(unread),
     });
   }
 
@@ -531,6 +595,7 @@ export async function getGitDiffSummary(
       files: sortedFiles(changes.files),
       staged: [],
       unstaged: [],
+      notice: null,
     });
   }
 
@@ -577,17 +642,12 @@ export async function getGitDiffSummary(
     ]);
   }
 
-  const untracked = await untrackedPending;
-  if (!untracked.ok) {
-    return { success: false, error: gitError(untracked.error, 'Unable to read the diff.') };
-  }
-  const changes = await withIntentToAdd(cwd, untracked.files, (env) =>
+  const untrackedOutcome = await untrackedPending;
+  const untrackedFiles = untrackedOutcome.ok ? untrackedOutcome.files : new Set<string>();
+  const changes = await withIntentToAdd(cwd, untrackedFiles, (env) =>
     changedFiles(cwd, ['diff', mergeBase, '--'], env),
   );
   const [branchLog, baseLog] = await logs;
-  if (!changes.ok) {
-    return { success: false, error: gitError(changes.error, 'Unable to read the diff.') };
-  }
   const branchCommits = branchLog.ok ? parseCommitLog(branchLog.stdout) : [];
 
   return summaryOf({
@@ -598,9 +658,13 @@ export async function getGitDiffSummary(
     commits: branchCommits.slice(0, MAX_BRANCH_COMMITS),
     moreCommits: branchCommits.length > MAX_BRANCH_COMMITS,
     baseCommits: baseLog.ok ? parseCommitLog(baseLog.stdout) : [],
-    files: listedUntracked(changes.files, untracked.files),
+    files: listedUntracked(changes.ok ? changes.files : [], untrackedFiles),
     staged: [],
     unstaged: [],
+    notice: unreadNotice([
+      ...(!untrackedOutcome.ok ? ['untracked files'] : []),
+      ...(!changes.ok ? ['the changed files'] : []),
+    ]),
   });
 }
 
@@ -713,23 +777,36 @@ export async function getGitDiffFile(
     '-p',
   ];
   // A file's patch only misses its untracked half if the list fails; the
-  // summary already said so.
-  const againstWorkingTree = async (range: string[]): Promise<GitCommandResult> => {
+  // summary already said so. The capped runner keeps a huge diff truncating
+  // instead of overflowing the 16MB buffer.
+  const againstWorkingTree = async (
+    range: string[],
+  ): Promise<GitCommandResult & { capped: boolean }> => {
     const untracked = await untrackedAmong(cwd, paths);
     return withIntentToAdd(cwd, untracked.ok ? untracked.files : new Set(), (env) =>
-      runGit(cwd, ['diff', ...flags, ...range, '--', ...paths], env),
+      runGitCapped(cwd, ['diff', ...flags, ...range, '--', ...paths], env, MAX_PATCH_CHARS),
     );
   };
-  let result: GitCommandResult;
+  let result: GitCommandResult & { capped: boolean };
   if (source.kind === 'base') {
     result = await againstWorkingTree([commit]);
   } else if (source.kind === 'unstaged') {
     result = await againstWorkingTree([]);
   } else if (source.kind === 'staged') {
-    result = await runGit(cwd, ['diff', ...flags, '--cached', commit, '--', ...paths]);
+    result = await runGitCapped(
+      cwd,
+      ['diff', ...flags, '--cached', commit, '--', ...paths],
+      undefined,
+      MAX_PATCH_CHARS,
+    );
   } else {
     const [command, ...range] = commitRange(commit, await firstParent(cwd, commit));
-    result = await runGit(cwd, [command, ...flags, ...range, ...paths]);
+    result = await runGitCapped(
+      cwd,
+      [command, ...flags, ...range, ...paths],
+      undefined,
+      MAX_PATCH_CHARS,
+    );
   }
   if (!result.ok) {
     return { success: false, error: gitError(result.error, 'Unable to read this diff.') };
@@ -740,9 +817,9 @@ export async function getGitDiffFile(
   return {
     success: true,
     patch: limited.patch,
-    truncated: limited.truncated,
+    truncated: limited.truncated || result.capped,
     newContent:
-      deleted || limited.truncated
+      deleted || limited.truncated || result.capped
         ? null
         : await readNewContent(cwd, newRevision(source, commit), path),
   };

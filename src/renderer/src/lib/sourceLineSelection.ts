@@ -36,25 +36,64 @@ function diffKind(value: string | undefined): GitDiffSourceLine['kind'] | null {
   return value === 'add' || value === 'remove' || value === 'context' ? value : null;
 }
 
+function rowAt(node: Node): HTMLElement | null {
+  const element = node instanceof Element ? node : node.parentElement;
+  return element?.closest<HTMLElement>('[data-diff-line]') ?? null;
+}
+
+/**
+ * The next diff row in document order without scanning the container: rows
+ * sit flat (unified) or one pair per wrapper (split), so the walk visits only
+ * the selected rows, not all 5,000 of them on every scroll frame.
+ */
+function nextDiffRow(row: HTMLElement, container: HTMLElement): HTMLElement | null {
+  let element: Element = row;
+  for (;;) {
+    const sibling = element.nextElementSibling;
+    if (sibling) {
+      if (sibling instanceof HTMLElement && sibling.matches('[data-diff-line]')) return sibling;
+      const inside = sibling.querySelector<HTMLElement>('[data-diff-line]');
+      if (inside) return inside;
+      // A hunk header or gap row: nothing selectable, keep moving right.
+      element = sibling;
+      continue;
+    }
+    const parent = element.parentElement;
+    if (!parent || parent === container) return null;
+    element = parent;
+  }
+}
+
 /**
  * The whole lines a selection touches, in order. Side by side, only the column
  * the selection starts in counts, so a drag down one side never picks up the
- * other.
+ * other; a selection that starts outside every row (select all, or from a
+ * hunk header) has no side and takes the rows that carry none.
  */
 export function diffLinesFromSelection(container: HTMLElement, range: Range): SelectedDiffLine[] {
-  const start = range.startContainer;
-  const startElement = start instanceof Element ? start : start.parentElement;
-  const side = startElement?.closest<HTMLElement>('[data-diff-line]')?.dataset.diffSide;
+  const anchorRow = rowAt(range.startContainer);
+  const side = anchorRow?.dataset.diffSide;
+  // Without an anchor the walk starts at the container's first row, which may
+  // sit above the selection: skip to the first row the range actually covers.
+  let row: HTMLElement | null =
+    anchorRow ?? container.querySelector<HTMLElement>('[data-diff-line]');
+  while (row && !range.intersectsNode(row)) {
+    row = nextDiffRow(row, container);
+  }
   const lines: SelectedDiffLine[] = [];
-  for (const row of container.querySelectorAll<HTMLElement>('[data-diff-line]')) {
-    if (!range.intersectsNode(row) || row.dataset.diffSide !== side) continue;
-    const kind = diffKind(row.dataset.diffKind);
-    if (!kind) continue;
-    lines.push({
-      kind,
-      text: row.querySelector('[data-diff-text]')?.textContent ?? '',
-      newLineNumber: row.dataset.newLine === undefined ? null : Number(row.dataset.newLine),
-    });
+  // A range covers one contiguous span, so the first row that falls outside it
+  // ends the walk: no need to look at the rows below.
+  for (; row && range.intersectsNode(row); row = nextDiffRow(row, container)) {
+    if (row.dataset.diffSide === side) {
+      const kind = diffKind(row.dataset.diffKind);
+      if (kind) {
+        lines.push({
+          kind,
+          text: row.querySelector('[data-diff-text]')?.textContent ?? '',
+          newLineNumber: row.dataset.newLine === undefined ? null : Number(row.dataset.newLine),
+        });
+      }
+    }
   }
   return lines;
 }
