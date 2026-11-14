@@ -257,6 +257,12 @@ function App(): React.JSX.Element {
   // The lines a chat link asked for; a new object per open, so following the
   // same link again scrolls back to them.
   const [fileLineTarget, setFileLineTarget] = useState<FileLineTarget | null>(null);
+  // A directory a link pointed at: the tree opens to it. A new object per
+  // click, so following the same link again reveals it again.
+  const [revealedDirectory, setRevealedDirectory] = useState<{
+    projectPath: string;
+    path: string;
+  } | null>(null);
 
   const activeSession = activeSessionPath ? (sessions.get(activeSessionPath) ?? null) : null;
   const activeProjectPath = activeProject?.path ?? null;
@@ -1449,16 +1455,31 @@ function App(): React.JSX.Element {
   }, []);
 
   const openFileInProject = useCallback(
-    (project: ProjectDirectory, path: string, lines?: LineRange | null) => {
+    async (project: ProjectDirectory, path: string, lines?: LineRange | null) => {
       const store = useAppStore.getState();
+      const filePath = projectRelativePath(project.path, path);
+      // A link to a folder has no file to read: open the tree at it instead.
+      // The project switch below would hide the tree's old contents, so this
+      // runs first.
+      if ((await window.piApi.listProjectDirectory(project.path, filePath)).success) {
+        store.setWorkspaceProject(
+          store.activeSessionPath,
+          project.path === store.activeProject?.path ? null : project.path,
+        );
+        store.setWorkspaceTab(WORKSPACE_TABS.files);
+        store.setSidebarExpanded(true);
+        setRevealedDirectory({ projectPath: project.path, path: filePath });
+        return;
+      }
       // Opening a file from another view (a chat link) brings Files back to the
       // project that file belongs to.
       store.setWorkspaceProject(
         store.activeSessionPath,
         project.path === store.activeProject?.path ? null : project.path,
       );
-      const filePath = projectRelativePath(project.path, path);
       store.setLastFile(project.path, filePath);
+      // A folder revealed earlier would keep winning over this file.
+      setRevealedDirectory(null);
       setFileLineTarget(lines ? { projectPath: project.path, filePath, lines } : null);
       setFileRevision((revision) => revision + 1);
       store.setWorkspaceTab(WORKSPACE_TABS.files);
@@ -1471,7 +1492,7 @@ function App(): React.JSX.Element {
   const handleOpenFile = useCallback(
     (path: string, lines?: LineRange | null) => {
       const project = useAppStore.getState().activeProject;
-      if (project) openFileInProject(project, path, lines);
+      if (project) void openFileInProject(project, path, lines);
     },
     [openFileInProject],
   );
@@ -1481,7 +1502,7 @@ function App(): React.JSX.Element {
     (path: string, lines?: LineRange | null) => {
       const store = useAppStore.getState();
       const project = workspaceProjectForSession(store);
-      if (project) openFileInProject(project, path, lines);
+      if (project) void openFileInProject(project, path, lines);
     },
     [openFileInProject],
   );
@@ -1903,6 +1924,11 @@ function App(): React.JSX.Element {
                   projectName={workspaceProject.name}
                   projects={recentProjects}
                   selectedFilePath={selectedFilePath}
+                  revealedDirectory={
+                    revealedDirectory?.projectPath === workspaceProjectPath
+                      ? revealedDirectory
+                      : null
+                  }
                   onSelectProject={handleSelectWorkspaceProject}
                   onOpenFile={handleOpenWorkspaceFile}
                   onOpenSettings={openSettings}

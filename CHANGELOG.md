@@ -2,8 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- A markdown link to a folder opens the Files tree at that folder, expanded, instead of showing a file-read error
+
 ### Changed
 
+- A source file up to 250k characters keeps its syntax highlighting (it used to stop at 90k and fall back to plain while the line count stayed the same); a single line past 400 characters is left plain, because tokenizing one is what actually cost seconds
+- Find in a file or a diff also scrolls the code block the match sits in, so a match inside a horizontally scrolling block is brought into view, and no longer counts a match hidden under the line-number gutter as visible
 - The window opens before the login-shell environment finishes resolving, so a slow shell setup no longer holds the launch on a white screen; every process pigi spawns (agent, terminal, session and package workers) waits for the resolved environment instead, so tools from the shell config are still found
 
 ### Fixed

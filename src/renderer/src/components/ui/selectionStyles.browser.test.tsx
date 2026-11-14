@@ -47,7 +47,9 @@ test('compact selection rows use caption type and the accent checked state', asy
   expect(uncheckedStyle.paddingLeft).toBe('8px');
   expect(uncheckedStyle.paddingRight).toBe('8px');
   expect(uncheckedStyle.borderRadius).toBe('14px');
-  expect(uncheckedStyle.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+  // Chromium serializes this transparent color-mix result two ways from run to
+  // run, and asserting the bare `rgba` form failed about once in three.
+  expect(['rgba(0, 0, 0, 0)', 'oklab(0 0 0 / 0)']).toContain(uncheckedStyle.backgroundColor);
   expect(checkedStyle.backgroundColor).toBe(getComputedStyle(tint).backgroundColor);
   expect(checkedStyle.color).toBe(getComputedStyle(accent).color);
 

@@ -68,6 +68,7 @@ function SourceLineNumber({
     <span
       aria-hidden="true"
       data-search-ignore
+      data-sticky-inset
       className={`sticky left-0 z-10 w-14 shrink-0 select-none pr-3 text-right tabular-nums ${marked ? MARKED_GUTTER_CLASS : 'bg-background text-muted-foreground'}`}
     >
       {lineNumber}

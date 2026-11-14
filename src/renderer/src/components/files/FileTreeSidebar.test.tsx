@@ -19,6 +19,7 @@ function renderSidebar(
   listProjectDirectory: typeof window.piApi.listProjectDirectory,
   onActiveFileChanged: () => void = vi.fn(),
   selectedFilePath: string | null = null,
+  revealedDirectory: { projectPath: string; path: string } | null = null,
 ): { watchProjectFiles: ReturnType<typeof vi.fn>; onActiveFileChanged: () => void } {
   const watchProjectFiles = vi.fn();
   window.piApi = {
@@ -39,6 +40,7 @@ function renderSidebar(
         projectName="repo"
         projects={[{ path: '/repo', name: 'repo' }]}
         selectedFilePath={selectedFilePath}
+        revealedDirectory={revealedDirectory}
         onSelectProject={vi.fn()}
         onOpenFile={vi.fn()}
         onOpenSettings={vi.fn()}
@@ -141,5 +143,48 @@ describe('FileTreeSidebar context menu', () => {
     fireEvent.contextMenu(screen.getByText('app.ts'));
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Copy Relative Path' }));
     expect(writeText).toHaveBeenLastCalledWith('src/app.ts');
+  });
+});
+
+describe('FileTreeSidebar reveal', () => {
+  function listTree(path: string): {
+    success: true;
+    entries: { name: string; path: string; isDirectory: boolean }[];
+    truncated: boolean;
+  } {
+    const tree: Record<string, { name: string; isDirectory: boolean }[]> = {
+      '': [
+        { name: 'src', isDirectory: true },
+        { name: 'docs', isDirectory: true },
+      ],
+      src: [
+        { name: 'main', isDirectory: true },
+        { name: 'lib', isDirectory: true },
+      ],
+      'src/main': [{ name: 'index.ts', isDirectory: false }],
+    };
+    return {
+      success: true,
+      entries: (tree[path] ?? []).map((entry) => ({
+        ...entry,
+        path: path ? `${path}/${entry.name}` : entry.name,
+      })),
+      truncated: false,
+    };
+  }
+
+  it('opens and expands the folder a link pointed at', async () => {
+    const listProjectDirectory = vi.fn((_projectPath: string, path: string) =>
+      Promise.resolve(listTree(path)),
+    );
+
+    renderSidebar(listProjectDirectory, undefined, null, {
+      projectPath: '/repo',
+      path: 'src/main',
+    });
+
+    expect(await screen.findByText('index.ts')).toBeTruthy();
+    expect(screen.getByText('main').closest('button')?.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('lib').closest('button')?.getAttribute('aria-expanded')).toBe('false');
   });
 });
