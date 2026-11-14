@@ -94,8 +94,9 @@ the accent tint and accent text, with the check or icon in the accent and
 secondary text muted. Short mode menus (View, Theme) add caption text on a
 28px row; searchable lists stay at body size on their 32px rows. Segmented
 controls keep the muted track and white pill; they are a different affordance —
-the model picker's thinking levels are one, since a row of accent-tinted pills
-would read as separate rows. Do not introduce a second tint for a selected row.
+the picker's thinking levels are one, dragged rather than clicked, since a row
+of accent-tinted pills would read as separate rows. Do not introduce a second tint
+for a selected row.
 
 ## Spacing, widths, elevation, motion
 

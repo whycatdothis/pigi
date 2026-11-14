@@ -116,6 +116,22 @@ Element.prototype.scrollTo = function scrollTo(): void {
   scrollRequests.push(this);
 };
 
+const capturedPointers = new WeakSet<Element>();
+
+/**
+ * Pointer capture, which jsdom lacks: a drag keeps its events on the element it
+ * started on. Nothing is captured here, so only the press is exercisable.
+ */
+Element.prototype.setPointerCapture = function setPointerCapture(): void {
+  capturedPointers.add(this);
+};
+Element.prototype.releasePointerCapture = function releasePointerCapture(this: Element): void {
+  capturedPointers.delete(this);
+};
+Element.prototype.hasPointerCapture = function hasPointerCapture(this: Element): boolean {
+  return capturedPointers.has(this);
+};
+
 /**
  * Media queries, which jsdom does not implement.
  *

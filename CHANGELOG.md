@@ -9,8 +9,8 @@
 
 ### Changed
 
-- The model picker's search box sits at the bottom of the list, under its Thinking row, so typing a query no longer moves the box as the results shrink
-- The thinking level is a rail of the model's levels under "Thinking" instead of a menu that opened on hover, so changing it is one click and picking a model keeps the rail in place to confirm the level
+- The model picker's list keeps one height while a query narrows the results, so typing no longer resizes the popover or moves the search box
+- The thinking level is a rail of the model's own levels instead of a menu that opened on hover, and it can be dragged: the white pill follows the pointer across the cells, the level is written on release, and the arrows step one level from the keyboard. It stays open while the level applies, so a level can be compared without reopening the picker
 
 ### Fixed
 
