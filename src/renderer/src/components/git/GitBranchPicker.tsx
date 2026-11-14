@@ -100,6 +100,19 @@ export default function GitBranchPicker({
       .finally(() => setSwitching(false));
   };
 
+  const searchInput = (
+    <CommandInput
+      autoFocus
+      value={query}
+      inputGroupClassName="h-7"
+      placeholder={BRANCH_SEARCH_PLACEHOLDER}
+      onValueChange={setQuery}
+    />
+  );
+  // The search sits on the edge the popover is pinned to, so filtering cannot
+  // slide it: the composer opens upward off the composer, the sidebar downward.
+  const searchFirst = variant === 'sidebar';
+
   return (
     <Popover
       open={open}
@@ -121,17 +134,12 @@ export default function GitBranchPicker({
         </button>
       </PopoverTrigger>
       <PopoverContent
+        side={searchFirst ? 'bottom' : 'top'}
         align="start"
         className="w-72 min-w-(--radix-popover-trigger-width) gap-0 p-0"
       >
         <Command>
-          <CommandInput
-            autoFocus
-            value={query}
-            inputGroupClassName="h-7"
-            placeholder={BRANCH_SEARCH_PLACEHOLDER}
-            onValueChange={setQuery}
-          />
+          {searchFirst && searchInput}
           <CommandList ref={listRef} className="max-h-64">
             <CommandEmpty>{branches === null ? 'Loading branches…' : 'No branches.'}</CommandEmpty>
             <CommandGroup>
@@ -148,6 +156,7 @@ export default function GitBranchPicker({
               ))}
             </CommandGroup>
           </CommandList>
+          {!searchFirst && searchInput}
         </Command>
       </PopoverContent>
     </Popover>

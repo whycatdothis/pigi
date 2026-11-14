@@ -73,7 +73,7 @@ function CommandInput({
   inputGroupClassName?: string;
 }) {
   return (
-    <div data-slot="command-input-wrapper" className="p-1 pb-0">
+    <div data-slot="command-input-wrapper" className="p-1 pb-0 last:pb-1">
       <InputGroup
         className={cn(
           'rounded-control! border-input/30 bg-input/50 shadow-none! *:data-[slot=input-group-addon]:pl-2!',

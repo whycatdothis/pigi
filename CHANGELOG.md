@@ -7,6 +7,11 @@
 - The git branch under the composer and the branch at the top of the Git tab are one picker: choosing a local branch there switches the working tree (`git switch`) instead of only naming it, and both the composer's label and the tab's diff follow the new branch. A refused switch says what to do about it — commit or stash, or finish the merge Git is still in the middle of — instead of dumping Git's file list or its advice about `--quit`
 - While a session is running the branch under the composer is reread every 10 seconds, so a checkout the agent or a terminal makes shows up without waiting for the run to end; a project or session switch reads it once, from the new directory
 
+### Changed
+
+- The model picker's search box sits at the bottom of the list, under its Thinking row, so typing a query no longer moves the box as the results shrink
+- The thinking level is a rail of the model's levels under "Thinking" instead of a menu that opened on hover, so changing it is one click and picking a model keeps the rail in place to confirm the level
+
 ### Fixed
 
 - In Minimal view, expanding the turn that is still running lands at its newest

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { IconCheck, IconChevronRight } from '@tabler/icons-react';
 import type { ModelInfo, ThinkingLevel } from '../../../../shared/ipcContract';
 import {
   Command,
@@ -11,7 +10,6 @@ import {
 } from '../ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Button } from '../ui/button';
-import { ACCENT_SELECTION_ROW_CLASS } from '../ui/selectionStyles';
 import { Separator } from '../ui/separator';
 import { cn } from '../../lib/utils';
 import { modelOptionKey, modelSearchValue, formatModelDetails } from './formatters';
@@ -19,7 +17,7 @@ import { modelOptionKey, modelSearchValue, formatModelDetails } from './formatte
 const MODEL_SEARCH_PLACEHOLDER = 'Search models';
 const MODEL_EMPTY_TEXT = 'No models found';
 const MODEL_LIST_MAX_HEIGHT_CLASS = 'max-h-56';
-const THINKING_MENU_LABEL = 'Thinking';
+const THINKING_LABEL = 'Thinking';
 
 export function ModelSettingsPicker({
   modelLabel,
@@ -44,10 +42,11 @@ export function ModelSettingsPicker({
 }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [modelSearch, setModelSearch] = useState('');
-  // Selecting a new model keeps the popover open and forces the thinking
-  // flyout open so the user confirms a thinking level for that model; the
-  // popover closes once a level is picked (or the user dismisses it).
-  const [pendingThinkingConfirm, setPendingThinkingConfirm] = useState(false);
+  // Selecting a new model keeps the popover open and puts the focus on its
+  // current thinking level, so one Enter confirms it; the popover closes once a
+  // level is picked (or the user dismisses it). Counted, not a flag: a second
+  // model picked in the same visit asks for the focus again.
+  const [thinkingFocusRequests, setThinkingFocusRequests] = useState(0);
   const modelListRef = useRef<HTMLDivElement>(null);
   const selectedKey = modelValue ? modelOptionKey(modelValue) : '';
   const canOpen = modelOptions.length > 0 || thinkingOptions.length > 0;
@@ -65,7 +64,7 @@ export function ModelSettingsPicker({
       setOpen(nextOpen);
       if (!nextOpen) {
         setModelSearch('');
-        setPendingThinkingConfirm(false);
+        setThinkingFocusRequests(0);
       }
     },
     [canOpen, onRequestModelRefresh],
@@ -101,14 +100,10 @@ export function ModelSettingsPicker({
       <PopoverTrigger asChild>
         <ModelSettingsButton modelLabel={modelLabel} thinkingLabel={thinkingLabel} />
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-64 gap-0 overflow-visible p-0">
-        <Command className="rounded-b-none">
-          <CommandInput
-            autoFocus
-            value={modelSearch}
-            onValueChange={setModelSearch}
-            placeholder={MODEL_SEARCH_PLACEHOLDER}
-          />
+      {/* The search sits at the bottom edge, so the popover is pinned to open
+          upward: a side Radix picked per open would move the box. */}
+      <PopoverContent side="top" align="end" className="w-80 gap-0 p-0">
+        <Command>
           <CommandList ref={modelListRef} className={MODEL_LIST_MAX_HEIGHT_CLASS}>
             <CommandEmpty>{MODEL_EMPTY_TEXT}</CommandEmpty>
             <CommandGroup>
@@ -128,7 +123,7 @@ export function ModelSettingsPicker({
                       }
                       // A new model keeps the popover open to confirm a thinking level.
                       setModelSearch('');
-                      setPendingThinkingConfirm(true);
+                      setThinkingFocusRequests((count) => count + 1);
                     }}
                   >
                     <span className="flex min-w-0 flex-col">
@@ -142,21 +137,31 @@ export function ModelSettingsPicker({
               })}
             </CommandGroup>
           </CommandList>
+          {thinkingOptions.length > 0 && (
+            <>
+              <div className="px-1">
+                <Separator className="bg-foreground/25 !h-[0.5px]" />
+              </div>
+              <ThinkingLevelRail
+                focusRequest={thinkingFocusRequests}
+                value={thinkingValue}
+                label={thinkingLabel}
+                options={thinkingOptions}
+                onSelect={(level) => {
+                  onSelectThinkingLevel(level);
+                  setThinkingFocusRequests(0);
+                  setOpen(false);
+                }}
+              />
+            </>
+          )}
+          <CommandInput
+            autoFocus
+            value={modelSearch}
+            onValueChange={setModelSearch}
+            placeholder={MODEL_SEARCH_PLACEHOLDER}
+          />
         </Command>
-        <div className="px-2">
-          <Separator className="bg-foreground/25 !h-[0.5px]" />
-        </div>
-        <ThinkingLevelFlyout
-          forceOpen={pendingThinkingConfirm}
-          value={thinkingValue}
-          label={thinkingLabel}
-          options={thinkingOptions}
-          onSelect={(level) => {
-            onSelectThinkingLevel(level);
-            setPendingThinkingConfirm(false);
-            setOpen(false);
-          }}
-        />
       </PopoverContent>
     </Popover>
   );
@@ -188,88 +193,82 @@ function ModelSettingsButton({
   );
 }
 
-function ThinkingLevelFlyout({
-  forceOpen = false,
+/** Keys cmdk would otherwise take for its list while a stop here has the focus. */
+const RAIL_KEYS = new Set([
+  'Enter',
+  ' ',
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+  'Home',
+  'End',
+]);
+
+/**
+ * The model's thinking levels as a rail: every level it has, one click each.
+ * They used to hang off a hover flyout, which hid three to seven short choices
+ * behind a second hover for the sake of one line.
+ */
+function ThinkingLevelRail({
+  focusRequest = 0,
   label,
   value,
   options,
   onSelect,
 }: {
-  /** Kept open regardless of hover: the model picker forces a thinking confirmation. */
-  forceOpen?: boolean;
+  /** Bumped when a model is picked: the focus goes to the level it starts on. */
+  focusRequest?: number;
+  /** Only for the rail's accessible name; the trigger already shows the value. */
   label: string;
   value: ThinkingLevel | null;
   options: ThinkingLevel[];
   onSelect: (thinkingLevel: ThinkingLevel) => void;
 }): React.JSX.Element {
-  const [hoverOpen, setHoverOpen] = useState(false);
-  const open = (forceOpen || hoverOpen) && options.length > 0;
-  const checkedItemRef = useRef<HTMLButtonElement | null>(null);
+  const checkedRef = useRef<HTMLButtonElement | null>(null);
 
-  // When forced open (a new model was just selected), focus the current
-  // level so a single Enter (or click) confirms it and closes the picker.
-  const wasForceOpenRef = useRef(false);
+  // Follows `value` too: the request arrives with the model, one render before
+  // the new model's level does, and the checked stop moves with it.
   useEffect(() => {
-    if (forceOpen && !wasForceOpenRef.current) {
-      checkedItemRef.current?.focus();
-    }
-    wasForceOpenRef.current = forceOpen;
-  }, [forceOpen]);
+    if (focusRequest > 0) checkedRef.current?.focus();
+  }, [focusRequest, value]);
 
   return (
     <div
-      className="relative px-2 py-1.5"
-      onMouseEnter={() => setHoverOpen(true)}
-      onMouseLeave={() => setHoverOpen(false)}
-      onFocus={() => setHoverOpen(true)}
+      className="px-1 py-1.5"
+      // The rail lives inside the Command, whose root turns Enter into "select
+      // the highlighted model" and gives the arrows to the list; without this
+      // the focused stop could not be activated at all.
+      onKeyDown={(event) => {
+        if (RAIL_KEYS.has(event.key)) event.stopPropagation();
+      }}
     >
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        disabled={options.length === 0}
-        className={cn(
-          'w-full justify-start gap-2 rounded-control px-1.5 text-body font-normal hover:bg-muted/60 border-0',
-          forceOpen && 'bg-muted/70',
-        )}
-        aria-haspopup="menu"
-        aria-expanded={open}
+      <div className="px-1 pb-1 text-caption text-muted-foreground">{THINKING_LABEL}</div>
+      <div
+        role="group"
+        aria-label={`${THINKING_LABEL} (${label})`}
+        className="flex items-center gap-0.5 rounded-control bg-muted p-0.5"
       >
-        <span className="min-w-0 flex-1 truncate text-left text-foreground">
-          {THINKING_MENU_LABEL}
-        </span>
-        <span className="sr-only">{label}</span>
-        <IconChevronRight data-icon="inline-end" className="ml-auto text-muted-foreground" />
-      </Button>
-
-      {open && (
-        <div className="absolute bottom-1 left-full pl-1">
-          <div
-            role="menu"
-            className="min-w-28 animate-in fade-in-0 zoom-in-95 origin-left rounded-surface bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10"
+        {options.map((level) => (
+          <button
+            key={level}
+            ref={level === value ? checkedRef : undefined}
+            type="button"
+            aria-pressed={level === value}
+            className={cn(
+              'h-6 flex-1 rounded-control-sm px-0.5 text-caption leading-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden',
+              level === value
+                ? 'bg-background text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            onClick={() => {
+              onSelect(level);
+            }}
           >
-            {options.map((level) => (
-              <button
-                key={level}
-                ref={(element) => {
-                  if (level === value) checkedItemRef.current = element;
-                }}
-                type="button"
-                role="menuitemradio"
-                aria-checked={level === value}
-                data-state={level === value ? 'checked' : 'unchecked'}
-                className={cn(ACCENT_SELECTION_ROW_CLASS, 'h-7 w-full text-body')}
-                onClick={() => {
-                  onSelect(level);
-                }}
-              >
-                <span>{level}</span>
-                {level === value && <IconCheck className="ml-auto" />}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+            {level}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

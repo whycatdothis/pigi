@@ -110,6 +110,33 @@ describe('GitBranchPicker', () => {
     expect(screen.queryByRole('option', { name: /stale/ })).toBeNull();
   });
 
+  it('puts the search where the popover is anchored', async () => {
+    // The composer's popover opens upward off the window's bottom edge, so a search
+    // under the list stays put while filtering shrinks it; the sidebar's opens down.
+    const searchBelowList = (): boolean =>
+      Boolean(
+        document
+          .querySelector('[data-slot=command-list]')!
+          .compareDocumentPosition(document.querySelector('[data-slot=command-input]')!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+
+    const { unmount } = render(
+      <GitBranchPicker projectPath="/repo" label="main" variant="composer" onSwitched={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Switch branch (main)' }));
+    await screen.findByRole('option', { name: /feature/ });
+    expect(searchBelowList()).toBe(true);
+    unmount();
+
+    render(
+      <GitBranchPicker projectPath="/repo" label="main" variant="sidebar" onSwitched={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Switch branch (main)' }));
+    await screen.findByRole('option', { name: /feature/ });
+    expect(searchBelowList()).toBe(false);
+  });
+
   it('leaves the shown branch alone when the switch is refused', async () => {
     switchResult = { success: false, error: 'Uncommitted changes would be overwritten.' };
     const { onSwitched } = renderPicker();
