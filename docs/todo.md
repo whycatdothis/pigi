@@ -5,32 +5,6 @@ each one is mechanical or structural enough that mixing it into a feature branch
 would make the change hard to review. Delete an entry when it lands; anything
 user-visible also adds a line to the CHANGELOG.
 
-## Settings have one writer per process, not one per machine
-
-`createPigiSettingsOwner` reads the file once and then holds the authoritative
-copy, which is what makes a change land in order without a revision. A second
-app instance is a second owner holding its own copy, so whichever instance writes
-last replaces the other's values. Two cheap fixes, and the choice is a product
-decision rather than a code one: `app.requestSingleInstanceLock()` (second launch
-focuses the first window — also removes the duplicate tray icon and the
-`${path}.tmp` name collision between instances), or re-reading the file before
-each write and merging onto what is there.
-
-The temp name is `${path}.tmp` for every instance; with the lock it stops
-mattering, without it each writer should use its own suffix.
-
-The `pigi` CLI has the same gap: a second instance of the same build serves no
-socket, and its sessions' `pigi` calls reach the first instance
-(`docs/cli.md` §8). The lock fixes this too.
-
-## Collapse the right sidebar when the window cannot fit both
-
-The width cap landed (the main area keeps roughly 240px next to the right
-sidebar's always-allowed width). The remaining half of the old entry: when even
-the capped sidebar does not fit, collapse the right sidebar instead of the main
-area — a behavior change that needs a restore story (when it comes back), which
-is why it is its own change.
-
 ## Bound the file viewer's DOM by lines, not characters
 
 The viewer now highlights only under 90k characters and 2,500 lines. The same
@@ -60,34 +34,6 @@ expanding the file tree: the resolver only returns a path, and the tree's
 expansion state is private to `FileTreeSidebar` (lazy-loaded per directory), so
 it needs a directory-kind check and an expand API.
 
-## Fold the hand-picked type weights into a few composite roles
-
-The size ramp and the 400/500/600 weight rule are documented, but call sites
-still combine them by hand (`font-semibold text-caption`). When the same
-combination appears a third time, add 2–3 roles — section label, row, page
-title — that bundle size, weight, line height and colour, so a change lands in
-one place. Do not use `h1–h6` as font-size APIs; they describe document
-structure, not visual hierarchy. A count found several combinations at three
-uses already, but each differed in colour, line height or role (most
-`font-normal` uses reset weight inside a semibold parent) — the trigger is a
-literally identical combination, not a nominal third use.
-
-## Git tab: low-yield git work, measured
-
-On one 170k-file repository a summary is about 2.2s, 1.8s of it `ls-files
---others` walking the tree for untracked files, which only a user-enabled
-`core.fsmonitor` plus `core.untrackedCache` would cut (passing them with `-c`
-does not help: the cache is only kept by writing the index). Measured and
-left alone because the gain is small there:
-
-- Merging the serial `rev-parse` / `symbolic-ref` calls at the start: ~20ms
-  per process saved. `commitRange` returning `{ command, args }` would drop the
-  `range.slice(0, 1)` splicing in `changedFiles`; do both if touching that code.
-- Skipping the patch re-read on a summary refresh when the file did not
-  change: ~90ms per refresh (~210ms with an untracked file's index copy). It
-  needs the working-tree file's `mtime` and `size` in the summary; the +/-
-  counts alone are not enough, since replacing one line keeps them.
-
 ## Find scrolls only the outer container
 
 `ContainerFind` brings a match into view by scrolling the viewer itself. A
@@ -96,21 +42,3 @@ hidden sideways, and one under the sticky line-number gutter counts as visible
 because its rect is still inside the container. Fix by walking the scrollable
 ancestors between the match and the container, and treating the gutter width as
 an inset.
-
-## Packages page follow-ups
-
-Roughly in value-per-cost order:
-
-- Enable or disable a package's single extension, skill, prompt or theme (what
-  `pi config` does: package filters and `+path`/`-path` overrides in settings).
-  The page lists the resources and their enabled state but cannot change it.
-- Catalog search reads the registry from `npm config get registry`; pi's
-  `npmCommand` setting (an npm wrapper such as `mise exec … npm`) is ignored
-  there, though installs honour it.
-- A package on disk whose version is outside its configured range, or a user
-  entry shadowed by a project entry of the same package, lists with no
-  resources and the generic "nothing for pi" text instead of saying why.
-
-Dropped after review: README images (mostly badges, and showing them needs a
-CSP or proxy extension) and running `pi remove …` / `pi update …` from the
-field (the cards' buttons already cover it).
