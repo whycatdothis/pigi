@@ -111,6 +111,11 @@ Element.prototype.scrollIntoView = function scrollIntoView(): void {
   scrollRequests.push(this);
 };
 
+/** A picker starts its list at the top on every open and search. */
+Element.prototype.scrollTo = function scrollTo(): void {
+  scrollRequests.push(this);
+};
+
 /**
  * Media queries, which jsdom does not implement.
  *

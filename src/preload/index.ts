@@ -22,6 +22,7 @@ import {
   type GitBranchListResult,
   type GitCommitFilesResult,
   type GitStageResult,
+  type GitSwitchBranchResult,
   type GitDiffFileResult,
   type GitDiffScope,
   type GitDiffSource,
@@ -344,9 +345,13 @@ const piApi = {
   getGitCommitFiles: (cwd: string, commit: string): Promise<GitCommitFilesResult> =>
     ipcRenderer.invoke(PiChannel.GetGitCommitFiles, cwd, commit),
 
-  /** List branches for the Git tab's base picker. */
-  listGitBranches: (cwd: string): Promise<GitBranchListResult> =>
-    ipcRenderer.invoke(PiChannel.ListGitBranches, cwd),
+  /** List branches for a branch picker; `includeRemote` is false for switching. */
+  listGitBranches: (cwd: string, includeRemote: boolean): Promise<GitBranchListResult> =>
+    ipcRenderer.invoke(PiChannel.ListGitBranches, cwd, includeRemote),
+
+  /** Switch the project's working tree to another local branch. */
+  switchGitBranch: (cwd: string, branch: string): Promise<GitSwitchBranchResult> =>
+    ipcRenderer.invoke(PiChannel.SwitchGitBranch, cwd, branch),
 
   /** Stage every change in the project, or unstage every staged one. */
   setGitStaged: (cwd: string, staged: boolean): Promise<GitStageResult> =>

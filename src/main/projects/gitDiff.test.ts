@@ -13,6 +13,7 @@ import {
   parseNumStat,
   listGitBranches,
   setGitStaged,
+  switchGitBranch,
 } from './gitDiff';
 
 const execFileAsync = promisify(execFile);
@@ -140,7 +141,7 @@ describe('getGitDiffSummary', () => {
 
   it('lists branches for the base picker, the current one first', async () => {
     await git(root, 'branch', 'feature');
-    const result = await listGitBranches(root);
+    const result = await listGitBranches(root, true);
     expect(result).toEqual({
       success: true,
       branches: [
@@ -356,6 +357,72 @@ describe('staged and unstaged changes', () => {
     } finally {
       await rm(lock);
     }
+  });
+});
+
+describe('switchGitBranch', () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(join(tmpdir(), 'pigi-git-switch-'));
+    await git(root, 'init', '-q', '-b', 'main');
+    await writeFile(join(root, 'a.txt'), 'main\n');
+    await git(root, 'add', 'a.txt');
+    await git(root, 'commit', '-qm', 'main');
+    await git(root, 'switch', '-q', '-c', 'feature');
+    await writeFile(join(root, 'a.txt'), 'feature\n');
+    await git(root, 'commit', '-qam', 'feature');
+    await git(root, 'switch', '-q', 'main');
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('lists the local branches a switch can pick from, without the remotes', async () => {
+    expect(await listGitBranches(root, false)).toEqual({
+      success: true,
+      branches: [
+        { name: 'main', current: true, local: true },
+        { name: 'feature', current: false, local: true },
+      ],
+    });
+  });
+
+  it('switches the working tree and reads the new branch as current', async () => {
+    expect(await switchGitBranch(root, 'feature')).toEqual({ success: true });
+
+    const branches = await listGitBranches(root, false);
+    expect(branches.success && branches.branches.map((b) => [b.name, b.current])).toEqual([
+      ['feature', true],
+      ['main', false],
+    ]);
+    expect(await readFile(join(root, 'a.txt'), 'utf8')).toBe('feature\n');
+  });
+
+  it('refuses to overwrite uncommitted changes', async () => {
+    // Its own starting point: this test must not depend on the one above it.
+    await git(root, 'switch', '-q', 'feature');
+    await writeFile(join(root, 'a.txt'), 'local edit\n');
+    expect(await switchGitBranch(root, 'main')).toEqual({
+      success: false,
+      error: 'Uncommitted changes would be overwritten. Commit or stash them first.',
+    });
+    await git(root, 'checkout', '--', 'a.txt');
+  });
+
+  it('reports a branch that no longer exists', async () => {
+    expect(await switchGitBranch(root, 'gone')).toEqual({
+      success: false,
+      error: 'That branch or commit no longer exists.',
+    });
+  });
+
+  it('rejects a name Git would read as an option', async () => {
+    expect(await switchGitBranch(root, '--orphan')).toEqual({
+      success: false,
+      error: 'That branch name is not valid.',
+    });
   });
 });
 

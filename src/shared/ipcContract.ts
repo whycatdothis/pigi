@@ -252,6 +252,8 @@ export type GitBranchListResult =
   | { success: true; branches: GitDiffBranch[] }
   | { success: false; error: string };
 
+export type GitSwitchBranchResult = { success: true } | { success: false; error: string };
+
 export type GitStageResult = { success: true } | { success: false; error: string };
 
 export type GitCommitFilesResult =
@@ -669,8 +671,10 @@ export enum PiChannel {
   GetGitDiffFile = 'pi:get_git_diff_file',
   /** renderer → main: list the files one commit changed */
   GetGitCommitFiles = 'pi:get_git_commit_files',
-  /** renderer → main: list branches for the Git tab's base picker */
+  /** renderer → main: list branches, remote ones only when the caller shows them */
   ListGitBranches = 'pi:list_git_branches',
+  /** renderer → main: switch the project's working tree to another branch */
+  SwitchGitBranch = 'pi:switch_git_branch',
   /** renderer → main: stage, or unstage, every change in the project */
   SetGitStaged = 'pi:set_git_staged',
   /** renderer → main: remove a project from recent projects list */

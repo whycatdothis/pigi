@@ -174,6 +174,7 @@ const GitTab = memo(function GitTab({
       sessionProjectPath={sessionProjectPath}
       source={source}
       baseLabel={summary.baseLabel}
+      branch={summary.branch}
       compareLabel={compareLabel(selection, commit, workspace.mode, summary.baseLabel)}
       file={selectedFile}
       layout={workspace.layout}

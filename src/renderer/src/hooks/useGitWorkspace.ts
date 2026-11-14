@@ -102,6 +102,8 @@ export interface GitWorkspace {
   collapsedSections: ReadonlySet<GitSection>;
   /** A stage or unstage of everything is running. */
   staging: boolean;
+  /** Drops what was shown and rereads it, e.g. after the branch changed under it. */
+  refresh: () => void;
   setStaged: (staged: boolean) => void;
   toggleSection: (section: GitSection) => void;
   selectMode: (mode: GitDiffMode) => void;
@@ -325,6 +327,15 @@ export function useGitWorkspace({
     setRevision((value) => value + 1);
   }, []);
 
+  // A branch switch makes every summary on screen describe the tree that is no
+  // longer checked out: drop them and let the load show its spinner rather than
+  // the other branch's files, and report its failure instead of keeping them.
+  const refresh = useCallback(() => {
+    summariesRef.current = new Map();
+    setSummaries(new Map());
+    reload();
+  }, [reload]);
+
   const selectMode = useCallback(
     (next: GitDiffMode) => {
       setMode(next);
@@ -423,6 +434,7 @@ export function useGitWorkspace({
       commitFiles,
       collapsedSections,
       staging,
+      refresh,
       setStaged,
       toggleSection,
       selectMode,
@@ -448,6 +460,7 @@ export function useGitWorkspace({
       commitFiles,
       collapsedSections,
       staging,
+      refresh,
       setStaged,
       toggleSection,
       selectMode,

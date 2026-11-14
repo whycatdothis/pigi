@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- The git branch under the composer and the branch at the top of the Git tab are one picker: choosing a local branch there switches the working tree (`git switch`) instead of only naming it, and both the composer's label and the tab's diff follow the new branch. A refused switch (uncommitted changes would be overwritten) says so instead of dumping Git's file list
+- While a session is running the branch under the composer is reread every 10 seconds, so a checkout the agent or a terminal makes shows up without waiting for the run to end; a project or session switch reads it once, from the new directory
+
 ### Fixed
 
 - In Minimal view, expanding the turn that is still running lands at its newest

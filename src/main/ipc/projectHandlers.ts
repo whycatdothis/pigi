@@ -20,6 +20,7 @@ import {
   getGitDiffSummary,
   listGitBranches,
   setGitStaged,
+  switchGitBranch,
 } from '../projects/gitDiff';
 import { searchProjectFiles } from '../projects/projectFileSearch';
 import { completePath } from '../projects/pathCompletion';
@@ -113,11 +114,27 @@ export function registerProjectHandlers(): void {
     return getGitCommitFiles(cwd, commit);
   });
 
-  ipcMain.handle(PiChannel.ListGitBranches, async (_event, cwd: unknown) => {
+  ipcMain.handle(
+    PiChannel.ListGitBranches,
+    async (_event, cwd: unknown, includeRemote: unknown) => {
+      if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+        return { success: false, error: 'cwd must be a non-empty string' };
+      }
+      if (typeof includeRemote !== 'boolean') {
+        return { success: false, error: 'includeRemote must be a boolean' };
+      }
+      return listGitBranches(cwd, includeRemote);
+    },
+  );
+
+  ipcMain.handle(PiChannel.SwitchGitBranch, async (_event, cwd: unknown, branch: unknown) => {
     if (typeof cwd !== 'string' || cwd.trim().length === 0) {
       return { success: false, error: 'cwd must be a non-empty string' };
     }
-    return listGitBranches(cwd);
+    if (typeof branch !== 'string' || branch.length === 0) {
+      return { success: false, error: 'branch must be a non-empty string' };
+    }
+    return switchGitBranch(cwd, branch);
   });
 
   ipcMain.handle(PiChannel.SetGitStaged, async (_event, cwd: unknown, staged: unknown) => {

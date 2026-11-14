@@ -185,12 +185,14 @@ modes live in the tree view; Commits always uses the first against the
 default branch, since it lists the branch's own commits, and Git status has a
 scope of its own that reads only its two lists. Only the first mode shows the
 base picker, and the summary skips the logs in the others. Main runs the git
-commands (`gitDiff.ts`, 6s timeout each) and the renderer only draws. The IPC
+commands (`gitDiff.ts`, 6s timeout each, except the branch switch, which
+rewrites the working tree and gets two minutes) and the renderer only draws. The IPC
 calls: the summary (branch, base label, merge-base, the commits since the
 merge-base and 30 below it, and the changed-file list with +/- counts), one
 file's patch, fetched only for the selected file, one commit's file list,
-fetched when that commit is opened, the branch list, fetched when the base
-picker opens, and staging everything or nothing.
+fetched when that commit is opened, the branch list, fetched when a branch
+picker opens, staging everything or nothing, and switching the working tree
+to another branch (`git switch`).
 Comparing merge-base..HEAD plus the working tree in one patch means a file
 shows committed and uncommitted edits together, which is what a reviewer of
 "changes since main" wants.
@@ -205,6 +207,24 @@ can carry tens of thousands. Sorting them by date reads every branch's tip
 commit (0.7s warm, 3.5s cold with 89k remote branches), so the list is read
 when the picker opens, not with every summary refresh. The base is deliberately not persisted per project: a branch selected in
 one repo rarely exists in another.
+
+The branch is switchable too, not just named: the branch under the composer and
+the one at the top of the Git tab are one picker, and choosing a row runs `git
+switch`, so a session moves branches without a terminal. It lists local
+branches only, both because the remote half of the list is the slow part (the
+0.7s sort above) and because a bare remote name would not switch to that remote
+branch: `git switch` would create a local branch from it instead. A switch
+clears the tab's cached summaries before rereading them — they describe the
+tree that is no longer checked out — and rereads the composer's label; a patch
+is also keyed by branch, since two branches forked from the same commit can
+report the same file status and line counts for different content. Git's
+refusal to overwrite uncommitted changes is reported in its own words, since
+committing or stashing is what the user does next.
+
+The composer's label is read once per cwd — switching project or session reads
+it once, from the new cwd — and while any session is running it is reread every
+10 seconds, because a run can move the checkout under it (`git switch` by the
+agent, or by a person in a terminal beside it) long before the run ends.
 
 A project that is a folder inside a bigger repository (a monorepo package)
 shows only its own changes, with paths relative to the project: `diff

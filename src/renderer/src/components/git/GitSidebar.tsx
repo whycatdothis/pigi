@@ -26,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 import { ListFlatIcon, TreeViewIcon } from './fileListIcons';
 import { Sidebar as ShadcnSidebar, SidebarContent, SidebarHeader } from '../ui/sidebar';
 import GitBasePicker from './GitBasePicker';
+import GitBranchPicker from './GitBranchPicker';
 import GitDiffModeMenu from './GitDiffModeMenu';
 
 const INDENT_STEP_PX = 12;
@@ -526,6 +527,7 @@ const GitSidebar = memo(function GitSidebar({
   projects,
   onSelectProject,
   workspace,
+  onGitBranchChanged,
   shortcutBindings,
 }: {
   projectPath: string;
@@ -533,6 +535,8 @@ const GitSidebar = memo(function GitSidebar({
   projects: ProjectDirectory[];
   onSelectProject: (path: string) => void;
   workspace: GitWorkspace;
+  /** The composer shows a branch too, and this tab may have changed it. */
+  onGitBranchChanged: () => void;
   shortcutBindings: Map<string, ShortcutBinding> | null;
 }): React.JSX.Element {
   const { summary, status, error, base, selection, mode } = workspace;
@@ -557,13 +561,23 @@ const GitSidebar = memo(function GitSidebar({
             />
           </div>
           <div className="flex min-w-0 items-center gap-1 pb-2 pl-2">
-            <span className="min-w-0 flex-1 truncate text-ui text-muted-foreground">
-              {summary
-                ? (summary.branch ?? (summary.detached ? 'Detached HEAD' : 'No branch'))
-                : status === 'error'
-                  ? null
-                  : 'Loading…'}
-            </span>
+            {summary ? (
+              <div className="flex min-w-0 flex-1 items-center">
+                <GitBranchPicker
+                  projectPath={projectPath}
+                  label={summary.branch ?? (summary.detached ? 'Detached HEAD' : 'No branch')}
+                  variant="sidebar"
+                  onSwitched={() => {
+                    workspace.refresh();
+                    onGitBranchChanged();
+                  }}
+                />
+              </div>
+            ) : (
+              <span className="min-w-0 flex-1 truncate text-ui text-muted-foreground">
+                {status === 'error' ? null : 'Loading…'}
+              </span>
+            )}
             {view !== 'commits' && (
               <FileListToggle fileList={workspace.fileList} onChange={workspace.setFileList} />
             )}

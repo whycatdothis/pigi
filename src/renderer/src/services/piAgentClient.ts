@@ -19,6 +19,7 @@ import type {
   GitBranchListResult,
   GitCommitFilesResult,
   GitStageResult,
+  GitSwitchBranchResult,
   GitDiffFileResult,
   GitDiffSource,
   GitDiffScope,
@@ -117,8 +118,15 @@ export async function getGitCommitFiles(
   return window.piApi.getGitCommitFiles(cwd, commit);
 }
 
-export async function listGitBranches(cwd: string): Promise<GitBranchListResult> {
-  return window.piApi.listGitBranches(cwd);
+export async function listGitBranches(
+  cwd: string,
+  includeRemote = true,
+): Promise<GitBranchListResult> {
+  return window.piApi.listGitBranches(cwd, includeRemote);
+}
+
+export async function switchGitBranch(cwd: string, branch: string): Promise<GitSwitchBranchResult> {
+  return window.piApi.switchGitBranch(cwd, branch);
 }
 
 export async function setGitStaged(cwd: string, staged: boolean): Promise<GitStageResult> {

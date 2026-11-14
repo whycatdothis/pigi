@@ -11,6 +11,7 @@ import type {
   GitBranchListResult,
   GitCommitFilesResult,
   GitStageResult,
+  GitSwitchBranchResult,
   GitDiffFileResult,
   GitDiffScope,
   GitDiffSource,
@@ -69,7 +70,8 @@ interface PiApi {
     oldPath: string | null,
   ) => Promise<GitDiffFileResult>;
   getGitCommitFiles: (cwd: string, commit: string) => Promise<GitCommitFilesResult>;
-  listGitBranches: (cwd: string) => Promise<GitBranchListResult>;
+  listGitBranches: (cwd: string, includeRemote: boolean) => Promise<GitBranchListResult>;
+  switchGitBranch: (cwd: string, branch: string) => Promise<GitSwitchBranchResult>;
   setGitStaged: (cwd: string, staged: boolean) => Promise<GitStageResult>;
   searchProjectFiles: (
     cwd: string,

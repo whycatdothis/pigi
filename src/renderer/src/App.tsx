@@ -2,6 +2,7 @@ import { useEffect, useCallback, useMemo, useRef, useState, useSyncExternalStore
 import { toast } from 'sonner';
 import { useShallow } from 'zustand/react/shallow';
 import {
+  isAgentBusy,
   loadLastSessionPath,
   useAppStore,
   workspaceProjectForSession,
@@ -150,6 +151,9 @@ function extractUserHistory(nodes: TranscriptNode[]): string[] {
 
 /** Read once: App re-renders on every streaming update. */
 const LAST_SESSION_PATH_AT_LAUNCH = loadLastSessionPath();
+
+/** A running session can check out another branch; follow it while one does. */
+const GIT_BRANCH_POLL_INTERVAL_MS = 10_000;
 
 function App(): React.JSX.Element {
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
@@ -703,6 +707,19 @@ function App(): React.JSX.Element {
       cancelled = true;
     };
   }, [activeCwd, activeSessionPath, isIdle]);
+
+  // A run can move the checkout under the label: the agent's own `git switch`,
+  // or a person in a terminal beside it. The idle transition above catches the
+  // result; this follows it while the run is still going.
+  const anySessionBusy = useMemo(
+    () => [...sessions.values()].some((entry) => isAgentBusy(entry.status)),
+    [sessions],
+  );
+  useEffect(() => {
+    if (!anySessionBusy) return;
+    const timer = window.setInterval(() => void refreshGitBranch(), GIT_BRANCH_POLL_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [anySessionBusy, refreshGitBranch]);
 
   useEffect(() => {
     return window.piApi.onProcessExit(({ sessionPath }) => {
@@ -1886,6 +1903,7 @@ function App(): React.JSX.Element {
                   projects={recentProjects}
                   onSelectProject={handleSelectWorkspaceProject}
                   workspace={gitWorkspace}
+                  onGitBranchChanged={refreshGitBranch}
                   shortcutBindings={shortcutBindings}
                 />
               ) : (
@@ -2068,6 +2086,7 @@ function App(): React.JSX.Element {
                             onSlashCommand={handleSlashCommand}
                             isStreaming={isSessionBusy}
                             gitBranch={gitBranch}
+                            gitCwd={activeCwd}
                             restoreInputs={restoreInputs}
                             onRestoredInputs={handleRestoredInputs}
                             onRefreshGitBranch={refreshGitBranch}
@@ -2096,6 +2115,7 @@ function App(): React.JSX.Element {
                               onSlashCommand={handleSlashCommand}
                               isStreaming={isDraftSpawning}
                               gitBranch={gitBranch}
+                              gitCwd={activeCwd}
                               restoreInputs={restoreInputs}
                               onRestoredInputs={handleRestoredInputs}
                               onRefreshGitBranch={refreshGitBranch}
@@ -2127,6 +2147,7 @@ function App(): React.JSX.Element {
                                 onSlashCommand={handleSlashCommand}
                                 isStreaming={isDraftSpawning}
                                 gitBranch={gitBranch}
+                                gitCwd={activeCwd}
                                 restoreInputs={restoreInputs}
                                 onRestoredInputs={handleRestoredInputs}
                                 onRefreshGitBranch={refreshGitBranch}

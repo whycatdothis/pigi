@@ -201,6 +201,20 @@ describe('useGitWorkspace staging', () => {
 });
 
 describe('useGitWorkspace project and view changes', () => {
+  it('drops what it showed and rereads it, for a working tree that moved to another branch', async () => {
+    const { result } = await openTab();
+    const before = requests.length;
+
+    act(() => result.current.refresh());
+    // The old branch's files never come back: they describe a tree that is gone.
+    expect(result.current.summary).toBeNull();
+    await wait(0);
+
+    expect(requests).toHaveLength(before + 1);
+    await answer({ success: true, summary: summary('b.txt') });
+    expect(result.current.summary?.unstaged[0].path).toBe('b.txt');
+  });
+
   it('asks a newly opened project for its own default base, not the old pick', async () => {
     const hook = renderHook(({ cwd }) => useGitWorkspace({ cwd, enabled: true }), {
       initialProps: { cwd: CWD },

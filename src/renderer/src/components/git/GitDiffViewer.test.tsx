@@ -33,6 +33,7 @@ function viewer(
       source={source}
       compareLabel="main"
       baseLabel="origin/main"
+      branch="main"
       file={FILE}
       layout="unified"
       onLayoutChange={vi.fn()}

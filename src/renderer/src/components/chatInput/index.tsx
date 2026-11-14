@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { EditorContent, useEditor, type EditorEvents, type EditorOptions } from '@tiptap/react';
 import { toast } from 'sonner';
-import { IconArrowUp, IconGitBranch, IconSquare } from '@tabler/icons-react';
+import { IconArrowUp, IconSquare } from '@tabler/icons-react';
 import type {
   ChatAttachmentKind,
   ModelInfo,
@@ -54,6 +54,7 @@ import { pathTokenDirectory } from '../../lib/pathReferences';
 import { formatContextUsage, UNKNOWN_STATUS } from './formatters';
 import { ContextUsageTooltip } from './contextUsageTooltip';
 import { ProjectPicker } from '../projectPicker';
+import GitBranchPicker from '../git/GitBranchPicker';
 import { ModelSettingsPicker } from './modelSettingsPicker';
 import { SlashCommandPopover } from './slashCommandPopover';
 import { AttachmentChips, AttachmentPickerButton } from './attachmentPicker';
@@ -82,6 +83,8 @@ interface ChatInputProps {
   onSlashCommand: (command: string, arg: string) => void;
   isStreaming: boolean;
   gitBranch: string | null;
+  /** The project the branch belongs to: the picker lists and switches in it. */
+  gitCwd: string;
   /** Messages handed back by abort/dequeue, restored before the current input. */
   restoreInputs: PromptInput[] | null;
   onRestoredInputs: () => void;
@@ -153,6 +156,7 @@ export default memo(function ChatInput({
   onSlashCommand,
   isStreaming,
   gitBranch,
+  gitCwd,
   restoreInputs,
   onRestoredInputs,
   onRefreshGitBranch,
@@ -854,8 +858,9 @@ export default memo(function ChatInput({
               recentProjects={recentProjects}
               onSelectProject={(path) => {
                 setHashMode(false);
+                // App rereads the branch whenever the project's cwd changes,
+                // so reading it here would race that read for the old cwd.
                 onSelectProject?.(path);
-                void onRefreshGitBranch();
                 // Remove the leading # that triggered the picker
                 editor
                   .chain()
@@ -966,24 +971,20 @@ export default memo(function ChatInput({
             {isNewSession ? (
               <div className="-mt-15 rounded-b-surface-xl bg-muted/60 px-4 pt-17 pb-2 text-body text-muted-foreground">
                 <div className="flex items-center">
-                  <span
-                    className="flex min-w-0 items-center gap-1.5"
-                    onClick={() => void onRefreshGitBranch()}
-                  >
-                    <IconGitBranch className="size-4 shrink-0" />
-                    <span className="truncate">{gitBranch ?? UNKNOWN_STATUS}</span>
-                  </span>
+                  <GitBranchPicker
+                    projectPath={gitCwd}
+                    label={gitBranch ?? UNKNOWN_STATUS}
+                    onSwitched={() => void onRefreshGitBranch()}
+                  />
                 </div>
               </div>
             ) : (
               <div className="flex items-center justify-between gap-4 bg-background px-4 pt-1.5 pb-3 text-body text-muted-foreground">
-                <span
-                  className="flex min-w-0 items-center gap-1.5"
-                  onClick={() => void onRefreshGitBranch()}
-                >
-                  <IconGitBranch className="size-4 shrink-0" />
-                  <span className="truncate">{gitBranch ?? UNKNOWN_STATUS}</span>
-                </span>
+                <GitBranchPicker
+                  projectPath={gitCwd}
+                  label={gitBranch ?? UNKNOWN_STATUS}
+                  onSwitched={() => void onRefreshGitBranch()}
+                />
                 <ContextUsageTooltip
                   label={contextUsageLabel}
                   contextUsage={contextUsage}

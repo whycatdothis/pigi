@@ -17,6 +17,7 @@ import {
   type GitDiffSummary,
   type GitDiffSummaryResult,
   type GitStageResult,
+  type GitSwitchBranchResult,
 } from '../../shared/ipcContract';
 import { readProjectFile, resolveProjectPath } from './projectFiles';
 
@@ -24,6 +25,8 @@ const execFileAsync = promisify(execFile);
 
 const GIT_EXECUTABLE = 'git';
 const GIT_TIMEOUT_MS = 6000;
+/** A checkout rewrites the whole working tree and can outlast every read here. */
+const GIT_SWITCH_TIMEOUT_MS = 120_000;
 const GIT_MAX_BUFFER_BYTES = 16 * 1024 * 1024;
 const MAX_BRANCH_COMMITS = 100;
 const MAX_BASE_COMMITS = 30;
@@ -64,7 +67,11 @@ function gitError(error: string, fallback: string): string {
   if (/not a git repository/i.test(error)) {
     return 'This project is not a Git repository.';
   }
-  if (/unknown revision|bad revision|ambiguous argument/i.test(error)) {
+  if (
+    /unknown revision|bad revision|ambiguous argument|invalid reference|did not match any file\(s\) known to git/i.test(
+      error,
+    )
+  ) {
     return 'That branch or commit no longer exists.';
   }
   return fallback;
@@ -74,6 +81,7 @@ async function runGit(
   cwd: string,
   args: readonly string[],
   env?: NodeJS.ProcessEnv,
+  timeoutMs = GIT_TIMEOUT_MS,
 ): Promise<GitCommandResult> {
   try {
     // These reads run while an agent may be committing; without this flag
@@ -86,7 +94,7 @@ async function runGit(
       {
         cwd,
         env,
-        timeout: GIT_TIMEOUT_MS,
+        timeout: timeoutMs,
         windowsHide: true,
         maxBuffer: GIT_MAX_BUFFER_BYTES,
         encoding: 'utf8',
@@ -310,16 +318,22 @@ function parseBranchRefs(output: string, prefix: string): string[] {
     .filter((name) => name && name !== 'HEAD' && !name.endsWith('/HEAD'));
 }
 
-async function listBranches(cwd: string, currentBranch: string | null): Promise<GitDiffBranch[]> {
+async function listBranches(
+  cwd: string,
+  currentBranch: string | null,
+  includeRemote: boolean,
+): Promise<GitDiffBranch[]> {
   const [localResult, remoteResult] = await Promise.all([
     runGit(cwd, ['for-each-ref', '--format=%(refname)', 'refs/heads']),
-    runGit(cwd, [
-      'for-each-ref',
-      '--sort=-committerdate',
-      `--count=${MAX_REMOTE_BRANCHES}`,
-      '--format=%(refname)',
-      'refs/remotes',
-    ]),
+    includeRemote
+      ? runGit(cwd, [
+          'for-each-ref',
+          '--sort=-committerdate',
+          `--count=${MAX_REMOTE_BRANCHES}`,
+          '--format=%(refname)',
+          'refs/remotes',
+        ])
+      : null,
   ]);
   const local = parseBranchRefs(localResult.stdout, 'refs/heads/')
     .map((name) => ({ name, current: name === currentBranch, local: true }))
@@ -330,6 +344,7 @@ async function listBranches(cwd: string, currentBranch: string | null): Promise<
           : 1
         : left.name.localeCompare(right.name),
     );
+  if (!remoteResult) return local;
   const remote = parseBranchRefs(remoteResult.stdout, 'refs/remotes/')
     .sort((left, right) => left.localeCompare(right))
     .map((name) => ({ name, current: false, local: false }));
@@ -337,17 +352,58 @@ async function listBranches(cwd: string, currentBranch: string | null): Promise<
 }
 
 /**
- * The base picker's branches, read when it opens rather than with every
+ * The branches a picker lists, read when it opens rather than with every
  * summary: sorting the remote ones by commit date reads every branch's tip
- * commit, which grows with the branch count.
+ * commit, which grows with the branch count. Branch switching asks for the
+ * local ones only, both because that sort is the slow half (0.7s warm, 3.5s
+ * cold on 89k remote branches of one repository) and because `git switch` on a
+ * bare remote name creates a local branch from it instead of switching.
  */
-export async function listGitBranches(cwd: string): Promise<GitBranchListResult> {
+export async function listGitBranches(
+  cwd: string,
+  includeRemote: boolean,
+): Promise<GitBranchListResult> {
   if (!cwd || cwd.trim().length === 0) {
     return { success: false, error: 'The project path is missing.' };
   }
   const branchResult = await runGit(cwd, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
   const current = branchResult.ok && branchResult.stdout.trim() ? branchResult.stdout.trim() : null;
-  return { success: true, branches: await listBranches(cwd, current) };
+  return { success: true, branches: await listBranches(cwd, current, includeRemote) };
+}
+
+/**
+ * Why a switch failed, in words the user can act on. `git switch` refuses when
+ * uncommitted changes would be lost, and that refusal is the answer to give;
+ * Git's other refusals (a branch checked out in another worktree, a locked
+ * index) say what is wrong in their first line. A timeout or a missing git has
+ * no Git message at all — the node error's own text names our command line and
+ * the flags, which is noise.
+ */
+function switchBranchError(error: string): string {
+  if (/would be overwritten/i.test(error)) {
+    return 'Uncommitted changes would be overwritten. Commit or stash them first.';
+  }
+  const explained = gitError(error, '');
+  if (explained) return explained;
+  const firstLine = error
+    .split('\n')[0]
+    .replace(/^(fatal|error):\s*/, '')
+    .trim();
+  if (!firstLine || /^(Command failed|spawn )/i.test(firstLine))
+    return 'Unable to switch branches.';
+  return firstLine;
+}
+
+/** Switches the working tree to another local branch. */
+export async function switchGitBranch(cwd: string, branch: string): Promise<GitSwitchBranchResult> {
+  if (!cwd || cwd.trim().length === 0) {
+    return { success: false, error: 'The project path is missing.' };
+  }
+  if (!branch || branch.startsWith('-') || branch.includes('\0') || branch.includes('\n')) {
+    return { success: false, error: 'That branch name is not valid.' };
+  }
+  const result = await runGit(cwd, ['switch', branch], undefined, GIT_SWITCH_TIMEOUT_MS);
+  return result.ok ? { success: true } : { success: false, error: switchBranchError(result.error) };
 }
 
 /**

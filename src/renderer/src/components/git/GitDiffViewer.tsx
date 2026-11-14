@@ -100,6 +100,7 @@ export default function GitDiffViewer({
   source,
   compareLabel,
   baseLabel,
+  branch,
   file,
   layout,
   onLayoutChange,
@@ -112,6 +113,12 @@ export default function GitDiffViewer({
   compareLabel: string;
   /** What a base diff compares with (`origin/main`, `HEAD`), for quotes of deleted lines. */
   baseLabel: string;
+  /**
+   * The branch this patch was read on. Two branches that forked from the same
+   * commit share a base and can report the same status and +/- for a file, so
+   * a switch would otherwise keep showing the other branch's patch.
+   */
+  branch: string | null;
   file: GitDiffFile;
   layout: GitDiffLayout;
   onLayoutChange: (layout: GitDiffLayout) => void;
@@ -143,6 +150,7 @@ export default function GitDiffViewer({
   // IPC round trip and a git child process per file.
   const readKey = [
     projectPath,
+    branch ?? '',
     sourceKind,
     sourceRef,
     file.path,
