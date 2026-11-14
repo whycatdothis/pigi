@@ -218,8 +218,9 @@ clears the tab's cached summaries before rereading them — they describe the
 tree that is no longer checked out — and rereads the composer's label; a patch
 is also keyed by branch, since two branches forked from the same commit can
 report the same file status and line counts for different content. Git's
-refusal to overwrite uncommitted changes is reported in its own words, since
-committing or stashing is what the user does next.
+refusals are reported as the next thing the user can do — commit or stash, or
+finish the merge it is still in the middle of — not as the file list or the
+`--quit` advice Git prints.
 
 The composer's label is read once per cwd — switching project or session reads
 it once, from the new cwd — and while any session is running it is reread every

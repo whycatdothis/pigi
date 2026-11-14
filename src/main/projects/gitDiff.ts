@@ -371,17 +371,33 @@ export async function listGitBranches(
   return { success: true, branches: await listBranches(cwd, current, includeRemote) };
 }
 
+/** Git's word for the operation it is in the middle of, as a noun. */
+const IN_PROGRESS_OPERATION: Record<string, string> = {
+  merging: 'merge',
+  rebasing: 'rebase',
+  'cherry-picking': 'cherry-pick',
+  reverting: 'revert',
+  bisecting: 'bisect',
+};
+
 /**
  * Why a switch failed, in words the user can act on. `git switch` refuses when
  * uncommitted changes would be lost, and that refusal is the answer to give;
- * Git's other refusals (a branch checked out in another worktree, a locked
- * index) say what is wrong in their first line. A timeout or a missing git has
- * no Git message at all — the node error's own text names our command line and
- * the flags, which is noise.
+ * the same goes for a merge it will not switch away from. Git's other refusals
+ * (a branch checked out in another worktree, a locked index) say what is wrong
+ * in their first line. A timeout or a missing git has no Git message at all —
+ * the node error's own text names our command line and the flags, which is
+ * noise.
  */
 function switchBranchError(error: string): string {
   if (/would be overwritten/i.test(error)) {
     return 'Uncommitted changes would be overwritten. Commit or stash them first.';
+  }
+  const inProgress =
+    /cannot switch branch while (merging|rebasing|cherry-picking|reverting|bisecting)/i.exec(error);
+  const operation = inProgress ? IN_PROGRESS_OPERATION[inProgress[1].toLowerCase()] : undefined;
+  if (operation) {
+    return `Finish or abort the ${operation} before switching branches.`;
   }
   const explained = gitError(error, '');
   if (explained) return explained;

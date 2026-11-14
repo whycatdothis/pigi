@@ -400,6 +400,19 @@ describe('switchGitBranch', () => {
     expect(await readFile(join(root, 'a.txt'), 'utf8')).toBe('feature\n');
   });
 
+  it('names the merge Git is in the middle of', async () => {
+    await git(root, 'switch', '-q', 'main');
+    await writeFile(join(root, 'a.txt'), 'main side\n');
+    await git(root, 'commit', '-qam', 'main side');
+    // Leaves a conflicted merge behind: switching is what must not happen.
+    await expect(git(root, 'merge', 'feature')).rejects.toThrow();
+    expect(await switchGitBranch(root, 'feature')).toEqual({
+      success: false,
+      error: 'Finish or abort the merge before switching branches.',
+    });
+    await git(root, 'merge', '--abort');
+  });
+
   it('refuses to overwrite uncommitted changes', async () => {
     // Its own starting point: this test must not depend on the one above it.
     await git(root, 'switch', '-q', 'feature');
