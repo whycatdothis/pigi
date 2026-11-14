@@ -394,6 +394,7 @@ const GitDiffBody = memo(function GitDiffBody({
             {onlyKind !== 'add' && (
               <span
                 data-search-ignore
+                data-sticky-inset
                 className={cn(
                   GUTTER_CLASS_NAME,
                   'sticky left-0 z-10',
@@ -406,6 +407,7 @@ const GitDiffBody = memo(function GitDiffBody({
             {onlyKind !== 'remove' && (
               <span
                 data-search-ignore
+                data-sticky-inset
                 className={cn(
                   GUTTER_CLASS_NAME,
                   'sticky z-10 border-r-[0.5px] border-foreground/15',

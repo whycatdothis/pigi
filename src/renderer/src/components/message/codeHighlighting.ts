@@ -28,14 +28,22 @@ export interface HighlightedState {
   lines: HighlightedLine[] | null;
 }
 
-// Chat, the file viewer and the diff viewer share one budget: 90k characters
-// covers the largest file the app opens, and 2,500 lines bounds the span count
-// when many short lines fit under the character cap. Sharing it keeps the cache
-// key independent of the caller.
-const MAX_HIGHLIGHTED_CODE_LENGTH = 90_000;
+// Chat, the file viewer and the diff viewer share one budget, because the
+// cache key is independent of the caller. Three gates, each for a different
+// cost, all measured on this machine:
+//
+// - lines bound the DOM, since spans scale with lines, not characters:
+//   2,500 lines render ~27k spans whether they hold 90k or 400k characters
+// - characters bound tokenizing, which is linear in them (~0.7µs/char): 2,500
+//   lines at 100 characters costs ~190ms, so 250k keeps the slowest highlight
+//   near a fifth of a second and anything past it falls back to plain
+// - one line's length bounds a cliff that is not linear at all: the same 250
+//   lines cost 140ms at 990 characters and 4,340ms at 1,000, so a line at or
+//   past the tokenizer limit is left plain instead of entering that zone
+const MAX_HIGHLIGHTED_CODE_LENGTH = 250_000;
 const MAX_HIGHLIGHTED_LINES = 2_500;
 const MAX_HIGHLIGHT_CACHE_SIZE = 8;
-const MAX_TOKENIZED_LINE_LENGTH = 2_000;
+const MAX_TOKENIZED_LINE_LENGTH = 400;
 const TOKENIZE_TIME_LIMIT_MS = 250;
 const FONT_STYLE_ITALIC = 1;
 const FONT_STYLE_BOLD = 2;

@@ -48,6 +48,8 @@ interface FileTreeSidebarProps {
   projectName: string;
   projects: ProjectDirectory[];
   selectedFilePath: string | null;
+  /** A folder a link pointed at: the tree opens to it, and to nothing else. */
+  revealedDirectory: { projectPath: string; path: string } | null;
   onSelectProject: (path: string) => void;
   onOpenFile: (path: string) => void;
   onOpenSettings: () => void;
@@ -96,6 +98,7 @@ export default memo(function FileTreeSidebar({
   projectName,
   projects,
   selectedFilePath,
+  revealedDirectory,
   onSelectProject,
   onOpenFile,
   onOpenSettings,
@@ -113,6 +116,10 @@ export default memo(function FileTreeSidebar({
   // A file opened from chat may live outside the project: nothing to reveal or watch.
   const treeFilePath =
     selectedFilePath && !isAbsoluteFilePath(selectedFilePath) ? selectedFilePath : null;
+  // The path the tree has to open to: a file's, expanding its ancestors, or the
+  // folder a link named, expanding it too.
+  const revealTarget = revealedDirectory?.path ?? treeFilePath;
+  const revealTargetIsDirectory = revealedDirectory !== null;
 
   const loadDirectory = useCallback(
     (path: string, force = false): Promise<void> => {
@@ -252,20 +259,23 @@ export default memo(function FileTreeSidebar({
     void loadDirectory('');
   }, [loadDirectory]);
 
-  // A file opened from the search palette may sit under directories that have
-  // never been loaded; open its path to it instead of leaving it invisible.
+  // A path reached from the search palette or a link may sit under directories
+  // that have never been loaded; open the tree to it instead of leaving it
+  // invisible. A folder link also opens the folder itself.
   useEffect(() => {
-    const filePath = treeFilePath;
-    if (!filePath) return;
+    const target = revealTarget;
+    if (!target) return;
     let cancelled = false;
 
-    async function revealFile(path: string): Promise<void> {
+    async function reveal(path: string): Promise<void> {
       const parts = path.split('/');
       const ancestors = [''];
       for (let index = 1; index < parts.length; index += 1) {
         ancestors.push(parts.slice(0, index).join('/'));
       }
-      for (const directory of ancestors) {
+      // A folder link opens the folder itself too, so its contents show.
+      const opened = revealTargetIsDirectory ? [...ancestors, path] : ancestors;
+      for (const directory of opened) {
         await loadDirectory(directory);
         if (cancelled) return;
         if (directory) {
@@ -279,18 +289,18 @@ export default memo(function FileTreeSidebar({
       }
       if (!cancelled) {
         requestAnimationFrame(() => {
-          document
-            .querySelector(`[data-file-path="${CSS.escape(path)}"]`)
-            ?.scrollIntoView({ block: 'nearest' });
+          const selector = `[data-file-path="${CSS.escape(path)}"], [data-directory-path="${CSS.escape(path)}"]`;
+          document.querySelector(selector)?.scrollIntoView({ block: 'nearest' });
         });
       }
     }
 
-    void revealFile(filePath);
+    void reveal(target);
     return () => {
       cancelled = true;
     };
-  }, [treeFilePath, loadDirectory]);
+    // The object itself, so following the same folder link again reopens it.
+  }, [revealTarget, revealedDirectory, loadDirectory]);
 
   const toggleDirectory = useCallback(
     (path: string) => {
@@ -332,6 +342,9 @@ export default memo(function FileTreeSidebar({
               <button
                 type="button"
                 aria-expanded={isExpanded}
+                // The deepest folder this row shows: a compacted row can stand
+                // for a chain, and a reveal looks the row up by that path.
+                data-directory-path={leafPath}
                 style={{ paddingLeft }}
                 className={cn(ROW_CLASS_NAME, ROW_IDLE_CLASS_NAME)}
                 onClick={() => toggleDirectory(entry.path)}

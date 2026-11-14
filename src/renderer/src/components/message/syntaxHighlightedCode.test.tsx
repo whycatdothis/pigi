@@ -59,8 +59,27 @@ test('does not count a trailing newline as an extra line', async () => {
 });
 
 test('keeps code plain when it is past the character gate', async () => {
-  render(<SyntaxHighlightedCode code={'x'.repeat(90_001)} language="ts" />);
+  render(<SyntaxHighlightedCode code={'x'.repeat(250_001)} language="ts" />);
   await act(async () => {});
 
   expect(highlighter.codeToTokens).not.toHaveBeenCalled();
+});
+
+test('highlights a file at the character gate', async () => {
+  render(<SyntaxHighlightedCode code={'x'.repeat(250_000)} language="ts" />);
+  await act(async () => {});
+
+  expect(highlighter.codeToTokens).toHaveBeenCalledTimes(1);
+});
+
+// Lines at 1,000 characters hit a tokenizer cliff that is not linear (4,340ms
+// for 250 of them against 140ms at 990), so the limit has to stay well under it.
+test('keeps a long line out of the tokenizer', async () => {
+  render(<SyntaxHighlightedCode code={'x'.repeat(401)} language="ts" />);
+  await act(async () => {});
+
+  expect(highlighter.codeToTokens).toHaveBeenCalledWith(
+    'x'.repeat(401),
+    expect.objectContaining({ tokenizeMaxLineLength: 400 }),
+  );
 });
