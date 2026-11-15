@@ -16,6 +16,8 @@ import { fetchLatestManifest } from './packageCatalog';
 
 const IMAGE_TIMEOUT_MS = 10_000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+/** A budget, not a count: one card's image can be five megabytes. */
+const MAX_CACHED_IMAGE_BYTES = 32 * 1024 * 1024;
 /** A catalog page shows far fewer cards than this; scrolled further, an evicted
  *  image is fetched again rather than kept for the whole app run. */
 const MAX_CACHED_IMAGES = 100;
@@ -25,8 +27,14 @@ interface PackageImage {
   bytes: ArrayBuffer;
 }
 
-/** Insertion-ordered: the first key is the oldest, which is what eviction drops. */
-const imagesByTarget = new Map<string, Promise<PackageImage | null>>();
+interface CachedImage {
+  image: Promise<PackageImage | null>;
+  /** Set when the fetch settles; 0 while in flight. */
+  bytes: number;
+}
+
+/** Insertion-ordered: the oldest entries are what eviction drops first. */
+const imagesByTarget = new Map<string, CachedImage>();
 
 function readManifest(directory: string): Record<string, unknown> | null {
   try {
@@ -80,27 +88,45 @@ async function loadImage(target: PackageImageTarget): Promise<PackageImage | nul
   return bytes ? { type, bytes } : null;
 }
 
-function cacheImage(key: string, image: Promise<PackageImage | null>): void {
-  imagesByTarget.set(key, image);
-  while (imagesByTarget.size > MAX_CACHED_IMAGES) {
-    const oldest = imagesByTarget.keys().next();
-    if (oldest.done) return;
-    imagesByTarget.delete(oldest.value);
+/** Drops the oldest entries until both caps fit; insertion order is age order. */
+function evictCachedImages(): void {
+  let total = 0;
+  for (const cached of imagesByTarget.values()) total += cached.bytes;
+  for (const [key, cached] of imagesByTarget) {
+    if (total <= MAX_CACHED_IMAGE_BYTES && imagesByTarget.size <= MAX_CACHED_IMAGES) break;
+    imagesByTarget.delete(key);
+    total -= cached.bytes;
   }
+}
+
+function cacheImage(key: string, image: Promise<PackageImage | null>): CachedImage {
+  const entry: CachedImage = { image, bytes: 0 };
+  imagesByTarget.set(key, entry);
+  void image.then(
+    // A settled fetch counts against the budget; an in-flight one does not.
+    (loaded) => {
+      entry.bytes = loaded?.bytes.byteLength ?? 0;
+      evictCachedImages();
+    },
+    // Offline and timed-out fetches are expected, not crashes: they are dropped
+    // here rather than surfacing as unhandled rejections. Identity-checked, so
+    // a stale failure cannot evict a newer retry of the same image.
+    () => {
+      if (imagesByTarget.get(key) === entry) imagesByTarget.delete(key);
+    },
+  );
+  evictCachedImages();
+  return entry;
 }
 
 export async function handlePackageImageRequest(request: Request): Promise<Response> {
   const target = parsePackageImageUrl(request.url);
   if (!target) return new Response(null, { status: 400 });
   const key = JSON.stringify(target);
-  let image = imagesByTarget.get(key);
-  if (!image) {
-    image = loadImage(target);
-    cacheImage(key, image);
-    // A network failure may pass; only a definite answer is kept.
-    image.catch(() => imagesByTarget.delete(key));
-  }
-  const loaded = await image.catch(() => null);
+  const cached = imagesByTarget.get(key) ?? cacheImage(key, loadImage(target));
+  // A network failure may pass; only a definite answer is kept (and `cacheImage`
+  // already dropped the entry for it).
+  const loaded = await cached.image.catch(() => null);
   return loaded
     ? new Response(loaded.bytes, { headers: { 'content-type': loaded.type } })
     : new Response(null, { status: 404 });

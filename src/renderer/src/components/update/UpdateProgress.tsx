@@ -2,8 +2,9 @@
  * The update progress window UI.
  *
  * Loaded by the standalone window created in
- * `main/windows/createUpdateProgressWindow.ts`, not by the main window: the
- * renderer entry picks this component from the location hash.
+ * `main/windows/createUpdateProgressWindow.ts` through its own entry
+ * (`updateProgress.html` / `updateProgress.tsx`); the main window never renders
+ * it.
  *
  * It only ever displays the status main pushes. The buttons send a command
  * and wait for the next status — no local optimistic state, so the window

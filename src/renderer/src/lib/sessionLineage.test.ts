@@ -30,7 +30,6 @@ function session(
     modified,
     messageCount: 0,
     firstMessage: path,
-    allMessagesText: path,
   };
 }
 

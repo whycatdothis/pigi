@@ -300,7 +300,6 @@ export interface PiSessionInfo {
   modified: string;
   messageCount: number;
   firstMessage: string;
-  allMessagesText: string;
 }
 
 export type SessionListResult =
@@ -311,6 +310,12 @@ export interface ProjectSessionsChunk {
   requestId: string;
   cwd: string;
   success: boolean;
+  /**
+   * The newest sessions of a list still being parsed. A later chunk for the
+   * same request replaces it; callers that need the whole list must wait for
+   * the chunk without this flag.
+   */
+  partial?: boolean;
   sessions?: PiSessionInfo[];
   error?: string;
 }
@@ -712,6 +717,10 @@ export enum PiChannel {
   SetAppearanceTheme = 'pi:set_appearance_theme',
   /** renderer → main: apply the changed slices to pigi's settings */
   ChangePigiSettings = 'pi:change_pigi_settings',
+  /** renderer → main: pigi's settings for the first paint, answered synchronously */
+  ReadPigiSettings = 'pi:read_pigi_settings',
+  /** renderer → main: the process working directory, answered synchronously */
+  GetAppCwd = 'pi:get_app_cwd',
   /** renderer → main: a prompt, a feature used or an uncaught error, for telemetry (main decides whether to send) */
   ReportTelemetry = 'pi:report_telemetry',
   /** renderer → main: get all keyboard shortcut definitions with current bindings */

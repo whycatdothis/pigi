@@ -9,7 +9,8 @@ import {
   SettingsManager,
   VERSION,
 } from '@earendil-works/pi-coding-agent';
-import { join } from 'node:path';
+import { readdir, stat } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import type {
   PiSessionInfo,
   SessionWorkerCommand,
@@ -302,20 +303,142 @@ async function serializeSessionInfo(session: SessionInfo): Promise<PiSessionInfo
     messageCount: session.messageCount,
     // Raw prompt text carries attachment markers, paths and inlined file contents.
     firstMessage: promptTitle(session.firstMessage),
-    allMessagesText: session.allMessagesText,
   };
 }
 
-async function listProjectSessions(requestId: string, cwd: string): Promise<void> {
+// =============================================================================
+// Session lists
+//
+// `SessionManager.list` parses every entry of every session file — seconds on a
+// directory with hundreds of megabytes of history — and a turn writes to the
+// session file, so any list taken after one is a cold parse (startup, project
+// switch, create, rename, fork). So a parsed list is cached per cwd and reused
+// until the directory changes, which a signature over each session file's name,
+// mtime and size detects in a few milliseconds.
+// =============================================================================
+
+interface SessionListCache {
+  signature: string;
+  sessions: PiSessionInfo[];
+}
+
+/** A partial list is published at most this often; the full one always follows. */
+const PARTIAL_LIST_INTERVAL_MS = 400;
+
+/** Where each cwd's sessions live, learned from a parsed list. */
+const sessionDirByCwd = new Map<string, string>();
+const sessionListCache = new Map<string, SessionListCache>();
+const inFlightLists = new Map<string, Promise<PiSessionInfo[]>>();
+
+/** Change detector for a session directory; null when it cannot be read. */
+async function directorySignature(dir: string): Promise<string | null> {
+  let names: string[];
   try {
-    const sessions = await SessionManager.list(cwd);
-    sendToMain({
-      type: 'project_sessions_chunk',
-      requestId,
-      cwd,
-      success: true,
-      sessions: await Promise.all(sessions.map(serializeSessionInfo)),
+    names = (await readdir(dir)).filter((name) => name.endsWith('.jsonl'));
+  } catch {
+    return null;
+  }
+  const parts = await Promise.all(
+    names.map(async (name) => {
+      try {
+        const stats = await stat(join(dir, name));
+        return `${name}:${stats.mtimeMs}:${stats.size}`;
+      } catch {
+        return `${name}:missing`;
+      }
+    }),
+  );
+  return parts.sort().join('|');
+}
+
+/**
+ * The sessions of `cwd`, from the cache when the directory is untouched.
+ * Partial lists go through `publishPartial`; they are all delivered before
+ * this resolves or rejects, so a chunk can never trail the list it belongs to.
+ */
+async function readProjectSessions(
+  cwd: string,
+  publishPartial: (sessions: PiSessionInfo[]) => void,
+): Promise<PiSessionInfo[]> {
+  const dir = sessionDirByCwd.get(cwd);
+  const before = dir ? await directorySignature(dir) : null;
+  const cached = sessionListCache.get(cwd);
+  if (cached && before !== null && before === cached.signature) {
+    return cached.sessions;
+  }
+
+  // One serialized copy per session, so a partial chunk only pays for the
+  // sessions it adds instead of re-reading every forked session's file.
+  const serializedByPath = new Map<string, PiSessionInfo>();
+  const serialize = (session: SessionInfo): Promise<PiSessionInfo> => {
+    const known = serializedByPath.get(session.path);
+    if (known) return Promise.resolve(known);
+    return serializeSessionInfo(session).then((info) => {
+      serializedByPath.set(session.path, info);
+      return info;
     });
+  };
+
+  let lastPartialAt = 0;
+  let partials: Promise<void> = Promise.resolve();
+  let sessions: SessionInfo[];
+  try {
+    sessions = await SessionManager.list(cwd, undefined, (loaded, total, partial) => {
+      if (!partial || loaded >= total) return;
+      const now = Date.now();
+      if (now - lastPartialAt < PARTIAL_LIST_INTERVAL_MS) return;
+      lastPartialAt = now;
+      partials = partials.then(async () =>
+        publishPartial(await Promise.all(partial.map(serialize))),
+      );
+    });
+  } finally {
+    await partials;
+  }
+
+  const serialized = await Promise.all(sessions.map(serialize));
+  // A list is only cached when the directory matched at both ends of the
+  // parse, so an entry can never describe data older than its signature. The
+  // first list of a cwd has no directory to compare yet, so it is not cached;
+  // the second one is, and everything after that is a cheap hit.
+  const knownDir = dir ?? (sessions.length > 0 ? dirname(sessions[0].path) : undefined);
+  if (!knownDir) {
+    sessionListCache.delete(cwd);
+    return serialized;
+  }
+  sessionDirByCwd.set(cwd, knownDir);
+  const after = await directorySignature(knownDir);
+  if (before !== null && after !== null && after === before) {
+    sessionListCache.set(cwd, { signature: after, sessions: serialized });
+  } else {
+    sessionListCache.delete(cwd);
+  }
+  return serialized;
+}
+
+/** Concurrent requests for one cwd share a single parse. */
+function readProjectSessionsOnce(
+  cwd: string,
+  publishPartial: (sessions: PiSessionInfo[]) => void,
+): Promise<PiSessionInfo[]> {
+  const inFlight = inFlightLists.get(cwd);
+  if (inFlight) return inFlight;
+  const run = readProjectSessions(cwd, publishPartial).finally(() => {
+    inFlightLists.delete(cwd);
+  });
+  inFlightLists.set(cwd, run);
+  return run;
+}
+
+async function listProjectSessions(requestId: string, cwd: string): Promise<void> {
+  const send = (chunk: { partial?: boolean; sessions: PiSessionInfo[] }): void => {
+    sendToMain({ type: 'project_sessions_chunk', requestId, cwd, success: true, ...chunk });
+  };
+  try {
+    const sessions = await readProjectSessionsOnce(cwd, (partial) =>
+      send({ partial: true, sessions: partial }),
+    );
+    send({ sessions });
   } catch (error) {
     sendToMain({
       type: 'project_sessions_chunk',

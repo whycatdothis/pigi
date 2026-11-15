@@ -139,6 +139,17 @@ function refreshProjectSessionsIfFirstAssistantMessage(
   }
 }
 
+/**
+ * The turn appended to the session file. Patch its row here instead of
+ * re-listing the project: a list reads every session file in it.
+ */
+function touchSessionAfterTurn(sessionPath: string, event: AgentSessionEvent): void {
+  if (event.type !== 'agent_end') return;
+  useAppStore.getState().patchProjectSession(sessionPath, {
+    modified: new Date().toISOString(),
+  });
+}
+
 function ensureSessionSubscription(sessionPath: string, controller: TranscriptController): void {
   if (subscriptionsBySession.has(sessionPath)) {
     return;
@@ -176,6 +187,7 @@ function ensureSessionSubscription(sessionPath: string, controller: TranscriptCo
         controller.processEvent(pushMessage.event);
         useAppStore.getState().updateSession(sessionPath, { status: controller.state.status });
         refreshProjectSessionsIfFirstAssistantMessage(sessionPath, pushMessage.event);
+        touchSessionAfterTurn(sessionPath, pushMessage.event);
         notifyIfFilesMayHaveChanged(sessionPath, pushMessage.event);
         break;
 
@@ -217,7 +229,9 @@ function ensureSessionSubscription(sessionPath: string, controller: TranscriptCo
         break;
 
       case 'auto_title':
-        void listProjectSessions([pushMessage.cwd]);
+        // The utility process wrote the title to the session file; mirroring it
+        // here is what the sidebar needs, without a list that parses the file.
+        useAppStore.getState().patchProjectSession(sessionPath, { name: pushMessage.title });
         break;
 
       case 'extension_notify':

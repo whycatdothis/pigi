@@ -1,6 +1,5 @@
 import { BrowserWindow, screen } from 'electron';
 import { join } from 'path';
-import { PIGI_SETTINGS_PATH_ARGUMENT } from '../../shared/pigiSettings';
 import { is } from '@electron-toolkit/utils';
 import icon from '../../../resources/icon.png?asset';
 import { openDebugPanel } from '../debugConfig';
@@ -20,13 +19,7 @@ export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
 }
 
-export function createMainWindow({
-  settingsPath,
-  backgroundColor,
-}: {
-  settingsPath: string;
-  backgroundColor: string;
-}): BrowserWindow {
+export function createMainWindow({ backgroundColor }: { backgroundColor: string }): BrowserWindow {
   const workArea = screen.getPrimaryDisplay().workAreaSize;
   mainWindow = new BrowserWindow({
     width: Math.min(DEFAULT_WIDTH, Math.round(workArea.width * MAX_SCREEN_FRACTION)),
@@ -43,17 +36,13 @@ export function createMainWindow({
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       scrollBounce: process.platform === 'darwin',
-      preload: join(__dirname, '../preload/index.mjs'),
-      sandbox: false,
-      // A path, not the settings themselves: argv is fixed at window creation,
-      // so passing the values would go stale on the first renderer reload. The
-      // preload reads the file itself, synchronously.
-      additionalArguments: [`${PIGI_SETTINGS_PATH_ARGUMENT}${settingsPath}`],
+      preload: join(__dirname, '../preload/index.cjs'),
+      sandbox: true,
     },
   });
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow!.show();
+    mainWindow?.show();
   });
 
   guardWindowNavigation(mainWindow.webContents, join(__dirname, '../renderer/index.html'));

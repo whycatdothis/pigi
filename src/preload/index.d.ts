@@ -1,4 +1,3 @@
-import { ElectronAPI } from '@electron-toolkit/preload';
 import type { PigiSettingsChange, PigiSettingsReadResult } from '../shared/pigiSettings';
 import type {
   CacheWarmEntry,
@@ -191,7 +190,6 @@ interface PiApi {
 
 declare global {
   interface Window {
-    electron: ElectronAPI;
     piApi: PiApi;
   }
 }

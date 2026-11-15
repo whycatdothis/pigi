@@ -21,7 +21,6 @@ export function getProjectSessions(
       modified: session.createdAt,
       messageCount: 0,
       firstMessage: session.title,
-      allMessagesText: session.title,
     }));
 
   return [...runningSessions, ...listedSessions];

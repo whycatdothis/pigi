@@ -31,6 +31,11 @@ import {
 } from '../projects/projectFiles';
 import { setProjectFileWatch } from '../projects/projectFileWatch';
 
+/** A working directory argument: a non-empty, non-blank string. */
+function isProjectPath(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
 function parseGitDiffScope(value: unknown): GitDiffScope | null {
   if (typeof value !== 'object' || value === null || !('kind' in value)) return null;
   if (value.kind === 'uncommitted' || value.kind === 'lastCommit' || value.kind === 'status') {
@@ -69,14 +74,13 @@ function projectStateResult(): ProjectStateResult {
 export function registerProjectHandlers(): void {
   ipcMain.handle(PiChannel.GetProjects, async () => projectStateResult());
 
-  ipcMain.handle(PiChannel.GetGitBranch, async (_event, cwd: string) => {
+  ipcMain.handle(PiChannel.GetGitBranch, async (_event, cwd: unknown) => {
+    if (!isProjectPath(cwd)) return { success: false, error: 'cwd must be a non-empty string' };
     return getGitBranch(cwd);
   });
 
   ipcMain.handle(PiChannel.GetGitDiffSummary, async (_event, cwd: unknown, scope: unknown) => {
-    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
-      return { success: false, error: 'cwd must be a non-empty string' };
-    }
+    if (!isProjectPath(cwd)) return { success: false, error: 'cwd must be a non-empty string' };
     const diffScope = parseGitDiffScope(scope);
     if (!diffScope) {
       return { success: false, error: 'scope must be branch, uncommitted, lastCommit or status' };
@@ -87,7 +91,7 @@ export function registerProjectHandlers(): void {
   ipcMain.handle(
     PiChannel.GetGitDiffFile,
     async (_event, cwd: unknown, source: unknown, path: unknown, oldPath: unknown) => {
-      if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+      if (!isProjectPath(cwd)) {
         return { success: false, error: 'cwd must be a non-empty string' };
       }
       const diffSource = parseGitDiffSource(source);
@@ -105,9 +109,7 @@ export function registerProjectHandlers(): void {
   );
 
   ipcMain.handle(PiChannel.GetGitCommitFiles, async (_event, cwd: unknown, commit: unknown) => {
-    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
-      return { success: false, error: 'cwd must be a non-empty string' };
-    }
+    if (!isProjectPath(cwd)) return { success: false, error: 'cwd must be a non-empty string' };
     if (typeof commit !== 'string' || commit.length === 0) {
       return { success: false, error: 'commit must be a non-empty string' };
     }
@@ -117,7 +119,7 @@ export function registerProjectHandlers(): void {
   ipcMain.handle(
     PiChannel.ListGitBranches,
     async (_event, cwd: unknown, includeRemote: unknown) => {
-      if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+      if (!isProjectPath(cwd)) {
         return { success: false, error: 'cwd must be a non-empty string' };
       }
       if (typeof includeRemote !== 'boolean') {
@@ -128,9 +130,7 @@ export function registerProjectHandlers(): void {
   );
 
   ipcMain.handle(PiChannel.SwitchGitBranch, async (_event, cwd: unknown, branch: unknown) => {
-    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
-      return { success: false, error: 'cwd must be a non-empty string' };
-    }
+    if (!isProjectPath(cwd)) return { success: false, error: 'cwd must be a non-empty string' };
     if (typeof branch !== 'string' || branch.length === 0) {
       return { success: false, error: 'branch must be a non-empty string' };
     }
@@ -138,9 +138,7 @@ export function registerProjectHandlers(): void {
   });
 
   ipcMain.handle(PiChannel.SetGitStaged, async (_event, cwd: unknown, staged: unknown) => {
-    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
-      return { success: false, error: 'cwd must be a non-empty string' };
-    }
+    if (!isProjectPath(cwd)) return { success: false, error: 'cwd must be a non-empty string' };
     if (typeof staged !== 'boolean') {
       return { success: false, error: 'staged must be a boolean' };
     }
@@ -150,7 +148,7 @@ export function registerProjectHandlers(): void {
   ipcMain.handle(
     PiChannel.SearchProjectFiles,
     async (_event, cwd: string, query: string, limit?: number) => {
-      if (typeof cwd !== 'string' || cwd.trim().length === 0) {
+      if (!isProjectPath(cwd)) {
         return { success: false, error: 'cwd must be a non-empty string' };
       }
       return searchProjectFiles(
@@ -162,9 +160,7 @@ export function registerProjectHandlers(): void {
   );
 
   ipcMain.handle(PiChannel.ListProjectDirectory, async (_event, cwd: string, path: string) => {
-    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
-      return { success: false, error: 'cwd must be a non-empty string' };
-    }
+    if (!isProjectPath(cwd)) return { success: false, error: 'cwd must be a non-empty string' };
     if (typeof path !== 'string') {
       return { success: false, error: 'path must be a string' };
     }
@@ -172,9 +168,7 @@ export function registerProjectHandlers(): void {
   });
 
   ipcMain.handle(PiChannel.ReadProjectFile, async (_event, cwd: string, path: string) => {
-    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
-      return { success: false, error: 'cwd must be a non-empty string' };
-    }
+    if (!isProjectPath(cwd)) return { success: false, error: 'cwd must be a non-empty string' };
     if (typeof path !== 'string' || path.length === 0) {
       return { success: false, error: 'path must be a non-empty string' };
     }
@@ -182,7 +176,7 @@ export function registerProjectHandlers(): void {
   });
 
   ipcMain.handle(PiChannel.ResolveExistingPaths, async (_event, cwd: unknown, paths: unknown) => {
-    if (typeof cwd !== 'string' || cwd.trim().length === 0) return [];
+    if (!isProjectPath(cwd)) return [];
     if (!Array.isArray(paths) || !paths.every((path): path is string => typeof path === 'string')) {
       return [];
     }
@@ -192,7 +186,7 @@ export function registerProjectHandlers(): void {
   ipcMain.on(
     PiChannel.WatchProjectFiles,
     (_event, cwd: unknown, directories: unknown, filePath: unknown) => {
-      if (typeof cwd !== 'string' || cwd.trim().length === 0) return;
+      if (!isProjectPath(cwd)) return;
       if (
         !Array.isArray(directories) ||
         !directories.every((directory): directory is string => typeof directory === 'string')
@@ -205,9 +199,7 @@ export function registerProjectHandlers(): void {
   );
 
   ipcMain.handle(PiChannel.CompletePath, async (_event, cwd: string, token: string) => {
-    if (typeof cwd !== 'string' || cwd.trim().length === 0) {
-      return { success: false, error: 'cwd must be a non-empty string' };
-    }
+    if (!isProjectPath(cwd)) return { success: false, error: 'cwd must be a non-empty string' };
     if (typeof token !== 'string') {
       return { success: false, error: 'token must be a string' };
     }

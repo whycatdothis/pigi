@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { IconLoader2, IconMessageCircle } from '@tabler/icons-react';
-import { FolderOpen, GitBranch } from 'lucide-react';
+import { IconFolderOpen, IconGitBranch, IconLoader2, IconMessageCircle } from '@tabler/icons-react';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { WORKSPACE_TABS, isWorkspaceTab, type WorkspaceTab } from '../../lib/workspaceTabs';
 import { cn } from '../../lib/utils';
@@ -21,19 +20,19 @@ const TAB_ITEMS = [
     tab: WORKSPACE_TABS.files,
     label: 'Files',
     shortcutId: 'workspace.files',
-    icon: FolderOpen,
+    icon: IconFolderOpen,
   },
   {
     tab: WORKSPACE_TABS.git,
     label: 'Git',
     shortcutId: 'workspace.git',
-    icon: GitBranch,
+    icon: IconGitBranch,
   },
 ] as const satisfies readonly {
   tab: WorkspaceTab;
   label: string;
   shortcutId: string;
-  icon: typeof IconMessageCircle | typeof FolderOpen;
+  icon: typeof IconMessageCircle | typeof IconFolderOpen;
 }[];
 
 /** A header chip tab; the right sidebar's tabs use it too, so both headers match. */

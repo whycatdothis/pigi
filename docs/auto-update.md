@@ -174,9 +174,12 @@ changes; `refreshApplicationMenu` compares the rendered string first, because
 
 - `src/main/windows/createUpdateProgressWindow.ts`, following the existing
   `createMainWindow.ts` convention.
-- Loads the same renderer bundle at `#/update-progress`; `renderer/src/main.tsx`
-  picks `<UpdateProgress />` over `<App />` from `window.location.hash`
-  (`shared/routes.ts`). No second vite entry, no second preload.
+- Its own renderer entry: `src/renderer/updateProgress.html` →
+  `renderer/src/updateProgress.tsx`, a second Vite input
+  (`electron.vite.config.ts`). The window is a 400px status dialog, so it does
+  not parse the chat app, its terminal and its diagram renderer to open. It
+  shares the same preload and the bundler's common chunk; there is no second
+  preload.
 - A normal titled window (`Updating pigi`) rather than a frameless sheet: it
   replaces the app, so it should read as a system dialog, and the red button is
   the way out. Closing it does not cancel the download. Parent-linked to the
@@ -275,7 +278,6 @@ src/renderer/src/
 
 src/shared/
 ├── ipcContract.ts                    # + UpdateStatus, PiChannel entries
-├── routes.ts                         # + UPDATE_PROGRESS_HASH
 └── updateWindow.ts                   # + UP_TO_DATE_CLOSE_SECONDS
 
 src/preload/index.ts                  # + window.piApi.update

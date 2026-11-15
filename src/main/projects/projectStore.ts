@@ -78,15 +78,17 @@ export function reorderRecentProjects(paths: string[]): void {
   const existing = getRecentProjects();
   const byPath = new Map(existing.map((p) => [p.path, p]));
   const reordered: ProjectDirectory[] = [];
+  const placed = new Set<string>();
   for (const path of paths) {
     const project = byPath.get(path);
-    if (project) {
+    if (project && !placed.has(path)) {
       reordered.push(project);
+      placed.add(path);
     }
   }
   // Append any projects not in the new order (shouldn't happen, but safety)
   for (const project of existing) {
-    if (!reordered.some((p) => p.path === project.path)) {
+    if (!placed.has(project.path)) {
       reordered.push(project);
     }
   }

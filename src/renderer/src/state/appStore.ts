@@ -76,6 +76,17 @@ interface AppState {
   setProjects: (recentProjects: ProjectDirectory[], activeProject: ProjectDirectory | null) => void;
   setProjectSessions: (sessionsByCwd: Record<string, PiSessionInfo[]>) => void;
   setProjectSessionList: (cwd: string, sessions: PiSessionInfo[]) => void;
+  /**
+   * A partial list from a parse still in flight. It is merged, not substituted:
+   * the sidebar must not lose the rows a later chunk has not reached yet.
+   */
+  mergeProjectSessionList: (cwd: string, sessions: PiSessionInfo[]) => void;
+  /**
+   * The session file changed without a list refresh: the sidebar's row follows
+   * a turn that just ended, or the title a rename wrote, without re-reading
+   * every session file in the project.
+   */
+  patchProjectSession: (sessionPath: string, patch: ProjectSessionPatch) => void;
 
   sidebarExpanded: boolean;
   setSidebarExpanded: (expanded: boolean) => void;
@@ -327,6 +338,36 @@ export function workspaceProjectForSession({
   return activeProject;
 }
 
+/** What a live session can change about its own listed row. */
+export interface ProjectSessionPatch {
+  modified?: string;
+  name?: string;
+}
+
+/** The session lists with `sessionPath`'s row patched; null when nothing changes. */
+function withPatchedSession(
+  projectSessions: Record<string, PiSessionInfo[]>,
+  cwd: string | undefined,
+  sessionPath: string,
+  patch: ProjectSessionPatch,
+): Record<string, PiSessionInfo[]> | null {
+  if (!cwd) return null;
+  const listed = projectSessions[cwd];
+  const index = listed?.findIndex((session) => session.path === sessionPath) ?? -1;
+  if (!listed || index === -1) return null;
+  const current = listed[index];
+  // A timestamp only moves forward: a late patch must not age the row.
+  const modified =
+    patch.modified !== undefined && patch.modified > current.modified
+      ? patch.modified
+      : current.modified;
+  const name = patch.name ?? current.name;
+  if (modified === current.modified && name === current.name) return null;
+  const next = listed.slice();
+  next[index] = { ...current, modified, name };
+  return { ...projectSessions, [cwd]: next };
+}
+
 const createAppState: StateCreator<AppState> = (set) => ({
   sessions: new Map(),
   activeSessionPath: null,
@@ -425,6 +466,27 @@ const createAppState: StateCreator<AppState> = (set) => ({
         [cwd]: sessions,
       },
     })),
+
+  mergeProjectSessionList: (cwd, sessions) =>
+    set((state) => {
+      const listed = state.projectSessions[cwd] ?? [];
+      const byPath = new Map(listed.map((session) => [session.path, session]));
+      for (const session of sessions) byPath.set(session.path, session);
+      return {
+        projectSessions: { ...state.projectSessions, [cwd]: [...byPath.values()] },
+      };
+    }),
+
+  patchProjectSession: (sessionPath, patch) =>
+    set((state) => {
+      const next = withPatchedSession(
+        state.projectSessions,
+        state.sessions.get(sessionPath)?.cwd,
+        sessionPath,
+        patch,
+      );
+      return next ? { projectSessions: next } : {};
+    }),
 
   sidebarExpanded: true,
   setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),

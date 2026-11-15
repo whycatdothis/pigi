@@ -3,10 +3,10 @@
  *
  * The main process owns this file (see `main/pigiSettingsOwner.ts`): it reads it
  * before it creates the window, because the native theme and the window
- * background come from it, and the preload reads the same file so the renderer
- * gets a synchronous value for its first paint. Neither step is allowed to
- * depend on an async round trip happening before the first frame, which is how
- * the old localStorage read avoided a theme flash.
+ * background come from it, and the renderer asks for the same file over a
+ * synchronous IPC channel so its first paint can use it. Neither step is allowed
+ * to depend on an async round trip happening before the first frame, which is
+ * how the old localStorage read avoided a theme flash.
  *
  * Writes are atomic: a half-written file would drop every appearance setting,
  * and a temp file plus rename costs nothing at this size.
@@ -16,9 +16,11 @@ import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node
 import { dirname, join } from 'node:path';
 import {
   DEFAULT_PIGI_SETTINGS,
+  PIGI_SETTINGS_READ_STATE,
   isMissingFileError,
   parsePigiSettings,
   type PigiSettings,
+  type PigiSettingsReadResult,
 } from '../shared/pigiSettings';
 import { deriveTokens, resolveAppearance } from '../shared/appearanceTokens';
 import { formatHex, parseCssColor } from '../shared/colorMath';
@@ -53,6 +55,28 @@ export function readPigiSettingsFile(path: string): { settings: PigiSettings; ex
     // next write replaces it.
     console.error('Failed to parse pigi settings; using defaults:', error);
     return { settings: DEFAULT_PIGI_SETTINGS, exists: true };
+  }
+}
+
+/**
+ * The renderer's view of the file, for the synchronous read its first paint
+ * depends on. Unnormalized on purpose: the renderer decides what a missing file
+ * means, and a corrupt one must not be replaced silently.
+ */
+export function readPigiSettingsForRenderer(path: string): PigiSettingsReadResult {
+  let raw: string;
+  try {
+    raw = readFileSync(path, 'utf8');
+  } catch (error) {
+    if (isMissingFileError(error)) return { state: PIGI_SETTINGS_READ_STATE.missing };
+    console.error('Failed to read pigi settings:', error);
+    return { state: PIGI_SETTINGS_READ_STATE.corrupt };
+  }
+  try {
+    return { state: PIGI_SETTINGS_READ_STATE.ok, settings: JSON.parse(raw) };
+  } catch (error) {
+    console.error('Failed to parse pigi settings:', error);
+    return { state: PIGI_SETTINGS_READ_STATE.corrupt };
   }
 }
 

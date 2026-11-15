@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { IconArrowRight, IconLoader2, IconMessagePlus } from '@tabler/icons-react';
-import { ChevronsUpDown } from 'lucide-react';
+import { IconArrowRight, IconLoader2, IconMessagePlus, IconSelector } from '@tabler/icons-react';
 import {
   MAX_DIFF_LINES,
   type GitDiffFile,
@@ -369,7 +368,7 @@ export default function GitDiffViewer({
                     wholeFile && 'bg-accent text-foreground',
                   )}
                 >
-                  <ChevronsUpDown size={14} />
+                  <IconSelector size={14} />
                 </button>
               </span>
             </TooltipTrigger>

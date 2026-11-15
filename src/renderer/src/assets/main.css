@@ -38,7 +38,7 @@
 
   /* The app's icon weight. Only icons left at the library default (2) are
      thinned, so an explicit `stroke` / `strokeWidth` prop still wins. */
-  :is(.tabler-icon, .lucide)[stroke-width='2'] {
+  .tabler-icon[stroke-width='2'] {
     stroke-width: 1.5;
   }
 

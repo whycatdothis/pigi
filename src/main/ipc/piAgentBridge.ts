@@ -298,6 +298,7 @@ function spawnSessionWorkerProcess(): void {
           requestId: message.requestId,
           cwd: message.cwd,
           success: message.success,
+          partial: message.partial,
           sessions: message.sessions,
           error: message.error,
         });

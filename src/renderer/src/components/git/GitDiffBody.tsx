@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { ChevronsUpDown } from 'lucide-react';
+import { IconSelector } from '@tabler/icons-react';
 import { MAX_DIFF_LINES, type GitDiffFile } from '../../../../shared/ipcContract';
 import type { GitDiffLayout } from '../../hooks/useGitWorkspace';
 import { languageForFile } from '../../lib/fileLanguage';
@@ -217,7 +217,7 @@ function GapRow({
       className={cn(className, 'transition-colors hover:bg-muted hover:text-foreground')}
       onClick={onExpand}
     >
-      <ChevronsUpDown size={13} className="shrink-0" />
+      <IconSelector size={13} className="shrink-0" />
       {content}
     </button>
   );

@@ -4,9 +4,7 @@
  * After session creation, communication goes directly over control/data MessagePorts.
  * Main process is only involved for lifecycle (create/resume/destroy session).
  */
-import { electronAPI } from '@electron-toolkit/preload';
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
-import { readFileSync } from 'node:fs';
 import {
   PiChannel,
   isPiPush,
@@ -61,22 +59,11 @@ import type {
   PiPackagesHealthResult,
   PiPackagesResult,
 } from '../shared/piPackages';
-import {
-  PIGI_SETTINGS_PATH_ARGUMENT,
-  PIGI_SETTINGS_READ_STATE,
-  isMissingFileError,
-  type PigiSettingsChange,
-  type PigiSettingsReadResult,
-} from '../shared/pigiSettings';
+import type { PigiSettingsChange, PigiSettingsReadResult } from '../shared/pigiSettings';
 
-// Main passes the pigi settings path through `additionalArguments`.
-
-const settingsPathArgument = process.argv.find((argument) =>
-  argument.startsWith(PIGI_SETTINGS_PATH_ARGUMENT),
-);
-const pigiSettingsPath = settingsPathArgument
-  ? settingsPathArgument.slice(PIGI_SETTINGS_PATH_ARGUMENT.length)
-  : null;
+// Read once, so a render-time call stays free: main's cwd is the renderer's
+// fallback project path, and a sandboxed preload has no `process.cwd()`.
+const appCwd: string = ipcRenderer.sendSync(PiChannel.GetAppCwd);
 
 interface PendingCommand {
   resolve: (value: unknown) => void;
@@ -533,7 +520,7 @@ const piApi = {
   },
 
   /** Get the app's working directory (for session creation). */
-  getCwd: (): string => process.cwd(),
+  getCwd: (): string => appCwd,
 
   /** Read pi settings (global + project) for a project cwd. */
   getPiSettings: (cwd: string): Promise<PiSettingsResult> =>
@@ -591,30 +578,14 @@ const piApi = {
   },
 
   /**
-   * pigi's own settings, read from disk synchronously.
+   * pigi's own settings, read synchronously from the main process.
    *
    * The renderer applies appearance before its first paint, so an async round
    * trip would paint one frame with the fallback palette. A missing file and an
    * unreadable one are reported differently: only the first may be replaced with
    * the value the app used to keep in localStorage.
    */
-  readPigiSettings: (): PigiSettingsReadResult => {
-    if (!pigiSettingsPath) {
-      return { state: PIGI_SETTINGS_READ_STATE.missing };
-    }
-    try {
-      return {
-        state: PIGI_SETTINGS_READ_STATE.ok,
-        settings: JSON.parse(readFileSync(pigiSettingsPath, 'utf8')),
-      };
-    } catch (error) {
-      if (isMissingFileError(error)) {
-        return { state: PIGI_SETTINGS_READ_STATE.missing };
-      }
-      console.error('Failed to read pigi settings:', error);
-      return { state: PIGI_SETTINGS_READ_STATE.corrupt };
-    }
-  },
+  readPigiSettings: (): PigiSettingsReadResult => ipcRenderer.sendSync(PiChannel.ReadPigiSettings),
 
   /**
    * Ask the main process to apply the changed slices to pigi's settings.
@@ -748,5 +719,4 @@ const piApi = {
   },
 };
 
-contextBridge.exposeInMainWorld('electron', electronAPI);
 contextBridge.exposeInMainWorld('piApi', piApi);

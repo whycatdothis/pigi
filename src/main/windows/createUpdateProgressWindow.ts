@@ -1,7 +1,8 @@
 /**
  * The update progress window: a small titled window over the main window,
  * showing download progress, Cancel, and (when the download lands) Install and
- * Restart. It loads the same renderer bundle and picks its UI from the hash.
+ * Restart. It has its own renderer entry (`renderer/updateProgress.html`), so it
+ * does not parse the chat app to show a progress bar.
  *
  * The window hugs its content: the renderer measures what the current status
  * needs and reports a height, and the window is sized to it. A fixed box would
@@ -11,9 +12,6 @@ import { BrowserWindow, ipcMain } from 'electron';
 import { join } from 'path';
 import { is } from '@electron-toolkit/utils';
 import { PiChannel } from '../../shared/ipcContract';
-import { PIGI_SETTINGS_PATH_ARGUMENT } from '../../shared/pigiSettings';
-import { pigiSettingsPath } from '../pigiSettingsFile';
-import { UPDATE_PROGRESS_HASH } from '../../shared/routes';
 import { getMainWindow } from './createMainWindow';
 import { guardWindowNavigation } from './windowNavigation';
 
@@ -134,15 +132,15 @@ export function openUpdateProgressWindow(): BrowserWindow {
     useContentSize: true,
     ...(liveParent !== null ? { parent: liveParent } : {}),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
-      sandbox: false,
-      // Without it the preload finds no settings file and the window renders
-      // the default theme instead of the user's.
-      additionalArguments: [`${PIGI_SETTINGS_PATH_ARGUMENT}${pigiSettingsPath()}`],
+      preload: join(__dirname, '../preload/index.cjs'),
+      sandbox: true,
     },
   });
 
-  guardWindowNavigation(progressWindow.webContents, join(__dirname, '../renderer/index.html'));
+  guardWindowNavigation(
+    progressWindow.webContents,
+    join(__dirname, '../renderer/updateProgress.html'),
+  );
 
   positionOverParent(progressWindow, liveParent);
 
@@ -153,8 +151,8 @@ export function openUpdateProgressWindow(): BrowserWindow {
     }
   });
 
-  // The renderer is the app's own bundle, so its <title> would rename the
-  // window to "pigi". This window is about the update, not the app.
+  // The title belongs to this file: a page title change must not rename a
+  // system dialog the user is watching.
   progressWindow.on('page-title-updated', (event) => {
     event.preventDefault();
   });
@@ -179,11 +177,9 @@ export function openUpdateProgressWindow(): BrowserWindow {
   progressWindow.on('focus', resetZoom);
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    progressWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}${UPDATE_PROGRESS_HASH}`);
+    progressWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/updateProgress.html`);
   } else {
-    progressWindow.loadFile(join(__dirname, '../renderer/index.html'), {
-      hash: UPDATE_PROGRESS_HASH,
-    });
+    progressWindow.loadFile(join(__dirname, '../renderer/updateProgress.html'));
   }
 
   updateProgressWindow = progressWindow;
@@ -226,8 +222,8 @@ export function cancelScheduledUpdateProgressWindowClose(): void {
 export function registerUpdateProgressWindowIpc(): void {
   ipcMain.on(PiChannel.UpdateProgressContentHeight, (event, height: number) => {
     if (typeof height !== 'number' || !Number.isFinite(height)) return;
-    // Only the progress window sizes itself; the main window's renderer shares
-    // this bundle but has no business moving this window.
+    // Only the progress window sizes itself: the main window shares the
+    // preload, and has no business moving this window.
     const progressWindow = updateProgressWindow;
     if (progressWindow === null || event.sender !== progressWindow.webContents) return;
     setUpdateProgressContentHeight(height);

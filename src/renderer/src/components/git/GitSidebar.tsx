@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { IconChevronRight, IconLoader2 } from '@tabler/icons-react';
-import { FolderClosed, FolderOpen, Minus, Plus } from 'lucide-react';
+import { IconFolder, IconFolderOpen, IconMinus, IconPlus } from '@tabler/icons-react';
 import type {
   GitDiffCommit,
   GitDiffFile,
@@ -133,9 +133,9 @@ function DirectoryTree({
           )}
         />
         {isExpanded ? (
-          <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
+          <IconFolderOpen className="size-4 shrink-0 text-muted-foreground" />
         ) : (
-          <FolderClosed className="size-4 shrink-0 text-muted-foreground" />
+          <IconFolder className="size-4 shrink-0 text-muted-foreground" />
         )}
         <span className="truncate">{directory.name}</span>
       </button>
@@ -354,14 +354,14 @@ function StatusView({
       label: 'Staged',
       files: summary.staged,
       action: 'Unstage all',
-      icon: <Minus className="size-3.5" />,
+      icon: <IconMinus className="size-3.5" />,
     },
     {
       section: 'unstaged',
       label: 'Unstaged',
       files: summary.unstaged,
       action: 'Stage all',
-      icon: <Plus className="size-3.5" />,
+      icon: <IconPlus className="size-3.5" />,
     },
   ];
 

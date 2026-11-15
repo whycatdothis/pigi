@@ -37,7 +37,18 @@ export default defineConfig({
       },
     },
   },
-  preload: {},
+  preload: {
+    build: {
+      rollupOptions: {
+        // CommonJS, because a sandboxed preload cannot be an ES module
+        // (`sandbox: true` in windows/createMainWindow.ts). The package is
+        // `type: module`, so electron-vite emits `index.cjs`.
+        output: {
+          format: 'cjs',
+        },
+      },
+    },
+  },
   renderer: {
     resolve: {
       alias: {
@@ -47,6 +58,17 @@ export default defineConfig({
     },
     plugins: [tailwindcss(), react()],
     build: {
+      rollupOptions: {
+        // Two entries: the update progress window is a 400px dialog that would
+        // otherwise parse the chat app's whole bundle before it can paint.
+        input: {
+          index: resolve('src/renderer/index.html'),
+          updateProgress: resolve('src/renderer/updateProgress.html'),
+        },
+      },
+      // electron-vite leaves the renderer unminified by default, and the
+      // bundle is what the window parses before its first frame.
+      minify: 'esbuild',
       // 'hidden' writes the maps without the sourceMappingURL comment: the
       // release workflow uploads them as release assets to decode minified
       // telemetry stacks; they are excluded from the app bundle.
