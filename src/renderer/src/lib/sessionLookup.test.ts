@@ -11,7 +11,6 @@ function session(id: string): PiSessionInfo {
     modified: '',
     messageCount: 0,
     firstMessage: '',
-    allMessagesText: '',
   };
 }
 

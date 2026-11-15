@@ -34,7 +34,6 @@ import {
   compact,
   reload,
   getProjects,
-  getGitBranch,
   getState,
   getSessionOptions,
   getAuthProviders,
@@ -57,10 +56,6 @@ import {
   getModelCatalog,
   refreshModelCatalog,
   onModelCatalogUpdated,
-  getUpdateStatus,
-  checkForUpdates,
-  onUpdateStatus,
-  quitAndInstallUpdate,
   abortBranchSummary,
 } from './services/piAgentClient';
 import type {
@@ -74,7 +69,6 @@ import type {
   ThinkingLevel,
 } from '../../shared/ipcContract';
 import { clampThinkingLevelTo } from '../../shared/thinkingLevels';
-import { MANUAL_DOWNLOAD_URL } from '../../shared/updateWindow';
 import { installRemoteCommands } from './services/remoteCommands';
 import { sanitizeUserPromptForDisplay } from '../../shared/chatAttachments';
 import {
@@ -85,7 +79,7 @@ import {
   toPromptAttachments,
   type ChatAttachment,
 } from './lib/chatAttachments';
-import Sidebar from './components/session/Sidebar';
+import Sidebar from './components/sidebar';
 import SettingsSidebar from './components/settings/SettingsSidebar';
 import SettingsPage from './components/settings/SettingsPage';
 import SessionToolbar from './components/session/SessionToolbar';
@@ -141,6 +135,8 @@ import {
 } from './lib/layoutConstants';
 import { usePanelResize } from './hooks/usePanelResize';
 import { useGitWorkspace } from './hooks/useGitWorkspace';
+import { useGitBranch } from './hooks/useGitBranch';
+import { useUpdateInstall } from './hooks/useUpdateInstall';
 
 /** User prompt texts from a transcript, most recent last (for chat input recall). */
 function extractUserHistory(nodes: TranscriptNode[]): string[] {
@@ -152,9 +148,6 @@ function extractUserHistory(nodes: TranscriptNode[]): string[] {
 
 /** Read once: App re-renders on every streaming update. */
 const LAST_SESSION_PATH_AT_LAUNCH = loadLastSessionPath();
-
-/** A running session can check out another branch; follow it while one does. */
-const GIT_BRANCH_POLL_INTERVAL_MS = 10_000;
 
 function App(): React.JSX.Element {
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
@@ -175,6 +168,7 @@ function App(): React.JSX.Element {
     recentProjects,
     projectSessions,
     setProjectSessionList,
+    mergeProjectSessionList,
     navigationBackStack,
     navigationForwardStack,
     pushNavigationHistory,
@@ -207,6 +201,7 @@ function App(): React.JSX.Element {
       recentProjects: state.recentProjects,
       projectSessions: state.projectSessions,
       setProjectSessionList: state.setProjectSessionList,
+      mergeProjectSessionList: state.mergeProjectSessionList,
       navigationBackStack: state.navigationBackStack,
       navigationForwardStack: state.navigationForwardStack,
       pushNavigationHistory: state.pushNavigationHistory,
@@ -230,17 +225,11 @@ function App(): React.JSX.Element {
     })),
   );
 
-  // Only the installable version, not the whole status: download progress
-  // pushes on every tick, and re-rendering App for each one is waste.
-  const pendingUpdateVersion = useAppStore((state) =>
-    state.updateStatus.phase === 'downloaded' || state.updateStatus.phase === 'installing'
-      ? state.updateStatus.version
-      : null,
-  );
-  /** Set when the user asked to install, so a failure can be reported. */
-  const installRequestedRef = useRef(false);
-  /** Set between "installing" and the status that ends it. */
-  const installingRef = useRef(false);
+  const {
+    pendingUpdateVersion,
+    checkForUpdates: handleCheckForUpdates,
+    installUpdate: handleInstallUpdate,
+  } = useUpdateInstall();
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [switcherAutoPreselect, setSwitcherAutoPreselect] = useState(false);
@@ -300,7 +289,6 @@ function App(): React.JSX.Element {
     ? findSessionByPath(pendingSelectedPath)
     : undefined;
   const terminalProjectCwd = pendingTerminalSession?.cwd ?? activeCwd;
-  const [gitBranch, setGitBranch] = useState<string | null>(null);
   // The picker has two model sources: the session-scoped list (authoritative
   // for sessions created with an explicit model list) and the global catalog
   // pushed from main (for drafts and unscoped sessions). Scoped wins when
@@ -513,79 +501,6 @@ function App(): React.JSX.Element {
   // The `pigi` CLI's requests run here, where the session state lives.
   useEffect(() => installRemoteCommands(), []);
 
-  // Auto-update: read the current status on mount (a window can open while a
-  // download is already running), then follow the pushes from main.
-  useEffect(() => {
-    const { setUpdateStatus } = useAppStore.getState();
-    // Subscribe first, and let a push win over the read: a download that starts
-    // while `getStatus` is in flight would otherwise leave the dot dark until
-    // the next push, up to an hour away.
-    let sawPush = false;
-    const unsubscribe = onUpdateStatus((status) => {
-      sawPush = true;
-      setUpdateStatus(status);
-      if (status.phase === 'installing') {
-        installingRef.current = true;
-        return;
-      }
-      if (status.phase === 'downloaded' && installingRef.current) {
-        // Main fell back from "installing" because Squirrel never finished. The
-        // click led nowhere, so it must not claim the next failure either.
-        installingRef.current = false;
-        installRequestedRef.current = false;
-        return;
-      }
-      // An install the user asked for has no caller left to report to: the
-      // window is quit out from under it on success, and on failure the dot
-      // simply disappears. Say why, once, for that case only — a background
-      // check that fails (offline, GitHub down) stays silent.
-      if (status.phase === 'error' && installRequestedRef.current) {
-        installRequestedRef.current = false;
-        installingRef.current = false;
-        // A Restart fails when Squirrel rejects the new bundle (signature,
-        // disk); downloading again would fail the same way.
-        toast.error('Update failed', {
-          description: status.message,
-          action: {
-            label: 'Download pigi',
-            onClick: () => window.piApi.openExternal(MANUAL_DOWNLOAD_URL),
-          },
-        });
-      } else if (installRequestedRef.current && status.phase !== 'downloaded') {
-        // An install that went nowhere must not make the next unrelated failure
-        // look like the install's.
-        installRequestedRef.current = false;
-        installingRef.current = false;
-      }
-    });
-    void getUpdateStatus()
-      .then((status) => {
-        if (!sawPush) setUpdateStatus(status);
-      })
-      .catch((error) => console.error('Failed to read update status:', error));
-    return unsubscribe;
-  }, []);
-
-  // A manual check reports its own outcome. The main process opens the progress
-  // window for it, and "up to date" is announced there, so only the outcomes
-  // that have no window toast here.
-  const handleCheckForUpdates = useCallback(() => {
-    void checkForUpdates()
-      .then((status) => {
-        if (status.phase === 'unsupported') {
-          toast('Only the packaged app can check for updates');
-        } else if (status.phase === 'error') {
-          toast.error('Could not check for updates', { description: status.message });
-        }
-      })
-      .catch((error) => console.error('Failed to check for updates:', error));
-  }, []);
-
-  const handleInstallUpdate = useCallback(() => {
-    installRequestedRef.current = true;
-    quitAndInstallUpdate();
-  }, []);
-
   const thinkingLevelOptions = activeSessionPath ? sessionThinkingLevels : draftThinkingLevels;
 
   const handleSidebarResizeStart = usePanelResize({
@@ -636,9 +551,17 @@ function App(): React.JSX.Element {
   useEffect(() => {
     return onProjectSessionsChunk((chunk) => {
       if (chunk.success) {
-        setProjectSessionList(chunk.cwd, chunk.sessions ?? []);
-        // Seed lastModel/thinkingLevel from the first available session on first load.
-        if (!lastModelRef.current && chunk.sessions && chunk.sessions.length > 0) {
+        if (chunk.partial) mergeProjectSessionList(chunk.cwd, chunk.sessions ?? []);
+        else setProjectSessionList(chunk.cwd, chunk.sessions ?? []);
+        // Seed lastModel/thinkingLevel from the first available session on first
+        // load. Only from the full list: a partial one would start the same read
+        // again on every chunk until it lands.
+        if (
+          !chunk.partial &&
+          !lastModelRef.current &&
+          chunk.sessions &&
+          chunk.sessions.length > 0
+        ) {
           void readSessionMessages(chunk.sessions[0].path)
             .then((result) => {
               if (result.model && !lastModelRef.current) {
@@ -660,7 +583,7 @@ function App(): React.JSX.Element {
         }
       }
     });
-  }, [setProjectSessionList]);
+  }, [mergeProjectSessionList, setProjectSessionList]);
 
   useEffect(() => {
     void getProjects().then((result) => {
@@ -705,39 +628,17 @@ function App(): React.JSX.Element {
     return () => cancelAnimationFrame(frame);
   }, [activeSessionPath, refreshSessionOptions]);
 
-  const refreshGitBranch = useCallback(async () => {
-    const result = await getGitBranch(activeCwd);
-    setGitBranch(result.success ? result.branch : null);
-  }, [activeCwd]);
-
   const isIdle = transcript.status === 'idle';
-  // Refetch whenever the cwd, the active session, or the idle state changes:
-  // new/switched sessions may point at a different checkout, and a finished
-  // run may have changed the branch.
-  useEffect(() => {
-    let cancelled = false;
-    getGitBranch(activeCwd).then((result) => {
-      if (!cancelled) {
-        setGitBranch(result.success ? result.branch : null);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeCwd, activeSessionPath, isIdle]);
-
-  // A run can move the checkout under the label: the agent's own `git switch`,
-  // or a person in a terminal beside it. The idle transition above catches the
-  // result; this follows it while the run is still going.
   const anySessionBusy = useMemo(
     () => [...sessions.values()].some((entry) => isAgentBusy(entry.status)),
     [sessions],
   );
-  useEffect(() => {
-    if (!anySessionBusy) return;
-    const timer = window.setInterval(() => void refreshGitBranch(), GIT_BRANCH_POLL_INTERVAL_MS);
-    return () => window.clearInterval(timer);
-  }, [anySessionBusy, refreshGitBranch]);
+  const { gitBranch, refreshGitBranch } = useGitBranch({
+    cwd: activeCwd,
+    sessionPath: activeSessionPath,
+    isIdle,
+    anySessionBusy,
+  });
 
   useEffect(() => {
     return window.piApi.onProcessExit(({ sessionPath }) => {
@@ -929,7 +830,6 @@ function App(): React.JSX.Element {
 
     if (transcript.isCompacting) {
       transcriptControllerRef.current?.addCompactionMessage(message, 'steer', promptAttachments);
-      void listProjectSessions([cwd]);
       return;
     }
 
@@ -945,7 +845,8 @@ function App(): React.JSX.Element {
       }
       await prompt(sessionPath, message, promptAttachments);
     }
-    void listProjectSessions([cwd]);
+    // The project's session list is not re-read here: the turn bumps its own
+    // row (useTranscript) and the list only re-parses when a file changes.
   }
 
   // The right sidebar is memoized, so it gets a stable wrapper that always sends

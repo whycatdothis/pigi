@@ -4,7 +4,15 @@
 
 ### Changed
 
+- The session list no longer re-reads every session file in a project after each message: the worker caches the parsed list until a file changes, so switching projects and sending messages stay responsive on a project with years of history (a list of 338 sessions took 1.4s and now takes 11ms when nothing changed). A project's list also arrives progressively when it does have to be read
+- The window's title is `pigi` rather than `Electron`
+- The window that shows an update downloading is its own small page instead of the whole chat app, so it opens without loading a 6MB bundle first
 - The composer's placeholder names what the input takes — `@` for a file, `/` for a skill or command, a path that auto completes, and pasting an image or a file — in a new chat and after a turn alike, so the shortcuts no longer have to be known in advance
+
+### Fixed
+
+- A remote-control result that spans several lines answers with an error instead of leaving the caller waiting for a reply that never comes
+- Package icons stop growing the app's memory without bound: the cache holds a fixed budget instead of up to 100 full-size images, and a failed download no longer leaves a rejection behind
 
 ## [0.6.11] - 2026-11-14
 

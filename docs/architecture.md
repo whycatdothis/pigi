@@ -434,6 +434,56 @@ would render at three different sizes inside one message.
 
 Each session gets its own utility process. Process lifecycle = session lifecycle.
 
+Two long-lived utility processes are shared instead: `sessionWorker` (session
+list metadata, pi settings, model catalog) and `packageWorker` (npm/catalog
+work). Terminals get one utility process each, up to
+`MAX_TERMINAL_PROCESSES` (32), so a full terminal panel costs a full V8 isolate
+per tab — the price of keeping PTY I/O off the main process.
+
+### Session lists are cached, not re-parsed
+
+`SessionManager.list` reads and parses every entry of every session file in a
+project: on a directory with years of history it takes seconds (measured 1.5s
+for 337 sessions / 825MB). `sessionWorker` therefore caches the parsed list per
+cwd and reuses it while a signature over each file's name, mtime and size is
+unchanged; that check is a `readdir` plus one `stat` per file (a few
+milliseconds). Concurrent requests for one cwd share a single parse, and a
+partial list is pushed to the renderer while a cold one is still running.
+
+Because a list is expensive, the renderer does **not** re-list a project after
+every message, and not for a title either: a turn and an auto-title patch their
+own row in the store (`patchProjectSession`), which keeps the sidebar's relative
+time, its activity order and its title right. The list itself is re-read when
+something structural changed (startup, project select, the first answer of a new
+session, fork, an explicit rename), and a cached entry only expires when a
+session file changed. The parsed `SessionInfo` is sent without
+`allMessagesText`: the SDK builds that string for every session, but nothing in
+the app reads it.
+
+## Renderer Security Model
+
+The renderer is treated as trusted code that never runs untrusted content: model
+output reaches the DOM through escaped markdown, Mermaid runs in strict mode,
+and a window never navigates away from its own page
+(`windows/windowNavigation.ts`). Layers on top of that:
+
+- Both windows are sandboxed (`sandbox: true`) with `contextIsolation` and no
+  Node integration, so a renderer exploit lands inside Chromium's OS sandbox
+  rather than with the user's full rights. A sandboxed preload cannot be an ES
+  module, so the preload is built as CommonJS (`electron.vite.config.ts`) and the
+  windows load `preload/index.cjs`.
+- The preload exposes `piApi` only. It has no filesystem access: the app's cwd
+  is answered once at preload load and pigi's settings from the settings
+  store's module init, both by `ipcMain.on` handlers that set
+  `event.returnValue`, and both before the first paint.
+- `local-file://` reads any path the renderer names, but the scheme is
+  registered with no privileges: no `bypassCSP`, no `supportFetchAPI`, and the
+  page's CSP allows it in `img-src` only. A script in the renderer could not
+  read a local file through it.
+- The chat bundle is minified in production and has two entries
+  (`index.html`, `updateProgress.html`): the 400px update dialog does not parse
+  the chat app, its terminal and its diagram renderer to show a progress bar.
+
 ## Session Creation Flow
 
 ```
@@ -869,17 +919,19 @@ Two data paths:
   in the app's user data directory, and the main process owns that file
   (`main/pigiSettingsOwner.ts`). It reads the file before it creates the window,
   so the native theme and the window background are right from the first frame;
-  the renderer's copy comes from a synchronous preload read
-  (`readPigiSettings`), not an async round trip that would land after the first
-  paint, and a renderer store applies it to the document at startup (no theme
-  flash). After that the renderer is a client: a commit applies locally for
+  the renderer's copy comes from a synchronous IPC read (`readPigiSettings`,
+  one `ipcMain.on` that sets `event.returnValue`), not an async round trip that
+  would land after the first paint, and a renderer store applies it to the
+  document at startup (no theme flash). The preload is sandboxed and has no
+  filesystem access of its own. After that the renderer is a client: a commit applies locally for
   instant feedback and sends only the slice it changed
   (`changePigiSettings`); main merges it onto its authoritative copy and writes
   immediately (atomic: temp file + rename). One writer is the whole ordering
   argument — writes reach the file in the order main received them, and no
-  revision has to referee them. The update progress window loads the same
-  bundle and reads the file at startup for its own first paint; it does not
-  edit settings, so it does not need the change pushed to it.
+  revision has to referee them. The update progress window is its own renderer
+  entry (`updateProgress.html`) and reads the file at startup for its own first
+  paint; it does not edit settings, so it does not need the change pushed to
+  it.
   Keyboard shortcut definitions live in a second renderer store so edits on the
   settings page update the live bindings immediately.
   Appearance (colors, fonts, sizes, per-mode slots) is derived from one settings

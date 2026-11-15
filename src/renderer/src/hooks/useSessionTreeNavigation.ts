@@ -363,7 +363,6 @@ export function useSessionTreeNavigation(
             modified: new Date().toISOString(),
             messageCount: 0,
             firstMessage: parent?.title ?? 'New chat',
-            allMessagesText: parent?.title ?? 'New chat',
           },
           { prefillInput: result.editorInput, freshSession: !result.sessionPath },
         );

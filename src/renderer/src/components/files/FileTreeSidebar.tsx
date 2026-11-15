@@ -116,11 +116,6 @@ export default memo(function FileTreeSidebar({
   // A file opened from chat may live outside the project: nothing to reveal or watch.
   const treeFilePath =
     selectedFilePath && !isAbsoluteFilePath(selectedFilePath) ? selectedFilePath : null;
-  // The path the tree has to open to: a file's, expanding its ancestors, or the
-  // folder a link named, expanding it too.
-  const revealTarget = revealedDirectory?.path ?? treeFilePath;
-  const revealTargetIsDirectory = revealedDirectory !== null;
-
   const loadDirectory = useCallback(
     (path: string, force = false): Promise<void> => {
       if (!force && loadedDirectoriesRef.current.has(path)) {
@@ -263,8 +258,10 @@ export default memo(function FileTreeSidebar({
   // that have never been loaded; open the tree to it instead of leaving it
   // invisible. A folder link also opens the folder itself.
   useEffect(() => {
-    const target = revealTarget;
+    // A file's path expands its ancestors; a folder link also opens the folder.
+    const target = revealedDirectory?.path ?? treeFilePath;
     if (!target) return;
+    const targetIsDirectory = revealedDirectory !== null;
     let cancelled = false;
 
     async function reveal(path: string): Promise<void> {
@@ -274,7 +271,7 @@ export default memo(function FileTreeSidebar({
         ancestors.push(parts.slice(0, index).join('/'));
       }
       // A folder link opens the folder itself too, so its contents show.
-      const opened = revealTargetIsDirectory ? [...ancestors, path] : ancestors;
+      const opened = targetIsDirectory ? [...ancestors, path] : ancestors;
       for (const directory of opened) {
         await loadDirectory(directory);
         if (cancelled) return;
@@ -300,7 +297,7 @@ export default memo(function FileTreeSidebar({
       cancelled = true;
     };
     // The object itself, so following the same folder link again reopens it.
-  }, [revealTarget, revealedDirectory, loadDirectory]);
+  }, [revealedDirectory, treeFilePath, loadDirectory]);
 
   const toggleDirectory = useCallback(
     (path: string) => {

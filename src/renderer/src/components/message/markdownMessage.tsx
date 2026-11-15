@@ -265,6 +265,7 @@ function getCodeLanguageLabel(language: string): string {
   );
 }
 
+const REMARK_PLUGINS = [remarkGfm];
 const REHYPE_PLUGINS = [rehypeSanitize];
 // After sanitizing, so the path marks cannot be forged by the markdown itself.
 const CHAT_REHYPE_PLUGINS = [rehypeSanitize, rehypeFilePaths];
@@ -287,7 +288,7 @@ export default memo(function MarkdownMessage({
         <MarkdownSourceContext.Provider value={text}>
           <MarkdownProjectFileContext.Provider value={projectFile ?? null}>
             <Markdown
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={REMARK_PLUGINS}
               rehypePlugins={linksFilePaths ? CHAT_REHYPE_PLUGINS : REHYPE_PLUGINS}
               components={markdownComponents}
             >

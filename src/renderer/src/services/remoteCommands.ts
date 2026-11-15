@@ -152,7 +152,7 @@ async function listSessions(cwd: string, signal: AbortSignal): Promise<PiSession
     const request = await window.piApi.listProjectSessions([cwd]);
     if (!request.success) fail('INTERNAL_ERROR', request.error ?? 'cannot list sessions');
     const matches = (chunk: ProjectSessionsChunk): boolean =>
-      chunk.requestId === request.requestId && chunk.cwd === cwd;
+      chunk.requestId === request.requestId && chunk.cwd === cwd && !chunk.partial;
     // The worker answers with a chunk, not a reply main tracks: if it exits
     // mid-list, nothing else would end this wait.
     const chunk =

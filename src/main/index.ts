@@ -29,7 +29,12 @@ import { stopProjectFileWatch } from './projects/projectFileWatch';
 import { PiChannel } from '../shared/ipcContract';
 import { configureDebugPanel, installMainDebugHandle } from './debugConfig';
 import { initializeShellEnv } from './processes/shellEnvResolver';
-import { pigiSettingsPath, readPigiSettingsFile, windowBackgroundFor } from './pigiSettingsFile';
+import {
+  readPigiSettingsForRenderer,
+  pigiSettingsPath,
+  readPigiSettingsFile,
+  windowBackgroundFor,
+} from './pigiSettingsFile';
 import { createPigiSettingsOwner } from './pigiSettingsOwner';
 import { startRemoteControlServer } from './remoteControl/remoteControlServer';
 import { registerCliInstallHandlers, setCliInstallStateObserver } from './ipc/cliInstall';
@@ -43,12 +48,14 @@ configureDebugPanel();
 installMainDebugHandle({ piAgent: getPiAgentDebugSnapshot });
 
 protocol.registerSchemesAsPrivileged([
-  // `local-file` reads any path the renderer names and bypasses the page's CSP.
-  // That is only sound because the renderer never runs untrusted content: model
-  // output reaches the DOM through escaped markdown, and this window never
-  // navigates (see windows/windowNavigation.ts). A remote page loaded in it
-  // would turn this scheme into an arbitrary-file read.
-  { scheme: 'local-file', privileges: { bypassCSP: true, supportFetchAPI: true } },
+  // `local-file` reads any path the renderer names. That is only sound because
+  // the renderer never runs untrusted content: model output reaches the DOM
+  // through escaped markdown, and this window never navigates (see
+  // windows/windowNavigation.ts). The scheme carries no `bypassCSP` and no
+  // `supportFetchAPI`: it feeds `<img>` and file links, which `img-src` allows
+  // in the page's CSP, so a script in the page cannot fetch a local file even
+  // if one ever ran there.
+  { scheme: 'local-file' },
   { scheme: PACKAGE_IMAGE_SCHEME, privileges: { secure: true } },
 ]);
 
@@ -73,6 +80,19 @@ app.whenReady().then(() => {
     const parsed = parsePigiSettingsChange(change);
     const settings = settingsOwner.applyChange(parsed);
     if (parsed.telemetry) setTelemetryEnabled(settings.telemetry.enabled);
+  });
+
+  // Synchronous on purpose: the renderer applies appearance before its first
+  // paint. Same file and same read as `readPigiSettingsFile` above; this is the
+  // renderer's copy, so a corrupt file is reported instead of replaced.
+  ipcMain.on(PiChannel.ReadPigiSettings, (event) => {
+    event.returnValue = readPigiSettingsForRenderer(settingsPath);
+  });
+
+  // The renderer's fallback project path. Answered from main because a
+  // sandboxed preload has no `process.cwd()`.
+  ipcMain.on(PiChannel.GetAppCwd, (event) => {
+    event.returnValue = process.cwd();
   });
 
   // The path is one encodeURIComponent'd segment, so a literal `?` can only start
@@ -128,17 +148,11 @@ app.whenReady().then(() => {
     }
   });
 
-  openMainWindow(
-    settingsPath,
-    windowBackgroundFor(initialSettings, nativeTheme.shouldUseDarkColors),
-  );
+  openMainWindow(windowBackgroundFor(initialSettings, nativeTheme.shouldUseDarkColors));
   scheduleBackgroundUpdateChecks();
 
   const reopenMainWindow = (): void =>
-    openMainWindow(
-      settingsPath,
-      windowBackgroundFor(settingsOwner.current(), nativeTheme.shouldUseDarkColors),
-    );
+    openMainWindow(windowBackgroundFor(settingsOwner.current(), nativeTheme.shouldUseDarkColors));
   startRemoteControlServer({ getWindow: getMainWindow, openWindow: reopenMainWindow });
 
   app.on('activate', () => {
@@ -167,8 +181,8 @@ app.on('before-quit', () => {
  * app keeps running with no window — so kill them. This also prevents a fresh
  * renderer from colliding with stale terminal ids after a reopen.
  */
-function openMainWindow(settingsPath: string, backgroundColor: string): void {
-  const win = createMainWindow({ settingsPath, backgroundColor });
+function openMainWindow(backgroundColor: string): void {
+  const win = createMainWindow({ backgroundColor });
   win.on('closed', () => {
     stopTerminalProcess();
     stopProjectFileWatch();

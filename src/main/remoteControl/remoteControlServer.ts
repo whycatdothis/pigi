@@ -269,6 +269,16 @@ function registerRendererIpc(): void {
     if (event.sender !== readyContents) return;
     const pending = relayed.get(output?.requestId);
     if (!pending || typeof output.line !== 'string') return;
+    // One line per message: a newline inside it would let a result inject a
+    // message of its own into the CLI's stream. The request is failed rather
+    // than dropped, so the caller is not left waiting for an answer.
+    if (output.line.includes('\n')) {
+      failRelayed(
+        output.requestId,
+        remoteError('INTERNAL_ERROR', 'the result spans several lines'),
+      );
+      return;
+    }
     if (output.final) relayed.delete(output.requestId);
     // Written as the renderer serialized it: main never parses a result.
     write(pending.socket, `${output.line}\n`);
