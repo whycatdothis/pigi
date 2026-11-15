@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { IconChevronRight, IconCopy, IconLoader2, IconSettings } from '@tabler/icons-react';
-import { IconFolder, IconFolderOpen, IconInfoCircle } from '@tabler/icons-react';
+import { FolderClosed, FolderOpen, Info } from 'lucide-react';
 import type {
   ProjectDirectory,
   ProjectDirectoryEntry,
@@ -354,9 +354,9 @@ export default memo(function FileTreeSidebar({
                   )}
                 />
                 {isExpanded ? (
-                  <IconFolderOpen className="size-4 shrink-0 text-muted-foreground" />
+                  <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
                 ) : (
-                  <IconFolder className="size-4 shrink-0 text-muted-foreground" />
+                  <FolderClosed className="size-4 shrink-0 text-muted-foreground" />
                 )}
                 <span className="truncate">{label}</span>
                 {loadingDirectories.has(leafPath) && (
@@ -434,7 +434,7 @@ export default memo(function FileTreeSidebar({
                     aria-label="Find file shortcut"
                     className="ml-auto inline-flex shrink-0 items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden [-webkit-app-region:no-drag]"
                   >
-                    <IconInfoCircle className="size-3.5" aria-hidden="true" />
+                    <Info className="size-3.5" aria-hidden="true" />
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="right">
