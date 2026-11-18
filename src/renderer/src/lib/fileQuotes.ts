@@ -1,6 +1,7 @@
 import { formatFileReference } from './chatReferences';
 import { formatLineSuffix } from './filePathCandidates';
 import { DIFF_LINE_PREFIX, type GitDiffSourceLine } from './gitDiffPatch';
+import type { GitDiffSource } from '../../../shared/ipcContract';
 import type { QuoteContent } from './messageQuotes';
 import { projectAbsolutePath } from './projectFileLinks';
 
@@ -70,4 +71,15 @@ export function formatFileDiffQuote(
  */
 export function withQuoteBranch(quote: QuoteContent, branch: string | null): QuoteContent {
   return branch ? { ...quote, branch } : quote;
+}
+
+/**
+ * The branch a diff quote may name: the checkout's own, so never a commit's,
+ * which exists on whatever branch holds it (usually the base, not this one).
+ */
+export function diffQuoteBranch(
+  sourceKind: GitDiffSource['kind'],
+  branch: string | null,
+): string | null {
+  return sourceKind === 'commit' ? null : branch;
 }

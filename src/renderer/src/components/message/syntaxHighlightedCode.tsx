@@ -87,7 +87,9 @@ function SourceLineNumber({
   marked: boolean;
   gutter: GutterOptions;
 }): React.JSX.Element {
-  const className = `sticky left-0 z-10 flex w-14 shrink-0 items-center justify-end self-stretch pr-3 text-right tabular-nums ${marked ? MARKED_GUTTER_CLASS : `${gutter.className} text-muted-foreground`}`;
+  // `select-none` is what keeps the number out of a quote: a selection now
+  // carries its text, so a selectable gutter would send `12const a = 1;`.
+  const className = `sticky left-0 z-10 flex w-14 shrink-0 select-none items-center justify-end self-stretch pr-3 text-right tabular-nums ${marked ? MARKED_GUTTER_CLASS : `${gutter.className} text-muted-foreground`}`;
   if (!gutter.onOpenLine) {
     return (
       <span aria-hidden="true" data-search-ignore data-sticky-inset className={className}>
@@ -100,10 +102,14 @@ function SourceLineNumber({
       type="button"
       data-sticky-inset
       data-search-ignore
+      // The title above the block opens it for the keyboard; these are the
+      // pointer's shortcut, and a long block would otherwise put one tab stop
+      // per line between the message and whatever follows it.
+      tabIndex={-1}
       aria-label={`Open line ${lineNumber}`}
       title={`Open line ${lineNumber}`}
       onClick={() => gutter.onOpenLine?.(lineNumber)}
-      className={`${className} cursor-pointer select-none`}
+      className={`${className} cursor-pointer`}
     >
       {lineNumber}
     </button>
@@ -310,19 +316,30 @@ export default function SyntaxHighlightedCode({
     );
   }
 
-  // A line-numbered block draws the tail as a row of its own, so the gutter
-  // stays unbroken while the block arrives; its number is the file's last line.
-  const tailLineNumber = gutter.firstLineNumber + code.split('\n').length - 1;
-  const tailMarked = isMarked(tailLineNumber, gutter.markedLines);
+  // A line-numbered block draws the tail as rows of its own, so the gutter
+  // stays unbroken while the block arrives. The tail starts at the last
+  // highlighted line (or the line after it, when that line ended the source),
+  // so its numbers continue the highlight rather than jump to the block's end.
+  const tailFirstLineNumber = gutter.firstLineNumber + highlightedSource.split('\n').length - 1;
   return (
     <code className={codeClassName(lineNumbers)}>
       {highlightedLineNodes}
       {plainTail !== '' &&
         (lineNumbers ? (
-          <span data-source-line={tailLineNumber} className={codeLineClassName(true, tailMarked)}>
-            <SourceLineNumber lineNumber={tailLineNumber} marked={tailMarked} gutter={gutter} />
-            <span className="min-w-0 whitespace-pre">{plainTail}</span>
-          </span>
+          plainTail.split('\n').map((line, index) => {
+            const lineNumber = tailFirstLineNumber + index;
+            const marked = isMarked(lineNumber, gutter.markedLines);
+            return (
+              <span
+                key={`tail-${index}`}
+                data-source-line={lineNumber}
+                className={codeLineClassName(true, marked)}
+              >
+                <SourceLineNumber lineNumber={lineNumber} marked={marked} gutter={gutter} />
+                <span className="min-w-0 whitespace-pre">{line}</span>
+              </span>
+            );
+          })
         ) : (
           <span className="block whitespace-pre-wrap">{plainTail}</span>
         ))}

@@ -90,8 +90,19 @@ export function filePathFromCode(code: string): FileLocation | null {
 const CODE_BLOCK_TITLE_PATTERN = /^(?:startLine:)?(\d+):(\d+):(.+)$/;
 
 /**
+ * Whether a fence title's path can name a file. A title is a claim about a
+ * file, not prose, so it may carry what prose may not: spaces in the name
+ * (`docs/my notes.md`), or a bare name with no extension (`12:20:Makefile`).
+ */
+function isTitlePath(value: string): boolean {
+  if (value.length === 0 || value.endsWith('/') || value.includes('://')) return false;
+  const name = value.slice(value.lastIndexOf('/') + 1);
+  return name !== '' && name !== '.' && name !== '..' && name !== '~';
+}
+
+/**
  * The file and the lines a fence's info string names. Anything else — `ts`,
- * `bash`, a half-written title still arriving — is an ordinary language fence.
+ * `bash`, a title still half-arrived — is an ordinary language fence.
  */
 export function parseCodeBlockTitle(info: string): CodeBlockTitle | null {
   const match = CODE_BLOCK_TITLE_PATTERN.exec(info.trim());
@@ -99,7 +110,7 @@ export function parseCodeBlockTitle(info: string): CodeBlockTitle | null {
   const first = Number(match[1]);
   const second = Number(match[2]);
   const path = match[3].trim();
-  if (!path || !isPathShaped(path) || first < 1 || second < 1) return null;
+  if (!isTitlePath(path) || first < 1 || second < 1) return null;
   return { path, lines: { start: Math.min(first, second), end: Math.max(first, second) } };
 }
 

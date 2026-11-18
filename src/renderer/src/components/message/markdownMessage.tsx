@@ -214,7 +214,10 @@ function MarkdownCode({
   // Cursor titles the snippet it quotes with the lines and file it came from
   // (`200:222:src/a.ts`), which is a reference rather than a language: the code
   // is highlighted by the file's own type and its gutter names the file's lines.
-  const title = language ? parseCodeBlockTitle(language) : null;
+  // The title is the fence's info string, which the parser splits into the first
+  // token (the `language-` class) and the rest (`meta`): a path with a space
+  // arrives in both halves, so reading only the class would cut it short.
+  const title = parseCodeBlockTitle(getCodeInfoString(className, node?.data?.meta));
   if (title) {
     return <CodeSnippetBlock title={title} code={code} isStreaming={isStreaming} />;
   }
@@ -277,7 +280,13 @@ function CodeSnippetBlock({
   isStreaming: boolean;
 }): React.JSX.Element {
   const chatFiles = useContext(ChatFilesContext);
-  const absolutePath = useExistingFile(chatFiles?.cwd ?? '', chatFiles ? title.path : null);
+  // A message that is still arriving names half-written paths; the rest of the
+  // chat withholds its lookups until it settles, and a lookup for a partial
+  // path would cache a miss for the real one.
+  const absolutePath = useExistingFile(
+    chatFiles?.cwd ?? '',
+    chatFiles && !isStreaming ? title.path : null,
+  );
   const reference = `${title.path}${formatLineSuffix(title.lines)}`;
   const openAt = useCallback(
     (lineNumber: number): void => {
@@ -326,6 +335,17 @@ function getCodeLanguage(className: string | undefined): string | null {
     ?.split(/\s+/)
     .find((item) => item.startsWith(LANGUAGE_CLASS_PREFIX));
   return languageClass?.slice(LANGUAGE_CLASS_PREFIX.length) ?? null;
+}
+
+/**
+ * The fence's whole info string. `mdast-util-to-hast` keeps only its first word
+ * as the `language-` class and puts the rest in the node's `meta`, so a title
+ * naming a path with a space has to be read from both.
+ */
+function getCodeInfoString(className: string | undefined, meta: unknown): string {
+  const first = getCodeLanguage(className);
+  if (first === null) return '';
+  return typeof meta === 'string' && meta.length > 0 ? `${first} ${meta}` : first;
 }
 
 function getCodeText(children: ReactNode): string {

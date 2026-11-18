@@ -150,4 +150,20 @@ describe('parseCodeBlockTitle', () => {
     expect(parseCodeBlockTitle('12:20:')).toBeNull();
     expect(parseCodeBlockTitle('0:5:src/a.ts')).toBeNull();
   });
+
+  it('keeps a path with spaces whole instead of cutting it at the first', () => {
+    expect(parseCodeBlockTitle('12:20:docs/my notes.md')).toEqual({
+      path: 'docs/my notes.md',
+      lines: { start: 12, end: 20 },
+    });
+  });
+
+  it('reads a bare file name, which prose would not take as a path', () => {
+    expect(parseCodeBlockTitle('12:20:Makefile')?.path).toBe('Makefile');
+    expect(parseCodeBlockTitle('1:3:C:\\\\work\\\\a.ts')?.path).toBe('C:\\\\work\\\\a.ts');
+  });
+
+  it('takes a title half-arrived as one, so its path can still grow', () => {
+    expect(parseCodeBlockTitle('200:222:src/renderer/src/Ap')?.path).toBe('src/renderer/src/Ap');
+  });
 });

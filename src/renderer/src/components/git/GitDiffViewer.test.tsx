@@ -6,7 +6,7 @@ import type { GitDiffFile, GitDiffSource } from '../../../../shared/ipcContract'
 import { useAppStore } from '../../state/appStore';
 import GitDiffViewer from './GitDiffViewer';
 
-// The header is what is under test; the diff itself never needs to load.
+// The header is what is under test; the diff body never needs to load.
 vi.mock('../../services/piAgentClient', () => ({
   getGitDiffFile: () => new Promise(() => {}),
 }));
@@ -156,5 +156,17 @@ describe('GitDiffViewer file comment', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Comment on file' }));
     rerender(viewer('/s/one.jsonl', { kind: 'staged' }));
     expect(screen.queryByRole('textbox', { name: 'Quote comment' })).toBeNull();
+  });
+
+  it('quotes a commit without claiming the checked-out branch', () => {
+    render(viewer('/s/one.jsonl', { kind: 'commit', commit: 'abc1234def' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Comment on file' }));
+    const editor = screen.getByRole('textbox', { name: 'Quote comment' });
+    fireEvent.change(editor, { target: { value: 'Why was this changed?' } });
+    fireEvent.keyDown(editor, { key: 'Enter' });
+
+    const [quote] = useAppStore.getState().quotesBySession.get('/s/one.jsonl') ?? [];
+    expect(quote?.branch).toBeUndefined();
+    expect(quote?.reference).toBe('@src/app.ts, diff in commit abc1234');
   });
 });

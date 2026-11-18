@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  diffQuoteBranch,
   formatFileContentQuote,
   formatFileDiffQuote,
   formatFileLineQuote,
@@ -71,6 +72,22 @@ describe('withQuoteBranch', () => {
   it('leaves a quote alone when the branch is unknown', () => {
     const quote = { reference: '@src/app.ts:10-20', text: 'run();' };
     expect(withQuoteBranch(quote, null)).toBe(quote);
+  });
+});
+
+describe('diffQuoteBranch', () => {
+  it('names the branch a working-tree or branch diff was read on', () => {
+    expect(diffQuoteBranch('unstaged', 'feat/x')).toBe('feat/x');
+    expect(diffQuoteBranch('staged', 'feat/x')).toBe('feat/x');
+    expect(diffQuoteBranch('base', 'feat/x')).toBe('feat/x');
+  });
+
+  it('names no branch for a commit, which may live on the base', () => {
+    expect(diffQuoteBranch('commit', 'feat/x')).toBeNull();
+  });
+
+  it('names no branch when the checkout is detached', () => {
+    expect(diffQuoteBranch('unstaged', null)).toBeNull();
   });
 });
 

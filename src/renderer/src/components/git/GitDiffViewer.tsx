@@ -10,6 +10,7 @@ import type { GitDiffLayout } from '../../hooks/useGitWorkspace';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
 import { useRememberedScroll } from '../../hooks/useRememberedScroll';
 import {
+  diffQuoteBranch,
   formatFileDiffQuote,
   formatFileLineQuote,
   formatFileScopeQuote,
@@ -248,9 +249,13 @@ export default function GitDiffViewer({
       : sourceKind === 'commit'
         ? `diff in commit ${sourceRef.slice(0, 7)}`
         : `${sourceKind} diff`;
+  // A commit may exist on the base rather than on the checked-out branch, so a
+  // commit's quote must not claim the branch; the working tree and the index
+  // are the checkout's own, and a branch diff is the branch's commits.
+  const quoteBranch = diffQuoteBranch(sourceKind, branch);
   // Every quote taken from here is read off one branch, and two branches that
   // forked from the same base show the same scope and line numbers: the branch
-  // is what the quote is missing, so `withQuoteBranch` opens the reference.
+  // is what the quote is missing, so `withQuoteBranch` adds it.
   const formatQuoteContent = useCallback(
     ({ text, range }: { text: string; range: Range }): QuoteContent | null => {
       if (!isInsideDiffLine(range.startContainer) || !isInsideDiffLine(range.endContainer)) {
@@ -273,12 +278,12 @@ export default function GitDiffViewer({
       ) {
         return withQuoteBranch(
           formatFileLineQuote(shownQuotePath, first, first + numbers.length - 1, text),
-          branch,
+          quoteBranch,
         );
       }
-      return withQuoteBranch(formatFileDiffQuote(shownQuotePath, diffScope, lines), branch);
+      return withQuoteBranch(formatFileDiffQuote(shownQuotePath, diffScope, lines), quoteBranch);
     },
-    [shownQuotePath, sourceKind, diffScope, branch],
+    [shownQuotePath, sourceKind, diffScope, quoteBranch],
   );
 
   const saveFileComment = useCallback(
@@ -288,13 +293,13 @@ export default function GitDiffViewer({
           .getState()
           .addQuote(
             sessionPath,
-            withQuoteBranch(formatFileScopeQuote(fileQuotePath, diffScope), branch),
+            withQuoteBranch(formatFileScopeQuote(fileQuotePath, diffScope), quoteBranch),
             comment,
           );
       }
       setCommentingTarget(null);
     },
-    [sessionPath, fileQuotePath, diffScope, branch],
+    [sessionPath, fileQuotePath, diffScope, quoteBranch],
   );
 
   const renamed = file.oldPath !== null && file.oldPath !== file.path;

@@ -48,6 +48,9 @@ export function parseStoredQuotes(value: unknown): MessageQuote[] | undefined {
  * Text selected across rendered markdown carries the layout's spacing: padded
  * lines and runs of blank lines between blocks. Keep single blank lines, which
  * still separate paragraphs.
+ *
+ * The first line's indentation is kept: a selection can be code, and removing
+ * it turns `        if ready:` into a line that no longer means what it did.
  */
 export function normalizeQuoteText(text: string): string {
   return text
@@ -56,7 +59,7 @@ export function normalizeQuoteText(text: string): string {
     .map((line) => line.trimEnd())
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
-    .trim();
+    .replace(/^\n+|\n+$/g, '');
 }
 
 /**
