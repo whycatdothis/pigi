@@ -25,12 +25,33 @@ interface SyntaxHighlightedCodeProps {
    * lines for a quote.
    */
   lineNumbers?: boolean;
+  /**
+   * The file line the first line drawn is, for a block that quotes part of a
+   * file: the gutter counts from there and `data-source-line` names the line in
+   * the file rather than the line in the block.
+   */
+  firstLineNumber?: number;
+  /** The surface behind the gutter, which sticky cells have to cover as code scrolls under them. */
+  gutterClassName?: string;
+  /** Makes each gutter number open that line in the file, when the block names one. */
+  onOpenLine?: (lineNumber: number) => void;
   /** Lines to highlight, with `lineNumbers`: the range a chat link opened. */
   markedLines?: LineRange | null;
 }
 
 function isMarked(lineNumber: number, markedLines: LineRange | null | undefined): boolean {
   return !!markedLines && lineNumber >= markedLines.start && lineNumber <= markedLines.end;
+}
+
+/** How the gutter is drawn: where its numbers start, its surface, and what a click does. */
+interface GutterOptions {
+  /** The file line the block's first line is, so numbers name lines in the file. */
+  firstLineNumber: number;
+  markedLines: LineRange | null | undefined;
+  /** The surface behind the gutter, which the code scrolls under. */
+  className: string;
+  /** Opens that line in the file; without it the numbers are labels. */
+  onOpenLine?: (lineNumber: number) => void;
 }
 
 // The gutter is opaque so code scrolled under it stays hidden; a marked line's
@@ -60,35 +81,52 @@ function codeClassName(lineNumbers: boolean): string {
 function SourceLineNumber({
   lineNumber,
   marked,
+  gutter,
 }: {
   lineNumber: number;
   marked: boolean;
+  gutter: GutterOptions;
 }): React.JSX.Element {
+  // `select-none` is what keeps the number out of a quote: a selection now
+  // carries its text, so a selectable gutter would send `12const a = 1;`.
+  const className = `sticky left-0 z-10 flex w-14 shrink-0 select-none items-center justify-end self-stretch pr-3 text-right tabular-nums ${marked ? MARKED_GUTTER_CLASS : `${gutter.className} text-muted-foreground`}`;
+  if (!gutter.onOpenLine) {
+    return (
+      <span aria-hidden="true" data-search-ignore data-sticky-inset className={className}>
+        {lineNumber}
+      </span>
+    );
+  }
   return (
-    <span
-      aria-hidden="true"
-      data-search-ignore
+    <button
+      type="button"
       data-sticky-inset
-      className={`sticky left-0 z-10 w-14 shrink-0 select-none pr-3 text-right tabular-nums ${marked ? MARKED_GUTTER_CLASS : 'bg-background text-muted-foreground'}`}
+      data-search-ignore
+      // The title above the block opens it for the keyboard; these are the
+      // pointer's shortcut, and a long block would otherwise put one tab stop
+      // per line between the message and whatever follows it.
+      tabIndex={-1}
+      aria-label={`Open line ${lineNumber}`}
+      title={`Open line ${lineNumber}`}
+      onClick={() => gutter.onOpenLine?.(lineNumber)}
+      className={`${className} cursor-pointer`}
     >
       {lineNumber}
-    </span>
+    </button>
   );
 }
 
-function plainSourceLineNodes(
-  code: string,
-  markedLines: LineRange | null | undefined,
-): React.JSX.Element[] {
+function plainSourceLineNodes(code: string, gutter: GutterOptions): React.JSX.Element[] {
   return code.split('\n').map((line, lineIndex) => {
-    const marked = isMarked(lineIndex + 1, markedLines);
+    const lineNumber = gutter.firstLineNumber + lineIndex;
+    const marked = isMarked(lineNumber, gutter.markedLines);
     return (
       <span
         key={lineIndex}
-        data-source-line={lineIndex + 1}
+        data-source-line={lineNumber}
         className={codeLineClassName(true, marked)}
       >
-        <SourceLineNumber lineNumber={lineIndex + 1} marked={marked} />
+        <SourceLineNumber lineNumber={lineNumber} marked={marked} gutter={gutter} />
         <span className="min-w-0 whitespace-pre">{line}</span>
       </span>
     );
@@ -100,12 +138,12 @@ function plainSourceLineNodes(
 // doing no work on the highlighted path.
 const PlainSourceLines = memo(function PlainSourceLines({
   code,
-  markedLines,
+  gutter,
 }: {
   code: string;
-  markedLines: LineRange | null | undefined;
+  gutter: GutterOptions;
 }): React.JSX.Element {
-  return <>{plainSourceLineNodes(code, markedLines)}</>;
+  return <>{plainSourceLineNodes(code, gutter)}</>;
 });
 
 /**
@@ -155,11 +193,18 @@ export default function SyntaxHighlightedCode({
   language,
   isStreaming = false,
   lineNumbers = false,
+  firstLineNumber = 1,
+  gutterClassName = 'bg-background',
+  onOpenLine,
   markedLines,
 }: SyntaxHighlightedCodeProps): React.JSX.Element {
   const codeTheme = useCodeTheme();
   const { codeThemeId } = codeTheme;
   const normalizedLanguage = useMemo(() => normalizeLanguage(language), [language]);
+  const gutter = useMemo<GutterOptions>(
+    () => ({ firstLineNumber, markedLines, className: gutterClassName, onOpenLine }),
+    [firstLineNumber, markedLines, gutterClassName, onOpenLine],
+  );
   const highlightInput = useStreamingThrottledCode(
     code,
     isStreaming,
@@ -191,21 +236,28 @@ export default function SyntaxHighlightedCode({
           {token.content}
         </span>
       ));
-      const marked = lineNumbers && isMarked(lineIndex + 1, markedLines);
+      const marked =
+        lineNumbers && isMarked(gutter.firstLineNumber + lineIndex, gutter.markedLines);
       return (
         <span
           key={lineIndex}
-          data-source-line={lineNumbers ? lineIndex + 1 : undefined}
+          data-source-line={lineNumbers ? gutter.firstLineNumber + lineIndex : undefined}
           // Skip layout/paint/raster for lines clipped by the clamp or scrolled
           // out of view; they render lazily when revealed.
           className={codeLineClassName(lineNumbers, marked)}
         >
-          {lineNumbers && <SourceLineNumber lineNumber={lineIndex + 1} marked={marked} />}
+          {lineNumbers && (
+            <SourceLineNumber
+              lineNumber={gutter.firstLineNumber + lineIndex}
+              marked={marked}
+              gutter={gutter}
+            />
+          )}
           {lineNumbers ? <span className="min-w-0 whitespace-pre">{tokens}</span> : tokens}
         </span>
       );
     });
-  }, [highlightedLines, isAppendOfSource, lineNumbers, markedLines]);
+  }, [highlightedLines, isAppendOfSource, lineNumbers, gutter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -243,7 +295,7 @@ export default function SyntaxHighlightedCode({
   if (!highlightedLines) {
     return (
       <code className={codeClassName(lineNumbers)}>
-        {lineNumbers ? <PlainSourceLines code={code} markedLines={markedLines} /> : code}
+        {lineNumbers ? <PlainSourceLines code={code} gutter={gutter} /> : code}
       </code>
     );
   }
@@ -259,15 +311,38 @@ export default function SyntaxHighlightedCode({
     // highlight and fall back to plain until the next highlight lands.
     return (
       <code className={codeClassName(lineNumbers)}>
-        {lineNumbers ? <PlainSourceLines code={code} markedLines={markedLines} /> : code}
+        {lineNumbers ? <PlainSourceLines code={code} gutter={gutter} /> : code}
       </code>
     );
   }
 
+  // A line-numbered block draws the tail as rows of its own, so the gutter
+  // stays unbroken while the block arrives. The tail starts at the last
+  // highlighted line (or the line after it, when that line ended the source),
+  // so its numbers continue the highlight rather than jump to the block's end.
+  const tailFirstLineNumber = gutter.firstLineNumber + highlightedSource.split('\n').length - 1;
   return (
     <code className={codeClassName(lineNumbers)}>
       {highlightedLineNodes}
-      {plainTail !== '' && <span className="block whitespace-pre-wrap">{plainTail}</span>}
+      {plainTail !== '' &&
+        (lineNumbers ? (
+          plainTail.split('\n').map((line, index) => {
+            const lineNumber = tailFirstLineNumber + index;
+            const marked = isMarked(lineNumber, gutter.markedLines);
+            return (
+              <span
+                key={`tail-${index}`}
+                data-source-line={lineNumber}
+                className={codeLineClassName(true, marked)}
+              >
+                <SourceLineNumber lineNumber={lineNumber} marked={marked} gutter={gutter} />
+                <span className="min-w-0 whitespace-pre">{line}</span>
+              </span>
+            );
+          })
+        ) : (
+          <span className="block whitespace-pre-wrap">{plainTail}</span>
+        ))}
     </code>
   );
 }

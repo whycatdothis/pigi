@@ -2,9 +2,22 @@
 
 ## [0.6.13] - 2026-11-18
 
+### Added
+
+- A Cursor code block titled with its source (`200:222:src/app.ts`) is drawn as a snippet of that file: the language comes from the file's name, the gutter numbers the file's lines, and the title or a gutter number opens that line in the Files tab
+
 ### Changed
 
+- A file or diff quote carries the selected text under its reference, so the agent reads the lines the comment is about instead of having to open the file
+- A quote taken from the Git tab names the branch it was read on, as a field of the quote: a message of quotes from one branch states it once (`On branch feat/x.` above the list) instead of repeating it on every item, since two branches can compare against the same base with the same line numbers
 - Forking a message no longer stops the reply that is still running: the fork copies the conversation as it stands, and the original chat keeps working in the background, finishing its turn and sending the messages already queued for it
+
+### Fixed
+
+- A quoted line of code keeps its indentation: the first line used to be trimmed, so a quoted Python block arrived as a syntax error
+- A quote dragged across a file or diff line no longer picks up the line numbers, which the quote now sends to the agent as text
+- A Cursor snippet's gutter numbers stay in order while the block streams: a tail of several lines was drawn as one row numbered with the block's last line
+- A commit's quote no longer names the checked-out branch, which need not be the branch the commit is on
 
 ## [0.6.12] - 2026-11-15
 

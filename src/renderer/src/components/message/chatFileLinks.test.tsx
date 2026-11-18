@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '../../testing/jsdomSetup';
 import MarkdownMessage from './markdownMessage';
 import { UserBubble } from './messageBubbles';
@@ -8,6 +8,8 @@ import { ChatFilesContext, type ChatFiles } from './chatFiles';
 
 const EXISTING = new Set(['src/a.ts', '/outside/notes.md']);
 const DIRECTORIES = new Set(['/data/notes/']);
+/** Every path the renderer asked the main process about, per test. */
+const resolveCalls: string[][] = [];
 const originalPiApi = window.piApi;
 const onOpenFile = vi.fn();
 let cwd = '';
@@ -16,10 +18,12 @@ let testIndex = 0;
 beforeEach(() => {
   // A fresh cwd per test: resolved paths are cached for the whole renderer.
   cwd = `/repo-${testIndex++}`;
+  resolveCalls.length = 0;
   window.piApi = {
     ...originalPiApi,
-    resolveExistingPaths: (base: string, paths: string[]) =>
-      Promise.resolve(
+    resolveExistingPaths: (base: string, paths: string[]) => {
+      resolveCalls.push(paths);
+      return Promise.resolve(
         paths.map((path) =>
           EXISTING.has(path) || DIRECTORIES.has(path)
             ? {
@@ -28,7 +32,8 @@ beforeEach(() => {
               }
             : null,
         ),
-      ),
+      );
+    },
   };
 });
 
@@ -82,6 +87,50 @@ describe('paths in chat markdown', () => {
 
     await Promise.resolve();
     expect(screen.queryByRole('link')).toBeNull();
+  });
+});
+
+describe('a code block titled with its source', () => {
+  it('numbers its lines from the file and opens one from the gutter', async () => {
+    renderInChat(
+      <MarkdownMessage
+        text={'```12:13:src/a.ts\nconst a = 1;\nconst b = 2;\n```'}
+        isStreaming={false}
+      />,
+    );
+
+    expect(screen.getByText('src/a.ts:12-13')).toBeInTheDocument();
+    // The gutter names the file's lines, not the block's.
+    expect(document.querySelectorAll('[data-source-line]')).toHaveLength(2);
+    expect(document.querySelector('[data-source-line="12"]')).not.toBeNull();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open line 13' }));
+    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`, { start: 13, end: 13 });
+  });
+
+  it('opens the snippet from its title at the first line', async () => {
+    renderInChat(
+      <MarkdownMessage
+        text={'```12:13:src/a.ts\nconst a = 1;\nconst b = 2;\n```'}
+        isStreaming={false}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'src/a.ts:12-13' }));
+    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`, { start: 12, end: 12 });
+  });
+
+  it('leaves the gutter as labels when the file is not on disk', async () => {
+    renderInChat(<MarkdownMessage text={'```12:13:src/missing.ts\nconst a = 1;\n```'} />);
+
+    // Await the lookup: a missing button is also the not-yet-looked-up state,
+    // so the absence only proves something once the lookup has answered.
+    await waitFor(() =>
+      expect(resolveCalls.some((paths) => paths.includes('src/missing.ts'))).toBe(true),
+    );
+    expect(screen.getByText('src/missing.ts:12-13')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Open line/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'src/missing.ts:12-13' })).toBeNull();
   });
 });
 

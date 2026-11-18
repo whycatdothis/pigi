@@ -33,12 +33,3 @@ user-visible also adds a line to the CHANGELOG.
   the remote-control surface. `useGitBranch` and `useUpdateInstall` were pulled
   out; the file-open cluster (`fileRevision`, `fileLineTarget`,
   `revealedDirectory`, `handleOpenFile*`) has the same shape.
-
-# quote update
-
-- when quote a file/git diff, other than the line numbers, the selected text should also showed in the quoted text. like @xxService.js:11 "(param: {a, b})"。
-- when send a quote of git diff, should also attach the current branch name in the begeginning.
-
-# adapt to the cursor file codeblock format
-
-- using pi-cursor-sdk, the codeblock in markdown will return with this title. 200:222:src/renderer/src/hooks/useSessionTreeNavigation.ts . adapt to it and show the correct code highlight, and use the linenumber, click it should go to the line number in files tab.

@@ -1,6 +1,7 @@
 import { formatFileReference } from './chatReferences';
 import { formatLineSuffix } from './filePathCandidates';
 import { DIFF_LINE_PREFIX, type GitDiffSourceLine } from './gitDiffPatch';
+import type { GitDiffSource } from '../../../shared/ipcContract';
 import type { QuoteContent } from './messageQuotes';
 import { projectAbsolutePath } from './projectFileLinks';
 
@@ -19,14 +20,19 @@ export function projectQuotePath(
     : path;
 }
 
-/** A path as a pi file reference, relative to the project root. */
+/**
+ * A path as a pi file reference, relative to the project root, with the text
+ * the lines hold: the reference says where to look, the text says what the
+ * comment is about.
+ */
 export function formatFileLineQuote(
   path: string,
   startLine: number,
   endLine: number,
+  text: string,
 ): QuoteContent {
   const lines = { start: Math.min(startLine, endLine), end: Math.max(startLine, endLine) };
-  return { reference: `${formatFileReference(path)}${formatLineSuffix(lines)}`, text: '' };
+  return { reference: `${formatFileReference(path)}${formatLineSuffix(lines)}`, text };
 }
 
 /** Rendered markdown has no source lines to point at, so the quote carries the text itself. */
@@ -54,4 +60,26 @@ export function formatFileDiffQuote(
     reference: `${formatFileReference(path)}, ${scope}:`,
     text: lines.map((line) => `${DIFF_LINE_PREFIX[line.kind]}${line.text}`).join('\n'),
   };
+}
+
+/**
+ * A quote taken from a diff remembers the branch it was read on. Two branches
+ * that forked from the same base compare against the same base and carry the
+ * same line numbers, so the scope alone does not say which one is meant, and a
+ * removed line exists only on the branch that removed it. It stays a field of
+ * its own rather than part of the reference so a message can state it once.
+ */
+export function withQuoteBranch(quote: QuoteContent, branch: string | null): QuoteContent {
+  return branch ? { ...quote, branch } : quote;
+}
+
+/**
+ * The branch a diff quote may name: the checkout's own, so never a commit's,
+ * which exists on whatever branch holds it (usually the base, not this one).
+ */
+export function diffQuoteBranch(
+  sourceKind: GitDiffSource['kind'],
+  branch: string | null,
+): string | null {
+  return sourceKind === 'commit' ? null : branch;
 }
