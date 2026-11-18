@@ -687,9 +687,11 @@ file: `createBranchedSession` mutates the manager it is called on, and the live
 manager is what persists the running session. The new file's header points back
 at the original (`parentSession`), which is what the sidebar's lineage is built
 from; a fork of the first message has nothing to copy and gets an empty new
-session with that parent instead. Behind it all, `docs/sessionTree.md` is the
-design reference, and `src/renderer/src/components/sessionTree/` holds the dialog
-and its geometry.
+session with that parent instead. Because the copy only reads the file, a fork
+does not stop a running turn the way a tree move does: the original keeps
+streaming, keeps its queue and stays on its own leaf. Behind it all,
+`docs/sessionTree.md` is the design reference, and
+`src/renderer/src/components/sessionTree/` holds the dialog and its geometry.
 
 The renderer side of all of it lives in `hooks/useSessionTreeNavigation.ts`: the
 `tree` and `fork` actions, the leave-branch question and the move. It owns the

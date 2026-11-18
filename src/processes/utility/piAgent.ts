@@ -1077,11 +1077,16 @@ async function warmUp(cwds: string[]): Promise<void> {
  * is what persists the running session, so the fork runs on a throwaway
  * manager opened over the same file. The original keeps its process, its leaf
  * and its entries; the new file's header points back at it (`parentSession`).
+ *
+ * A running turn does not block this: a fork point is always an entry already
+ * on disk, and the copy reads the file in this same process, so it cannot
+ * observe a half-written entry.
  */
 function forkSession(entryId: string, position: 'before' | 'at'): ForkSessionResult {
   if (!runtime) return { success: false, error: 'session not initialized' };
   const session = runtime.session;
-  if (session.isStreaming || session.isCompacting) return { success: false, error: 'busy' };
+  // Compaction rewrites the context of the path being copied.
+  if (session.isCompacting) return { success: false, error: 'busy' };
 
   const sessionManager = session.sessionManager;
   const file = sessionManager.getSessionFile();

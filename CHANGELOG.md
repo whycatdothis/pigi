@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Forking a message no longer stops the reply that is still running: the fork copies the conversation as it stands, and the original chat keeps working in the background, finishing its turn and sending the messages already queued for it
+
 ## [0.6.12] - 2026-11-15
 
 ### Changed
