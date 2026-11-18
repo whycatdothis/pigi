@@ -329,10 +329,12 @@ touching deleted lines has no post-change number to point at, and a commit's
 numbers point into a file the agent cannot open, so both quote the whole
 touched lines as a unified diff under what they were compared with
 (`@src/app.ts, diff against origin/main:`, then `-old` / `+new`); plain text
-there read as the file's current content. Every quote from here opens with the
-branch it was read on (`on branch feat/x: …`): two branches forked from the
-same base compare against the same base with the same line numbers, and a
-removed line exists only on the branch that removed it.
+there read as the file's current content. Every quote from here remembers the
+branch it was read on: two branches forked from the same base compare against
+the same base with the same line numbers, and a removed line exists only on
+the branch that removed it. The branch is a field of the quote rather than
+part of its reference, so a message of several quotes states it once
+(`On branch feat/x.` above the list) instead of repeating it on every item.
 Side by side, a drag stays in the column it starts in: the other column's
 cells sit between this column's in the DOM, so the body marks the starting
 side on mousedown and makes the other `select-none`, and
@@ -767,6 +769,14 @@ to open the file to find it. The one quote without text is a file or diff
 comment (`@src/app.ts, diff against origin/main`), where the subject is the
 whole change.
 
+A quote read off a diff also carries its `branch`, which `formatQuotesMessage`
+states once for the whole message when every quote shares it (`On branch
+feat/x.` above the numbered list). Quotes from different branches, or mixed
+with one from the chat, fall back to naming the branch on the item it belongs
+to; a quote with no reference of its own then reads as `on branch feat/x`.
+The quote card in the panel always shows it above the reference, since a card
+is one quote at a time.
+
 ## Unsent Drafts
 
 Chat input drafts (`lib/chatDrafts.ts`, keyed by session path, with
@@ -826,9 +836,10 @@ into a path and a line range. Such a block is a snippet of a file rather than a
 piece of prose, so it is drawn that way: the language comes from the file's own
 name (`languageForFile`), the gutter numbers the file's lines from the title's
 first, and a gutter number opens that line in the Files tab once the file is
-known to exist. A title that names no existing file keeps the numbers as plain
-labels, since there is nowhere to open. Any other info string, and a title
-still half-arrived, is a language as before.
+known to exist. The title is a button that opens the snippet's first line,
+since the obvious thing to press is the name of the file. A title that names no
+existing file keeps both as plain labels, since there is nowhere to open. Any
+other info string, and a title still half-arrived, is a language as before.
 
 ## Mermaid Diagrams
 

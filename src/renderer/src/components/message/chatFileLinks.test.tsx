@@ -103,12 +103,25 @@ describe('a code block titled with its source', () => {
     expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`, { start: 13, end: 13 });
   });
 
+  it('opens the snippet from its title at the first line', async () => {
+    renderInChat(
+      <MarkdownMessage
+        text={'```12:13:src/a.ts\nconst a = 1;\nconst b = 2;\n```'}
+        isStreaming={false}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'src/a.ts:12-13' }));
+    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`, { start: 12, end: 12 });
+  });
+
   it('leaves the gutter as labels when the file is not on disk', async () => {
     renderInChat(<MarkdownMessage text={'```12:13:src/missing.ts\nconst a = 1;\n```'} />);
 
     expect(screen.getByText('src/missing.ts:12-13')).toBeInTheDocument();
     await Promise.resolve();
     expect(screen.queryByRole('button', { name: /Open line/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'src/missing.ts:12-13' })).toBeNull();
   });
 });
 

@@ -290,9 +290,20 @@ function CodeSnippetBlock({
   return (
     <div className="markdown-code-block">
       <div className="markdown-code-header" data-search-ignore>
-        <span className="markdown-code-label min-w-0 truncate" title={reference}>
-          {reference}
-        </span>
+        {absolutePath ? (
+          <button
+            type="button"
+            className="markdown-code-label min-w-0 cursor-pointer truncate hover:text-foreground"
+            title={`Open ${reference}`}
+            onClick={() => openAt(title.lines.start)}
+          >
+            {reference}
+          </button>
+        ) : (
+          <span className="markdown-code-label min-w-0 truncate" title={reference}>
+            {reference}
+          </span>
+        )}
         <CodeCopyButton code={code} />
       </div>
       <pre>

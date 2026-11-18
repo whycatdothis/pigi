@@ -58,12 +58,13 @@ describe('formatFileDiffQuote', () => {
 });
 
 describe('withQuoteBranch', () => {
-  it('opens the reference with the branch the diff was read on', () => {
+  it('keeps the branch the diff was read on apart from the reference', () => {
     expect(
       withQuoteBranch({ reference: '@src/app.ts, unstaged diff:', text: '+a' }, 'feat/x'),
     ).toEqual({
-      reference: 'on branch feat/x: @src/app.ts, unstaged diff:',
+      reference: '@src/app.ts, unstaged diff:',
       text: '+a',
+      branch: 'feat/x',
     });
   });
 

@@ -62,13 +62,12 @@ export function formatFileDiffQuote(
 }
 
 /**
- * A quote taken from a diff opens with the branch it was read on. Two branches
+ * A quote taken from a diff remembers the branch it was read on. Two branches
  * that forked from the same base compare against the same base and carry the
  * same line numbers, so the scope alone does not say which one is meant, and a
- * removed line exists only on the branch that removed it.
+ * removed line exists only on the branch that removed it. It stays a field of
+ * its own rather than part of the reference so a message can state it once.
  */
 export function withQuoteBranch(quote: QuoteContent, branch: string | null): QuoteContent {
-  return branch
-    ? { reference: `on branch ${branch}: ${quote.reference ?? ''}`, text: quote.text }
-    : quote;
+  return branch ? { ...quote, branch } : quote;
 }

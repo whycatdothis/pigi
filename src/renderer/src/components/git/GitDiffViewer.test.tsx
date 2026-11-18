@@ -60,7 +60,8 @@ describe('GitDiffViewer file comment', () => {
 
     expect(useAppStore.getState().quotesBySession.get('/s/one.jsonl')).toEqual([
       expect.objectContaining({
-        reference: 'on branch main: @src/app.ts, diff against origin/main',
+        reference: '@src/app.ts, diff against origin/main',
+        branch: 'main',
         text: '',
         comment: 'Split this up.',
       }),
@@ -79,7 +80,8 @@ describe('GitDiffViewer file comment', () => {
 
     expect(useAppStore.getState().quotesBySession.get('/s/one.jsonl')).toEqual([
       expect.objectContaining({
-        reference: 'on branch main: @/other/repo/src/app.ts, diff against origin/main',
+        reference: '@/other/repo/src/app.ts, diff against origin/main',
+        branch: 'main',
         comment: 'Move this helper.',
       }),
     ]);
@@ -132,7 +134,8 @@ describe('GitDiffViewer file comment', () => {
     expect(screen.queryByRole('textbox', { name: 'Quote comment' })).toBeNull();
     expect(useAppStore.getState().quotesBySession.get('/s/one.jsonl')).toEqual([
       expect.objectContaining({
-        reference: 'on branch main: @src/app.ts, unstaged diff',
+        reference: '@src/app.ts, unstaged diff',
+        branch: 'main',
         comment: 'Not done yet',
       }),
     ]);

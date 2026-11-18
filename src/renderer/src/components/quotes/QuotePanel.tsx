@@ -92,7 +92,9 @@ const QuoteCard = React.memo(function QuoteCard({
           maxHeight={QUOTE_TEXT_MAX_HEIGHT_PX}
           className="select-text whitespace-pre-wrap break-words text-ui leading-[22px] text-muted-foreground [overflow-wrap:anywhere]"
         >
-          {[quote.reference, quote.text].filter(Boolean).join('\n')}
+          {[quote.branch ? `on branch ${quote.branch}` : '', quote.reference, quote.text]
+            .filter(Boolean)
+            .join('\n')}
         </OverflowClamp>
       </blockquote>
       {editing ? (
