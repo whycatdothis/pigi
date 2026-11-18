@@ -68,7 +68,9 @@ Availability rules:
   clicking then reports "The session is still starting".
 - While streaming, `tree` aborts the current response first (reusing the
   existing abort path, which restores queued messages to the input box) and
-  then runs. `fork` does the same.
+  then runs. `fork` does **not**: the copy is read off the session file, so the
+  original keeps working. Only `tree` has to stop, because the SDK rejects a
+  move during a turn.
 - Both are unavailable in a draft chat (no session file yet).
 
 UI copy: icon-only buttons.
@@ -459,6 +461,10 @@ After `fork`:
 2. The app switches to it immediately, with the input pre-focused and (for user
    messages) pre-filled with the message text.
 3. The original session stays open in the background and remains in the sidebar.
+   If it was mid-turn, it keeps running and finishes there: forking does not
+   stop it, and its queued messages stay with it (they were addressed to it).
+   The new session's transcript is a snapshot of the tree at the fork point, so
+   the original's later messages never appear in it.
 4. No toast. The active session switching to a forked chat, with the fork
    nested under the original in the sidebar, is the whole report; another
    notification on top of that was noise, and `Back to the original` duplicated
@@ -749,7 +755,8 @@ Notes:
 Utility (`fork_session`):
 
 ```ts
-if (session.isStreaming || session.isCompacting) return error('busy');
+// A running turn is fine: the fork reads the file, not the live session.
+if (session.isCompacting) return error('busy');
 const file = session.sessionManager.getSessionFile();
 if (!file || !existsSync(file)) return error('session not saved yet');
 
@@ -795,8 +802,15 @@ await resumeSession(newPath);    // only when the fork wrote a file
 - What a fork is called in the sidebar comes from its own first message, which
   is the parent's: giving the store entry the parent's title keeps the two in
   step until the listing lands.
-- The original session's utility process keeps running; the pool's idle LRU may
-  evict it later, which is harmless (the file is on disk).
+- The original session's utility process keeps running, and so does a turn that
+  was in flight when the fork happened; the pool's idle LRU may evict it after
+  the turn ends, which is harmless (the file is on disk).
+- Why a running turn is safe to read: the fork point is an entry that has
+  already been appended (a streaming message has no fork button), appends go
+  through one synchronous `appendFileSync` per entry, and the copy reads the
+  file in the same process, so it can never see a partial line. The throwaway
+  manager also keeps the live leaf where it was, so the turn's next append
+  still lands on the branch it was on.
 
 ### 6.5 Branch summary rendering
 

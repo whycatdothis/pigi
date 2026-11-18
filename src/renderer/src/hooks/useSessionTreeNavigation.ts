@@ -34,7 +34,7 @@ interface SessionTreeNavigationOptions {
   activeSessionPath: string | null;
   /** Working directory a new session is created in (a fork with no history). */
   activeCwd: string;
-  /** The transcript is streaming: it has to stop before the session can move. */
+  /** The transcript is streaming; a tree move has to stop it first. */
   busy: boolean;
   /** Compaction is in flight; a move would race it. */
   compacting: boolean;
@@ -192,34 +192,41 @@ export function useSessionTreeNavigation(
   );
 
   /**
-   * Shared preconditions for any tree navigation: the caller must be able to
-   * write to the session (no pending process, no compaction) and the current
-   * response has to stop first, because navigation during a turn is rejected by
-   * the SDK. Aborting also returns queued messages to the input box.
+   * Shared preconditions for a tree action. A move inside the session also has
+   * to abort the running turn, which the SDK rejects navigation during; a fork
+   * only reads the session file, so it passes `stopRunningTurn: false`.
    */
-  const prepareTreeNavigation = useCallback(async (): Promise<string | null> => {
-    const {
-      activeSessionPath: sessionPath,
-      isSessionStarting,
-      compacting,
-      busy,
-      abortTurn,
-    } = optionsRef.current;
-    if (!sessionPath) return null;
-    if (isSessionStarting(sessionPath)) {
-      toast.error('The session is still starting');
-      return null;
-    }
-    if (compacting) {
-      toast.error('Wait for compaction to finish');
-      return null;
-    }
-    if (busy) {
-      await abortTurn();
-      await waitForTranscriptIdle(sessionPath);
-    }
-    return sessionPath;
-  }, []);
+  const prepareTreeNavigation = useCallback(
+    async ({ stopRunningTurn }: { stopRunningTurn: boolean }): Promise<string | null> => {
+      const {
+        activeSessionPath: sessionPath,
+        isSessionStarting,
+        compacting,
+        busy,
+        abortTurn,
+      } = optionsRef.current;
+      if (!sessionPath) return null;
+      // Aborting here would stop the turn the in-flight fork exists to keep.
+      if (stopRunningTurn && moveInFlightRef.current) {
+        toast.error('Another move is still running');
+        return null;
+      }
+      if (isSessionStarting(sessionPath)) {
+        toast.error('The session is still starting');
+        return null;
+      }
+      if (compacting) {
+        toast.error('Wait for compaction to finish');
+        return null;
+      }
+      if (stopRunningTurn && busy) {
+        await abortTurn();
+        await waitForTranscriptIdle(sessionPath);
+      }
+      return sessionPath;
+    },
+    [],
+  );
 
   /**
    * Ask about summarizing, or navigate. Returns the move, or null when the
@@ -245,8 +252,9 @@ export function useSessionTreeNavigation(
   const resolveNodeTarget = useCallback(
     async (
       node: TranscriptNode,
+      { stopRunningTurn }: { stopRunningTurn: boolean },
     ): Promise<{ sessionPath: string; tree: SessionTree; entryId: string } | null> => {
-      const sessionPath = await prepareTreeNavigation();
+      const sessionPath = await prepareTreeNavigation({ stopRunningTurn });
       if (!sessionPath) return null;
       const tree = await getSessionTree(sessionPath);
       const entryId = resolveEntryId(tree, node);
@@ -262,7 +270,7 @@ export function useSessionTreeNavigation(
   const handleTreeMessage = useCallback(
     async (node: TranscriptNode): Promise<void> => {
       try {
-        const target = await resolveNodeTarget(node);
+        const target = await resolveNodeTarget(node, { stopRunningTurn: true });
         if (!target) return;
         await continueTreeNavigation(target.sessionPath, target.tree, target.entryId);
       } catch (error) {
@@ -279,7 +287,7 @@ export function useSessionTreeNavigation(
   const handleEditMessage = useCallback(
     async (node: TranscriptNode): Promise<void> => {
       try {
-        const target = await resolveNodeTarget(node);
+        const target = await resolveNodeTarget(node, { stopRunningTurn: true });
         if (!target) return;
         // A message with nothing after it would silently stay put.
         if (isCurrentPosition(target.tree, target.entryId)) {
@@ -298,7 +306,7 @@ export function useSessionTreeNavigation(
    *  was fetched when it opened. */
   const handleTreeSelect = useCallback(
     async (entryId: string): Promise<void> => {
-      const sessionPath = await prepareTreeNavigation();
+      const sessionPath = await prepareTreeNavigation({ stopRunningTurn: true });
       if (!sessionPath) return;
       try {
         const tree = await getSessionTree(sessionPath);
@@ -316,15 +324,21 @@ export function useSessionTreeNavigation(
     [continueTreeNavigation, prepareTreeNavigation],
   );
 
-  /** `fork` on a transcript row: copy the conversation into a new session. */
+  /**
+   * `fork` on a transcript row: copy the conversation into a new session.
+   *
+   * The original keeps running: a fork point is always an entry already on disk
+   * (a streaming message has no fork button), and the copy reads the file in
+   * this same process, so it cannot see a half-written entry.
+   */
   const handleForkMessage = useCallback(
     async (node: TranscriptNode): Promise<void> => {
       if (moveInFlightRef.current) return;
-      // Taken before the abort is awaited: a second click during it must not
+      // Taken before the tree read is awaited: a second click during it must not
       // start a second fork.
       moveInFlightRef.current = true;
       try {
-        const target = await resolveNodeTarget(node);
+        const target = await resolveNodeTarget(node, { stopRunningTurn: false });
         if (!target) return;
         const { sessionPath, entryId } = target;
         const { activeCwd, resumeSession } = optionsRef.current;
