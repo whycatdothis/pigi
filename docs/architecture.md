@@ -324,11 +324,15 @@ as it does in the chat. A file that is
 only added or only deleted drops the +/- column, the empty gutter and the gap
 rows. Quoting reuses the Files popover, gated to line cells
 (`data-diff-line`): added and context lines carry new-file line numbers and
-quote as `@src/app.ts:10-20`. A selection touching deleted lines has no
-post-change number to point at, and a commit's numbers point into a file the
-agent cannot open, so both quote the whole touched lines as a unified diff
-under what they were compared with (`@src/app.ts, diff against origin/main:`,
-then `-old` / `+new`); plain text there read as the file's current content.
+quote as `@src/app.ts:10-20` with the selected text under it. A selection
+touching deleted lines has no post-change number to point at, and a commit's
+numbers point into a file the agent cannot open, so both quote the whole
+touched lines as a unified diff under what they were compared with
+(`@src/app.ts, diff against origin/main:`, then `-old` / `+new`); plain text
+there read as the file's current content. Every quote from here opens with the
+branch it was read on (`on branch feat/x: …`): two branches forked from the
+same base compare against the same base with the same line numbers, and a
+removed line exists only on the branch that removed it.
 Side by side, a drag stays in the column it starts in: the other column's
 cells sit between this column's in the DOM, so the body marks the starting
 side on mousedown and makes the other `select-none`, and
@@ -755,6 +759,14 @@ the previous state, so scroll frames during streaming follow do not re-render
 it. While editing, a quoted range scrolled out of view pins the editor to the
 edge it left through.
 
+A quote carries two things: `reference`, where the text came from, sent as is;
+and `text`, the selected text, blockquoted under it. A line-range quote from
+the Files viewer or a working-tree diff carries both (`@src/app.ts:10-20` then
+the lines), so the agent reads the code the comment is about instead of having
+to open the file to find it. The one quote without text is a file or diff
+comment (`@src/app.ts, diff against origin/main`), where the subject is the
+whole change.
+
 ## Unsent Drafts
 
 Chat input drafts (`lib/chatDrafts.ts`, keyed by session path, with
@@ -801,6 +813,22 @@ Chromium's always-visible focus, like native text fields. `main.css` redefines
 the Tailwind `focus-visible` variant to skip marked elements and drops the UA
 outline on them, so every `focus-visible:` utility follows this rule. Raw CSS
 and arbitrary selectors (`has-[...:focus-visible]`) bypass the variant.
+
+## Code Blocks
+
+A fenced block is drawn with a header naming its language and a copy button;
+`markdownMessage.tsx` reads the language off the fence's info string.
+
+The Cursor SDK does not put a language there. When the agent quotes code it
+titles the fence with where the snippet came from — `200:222:src/a.ts`, or the
+older `startLine:19:31:path` — and `lib/filePathCandidates.ts` reads that title
+into a path and a line range. Such a block is a snippet of a file rather than a
+piece of prose, so it is drawn that way: the language comes from the file's own
+name (`languageForFile`), the gutter numbers the file's lines from the title's
+first, and a gutter number opens that line in the Files tab once the file is
+known to exist. A title that names no existing file keeps the numbers as plain
+labels, since there is nowhere to open. Any other info string, and a title
+still half-arrived, is a language as before.
 
 ## Mermaid Diagrams
 

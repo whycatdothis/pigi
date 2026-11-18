@@ -241,9 +241,9 @@ export default function FileViewer({
   }, [lineTarget, fileState.status, showsPreview, isMarkdown, isSvg]);
 
   const formatSourceQuote = useCallback(
-    ({ range }: { text: string; range: Range }): QuoteContent | null => {
+    ({ text, range }: { text: string; range: Range }): QuoteContent | null => {
       const lines = sourceLineRangeFromSelection(range);
-      return lines ? formatFileLineQuote(quoteFilePath, lines.start, lines.end) : null;
+      return lines ? formatFileLineQuote(quoteFilePath, lines.start, lines.end, text) : null;
     },
     [quoteFilePath],
   );

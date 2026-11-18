@@ -5,6 +5,7 @@ import {
   findFilePathCandidates,
   formatLineSuffix,
   leadingLineSuffix,
+  parseCodeBlockTitle,
   splitLineSuffix,
 } from './filePathCandidates';
 
@@ -120,5 +121,33 @@ describe('line suffixes', () => {
   it('writes a single line and a range', () => {
     expect(formatLineSuffix({ start: 55, end: 55 })).toBe(':55');
     expect(formatLineSuffix({ start: 55, end: 56 })).toBe(':55-56');
+  });
+});
+
+describe('parseCodeBlockTitle', () => {
+  it('reads the lines and file a Cursor snippet names', () => {
+    expect(parseCodeBlockTitle('200:222:src/renderer/src/App.tsx')).toEqual({
+      path: 'src/renderer/src/App.tsx',
+      lines: { start: 200, end: 222 },
+    });
+    expect(parseCodeBlockTitle('67:69:/Users/me/Base.java')).toEqual({
+      path: '/Users/me/Base.java',
+      lines: { start: 67, end: 69 },
+    });
+  });
+
+  it('reads the older title that spells out its first number', () => {
+    expect(parseCodeBlockTitle('startLine:19:31:src/a.ts')).toEqual({
+      path: 'src/a.ts',
+      lines: { start: 19, end: 31 },
+    });
+  });
+
+  it('leaves a language alone', () => {
+    expect(parseCodeBlockTitle('ts')).toBeNull();
+    expect(parseCodeBlockTitle('bash')).toBeNull();
+    expect(parseCodeBlockTitle('12:20')).toBeNull();
+    expect(parseCodeBlockTitle('12:20:')).toBeNull();
+    expect(parseCodeBlockTitle('0:5:src/a.ts')).toBeNull();
   });
 });

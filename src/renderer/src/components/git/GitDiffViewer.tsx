@@ -14,6 +14,7 @@ import {
   formatFileLineQuote,
   formatFileScopeQuote,
   projectQuotePath,
+  withQuoteBranch,
 } from '../../lib/fileQuotes';
 import type { QuoteContent } from '../../lib/messageQuotes';
 import { splitFileLines } from '../../lib/gitDiffPatch';
@@ -247,9 +248,11 @@ export default function GitDiffViewer({
       : sourceKind === 'commit'
         ? `diff in commit ${sourceRef.slice(0, 7)}`
         : `${sourceKind} diff`;
-
+  // Every quote taken from here is read off one branch, and two branches that
+  // forked from the same base show the same scope and line numbers: the branch
+  // is what the quote is missing, so `withQuoteBranch` opens the reference.
   const formatQuoteContent = useCallback(
-    ({ range }: { range: Range }): QuoteContent | null => {
+    ({ text, range }: { text: string; range: Range }): QuoteContent | null => {
       if (!isInsideDiffLine(range.startContainer) || !isInsideDiffLine(range.endContainer)) {
         return null;
       }
@@ -268,11 +271,14 @@ export default function GitDiffViewer({
         first !== null &&
         numbers.every((number, index) => number === first + index)
       ) {
-        return formatFileLineQuote(shownQuotePath, first, first + numbers.length - 1);
+        return withQuoteBranch(
+          formatFileLineQuote(shownQuotePath, first, first + numbers.length - 1, text),
+          branch,
+        );
       }
-      return formatFileDiffQuote(shownQuotePath, diffScope, lines);
+      return withQuoteBranch(formatFileDiffQuote(shownQuotePath, diffScope, lines), branch);
     },
-    [shownQuotePath, sourceKind, diffScope],
+    [shownQuotePath, sourceKind, diffScope, branch],
   );
 
   const saveFileComment = useCallback(
@@ -280,11 +286,15 @@ export default function GitDiffViewer({
       if (sessionPath) {
         useAppStore
           .getState()
-          .addQuote(sessionPath, formatFileScopeQuote(fileQuotePath, diffScope), comment);
+          .addQuote(
+            sessionPath,
+            withQuoteBranch(formatFileScopeQuote(fileQuotePath, diffScope), branch),
+            comment,
+          );
       }
       setCommentingTarget(null);
     },
-    [sessionPath, fileQuotePath, diffScope],
+    [sessionPath, fileQuotePath, diffScope, branch],
   );
 
   const renamed = file.oldPath !== null && file.oldPath !== file.path;

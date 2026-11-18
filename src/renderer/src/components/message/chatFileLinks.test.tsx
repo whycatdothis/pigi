@@ -85,6 +85,33 @@ describe('paths in chat markdown', () => {
   });
 });
 
+describe('a code block titled with its source', () => {
+  it('numbers its lines from the file and opens one from the gutter', async () => {
+    renderInChat(
+      <MarkdownMessage
+        text={'```12:13:src/a.ts\nconst a = 1;\nconst b = 2;\n```'}
+        isStreaming={false}
+      />,
+    );
+
+    expect(screen.getByText('src/a.ts:12-13')).toBeInTheDocument();
+    // The gutter names the file's lines, not the block's.
+    expect(document.querySelectorAll('[data-source-line]')).toHaveLength(2);
+    expect(document.querySelector('[data-source-line="12"]')).not.toBeNull();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open line 13' }));
+    expect(onOpenFile).toHaveBeenCalledWith(`${cwd}/src/a.ts`, { start: 13, end: 13 });
+  });
+
+  it('leaves the gutter as labels when the file is not on disk', async () => {
+    renderInChat(<MarkdownMessage text={'```12:13:src/missing.ts\nconst a = 1;\n```'} />);
+
+    expect(screen.getByText('src/missing.ts:12-13')).toBeInTheDocument();
+    await Promise.resolve();
+    expect(screen.queryByRole('button', { name: /Open line/ })).toBeNull();
+  });
+});
+
 function renderSent(text: string, searchQuery = ''): void {
   renderInChat(
     <UserBubble

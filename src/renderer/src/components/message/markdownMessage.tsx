@@ -1,4 +1,4 @@
-import { createContext, memo, useContext, type ReactNode } from 'react';
+import { createContext, memo, useCallback, useContext, type ReactNode } from 'react';
 import Markdown, { type Components, type ExtraProps } from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
@@ -9,7 +9,15 @@ import { localFileUrl } from '../../lib/chatAttachments';
 import { ZoomableImage } from '../zoomableImage';
 import { isFenceClosed } from '../../lib/markdownFence';
 import { resolveProjectFileReference } from '../../lib/projectFileLinks';
-import { filePathFromHref, type LineRange } from '../../lib/filePathCandidates';
+import { languageForFile } from '../../lib/fileLanguage';
+import {
+  filePathFromHref,
+  formatLineSuffix,
+  parseCodeBlockTitle,
+  type CodeBlockTitle,
+  type LineRange,
+} from '../../lib/filePathCandidates';
+import { useExistingFile } from '../../lib/existingPaths';
 import rehypeFilePaths, { markedFileLocation } from '../../lib/rehypeFilePaths';
 import { ChatFilesContext } from './chatFiles';
 import { FileLink } from './fileLink';
@@ -201,11 +209,18 @@ function MarkdownCode({
 
   const language = getCodeLanguage(className);
   const code = getCodeText(children);
+  const startLine = node?.position?.start.line;
+  const endLine = node?.position?.end.line;
+  // Cursor titles the snippet it quotes with the lines and file it came from
+  // (`200:222:src/a.ts`), which is a reference rather than a language: the code
+  // is highlighted by the file's own type and its gutter names the file's lines.
+  const title = language ? parseCodeBlockTitle(language) : null;
+  if (title) {
+    return <CodeSnippetBlock title={title} code={code} isStreaming={isStreaming} />;
+  }
   // A mermaid block is drawn as a diagram, but only once its fence is closed:
   // while it streams it is a code block that is still being written, and there
   // is nothing to draw yet.
-  const startLine = node?.position?.start.line;
-  const endLine = node?.position?.end.line;
   if (
     isMermaidLanguage(language) &&
     startLine !== undefined &&
@@ -244,6 +259,55 @@ function MarkdownCode({
 
 function isMermaidLanguage(language: string | null): boolean {
   return language?.toLowerCase() === MERMAID_LANGUAGE;
+}
+
+/**
+ * A block a Cursor reply titled with its source (`200:222:src/a.ts`): a
+ * snippet cut out of a file, so its gutter counts the file's lines, the
+ * language is the file's own, and a gutter number opens that line in the Files
+ * tab. The title is the file reference the chat links already use.
+ */
+function CodeSnippetBlock({
+  title,
+  code,
+  isStreaming,
+}: {
+  title: CodeBlockTitle;
+  code: string;
+  isStreaming: boolean;
+}): React.JSX.Element {
+  const chatFiles = useContext(ChatFilesContext);
+  const absolutePath = useExistingFile(chatFiles?.cwd ?? '', chatFiles ? title.path : null);
+  const reference = `${title.path}${formatLineSuffix(title.lines)}`;
+  const openAt = useCallback(
+    (lineNumber: number): void => {
+      if (chatFiles && absolutePath) {
+        chatFiles.onOpenFile(absolutePath, { start: lineNumber, end: lineNumber });
+      }
+    },
+    [chatFiles, absolutePath],
+  );
+  return (
+    <div className="markdown-code-block">
+      <div className="markdown-code-header" data-search-ignore>
+        <span className="markdown-code-label min-w-0 truncate" title={reference}>
+          {reference}
+        </span>
+        <CodeCopyButton code={code} />
+      </div>
+      <pre>
+        <SyntaxHighlightedCode
+          code={code}
+          language={languageForFile(title.path, code)}
+          isStreaming={isStreaming}
+          lineNumbers
+          firstLineNumber={title.lines.start}
+          gutterClassName="bg-muted"
+          onOpenLine={absolutePath ? openAt : undefined}
+        />
+      </pre>
+    </div>
+  );
 }
 
 function getCodeLanguage(className: string | undefined): string | null {

@@ -10,6 +10,11 @@ export interface FileLocation {
   lines: LineRange | null;
 }
 
+/** A fence title naming the lines a snippet was cut from, so its gutter can start at the first. */
+export interface CodeBlockTitle extends FileLocation {
+  lines: LineRange;
+}
+
 /**
  * Text in chat that looks like a file path. Only a shape test: whether the file
  * exists is asked of the main process (`existingPaths.ts`), so a false positive
@@ -78,6 +83,24 @@ export function filePathFromCode(code: string): FileLocation | null {
   const location = splitLineSuffix(code.trim());
   const path = withoutReferenceMark(location.path);
   return isPathShaped(path) ? { path, lines: location.lines } : null;
+}
+
+// `200:222:src/a.ts`, as the Cursor SDK titles the snippet it quotes; older
+// messages prefix the first number with `startLine:`.
+const CODE_BLOCK_TITLE_PATTERN = /^(?:startLine:)?(\d+):(\d+):(.+)$/;
+
+/**
+ * The file and the lines a fence's info string names. Anything else — `ts`,
+ * `bash`, a half-written title still arriving — is an ordinary language fence.
+ */
+export function parseCodeBlockTitle(info: string): CodeBlockTitle | null {
+  const match = CODE_BLOCK_TITLE_PATTERN.exec(info.trim());
+  if (!match) return null;
+  const first = Number(match[1]);
+  const second = Number(match[2]);
+  const path = match[3].trim();
+  if (!path || !isPathShaped(path) || first < 1 || second < 1) return null;
+  return { path, lines: { start: Math.min(first, second), end: Math.max(first, second) } };
 }
 
 export function findFilePathCandidates(text: string): FilePathCandidate[] {

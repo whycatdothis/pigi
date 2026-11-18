@@ -5,28 +5,31 @@ import {
   formatFileLineQuote,
   formatFileScopeQuote,
   projectQuotePath,
+  withQuoteBranch,
 } from './fileQuotes';
 
 describe('formatFileLineQuote', () => {
-  it('quotes a single source line', () => {
-    expect(formatFileLineQuote('src/app.ts', 30, 30)).toEqual({
+  it('quotes a single source line with the text it holds', () => {
+    expect(formatFileLineQuote('src/app.ts', 30, 30, 'export const app = start();')).toEqual({
       reference: '@src/app.ts:30',
-      text: '',
+      text: 'export const app = start();',
     });
   });
 
   it('quotes a line range', () => {
-    expect(formatFileLineQuote('src/service/test.js', 30, 50).reference).toBe(
+    expect(formatFileLineQuote('src/service/test.js', 30, 50, 'run();').reference).toBe(
       '@src/service/test.js:30-50',
     );
   });
 
   it('orders a selection made bottom-up', () => {
-    expect(formatFileLineQuote('src/app.ts', 50, 30).reference).toBe('@src/app.ts:30-50');
+    expect(formatFileLineQuote('src/app.ts', 50, 30, 'run();').reference).toBe('@src/app.ts:30-50');
   });
 
   it('quotes paths with spaces without breaking the reference', () => {
-    expect(formatFileLineQuote('docs/my notes.md', 3, 5).reference).toBe('@"docs/my notes.md":3-5');
+    expect(formatFileLineQuote('docs/my notes.md', 3, 5, 'notes').reference).toBe(
+      '@"docs/my notes.md":3-5',
+    );
   });
 });
 
@@ -51,6 +54,22 @@ describe('formatFileDiffQuote', () => {
       reference: '@src/app.ts, diff against origin/main:',
       text: ['-const timeout = 5000;', '+const timeout = 8000;', ' retry(fetchUser);'].join('\n'),
     });
+  });
+});
+
+describe('withQuoteBranch', () => {
+  it('opens the reference with the branch the diff was read on', () => {
+    expect(
+      withQuoteBranch({ reference: '@src/app.ts, unstaged diff:', text: '+a' }, 'feat/x'),
+    ).toEqual({
+      reference: 'on branch feat/x: @src/app.ts, unstaged diff:',
+      text: '+a',
+    });
+  });
+
+  it('leaves a quote alone when the branch is unknown', () => {
+    const quote = { reference: '@src/app.ts:10-20', text: 'run();' };
+    expect(withQuoteBranch(quote, null)).toBe(quote);
   });
 });
 
