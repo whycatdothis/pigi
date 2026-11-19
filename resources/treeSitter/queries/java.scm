@@ -8,3 +8,4 @@
 (method_declaration name: (identifier) @name) @definition.method
 (enum_constant name: (identifier) @name) @definition.constant
 (field_declaration declarator: (variable_declarator name: (identifier) @name)) @definition.field
+(constant_declaration declarator: (variable_declarator name: (identifier) @name)) @definition.constant

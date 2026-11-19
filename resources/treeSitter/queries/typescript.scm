@@ -9,4 +9,5 @@
 (interface_declaration name: (type_identifier) @name) @definition.interface
 (type_alias_declaration name: (type_identifier) @name) @definition.type
 (enum_declaration name: (identifier) @name) @definition.enum
-(public_field_definition name: (property_identifier) @name) @definition.field
+(public_field_definition name: [(property_identifier) (private_property_identifier)] @name) @definition.field
+(property_signature name: (property_identifier) @name) @definition.field

@@ -1,6 +1,6 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
 import { isAbsolute, join, relative, sep } from 'node:path';
-import { codeLanguageForPath } from '../../../shared/codeNavigation';
+import { codeLanguageForPath, type CodeLanguage } from '../../../shared/codeNavigation';
 import type {
   CodeDefinition,
   CodeNavigationRequest,
@@ -15,12 +15,10 @@ const LANGUAGE_SERVER_BUDGET_MS = 3_000;
 
 async function identifierInFile(
   text: string,
-  filePath: string,
+  language: CodeLanguage,
   line: number,
   column: number,
 ): Promise<Identifier | null> {
-  const language = codeLanguageForPath(filePath);
-  if (!language) return null;
   const parsed = await parseSource(language, text);
   if (!parsed) return null;
   try {
@@ -30,35 +28,34 @@ async function identifierInFile(
   }
 }
 
-/** Project-relative inside the project, absolute outside it (standard library, dependencies). */
-function displayPath(cwd: string, path: string): string {
-  const inside = relative(cwd, path);
-  if (!inside || inside.startsWith('..') || isAbsolute(inside)) return path;
-  return inside.split(sep).join('/');
+/**
+ * Project-relative inside the project, absolute outside it (standard library,
+ * dependencies). Servers may answer with the real path of a symlinked project.
+ */
+function displayPath(roots: readonly string[], path: string): string {
+  for (const root of roots) {
+    const inside = relative(root, path);
+    if (inside && !inside.startsWith('..') && !isAbsolute(inside)) {
+      return inside.split(sep).join('/');
+    }
+  }
+  return path;
 }
 
 async function describeLocations(
   cwd: string,
   locations: ServerLocation[],
 ): Promise<CodeDefinition[]> {
-  const texts = new Map<string, Promise<string[]>>();
-  const linesOf = (path: string): Promise<string[]> => {
-    let lines = texts.get(path);
-    if (!lines) {
-      lines = readFile(path, 'utf8').then(
-        (text) => text.split('\n'),
-        () => [],
-      );
-      texts.set(path, lines);
-    }
-    return lines;
-  };
+  const roots = [cwd, await realpath(cwd).catch(() => cwd)];
   return Promise.all(
-    locations.map(async ({ path, line }) => ({
-      filePath: displayPath(cwd, path),
-      line,
-      lineContent: lineContentAt(await linesOf(path), line),
-    })),
+    locations.map(async ({ path, line }) => {
+      const text = await readFile(path, 'utf8').catch(() => '');
+      return {
+        filePath: displayPath(roots, path),
+        line,
+        lineContent: lineContentAt(text.split('\n'), line),
+      };
+    }),
   );
 }
 
@@ -74,7 +71,7 @@ export async function findDefinition(
   try {
     const absolutePath = join(cwd, filePath);
     const text = await readFile(absolutePath, 'utf8');
-    const identifier = await identifierInFile(text, filePath, line, column);
+    const identifier = await identifierInFile(text, language, line, column);
     if (!identifier) return { success: true, symbol: null, definitions: [] };
 
     const fromServer = await serverDefinitions(
@@ -82,7 +79,7 @@ export async function findDefinition(
       absolutePath,
       language,
       text,
-      { line: line - 1, character: column },
+      identifier.start,
       LANGUAGE_SERVER_BUDGET_MS,
     );
     const definitions = fromServer?.length

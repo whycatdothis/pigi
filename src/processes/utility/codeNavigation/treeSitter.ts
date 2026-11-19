@@ -6,7 +6,11 @@ import { GRAMMARS, VUE_GRAMMAR, type ScriptLanguage } from './languages';
 
 const DEFINITION_CAPTURE_PREFIX = 'definition.';
 const NAME_CAPTURE = 'name';
+/** The capture kind `perl.scm` gives `package` statements. */
+const PERL_PACKAGE_KIND = 'module';
 const PERL_SEPARATOR = '::';
+/** Where a Perl bareword names a package: `Foo::Bar->new`, `require Foo::Bar`. */
+const PERL_PACKAGE_PARENTS = new Set(['method_call_expression', 'require_expression']);
 
 export interface ParsedSource {
   tree: Tree;
@@ -27,6 +31,8 @@ export interface Definition {
 export interface Identifier {
   name: string;
   scope: string | null;
+  /** Where the identifier starts, 0-based, for the language server. */
+  start: { line: number; character: number };
 }
 
 let parser: Promise<Parser> | null = null;
@@ -132,13 +138,31 @@ export async function parseSource(
   return tree ? { tree, language } : null;
 }
 
-function splitPerlName(text: string): Identifier {
+function splitPerlName(text: string): { name: string; scope: string | null } {
   const separator = text.lastIndexOf(PERL_SEPARATOR);
   if (separator < 0) return { name: text, scope: null };
   return {
     name: text.slice(separator + PERL_SEPARATOR.length),
     scope: text.slice(0, separator),
   };
+}
+
+/**
+ * A package name is looked up whole; a sub name splits off its qualifier.
+ * `&foo` and `\&foo` put the name in a `varname` under a `function`.
+ */
+function perlName(node: Node): { name: string; scope: string | null } | null {
+  if (node.type === 'varname') {
+    return node.parent?.type === 'function' ? splitPerlName(node.text) : null;
+  }
+  // `Foo::Bar::->new` is the same package as `Foo::Bar->new`.
+  const text = node.text.endsWith(PERL_SEPARATOR)
+    ? node.text.slice(0, -PERL_SEPARATOR.length)
+    : node.text;
+  const isPackage =
+    node.type === 'package' ||
+    (node.type === 'bareword' && PERL_PACKAGE_PARENTS.has(node.parent?.type ?? ''));
+  return isPackage ? { name: text, scope: null } : splitPerlName(text);
 }
 
 /**
@@ -155,48 +179,60 @@ export function identifierAt(
     if (candidate < 0) continue;
     const node = source.tree.rootNode.descendantForPosition({ row: line - 1, column: candidate });
     if (!node || !identifierTypes.has(node.type)) continue;
-    if (source.language !== 'perl') return { name: node.text, scope: null };
-    // A package name (`use Foo::Bar`, `Foo::Bar->new`) is looked up whole.
-    const isPackage =
-      node.type === 'package' ||
-      (node.type === 'bareword' && node.parent?.type === 'method_call_expression');
-    return isPackage ? { name: node.text, scope: null } : splitPerlName(node.text);
+    const named = source.language === 'perl' ? perlName(node) : { name: node.text, scope: null };
+    if (!named) continue;
+    const start = { line: node.startPosition.row, character: node.startPosition.column };
+    return { ...named, start };
   }
   return null;
 }
 
 export async function definitionsIn(source: ParsedSource): Promise<Definition[]> {
   const query = await loadQuery(source.language);
-  const definitions: Definition[] = [];
+  const found: { name: Node; definition: Node; kind: string }[] = [];
   for (const match of query.matches(source.tree.rootNode)) {
     const name = match.captures.find((capture) => capture.name === NAME_CAPTURE)?.node;
     const definition = match.captures.find((capture) =>
       capture.name.startsWith(DEFINITION_CAPTURE_PREFIX),
     );
     if (!name || !definition) continue;
-    definitions.push({
-      name: name.text,
+    found.push({
+      name,
+      definition: definition.node,
       kind: definition.name.slice(DEFINITION_CAPTURE_PREFIX.length),
-      line: name.startPosition.row + 1,
-      scope: null,
     });
   }
-  return source.language === 'perl' ? withPerlPackages(definitions) : definitions;
+  const scopeOf = source.language === 'perl' ? perlScopes(found) : () => null;
+  return found.map(({ name, kind }) => {
+    const definition = { name: name.text, kind, line: name.startPosition.row + 1, scope: null };
+    if (kind === PERL_PACKAGE_KIND || source.language !== 'perl') return definition;
+    const qualified = splitPerlName(name.text);
+    return qualified.scope
+      ? { ...definition, ...qualified }
+      : { ...definition, scope: scopeOf(name) };
+  });
+}
+
+function hasBlock(node: Node): boolean {
+  return node.namedChildren.some((child) => child?.type === 'block');
 }
 
 /**
- * A Perl sub belongs to the last `package` above it, unless its own name is
- * qualified (`sub Foo::bar`). Packages keep their full name.
+ * The package a Perl sub belongs to: the `package Foo { … }` around it, else
+ * the last `package Foo;` above it.
  */
-function withPerlPackages(definitions: Definition[]): Definition[] {
-  const packages = definitions
-    .filter((definition) => definition.kind === 'module')
-    .sort((a, b) => a.line - b.line);
-  return definitions.map((definition) => {
-    if (definition.kind === 'module') return definition;
-    const qualified = splitPerlName(definition.name);
-    if (qualified.scope) return { ...definition, ...qualified };
-    const owner = packages.findLast((candidate) => candidate.line <= definition.line);
-    return { ...definition, scope: owner?.name ?? null };
-  });
+function perlScopes(
+  found: readonly { name: Node; definition: Node; kind: string }[],
+): (name: Node) => string | null {
+  const statements = found
+    .filter((entry) => entry.kind === PERL_PACKAGE_KIND && !hasBlock(entry.definition))
+    .map((entry) => entry.name);
+  return (name) => {
+    for (let ancestor = name.parent; ancestor; ancestor = ancestor.parent) {
+      if (ancestor.type === 'package_statement' && hasBlock(ancestor)) {
+        return ancestor.childForFieldName('name')?.text ?? null;
+      }
+    }
+    return statements.findLast((statement) => statement.startIndex < name.startIndex)?.text ?? null;
+  };
 }

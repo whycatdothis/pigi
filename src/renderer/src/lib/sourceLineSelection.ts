@@ -20,6 +20,7 @@ export function sourceLineRangeFromSelection(range: Range): { start: number; end
 /**
  * The source position under a point: a 1-based line and a 0-based column in
  * UTF-16 code units. The column counts only the line's text, not its gutter.
+ * Every source row, highlighted or plain, marks its text `data-source-content`.
  */
 export function sourcePositionFromPoint(
   x: number,
@@ -35,7 +36,14 @@ export function sourcePositionFromPoint(
   const range = document.createRange();
   range.setStart(content, 0);
   range.setEnd(caret.offsetNode, caret.offset);
-  return { line, column: range.toString().length };
+  const column = range.toString().length;
+  // Past the end of the line the caret snaps to its last character, which is
+  // not what was clicked.
+  if (column > 0 && column === content.textContent?.length) {
+    range.setStart(caret.offsetNode, Math.max(0, caret.offset - 1));
+    if (x > range.getBoundingClientRect().right) return null;
+  }
+  return { line, column };
 }
 
 function lineNumberAt(node: Node): number | null {

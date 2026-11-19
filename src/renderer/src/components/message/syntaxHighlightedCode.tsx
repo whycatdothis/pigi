@@ -127,7 +127,9 @@ function plainSourceLineNodes(code: string, gutter: GutterOptions): React.JSX.El
         className={codeLineClassName(true, marked)}
       >
         <SourceLineNumber lineNumber={lineNumber} marked={marked} gutter={gutter} />
-        <span className="min-w-0 whitespace-pre">{line}</span>
+        <span data-source-content className="min-w-0 whitespace-pre">
+          {line}
+        </span>
       </span>
     );
   });
@@ -342,7 +344,9 @@ export default function SyntaxHighlightedCode({
                 className={codeLineClassName(true, marked)}
               >
                 <SourceLineNumber lineNumber={lineNumber} marked={marked} gutter={gutter} />
-                <span className="min-w-0 whitespace-pre">{line}</span>
+                <span data-source-content className="min-w-0 whitespace-pre">
+                  {line}
+                </span>
               </span>
             );
           })

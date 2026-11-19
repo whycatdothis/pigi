@@ -7,7 +7,6 @@ import { TREE_SITTER_DIRECTORY_ENV } from '../../../shared/codeNavigation';
 import type { FindDefinitionResult } from '../../../shared/ipcContract';
 import { findDefinition } from './findDefinition';
 import { serverDefinitions, stopLanguageServers } from './languageServer';
-import { stopFinders } from './searchDefinitions';
 
 let root: string;
 const originalPath = process.env['PATH'];
@@ -55,7 +54,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   stopLanguageServers();
-  stopFinders();
   process.env['PATH'] = originalPath;
   await rm(root, { recursive: true, force: true });
 });
@@ -86,6 +84,43 @@ describe('search-based fallback', () => {
   });
 });
 
+describe('search-based fallback past the parse cap', () => {
+  let crowded: string;
+
+  beforeAll(async () => {
+    crowded = await mkdtemp(join(tmpdir(), 'pigi-definition-crowded-'));
+    const files: Record<string, string> = {
+      'lib/Foo/Bar.pm': 'package Foo::Bar;\nsub value_type { }\n1;\n',
+      'zz/far/away/Defs.pm': 'package Defs;\nsub common_name { }\n1;\n',
+      'app/views/main.pl': 'Foo::Bar::value_type();\ncommon_name();\n',
+      // Found within the cap, so parsing stops before reaching lib/.
+      'app/views/Decoy.pm': 'package Decoy;\nsub value_type { }\n1;\n',
+    };
+    // More files near the click than the cap, all only mentioning the names.
+    for (let index = 0; index < 250; index += 1) {
+      files[`app/views/view${index}.pl`] = 'value_type();\ncommon_name();\n';
+    }
+    await writeFiles(crowded, files);
+    execFileSync('git', ['init', '-q'], { cwd: crowded });
+  });
+
+  afterAll(async () => {
+    await rm(crowded, { recursive: true, force: true });
+  });
+
+  it("tries a Perl package's own file first", async () => {
+    expect(located(await lookup(crowded, 'app/views/main.pl', 1, 11))).toEqual([
+      'lib/Foo/Bar.pm:2',
+    ]);
+  });
+
+  it('keeps parsing past the cap while nothing is found', async () => {
+    expect(located(await lookup(crowded, 'app/views/main.pl', 2, 2))).toEqual([
+      'zz/far/away/Defs.pm:2',
+    ]);
+  });
+});
+
 /**
  * A minimal language server: answers `initialize`, then behaves as the
  * `mode` file in its working directory says.
@@ -97,6 +132,13 @@ const { createProtocolConnection } = require(${JSON.stringify(
 )});
 const mode = readFileSync('mode', 'utf8').trim();
 const connection = createProtocolConnection(process.stdin, process.stdout);
+// A real server rejects a second didOpen of a document it already has open.
+const open = new Set();
+connection.onNotification('textDocument/didOpen', ({ textDocument }) => {
+  if (open.has(textDocument.uri)) process.exit(2);
+  open.add(textDocument.uri);
+});
+connection.onNotification('textDocument/didClose', ({ textDocument }) => open.delete(textDocument.uri));
 connection.onRequest('initialize', () => {
   if (mode === 'crash') process.exit(1);
   return { capabilities: { definitionProvider: true } };
@@ -104,6 +146,10 @@ connection.onRequest('initialize', () => {
 connection.onRequest('textDocument/definition', (params) => {
   if (mode === 'hang') return new Promise(() => {});
   if (mode === 'empty') return [];
+  if (mode === 'link') {
+    const range = { start: { line: 2, character: 0 }, end: { line: 2, character: 3 } };
+    return [{ targetUri: require('node:url').pathToFileURL(readFileSync('outside', 'utf8').trim()).href, targetRange: range, targetSelectionRange: range }];
+  }
   return [{ uri: params.textDocument.uri, range: { start: { line: 0, character: 5 }, end: { line: 0, character: 8 } } }];
 });
 connection.onRequest('shutdown', () => null);
@@ -134,10 +180,22 @@ describe('language server tier', () => {
     await rm(bin, { recursive: true, force: true });
   });
 
-  it("uses the server's answer", async () => {
+  it("uses the server's answer, lookup after lookup", async () => {
     const project = await serverProject('answer');
     // The fake points every lookup at line 1, where no tags query would.
     expect(located(await lookup(project, 'main.go', 5, 15))).toEqual(['main.go:1']);
+    expect(located(await lookup(project, 'main.go', 5, 15))).toEqual(['main.go:1']);
+  });
+
+  it('opens a location link outside the project by its absolute path', async () => {
+    const project = await serverProject('link');
+    const outside = join(bin, 'stdlib.go');
+    await writeFiles(project, { outside });
+    await writeFile(outside, 'package lib\n\nfunc run() {}\n');
+    const result = await lookup(project, 'main.go', 5, 15);
+    expect(result.success && result.definitions).toEqual([
+      { filePath: outside, line: 3, lineContent: 'func run() {}' },
+    ]);
   });
 
   it('falls back to search when the server finds nothing', async () => {

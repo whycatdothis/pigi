@@ -1,7 +1,7 @@
 ; Definitions shared by the JavaScript, TypeScript and TSX grammars.
 ; Derived from tree-sitter-javascript v0.25.0 queries/tags.scm (MIT).
 
-(method_definition name: (property_identifier) @name) @definition.method
+(method_definition name: [(property_identifier) (private_property_identifier)] @name) @definition.method
 (class name: (_) @name) @definition.class
 (class_declaration name: (_) @name) @definition.class
 (function_expression name: (identifier) @name) @definition.function

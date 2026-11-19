@@ -33,3 +33,22 @@ user-visible also adds a line to the CHANGELOG.
   the remote-control surface. `useGitBranch` and `useUpdateInstall` were pulled
   out; the file-open cluster (`fileRevision`, `fileLineTarget`,
   `revealedDirectory`, `handleOpenFile*`) has the same shape.
+
+## Go to definition
+
+Deferred from `feat/go-to-definition` (`docs/goToDefinition.md`):
+
+- Main does not stop the code navigation process in `before-quit`, and its
+  `exit` handler (which kills language servers) does not run when the process
+  is terminated. Servers still exit on stdin EOF or the `processId` watch.
+- A lookup sent just as the idle process exits fails with "The code
+  navigation process exited" instead of being retried in a new process.
+- Windows: a language server started through an npm `.cmd` shim runs under
+  `cmd.exe`, and killing it kills the shell, not the server.
+- No tests for `GoToDefinition` (stale replies, candidate list, cursors) or for
+  main's process restart and timeout in `src/main/projects/codeNavigation.ts`.
+- Back navigation after a jump (open question in `docs/goToDefinition.md §8`).
+- Start the language server and open the file when the Files tab shows a
+  navigable file, not on the first click: the first lookup pays the server's
+  start-up (often past the 3 s budget) and, for TypeScript, can land on the
+  import line because the project is not loaded yet.

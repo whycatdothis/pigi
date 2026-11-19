@@ -1,7 +1,6 @@
 import type { CodeNavigationRequest, CodeNavigationResponse } from '../../shared/ipcContract';
 import { findDefinition } from './codeNavigation/findDefinition';
 import { stopLanguageServers } from './codeNavigation/languageServer';
-import { stopFinders } from './codeNavigation/searchDefinitions';
 
 /**
  * fff's grep keeps what it read: one lookup in a 120k-file repository leaves
@@ -31,7 +30,4 @@ process.parentPort?.on('message', (messageEvent) => {
   });
 });
 
-process.on('exit', () => {
-  stopLanguageServers();
-  stopFinders();
-});
+process.on('exit', stopLanguageServers);

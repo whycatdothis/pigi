@@ -26,6 +26,7 @@ const ECMASCRIPT_IDENTIFIERS = new Set([
   'type_identifier',
   'shorthand_property_identifier',
   'shorthand_property_identifier_pattern',
+  'private_property_identifier',
 ]);
 
 export const GRAMMARS: Readonly<Record<ScriptLanguage, GrammarConfig>> = {
@@ -72,7 +73,7 @@ export const GRAMMARS: Readonly<Record<ScriptLanguage, GrammarConfig>> = {
   perl: {
     grammar: 'tree-sitter-perl.wasm',
     queries: ['perl.scm'],
-    identifierTypes: new Set(['function', 'method', 'bareword', 'package']),
+    identifierTypes: new Set(['function', 'method', 'bareword', 'package', 'varname']),
   },
 };
 
@@ -133,4 +134,12 @@ export const LANGUAGE_SERVERS: Readonly<Partial<Record<CodeLanguage, LanguageSer
 function jdtlsDataDirectory(root: string): string {
   const key = createHash('sha256').update(root).digest('hex').slice(0, 16);
   return join(tmpdir(), 'pigi-jdtls', key);
+}
+
+/** typescript-language-server parses a `javascript` document without JSX. */
+export function languageIdFor(language: CodeLanguage, path: string): string | null {
+  const languageId = LANGUAGE_SERVERS[language]?.languageId ?? null;
+  return language === 'javascript' && path.toLowerCase().endsWith('.jsx')
+    ? 'javascriptreact'
+    : languageId;
 }

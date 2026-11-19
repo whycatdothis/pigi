@@ -17,5 +17,10 @@
 
 ((ambiguous_function_call_expression
   function: (function) @_function
-  arguments: (list_expression . (autoquoted_bareword) @name)) @definition.field
+  arguments: (list_expression .
+    [
+      (autoquoted_bareword) @name
+      (string_literal (string_content) @name)
+      (interpolated_string_literal (string_content) @name)
+    ])) @definition.field
   (#eq? @_function "has"))

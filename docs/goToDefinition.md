@@ -73,14 +73,30 @@ flowchart LR
   servers exit if pigi is killed. A server that fails to start, does not
   answer `initialize` within 60 s, or exits is not retried until the utility
   process restarts.
-- **Request.** `didOpen` the file with its current disk content (`didChange`
-  with a new version on later lookups), then `textDocument/definition`.
-  Positions are UTF-16 code units, the LSP default, which is also what the DOM
-  caret offset gives.
+- **Request.** tree-sitter identifies the clicked symbol first (§3.2 step 1);
+  a click off an identifier asks nobody. The clicked file is opened with its
+  current disk content (`didChange` if it is already the open one), and
+  `textDocument/definition` asks at the identifier's start. Only the last
+  looked-up file stays open: an open document is an overlay the server trusts
+  over the disk, which the agent keeps changing. Closing it after every lookup
+  makes typescript-language-server unload the project and answer the next
+  lookup with the import line instead of the definition. Positions are UTF-16
+  code units, the LSP default, which is also what the DOM caret offset and
+  tree-sitter's columns give. `.jsx` opens as `javascriptreact`, or
+  typescript-language-server parses it without JSX.
+- **Verified** with typescript-language-server 6.1.0 (TypeScript 5.9) and
+  pyright: both find parameters and locals, which the fallback cannot. Two
+  limits seen: the first lookup in a freshly started TypeScript server can
+  still land on the import line (the project is not loaded yet), and
+  typescript-language-server refuses workspaces on TypeScript 6 or 7 (no
+  `tsserver.js`, pigi's own repository among them), which then use the
+  fallback.
 - **Budget.** The first lookup includes server start-up, which can take
   seconds (rust-analyzer and jdtls index the project). If the server has not
   answered within 3 s, that lookup uses the fallback and the server keeps
-  starting for the next click. Empty results and errors also fall back.
+  starting for the next click. Empty results and errors also fall back. A
+  started server that runs out of budget three lookups in a row is killed and
+  not retried; the next installed candidate is tried instead.
 - **Results** may point outside the project (standard library, `node_modules`
   declarations); they open by absolute path.
 - **Staleness.** Servers that only learn about unopened files through client
@@ -96,10 +112,12 @@ flowchart LR
    grammar config in code; they must cover reference positions, not only
    declarations (Perl calls are `(function)`, method calls `(method)`, package
    names `(package)`). Clicks on keywords, strings and comments do nothing.
-   - Perl qualified names: a `(package)` node (`Foo::Bar->new`, `use Foo::Bar`)
-     searches the whole name against `package` definitions. A qualified call
-     (`Foo::Bar::baz()`) searches the last segment, `baz`, and ranks first the
-     files whose `package` is `Foo::Bar`.
+   - Perl names: a package (`use Foo::Bar`, `require Foo::Bar`,
+     `Foo::Bar->new`) is searched whole against `package` definitions. A
+     qualified call (`Foo::Bar::baz()`) searches `baz` and keeps the subs of
+     package `Foo::Bar` when there are any. `&foo` and `\&foo` name sub `foo`.
+     A sub belongs to the `package Foo { … }` around it, else the last
+     `package Foo;` above it.
 2. **Recall.** `finder.grep(pattern, { mode: 'regex', smartCase: false,
 maxMatchesPerFile: 1, pageSize: 1000 })`, following `nextCursor` to the end.
    - Only files are needed, so one match per file is enough.
@@ -117,9 +135,11 @@ maxMatchesPerFile: 1, pageSize: 1000 })`, following `nextCursor` to the end.
    - Files outside the clicked file's language family (§4) are dropped, and
      files over 1 MB are skipped (`maxFileSize`): generated bundles parse
      slowly and rarely hold the definition.
-3. **Rank and cap.** Same file > same directory > longest common path prefix.
-   Parse at most N files (start with 200); a common name like Perl
-   `value_type` recalls thousands.
+3. **Rank and cap.** The file itself, then (Perl) the package's own file,
+   `Foo/Bar.pm` for `Foo::Bar`, then by directories shared with the file, how
+   deep below them, and path length. A common name like Perl `value_type`
+   recalls thousands of files, so after 200 parsing goes on only while nothing
+   has been found, for at most 3 more seconds.
 4. **Filter.** Run the language's tags query; keep `@definition.*` captures whose
    `@name` text equals the symbol.
 5. **Open.** Reuse `onOpenFile(path, { start: line, end: line })`, which already
@@ -146,12 +166,14 @@ tree-sitter-vue to find its `<script>` block (§4.1).
 Total with `web-tree-sitter.wasm` (0.2 MB): 10 MB, before DMG compression.
 Versions and sources are listed in `licenses/THIRD_PARTY_NOTICES.md`.
 
-The upstream queries are a starting point, not complete. Known gaps to add:
-
-- TS: `type X =`, `enum X`, non-function `const X = …` at module scope.
-- JS/TSX: components wrapped in a call (`const X = memo(…)`, `forwardRef`,
-  `styled.div`).
-- Perl: `use constant NAME =>`, Moose/Moo `has name =>`.
+The upstream queries were a starting point. Added on top: TS `type`, `enum`,
+interface and type-literal members, private `#members`; module-level bindings
+of any value in JS/TS (`const X = memo(…)`, `styled.div`); Java enum
+constants, records and interface constants; Rust consts, statics, fields and
+variants; Go module-level `var`/`const`, struct fields and interface methods;
+Perl `use constant` and Moose/Moo `has name` / `has 'name'`. Known gaps:
+destructured exports (`export const { a } = o`), TS constructor parameter
+properties, Perl `has [qw(a b)]`.
 
 Reference captures (`@reference.*`) are dropped; only definitions are needed.
 
@@ -207,7 +229,7 @@ was ~1.6 MB/s, about 6 ms per file, which is why step 3 caps N.
 - **IPC**, following `ipcContract.ts`:
   - `PiChannel.FindDefinition = 'pi:find_definition'`, positional arguments
     like `readProjectFile`: `findDefinition(cwd, filePath, line, column)`.
-  - Result: `{ success: true; symbol: string; definitions: { filePath; line;
+  - Result: `{ success: true; symbol: string | null; definitions: { filePath; line;
 lineContent }[] } | { success: false; error: string }`. `filePath`
     is project-relative, or absolute outside the project.
   - Wiring: `src/shared/ipcContract.ts`, `src/preload/index.ts`,
@@ -233,8 +255,10 @@ lineContent }[] } | { success: false; error: string }`. `filePath`
 
 ### Phase 0: verify
 
-- [ ] `web-tree-sitter.wasm` stays inside the asar (it comes from
-      `node_modules`); confirm `Parser.init` finds it in a packaged build.
+- [x] `web-tree-sitter.wasm` stays inside the asar (it comes from
+      `node_modules`): in a `build:mac:dev` app, Electron in Node mode
+      imports it from `app.asar` and parses with a grammar from
+      `app.asar.unpacked`.
 - [x] Every pinned grammar wasm loads with web-tree-sitter 0.27.2:
       typescript, tsx and java are ABI 14, the rest ABI 15.
 - [x] Column units: web-tree-sitter `Point.column` counts UTF-16 code units,
@@ -273,11 +297,16 @@ lineContent }[] } | { success: false; error: string }`. `filePath`
   query compilation loudly, but a new wrapper node silently breaks patterns
   anchored to a parent, such as upstream Python's
   `(module (expression_statement (assignment …)))`.
-- `findDefinition.test.ts` against a temporary repository: ranking, `.gitignore`, cap,
-  `$`-names, Perl qualified names, a click on a keyword or in a comment.
+- `findDefinition.test.ts` against a temporary repository: ranking,
+  `.gitignore`, `$`-names, Perl qualified names and package files, parsing
+  past the cap, a click off an identifier. Clicks on keywords, strings and
+  comments are in `treeSitter.test.ts`.
+- `sourceLineSelection.browser.test.tsx`: the DOM point to line and column,
+  on highlighted and plain rows, and nothing past a line's end.
 - Language server tier against a small fake server (a Node script speaking
-  JSON-RPC on stdio): a normal answer, an empty answer, a timeout, a server
-  that exits during `initialize`. None of the real servers is installed on
+  JSON-RPC on stdio): repeated answers (a second `didOpen` without a
+  `didClose` kills it), a location link outside the project, an empty
+  answer, a timeout, a server that exits during `initialize`. None of the real servers is installed on
   the author's machine, so this test is what covers the protocol code.
 - Manual: `~/work/main` (Perl, 120k files) for latency, pigi itself for TS/TSX.
 

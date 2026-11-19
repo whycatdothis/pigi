@@ -47,7 +47,7 @@ let local = 1;
 function outer() { const inner = 2; }
 class Store { count = 0; save() {} }
 abstract class Base { abstract load(): void; }
-interface Props { a: string }
+interface Props { title: string }
 type Id = string;
 enum Color { Red }
 namespace Api {}
@@ -70,6 +70,7 @@ declare function external(): void;
       'outer',
       'run',
       'save',
+      'title',
     ]);
   });
 
@@ -82,10 +83,11 @@ declare function external(): void;
     const source = `
 module.exports.run = function () {};
 const config = { load: () => 1 };
-class Store { count = 0; static create() {} }
+class Store { count = 0; #secret = 1; static create() {} }
 function* ids() {}
 `;
     expect(await definitionNames('javascript', source)).toEqual([
+      '#secret',
       'Store',
       'config',
       'count',
@@ -174,13 +176,14 @@ class Store {
   private int count;
   void save() {}
 }
-interface Saver {}
+interface Saver { int MAX = 1; }
 enum Color { RED }
 record Point(int x) {}
 @interface Marker {}
 `;
     expect(await definitionNames('java', source)).toEqual([
       'Color',
+      'MAX',
       'Marker',
       'Point',
       'RED',
@@ -197,6 +200,7 @@ package Foo::Bar;
 use constant LIMIT => 3;
 use constant { RED => 1, BLUE => 2 };
 has name => (is => 'ro');
+has 'label' => (is => 'ro');
 sub value_type { }
 sub Other::helper { }
 `;
@@ -206,6 +210,7 @@ sub Other::helper { }
       'LIMIT',
       'RED',
       'helper',
+      'label',
       'name',
       'value_type',
     ]);
@@ -214,14 +219,14 @@ sub Other::helper { }
   it('perl subs belong to the package above them', async () => {
     const parsed = await parseSource(
       'perl',
-      'package A;\nsub one {}\npackage B;\nsub two {}\nsub C::three {}\n',
+      'package A;\nsub one {}\npackage B;\nsub two {}\nsub C::three {}\npackage D {\n sub four {}\n}\nsub five {}\n',
     );
     if (!parsed) throw new Error('no tree');
     const scopes = (await definitionsIn(parsed))
       .filter((definition) => definition.kind !== 'module')
       .map((definition) => `${definition.scope}::${definition.name}`);
     parsed.tree.delete();
-    expect(scopes.sort()).toEqual(['A::one', 'B::two', 'C::three']);
+    expect(scopes.sort()).toEqual(['A::one', 'B::five', 'B::two', 'C::three', 'D::four']);
   });
 
   it('vue script blocks', async () => {
@@ -230,27 +235,27 @@ sub Other::helper { }
 const total = 1
 type Row = { id: string }
 </script>`;
-    expect(await definitionNames('vue', source)).toEqual(['Row', 'total']);
+    expect(await definitionNames('vue', source)).toEqual(['Row', 'id', 'total']);
   });
 });
 
 describe('identifierAt', () => {
   it('names the identifier under the position', async () => {
-    expect(await identifierAtMarker('typescript', 'const a = sa|ve();')).toEqual({
+    expect(await identifierAtMarker('typescript', 'const a = sa|ve();')).toMatchObject({
       name: 'save',
       scope: null,
     });
   });
 
   it('takes the word a caret just past its end belongs to', async () => {
-    expect(await identifierAtMarker('typescript', 'save|();')).toEqual({
+    expect(await identifierAtMarker('typescript', 'save|();')).toMatchObject({
       name: 'save',
       scope: null,
     });
   });
 
   it('counts columns in UTF-16 code units', async () => {
-    expect(await identifierAtMarker('javascript', 'const s = "中文😀"; f|oo();')).toEqual({
+    expect(await identifierAtMarker('javascript', 'const s = "中文😀"; f|oo();')).toMatchObject({
       name: 'foo',
       scope: null,
     });
@@ -263,36 +268,61 @@ describe('identifierAt', () => {
   });
 
   it('accepts JSX tags and member names', async () => {
-    expect(await identifierAtMarker('tsx', 'const x = <But|ton />;')).toEqual({
+    expect(await identifierAtMarker('tsx', 'const x = <But|ton />;')).toMatchObject({
       name: 'Button',
       scope: null,
     });
-    expect(await identifierAtMarker('typescript', 'store.sa|ve();')).toEqual({
+    expect(await identifierAtMarker('typescript', 'store.sa|ve();')).toMatchObject({
       name: 'save',
       scope: null,
     });
   });
 
   it('splits a qualified Perl call and keeps package names whole', async () => {
-    expect(await identifierAtMarker('perl', 'Foo::Bar::b|az();')).toEqual({
+    expect(await identifierAtMarker('perl', 'Foo::Bar::b|az();')).toMatchObject({
       name: 'baz',
       scope: 'Foo::Bar',
     });
-    expect(await identifierAtMarker('perl', 'Foo::B|ar->new;')).toEqual({
+    expect(await identifierAtMarker('perl', 'Foo::B|ar->new;')).toMatchObject({
       name: 'Foo::Bar',
       scope: null,
     });
-    expect(await identifierAtMarker('perl', 'use Foo::B|ar;')).toEqual({
+    expect(await identifierAtMarker('perl', 'use Foo::B|ar;')).toMatchObject({
       name: 'Foo::Bar',
       scope: null,
     });
-    expect(await identifierAtMarker('perl', '$self->me|th;')).toEqual({
+    expect(await identifierAtMarker('perl', '$self->me|th;')).toMatchObject({
       name: 'meth',
       scope: null,
     });
-    expect(await identifierAtMarker('perl', 'value_t|ype($x);')).toEqual({
+    expect(await identifierAtMarker('perl', 'value_t|ype($x);')).toMatchObject({
       name: 'value_type',
       scope: null,
+    });
+    expect(await identifierAtMarker('perl', 'my $h = { a => \\&han|dler };')).toMatchObject({
+      name: 'handler',
+      scope: null,
+    });
+    expect(await identifierAtMarker('perl', '&ba|r();')).toMatchObject({ name: 'bar' });
+    expect(await identifierAtMarker('perl', 'require Foo::B|ar;')).toMatchObject({
+      name: 'Foo::Bar',
+      scope: null,
+    });
+    expect(await identifierAtMarker('perl', 'Foo::B|ar::->new;')).toMatchObject({
+      name: 'Foo::Bar',
+      scope: null,
+    });
+  });
+
+  it('gives the language server where the identifier starts', async () => {
+    expect(await identifierAtMarker('typescript', 'a;\nconst x = sa|ve();')).toMatchObject({
+      start: { line: 1, character: 10 },
+    });
+  });
+
+  it('accepts private class members', async () => {
+    expect(await identifierAtMarker('typescript', 'this.#co|unt;')).toMatchObject({
+      name: '#count',
     });
   });
 
@@ -304,6 +334,6 @@ describe('identifierAt', () => {
         'vue',
         '<template></template>\n<script>\nconst to|tal = 1\n</script>',
       ),
-    ).toEqual({ name: 'total', scope: null });
+    ).toMatchObject({ name: 'total', scope: null });
   });
 });

@@ -5,24 +5,24 @@ import { basename, delimiter, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   CancellationTokenSource,
-  ConfigurationRequest,
   createProtocolConnection,
   DefinitionRequest,
   DidChangeTextDocumentNotification,
+  DidCloseTextDocumentNotification,
   DidOpenTextDocumentNotification,
   InitializedNotification,
   InitializeRequest,
-  RegistrationRequest,
-  WorkDoneProgressCreateRequest,
   type Location,
   type LocationLink,
   type ProtocolConnection,
 } from 'vscode-languageserver-protocol/node';
 import type { CodeLanguage } from '../../../shared/codeNavigation';
-import { LANGUAGE_SERVERS, type ServerCommand } from './languages';
+import { LANGUAGE_SERVERS, languageIdFor, type ServerCommand } from './languages';
 
 /** Indexing servers (rust-analyzer, jdtls) answer `initialize` quickly; one that does not is stuck. */
 const INITIALIZE_TIMEOUT_MS = 60_000;
+/** A started server that runs out of budget this many lookups in a row is given up on. */
+const MAX_SLOW_ANSWERS = 3;
 const FILE_URI_PREFIX = 'file:';
 /** Where Neovim's Mason installs servers without putting them on PATH. */
 const MASON_BIN_DIRECTORY = join(homedir(), '.local', 'share', 'nvim', 'mason', 'bin');
@@ -75,23 +75,23 @@ class LanguageServer {
   readonly ready: Promise<void>;
   private readonly child: ChildProcess;
   private readonly connection: ProtocolConnection;
-  private readonly versions = new Map<string, number>();
+  private started = false;
+  private slowAnswers = 0;
+  private openDocument: { uri: string; version: number } | null = null;
   /** `onClose` runs when the server exits, which only a failure makes it do before pigi quits. */
   constructor(executable: string, args: string[], root: string, onClose: () => void) {
-    this.child = spawn(executable, args, {
+    // Node refuses to run a .cmd without a shell, which then needs the quoting.
+    const shell = executable.endsWith(WINDOWS_SCRIPT_EXTENSION);
+    const quote = (value: string): string => (shell ? `"${value}"` : value);
+    this.child = spawn(quote(executable), args.map(quote), {
       cwd: root,
       stdio: ['pipe', 'pipe', 'pipe'],
-      // Node refuses to run a .cmd without a shell.
-      shell: executable.endsWith(WINDOWS_SCRIPT_EXTENSION),
+      shell,
     });
     // An unread pipe fills up and blocks the server's next write.
     this.child.stderr?.resume();
     if (!this.child.stdout || !this.child.stdin) throw new Error('No stdio pipes');
     this.connection = createProtocolConnection(this.child.stdout, this.child.stdin);
-    // Defaults for every setting a server asks for; the rest get "method not found".
-    this.connection.onRequest(ConfigurationRequest.type, (params) => params.items.map(() => null));
-    this.connection.onRequest(RegistrationRequest.type, () => {});
-    this.connection.onRequest(WorkDoneProgressCreateRequest.type, () => {});
     this.connection.listen();
 
     const exited = new Promise<never>((_resolve, reject) => {
@@ -105,7 +105,12 @@ class LanguageServer {
     });
     exited.catch(() => {});
     this.ready = Promise.race([this.initialize(root), exited, rejectAfter(INITIALIZE_TIMEOUT_MS)]);
-    this.ready.catch(() => this.kill());
+    this.ready.then(
+      () => {
+        this.started = true;
+      },
+      () => this.kill(),
+    );
   }
 
   private async initialize(root: string): Promise<void> {
@@ -134,25 +139,49 @@ class LanguageServer {
     await this.ready;
     if (cancellation.token.isCancellationRequested) return [];
     const uri = pathToFileURL(path).href;
-    const version = (this.versions.get(uri) ?? 0) + 1;
-    this.versions.set(uri, version);
-    // Always the disk content: the agent may have edited the file since the last lookup.
-    if (version === 1) {
-      await this.connection.sendNotification(DidOpenTextDocumentNotification.type, {
-        textDocument: { uri, languageId, version, text },
-      });
-    } else {
-      await this.connection.sendNotification(DidChangeTextDocumentNotification.type, {
-        textDocument: { uri, version },
-        contentChanges: [{ text }],
-      });
-    }
+    await this.syncDocument(uri, languageId, text);
     const result = await this.connection.sendRequest(
       DefinitionRequest.type,
       { textDocument: { uri }, position },
       cancellation.token,
     );
     return toServerLocations(result);
+  }
+
+  /**
+   * Only the last looked-up file stays open, with its current disk content:
+   * an open document is an overlay the server trusts over the disk, which the
+   * agent keeps changing. Closing every file after its lookup would be safer
+   * still, but typescript-language-server then unloads the project and
+   * answers the next lookup before reloading it, with the import line instead
+   * of the definition.
+   */
+  private async syncDocument(uri: string, languageId: string, text: string): Promise<void> {
+    const previous = this.openDocument;
+    if (previous?.uri === uri) {
+      previous.version += 1;
+      await this.connection.sendNotification(DidChangeTextDocumentNotification.type, {
+        textDocument: { uri, version: previous.version },
+        contentChanges: [{ text }],
+      });
+      return;
+    }
+    this.openDocument = { uri, version: 1 };
+    await this.connection.sendNotification(DidOpenTextDocumentNotification.type, {
+      textDocument: { uri, languageId, version: 1, text },
+    });
+    if (previous) {
+      await this.connection.sendNotification(DidCloseTextDocumentNotification.type, {
+        textDocument: { uri: previous.uri },
+      });
+    }
+  }
+
+  /** Startup may take any number of lookups; a started server that keeps timing out is stuck. */
+  recordAnswer(answered: boolean): void {
+    if (!this.started) return;
+    this.slowAnswers = answered ? 0 : this.slowAnswers + 1;
+    if (this.slowAnswers >= MAX_SLOW_ANSWERS) this.kill();
   }
 
   kill(): void {
@@ -182,7 +211,7 @@ function getServer(language: CodeLanguage, root: string): LanguageServer | null 
     const executable = findExecutable(server.command);
     if (!executable) continue;
     const key = `${executable}\0${root}`;
-    if (failedServers.has(key)) return null;
+    if (failedServers.has(key)) continue;
     let running = servers.get(key);
     if (!running) {
       const onClose = (): void => {
@@ -215,7 +244,7 @@ export async function serverDefinitions(
   position: { line: number; character: number },
   budgetMs: number,
 ): Promise<ServerLocation[] | null> {
-  const languageId = LANGUAGE_SERVERS[language]?.languageId;
+  const languageId = languageIdFor(language, path);
   const server = languageId ? getServer(language, root) : null;
   if (!server || !languageId) return null;
   const cancellation = new CancellationTokenSource();
@@ -227,7 +256,9 @@ export async function serverDefinitions(
     const cancelled = new Promise<null>((resolve) => {
       cancellation.token.onCancellationRequested(() => resolve(null));
     });
-    return await Promise.race([answer, cancelled]);
+    const result = await Promise.race([answer, cancelled]);
+    server.recordAnswer(result !== null);
+    return result;
   } catch {
     return null;
   } finally {
