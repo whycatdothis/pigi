@@ -253,7 +253,13 @@ export default function SyntaxHighlightedCode({
               gutter={gutter}
             />
           )}
-          {lineNumbers ? <span className="min-w-0 whitespace-pre">{tokens}</span> : tokens}
+          {lineNumbers ? (
+            <span data-source-content className="min-w-0 whitespace-pre">
+              {tokens}
+            </span>
+          ) : (
+            tokens
+          )}
         </span>
       );
     });

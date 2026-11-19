@@ -30,6 +30,7 @@ import {
   resolveExistingPaths,
 } from '../projects/projectFiles';
 import { setProjectFileWatch } from '../projects/projectFileWatch';
+import { findDefinition } from '../projects/codeNavigation';
 
 /** A working directory argument: a non-empty, non-blank string. */
 function isProjectPath(value: unknown): value is string {
@@ -174,6 +175,20 @@ export function registerProjectHandlers(): void {
     }
     return readProjectFile(cwd, path);
   });
+
+  ipcMain.handle(
+    PiChannel.FindDefinition,
+    async (_event, cwd: unknown, path: unknown, line: unknown, column: unknown) => {
+      if (!isProjectPath(cwd)) return { success: false, error: 'cwd must be a non-empty string' };
+      if (typeof path !== 'string' || path.length === 0) {
+        return { success: false, error: 'path must be a non-empty string' };
+      }
+      if (!Number.isInteger(line) || !Number.isInteger(column)) {
+        return { success: false, error: 'line and column must be integers' };
+      }
+      return findDefinition(cwd, path, Number(line), Number(column));
+    },
+  );
 
   ipcMain.handle(PiChannel.ResolveExistingPaths, async (_event, cwd: unknown, paths: unknown) => {
     if (!isProjectPath(cwd)) return [];

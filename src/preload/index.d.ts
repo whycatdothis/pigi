@@ -24,6 +24,7 @@ import type {
   ProjectDirectoryResult,
   ExistingPath,
   ProjectFileResult,
+  FindDefinitionResult,
   ProjectFilesChanged,
   ProjectFileSearchResult,
   PathCompletionResult,
@@ -82,6 +83,12 @@ interface PiApi {
   watchProjectFiles: (cwd: string, directories: string[], filePath: string | null) => void;
   onProjectFilesChanged: (callback: (change: ProjectFilesChanged) => void) => () => void;
   readProjectFile: (cwd: string, path: string) => Promise<ProjectFileResult>;
+  findDefinition: (
+    cwd: string,
+    path: string,
+    line: number,
+    column: number,
+  ) => Promise<FindDefinitionResult>;
   resolveExistingPaths: (cwd: string, paths: string[]) => Promise<(ExistingPath | null)[]>;
   setActiveProject: (path: string) => Promise<ProjectStateResult>;
   openProjectDirectory: () => Promise<ProjectStateResult>;

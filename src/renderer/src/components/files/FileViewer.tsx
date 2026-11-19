@@ -19,10 +19,12 @@ import { MESSAGE_LIST_MAX_WIDTH } from '../../lib/layoutConstants';
 import MarkdownMessage from '../message/markdownMessage';
 import SyntaxHighlightedCode from '../message/syntaxHighlightedCode';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
+import GoToDefinition from './GoToDefinition';
 import ContainerFind from '../ui/containerFind';
 import { ZoomableImage } from '../zoomableImage';
 import { localFileUrl } from '../../lib/chatAttachments';
-import { projectAbsolutePath } from '../../lib/projectFileLinks';
+import { isAbsoluteFilePath, projectAbsolutePath } from '../../lib/projectFileLinks';
+import { codeLanguageForPath } from '../../../../shared/codeNavigation';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
@@ -253,6 +255,12 @@ export default function FileViewer({
     [quoteFilePath],
   );
   const formatQuoteContent = showsPreview ? formatPreviewQuote : formatSourceQuote;
+  // Files outside the project have no finder or language server root to search from.
+  const navigable =
+    fileState.status === 'ready' &&
+    !showsPreview &&
+    !isAbsoluteFilePath(filePath) &&
+    codeLanguageForPath(filePath) !== null;
 
   const notice =
     fileState.status === 'ready' && fileState.truncated
@@ -294,7 +302,7 @@ export default function FileViewer({
           tabIndex={0}
           aria-label="File content"
           data-testid="file-viewer"
-          className="h-full overflow-auto bg-background select-text outline-none"
+          className="h-full overflow-auto bg-background select-text outline-none data-[definition-armed]:cursor-pointer data-[definition-pending]:cursor-progress"
         >
           {isBitmap ? (
             <FileImage src={imageSource} alt={filePath} />
@@ -332,6 +340,13 @@ export default function FileViewer({
           )}
         </div>
         <ContainerFind containerRef={containerRef} active placeholder="Find in file…" />
+        <GoToDefinition
+          containerRef={containerRef}
+          projectPath={projectPath}
+          filePath={filePath}
+          enabled={navigable}
+          onOpenFile={onOpenFile}
+        />
         {sessionPath && (
           <QuoteSelectionPopover
             // Another session remounts it, so an open comment saves to the session it was for.

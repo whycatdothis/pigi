@@ -26,6 +26,11 @@ export function createTerminalProcess(): Electron.UtilityProcess {
   });
 }
 
+export function createCodeNavigationProcess(env: NodeJS.ProcessEnv): Electron.UtilityProcess {
+  const modulePath = join(__dirname, 'processes/utility/codeNavigation.js');
+  return utilityProcess.fork(modulePath, [], { serviceName: 'code-navigation', env });
+}
+
 /** Piped stdio: npm and git inherit it, and their output is the failure report. */
 export function createPackageWorkerProcess(): Electron.UtilityProcess {
   const modulePath = join(__dirname, 'processes/utility/packageWorker.js');

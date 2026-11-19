@@ -36,6 +36,7 @@ import {
   type ProjectDirectoryResult,
   type ExistingPath,
   type ProjectFileResult,
+  type FindDefinitionResult,
   type ProjectFilesChanged,
   type ProjectFileSearchResult,
   type PathCompletionResult,
@@ -362,6 +363,15 @@ const piApi = {
 
   readProjectFile: (cwd: string, path: string): Promise<ProjectFileResult> =>
     ipcRenderer.invoke(PiChannel.ReadProjectFile, cwd, path),
+
+  /** Where the identifier at a 1-based line and 0-based UTF-16 column is defined. */
+  findDefinition: (
+    cwd: string,
+    path: string,
+    line: number,
+    column: number,
+  ): Promise<FindDefinitionResult> =>
+    ipcRenderer.invoke(PiChannel.FindDefinition, cwd, path, line, column),
 
   /** Each entry that names an existing file or directory, made absolute, else null. */
   resolveExistingPaths: (cwd: string, paths: string[]): Promise<(ExistingPath | null)[]> =>

@@ -1,6 +1,7 @@
 # Go to Definition in the Files Tab
 
-Status: plan, implementation in progress on `feat/go-to-definition`.
+Status: phase 1 implemented on `feat/go-to-definition`; phase 0 results are
+recorded in §6.
 
 ## 1. Goal
 
@@ -59,18 +60,19 @@ flowchart LR
 | Python                  | `basedpyright-langserver --stdio`, `pyright-langserver --stdio`, `pylsp`, `jedi-language-server`                                                   |
 | Go                      | `gopls`                                                                                                                                            |
 | Rust                    | `rust-analyzer`                                                                                                                                    |
-| Java                    | `jdtls -data <pigi cache dir>`                                                                                                                     |
+| Java                    | `jdtls -data <tmp>/pigi-jdtls/<project hash>`                                                                                                      |
 | Perl                    | `perlnavigator --stdio`                                                                                                                            |
 | Vue                     | none: the Vue language server (2.x and later) answers script positions only through a paired TypeScript server plugin, so `.vue` uses the fallback |
 
 - **Detection.** The first candidate found on `PATH` or in
   `~/.local/share/nvim/mason/bin`. The utility process inherits main's
   environment after the login shell's `PATH` is applied.
-- **Lifecycle.** One server per (command, project), started on the first
-  lookup in that project and shut down after 10 idle minutes or when the
-  utility process exits. `initialize` sends our `processId`, so servers exit
-  if pigi is killed. A server that fails to start or initialize is not retried
-  until the utility process restarts.
+- **Lifecycle.** One server per (executable, project), started on the first
+  lookup in that project and killed when the utility process exits, which it
+  does after 10 idle minutes (§5). `initialize` sends our `processId`, so
+  servers exit if pigi is killed. A server that fails to start, does not
+  answer `initialize` within 60 s, or exits is not retried until the utility
+  process restarts.
 - **Request.** `didOpen` the file with its current disk content (`didChange`
   with a new version on later lookups), then `textDocument/definition`.
   Positions are UTF-16 code units, the LSP default, which is also what the DOM
@@ -83,7 +85,7 @@ flowchart LR
   declarations); they open by absolute path.
 - **Staleness.** Servers that only learn about unopened files through client
   file-watch notifications (gopls) can answer from old content after the agent
-  edits a file. The idle shutdown bounds it; file-watch forwarding is not
+  edits a file. The idle exit bounds it; file-watch forwarding is not
   planned.
 
 ### 3.2 Search-based fallback
@@ -112,7 +114,9 @@ maxMatchesPerFile: 1, pageSize: 1000 })`, following `nextCursor` to the end.
    - fff already respects `.gitignore` (root and nested) the same way rg does;
      it also searches non-ignored hidden files, which is what we want
      (`.github/`, `.eslintrc.js`).
-   - Files outside the clicked file's language family (§4) are dropped.
+   - Files outside the clicked file's language family (§4) are dropped, and
+     files over 1 MB are skipped (`maxFileSize`): generated bundles parse
+     slowly and rarely hold the definition.
 3. **Rank and cap.** Same file > same directory > longest common path prefix.
    Parse at most N files (start with 200); a common name like Perl
    `value_type` recalls thousands.
@@ -127,21 +131,20 @@ know (on `~/work/main` it searched 15k of 120k files and found none of the
 
 ## 4. Languages
 
-| Family                  | Extensions                                                   | Grammar                                                   | wasm                | Tags query source                               |
-| ----------------------- | ------------------------------------------------------------ | --------------------------------------------------------- | ------------------- | ----------------------------------------------- |
-| TypeScript / JavaScript | `.ts` `.mts` `.cts` `.tsx` `.js` `.mjs` `.cjs` `.jsx` `.vue` | tree-sitter-typescript (ts + tsx), tree-sitter-javascript | 2.3 + 2.4 + 0.65 MB | upstream JS + TS `tags.scm`, plus our additions |
-| Python                  | `.py` `.pyi`                                                 | tree-sitter-python                                        | 0.48 MB             | upstream                                        |
-| Go                      | `.go`                                                        | tree-sitter-go                                            | 0.24 MB             | upstream                                        |
-| Rust                    | `.rs`                                                        | tree-sitter-rust                                          | 1.1 MB              | upstream                                        |
-| Java                    | `.java`                                                      | tree-sitter-java                                          | 0.41 MB             | upstream                                        |
-| Perl                    | `.pm` `.pl` `.t`                                             | tree-sitter-perl/tree-sitter-perl                         | 4.7 MB              | rgctl (MIT), plus our additions                 |
+| Family                  | Extensions                                                   | Grammar                                                   | wasm               | Tags query source                               |
+| ----------------------- | ------------------------------------------------------------ | --------------------------------------------------------- | ------------------ | ----------------------------------------------- |
+| TypeScript / JavaScript | `.ts` `.mts` `.cts` `.tsx` `.js` `.mjs` `.cjs` `.jsx` `.vue` | tree-sitter-typescript (ts + tsx), tree-sitter-javascript | 1.4 + 1.4 + 0.4 MB | upstream JS + TS `tags.scm`, plus our additions |
+| Python                  | `.py` `.pyi`                                                 | tree-sitter-python                                        | 0.48 MB            | upstream                                        |
+| Go                      | `.go`                                                        | tree-sitter-go                                            | 0.24 MB            | upstream                                        |
+| Rust                    | `.rs`                                                        | tree-sitter-rust                                          | 1.1 MB             | upstream                                        |
+| Java                    | `.java`                                                      | tree-sitter-java                                          | 0.41 MB            | upstream                                        |
+| Perl                    | `.pm` `.pl` `.t`                                             | tree-sitter-perl/tree-sitter-perl                         | 4.7 MB             | rgctl (MIT), plus our additions                 |
 
 `.vue` belongs to the TS/JS family for recall; it is additionally parsed with
 tree-sitter-vue to find its `<script>` block (§4.1).
 
-Total with `web-tree-sitter.wasm` (0.2 MB): about 12.5 MB, before DMG
-compression. Sizes come from each grammar's latest GitHub release or the
-`tree-sitter-wasms` package; phase 0 confirms the pinned builds.
+Total with `web-tree-sitter.wasm` (0.2 MB): 10 MB, before DMG compression.
+Versions and sources are listed in `licenses/THIRD_PARTY_NOTICES.md`.
 
 The upstream queries are a starting point, not complete. Known gaps to add:
 
@@ -183,9 +186,12 @@ was ~1.6 MB/s, about 6 ms per file, which is why step 3 caps N.
   and 200 parses take ~1.2 s, which in main would freeze every IPC call and
   window event. Language server clients live in the same process.
   - Main starts it on the first lookup, after the login shell's environment
-    is applied, and passes `FFF_C_LIB` and the `resources` path through its
+    is applied, and passes `FFF_C_LIB` and the grammar directory through its
     environment (the utility process has no `app`). It restarts on the next
     lookup if it exits.
+  - It exits after 10 idle minutes. fff's grep keeps what it read: one
+    lookup in `~/work/main` took a Node process from 140 MB to 1.2 GB, still
+    1.1 GB after `destroy()`. Exiting is what returns that memory.
   - The process owns its own fff finder per project, separate from the
     `@`-search finder in main (a native handle cannot cross processes), with
     the same flags as `projectFileSearch.ts`.
@@ -212,16 +218,16 @@ lineContent }[] } | { success: false; error: string }`. `filePath`
   - While Cmd/Ctrl is held, the pointer over code becomes `cursor: pointer`.
     No underline in phase 1: token bounds would need a lookup per mousemove.
   - The column is the caret offset inside the line's content span
-    (`min-w-0 whitespace-pre` in `syntaxHighlightedCode.tsx`), not the
+    (`[data-source-content]` in `syntaxHighlightedCode.tsx`), not the
     `[data-source-line]` row, which also holds the gutter number.
   - Candidate list: a popover at the click (`components/ui/popover.tsx` +
     `command.tsx`) showing `filePath:line` and `lineContent`.
 - **Assets**: grammar wasm files and our `.scm` queries vendored under
   `resources/treeSitter/` (unpacked by `asarUnpack: resources/**`, resolved
-  like `remoteControlServer.ts` resolves `resources/bin`), with a manifest of
-  the repository and tag or commit each wasm came from. Grammar npm packages
-  carry native install scripts we do not need. Each `.scm` file keeps an
-  upstream attribution line.
+  like `remoteControlServer.ts` resolves `resources/bin`). The repository and
+  tag or commit of each wasm are listed in `licenses/THIRD_PARTY_NOTICES.md`.
+  Grammar npm packages carry native install scripts we do not need. Each
+  `.scm` file keeps an upstream attribution line.
 
 ## 6. Phases
 
@@ -229,29 +235,30 @@ lineContent }[] } | { success: false; error: string }`. `filePath`
 
 - [ ] `web-tree-sitter.wasm` stays inside the asar (it comes from
       `node_modules`); confirm `Parser.init` finds it in a packaged build.
-- [ ] Every pinned grammar wasm loads with the pinned runtime (ABI range).
-      tree-sitter-java's latest release is 2024-12.
-- [ ] Column units: DOM caret offset (UTF-16) vs web-tree-sitter
-      `Point.column`. Test a line with CJK and emoji.
-- [ ] Latency of a full recall on `~/work/main`, with and without fff's content
-      index, and the memory the index costs. Decides whether recall needs the
-      widening search from §3 step 2.
-- [ ] fff constraints (`*.ts pattern`, `dir/ pattern`) combine with
-      `mode: 'regex'`, and whether one query can name several extensions.
-- [ ] Vue: build the wasm; confirm `includedRanges` (or an equivalent) works.
+- [x] Every pinned grammar wasm loads with web-tree-sitter 0.27.2:
+      typescript, tsx and java are ABI 14, the rest ABI 15.
+- [x] Column units: web-tree-sitter `Point.column` counts UTF-16 code units,
+      like the DOM caret offset and LSP's default (test with CJK and emoji).
+- [x] Latency on `~/work/main`: the first lookup takes ~4.7 s (finder scan
+      plus grep), later ones ~1.8 s; on pigi, under 150 ms. The widening
+      search from §3.2 step 2 is not needed for now; the content index stays
+      off. Memory: see the idle exit in §5.
+- [x] fff constraints are not used: recall filters by extension after grep,
+      which costs nothing next to the grep itself.
+- [x] Vue: wasm built; `includedRanges` parses the script blocks in place.
 - [ ] Not tested yet: fff in a non-git directory, `.ignore` files, global
       gitignore.
 
 ### Phase 1: definitions in all listed languages
 
-- [ ] Vendored assets and manifest; queries with the gaps from §4 filled.
-- [ ] Utility process with the search-based fallback: identify, recall, rank,
+- [x] Vendored assets; queries with the gaps from §4 filled.
+- [x] Utility process with the search-based fallback: identify, recall, rank,
       cap, filter.
-- [ ] Language server tier: detection, lifecycle, budget, fallback.
-- [ ] IPC channel and handler.
-- [ ] FileViewer Cmd/Ctrl+click, pointer cursor, candidate popover,
+- [x] Language server tier: detection, lifecycle, budget, fallback.
+- [x] IPC channel and handler.
+- [x] FileViewer Cmd/Ctrl+click, pointer cursor, candidate popover,
       empty-result feedback.
-- [ ] Vue `<script>` blocks.
+- [x] Vue `<script>` blocks.
 
 ### Phase 2
 
@@ -260,13 +267,13 @@ lineContent }[] } | { success: false; error: string }`. `filePath`
 
 ## 7. Testing
 
-- One fixture file per language under `src/processes/utility/codeNavigation/fixtures/`, with
-  a unit test asserting the definitions its query extracts. This catches a
+- `treeSitter.test.ts`: one source sample per language, asserting the
+  definitions its query extracts. This catches a
   grammar upgrade that renames or restructures nodes: a renamed node fails
   query compilation loudly, but a new wrapper node silently breaks patterns
   anchored to a parent, such as upstream Python's
   `(module (expression_statement (assignment …)))`.
-- `findDefinition` against a temporary repository: ranking, `.gitignore`, cap,
+- `findDefinition.test.ts` against a temporary repository: ranking, `.gitignore`, cap,
   `$`-names, Perl qualified names, a click on a keyword or in a comment.
 - Language server tier against a small fake server (a Node script speaking
   JSON-RPC on stdio): a normal answer, an empty answer, a timeout, a server
@@ -279,4 +286,5 @@ lineContent }[] } | { success: false; error: string }`. `filePath`
 - **Back navigation.** A jump without a way back is frustrating when browsing.
   Does the Files tab get a small back/forward history in phase 1, or later?
 - **Trigger.** Cmd/Ctrl+click only, or also a context-menu item for discovery?
-- **Cap N.** 200 files is a guess; phase 0 measurements set it.
+- **Cap N.** 200 files is a guess, not yet tuned against a name that
+  recalls more files than that.

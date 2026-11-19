@@ -17,6 +17,27 @@ export function sourceLineRangeFromSelection(range: Range): { start: number; end
   };
 }
 
+/**
+ * The source position under a point: a 1-based line and a 0-based column in
+ * UTF-16 code units. The column counts only the line's text, not its gutter.
+ */
+export function sourcePositionFromPoint(
+  x: number,
+  y: number,
+): { line: number; column: number } | null {
+  const caret = document.caretPositionFromPoint(x, y);
+  if (!caret) return null;
+  const element =
+    caret.offsetNode instanceof Element ? caret.offsetNode : caret.offsetNode.parentElement;
+  const content = element?.closest('[data-source-content]');
+  const line = lineNumberAt(caret.offsetNode);
+  if (!content || line === null) return null;
+  const range = document.createRange();
+  range.setStart(content, 0);
+  range.setEnd(caret.offsetNode, caret.offset);
+  return { line, column: range.toString().length };
+}
+
 function lineNumberAt(node: Node): number | null {
   const element = node instanceof Element ? node : node.parentElement;
   const line = element?.closest('[data-source-line]');

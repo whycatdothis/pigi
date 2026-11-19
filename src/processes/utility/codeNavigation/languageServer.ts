@@ -1,0 +1,242 @@
+import { spawn, type ChildProcess } from 'node:child_process';
+import { accessSync, constants } from 'node:fs';
+import { homedir } from 'node:os';
+import { basename, delimiter, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+  CancellationTokenSource,
+  ConfigurationRequest,
+  createProtocolConnection,
+  DefinitionRequest,
+  DidChangeTextDocumentNotification,
+  DidOpenTextDocumentNotification,
+  InitializedNotification,
+  InitializeRequest,
+  RegistrationRequest,
+  WorkDoneProgressCreateRequest,
+  type Location,
+  type LocationLink,
+  type ProtocolConnection,
+} from 'vscode-languageserver-protocol/node';
+import type { CodeLanguage } from '../../../shared/codeNavigation';
+import { LANGUAGE_SERVERS, type ServerCommand } from './languages';
+
+/** Indexing servers (rust-analyzer, jdtls) answer `initialize` quickly; one that does not is stuck. */
+const INITIALIZE_TIMEOUT_MS = 60_000;
+const FILE_URI_PREFIX = 'file:';
+/** Where Neovim's Mason installs servers without putting them on PATH. */
+const MASON_BIN_DIRECTORY = join(homedir(), '.local', 'share', 'nvim', 'mason', 'bin');
+const WINDOWS_SCRIPT_EXTENSION = '.cmd';
+
+export interface ServerLocation {
+  /** Absolute. */
+  path: string;
+  /** 1-based. */
+  line: number;
+}
+
+function findExecutable(command: string): string | null {
+  const directories = [...(process.env['PATH'] ?? '').split(delimiter), MASON_BIN_DIRECTORY];
+  const names =
+    process.platform === 'win32'
+      ? [`${command}.exe`, `${command}${WINDOWS_SCRIPT_EXTENSION}`]
+      : [command];
+  for (const directory of directories) {
+    if (!directory) continue;
+    for (const name of names) {
+      const candidate = join(directory, name);
+      try {
+        accessSync(candidate, constants.X_OK);
+        return candidate;
+      } catch {
+        // Not here; keep looking.
+      }
+    }
+  }
+  return null;
+}
+
+function toServerLocations(
+  result: Location | Location[] | LocationLink[] | null,
+): ServerLocation[] {
+  if (!result) return [];
+  const items: (Location | LocationLink)[] = Array.isArray(result) ? result : [result];
+  const locations: ServerLocation[] = [];
+  for (const item of items) {
+    const [uri, range] =
+      'targetUri' in item ? [item.targetUri, item.targetSelectionRange] : [item.uri, item.range];
+    if (!uri.startsWith(FILE_URI_PREFIX)) continue;
+    locations.push({ path: fileURLToPath(uri), line: range.start.line + 1 });
+  }
+  return locations;
+}
+
+class LanguageServer {
+  readonly ready: Promise<void>;
+  private readonly child: ChildProcess;
+  private readonly connection: ProtocolConnection;
+  private readonly versions = new Map<string, number>();
+  /** `onClose` runs when the server exits, which only a failure makes it do before pigi quits. */
+  constructor(executable: string, args: string[], root: string, onClose: () => void) {
+    this.child = spawn(executable, args, {
+      cwd: root,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      // Node refuses to run a .cmd without a shell.
+      shell: executable.endsWith(WINDOWS_SCRIPT_EXTENSION),
+    });
+    // An unread pipe fills up and blocks the server's next write.
+    this.child.stderr?.resume();
+    if (!this.child.stdout || !this.child.stdin) throw new Error('No stdio pipes');
+    this.connection = createProtocolConnection(this.child.stdout, this.child.stdin);
+    // Defaults for every setting a server asks for; the rest get "method not found".
+    this.connection.onRequest(ConfigurationRequest.type, (params) => params.items.map(() => null));
+    this.connection.onRequest(RegistrationRequest.type, () => {});
+    this.connection.onRequest(WorkDoneProgressCreateRequest.type, () => {});
+    this.connection.listen();
+
+    const exited = new Promise<never>((_resolve, reject) => {
+      const fail = (reason: string): void => {
+        onClose();
+        this.connection.dispose();
+        reject(new Error(reason));
+      };
+      this.child.once('error', (error) => fail(error.message));
+      this.child.once('exit', (code) => fail(`exited with code ${code}`));
+    });
+    exited.catch(() => {});
+    this.ready = Promise.race([this.initialize(root), exited, rejectAfter(INITIALIZE_TIMEOUT_MS)]);
+    this.ready.catch(() => this.kill());
+  }
+
+  private async initialize(root: string): Promise<void> {
+    const rootUri = pathToFileURL(root).href;
+    await this.connection.sendRequest(InitializeRequest.type, {
+      processId: process.pid,
+      clientInfo: { name: 'pigi' },
+      rootUri,
+      workspaceFolders: [{ uri: rootUri, name: basename(root) }],
+      capabilities: {
+        general: { positionEncodings: ['utf-16'] },
+        textDocument: { definition: { linkSupport: true } },
+        workspace: { workspaceFolders: true },
+      },
+    });
+    await this.connection.sendNotification(InitializedNotification.type, {});
+  }
+
+  async definition(
+    path: string,
+    languageId: string,
+    text: string,
+    position: { line: number; character: number },
+    cancellation: CancellationTokenSource,
+  ): Promise<ServerLocation[]> {
+    await this.ready;
+    if (cancellation.token.isCancellationRequested) return [];
+    const uri = pathToFileURL(path).href;
+    const version = (this.versions.get(uri) ?? 0) + 1;
+    this.versions.set(uri, version);
+    // Always the disk content: the agent may have edited the file since the last lookup.
+    if (version === 1) {
+      await this.connection.sendNotification(DidOpenTextDocumentNotification.type, {
+        textDocument: { uri, languageId, version, text },
+      });
+    } else {
+      await this.connection.sendNotification(DidChangeTextDocumentNotification.type, {
+        textDocument: { uri, version },
+        contentChanges: [{ text }],
+      });
+    }
+    const result = await this.connection.sendRequest(
+      DefinitionRequest.type,
+      { textDocument: { uri }, position },
+      cancellation.token,
+    );
+    return toServerLocations(result);
+  }
+
+  kill(): void {
+    if (this.child.exitCode === null && this.child.signalCode === null) this.child.kill();
+  }
+}
+
+function rejectAfter(ms: number): Promise<never> {
+  return new Promise((_resolve, reject) => {
+    setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms).unref();
+  });
+}
+
+const servers = new Map<string, LanguageServer>();
+/**
+ * Not retried until the process restarts (it exits when idle), so a broken
+ * server costs one slow lookup, not every one.
+ */
+const failedServers = new Set<string>();
+
+function serverArgs(server: ServerCommand, root: string): string[] {
+  return typeof server.args === 'function' ? server.args(root) : [...server.args];
+}
+
+function getServer(language: CodeLanguage, root: string): LanguageServer | null {
+  for (const server of LANGUAGE_SERVERS[language]?.servers ?? []) {
+    const executable = findExecutable(server.command);
+    if (!executable) continue;
+    const key = `${executable}\0${root}`;
+    if (failedServers.has(key)) return null;
+    let running = servers.get(key);
+    if (!running) {
+      const onClose = (): void => {
+        servers.delete(key);
+        failedServers.add(key);
+      };
+      try {
+        running = new LanguageServer(executable, serverArgs(server, root), root, onClose);
+      } catch {
+        failedServers.add(key);
+        return null;
+      }
+      servers.set(key, running);
+    }
+    return running;
+  }
+  return null;
+}
+
+/**
+ * Definitions from an installed language server, or null when there is none,
+ * it fails, or it does not answer within the budget. The server keeps
+ * starting after a timeout, so the next lookup can use it.
+ */
+export async function serverDefinitions(
+  root: string,
+  path: string,
+  language: CodeLanguage,
+  text: string,
+  position: { line: number; character: number },
+  budgetMs: number,
+): Promise<ServerLocation[] | null> {
+  const languageId = LANGUAGE_SERVERS[language]?.languageId;
+  const server = languageId ? getServer(language, root) : null;
+  if (!server || !languageId) return null;
+  const cancellation = new CancellationTokenSource();
+  const timer = setTimeout(() => cancellation.cancel(), budgetMs);
+  try {
+    const answer = server.definition(path, languageId, text, position, cancellation);
+    // Settles after a timeout too, when nobody is listening.
+    answer.catch(() => {});
+    const cancelled = new Promise<null>((resolve) => {
+      cancellation.token.onCancellationRequested(() => resolve(null));
+    });
+    return await Promise.race([answer, cancelled]);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+    cancellation.dispose();
+  }
+}
+
+export function stopLanguageServers(): void {
+  for (const server of servers.values()) server.kill();
+  servers.clear();
+}

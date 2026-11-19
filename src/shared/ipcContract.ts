@@ -112,6 +112,19 @@ export type ProjectFileSearchResult =
   | { success: true; files: string[] }
   | { success: false; error: string };
 
+/** A definition go to definition found; `filePath` is project-relative, or absolute outside the project. */
+export interface CodeDefinition {
+  filePath: string;
+  /** 1-based. */
+  line: number;
+  lineContent: string;
+}
+
+/** `symbol` is null when the position is not on an identifier. */
+export type FindDefinitionResult =
+  | { success: true; symbol: string | null; definitions: CodeDefinition[] }
+  | { success: false; error: string };
+
 /** One filesystem entry offered while completing a typed path. */
 export interface PathCompletionEntry {
   /** Base name, shown in the picker and the chip. */
@@ -711,6 +724,8 @@ export enum PiChannel {
   ProjectFilesChanged = 'pi:project_files_changed',
   /** renderer → main: read a project file for the workspace viewer */
   ReadProjectFile = 'pi:read_project_file',
+  /** renderer → main: where the identifier at a position in a project file is defined */
+  FindDefinition = 'pi:find_definition',
   /** renderer → main: which paths named in chat exist */
   ResolveExistingPaths = 'pi:resolve_existing_paths',
   /** renderer → main: the app theme, so window materials follow it */
@@ -943,6 +958,24 @@ export type PackageWorkerResponse =
   | { type: 'check_result'; result: PiPackagesHealthResult }
   /** The worker leaves a failure's `log` empty; main fills in the npm/git output. */
   | { type: 'operate_result'; result: PiPackageOperationResult };
+
+// =============================================================================
+// Internal: Main ↔ code navigation process
+// =============================================================================
+
+/** `line` is 1-based, `column` 0-based in UTF-16 code units. */
+export interface CodeNavigationRequest {
+  requestId: number;
+  cwd: string;
+  filePath: string;
+  line: number;
+  column: number;
+}
+
+export interface CodeNavigationResponse {
+  requestId: number;
+  result: FindDefinitionResult;
+}
 
 // =============================================================================
 // Internal: Main → Utility (parentPort, lifecycle only)
