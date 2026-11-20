@@ -2,13 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { toast } from 'sonner';
 import type { CodeDefinition } from '../../../../shared/ipcContract';
 import type { LineRange } from '../../lib/filePathCandidates';
-import { sourcePositionFromPoint } from '../../lib/sourceLineSelection';
+import { sourcePositionFromPoint, sourceWordRangeFromPoint } from '../../lib/sourceLineSelection';
 import { useAppStore } from '../../state/appStore';
 import { Command, CommandGroup, CommandItem, CommandList } from '../ui/command';
 import { Popover, PopoverAnchor, PopoverContent } from '../ui/popover';
 
-/** Set on the viewer while the modifier is held and while a lookup runs; FileViewer's classes style them. */
+/**
+ * Set on the viewer while the modifier is held over a word and while a lookup
+ * runs; FileViewer's classes style them.
+ */
 const DEFINITION_ARMED_ATTRIBUTE = 'data-definition-armed';
+/** The word a click would look up, styled as a link in assets/searchHighlights.css. */
+const DEFINITION_LINK_HIGHLIGHT = 'pi-definition-link';
 const DEFINITION_PENDING_ATTRIBUTE = 'data-definition-pending';
 
 function definitionLines(definition: CodeDefinition): LineRange {
@@ -62,10 +67,34 @@ export default function GoToDefinition({
     if (!enabled || !container) return;
     const modifierHeld = (event: KeyboardEvent | MouseEvent): boolean =>
       isMac ? event.metaKey : event.ctrlKey;
-    const arm = (event: KeyboardEvent): void => {
-      container.toggleAttribute(DEFINITION_ARMED_ATTRIBUTE, modifierHeld(event));
+    let pointer: { x: number; y: number } | null = null;
+    let held = false;
+    let linkShown = false;
+    const showLink = (): void => {
+      if (!held && !linkShown) return;
+      const word = held && pointer ? sourceWordRangeFromPoint(pointer.x, pointer.y) : null;
+      container.toggleAttribute(DEFINITION_ARMED_ATTRIBUTE, word !== null);
+      if (word) CSS.highlights.set(DEFINITION_LINK_HIGHLIGHT, new Highlight(word));
+      else CSS.highlights.delete(DEFINITION_LINK_HIGHLIGHT);
+      linkShown = word !== null;
     };
-    const disarm = (): void => container.removeAttribute(DEFINITION_ARMED_ATTRIBUTE);
+    const arm = (event: KeyboardEvent): void => {
+      held = modifierHeld(event);
+      showLink();
+    };
+    const track = (event: MouseEvent): void => {
+      pointer = { x: event.clientX, y: event.clientY };
+      held = modifierHeld(event);
+      showLink();
+    };
+    const leave = (): void => {
+      pointer = null;
+      showLink();
+    };
+    const disarm = (): void => {
+      held = false;
+      showLink();
+    };
     const lookUp = (event: MouseEvent): void => {
       if (event.button !== 0 || !modifierHeld(event)) return;
       // A drag that ends with the modifier down is a selection, not a click.
@@ -112,11 +141,17 @@ export default function GoToDefinition({
     window.addEventListener('keyup', arm);
     window.addEventListener('blur', disarm);
     container.addEventListener('click', lookUp);
+    container.addEventListener('mousemove', track);
+    container.addEventListener('mouseleave', leave);
+    container.addEventListener('scroll', showLink);
     return () => {
       window.removeEventListener('keydown', arm);
       window.removeEventListener('keyup', arm);
       window.removeEventListener('blur', disarm);
       container.removeEventListener('click', lookUp);
+      container.removeEventListener('mousemove', track);
+      container.removeEventListener('mouseleave', leave);
+      container.removeEventListener('scroll', showLink);
       disarm();
       container.removeAttribute(DEFINITION_PENDING_ATTRIBUTE);
       // A reply for the file this effect was set up for is no longer wanted.

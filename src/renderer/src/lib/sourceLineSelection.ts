@@ -17,15 +17,17 @@ export function sourceLineRangeFromSelection(range: Range): { start: number; end
   };
 }
 
+interface SourcePoint {
+  content: Element;
+  line: number;
+  column: number;
+}
+
 /**
- * The source position under a point: a 1-based line and a 0-based column in
- * UTF-16 code units. The column counts only the line's text, not its gutter.
- * Every source row, highlighted or plain, marks its text `data-source-content`.
+ * Every source row, highlighted or plain, marks its text
+ * `data-source-content`; the column counts only that text, not the gutter.
  */
-export function sourcePositionFromPoint(
-  x: number,
-  y: number,
-): { line: number; column: number } | null {
+function sourcePointFromPoint(x: number, y: number): SourcePoint | null {
   const caret = document.caretPositionFromPoint(x, y);
   if (!caret) return null;
   const element =
@@ -43,7 +45,47 @@ export function sourcePositionFromPoint(
     range.setStart(caret.offsetNode, Math.max(0, caret.offset - 1));
     if (x > range.getBoundingClientRect().right) return null;
   }
-  return { line, column };
+  return { content, line, column };
+}
+
+/** The source position under a point: a 1-based line and a 0-based column in UTF-16 code units. */
+export function sourcePositionFromPoint(
+  x: number,
+  y: number,
+): { line: number; column: number } | null {
+  const point = sourcePointFromPoint(x, y);
+  return point && { line: point.line, column: point.column };
+}
+
+const WORD_CHARACTER = /[\p{L}\p{N}_$]/u;
+
+/**
+ * The word under a point, as a range over the row's text nodes (a word may
+ * span several highlighted tokens). A caret right after a word belongs to it,
+ * as it does for the lookup.
+ */
+export function sourceWordRangeFromPoint(x: number, y: number): Range | null {
+  const point = sourcePointFromPoint(x, y);
+  if (!point) return null;
+  const text = point.content.textContent ?? '';
+  let start = point.column;
+  let end = point.column;
+  while (start > 0 && WORD_CHARACTER.test(text.charAt(start - 1))) start -= 1;
+  while (end < text.length && WORD_CHARACTER.test(text.charAt(end))) end += 1;
+  if (start === end) return null;
+  const range = document.createRange();
+  const walker = document.createTreeWalker(point.content, NodeFilter.SHOW_TEXT);
+  let offset = 0;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const length = node.textContent?.length ?? 0;
+    if (start >= offset && start <= offset + length) range.setStart(node, start - offset);
+    if (end >= offset && end <= offset + length) {
+      range.setEnd(node, end - offset);
+      break;
+    }
+    offset += length;
+  }
+  return range;
 }
 
 function lineNumberAt(node: Node): number | null {

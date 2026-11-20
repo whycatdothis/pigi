@@ -257,8 +257,11 @@ lineContent }[] } | { success: false; error: string }`. `filePath`
     `isProjectPath` check).
 - **Renderer**, `FileViewer` source mode, only for supported extensions and
   files inside the project:
-  - While Cmd/Ctrl is held, the pointer over code becomes `cursor: pointer`.
-    No underline in phase 1: token bounds would need a lookup per mousemove.
+  - While Cmd/Ctrl is held, the word under the pointer is underlined in the
+    link colour (a CSS custom highlight, so Shiki's token spans stay as they
+    are) and the cursor becomes a pointer. The word is the run of letters,
+    digits, `_` and `$` around the caret, not a lookup: keywords underline
+    too, and a click on one does nothing.
   - The column is the caret offset inside the line's content span
     (`[data-source-content]` in `syntaxHighlightedCode.tsx`), not the
     `[data-source-line]` row, which also holds the gutter number.

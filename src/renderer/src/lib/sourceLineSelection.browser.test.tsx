@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { render } from 'vitest-browser-react';
 import SyntaxHighlightedCode from '../components/message/syntaxHighlightedCode';
 import { requireElement } from '../testing/domQuery';
-import { sourcePositionFromPoint } from './sourceLineSelection';
+import { sourcePositionFromPoint, sourceWordRangeFromPoint } from './sourceLineSelection';
 import '../assets/main.css';
 
 /** The viewport point over the middle of `text`'s `index`-th character on source line `line`. */
@@ -58,4 +58,24 @@ test('a point past the end of a line maps to nothing', async () => {
   );
   const last = pointOver(screen.container, 1, 'save();'.length - 1);
   expect(sourcePositionFromPoint(last.x + 200, last.y)).toBeNull();
+});
+
+test('the word under a point spans its tokens, and punctuation has none', async () => {
+  const code = 'const s = "中文😀"; save_it();\nx ( ) ;';
+  const screen = await render(
+    <div className="font-mono">
+      <SyntaxHighlightedCode code={code} language="typescript" lineNumbers />
+    </div>,
+  );
+  await expect
+    .poll(
+      () =>
+        screen.container.querySelectorAll('[data-source-line="1"] [data-source-content] span')
+          .length,
+    )
+    .toBeGreaterThan(1);
+  const word = pointOver(screen.container, 1, code.indexOf('save_it') + 3);
+  expect(sourceWordRangeFromPoint(word.x, word.y)?.toString()).toBe('save_it');
+  const paren = pointOver(screen.container, 2, 'x ( '.length);
+  expect(sourceWordRangeFromPoint(paren.x, paren.y)).toBeNull();
 });
