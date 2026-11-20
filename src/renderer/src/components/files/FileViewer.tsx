@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { IconAlertTriangle, IconCheck, IconCopy, IconLoader2 } from '@tabler/icons-react';
+import {
+  IconAlertTriangle,
+  IconArrowLeft,
+  IconArrowRight,
+  IconCheck,
+  IconCopy,
+  IconLoader2,
+} from '@tabler/icons-react';
 import { cn, formatFileSize } from '../../lib/utils';
 import {
   formatFileContentQuote,
@@ -30,6 +37,7 @@ import { SpinningIcon } from '../ui/spinningIcon';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
 import { useCopyFeedback } from '../../hooks/useCopyFeedback';
 import { useRememberedScroll } from '../../hooks/useRememberedScroll';
+import { useAppStore } from '../../state/appStore';
 
 /** A text view with this many lines is already well past reading; the rest is cut and announced. */
 const MAX_RENDERED_LINES = 5000;
@@ -132,6 +140,11 @@ function FileImage({ src, alt }: { src: string; alt: string }): React.JSX.Elemen
  * markdown has no stable source lines, so its quotes carry the selected text
  * instead.
  */
+const MOUSE_BACK_BUTTON = 3;
+const MOUSE_FORWARD_BUTTON = 4;
+const HISTORY_BUTTON_CLASS_NAME =
+  'flex size-5 items-center justify-center rounded-control-sm text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40';
+
 export default function FileViewer({
   projectPath,
   sessionProjectPath,
@@ -140,6 +153,7 @@ export default function FileViewer({
   lineTarget,
   sessionPath,
   onOpenFile,
+  onStepFileHistory,
 }: {
   projectPath: string;
   /** The session's own project; another project's quotes need absolute references. */
@@ -149,7 +163,11 @@ export default function FileViewer({
   lineTarget: FileLineTarget | null;
   sessionPath: string | null;
   onOpenFile: (path: string, lines?: LineRange | null) => void;
+  onStepFileHistory: (step: -1 | 1) => void;
 }): React.JSX.Element {
+  const history = useAppStore((state) => state.fileHistoryByProject.get(projectPath));
+  const canGoBack = (history?.index ?? 0) > 0;
+  const canGoForward = history !== undefined && history.index < history.visits.length - 1;
   const isBitmap = isBitmapImagePath(filePath);
   const [fileState, setFileState] = useState<FileState>({ status: 'loading' });
   const isMarkdown = isMarkdownPath(filePath);
@@ -270,8 +288,36 @@ export default function FileViewer({
         : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div
+      className="flex min-h-0 flex-1 flex-col"
+      onMouseUp={(event) => {
+        if (event.button === MOUSE_BACK_BUTTON) onStepFileHistory(-1);
+        if (event.button === MOUSE_FORWARD_BUTTON) onStepFileHistory(1);
+      }}
+    >
       <div className="flex h-8 shrink-0 items-center gap-2 px-3">
+        <div className="-ml-1 flex shrink-0 items-center">
+          <button
+            type="button"
+            aria-label="Back"
+            title="Back"
+            disabled={!canGoBack}
+            onClick={() => onStepFileHistory(-1)}
+            className={HISTORY_BUTTON_CLASS_NAME}
+          >
+            <IconArrowLeft size={14} />
+          </button>
+          <button
+            type="button"
+            aria-label="Forward"
+            title="Forward"
+            disabled={!canGoForward}
+            onClick={() => onStepFileHistory(1)}
+            className={HISTORY_BUTTON_CLASS_NAME}
+          >
+            <IconArrowRight size={14} />
+          </button>
+        </div>
         <FileIcon path={filePath} className="size-4" />
         <div className="group/path flex min-w-0 flex-1 items-center gap-1">
           <span

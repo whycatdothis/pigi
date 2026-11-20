@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { accessSync, constants } from 'node:fs';
+import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { basename, delimiter, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -17,16 +18,37 @@ import {
   type ProtocolConnection,
 } from 'vscode-languageserver-protocol/node';
 import type { CodeLanguage } from '../../../shared/codeNavigation';
-import { LANGUAGE_SERVERS, languageIdFor } from './languages';
+import { LANGUAGE_SERVERS, languageIdFor, type ServerCommand } from './languages';
 
 /** A server that has not answered `initialize` in this long is stuck. */
 const INITIALIZE_TIMEOUT_MS = 60_000;
 /** A started server that runs out of budget this many lookups in a row is given up on. */
 const MAX_SLOW_ANSWERS = 3;
 const FILE_URI_PREFIX = 'file:';
-/** Where Neovim's Mason installs servers without putting them on PATH. */
-const MASON_BIN_DIRECTORY = join(homedir(), '.local', 'share', 'nvim', 'mason', 'bin');
 const WINDOWS_SCRIPT_EXTENSION = '.cmd';
+const ASAR_SEGMENT = 'app.asar';
+const UNPACKED_ASAR_SEGMENT = 'app.asar.unpacked';
+const ELECTRON_RUN_AS_NODE_ENV = 'ELECTRON_RUN_AS_NODE';
+const resolvePackageFile = createRequire(import.meta.url).resolve;
+
+/** Places servers are installed without being put on PATH. */
+function extraBinDirectories(): string[] {
+  const goPaths = (process.env['GOPATH'] || join(homedir(), 'go')).split(delimiter);
+  return [
+    // Neovim's Mason.
+    join(homedir(), '.local', 'share', 'nvim', 'mason', 'bin'),
+    // `go install`, where the Go extensions of editors put gopls.
+    process.env['GOBIN'] ?? '',
+    ...goPaths.map((goPath) => join(goPath, 'bin')),
+  ];
+}
+
+interface ServerLaunch {
+  executable: string;
+  args: string[];
+  env?: NodeJS.ProcessEnv;
+  initializationOptions?: object;
+}
 
 export interface ServerLocation {
   /** Absolute. */
@@ -36,7 +58,7 @@ export interface ServerLocation {
 }
 
 function findExecutable(command: string): string | null {
-  const directories = [...(process.env['PATH'] ?? '').split(delimiter), MASON_BIN_DIRECTORY];
+  const directories = [...(process.env['PATH'] ?? '').split(delimiter), ...extraBinDirectories()];
   const names =
     process.platform === 'win32'
       ? [`${command}.exe`, `${command}${WINDOWS_SCRIPT_EXTENSION}`]
@@ -54,6 +76,34 @@ function findExecutable(command: string): string | null {
     }
   }
   return null;
+}
+
+/** The asar holds the packages, but a child process needs real files. */
+function unpackedPackageFile(request: string): string {
+  return resolvePackageFile(request).replace(ASAR_SEGMENT, UNPACKED_ASAR_SEGMENT);
+}
+
+function serverLaunch(server: ServerCommand): ServerLaunch | null {
+  if ('command' in server) {
+    const executable = findExecutable(server.command);
+    return executable ? { executable, args: [...server.args] } : null;
+  }
+  return {
+    executable: process.execPath,
+    args: [unpackedPackageFile('typescript-language-server/lib/cli.mjs'), '--stdio'],
+    env: { ...process.env, [ELECTRON_RUN_AS_NODE_ENV]: '1' },
+    initializationOptions: {
+      // A tsserver outside the project loads no plugins from it.
+      tsserver: {
+        path: unpackedPackageFile('typescript-for-navigation/lib/tsserver.js'),
+        // The syntax server answers while the project loads, knowing only the
+        // open file: a jump lands on the import line instead of the definition.
+        useSyntaxServer: 'never',
+      },
+      // Otherwise tsserver runs npm in the background to fetch @types packages.
+      disableAutomaticTypingAcquisition: true,
+    },
+  };
 }
 
 function toServerLocations(
@@ -79,12 +129,14 @@ class LanguageServer {
   private slowAnswers = 0;
   private openDocument: { uri: string; version: number } | null = null;
   /** `onClose` runs when the server exits, which only a failure makes it do before pigi quits. */
-  constructor(executable: string, args: string[], root: string, onClose: () => void) {
+  constructor(launch: ServerLaunch, root: string, onClose: () => void) {
+    const { executable, args, env } = launch;
     // Node refuses to run a .cmd without a shell, which then needs the quoting.
     const shell = executable.endsWith(WINDOWS_SCRIPT_EXTENSION);
     const quote = (value: string): string => (shell ? `"${value}"` : value);
     this.child = spawn(quote(executable), args.map(quote), {
       cwd: root,
+      env,
       stdio: ['pipe', 'pipe', 'pipe'],
       shell,
     });
@@ -104,7 +156,11 @@ class LanguageServer {
       this.child.once('exit', (code) => fail(`exited with code ${code}`));
     });
     exited.catch(() => {});
-    this.ready = Promise.race([this.initialize(root), exited, rejectAfter(INITIALIZE_TIMEOUT_MS)]);
+    this.ready = Promise.race([
+      this.initialize(root, launch.initializationOptions),
+      exited,
+      rejectAfter(INITIALIZE_TIMEOUT_MS),
+    ]);
     this.ready.then(
       () => {
         this.started = true;
@@ -113,11 +169,12 @@ class LanguageServer {
     );
   }
 
-  private async initialize(root: string): Promise<void> {
+  private async initialize(root: string, initializationOptions?: object): Promise<void> {
     const rootUri = pathToFileURL(root).href;
     await this.connection.sendRequest(InitializeRequest.type, {
       processId: process.pid,
       clientInfo: { name: 'pigi' },
+      initializationOptions,
       rootUri,
       workspaceFolders: [{ uri: rootUri, name: basename(root) }],
       capabilities: {
@@ -204,9 +261,9 @@ const failedServers = new Set<string>();
 
 function getServer(language: CodeLanguage, root: string): LanguageServer | null {
   for (const server of LANGUAGE_SERVERS[language]?.servers ?? []) {
-    const executable = findExecutable(server.command);
-    if (!executable) continue;
-    const key = `${executable}\0${root}`;
+    const launch = serverLaunch(server);
+    if (!launch) continue;
+    const key = `${launch.executable}\0${launch.args[0] ?? ''}\0${root}`;
     if (failedServers.has(key)) continue;
     let running = servers.get(key);
     if (!running) {
@@ -215,7 +272,7 @@ function getServer(language: CodeLanguage, root: string): LanguageServer | null 
         failedServers.add(key);
       };
       try {
-        running = new LanguageServer(executable, [...server.args], root, onClose);
+        running = new LanguageServer(launch, root, onClose);
       } catch {
         failedServers.add(key);
         return null;

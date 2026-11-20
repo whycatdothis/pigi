@@ -1,9 +1,9 @@
 import type { CodeLanguage } from '../../../shared/codeNavigation';
 
-interface ServerCommand {
-  command: string;
-  args: readonly string[];
-}
+/** A server found on the machine, or the TypeScript server pigi ships. */
+export type ServerCommand =
+  | { command: string; args: readonly string[] }
+  | { bundled: 'typescript' };
 
 /** The language a `.vue` file's `<script>` is parsed with. */
 export type ScriptLanguage = Exclude<CodeLanguage, 'vue'>;
@@ -96,10 +96,12 @@ interface LanguageServerConfig {
   servers: readonly ServerCommand[];
 }
 
-const TYPESCRIPT_SERVERS: readonly ServerCommand[] = [
-  { command: 'typescript-language-server', args: ['--stdio'] },
-  { command: 'vtsls', args: ['--stdio'] },
-];
+/**
+ * Bundled, not looked up: an installed typescript-language-server runs the
+ * project's own TypeScript, which loads the tsconfig's plugins from the
+ * project's node_modules, so a click would run the repository's code.
+ */
+const TYPESCRIPT_SERVERS: readonly ServerCommand[] = [{ bundled: 'typescript' }];
 
 /**
  * Vue has none: its language server answers script positions only through a

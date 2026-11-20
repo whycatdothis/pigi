@@ -28,6 +28,7 @@ export default function FilesTab({
   findFileShortcut,
   onFindFile,
   onOpenFile,
+  onStepFileHistory,
   onOpenProject,
 }: {
   projectPath: string | null;
@@ -40,6 +41,7 @@ export default function FilesTab({
   findFileShortcut: ShortcutBinding | undefined;
   onFindFile: () => void;
   onOpenFile: (path: string, lines?: LineRange | null) => void;
+  onStepFileHistory: (step: -1 | 1) => void;
   onOpenProject: () => void;
 }): React.JSX.Element {
   if (!projectPath) {
@@ -99,6 +101,7 @@ export default function FilesTab({
       lineTarget={lineTarget}
       sessionPath={sessionPath}
       onOpenFile={onOpenFile}
+      onStepFileHistory={onStepFileHistory}
     />
   );
 }

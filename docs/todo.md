@@ -47,8 +47,6 @@ Deferred from `feat/go-to-definition` (`docs/goToDefinition.md`):
   `cmd.exe`, and killing it kills the shell, not the server.
 - No tests for `GoToDefinition` (stale replies, candidate list, cursors) or for
   main's process restart and timeout in `src/main/projects/codeNavigation.ts`.
-- Back navigation after a jump (open question in `docs/goToDefinition.md §8`).
-- Start the language server and open the file when the Files tab shows a
-  navigable file, not on the first click: the first lookup pays the server's
-  start-up (often past the 3 s budget) and, for TypeScript, can land on the
-  import line because the project is not loaded yet.
+- Start the language server when the Files tab shows a navigable file, not on
+  the first click: the first lookup pays the server's start-up, often past
+  the 3 s budget on a large project.

@@ -16,6 +16,13 @@ import { createPersistedSessionMap } from '../lib/persistedSessionMap';
 import { parseStoredQuotes, type MessageQuote, type QuoteContent } from '../lib/messageQuotes';
 import { RIGHT_SIDEBAR_TABS, type RightSidebarTab } from '../lib/rightSidebarTabs';
 import { WORKSPACE_TABS, type WorkspaceTab } from '../lib/workspaceTabs';
+import {
+  addFileVisit,
+  EMPTY_FILE_HISTORY,
+  moveInFileHistory,
+  type FileHistory,
+  type FileVisit,
+} from '../lib/fileHistory';
 import type { AgentStatus } from './transcriptController';
 
 export type { AgentStatus };
@@ -113,6 +120,11 @@ interface AppState {
   /** The file each project last opened in the Files tab, persisted per project. */
   lastFileByProject: Map<string, string>;
   setLastFile: (projectPath: string, path: string) => void;
+  /** Files tab back/forward per project, for this run only. */
+  fileHistoryByProject: Map<string, FileHistory>;
+  recordFileVisit: (projectPath: string, visit: FileVisit) => void;
+  /** The visit to show, or null at either end. */
+  stepFileHistory: (projectPath: string, step: -1 | 1) => FileVisit | null;
 
   // Bottom terminal panel. `terminalMounted` stays true after first open so the
   // xterm instance (and its PTY) persist while the panel is toggled hidden.
@@ -517,6 +529,25 @@ const createAppState: StateCreator<AppState> = (set) => ({
       lastFileByProject.set(projectPath, path);
       return { lastFileByProject };
     }),
+  fileHistoryByProject: new Map(),
+  recordFileVisit: (projectPath, visit) =>
+    set((state) => {
+      const history = state.fileHistoryByProject.get(projectPath) ?? EMPTY_FILE_HISTORY;
+      const next = addFileVisit(history, visit);
+      if (next === history) return {};
+      return { fileHistoryByProject: new Map(state.fileHistoryByProject).set(projectPath, next) };
+    }),
+  stepFileHistory: (projectPath, step) => {
+    let visit: FileVisit | null = null;
+    set((state) => {
+      const history = state.fileHistoryByProject.get(projectPath);
+      const next = history && moveInFileHistory(history, step);
+      if (!next) return {};
+      visit = next.visits[next.index] ?? null;
+      return { fileHistoryByProject: new Map(state.fileHistoryByProject).set(projectPath, next) };
+    });
+    return visit;
+  },
 
   terminalOpen: false,
   terminalMounted: false,

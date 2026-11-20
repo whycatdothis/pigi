@@ -56,15 +56,28 @@ flowchart LR
 
 | Language                | Servers tried, in order                                                                                                                                                                                                                                 |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TypeScript / JavaScript | `typescript-language-server --stdio`, `vtsls --stdio`                                                                                                                                                                                                   |
+| TypeScript / JavaScript | bundled: typescript-language-server 6.1.0 with TypeScript 6.0.3 (`typescript-for-navigation`), run by Electron as Node                                                                                                                                  |
 | Python                  | `basedpyright-langserver --stdio`, `pyright-langserver --stdio`, `pylsp`, `jedi-language-server`                                                                                                                                                        |
 | Go                      | `gopls`                                                                                                                                                                                                                                                 |
 | Rust, Java, Perl        | none: rust-analyzer, jdtls and perlnavigator run project code by default (`build.rs` and proc macros, Gradle and Maven builds, `perl -c` running `BEGIN` blocks), and a click should not run a repository's code; jdtls also cannot read Bazel projects |
 | Vue                     | none: the Vue language server (2.x and later) answers script positions only through a paired TypeScript server plugin, so `.vue` uses the fallback                                                                                                      |
 
-- **Detection.** The first candidate found on `PATH` or in
-  `~/.local/share/nvim/mason/bin`. The utility process inherits main's
-  environment after the login shell's `PATH` is applied.
+- **Detection.** The first candidate found on `PATH`, in
+  `~/.local/share/nvim/mason/bin`, or in `$GOBIN` / `$GOPATH/bin` (`~/go/bin`
+  by default, where editors' Go extensions install gopls). The utility
+  process inherits main's environment after the login shell's `PATH` is
+  applied.
+- **TypeScript is bundled**, not looked up, so every TS/JS project gets a
+  server. An installed typescript-language-server or vtsls runs the
+  project's own TypeScript, and that loads the tsconfig's `plugins` from the
+  project's `node_modules`: a test plugin wrote a file on the first lookup.
+  The bundled tsserver lives outside the project, so it loads none; the
+  test in `languageServer.test.ts` checks that. Automatic type acquisition
+  is off (it runs npm in the background), and so is the syntax server: it
+  answers while the project loads, knowing only the open file, so a jump
+  landed on the import line. Electron's builder leaves out the compiler, the
+  locales and the typings installer; both packages are unpacked from the asar
+  because they run as child processes.
 - **Lifecycle.** One server per (executable, project), started on the first
   lookup in that project and killed when the utility process exits, which it
   does after 10 idle minutes (§5). `initialize` sends our `processId`, so
@@ -76,19 +89,15 @@ flowchart LR
   current disk content (`didChange` if it is already the open one), and
   `textDocument/definition` asks at the identifier's start. Only the last
   looked-up file stays open: an open document is an overlay the server trusts
-  over the disk, which the agent keeps changing. Closing it after every lookup
-  makes typescript-language-server unload the project and answer the next
-  lookup with the import line instead of the definition. Positions are UTF-16
+  over the disk, which the agent keeps changing, but closing every file makes
+  tsserver unload the project between lookups. Positions are UTF-16
   code units, the LSP default, which is also what the DOM caret offset and
   tree-sitter's columns give. `.jsx` opens as `javascriptreact`, or
   typescript-language-server parses it without JSX.
-- **Verified** with typescript-language-server 6.1.0 (TypeScript 5.9) and
-  pyright: both find parameters and locals, which the fallback cannot. Two
-  limits seen: the first lookup in a freshly started TypeScript server can
-  still land on the import line (the project is not loaded yet), and
-  typescript-language-server refuses workspaces on TypeScript 6 or 7 (no
-  `tsserver.js`, pigi's own repository among them), which then use the
-  fallback.
+- **Verified** with the bundled server and pyright: both find parameters and
+  locals, which the fallback cannot. The bundled server also works in
+  workspaces on TypeScript 6 or 7, where an installed
+  typescript-language-server refuses to start (no `tsserver.js`).
 - **Budget.** The first lookup includes server start-up, which can take
   seconds. If the server has not
   answered within 3 s, that lookup uses the fallback and the server keeps
@@ -147,6 +156,16 @@ fff's own `classifyDefinitions` is not used: it skips languages it does not
 know (on `~/work/main` it searched 15k of 120k files and found none of the
 5540 Perl `sub value_type`), and it does not recognise `const` definitions.
 
+### 3.3 Back and forward
+
+The Files tab keeps a history per project, in memory only, of the last 50
+files it showed and the lines each was opened at. A jump first records the
+clicked line on the file it leaves, so Back returns there with the line
+marked. Back and Forward are the arrows before the path, the mouse's side
+buttons, and the session shortcuts (Cmd+[ and Cmd+] by default), which act on
+files while the Files tab is showing. The rules are in
+`src/renderer/src/lib/fileHistory.ts`.
+
 ## 4. Languages
 
 | Family                  | Extensions                                                   | Grammar                                                   | wasm               | Tags query source                               |
@@ -162,6 +181,9 @@ know (on `~/work/main` it searched 15k of 120k files and found none of the
 tree-sitter-vue to find its `<script>` block (§4.1).
 
 Total with `web-tree-sitter.wasm` (0.2 MB): 10 MB, before DMG compression.
+The bundled TypeScript server adds about 13 MB more (`typescript.js`,
+tsserver and the `lib.*.d.ts` files, plus 0.9 MB of
+typescript-language-server).
 Versions and sources are listed in `licenses/THIRD_PARTY_NOTICES.md`.
 
 The upstream queries were a starting point. Added on top: TS `type`, `enum`,
@@ -310,8 +332,6 @@ lineContent }[] } | { success: false; error: string }`. `filePath`
 
 ## 8. Open questions
 
-- **Back navigation.** A jump without a way back is frustrating when browsing.
-  Does the Files tab get a small back/forward history in phase 1, or later?
 - **Trigger.** Cmd/Ctrl+click only, or also a context-menu item for discovery?
 - **Cap N.** 200 files is a guess, not yet tuned against a name that
   recalls more files than that.

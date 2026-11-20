@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { toast } from 'sonner';
 import type { CodeDefinition } from '../../../../shared/ipcContract';
 import type { LineRange } from '../../lib/filePathCandidates';
@@ -18,6 +18,8 @@ function definitionLines(definition: CodeDefinition): LineRange {
 interface Candidates {
   symbol: string;
   definitions: CodeDefinition[];
+  /** The clicked line, which Back returns to. */
+  line: number;
   x: number;
   y: number;
 }
@@ -44,6 +46,16 @@ export default function GoToDefinition({
   const [candidates, setCandidates] = useState<Candidates | null>(null);
   const latestRequest = useRef(0);
   const commandRef = useRef<HTMLDivElement>(null);
+  const jumpTo = useCallback(
+    (definition: CodeDefinition, fromLine: number) => {
+      useAppStore.getState().recordFileVisit(projectPath, {
+        filePath,
+        lines: { start: fromLine, end: fromLine },
+      });
+      onOpenFile(definition.filePath, definitionLines(definition));
+    },
+    [filePath, onOpenFile, projectPath],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -75,9 +87,15 @@ export default function GoToDefinition({
           } else if (result.definitions.length === 0) {
             toast(`No definition found for ${result.symbol}`);
           } else if (result.definitions.length === 1 && result.definitions[0]) {
-            onOpenFile(result.definitions[0].filePath, definitionLines(result.definitions[0]));
+            jumpTo(result.definitions[0], position.line);
           } else {
-            setCandidates({ symbol: result.symbol, definitions: result.definitions, x, y });
+            setCandidates({
+              symbol: result.symbol,
+              definitions: result.definitions,
+              line: position.line,
+              x,
+              y,
+            });
           }
         })
         .catch(() => {
@@ -105,7 +123,7 @@ export default function GoToDefinition({
       latestRequest.current += 1;
       setCandidates(null);
     };
-  }, [containerRef, enabled, filePath, isMac, onOpenFile, projectPath]);
+  }, [containerRef, enabled, filePath, isMac, jumpTo, projectPath]);
 
   const anchor = useMemo(
     () => ({
@@ -141,7 +159,7 @@ export default function GoToDefinition({
                   value={`${definition.filePath}:${definition.line}`}
                   onSelect={() => {
                     setCandidates(null);
-                    onOpenFile(definition.filePath, definitionLines(definition));
+                    jumpTo(definition, candidates.line);
                   }}
                 >
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">

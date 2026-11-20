@@ -1356,7 +1356,12 @@ function App(): React.JSX.Element {
   }, []);
 
   const openFileInProject = useCallback(
-    async (project: ProjectDirectory, path: string, lines?: LineRange | null) => {
+    async (
+      project: ProjectDirectory,
+      path: string,
+      lines?: LineRange | null,
+      { fromHistory = false } = {},
+    ) => {
       const store = useAppStore.getState();
       const filePath = projectRelativePath(project.path, path);
       // A link to a folder has no file to read: open the tree at it instead.
@@ -1379,6 +1384,7 @@ function App(): React.JSX.Element {
         project.path === store.activeProject?.path ? null : project.path,
       );
       store.setLastFile(project.path, filePath);
+      if (!fromHistory) store.recordFileVisit(project.path, { filePath, lines: lines ?? null });
       // A folder revealed earlier would keep winning over this file.
       setRevealedDirectory(null);
       setFileLineTarget(lines ? { projectPath: project.path, filePath, lines } : null);
@@ -1404,6 +1410,18 @@ function App(): React.JSX.Element {
       const store = useAppStore.getState();
       const project = workspaceProjectForSession(store);
       if (project) void openFileInProject(project, path, lines);
+    },
+    [openFileInProject],
+  );
+
+  const handleStepFileHistory = useCallback(
+    (step: -1 | 1) => {
+      const store = useAppStore.getState();
+      const project = workspaceProjectForSession(store);
+      const visit = project && store.stepFileHistory(project.path, step);
+      if (project && visit) {
+        void openFileInProject(project, visit.filePath, visit.lines, { fromHistory: true });
+      }
     },
     [openFileInProject],
   );
@@ -1474,6 +1492,11 @@ function App(): React.JSX.Element {
       },
       'navigation.prev': () => {
         closeSettings();
+        // The Files tab has its own history; the session one stays put there.
+        if (useAppStore.getState().workspaceTab === WORKSPACE_TABS.files) {
+          handleStepFileHistory(-1);
+          return;
+        }
         const targetPath = useAppStore.getState().navigateBack();
         if (targetPath) {
           const session = findSessionByPath(targetPath);
@@ -1484,6 +1507,10 @@ function App(): React.JSX.Element {
       },
       'navigation.next': () => {
         closeSettings();
+        if (useAppStore.getState().workspaceTab === WORKSPACE_TABS.files) {
+          handleStepFileHistory(1);
+          return;
+        }
         const targetPath = useAppStore.getState().navigateForward();
         if (targetPath) {
           const session = findSessionByPath(targetPath);
@@ -1514,6 +1541,7 @@ function App(): React.JSX.Element {
       handleCycleProjectSession,
       handleSelectWorkspaceTab,
       handleOpenFileSearch,
+      handleStepFileHistory,
       findSessionByPath,
       toggleTerminal,
       openSettings,
@@ -1960,6 +1988,7 @@ function App(): React.JSX.Element {
                           findFileShortcut={shortcutBindings?.get('files.search')}
                           onFindFile={handleOpenFileSearch}
                           onOpenFile={handleOpenWorkspaceFile}
+                          onStepFileHistory={handleStepFileHistory}
                           onOpenProject={handleOpenProject}
                         />
                       )}
