@@ -117,9 +117,14 @@ interface AppState {
   // Workspace views in the main area. The tabs are fixed and never close.
   workspaceTab: WorkspaceTab;
   setWorkspaceTab: (tab: WorkspaceTab) => void;
-  /** The file each project last opened in the Files tab, persisted per project. */
+  /** The file each project last opened in the Files tab, persisted per project: its active tab. */
   lastFileByProject: Map<string, string>;
+  /** Shows the file, opening a tab for it right of the active one if it has none. */
   setLastFile: (projectPath: string, path: string) => void;
+  /** The Files tab's open files per project, in tab order, persisted. */
+  openFilesByProject: Map<string, readonly string[]>;
+  /** Closing the active tab activates its right neighbour, else its left one. */
+  closeFile: (projectPath: string, path: string) => void;
   /** Files tab back/forward per project, for this run only. */
   fileHistoryByProject: Map<string, FileHistory>;
   recordFileVisit: (projectPath: string, visit: FileVisit) => void;
@@ -301,6 +306,27 @@ const storedLastFiles = createPersistedSessionMap<string>({
   parse: (value) => (typeof value === 'string' && value.length > 0 ? value : undefined),
 });
 
+export const OPEN_FILES_STORAGE_KEY = 'pigi.openFilesByProject';
+
+const storedOpenFiles = createPersistedSessionMap<readonly string[]>({
+  storageKey: OPEN_FILES_STORAGE_KEY,
+  saveDelayMs: 300,
+  parse: (value) =>
+    Array.isArray(value) && value.every((path) => typeof path === 'string' && path.length > 0)
+      ? value
+      : undefined,
+});
+
+/** Files remembered from before tabs existed get a tab of their own. */
+function loadOpenFiles(lastFiles: ReadonlyMap<string, string>): Map<string, readonly string[]> {
+  const openFiles = storedOpenFiles.load();
+  for (const [projectPath, path] of lastFiles) {
+    const tabs = openFiles.get(projectPath) ?? [];
+    if (!tabs.includes(path)) openFiles.set(projectPath, [...tabs, path]);
+  }
+  return openFiles;
+}
+
 function withSessionQuotes(
   quotesBySession: Map<string, MessageQuote[]>,
   sessionPath: string,
@@ -379,6 +405,8 @@ function withPatchedSession(
   next[index] = { ...current, modified, name };
   return { ...projectSessions, [cwd]: next };
 }
+
+const initialLastFiles = storedLastFiles.load();
 
 const createAppState: StateCreator<AppState> = (set) => ({
   sessions: new Map(),
@@ -521,13 +549,36 @@ const createAppState: StateCreator<AppState> = (set) => ({
       packagesOpen: false,
       ...markSeen(state, state.activeSessionPath, workspaceTab),
     })),
-  lastFileByProject: storedLastFiles.load(),
+  lastFileByProject: initialLastFiles,
   setLastFile: (projectPath, path) =>
     set((state) => {
-      if (state.lastFileByProject.get(projectPath) === path) return {};
+      const active = state.lastFileByProject.get(projectPath);
+      const tabs = state.openFilesByProject.get(projectPath) ?? [];
+      const hasTab = tabs.includes(path);
+      if (active === path && hasTab) return {};
+      const activeIndex = active === undefined ? -1 : tabs.indexOf(active);
+      const insertAt = activeIndex === -1 ? tabs.length : activeIndex + 1;
+      return {
+        lastFileByProject: new Map(state.lastFileByProject).set(projectPath, path),
+        openFilesByProject: hasTab
+          ? state.openFilesByProject
+          : new Map(state.openFilesByProject).set(projectPath, tabs.toSpliced(insertAt, 0, path)),
+      };
+    }),
+  openFilesByProject: loadOpenFiles(initialLastFiles),
+  closeFile: (projectPath, path) =>
+    set((state) => {
+      const tabs = state.openFilesByProject.get(projectPath) ?? [];
+      const index = tabs.indexOf(path);
+      if (index === -1) return {};
+      const remaining = tabs.toSpliced(index, 1);
+      const openFilesByProject = new Map(state.openFilesByProject).set(projectPath, remaining);
+      if (state.lastFileByProject.get(projectPath) !== path) return { openFilesByProject };
       const lastFileByProject = new Map(state.lastFileByProject);
-      lastFileByProject.set(projectPath, path);
-      return { lastFileByProject };
+      const next = remaining[index] ?? remaining[index - 1];
+      if (next === undefined) lastFileByProject.delete(projectPath);
+      else lastFileByProject.set(projectPath, next);
+      return { openFilesByProject, lastFileByProject };
     }),
   fileHistoryByProject: new Map(),
   recordFileVisit: (projectPath, visit) =>
@@ -763,6 +814,9 @@ useAppStore.subscribe((state, previous) => {
   }
   if (state.globalCommentBySession !== previous.globalCommentBySession) {
     storedGlobalComments.save(state.globalCommentBySession);
+  }
+  if (state.openFilesByProject !== previous.openFilesByProject) {
+    storedOpenFiles.save(state.openFilesByProject);
   }
   if (state.lastFileByProject !== previous.lastFileByProject) {
     storedLastFiles.save(state.lastFileByProject);

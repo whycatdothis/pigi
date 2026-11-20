@@ -190,6 +190,45 @@ describe('last opened file', () => {
   });
 });
 
+describe('open file tabs', () => {
+  beforeEach(() => {
+    useAppStore.setState({ lastFileByProject: new Map(), openFilesByProject: new Map() });
+  });
+
+  const tabs = (): readonly string[] | undefined =>
+    useAppStore.getState().openFilesByProject.get('/p');
+  const active = (): string | undefined => useAppStore.getState().lastFileByProject.get('/p');
+
+  it('opens a tab right of the active one, and reuses an open tab', () => {
+    const store = useAppStore.getState();
+    store.setLastFile('/p', 'a.ts');
+    store.setLastFile('/p', 'b.ts');
+    store.setLastFile('/p', 'a.ts');
+    store.setLastFile('/p', 'c.ts');
+    expect(tabs()).toEqual(['a.ts', 'c.ts', 'b.ts']);
+    expect(active()).toBe('c.ts');
+  });
+
+  it('activates the right neighbour of a closed active tab, else the left one', () => {
+    const store = useAppStore.getState();
+    for (const path of ['a.ts', 'b.ts', 'c.ts']) store.setLastFile('/p', path);
+    store.setLastFile('/p', 'b.ts');
+    store.closeFile('/p', 'b.ts');
+    expect([tabs(), active()]).toEqual([['a.ts', 'c.ts'], 'c.ts']);
+    store.closeFile('/p', 'c.ts');
+    expect([tabs(), active()]).toEqual([['a.ts'], 'a.ts']);
+    store.closeFile('/p', 'a.ts');
+    expect([tabs(), active()]).toEqual([[], undefined]);
+  });
+
+  it('keeps the active tab when another one closes', () => {
+    const store = useAppStore.getState();
+    for (const path of ['a.ts', 'b.ts']) store.setLastFile('/p', path);
+    store.closeFile('/p', 'a.ts');
+    expect([tabs(), active()]).toEqual([['b.ts'], 'b.ts']);
+  });
+});
+
 describe('workspace project per session', () => {
   it('keeps the Files/Git project per session without touching the active project', () => {
     useAppStore.setState({

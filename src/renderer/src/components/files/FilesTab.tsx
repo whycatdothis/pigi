@@ -12,6 +12,8 @@ import {
   EmptyTitle,
 } from '../ui/empty';
 import FileViewer, { type FileLineTarget } from './FileViewer';
+import FileTabs from './FileTabs';
+import { useAppStore } from '../../state/appStore';
 import type { LineRange } from '../../lib/filePathCandidates';
 
 /**
@@ -44,6 +46,11 @@ export default function FilesTab({
   onStepFileHistory: (step: -1 | 1) => void;
   onOpenProject: () => void;
 }): React.JSX.Element {
+  const openFiles = useAppStore((state) =>
+    projectPath ? state.openFilesByProject.get(projectPath) : undefined,
+  );
+  const closeFile = useAppStore((state) => state.closeFile);
+
   if (!projectPath) {
     return (
       <Empty className="border-0">
@@ -63,6 +70,15 @@ export default function FilesTab({
       </Empty>
     );
   }
+
+  const tabs = openFiles?.length ? (
+    <FileTabs
+      paths={openFiles}
+      activePath={filePath}
+      onSelect={(path) => onOpenFile(path)}
+      onClose={(path) => closeFile(projectPath, path)}
+    />
+  ) : null;
 
   if (!filePath) {
     return (
@@ -92,16 +108,19 @@ export default function FilesTab({
   }
 
   return (
-    <FileViewer
-      key={`${projectPath}:${filePath}`}
-      projectPath={projectPath}
-      sessionProjectPath={sessionProjectPath}
-      filePath={filePath}
-      fileRevision={fileRevision}
-      lineTarget={lineTarget}
-      sessionPath={sessionPath}
-      onOpenFile={onOpenFile}
-      onStepFileHistory={onStepFileHistory}
-    />
+    <div className="flex min-h-0 flex-1 flex-col">
+      {tabs}
+      <FileViewer
+        key={`${projectPath}:${filePath}`}
+        projectPath={projectPath}
+        sessionProjectPath={sessionProjectPath}
+        filePath={filePath}
+        fileRevision={fileRevision}
+        lineTarget={lineTarget}
+        sessionPath={sessionPath}
+        onOpenFile={onOpenFile}
+        onStepFileHistory={onStepFileHistory}
+      />
+    </div>
   );
 }
