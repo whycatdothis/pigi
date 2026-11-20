@@ -127,6 +127,7 @@ interface AppState {
   closeFile: (projectPath: string, path: string) => void;
   /** Files tab back/forward per project, for this run only. */
   fileHistoryByProject: Map<string, FileHistory>;
+  /** Call before showing the file: a project's first visit starts from the file on screen. */
   recordFileVisit: (projectPath: string, visit: FileVisit) => void;
   /** The visit to show, or null at either end. */
   stepFileHistory: (projectPath: string, step: -1 | 1) => FileVisit | null;
@@ -317,7 +318,7 @@ const storedOpenFiles = createPersistedSessionMap<readonly string[]>({
       : undefined,
 });
 
-/** Files remembered from before tabs existed get a tab of their own. */
+/** The active file always has a tab, also when its tab list expired before it. */
 function loadOpenFiles(lastFiles: ReadonlyMap<string, string>): Map<string, readonly string[]> {
   const openFiles = storedOpenFiles.load();
   for (const [projectPath, path] of lastFiles) {
@@ -576,14 +577,27 @@ const createAppState: StateCreator<AppState> = (set) => ({
       if (state.lastFileByProject.get(projectPath) !== path) return { openFilesByProject };
       const lastFileByProject = new Map(state.lastFileByProject);
       const next = remaining[index] ?? remaining[index - 1];
-      if (next === undefined) lastFileByProject.delete(projectPath);
-      else lastFileByProject.set(projectPath, next);
-      return { openFilesByProject, lastFileByProject };
+      if (next === undefined) {
+        lastFileByProject.delete(projectPath);
+        return { openFilesByProject, lastFileByProject };
+      }
+      lastFileByProject.set(projectPath, next);
+      // The tab that comes forward is a visit, so Back returns to the closed file.
+      const history = state.fileHistoryByProject.get(projectPath) ?? EMPTY_FILE_HISTORY;
+      const fileHistoryByProject = new Map(state.fileHistoryByProject).set(
+        projectPath,
+        addFileVisit(history, { filePath: next, lines: null }),
+      );
+      return { openFilesByProject, lastFileByProject, fileHistoryByProject };
     }),
   fileHistoryByProject: new Map(),
   recordFileVisit: (projectPath, visit) =>
     set((state) => {
-      const history = state.fileHistoryByProject.get(projectPath) ?? EMPTY_FILE_HISTORY;
+      const shown = state.lastFileByProject.get(projectPath);
+      const history =
+        state.fileHistoryByProject.get(projectPath) ??
+        (shown ? addFileVisit(EMPTY_FILE_HISTORY, { filePath: shown, lines: null }) : null) ??
+        EMPTY_FILE_HISTORY;
       const next = addFileVisit(history, visit);
       if (next === history) return {};
       return { fileHistoryByProject: new Map(state.fileHistoryByProject).set(projectPath, next) };

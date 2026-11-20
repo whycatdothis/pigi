@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { accessSync, constants } from 'node:fs';
+import { accessSync, constants, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, delimiter, join } from 'node:path';
+import { basename, delimiter, isAbsolute, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   CancellationTokenSource,
@@ -60,7 +60,8 @@ function findExecutable(command: string): string | null {
       ? [`${command}.exe`, `${command}${WINDOWS_SCRIPT_EXTENSION}`]
       : [command];
   for (const directory of directories) {
-    if (!directory) continue;
+    // A relative entry would resolve against the server's cwd: the repository.
+    if (!isAbsolute(directory)) continue;
     for (const name of names) {
       const candidate = join(directory, name);
       try {
@@ -81,14 +82,22 @@ function serverLaunch(server: ServerCommand): ServerLaunch | null {
   }
   const directory = process.env[TYPESCRIPT_SERVER_DIRECTORY_ENV];
   if (!directory) return null;
+  const cli = join(directory, 'typescript-language-server', 'lib', 'cli.mjs');
+  const typescript = join(directory, 'typescript-for-navigation');
+  const tsserver = join(typescript, 'lib', 'tsserver.js');
+  // typescript-language-server ignores a tsserver path it finds incomplete and
+  // runs the project's own TypeScript instead: repository code.
+  if (![cli, tsserver, join(typescript, 'package.json')].every((path) => existsSync(path))) {
+    return null;
+  }
   return {
     executable: process.execPath,
-    args: [join(directory, 'typescript-language-server', 'lib', 'cli.mjs'), '--stdio'],
+    args: [cli, '--stdio'],
     env: { ...process.env, [ELECTRON_RUN_AS_NODE_ENV]: '1' },
     initializationOptions: {
       // A tsserver outside the project loads no plugins from it.
       tsserver: {
-        path: join(directory, 'typescript-for-navigation', 'lib', 'tsserver.js'),
+        path: tsserver,
         // The syntax server answers while the project loads, knowing only the
         // open file: a jump lands on the import line instead of the definition.
         useSyntaxServer: 'never',

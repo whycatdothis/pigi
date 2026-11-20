@@ -221,6 +221,19 @@ describe('open file tabs', () => {
     expect([tabs(), active()]).toEqual([[], undefined]);
   });
 
+  it('starts history from the file on screen, and records the tab a close brings forward', () => {
+    useAppStore.setState({ fileHistoryByProject: new Map() });
+    const store = useAppStore.getState();
+    // Restored from the last run: on screen, but never visited in this one.
+    store.setLastFile('/p', 'a.ts');
+    store.recordFileVisit('/p', { filePath: 'b.ts', lines: null });
+    store.setLastFile('/p', 'b.ts');
+    store.closeFile('/p', 'b.ts');
+    const history = useAppStore.getState().fileHistoryByProject.get('/p');
+    expect(history?.visits.map((visit) => visit.filePath)).toEqual(['a.ts', 'b.ts', 'a.ts']);
+    expect(useAppStore.getState().stepFileHistory('/p', -1)?.filePath).toBe('b.ts');
+  });
+
   it('keeps the active tab when another one closes', () => {
     const store = useAppStore.getState();
     for (const path of ['a.ts', 'b.ts']) store.setLastFile('/p', path);

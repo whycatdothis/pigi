@@ -135,16 +135,16 @@ function FileImage({ src, alt }: { src: string; alt: string }): React.JSX.Elemen
   );
 }
 
-/**
- * The Files tab's reading pane. Source mode quotes a line range; rendered
- * markdown has no stable source lines, so its quotes carry the selected text
- * instead.
- */
 const MOUSE_BACK_BUTTON = 3;
 const MOUSE_FORWARD_BUTTON = 4;
 const HISTORY_BUTTON_CLASS_NAME =
   'flex size-5 items-center justify-center rounded-control-sm text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40';
 
+/**
+ * The Files tab's reading pane. Source mode quotes a line range; rendered
+ * markdown has no stable source lines, so its quotes carry the selected text
+ * instead.
+ */
 export default function FileViewer({
   projectPath,
   sessionProjectPath,

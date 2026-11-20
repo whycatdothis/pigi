@@ -65,14 +65,18 @@ flowchart LR
 - **Detection.** The first candidate found on `PATH`, in
   `~/.local/share/nvim/mason/bin`, or in `$GOBIN` / `$GOPATH/bin` (`~/go/bin`
   by default, where editors' Go extensions install gopls). The utility
-  process inherits main's environment after the login shell's `PATH` is
-  applied.
+  process inherits main's environment after the login shell's `PATH`,
+  `GOBIN` and `GOPATH` are applied. Relative `PATH` entries are skipped: they
+  would resolve inside the repository.
 - **TypeScript is bundled**, not looked up, so every TS/JS project gets a
   server. An installed typescript-language-server or vtsls runs the
   project's own TypeScript, and that loads the tsconfig's `plugins` from the
   project's `node_modules`: a test plugin wrote a file on the first lookup.
-  The bundled tsserver lives outside the project, so it loads none; the
-  test in `languageServer.test.ts` checks that. Automatic type acquisition
+  The bundled tsserver lives outside the project, so it loads none. But
+  typescript-language-server quietly falls back to the project's TypeScript
+  when the tsserver path it is given is incomplete, so the server is not
+  started unless the bundled files exist. `languageServer.test.ts` puts a
+  plugin and a fake TypeScript in a project and checks neither runs. Automatic type acquisition
   is off (it runs npm in the background), and so is the syntax server: it
   answers while the project loads, knowing only the open file, so a jump
   landed on the import line. Both packages are devDependencies that
@@ -160,10 +164,12 @@ know (on `~/work/main` it searched 15k of 120k files and found none of the
 
 ### 3.3 Back and forward
 
-The Files tab keeps a history per project, in memory only, of the last 50
-files it showed and the lines each was opened at. A jump first records the
-clicked line on the file it leaves, so Back returns there with the line
-marked. Back and Forward are the arrows before the path, the mouse's side
+The Files tab keeps a history per project, in memory only, of its last 50
+visits: a file and the lines it was opened at. The first one is the file on
+screen when the history starts (possibly restored from the last run). A jump
+first records the clicked line on the file it leaves, so Back returns there
+with the line marked, and closing the active tab records the tab that comes
+forward, so Back reopens the closed file. Back and Forward are the arrows before the path, the mouse's side
 buttons, and the session shortcuts (Cmd+[ and Cmd+] by default), which act on
 files while the Files tab is showing. The rules are in
 `src/renderer/src/lib/fileHistory.ts`.

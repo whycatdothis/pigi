@@ -45,8 +45,13 @@ Deferred from `feat/go-to-definition` (`docs/goToDefinition.md`):
   navigation process exited" instead of being retried in a new process.
 - Windows: a language server started through an npm `.cmd` shim runs under
   `cmd.exe`, and killing it kills the shell, not the server.
-- No tests for `GoToDefinition` (stale replies, candidate list, cursors) or for
-  main's process restart and timeout in `src/main/projects/codeNavigation.ts`.
+- No tests for `GoToDefinition` (stale replies, candidate list, cursors, the
+  visit recorded before a jump), for Cmd+[ / Cmd+] acting on files in the
+  Files tab, for the tab close button, or for main's process restart and
+  timeout in `src/main/projects/codeNavigation.ts`.
+- `lastFileByProject` and `openFilesByProject` are two persisted maps kept in
+  step by hand (the active file has a tab); one map of `{ files, active }`
+  per project would drop the invariant and the merge on load.
 - Start the language server when the Files tab shows a navigable file, not on
   the first click: the first lookup pays the server's start-up, often past
   the 3 s budget on a large project.

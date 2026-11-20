@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -127,17 +127,24 @@ describe('installed language server', () => {
 
 describe('bundled TypeScript server', () => {
   let project: string;
+  const marker = (name: string): string => join(project, name);
 
   beforeAll(async () => {
     project = await mkdtemp(join(tmpdir(), 'pigi-typescript-'));
+    const writeMarker = (name: string): string =>
+      `require('node:fs').writeFileSync(${JSON.stringify(marker(name))}, '');`;
     await writeFiles(project, {
       'tsconfig.json': JSON.stringify({
         compilerOptions: { plugins: [{ name: 'project-plugin' }] },
         include: ['src'],
       }),
-      'node_modules/project-plugin/index.js': `require('node:fs').writeFileSync(${JSON.stringify(
-        join(project, 'plugin-ran'),
-      )}, '');\nmodule.exports = () => ({ create: (info) => info.languageService });\n`,
+      'node_modules/project-plugin/index.js': `${writeMarker('plugin-ran')}\nmodule.exports = () => ({ create: (info) => info.languageService });\n`,
+      // The project's own TypeScript, which an installed server would run.
+      'node_modules/typescript/package.json': JSON.stringify({
+        name: 'typescript',
+        version: '5.0.0',
+      }),
+      'node_modules/typescript/lib/tsserver.js': `${writeMarker('project-typescript-ran')}\n`,
       'src/local.ts': 'export function f(param: number) {\n  return param;\n}\n',
     });
   });
@@ -146,8 +153,32 @@ describe('bundled TypeScript server', () => {
     await rm(project, { recursive: true, force: true });
   });
 
-  it('finds a parameter, which only a server can, without loading project plugins', async () => {
-    expect(located(await lookup(project, 'src/local.ts', 2, 10))).toEqual(['src/local.ts:1']);
-    expect(existsSync(join(project, 'plugin-ran'))).toBe(false);
+  it("finds a parameter, which only a server can, without running the project's code", async () => {
+    const path = join(project, 'src', 'local.ts');
+    // A cold start may take a while; the 3 s budget is not what this tests.
+    const answer = await serverDefinitions(
+      project,
+      path,
+      'typescript',
+      await readFile(path, 'utf8'),
+      { line: 1, character: 9 },
+      30_000,
+    );
+    expect(answer).toEqual([{ path, line: 1 }]);
+    expect(existsSync(marker('plugin-ran'))).toBe(false);
+    expect(existsSync(marker('project-typescript-ran'))).toBe(false);
+  });
+
+  it('starts no server when the bundled TypeScript is missing', async () => {
+    process.env[TYPESCRIPT_SERVER_DIRECTORY_ENV] = project;
+    try {
+      const path = join(project, 'src', 'local.ts');
+      expect(
+        await serverDefinitions(project, path, 'typescript', '', { line: 1, character: 9 }, 1_000),
+      ).toBeNull();
+      expect(existsSync(marker('project-typescript-ran'))).toBe(false);
+    } finally {
+      process.env[TYPESCRIPT_SERVER_DIRECTORY_ENV] = resolve('node_modules');
+    }
   });
 });

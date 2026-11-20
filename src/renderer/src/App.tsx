@@ -1383,8 +1383,8 @@ function App(): React.JSX.Element {
         store.activeSessionPath,
         project.path === store.activeProject?.path ? null : project.path,
       );
-      store.setLastFile(project.path, filePath);
       if (!fromHistory) store.recordFileVisit(project.path, { filePath, lines: lines ?? null });
+      store.setLastFile(project.path, filePath);
       // A folder revealed earlier would keep winning over this file.
       setRevealedDirectory(null);
       setFileLineTarget(lines ? { projectPath: project.path, filePath, lines } : null);

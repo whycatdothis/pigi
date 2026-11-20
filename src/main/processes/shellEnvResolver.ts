@@ -16,6 +16,9 @@ const SHELL_ENV_ALLOWLIST = [
   'PI_SUBAGENT_PI_BINARY',
   'PI_CURSOR_SETTING_SOURCES',
   DO_NOT_TRACK_ENV,
+  // Where go to definition looks for gopls besides PATH.
+  'GOBIN',
+  'GOPATH',
 ] as const;
 
 /**
