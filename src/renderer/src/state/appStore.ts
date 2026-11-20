@@ -121,7 +121,7 @@ interface AppState {
   lastFileByProject: Map<string, string>;
   /** Shows the file, opening a tab for it right of the active one if it has none. */
   setLastFile: (projectPath: string, path: string) => void;
-  /** The Files tab's open files per project, in tab order, persisted. */
+  /** The Files tab's open files per project, in tab order, persisted; past the cap, the first tab goes. */
   openFilesByProject: Map<string, readonly string[]>;
   /** Closing the active tab activates its right neighbour, else its left one. */
   closeFile: (projectPath: string, path: string) => void;
@@ -317,6 +317,8 @@ const storedOpenFiles = createPersistedSessionMap<readonly string[]>({
       ? value
       : undefined,
 });
+
+const MAX_OPEN_FILES = 8;
 
 /** The active file always has a tab, also when its tab list expired before it. */
 function loadOpenFiles(lastFiles: ReadonlyMap<string, string>): Map<string, readonly string[]> {
@@ -563,7 +565,10 @@ const createAppState: StateCreator<AppState> = (set) => ({
         lastFileByProject: new Map(state.lastFileByProject).set(projectPath, path),
         openFilesByProject: hasTab
           ? state.openFilesByProject
-          : new Map(state.openFilesByProject).set(projectPath, tabs.toSpliced(insertAt, 0, path)),
+          : new Map(state.openFilesByProject).set(
+              projectPath,
+              tabs.toSpliced(insertAt, 0, path).slice(-MAX_OPEN_FILES),
+            ),
       };
     }),
   openFilesByProject: loadOpenFiles(initialLastFiles),

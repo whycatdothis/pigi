@@ -209,6 +209,13 @@ describe('open file tabs', () => {
     expect(active()).toBe('c.ts');
   });
 
+  it('drops the first tab past eight', () => {
+    const store = useAppStore.getState();
+    const paths = Array.from({ length: 9 }, (_, index) => `${index}.ts`);
+    for (const path of paths) store.setLastFile('/p', path);
+    expect([tabs(), active()]).toEqual([paths.slice(1), '8.ts']);
+  });
+
   it('activates the right neighbour of a closed active tab, else the left one', () => {
     const store = useAppStore.getState();
     for (const path of ['a.ts', 'b.ts', 'c.ts']) store.setLastFile('/p', path);
