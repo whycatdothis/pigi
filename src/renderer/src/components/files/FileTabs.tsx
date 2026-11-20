@@ -36,7 +36,7 @@ export default function FileTabs({
   }, [activePath, paths]);
 
   return (
-    <div className="flex h-8 shrink-0 overflow-x-auto tab-bar-rule">
+    <div className="no-scrollbar flex h-8 shrink-0 overflow-x-auto overscroll-x-none tab-bar-rule">
       <Tabs value={activePath ?? ''} onValueChange={onSelect} className="flex-none gap-0">
         <TabsList ref={listRef} variant="editor">
           {paths.map((path, index) => {
