@@ -36,9 +36,9 @@ export default function FileTabs({
   }, [activePath, paths]);
 
   return (
-    <div className="flex h-8 shrink-0 items-end overflow-x-auto px-2">
+    <div className="flex h-8 shrink-0 overflow-x-auto tab-bar-rule">
       <Tabs value={activePath ?? ''} onValueChange={onSelect} className="flex-none gap-0">
-        <TabsList ref={listRef} variant="chip">
+        <TabsList ref={listRef} variant="editor">
           {paths.map((path, index) => {
             const name = names[index] ?? path;
             // Two open files with one name tell themselves apart by their folder.
@@ -51,7 +51,7 @@ export default function FileTabs({
                 onAuxClick={(event) => {
                   if (event.button === MIDDLE_BUTTON) onClose(path);
                 }}
-                className="group/tab h-6 max-w-56 flex-none px-2.5 text-caption font-normal text-muted-foreground"
+                className="group/tab max-w-56 flex-none px-3 text-caption font-normal text-muted-foreground"
               >
                 <FileIcon path={path} className="size-3.5" />
                 <span className="truncate">{name}</span>

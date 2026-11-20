@@ -36,17 +36,15 @@ const TAB_ITEMS = [
   icon: typeof IconMessageCircle | typeof FolderOpen;
 }[];
 
-/** A header chip tab; the right sidebar's tabs use it too, so both headers match. */
+/** A header tab; the right sidebar's tabs use it too, so both headers match. */
 export const HEADER_TAB_CLASS_NAME =
-  'follows-text-size-capped h-8 gap-1.5 px-3 text-ui font-normal text-foreground dark:text-foreground';
+  'follows-text-size-capped gap-1.5 px-3 text-ui font-normal text-foreground dark:text-foreground';
 
 const TAB_CLASS_NAME = `${HEADER_TAB_CLASS_NAME} @max-[320px]:px-2 @max-[220px]:px-1`;
 
-// The header has no left padding of its own; Chat's left margin keeps the
-// active chip off the header edge, and the title sits where it does unselected.
-// At the default text size, 312px plus the 8px margin is the 320px Chat takes.
+// 320px at the default text size.
 const CHAT_TAB_CLASS_NAME =
-  'ml-2 pl-2 text-body w-78 min-w-36 shrink basis-auto justify-start @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none';
+  'pl-4 text-body w-80 min-w-36 shrink basis-auto justify-start @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none';
 
 /**
  * The main window's fixed views. Chat carries no icon so its title gets the
@@ -144,10 +142,10 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
       onValueChange={(next) => {
         if (isWorkspaceTab(next)) onChange(next);
       }}
-      className={cn('min-w-0 gap-0', className)}
+      className={cn('min-w-0 gap-0 self-stretch', className)}
     >
       <TabsList
-        variant="chip"
+        variant="editor"
         className="max-w-full min-w-0 @max-[220px]:gap-0 [-webkit-app-region:no-drag]"
       >
         {TAB_ITEMS.map(({ tab, label: defaultLabel, shortcutId, icon: Icon }) => {
@@ -162,9 +160,9 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
                 className={cn(
                   TAB_CLASS_NAME,
                   CHAT_TAB_CLASS_NAME,
-                  'flex items-center rounded-control-sm',
+                  'flex items-center border-r-[0.5px] border-foreground/27',
                   'text-foreground',
-                  value === WORKSPACE_TABS.chat && 'bg-muted',
+                  value === WORKSPACE_TABS.chat ? 'bg-background' : 'bg-foreground/4',
                 )}
               >
                 <input
@@ -259,7 +257,7 @@ export const WorkspaceHeader = memo(function WorkspaceHeader({
   return (
     <div
       className={cn(
-        'flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 pr-3 transition-[padding] @container @max-[320px]:pr-2 @max-[220px]:pr-1 [-webkit-app-region:drag]',
+        'flex h-11 shrink-0 items-center gap-2 tab-bar-rule pr-3 transition-[padding] @container @max-[320px]:pr-2 @max-[220px]:pr-1 [-webkit-app-region:drag]',
         SIDEBAR_TRANSITION_CLASS_NAME,
       )}
       style={{ paddingLeft: titleInset }}

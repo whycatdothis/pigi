@@ -127,15 +127,19 @@ so a reader following the bottom comes back off the bottom by about 146px. The
 invisible layer also keeps the composer and its draft state alive. Switching
 back resizes the box, which re-glues a following reader.
 
-The tabs are 32px chips in the 44px header, 15px text, the active one on a
-muted fill. Chat has no icon, so its title gets the room, at a fixed 320px so
+The tabs are editor tabs (`TabsList variant="editor"`) the full height of the
+44px header, 15px text, divided by rules, the inactive ones on a faint tint
+and the active one on the view's background with no rule under it, so it joins
+the view. The header's bottom rule is the `tab-bar-rule` inset shadow, which
+paints under the tabs; a border would draw over the active one. The Files
+tab's file tabs and the right sidebar use the same tabs. Chat has no icon, so its title gets the room, at a fixed 320px so
 Files and Git sit in the same place whatever the title is. Every tab reserves
 room for its keycap; Chat's slot, at its right end, also holds the agent's
 spinner or unread dot while another tab is open, so the title does not shift
 when one appears, and the keycap replaces it on hover. The list is
 `max-w-full`, not only `w-fit`: with `w-fit` it keeps its max-content width and
-the Chat chip's `shrink` is dead code. The tabs query the header's content box,
-not the viewport: below 600px the Chat chip may shrink and the keycaps go, below 500px Files and
+the Chat tab's `shrink` is dead code. The tabs query the header's content box,
+not the viewport: below 600px the Chat tab may shrink and the keycaps go, below 500px Files and
 Git drop their labels, below 320px Chat swaps its title for an icon (each tab
 32px), and below 220px padding tightens to 24px per tab (about 72px for all
 three). Every tab keeps its `aria-label`. The session
