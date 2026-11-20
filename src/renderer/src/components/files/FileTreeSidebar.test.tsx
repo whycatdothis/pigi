@@ -43,6 +43,7 @@ function renderSidebar(
         revealedDirectory={revealedDirectory}
         onSelectProject={vi.fn()}
         onOpenFile={vi.fn()}
+        onStepFileHistory={vi.fn()}
         onOpenSettings={vi.fn()}
         onActiveFileChanged={onActiveFileChanged}
         shortcutBindings={null}

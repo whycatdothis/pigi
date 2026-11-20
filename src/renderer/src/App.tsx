@@ -1862,6 +1862,7 @@ function App(): React.JSX.Element {
                   onOpenFile={handleOpenWorkspaceFile}
                   onOpenSettings={openSettings}
                   onActiveFileChanged={handleActiveFileChanged}
+                  onStepFileHistory={handleStepFileHistory}
                   shortcutBindings={shortcutBindings}
                 />
               ) : workspaceTab === WORKSPACE_TABS.git && workspaceProject ? (

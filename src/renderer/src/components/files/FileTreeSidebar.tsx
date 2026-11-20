@@ -28,6 +28,7 @@ import {
   SidebarMenuItem,
 } from '../ui/sidebar';
 import { SidebarToggle } from '../sidebar/sidebarToggle';
+import { FileHistoryButtons } from './fileHistoryButtons';
 import { ProjectPicker } from '../projectPicker';
 import { FileIcon } from '../fileIcon';
 
@@ -54,6 +55,7 @@ interface FileTreeSidebarProps {
   onOpenFile: (path: string) => void;
   onOpenSettings: () => void;
   onActiveFileChanged: () => void;
+  onStepFileHistory: (step: -1 | 1) => void;
   shortcutBindings: Map<string, ShortcutBinding> | null;
 }
 
@@ -103,6 +105,7 @@ export default memo(function FileTreeSidebar({
   onOpenFile,
   onOpenSettings,
   onActiveFileChanged,
+  onStepFileHistory,
   shortcutBindings,
 }: FileTreeSidebarProps): React.JSX.Element {
   const [directories, setDirectories] = useState<Map<string, DirectoryContent>>(() => new Map());
@@ -415,6 +418,11 @@ export default memo(function FileTreeSidebar({
     <ShadcnSidebar collapsible="none" data-testid="file-tree-sidebar" className="w-full">
       <SidebarHeader className="pb-0 [-webkit-app-region:drag]">
         <div className="flex h-10 items-start justify-end">
+          <FileHistoryButtons
+            projectPath={projectPath}
+            shortcutBindings={shortcutBindings}
+            onStep={onStepFileHistory}
+          />
           <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
         </div>
         <div className="flex min-w-0 items-center gap-1.5 px-2 pb-1">

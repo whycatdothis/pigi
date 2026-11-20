@@ -169,9 +169,10 @@ visits: a file and the lines it was opened at. The first one is the file on
 screen when the history starts (possibly restored from the last run). A jump
 first records the clicked line on the file it leaves, so Back returns there
 with the line marked, and closing the active tab records the tab that comes
-forward, so Back reopens the closed file. Back and Forward are the arrows before the path, the mouse's side
-buttons, and the session shortcuts (Cmd+[ and Cmd+] by default), which act on
-files while the Files tab is showing. The rules are in
+forward, so Back reopens the closed file. Back and Forward are the arrows
+left of the file tree's sidebar toggle, the mouse's side buttons, and the
+session shortcuts (Cmd+[ and Cmd+] by default), which act on files while the
+Files tab is showing. The rules are in
 `src/renderer/src/lib/fileHistory.ts`.
 
 ## 4. Languages
