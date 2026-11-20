@@ -121,7 +121,7 @@ interface AppState {
   lastFileByProject: Map<string, string>;
   /** Shows the file, opening a tab for it right of the active one if it has none. */
   setLastFile: (projectPath: string, path: string) => void;
-  /** The Files tab's open files per project, in tab order, persisted; past the cap, the first tab goes. */
+  /** The Files tab's open files per project, in tab order, persisted; past the cap, the least recent tab goes. */
   openFilesByProject: Map<string, readonly string[]>;
   /** Closing the active tab activates its right neighbour, else its left one. */
   closeFile: (projectPath: string, path: string) => void;
@@ -319,6 +319,29 @@ const storedOpenFiles = createPersistedSessionMap<readonly string[]>({
 });
 
 const MAX_OPEN_FILES = 8;
+
+/**
+ * The tab to drop past the cap: never the active one, else the one shown
+ * longest ago. Files not shown this run (history is in memory) go first,
+ * leftmost first.
+ */
+function leastRecentTab(
+  tabs: readonly string[],
+  active: string | undefined,
+  history: FileHistory | undefined,
+): string | undefined {
+  let dropped: string | undefined;
+  let oldest = Infinity;
+  for (const tab of tabs) {
+    if (tab === active) continue;
+    const shown = history?.visits.findLastIndex((visit) => visit.filePath === tab) ?? -1;
+    if (shown < oldest) {
+      oldest = shown;
+      dropped = tab;
+    }
+  }
+  return dropped;
+}
 
 /** The active file always has a tab, also when its tab list expired before it. */
 function loadOpenFiles(lastFiles: ReadonlyMap<string, string>): Map<string, readonly string[]> {
@@ -561,14 +584,16 @@ const createAppState: StateCreator<AppState> = (set) => ({
       if (active === path && hasTab) return {};
       const activeIndex = active === undefined ? -1 : tabs.indexOf(active);
       const insertAt = activeIndex === -1 ? tabs.length : activeIndex + 1;
+      const lastFileByProject = new Map(state.lastFileByProject).set(projectPath, path);
+      if (hasTab) return { lastFileByProject };
+      const dropped =
+        tabs.length < MAX_OPEN_FILES
+          ? undefined
+          : leastRecentTab(tabs, active, state.fileHistoryByProject.get(projectPath));
+      const opened = tabs.toSpliced(insertAt, 0, path).filter((tab) => tab !== dropped);
       return {
-        lastFileByProject: new Map(state.lastFileByProject).set(projectPath, path),
-        openFilesByProject: hasTab
-          ? state.openFilesByProject
-          : new Map(state.openFilesByProject).set(
-              projectPath,
-              tabs.toSpliced(insertAt, 0, path).slice(-MAX_OPEN_FILES),
-            ),
+        lastFileByProject,
+        openFilesByProject: new Map(state.openFilesByProject).set(projectPath, opened),
       };
     }),
   openFilesByProject: loadOpenFiles(initialLastFiles),

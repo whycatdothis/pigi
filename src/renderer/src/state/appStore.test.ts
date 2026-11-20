@@ -209,11 +209,28 @@ describe('open file tabs', () => {
     expect(active()).toBe('c.ts');
   });
 
-  it('drops the first tab past eight', () => {
+  it('drops the tab shown longest ago past eight', () => {
+    useAppStore.setState({ fileHistoryByProject: new Map() });
     const store = useAppStore.getState();
-    const paths = Array.from({ length: 9 }, (_, index) => `${index}.ts`);
+    const open = (path: string): void => {
+      store.recordFileVisit('/p', { filePath: path, lines: null });
+      store.setLastFile('/p', path);
+    };
+    for (const path of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) open(path);
+    open('a');
+    open('i');
+    expect(tabs()).toEqual(['a', 'i', 'c', 'd', 'e', 'f', 'g', 'h']);
+  });
+
+  it('drops the leftmost tab not shown this run, never the active one', () => {
+    useAppStore.setState({ fileHistoryByProject: new Map() });
+    const store = useAppStore.getState();
+    const paths = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     for (const path of paths) store.setLastFile('/p', path);
-    expect([tabs(), active()]).toEqual([paths.slice(1), '8.ts']);
+    useAppStore.setState({ fileHistoryByProject: new Map() });
+    store.setLastFile('/p', 'a');
+    store.setLastFile('/p', 'i');
+    expect([tabs(), active()]).toEqual([['a', 'i', 'c', 'd', 'e', 'f', 'g', 'h'], 'i']);
   });
 
   it('activates the right neighbour of a closed active tab, else the left one', () => {
