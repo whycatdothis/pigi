@@ -17,9 +17,9 @@ import {
   type ProtocolConnection,
 } from 'vscode-languageserver-protocol/node';
 import type { CodeLanguage } from '../../../shared/codeNavigation';
-import { LANGUAGE_SERVERS, languageIdFor, type ServerCommand } from './languages';
+import { LANGUAGE_SERVERS, languageIdFor } from './languages';
 
-/** Indexing servers (rust-analyzer, jdtls) answer `initialize` quickly; one that does not is stuck. */
+/** A server that has not answered `initialize` in this long is stuck. */
 const INITIALIZE_TIMEOUT_MS = 60_000;
 /** A started server that runs out of budget this many lookups in a row is given up on. */
 const MAX_SLOW_ANSWERS = 3;
@@ -202,10 +202,6 @@ const servers = new Map<string, LanguageServer>();
  */
 const failedServers = new Set<string>();
 
-function serverArgs(server: ServerCommand, root: string): string[] {
-  return typeof server.args === 'function' ? server.args(root) : [...server.args];
-}
-
 function getServer(language: CodeLanguage, root: string): LanguageServer | null {
   for (const server of LANGUAGE_SERVERS[language]?.servers ?? []) {
     const executable = findExecutable(server.command);
@@ -219,7 +215,7 @@ function getServer(language: CodeLanguage, root: string): LanguageServer | null 
         failedServers.add(key);
       };
       try {
-        running = new LanguageServer(executable, serverArgs(server, root), root, onClose);
+        running = new LanguageServer(executable, [...server.args], root, onClose);
       } catch {
         failedServers.add(key);
         return null;

@@ -54,15 +54,13 @@ flowchart LR
 
 ### 3.1 Language server
 
-| Language                | Servers tried, in order                                                                                                                            |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TypeScript / JavaScript | `typescript-language-server --stdio`, `vtsls --stdio`                                                                                              |
-| Python                  | `basedpyright-langserver --stdio`, `pyright-langserver --stdio`, `pylsp`, `jedi-language-server`                                                   |
-| Go                      | `gopls`                                                                                                                                            |
-| Rust                    | `rust-analyzer`                                                                                                                                    |
-| Java                    | `jdtls -data <tmp>/pigi-jdtls/<project hash>`                                                                                                      |
-| Perl                    | `perlnavigator --stdio`                                                                                                                            |
-| Vue                     | none: the Vue language server (2.x and later) answers script positions only through a paired TypeScript server plugin, so `.vue` uses the fallback |
+| Language                | Servers tried, in order                                                                                                                                                                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript / JavaScript | `typescript-language-server --stdio`, `vtsls --stdio`                                                                                                                                                                                                   |
+| Python                  | `basedpyright-langserver --stdio`, `pyright-langserver --stdio`, `pylsp`, `jedi-language-server`                                                                                                                                                        |
+| Go                      | `gopls`                                                                                                                                                                                                                                                 |
+| Rust, Java, Perl        | none: rust-analyzer, jdtls and perlnavigator run project code by default (`build.rs` and proc macros, Gradle and Maven builds, `perl -c` running `BEGIN` blocks), and a click should not run a repository's code; jdtls also cannot read Bazel projects |
+| Vue                     | none: the Vue language server (2.x and later) answers script positions only through a paired TypeScript server plugin, so `.vue` uses the fallback                                                                                                      |
 
 - **Detection.** The first candidate found on `PATH` or in
   `~/.local/share/nvim/mason/bin`. The utility process inherits main's
@@ -92,7 +90,7 @@ flowchart LR
   `tsserver.js`, pigi's own repository among them), which then use the
   fallback.
 - **Budget.** The first lookup includes server start-up, which can take
-  seconds (rust-analyzer and jdtls index the project). If the server has not
+  seconds. If the server has not
   answered within 3 s, that lookup uses the fallback and the server keeps
   starting for the next click. Empty results and errors also fall back. A
   started server that runs out of budget three lookups in a row is killed and

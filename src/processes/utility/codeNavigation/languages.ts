@@ -1,11 +1,8 @@
-import { createHash } from 'node:crypto';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import type { CodeLanguage } from '../../../shared/codeNavigation';
 
-export interface ServerCommand {
+interface ServerCommand {
   command: string;
-  args: readonly string[] | ((root: string) => string[]);
+  args: readonly string[];
 }
 
 /** The language a `.vue` file's `<script>` is parsed with. */
@@ -122,19 +119,7 @@ export const LANGUAGE_SERVERS: Readonly<Partial<Record<CodeLanguage, LanguageSer
     ],
   },
   go: { languageId: 'go', servers: [{ command: 'gopls', args: [] }] },
-  rust: { languageId: 'rust', servers: [{ command: 'rust-analyzer', args: [] }] },
-  java: {
-    languageId: 'java',
-    // jdtls keeps its per-project index in the -data directory it is given.
-    servers: [{ command: 'jdtls', args: (root) => ['-data', jdtlsDataDirectory(root)] }],
-  },
-  perl: { languageId: 'perl', servers: [{ command: 'perlnavigator', args: ['--stdio'] }] },
 };
-
-function jdtlsDataDirectory(root: string): string {
-  const key = createHash('sha256').update(root).digest('hex').slice(0, 16);
-  return join(tmpdir(), 'pigi-jdtls', key);
-}
 
 /** typescript-language-server parses a `javascript` document without JSX. */
 export function languageIdFor(language: CodeLanguage, path: string): string | null {
