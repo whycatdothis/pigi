@@ -79,6 +79,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## TypeScript server
+
+Go to definition ships [TypeScript](https://github.com/microsoft/TypeScript)
+6.0.3's tsserver (`typescript`, Apache-2.0) and
+[typescript-language-server](https://github.com/typescript-language-server/typescript-language-server)
+6.1.0 (Apache-2.0) in `Resources/typescriptServer`, each with its own license
+file (TypeScript also with its `ThirdPartyNoticeText.txt`).
+
 ## Tree-sitter grammars and queries
 
 Go to definition (`docs/goToDefinition.md`) bundles these grammars under

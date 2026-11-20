@@ -1,6 +1,9 @@
 import { join } from 'node:path';
 import { app } from 'electron';
-import { TREE_SITTER_DIRECTORY_ENV } from '../../shared/codeNavigation';
+import {
+  TREE_SITTER_DIRECTORY_ENV,
+  TYPESCRIPT_SERVER_DIRECTORY_ENV,
+} from '../../shared/codeNavigation';
 import type {
   CodeNavigationRequest,
   CodeNavigationResponse,
@@ -23,6 +26,12 @@ function treeSitterDirectory(): string {
     : join(app.getAppPath(), 'resources', 'treeSitter');
 }
 
+function typescriptServerDirectory(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'typescriptServer')
+    : join(app.getAppPath(), 'node_modules');
+}
+
 async function startWorker(): Promise<Electron.UtilityProcess> {
   // Language servers are found on the login shell's PATH, not launchd's.
   await initializeShellEnv();
@@ -30,6 +39,7 @@ async function startWorker(): Promise<Electron.UtilityProcess> {
   const child = createCodeNavigationProcess({
     ...process.env,
     [TREE_SITTER_DIRECTORY_ENV]: treeSitterDirectory(),
+    [TYPESCRIPT_SERVER_DIRECTORY_ENV]: typescriptServerDirectory(),
   });
   child.on('message', (response: CodeNavigationResponse) => {
     pending.get(response.requestId)?.(response.result);

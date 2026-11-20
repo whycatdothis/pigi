@@ -13,10 +13,17 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
   - '!docs'
   - '!.pi'
-  # Go to definition runs only tsserver; the compiler, locales and typings installer stay out.
-  - '!node_modules/typescript-for-navigation/{bin,lib/{cs,de,es,fr,it,ja,ko,pl,pt-br,ru,tr,zh-cn,zh-tw}}/**'
-  - '!node_modules/typescript-for-navigation/lib/{_tsc.js,tsc.js,_typingsInstaller.js,typingsInstaller.js,tsserverlibrary.*,typescript.d.ts}'
-  - '!node_modules/typescript-language-server/lib/*.map'
+# Go to definition's TypeScript server, as plain files for the child processes
+# that run it. Packed from node_modules, it would lose the lib.*.d.ts files
+# tsserver needs (electron-builder drops *.d.ts there); only tsserver ships, not
+# the compiler, locales or typings installer.
+extraResources:
+  - from: node_modules
+    to: typescriptServer
+    filter:
+      - typescript-language-server/{package.json,LICENSE,lib/cli.mjs}
+      - typescript-for-navigation/{package.json,LICENSE.txt,ThirdPartyNoticeText.txt}
+      - typescript-for-navigation/lib/{tsserver.js,_tsserver.js,typescript.js,typesMap.json,watchGuard.js,lib.*.d.ts}
 asarUnpack:
   - resources/**
   # Native module: its .node binary must live outside the asar to be require-able.
@@ -25,9 +32,6 @@ asarUnpack:
   - node_modules/@ff-labs/**
   - node_modules/ffi-rs/**
   - node_modules/@yuuang/**
-  # Run as child processes, which cannot read from the asar.
-  - node_modules/typescript-language-server/**
-  - node_modules/typescript-for-navigation/**
 win:
   executableName: pigi
 nsis:

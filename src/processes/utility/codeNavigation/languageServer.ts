@@ -1,6 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { accessSync, constants } from 'node:fs';
-import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { basename, delimiter, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -17,7 +16,7 @@ import {
   type LocationLink,
   type ProtocolConnection,
 } from 'vscode-languageserver-protocol/node';
-import type { CodeLanguage } from '../../../shared/codeNavigation';
+import { TYPESCRIPT_SERVER_DIRECTORY_ENV, type CodeLanguage } from '../../../shared/codeNavigation';
 import { LANGUAGE_SERVERS, languageIdFor, type ServerCommand } from './languages';
 
 /** A server that has not answered `initialize` in this long is stuck. */
@@ -26,10 +25,7 @@ const INITIALIZE_TIMEOUT_MS = 60_000;
 const MAX_SLOW_ANSWERS = 3;
 const FILE_URI_PREFIX = 'file:';
 const WINDOWS_SCRIPT_EXTENSION = '.cmd';
-const ASAR_SEGMENT = 'app.asar';
-const UNPACKED_ASAR_SEGMENT = 'app.asar.unpacked';
 const ELECTRON_RUN_AS_NODE_ENV = 'ELECTRON_RUN_AS_NODE';
-const resolvePackageFile = createRequire(import.meta.url).resolve;
 
 /** Places servers are installed without being put on PATH. */
 function extraBinDirectories(): string[] {
@@ -78,24 +74,21 @@ function findExecutable(command: string): string | null {
   return null;
 }
 
-/** The asar holds the packages, but a child process needs real files. */
-function unpackedPackageFile(request: string): string {
-  return resolvePackageFile(request).replace(ASAR_SEGMENT, UNPACKED_ASAR_SEGMENT);
-}
-
 function serverLaunch(server: ServerCommand): ServerLaunch | null {
   if ('command' in server) {
     const executable = findExecutable(server.command);
     return executable ? { executable, args: [...server.args] } : null;
   }
+  const directory = process.env[TYPESCRIPT_SERVER_DIRECTORY_ENV];
+  if (!directory) return null;
   return {
     executable: process.execPath,
-    args: [unpackedPackageFile('typescript-language-server/lib/cli.mjs'), '--stdio'],
+    args: [join(directory, 'typescript-language-server', 'lib', 'cli.mjs'), '--stdio'],
     env: { ...process.env, [ELECTRON_RUN_AS_NODE_ENV]: '1' },
     initializationOptions: {
       // A tsserver outside the project loads no plugins from it.
       tsserver: {
-        path: unpackedPackageFile('typescript-for-navigation/lib/tsserver.js'),
+        path: join(directory, 'typescript-for-navigation', 'lib', 'tsserver.js'),
         // The syntax server answers while the project loads, knowing only the
         // open file: a jump lands on the import line instead of the definition.
         useSyntaxServer: 'never',

@@ -3,7 +3,10 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { TREE_SITTER_DIRECTORY_ENV } from '../../../shared/codeNavigation';
+import {
+  TREE_SITTER_DIRECTORY_ENV,
+  TYPESCRIPT_SERVER_DIRECTORY_ENV,
+} from '../../../shared/codeNavigation';
 import { serverDefinitions, stopLanguageServers } from './languageServer';
 import { located, lookup, writeFiles } from './testProject';
 
@@ -11,6 +14,7 @@ const originalPath = process.env['PATH'];
 
 beforeAll(() => {
   process.env[TREE_SITTER_DIRECTORY_ENV] = resolve('resources/treeSitter');
+  process.env[TYPESCRIPT_SERVER_DIRECTORY_ENV] = resolve('node_modules');
 });
 
 afterAll(() => {

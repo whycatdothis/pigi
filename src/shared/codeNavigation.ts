@@ -39,3 +39,5 @@ export function codeLanguageForPath(path: string): CodeLanguage | null {
 
 /** Environment the code navigation utility process reads its grammar directory from. */
 export const TREE_SITTER_DIRECTORY_ENV = 'PIGI_TREE_SITTER_DIR';
+/** Holds `typescript-language-server/` and `typescript-for-navigation/`: node_modules, or their packaged copy. */
+export const TYPESCRIPT_SERVER_DIRECTORY_ENV = 'PIGI_TYPESCRIPT_SERVER_DIR';

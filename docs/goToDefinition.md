@@ -75,9 +75,11 @@ flowchart LR
   test in `languageServer.test.ts` checks that. Automatic type acquisition
   is off (it runs npm in the background), and so is the syntax server: it
   answers while the project loads, knowing only the open file, so a jump
-  landed on the import line. Electron's builder leaves out the compiler, the
-  locales and the typings installer; both packages are unpacked from the asar
-  because they run as child processes.
+  landed on the import line. Both packages are devDependencies that
+  electron-builder copies to `Resources/typescriptServer` (`extraResources`)
+  as plain files for the child processes: packed from `node_modules`, the
+  `lib.*.d.ts` files tsserver needs would be dropped. Only tsserver ships, not
+  the compiler, the locales or the typings installer.
 - **Lifecycle.** One server per (executable, project), started on the first
   lookup in that project and killed when the utility process exits, which it
   does after 10 idle minutes (§5). `initialize` sends our `processId`, so
@@ -181,9 +183,8 @@ files while the Files tab is showing. The rules are in
 tree-sitter-vue to find its `<script>` block (§4.1).
 
 Total with `web-tree-sitter.wasm` (0.2 MB): 10 MB, before DMG compression.
-The bundled TypeScript server adds about 13 MB more (`typescript.js`,
-tsserver and the `lib.*.d.ts` files, plus 0.9 MB of
-typescript-language-server).
+The bundled TypeScript server adds 15 MB more (`typescript.js`, tsserver
+and the `lib.*.d.ts` files, plus 0.9 MB of typescript-language-server).
 Versions and sources are listed in `licenses/THIRD_PARTY_NOTICES.md`.
 
 The upstream queries were a starting point. Added on top: TS `type`, `enum`,
