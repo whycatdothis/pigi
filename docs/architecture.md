@@ -132,8 +132,9 @@ The tabs are editor tabs (`TabsList variant="editor"`) the full height of the
 and the active one on the view's background with no rule under it, so it joins
 the view. The header's bottom rule is the `tab-bar-rule` inset shadow, which
 paints under the tabs; a border would draw over the active one. The Files
-tab's file tabs and the right sidebar use the same tabs. Chat has no icon, so its title gets the room, at a fixed 320px so
-Files and Git sit in the same place whatever the title is. Every tab reserves
+tab's file tabs and the right sidebar use the same tabs. Chat has no icon, so
+its title gets the room, at a fixed 320px so Files and Git sit in the same
+place whatever the title is. Every tab reserves
 room for its keycap; Chat's slot, at its right end, also holds the agent's
 spinner or unread dot while another tab is open, so the title does not shift
 when one appears, and the keycap replaces it on hover. The list is
