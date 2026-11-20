@@ -54,6 +54,10 @@ let highlighterPromise: Promise<Highlighter> | null = null;
 const loadedLanguages = new Set<BundledLanguage>();
 const loadedThemes = new Set<string>();
 const highlightedCodeCache = new Map<string, Promise<HighlightedLine[] | null>>();
+const settledHighlights = new WeakMap<
+  Promise<HighlightedLine[] | null>,
+  HighlightedLine[] | null
+>();
 
 function getHighlighter(): Promise<Highlighter> {
   if (!highlighterPromise) {
@@ -140,6 +144,10 @@ export function cacheHighlightedCode(
   }
 
   const highlighted = highlightCode(code, language, themeName, background, surface, codeThemeId);
+  void highlighted.then(
+    (lines) => settledHighlights.set(highlighted, lines),
+    () => undefined,
+  );
   highlightedCodeCache.set(key, highlighted);
   if (highlightedCodeCache.size > MAX_HIGHLIGHT_CACHE_SIZE) {
     const oldestKey = highlightedCodeCache.keys().next().value;
@@ -148,6 +156,19 @@ export function cacheHighlightedCode(
     }
   }
   return highlighted;
+}
+
+/**
+ * A highlight that has already landed, for a first render that should not
+ * flash plain text; undefined while none has.
+ */
+export function settledHighlight(
+  code: string,
+  language: BundledLanguage,
+  themeName: string,
+): HighlightedLine[] | null | undefined {
+  const highlighted = highlightedCodeCache.get(cacheKey(code, language, themeName));
+  return highlighted && settledHighlights.get(highlighted);
 }
 
 async function highlightCode(

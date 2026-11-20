@@ -18,6 +18,7 @@ import { sourceLineRangeFromSelection } from '../../lib/sourceLineSelection';
 import { MESSAGE_LIST_MAX_WIDTH } from '../../lib/layoutConstants';
 import MarkdownMessage from '../message/markdownMessage';
 import SyntaxHighlightedCode from '../message/syntaxHighlightedCode';
+import { cacheHighlightedCode, normalizeLanguage, useCodeTheme } from '../message/codeHighlighting';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
 import GoToDefinition from './GoToDefinition';
 import ContainerFind from '../ui/containerFind';
@@ -33,6 +34,8 @@ import { useRememberedScroll } from '../../hooks/useRememberedScroll';
 
 /** A text view with this many lines is already well past reading; the rest is cut and announced. */
 const MAX_RENDERED_LINES = 5000;
+/** How long a read file waits for its highlight before it shows as plain text. */
+const HIGHLIGHT_WAIT_MS = 300;
 
 type FileState =
   | { status: 'loading' }
@@ -89,6 +92,22 @@ function ViewModeToggle({
   );
 }
 
+function visibleSource(content: string): {
+  content: string;
+  hiddenLines: number;
+  totalLines: number;
+} {
+  const lines = content.split('\n');
+  if (lines.length <= MAX_RENDERED_LINES) {
+    return { content, hiddenLines: 0, totalLines: lines.length };
+  }
+  return {
+    content: lines.slice(0, MAX_RENDERED_LINES).join('\n'),
+    hiddenLines: lines.length - MAX_RENDERED_LINES,
+    totalLines: lines.length,
+  };
+}
+
 function FileStateMessage({
   error,
   loading,
@@ -97,7 +116,13 @@ function FileStateMessage({
   loading?: boolean;
 }): React.JSX.Element {
   return (
-    <div className="flex h-full items-center justify-center px-6 text-center">
+    <div
+      className={cn(
+        'flex h-full items-center justify-center px-6 text-center',
+        // Most files are read before this shows; then it never flashes.
+        loading && 'animate-in fade-in-0 delay-300 fill-mode-backwards',
+      )}
+    >
       <div className="flex max-w-md items-center gap-2 text-caption text-muted-foreground">
         {loading ? (
           <SpinningIcon>
@@ -144,6 +169,7 @@ export default function FileViewer({
   sessionPath,
   onOpenFile,
   onStepFileHistory,
+  onReady,
 }: {
   projectPath: string;
   /** The session's own project; another project's quotes need absolute references. */
@@ -154,7 +180,10 @@ export default function FileViewer({
   sessionPath: string | null;
   onOpenFile: (path: string, lines?: LineRange | null) => void;
   onStepFileHistory: (step: -1 | 1) => void;
+  /** The file is read and highlighted (or failed): it can replace the one on screen. */
+  onReady?: () => void;
 }): React.JSX.Element {
+  const codeTheme = useCodeTheme();
   const isBitmap = isBitmapImagePath(filePath);
   const [fileState, setFileState] = useState<FileState>({ status: 'loading' });
   const isMarkdown = isMarkdownPath(filePath);
@@ -198,7 +227,25 @@ export default function FileViewer({
     let cancelled = false;
     window.piApi
       .readProjectFile(projectPath, filePath)
-      .then((result) => {
+      .then(async (result) => {
+        if (result.success) {
+          // Highlighted text is drawn at once rather than plain first.
+          const content = visibleSource(result.content).content;
+          const language = normalizeLanguage(languageForFile(filePath, content));
+          if (language) {
+            await Promise.race([
+              cacheHighlightedCode(
+                content,
+                language,
+                codeTheme.name,
+                codeTheme.background,
+                codeTheme.surface,
+                codeTheme.codeThemeId,
+              ).catch(() => null),
+              new Promise((resolve) => setTimeout(resolve, HIGHLIGHT_WAIT_MS)),
+            ]);
+          }
+        }
         if (cancelled) return;
         setFileState(
           result.success
@@ -217,22 +264,20 @@ export default function FileViewer({
     return () => {
       cancelled = true;
     };
-  }, [projectPath, filePath, fileRevision, isBitmap]);
+  }, [projectPath, filePath, fileRevision, isBitmap, codeTheme]);
 
-  const source = useMemo(() => {
-    if (fileState.status !== 'ready') {
-      return { content: '', hiddenLines: 0, totalLines: 0 };
-    }
-    const lines = fileState.content.split('\n');
-    if (lines.length <= MAX_RENDERED_LINES) {
-      return { content: fileState.content, hiddenLines: 0, totalLines: lines.length };
-    }
-    return {
-      content: lines.slice(0, MAX_RENDERED_LINES).join('\n'),
-      hiddenLines: lines.length - MAX_RENDERED_LINES,
-      totalLines: lines.length,
-    };
-  }, [fileState]);
+  const ready = isBitmap || fileState.status !== 'loading';
+  useLayoutEffect(() => {
+    if (ready) onReady?.();
+  }, [ready, onReady]);
+
+  const source = useMemo(
+    () =>
+      fileState.status === 'ready'
+        ? visibleSource(fileState.content)
+        : { content: '', hiddenLines: 0, totalLines: 0 },
+    [fileState],
+  );
   const language = languageForFile(filePath, source.content);
 
   useLayoutEffect(() => {

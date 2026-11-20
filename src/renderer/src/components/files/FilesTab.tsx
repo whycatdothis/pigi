@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from 'react';
 import { IconFileSearch, IconFolderOpen, IconSearch } from '@tabler/icons-react';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
@@ -15,6 +16,19 @@ import FileViewer, { type FileLineTarget } from './FileViewer';
 import FileTabs from './FileTabs';
 import { useAppStore } from '../../state/appStore';
 import type { LineRange } from '../../lib/filePathCandidates';
+
+/** A file once it was drawn, with what its viewer was given then. */
+interface ShownFile {
+  key: string;
+  projectPath: string;
+  filePath: string;
+  lineTarget: FileLineTarget | null;
+}
+
+/** A file still loading past this shows its spinner instead of the previous file. */
+const KEEP_PREVIOUS_FILE_MS = 400;
+
+const VIEWER_CLASS_NAME = 'flex min-h-0 flex-1 flex-col';
 
 /**
  * The Files tab: the reader when a file is open, and the two ways to get one
@@ -50,6 +64,26 @@ export default function FilesTab({
     projectPath ? state.openFilesByProject.get(projectPath) : undefined,
   );
   const closeFile = useAppStore((state) => state.closeFile);
+
+  // A newly opened file loads and highlights out of sight while the previous
+  // one stays on screen, instead of the pane flashing through a spinner and
+  // plain text.
+  const key = projectPath && filePath ? `${projectPath}:${filePath}` : null;
+  const [shown, setShown] = useState<ShownFile | null>(null);
+  if (shown && !key) setShown(null);
+  if (shown && shown.key === key && shown.lineTarget !== lineTarget) {
+    setShown({ ...shown, lineTarget });
+  }
+  const previous = shown && shown.key !== key ? shown : null;
+  const showFile = useCallback(() => {
+    if (key && projectPath && filePath) setShown({ key, projectPath, filePath, lineTarget });
+  }, [key, projectPath, filePath, lineTarget]);
+  const waiting = previous !== null;
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = setTimeout(showFile, KEEP_PREVIOUS_FILE_MS);
+    return () => clearTimeout(timer);
+  }, [waiting, showFile]);
 
   if (!projectPath) {
     return (
@@ -110,17 +144,43 @@ export default function FilesTab({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {tabs}
-      <FileViewer
-        key={`${projectPath}:${filePath}`}
-        projectPath={projectPath}
-        sessionProjectPath={sessionProjectPath}
-        filePath={filePath}
-        fileRevision={fileRevision}
-        lineTarget={lineTarget}
-        sessionPath={sessionPath}
-        onOpenFile={onOpenFile}
-        onStepFileHistory={onStepFileHistory}
-      />
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {previous && (
+          <div key={previous.key} className={VIEWER_CLASS_NAME}>
+            <FileViewer
+              projectPath={previous.projectPath}
+              sessionProjectPath={sessionProjectPath}
+              filePath={previous.filePath}
+              fileRevision={fileRevision}
+              lineTarget={previous.lineTarget}
+              sessionPath={sessionPath}
+              onOpenFile={onOpenFile}
+              onStepFileHistory={onStepFileHistory}
+            />
+          </div>
+        )}
+        <div
+          key={key}
+          aria-hidden={previous ? true : undefined}
+          className={
+            previous
+              ? 'pointer-events-none invisible absolute inset-0 flex flex-col'
+              : VIEWER_CLASS_NAME
+          }
+        >
+          <FileViewer
+            projectPath={projectPath}
+            sessionProjectPath={sessionProjectPath}
+            filePath={filePath}
+            fileRevision={fileRevision}
+            lineTarget={lineTarget}
+            sessionPath={sessionPath}
+            onOpenFile={onOpenFile}
+            onStepFileHistory={onStepFileHistory}
+            onReady={showFile}
+          />
+        </div>
+      </div>
     </div>
   );
 }
