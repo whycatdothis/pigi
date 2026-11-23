@@ -37,8 +37,11 @@ export default function SettingsSidebar({
     <TooltipProvider delayDuration={300}>
       <ShadcnSidebar collapsible="none" className="sidebar-surface" data-testid="settings-sidebar">
         {/* WebkitAppRegion is Electron-specific, not in React's CSSProperties */}
-        <SidebarHeader style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
-          <div className="h-10" />
+        <SidebarHeader
+          className="pt-1.5"
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        >
+          <div className="h-7" />
           <SidebarMenu style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
             <SidebarMenuItem>
               <SidebarMenuButton

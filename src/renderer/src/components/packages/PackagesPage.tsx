@@ -511,7 +511,7 @@ export default function PackagesPage({
   return (
     <TooltipProvider delayDuration={300}>
       <div className="relative flex h-full min-h-0 flex-col" data-testid="packages-page">
-        <div className="h-11 shrink-0 [-webkit-app-region:drag]" />
+        <div className="h-10 shrink-0 [-webkit-app-region:drag]" />
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div
             className="mx-auto flex w-full flex-col gap-6 px-8 pt-7 pb-10"

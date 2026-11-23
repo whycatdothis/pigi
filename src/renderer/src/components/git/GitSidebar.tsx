@@ -547,8 +547,8 @@ const GitSidebar = memo(function GitSidebar({
   return (
     <TooltipProvider delayDuration={400}>
       <ShadcnSidebar collapsible="none" data-testid="git-sidebar" className="w-full">
-        <SidebarHeader className="gap-0 border-b-[0.5px] border-foreground/15 pb-0 [-webkit-app-region:drag]">
-          <div className="flex h-10 items-start justify-end">
+        <SidebarHeader className="gap-0 border-b-[0.5px] border-foreground/15 pt-1.5 pb-0 [-webkit-app-region:drag]">
+          <div className="flex h-7 items-center justify-end">
             <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
           </div>
           <div className="mt-2 flex min-w-0 items-center gap-1.5 px-2">

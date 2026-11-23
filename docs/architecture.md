@@ -118,7 +118,7 @@ tab carries the session title (double-click to rename), so the toolbar has no
 separate title. While another tab is open, the Chat tab shows a spinner while
 the agent runs and a dot once it finishes unseen (`unreadSessionPaths`, which
 only clears when the session is shown in Chat). Welcome and new-chat screens hide the header but keep an
-invisible 44px drag strip; no-session Files/Git use `WorkspaceHeader`, which
+invisible 40px drag strip; no-session Files/Git use `WorkspaceHeader`, which
 hosts the tabs without session actions. Files and Git mount on selection and
 unmount on leave. Chat stays mounted and laid out while another tab shows,
 with only its paint skipped (`invisible absolute inset-0`). Do not replace that
@@ -127,15 +127,19 @@ so a reader following the bottom comes back off the bottom by about 146px. The
 invisible layer also keeps the composer and its draft state alive. Switching
 back resizes the box, which re-glues a following reader.
 
-The tabs are 32px chips in the 44px header, 15px text, the active one on a
-muted fill. Chat has no icon, so its title gets the room, at a fixed 320px so
+The tabs fill the 40px header, 15px text, split by one 0.5px hairline on each
+tab's right edge (the last one's line is the divider before the header's
+actions), the active one on a muted fill with the same black text as the rest.
+They draw no top or bottom edge of their own: the header's own bottom rule is
+the only horizontal line, so nothing doubles. Chat has no icon, so its title
+gets the room, at a fixed 320px so
 Files and Git sit in the same place whatever the title is. Every tab reserves
 room for its keycap; Chat's slot, at its right end, also holds the agent's
 spinner or unread dot while another tab is open, so the title does not shift
 when one appears, and the keycap replaces it on hover. The list is
 `max-w-full`, not only `w-fit`: with `w-fit` it keeps its max-content width and
-the Chat chip's `shrink` is dead code. The tabs query the header's content box,
-not the viewport: below 600px the Chat chip may shrink and the keycaps go, below 500px Files and
+the Chat tab's `shrink` is dead code. The tabs query the header's content box,
+not the viewport: below 600px the Chat tab may shrink and the keycaps go, below 500px Files and
 Git drop their labels, below 320px Chat swaps its title for an icon (each tab
 32px), and below 220px padding tightens to 24px per tab (about 72px for all
 three). Every tab keeps its `aria-label`. The session
@@ -143,6 +147,9 @@ toolbar keeps the tree, terminal, view-mode and right-sidebar actions inline
 while there is room; below 430px of header content they move into a `...` menu,
 because the session tree has no other entry point. The right-sidebar toggle
 also hides below 220px, but stays in that menu.
+
+The right sidebar's Quotes tab is the same `divided` band in a 40px header, so
+the two headers read as one bar.
 
 ### Files tabs
 

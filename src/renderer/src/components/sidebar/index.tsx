@@ -221,8 +221,11 @@ export default memo(function Sidebar({
           lag a wrapper still easing wider and expose the transparent window. */}
       <ShadcnSidebar collapsible="none" data-testid="sidebar" className="w-full">
         {/* WebkitAppRegion is Electron-specific, not in React's CSSProperties */}
-        <SidebarHeader style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
-          <div className="flex h-10 items-start justify-end">
+        <SidebarHeader
+          className="pt-1.5"
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        >
+          <div className="flex h-7 items-center justify-end">
             <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
           </div>
           <SidebarMenu style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>

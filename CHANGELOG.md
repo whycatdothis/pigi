@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The header's Chat / Files / Git tabs, and the right sidebar's Quotes tab, are full-height square tabs split by a single hairline, on a 40px header — the active one on a light fill with the same text colour as the rest
+
 ## [0.6.15] - 2026-11-23
 
 ### Added

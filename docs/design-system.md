@@ -175,12 +175,12 @@ panels, the title bar (aligned with the native traffic lights) and section gaps
 stay fixed. Changing the root font size instead would scale all of those and
 turn the text-size setting into a second copy of View → Zoom.
 
-The 44px header is the one box that holds text but cannot grow: its height
+The 40px header is the one box that holds text but cannot grow: its height
 keeps the traffic lights centred. Header tabs use `follows-text-size-capped`,
 which also redefines `--font-ui-scale` — the scale every `--text-*` step reads,
-`--app-font-ui-scale` by default — to stop at a 17px UI size, so the tab's text,
-height and icon stop growing together (the tab at about 36px). A `follows-text-size` box nested inside
-it inherits the cap.
+`--app-font-ui-scale` by default — to stop at a 17px UI size, so the tab's text
+and icon stop growing together rather than pushing the tab past the bar. A
+`follows-text-size` box nested inside it inherits the cap.
 
 ## Corners are superellipses
 

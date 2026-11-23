@@ -416,8 +416,8 @@ export default memo(function FileTreeSidebar({
 
   return (
     <ShadcnSidebar collapsible="none" data-testid="file-tree-sidebar" className="w-full">
-      <SidebarHeader className="pb-0 [-webkit-app-region:drag]">
-        <div className="flex h-10 items-start justify-end">
+      <SidebarHeader className="pt-1.5 pb-0 [-webkit-app-region:drag]">
+        <div className="flex h-7 items-center justify-end">
           <FileHistoryButtons
             projectPath={projectPath}
             shortcutBindings={shortcutBindings}
