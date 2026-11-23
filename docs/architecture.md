@@ -127,9 +127,10 @@ so a reader following the bottom comes back off the bottom by about 146px. The
 invisible layer also keeps the composer and its draft state alive. Switching
 back resizes the box, which re-glues a following reader.
 
-The tabs fill the 40px header, 15px text, split by one 0.5px hairline on each
-tab's right edge (the last one's line is the divider before the header's
-actions), the active one on a muted fill with the same black text as the rest.
+The tabs fill the 40px header and are split by one 0.5px hairline on each tab's
+right edge (the last one's line is the divider before the header's actions), the
+active one on a muted fill with the same black text as the rest. Chat's title is
+15px; Files and Git are 14px.
 They draw no top or bottom edge of their own: the header's own bottom rule is
 the only horizontal line, so nothing doubles. Chat has no icon, so its title
 gets the room, at a fixed 320px so

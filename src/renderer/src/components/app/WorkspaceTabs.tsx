@@ -47,6 +47,11 @@ export const HEADER_TAB_CLASS_NAME =
 // flush against the window edge.
 const TAB_CLASS_NAME = `${HEADER_TAB_CLASS_NAME} @max-[320px]:px-2 @max-[220px]:px-1`;
 
+// A tab's own right hairline: the same one the `divided` variant draws, restated
+// for the rename field, which is a plain div rather than a trigger and so is not
+// matched by that variant's `group-data` rules.
+const TAB_HAIRLINE_CLASS_NAME = 'border-r-[0.5px] border-r-foreground/27';
+
 // Chat keeps the default 320px so Files and Git stay put whatever the title is.
 const CHAT_TAB_CLASS_NAME =
   'text-body w-78 min-w-36 shrink basis-auto justify-start @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none';
@@ -149,10 +154,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
       }}
       className={cn('min-w-0 gap-0 h-full', className)}
     >
-      <TabsList
-        variant="divided"
-        className="max-w-full min-w-0 @max-[220px]:gap-0 [-webkit-app-region:no-drag]"
-      >
+      <TabsList variant="divided" className="max-w-full min-w-0 [-webkit-app-region:no-drag]">
         {TAB_ITEMS.map(({ tab, label: defaultLabel, shortcutId, icon: Icon }) => {
           const isChat = tab === WORKSPACE_TABS.chat;
           const label = isChat && chatTitle?.trim() ? chatTitle.trim() : defaultLabel;
@@ -165,6 +167,7 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
                 className={cn(
                   TAB_CLASS_NAME,
                   CHAT_TAB_CLASS_NAME,
+                  TAB_HAIRLINE_CLASS_NAME,
                   'flex items-center',
                   value === WORKSPACE_TABS.chat && 'bg-muted',
                 )}
