@@ -144,6 +144,30 @@ while there is room; below 430px of header content they move into a `...` menu,
 because the session tree has no other entry point. The right-sidebar toggle
 also hides below 220px, but stays in that menu.
 
+### Files tabs
+
+The Files tab keeps up to eight open files per project as a strip of editor-style
+tabs above the reader, the active one's full path in the bar under it. A new
+file opens to the right of the active tab; past eight, the tab shown longest
+ago goes (the history says which), never the active one. Closing the active tab
+activates its right neighbour, else its left. The list is persisted with the
+active file, so a project reopens as it was left. The strip scrolls sideways
+without a scrollbar and stops overscroll at its ends, so a trackpad flick cannot
+bounce the whole tab bar.
+
+⌘[ and ⌘] step a per-project history of file visits (50 of them, this run only)
+while the Files tab is showing; elsewhere they step sessions. A visit records the
+line it was opened at, so Back returns to that line. History starts from the file
+already on screen, and a go-to-definition jump records the line it left before it
+follows. The same two steps are buttons beside the file-tree toggle and the
+mouse's side buttons over the reader.
+
+Opening a file reads and highlights it out of sight while the previous file stays
+on screen, and swaps once it is ready (or after 400ms). Without that, every open
+painted the old file, a spinner, uncoloured text and then the colours, because
+highlighting is asynchronous. A bitmap waits for its own load, so a picture does
+not flash an empty pane either.
+
 ### Files freshness
 
 The Files tree has no refresh button. The renderer sends the root, every

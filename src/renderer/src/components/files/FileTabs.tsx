@@ -37,7 +37,13 @@ export default function FileTabs({
 
   return (
     <div className="no-scrollbar flex h-8 shrink-0 overflow-x-auto overscroll-x-none tab-bar-rule">
-      <Tabs value={activePath ?? ''} onValueChange={onSelect} className="flex-none gap-0">
+      {/* Arrow keys move focus only: activation reads and highlights a file. */}
+      <Tabs
+        value={activePath ?? ''}
+        onValueChange={onSelect}
+        activationMode="manual"
+        className="flex-none gap-0"
+      >
         <TabsList ref={listRef} variant="editor">
           {paths.map((path, index) => {
             const name = names[index] ?? path;

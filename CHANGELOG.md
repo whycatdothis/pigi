@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Files tab: open several files as tabs (up to eight, remembered per project), step back and forward through the files you have read with ⌘[ and ⌘], and ⌘-click an identifier to jump to its definition — a language server answers first, and a tree-sitter search of the project answers when there is none
+- ⌘-hover underlines the identifier a click would follow
+- Opening a file no longer flickers: the file on screen stays until the next one is read and coloured
+
 ## [0.6.14] - 2026-11-18
 
 ### Added

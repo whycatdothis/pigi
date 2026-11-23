@@ -1,5 +1,5 @@
 import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, globSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -179,6 +179,31 @@ describe('bundled TypeScript server', () => {
       expect(existsSync(marker('project-typescript-ran'))).toBe(false);
     } finally {
       process.env[TYPESCRIPT_SERVER_DIRECTORY_ENV] = resolve('node_modules');
+    }
+  });
+
+  // A filter that misses one lib file leaves the server answering nothing about
+  // that library, with no error: `lib.*.d.ts` did not match `lib.d.ts`, which a
+  // target below ES2015 loads.
+  it('packs every lib file tsserver loads by default', () => {
+    const yml = readFileSync('electron-builder.yml', 'utf8');
+    const extraResources = yml.slice(yml.indexOf('extraResources:'), yml.indexOf('asarUnpack:'));
+    const patterns = [...extraResources.matchAll(/^\s+- (\S+)$/gm)].flatMap(
+      (line) => line[1] ?? [],
+    );
+    const packed = new Set(
+      patterns.flatMap((pattern) => globSync(pattern, { cwd: 'node_modules' })),
+    );
+    for (const file of [
+      'typescript-language-server/lib/cli.mjs',
+      'typescript-for-navigation/package.json',
+      'typescript-for-navigation/lib/tsserver.js',
+      'typescript-for-navigation/lib/typescript.js',
+      'typescript-for-navigation/lib/lib.d.ts',
+      'typescript-for-navigation/lib/lib.es5.d.ts',
+      'typescript-for-navigation/lib/lib.es2025.full.d.ts',
+    ]) {
+      expect(packed, `${file} is not packed`).toContain(file);
     }
   });
 });

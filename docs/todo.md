@@ -49,6 +49,10 @@ Deferred from `feat/go-to-definition` (`docs/goToDefinition.md`):
   visit recorded before a jump), for Cmd+[ / Cmd+] acting on files in the
   Files tab, for the tab close button, or for main's process restart and
   timeout in `src/main/projects/codeNavigation.ts`.
+- A Files tab's close control is a `role="button"` inside the tab's `<button>`
+  and `tabIndex={-1}`, so a keyboard user cannot close a tab; the terminal's
+  tabs have the same shape. Closing the focused tab should move focus to its
+  neighbour, not to the body.
 - `lastFileByProject` and `openFilesByProject` are two persisted maps kept in
   step by hand (the active file has a tab); one map of `{ files, active }`
   per project would drop the invariant and the merge on load.

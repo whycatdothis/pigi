@@ -139,7 +139,16 @@ function FileStateMessage({
 
 // Both wrappers fill the pane so `scale-down` can fit a large image to it; a
 // small one keeps its own size.
-function FileImage({ src, alt }: { src: string; alt: string }): React.JSX.Element {
+function FileImage({
+  src,
+  alt,
+  onSettled,
+}: {
+  src: string;
+  alt: string;
+  /** Absent for an SVG preview, whose file is already read. */
+  onSettled?: () => void;
+}): React.JSX.Element {
   return (
     <div className="h-full p-6 [&_[data-rmiz-content]]:block [&_[data-rmiz-content]]:size-full [&_[data-rmiz]]:block [&_[data-rmiz]]:size-full">
       <ZoomableImage
@@ -147,6 +156,8 @@ function FileImage({ src, alt }: { src: string; alt: string }): React.JSX.Elemen
         alt={alt}
         className="size-full object-scale-down"
         draggable={false}
+        onLoad={onSettled}
+        onError={onSettled}
       />
     </div>
   );
@@ -186,6 +197,9 @@ export default function FileViewer({
   const codeTheme = useCodeTheme();
   const isBitmap = isBitmapImagePath(filePath);
   const [fileState, setFileState] = useState<FileState>({ status: 'loading' });
+  // A bitmap has no read: it is ready once the image itself has loaded or failed.
+  const [imageSettled, setImageSettled] = useState(false);
+  const settleImage = useCallback(() => setImageSettled(true), []);
   const isMarkdown = isMarkdownPath(filePath);
   const isSvg = isSvgPath(filePath);
   // Line numbers exist only in the source view. Opening a file there at its
@@ -266,7 +280,7 @@ export default function FileViewer({
     };
   }, [projectPath, filePath, fileRevision, isBitmap, codeTheme]);
 
-  const ready = isBitmap || fileState.status !== 'loading';
+  const ready = isBitmap ? imageSettled : fileState.status !== 'loading';
   useLayoutEffect(() => {
     if (ready) onReady?.();
   }, [ready, onReady]);
@@ -361,7 +375,7 @@ export default function FileViewer({
           className="h-full overflow-auto bg-background select-text outline-none data-[definition-armed]:cursor-pointer data-[definition-pending]:cursor-progress"
         >
           {isBitmap ? (
-            <FileImage src={imageSource} alt={filePath} />
+            <FileImage src={imageSource} alt={filePath} onSettled={settleImage} />
           ) : fileState.status === 'loading' ? (
             <FileStateMessage loading />
           ) : fileState.status === 'error' ? (
