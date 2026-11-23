@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Both branch pickers list branches newest commit first, local and remote, instead of the current branch on top and the rest by name: the branch picked next is usually the one last worked on
+
 ## [0.6.16] - 2026-11-23
 
 ### Changed

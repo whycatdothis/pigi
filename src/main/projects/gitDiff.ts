@@ -388,7 +388,9 @@ async function listBranches(
   includeRemote: boolean,
 ): Promise<GitDiffBranch[]> {
   const [localResult, remoteResult] = await Promise.all([
-    runGit(cwd, ['for-each-ref', '--format=%(refname)', 'refs/heads']),
+    // Newest commit first, like the remote list: a branch is usually picked
+    // again shortly after it was last committed to. Ties fall back to the name.
+    runGit(cwd, ['for-each-ref', '--sort=-committerdate', '--format=%(refname)', 'refs/heads']),
     includeRemote
       ? runGit(cwd, [
           'for-each-ref',
@@ -399,29 +401,27 @@ async function listBranches(
         ])
       : null,
   ]);
-  const local = parseBranchRefs(localResult.stdout, 'refs/heads/')
-    .map((name) => ({ name, current: name === currentBranch, local: true }))
-    .sort((left, right) =>
-      left.current !== right.current
-        ? left.current
-          ? -1
-          : 1
-        : left.name.localeCompare(right.name),
-    );
+  const local = parseBranchRefs(localResult.stdout, 'refs/heads/').map((name) => ({
+    name,
+    current: name === currentBranch,
+    local: true,
+  }));
   if (!remoteResult) return local;
-  const remote = parseBranchRefs(remoteResult.stdout, 'refs/remotes/')
-    .sort((left, right) => left.localeCompare(right))
-    .map((name) => ({ name, current: false, local: false }));
+  const remote = parseBranchRefs(remoteResult.stdout, 'refs/remotes/').map((name) => ({
+    name,
+    current: false,
+    local: false,
+  }));
   return [...local, ...remote];
 }
 
 /**
- * The branches a picker lists, read when it opens rather than with every
- * summary: sorting the remote ones by commit date reads every branch's tip
+ * The branches a picker lists, newest commit first. Read when it opens rather
+ * than with every summary: sorting by commit date reads every branch's tip
  * commit, which grows with the branch count. Branch switching asks for the
- * local ones only, both because that sort is the slow half (0.7s warm, 3.5s
- * cold on 89k remote branches of one repository) and because `git switch` on a
- * bare remote name creates a local branch from it instead of switching.
+ * local ones only, both because the remote half is the slow part (0.7s warm,
+ * 3.5s cold on 89k remote branches of one repository) and because `git switch`
+ * on a bare remote name creates a local branch from it instead of switching.
  */
 export async function listGitBranches(
   cwd: string,

@@ -80,8 +80,8 @@ export default function GitBasePicker({
   const [tab, setTab] = useState<PickerTab>('branches');
   const [openedAt, setOpenedAt] = useState(Date.now);
   const listRef = useRef<HTMLDivElement>(null);
-  // Read on each open, not with every summary: sorting many remote branches
-  // by date is slow. The last list shows while the next one loads.
+  // Read on each open, not with every summary: the date sort reads every
+  // branch's tip commit. The last list shows while the next one loads.
   const [branches, setBranches] = useState<GitDiffBranch[] | null>(null);
 
   const loadBranches = (): void => {

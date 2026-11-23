@@ -235,10 +235,13 @@ The default base is the branch `origin/HEAD` points at, so a `trunk` or
 since main" and every fallback still produces a useful answer. The base picker lists branches and commits on separate tabs and takes
 any typed ref (`HEAD~3`, a SHA, a tag); it lists every local branch but only
 the 200 most recently committed remote branches, because a large repository
-can carry tens of thousands. Sorting them by date reads every branch's tip
-commit (0.7s warm, 3.5s cold with 89k remote branches), so the list is read
-when the picker opens, not with every summary refresh. The base is deliberately not persisted per project: a branch selected in
-one repo rarely exists in another.
+can carry tens of thousands. Both lists run newest commit first — the branch
+picked next is usually the one last worked on — so the current branch, marked
+as such, sits where its date puts it rather than at the top. Sorting by date
+reads every branch's tip commit (0.7s warm, 3.5s cold with 89k remote
+branches), so the list is read when the picker opens, not with every summary
+refresh. The base is deliberately not persisted per project: a branch selected
+in one repo rarely exists in another.
 
 The branch is switchable too, not just named: the branch under the composer and
 the one at the top of the Git tab are one picker, and choosing a row runs `git
