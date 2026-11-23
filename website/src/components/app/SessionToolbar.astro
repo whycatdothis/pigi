@@ -3,8 +3,8 @@ import Icon from '../Icon.astro';
 import PanelIcon from './PanelIcon.astro';
 import ViewModeMenu, { type ViewModeName } from '../demos/ViewModeMenu.astro';
 import {
-  CHIP_TAB,
-  CHIP_TABS,
+  HEADER_TAB,
+  HEADER_TABS,
   TOOLBAR_BUTTON,
   TOOLBAR_BUTTON_ON,
   TOOLTIP_CONTENT,
@@ -46,18 +46,15 @@ const TAB = 'group/tab @max-[320px]:px-2 @max-[220px]:px-1';
 
 <!-- @max breakpoints are the header's container width, copied from WorkspaceTabs.tsx and SessionToolbar.tsx. -->
 <div
-  class="@container relative z-10 flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 pr-3 @max-[320px]:pr-2 @max-[220px]:pr-1"
+  class="@container relative z-10 flex h-10 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 pr-3 @max-[320px]:pr-2 @max-[220px]:pr-1"
 >
-  <div
-    data-variant="chip"
-    class:list={[CHIP_TABS.classes, 'min-w-0 max-w-full shrink @max-[220px]:gap-0']}
-  >
+  <div data-variant="divided" class={HEADER_TABS.classes}>
     <span
       data-state={tab === 'chat' ? 'active' : 'inactive'}
       class:list={[
         TAB,
-        CHIP_TAB.classes,
-        'ml-2 w-78 min-w-36 shrink basis-auto justify-start pl-2 text-body @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none',
+        HEADER_TAB.classes,
+        'text-body w-78 min-w-36 shrink basis-auto justify-start @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none',
       ]}
     >
       <Icon name="message-circle" class="hidden @max-[320px]:inline" />
@@ -77,7 +74,7 @@ const TAB = 'group/tab @max-[320px]:px-2 @max-[220px]:px-1';
       tabs.map((item) => (
         <span
           data-state={tab === item.id ? 'active' : 'inactive'}
-          class:list={[TAB, CHIP_TAB.classes, 'flex-none justify-center text-ui']}
+          class:list={[TAB, HEADER_TAB.classes, 'flex-none justify-center text-ui']}
         >
           <Icon name={item.icon} />
           <span class="min-w-0 truncate @max-[500px]:hidden">{item.label}</span>

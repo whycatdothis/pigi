@@ -1,6 +1,6 @@
 ---
 import Icon from '../Icon.astro';
-import { BUTTON_BASE, BUTTON_FILLED, CHIP_TAB, CHIP_TABS, QUOTE_CARD } from '../../lib/appUi';
+import { BUTTON_BASE, BUTTON_FILLED, HEADER_TAB, HEADER_TABS, QUOTE_CARD } from '../../lib/appUi';
 
 export interface Quote {
   reference?: string;
@@ -16,9 +16,12 @@ const { quotes } = Astro.props;
 ---
 
 <div class="flex h-full w-full flex-col bg-background">
-  <div class="flex h-11 shrink-0 items-center border-b-[0.5px] border-foreground/27 px-2">
-    <div data-variant="chip" class={CHIP_TABS.classes}>
-      <span data-state="active" class:list={[CHIP_TAB.classes, 'flex-none justify-center text-ui']}>
+  <div class="flex h-10 shrink-0 items-center border-b-[0.5px] border-foreground/27">
+    <div data-variant="divided" class={HEADER_TABS.classes}>
+      <span
+        data-state="active"
+        class:list={[HEADER_TAB.classes, 'flex-none justify-center text-ui']}
+      >
         <Icon name="quote" />
         Quotes
         <span
