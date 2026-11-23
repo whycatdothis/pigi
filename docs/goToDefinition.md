@@ -72,18 +72,23 @@ flowchart LR
   server. An installed typescript-language-server or vtsls runs the
   project's own TypeScript, and that loads the tsconfig's `plugins` from the
   project's `node_modules`: a test plugin wrote a file on the first lookup.
-  The bundled tsserver lives outside the project, so it loads none. But
-  typescript-language-server quietly falls back to the project's TypeScript
-  when the tsserver path it is given is incomplete, so the server is not
-  started unless the bundled files exist. `languageServer.test.ts` puts a
-  plugin and a fake TypeScript in a project and checks neither runs. Automatic type acquisition
-  is off (it runs npm in the background), and so is the syntax server: it
-  answers while the project loads, knowing only the open file, so a jump
-  landed on the import line. Both packages are devDependencies that
-  electron-builder copies to `Resources/typescriptServer` (`extraResources`)
-  as plain files for the child processes: packed from `node_modules`, the
-  `lib.*.d.ts` files tsserver needs would be dropped. Only tsserver ships, not
-  the compiler, the locales or the typings installer.
+  The bundled tsserver lives outside the project, so it loads none. It is
+  installed as `typescript-for-navigation` (`npm:typescript@6.0.3`) because
+  the repo's own `typescript` is `@typescript/typescript6`, a shim over
+  `@typescript/old` that ships neither tsserver nor the `lib*.d.ts` files.
+  typescript-language-server quietly falls back to the project's
+  TypeScript when the tsserver path it is given is incomplete, so the server
+  is not started unless the bundled files exist. `languageServer.test.ts`
+  puts a plugin and a fake TypeScript in a project and checks neither runs.
+  Automatic type acquisition is off (it runs npm in the background), and so
+  is the syntax server: it answers while the project loads, knowing only the
+  open file, so a jump landed on the import line. Both packages are
+  devDependencies that electron-builder copies to
+  `Resources/typescriptServer` (`extraResources`) as plain files for the
+  child processes: packed from `node_modules`, the `lib*.d.ts` files tsserver
+  needs would be dropped. Only tsserver ships, not the compiler, the locales
+  or the typings installer. `lib*.d.ts` has to include the bare `lib.d.ts`,
+  which a target below ES2015 loads and `lib.*.d.ts` does not match.
 - **Lifecycle.** One server per (executable, project), started on the first
   lookup in that project and killed when the utility process exits, which it
   does after 10 idle minutes (§5). `initialize` sends our `processId`, so
@@ -190,8 +195,8 @@ Files tab is showing. The rules are in
 tree-sitter-vue to find its `<script>` block (§4.1).
 
 Total with `web-tree-sitter.wasm` (0.2 MB): 10 MB, before DMG compression.
-The bundled TypeScript server adds 15 MB more (`typescript.js`, tsserver
-and the `lib.*.d.ts` files, plus 0.9 MB of typescript-language-server).
+The bundled TypeScript server adds 13 MB more: 8.7 MB of `typescript.js`,
+3.6 MB of `lib*.d.ts` and 0.9 MB of typescript-language-server.
 Versions and sources are listed in `licenses/THIRD_PARTY_NOTICES.md`.
 
 The upstream queries were a starting point. Added on top: TS `type`, `enum`,
