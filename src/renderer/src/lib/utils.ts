@@ -51,6 +51,11 @@ export function cn(...inputs: ClassValue[]): string {
   return mergeClassName(clsx(inputs));
 }
 
+/** Last segment of a POSIX path; the display name of a directory. */
+export function baseName(path: string): string {
+  return path.split('/').filter(Boolean).pop() ?? path;
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

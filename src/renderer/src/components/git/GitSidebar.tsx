@@ -19,7 +19,7 @@ import { GIT_DIFF_STATUS_BADGES } from '../../lib/gitDiffLabels';
 import { buildGitDiffTree, type GitDiffTreeDirectory } from '../../lib/gitDiffTree';
 import { cn, formatTimeAgo } from '../../lib/utils';
 import { SidebarToggle } from '../sidebar/sidebarToggle';
-import { ProjectPicker } from '../projectPicker';
+import { ProjectPicker, type TaskPickerProjects } from '../projectPicker';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
@@ -525,6 +525,7 @@ const GitSidebar = memo(function GitSidebar({
   projectPath,
   projectName,
   projects,
+  taskProjects,
   onSelectProject,
   workspace,
   onGitBranchChanged,
@@ -533,6 +534,8 @@ const GitSidebar = memo(function GitSidebar({
   projectPath: string;
   projectName: string;
   projects: ProjectDirectory[];
+  /** The active session's task section for the picker; null outside task sessions. */
+  taskProjects: TaskPickerProjects | null;
   onSelectProject: (path: string) => void;
   workspace: GitWorkspace;
   /** The composer shows a branch too, and this tab may have changed it. */
@@ -557,6 +560,7 @@ const GitSidebar = memo(function GitSidebar({
               projectName={projectName}
               selectedProjectPath={projectPath}
               recentProjects={projects}
+              taskProjects={taskProjects}
               onSelectProject={onSelectProject}
             />
           </div>

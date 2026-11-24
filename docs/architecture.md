@@ -1128,6 +1128,8 @@ src/
 │   │   └── applicationMenu.ts  # App menu; the items that follow runtime state (update, pigi command)
 │   ├── processes/
 │   │   └── createPiAgentProcess.ts  # Utility process spawner
+│   ├── tasks/
+│   │   └── taskStore.ts          # ~/.pigi/tasks: task.json, managed AGENTS.md block, git init
 │   └── windows/
 │       ├── createMainWindow.ts
 │       └── createUpdateProgressWindow.ts  # titled, content-sized update window (see auto-update.md)
@@ -1150,7 +1152,7 @@ src/
         │   ├── rightSidebar/     # tabbed right sidebar
         │   ├── session/          # sidebar entry, session toolbar, switcher
         │   ├── sessionTree/      # tree dialog, rows, branch lines, help
-        │   ├── sidebar/          # project and session lists
+        │   ├── sidebar/          # project, task and session lists (task chips, new-task dialog)
         │   ├── terminal/         # terminal panel, controller, theme
         │   ├── transcript/       # message list, its rows, search, mini-map
         │   ├── update/           # the standalone update progress window (see auto-update.md)

@@ -29,6 +29,10 @@ import type {
   ProjectFileSearchResult,
   PathCompletionResult,
   ProjectStateResult,
+  ListTasksResult,
+  TaskDirSource,
+  TaskResult,
+  TaskUpdate,
   RendererTelemetryReport,
   SessionListResult,
   ShortcutBinding,
@@ -94,6 +98,10 @@ interface PiApi {
   openProjectDirectory: () => Promise<ProjectStateResult>;
   removeProject: (path: string) => Promise<ProjectStateResult>;
   reorderProjects: (paths: string[]) => Promise<ProjectStateResult>;
+  listTasks: () => Promise<ListTasksResult>;
+  createTask: (name: string) => Promise<TaskResult>;
+  updateTask: (taskPath: string, update: TaskUpdate) => Promise<TaskResult>;
+  reportTaskDirs: (taskPath: string, paths: string[], source: TaskDirSource) => Promise<TaskResult>;
   pickAttachments: (kind: ChatAttachmentKind) => Promise<PickAttachmentsResult>;
   getPathForFile: (file: File) => string;
   renamePersistedSession: (

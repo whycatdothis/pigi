@@ -1,7 +1,9 @@
 import { memo, useEffect, useState, useCallback, useRef } from 'react';
 import {
   IconFolderPlus,
+  IconListCheck,
   IconMessageCirclePlus,
+  IconPlus,
   IconSettings,
   IconLogin2,
   IconRefresh,
@@ -34,6 +36,8 @@ import { MenuItem } from '../app/MenuItem';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import type { SidebarProps } from './types';
 import { ProjectList } from './projectList';
+import { TaskList } from './taskList';
+import { NewTaskDialog } from './newTaskDialog';
 import { getProjectSessions as getOrderedProjectSessions } from '../../lib/projectSessions';
 
 const EXPANDED_PROJECTS_STORAGE_KEY = 'pigi.expandedProjects';
@@ -53,10 +57,14 @@ export default memo(function Sidebar({
   sessions,
   selectedSessionPath,
   recentProjects,
+  tasks,
   projectSessions,
   shortcutBindings,
   onNewSession,
   onNewSessionForProject,
+  onCreateTask,
+  onUpdateTask,
+  onSelectTaskWorkDir,
   onResumeSession,
   onOpenProject,
   onRemoveProject,
@@ -69,6 +77,7 @@ export default memo(function Sidebar({
   onOpenSettings,
 }: SidebarProps): React.JSX.Element {
   const [expandedProjects, setExpandedProjects] = useState(loadExpandedProjects);
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
   useEffect(() => {
     localStorage.setItem(EXPANDED_PROJECTS_STORAGE_KEY, JSON.stringify([...expandedProjects]));
   }, [expandedProjects]);
@@ -239,6 +248,15 @@ export default memo(function Sidebar({
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => setNewTaskOpen(true)}
+                data-testid="sidebar-new-task"
+              >
+                <IconListCheck data-icon="inline-start" />
+                <span>New task</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
               <SidebarMenuButton onClick={onOpenProject}>
                 <IconFolderPlus data-icon="inline-start" />
                 <span>Open project</span>
@@ -264,6 +282,40 @@ export default memo(function Sidebar({
         </SidebarHeader>
 
         <SidebarContent className="overflow-hidden">
+          {tasks.length > 0 && (
+            <SidebarGroup className="shrink-0">
+              <div className="group/tasks-header">
+                <SidebarGroupLabel className="font-semibold text-sidebar-foreground/60">
+                  Tasks
+                </SidebarGroupLabel>
+                <SidebarGroupAction
+                  onClick={() => setNewTaskOpen(true)}
+                  title="New task"
+                  className="opacity-0 group-hover/tasks-header:opacity-100 transition-opacity"
+                >
+                  <IconPlus />
+                  <span className="sr-only">New task</span>
+                </SidebarGroupAction>
+              </div>
+              <SidebarGroupContent className="max-h-72 overflow-x-hidden overflow-y-auto no-scrollbar">
+                <TaskList
+                  tasks={tasks}
+                  sessions={sessions}
+                  selectedSessionPath={selectedSessionPath}
+                  relativeTimeBase={relativeTimeBase}
+                  expandedProjects={expandedProjects}
+                  visibleWhenCollapsedSessionIdsByPath={visibleWhenCollapsedSessionIds}
+                  onToggleExpand={toggleProjectExpand}
+                  onNewSessionForProject={handleNewSessionForProject}
+                  onResumeSession={handleResumeSessionFromList}
+                  onRenameSession={onRenameSession}
+                  getProjectSessions={getProjectSessions}
+                  onUpdateTask={onUpdateTask}
+                  onSelectWorkDir={onSelectTaskWorkDir}
+                />
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
           <SidebarGroup className="min-h-0 flex-1">
             <div className="group/projects-header">
               <SidebarGroupLabel className="font-semibold text-sidebar-foreground/60">
@@ -355,6 +407,12 @@ export default memo(function Sidebar({
           </SidebarMenu>
         </SidebarFooter>
       </ShadcnSidebar>
+      <NewTaskDialog
+        open={newTaskOpen}
+        onOpenChange={setNewTaskOpen}
+        existingNames={tasks.map((task) => task.name)}
+        onCreateTask={onCreateTask}
+      />
     </TooltipProvider>
   );
 });

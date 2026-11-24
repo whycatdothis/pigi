@@ -29,7 +29,7 @@ import {
 } from '../ui/sidebar';
 import { SidebarToggle } from '../sidebar/sidebarToggle';
 import { FileHistoryButtons } from './fileHistoryButtons';
-import { ProjectPicker } from '../projectPicker';
+import { ProjectPicker, type TaskPickerProjects } from '../projectPicker';
 import { FileIcon } from '../fileIcon';
 
 const INDENT_STEP_PX = 12;
@@ -48,6 +48,8 @@ interface FileTreeSidebarProps {
   projectPath: string;
   projectName: string;
   projects: ProjectDirectory[];
+  /** The active session's task section for the picker; null outside task sessions. */
+  taskProjects: TaskPickerProjects | null;
   selectedFilePath: string | null;
   /** A folder a link pointed at: the tree opens to it, and to nothing else. */
   revealedDirectory: { projectPath: string; path: string } | null;
@@ -99,6 +101,7 @@ export default memo(function FileTreeSidebar({
   projectPath,
   projectName,
   projects,
+  taskProjects,
   selectedFilePath,
   revealedDirectory,
   onSelectProject,
@@ -431,6 +434,7 @@ export default memo(function FileTreeSidebar({
             projectName={projectName}
             selectedProjectPath={projectPath}
             recentProjects={projects}
+            taskProjects={taskProjects}
             onSelectProject={onSelectProject}
           />
           {findFileBinding && (

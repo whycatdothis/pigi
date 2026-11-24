@@ -8,11 +8,13 @@ import type {
   ModelInfo,
   PiSessionInfo,
   ProjectDirectory,
+  TaskInfo,
   ThinkingLevel,
   UpdateStatus,
 } from '../../../shared/ipcContract';
 import type { Platform } from '../../../shared/platform';
 import { createPersistedSessionMap } from '../lib/persistedSessionMap';
+import { baseName } from '../lib/utils';
 import { parseStoredQuotes, type MessageQuote, type QuoteContent } from '../lib/messageQuotes';
 import { RIGHT_SIDEBAR_TABS, type RightSidebarTab } from '../lib/rightSidebarTabs';
 import { WORKSPACE_TABS, type WorkspaceTab } from '../lib/workspaceTabs';
@@ -65,6 +67,11 @@ interface AppState {
 
   recentProjects: ProjectDirectory[];
   activeProject: ProjectDirectory | null;
+  /** Pigi tasks (~/.pigi/tasks), newest first; loaded once at startup, updated per action. */
+  tasks: TaskInfo[];
+  setTasks: (tasks: TaskInfo[]) => void;
+  /** Inserts or replaces one task after a create/update/report reply. */
+  upsertTask: (task: TaskInfo) => void;
   projectSessions: Record<string, PiSessionInfo[]>;
   /**
    * The project Files and Git browse per session (sessionPath, or '' before the
@@ -382,22 +389,50 @@ function withPaths(
   return next;
 }
 
+function toProjectDirectory(path: string, name?: string): ProjectDirectory {
+  return { path, name: name ?? baseName(path) };
+}
+
+/** The task a path belongs to: its directory or one of its working directories. */
+function taskForPath(tasks: TaskInfo[], path: string): TaskInfo | undefined {
+  return tasks.find((task) => task.path === path || task.workDirs.includes(path));
+}
+
 /** The Files/Git project of a session: its own choice while that project still exists, else the active one. */
 export function workspaceProjectForSession({
   recentProjects,
   activeProject,
   activeSessionPath,
   workspaceProjectBySession,
+  tasks,
+  sessions,
 }: {
   recentProjects: ProjectDirectory[];
   activeProject: ProjectDirectory | null;
   activeSessionPath: string | null;
   workspaceProjectBySession: Map<string, string>;
+  tasks: TaskInfo[];
+  sessions: Map<string, SessionEntry>;
 }): ProjectDirectory | null {
   const chosenPath = workspaceProjectBySession.get(activeSessionPath ?? '');
   if (chosenPath) {
     const chosen = recentProjects.find((project) => project.path === chosenPath);
     if (chosen) return chosen;
+    const chosenTask = taskForPath(tasks, chosenPath);
+    if (chosenTask) {
+      return chosenTask.path === chosenPath
+        ? toProjectDirectory(chosenTask.path, chosenTask.name)
+        : toProjectDirectory(chosenPath);
+    }
+  }
+  // A task session with no explicit choice browses the task's active working
+  // directory, or the task directory itself (its documents) when none is set.
+  const cwd = activeSessionPath ? sessions.get(activeSessionPath)?.cwd : undefined;
+  const task = cwd ? tasks.find((candidate) => candidate.path === cwd) : undefined;
+  if (task) {
+    return task.activeWorkDir
+      ? toProjectDirectory(task.activeWorkDir)
+      : toProjectDirectory(task.path, task.name);
   }
   return activeProject;
 }
@@ -524,6 +559,18 @@ const createAppState: StateCreator<AppState> = (set) => ({
     }),
 
   setProjects: (recentProjects, activeProject) => set({ recentProjects, activeProject }),
+
+  tasks: [],
+  setTasks: (tasks) => set({ tasks }),
+  upsertTask: (task) =>
+    set((state) => {
+      const index = state.tasks.findIndex((candidate) => candidate.path === task.path);
+      if (index === -1) return { tasks: [task, ...state.tasks] };
+      const tasks = state.tasks.slice();
+      tasks[index] = task;
+      return { tasks };
+    }),
+
   setProjectSessions: (projectSessions) => set({ projectSessions }),
   setProjectSessionList: (cwd, sessions) =>
     set((state) => ({

@@ -15,6 +15,7 @@ import {
   getPiAgentDebugSnapshot,
 } from './ipc/piAgentBridge';
 import { registerProjectHandlers } from './ipc/projectHandlers';
+import { registerTaskHandlers } from './ipc/taskHandlers';
 import { registerAttachmentHandlers } from './ipc/attachmentHandlers';
 import { registerShortcutHandlers } from './ipc/shortcutHandlers';
 import { registerPiPackageHandlers } from './ipc/piPackageHandlers';
@@ -113,6 +114,7 @@ app.whenReady().then(() => {
   });
   registerIpcHandlers();
   registerProjectHandlers();
+  registerTaskHandlers();
   registerAttachmentHandlers();
   registerShortcutHandlers();
   registerPiPackageHandlers();

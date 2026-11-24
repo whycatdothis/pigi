@@ -7,6 +7,7 @@ import {
   QUOTES_STORAGE_KEY,
   useAppStore,
   workspaceProjectForSession,
+  type SessionEntry,
 } from './appStore';
 
 const backgroundPath = '/sessions/background.jsonl';
@@ -295,6 +296,8 @@ describe('workspace project per session', () => {
         ['/s/a.jsonl', '/project-b'],
         ['/s/b.jsonl', '/project-removed'],
       ]),
+      tasks: [],
+      sessions: new Map(),
     };
 
     expect(workspaceProjectForSession({ ...state, activeSessionPath: '/s/a.jsonl' })).toEqual(
@@ -306,6 +309,51 @@ describe('workspace project per session', () => {
     expect(workspaceProjectForSession({ ...state, activeSessionPath: '/s/b.jsonl' })).toEqual(
       projects[0],
     );
+  });
+
+  it('resolves a task session to its active working directory, else the task directory', () => {
+    const task = {
+      name: 'task-foo',
+      path: '/tasks/task-foo',
+      workDirs: ['/repo/a', '/repo/b'],
+      removedDirs: [],
+      suggestedDirs: [],
+      activeWorkDir: '/repo/b',
+    };
+    const session: SessionEntry = {
+      sessionPath: '/s/a.jsonl',
+      persistedSessionId: 'a',
+      status: 'idle',
+      title: 'chat',
+      cwd: task.path,
+      createdAt: 'now',
+      model: null,
+      thinkingLevel: null,
+      contextUsage: null,
+      autoCompactionEnabled: false,
+      messageCount: 0,
+      error: null,
+    };
+    const state = {
+      recentProjects: [],
+      activeProject: { path: '/project-a', name: 'a' },
+      activeSessionPath: '/s/a.jsonl',
+      workspaceProjectBySession: new Map(),
+      tasks: [task],
+      sessions: new Map([['/s/a.jsonl', session]]),
+    };
+
+    expect(workspaceProjectForSession(state)).toEqual({ path: '/repo/b', name: 'b' });
+    expect(
+      workspaceProjectForSession({ ...state, tasks: [{ ...task, activeWorkDir: null }] }),
+    ).toEqual({ path: task.path, name: task.name });
+    // An explicit choice inside the task wins over the default.
+    expect(
+      workspaceProjectForSession({
+        ...state,
+        workspaceProjectBySession: new Map([['/s/a.jsonl', '/repo/a']]),
+      }),
+    ).toEqual({ path: '/repo/a', name: 'a' });
   });
 });
 

@@ -63,6 +63,50 @@ export interface ProjectDirectory {
   name: string;
 }
 
+/**
+ * A pigi task: a directory under ~/.pigi/tasks that coordinates work across
+ * several working directories. The task directory is the session cwd; the
+ * state below lives in `<task>/.pigi/task.json` (gitignored, validated on
+ * read, rebuilt empty when corrupt). Tombstones (`removedDirs`) stay in that
+ * file: they are the store's private memory, nothing the renderer shows.
+ */
+export interface TaskInfo {
+  /** Directory name; unique per tasks root, doubles as the display name. */
+  name: string;
+  /** Absolute path of the task directory. */
+  path: string;
+  /** Directories the task works in, absolute. */
+  workDirs: string[];
+  /** Dirs pigi noticed in tool calls, waiting for the user to accept or dismiss. */
+  suggestedDirs: string[];
+  /** The work dir Files/Git open for this task; null opens the task directory. */
+  activeWorkDir: string | null;
+}
+
+/** Legal task names: no separators, no leading dot, bounded for the sidebar. */
+export const TASK_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+
+/** Edits a task's directory lists; every field optional, applied in one write. */
+export interface TaskUpdate {
+  /** Explicit adds (editor, or dirs the user's prompt named): clears any tombstone. */
+  addWorkDirs?: string[];
+  /** Removes a work dir and records a tombstone so it is not auto-added back. */
+  removeWorkDirs?: string[];
+  /** Dismisses suggestions, recording tombstones for them. */
+  ignoreSuggestedDirs?: string[];
+  /** Must be null (the task directory) or one of the resulting workDirs. */
+  setActiveWorkDir?: string | null;
+}
+
+export type ListTasksResult =
+  | { success: true; tasks: TaskInfo[] }
+  | { success: false; error: string };
+
+export type TaskResult = { success: true; task: TaskInfo } | { success: false; error: string };
+
+/** Where a reported path was seen: the user's own words add outright, tool calls only suggest. */
+export type TaskDirSource = 'prompt' | 'tool';
+
 export type ChatAttachmentKind = 'image' | 'file';
 
 /**
@@ -702,6 +746,14 @@ export enum PiChannel {
   RemoveProject = 'pi:remove_project',
   /** renderer → main: reorder recent projects */
   ReorderProjects = 'pi:reorder_projects',
+  /** renderer → main: list pigi tasks (~/.pigi/tasks) */
+  ListTasks = 'pi:list_tasks',
+  /** renderer → main: create a task directory (git init, AGENTS.md, task.json) */
+  CreateTask = 'pi:create_task',
+  /** renderer → main: edit a task's directory lists (TaskUpdate) */
+  UpdateTask = 'pi:update_task',
+  /** renderer → main: dirs seen in a task session; prompt dirs add, tool dirs suggest */
+  ReportTaskDirs = 'pi:report_task_dirs',
   /** renderer → main: rename a persisted (non-running) session */
   RenamePersistedSession = 'pi:rename_persisted_session',
   /** renderer → main: read messages from a session file without spawning a utility process */

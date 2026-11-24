@@ -42,6 +42,10 @@ import {
   type PathCompletionResult,
   type ProjectSessionsChunk,
   type ProjectStateResult,
+  type ListTasksResult,
+  type TaskDirSource,
+  type TaskResult,
+  type TaskUpdate,
   type SessionListResult,
   type ShortcutBinding,
   type RendererTelemetryReport,
@@ -409,6 +413,16 @@ const piApi = {
 
   reorderProjects: (paths: string[]): Promise<ProjectStateResult> =>
     ipcRenderer.invoke(PiChannel.ReorderProjects, paths),
+
+  listTasks: (): Promise<ListTasksResult> => ipcRenderer.invoke(PiChannel.ListTasks),
+
+  createTask: (name: string): Promise<TaskResult> => ipcRenderer.invoke(PiChannel.CreateTask, name),
+
+  updateTask: (taskPath: string, update: TaskUpdate): Promise<TaskResult> =>
+    ipcRenderer.invoke(PiChannel.UpdateTask, taskPath, update),
+
+  reportTaskDirs: (taskPath: string, paths: string[], source: TaskDirSource): Promise<TaskResult> =>
+    ipcRenderer.invoke(PiChannel.ReportTaskDirs, taskPath, paths, source),
 
   /** Rename a persisted (non-running) session by appending a session_info entry. */
   renamePersistedSession: (

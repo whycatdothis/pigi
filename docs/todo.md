@@ -5,6 +5,24 @@ each one is mechanical or structural enough that mixing it into a feature branch
 would make the change hard to review. Delete an entry when it lands; anything
 user-visible also adds a line to the CHANGELOG.
 
+## Tasks
+
+Deferred from `feat/tasks`:
+
+- No way to delete or rename a task in the UI (the directory can be removed or
+  renamed by hand; a rename only changes the display name, since the config
+  lives inside).
+- The dir watcher extracts only POSIX-absolute paths (`/…`, `~/…`); Windows
+  paths in prompts and tool calls are never reported.
+- Suggested dirs come from heuristics, not a model: batching the candidates
+  through a cheap LLM at run end is the upgrade path if the noise turns out
+  high.
+- The chip editor's add input validates against disk but has no path
+  completion; `CompletePath` already exists for the composer.
+- A task's AGENTS.md prose is written once at creation (only the marked
+  work-dirs block is managed), so template wording improvements never reach
+  existing tasks.
+
 ## Security
 
 - Windows CLI socket ACL: `remoteControlServer` chmods the socket `0600` on

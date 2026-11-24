@@ -26,6 +26,10 @@ import type {
   GitDiffSummaryResult,
   ProjectSessionsChunk,
   ProjectStateResult,
+  ListTasksResult,
+  TaskDirSource,
+  TaskResult,
+  TaskUpdate,
   PromptAttachment,
   SessionOptions,
   SessionState,
@@ -147,6 +151,26 @@ export async function removeProject(path: string): Promise<ProjectStateResult> {
 
 export async function reorderProjects(paths: string[]): Promise<ProjectStateResult> {
   return window.piApi.reorderProjects(paths);
+}
+
+export async function listTasks(): Promise<ListTasksResult> {
+  return window.piApi.listTasks();
+}
+
+export async function createTask(name: string): Promise<TaskResult> {
+  return window.piApi.createTask(name);
+}
+
+export async function updateTask(taskPath: string, update: TaskUpdate): Promise<TaskResult> {
+  return window.piApi.updateTask(taskPath, update);
+}
+
+export async function reportTaskDirs(
+  taskPath: string,
+  paths: string[],
+  source: TaskDirSource,
+): Promise<TaskResult> {
+  return window.piApi.reportTaskDirs(taskPath, paths, source);
 }
 
 /** cwds recently sent to the session worker; cleared after a short TTL */
