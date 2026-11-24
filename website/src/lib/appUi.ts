@@ -170,12 +170,11 @@ export const CHIP_TABS = {
   source: `${UI}/tabs.tsx`,
 } satisfies CopiedClasses;
 
-// A header band's tabs: full height, one hairline on each tab's right, the
-// active one on a muted fill, so the band's own bottom rule is the only
-// horizontal line. The page's div stands in for the app's Tabs root and its
-// `divided` list at once — it carries `group/tabs-list` and
-// `data-variant="divided"`, the attributes Radix would give them — so the
-// variant rules on the tab below match as they do in the app.
+// A header band's tabs: full height, one hairline on each tab's right, so the
+// band's own bottom rule is the only horizontal line. The page's div stands in
+// for the app's Tabs root and its `divided` list at once — it carries
+// `group/tabs-list` and `data-variant="divided"`, the attributes Radix would
+// give them — so the variant rules on the tab below match as they do in the app.
 export const HEADER_TABS = {
   classes:
     'group/tabs-list inline-flex w-fit items-stretch justify-center gap-0 rounded-none bg-transparent p-0 text-muted-foreground h-full max-w-full min-w-0 shrink',
@@ -190,8 +189,7 @@ export const HEADER_TABS = {
 // disabled rules, since these are spans that never take either. The app's
 // `follows-text-size-capped` is its own utility; the page's text size is fixed.
 export const HEADER_TAB = {
-  classes:
-    "relative inline-flex h-full items-center gap-1.5 border border-transparent px-3 py-0.5 font-normal whitespace-nowrap text-foreground transition-all hover:text-foreground dark:text-foreground dark:hover:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 group-data-[variant=divided]/tabs-list:rounded-none group-data-[variant=divided]/tabs-list:border-0 group-data-[variant=divided]/tabs-list:border-r-[0.5px] group-data-[variant=divided]/tabs-list:border-r-foreground/27 group-data-[variant=divided]/tabs-list:bg-transparent group-data-[variant=divided]/tabs-list:after:hidden group-data-[variant=divided]/tabs-list:data-[state=active]:bg-muted group-data-[variant=divided]/tabs-list:data-[state=active]:text-foreground group-data-[variant=divided]/tabs-list:data-[state=active]:shadow-none dark:group-data-[variant=divided]/tabs-list:data-[state=active]:border-r-foreground/27 dark:group-data-[variant=divided]/tabs-list:data-[state=active]:bg-muted dark:group-data-[variant=divided]/tabs-list:data-[state=active]:text-foreground",
+  classes: `relative inline-flex h-full items-center gap-1.5 border border-transparent px-3 py-0.5 font-normal whitespace-nowrap text-foreground transition-all hover:text-foreground dark:text-foreground dark:hover:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 group-data-[variant=divided]/tabs-list:rounded-none group-data-[variant=divided]/tabs-list:border-0 group-data-[variant=divided]/tabs-list:border-r-[0.5px] group-data-[variant=divided]/tabs-list:border-r-foreground/27 group-data-[variant=divided]/tabs-list:bg-transparent group-data-[variant=divided]/tabs-list:after:hidden group-data-[variant=divided]/tabs-list:data-[state=active]:bg-transparent group-data-[variant=divided]/tabs-list:data-[state=active]:text-foreground group-data-[variant=divided]/tabs-list:data-[state=active]:shadow-none dark:group-data-[variant=divided]/tabs-list:data-[state=active]:border-r-foreground/27 dark:group-data-[variant=divided]/tabs-list:data-[state=active]:bg-transparent data-[state=active]:before:absolute data-[state=active]:before:top-1/2 data-[state=active]:before:left-0 data-[state=active]:before:h-4/5 data-[state=active]:before:w-0.5 data-[state=active]:before:-translate-y-1/2 data-[state=active]:before:bg-system-accent`,
   source: `${UI}/tabs.tsx`,
   alsoFrom: [`${RENDERER}/app/WorkspaceTabs.tsx`],
 } satisfies CopiedClasses;

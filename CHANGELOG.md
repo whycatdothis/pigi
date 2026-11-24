@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The header is 36px, and its Chat / Files / Git tabs, and the right sidebar's Quotes tab, are full-height square tabs split by a single hairline — the active one marked by an accent bar inside its left edge instead of a fill
+
 ## [0.6.17] - 2026-11-23
 
 ### Changed

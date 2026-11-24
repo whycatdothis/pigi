@@ -40,7 +40,7 @@ export default React.memo(function RightSidebar({
       }}
       className="h-full w-full gap-0 bg-background"
     >
-      <div className="flex h-10 shrink-0 items-center border-b-[0.5px] border-foreground/27 [-webkit-app-region:drag]">
+      <div className="flex h-9 shrink-0 items-center border-b-[0.5px] border-foreground/27 [-webkit-app-region:drag]">
         <TabsList variant="divided" className="[-webkit-app-region:no-drag]">
           <TabsTrigger
             value={RIGHT_SIDEBAR_TABS.quotes}

@@ -118,7 +118,7 @@ tab carries the session title (double-click to rename), so the toolbar has no
 separate title. While another tab is open, the Chat tab shows a spinner while
 the agent runs and a dot once it finishes unseen (`unreadSessionPaths`, which
 only clears when the session is shown in Chat). Welcome and new-chat screens hide the header but keep an
-invisible 40px drag strip; no-session Files/Git use `WorkspaceHeader`, which
+invisible 36px drag strip; no-session Files/Git use `WorkspaceHeader`, which
 hosts the tabs without session actions. Files and Git mount on selection and
 unmount on leave. Chat stays mounted and laid out while another tab shows,
 with only its paint skipped (`invisible absolute inset-0`). Do not replace that
@@ -127,10 +127,11 @@ so a reader following the bottom comes back off the bottom by about 146px. The
 invisible layer also keeps the composer and its draft state alive. Switching
 back resizes the box, which re-glues a following reader.
 
-The tabs fill the 40px header and are split by one 0.5px hairline on each tab's
-right edge (the last one's line is the divider before the header's actions), the
-active one on a muted fill with the same black text as the rest. Chat's title is
-15px; Files and Git are 14px.
+The tabs fill the 36px header and are split by one 0.5px hairline on each tab's
+right edge (the last one's line is the divider before the header's actions), and
+the active one is marked by an accent bar inside its left edge instead of a
+fill — a fill reads as a button sitting in the band, and a weight change would
+nudge the two tabs beside it on every switch. Chat's title is 15px; Files and Git are 14px.
 They draw no top or bottom edge of their own: the header's own bottom rule is
 the only horizontal line, so nothing doubles. Chat has no icon, so its title
 gets the room, at a fixed 320px so
@@ -149,7 +150,7 @@ while there is room; below 430px of header content they move into a `...` menu,
 because the session tree has no other entry point. The right-sidebar toggle
 also hides below 220px, but stays in that menu.
 
-The right sidebar's Quotes tab is the same `divided` band in a 40px header, so
+The right sidebar's Quotes tab is the same `divided` band in a 36px header, so
 the two headers read as one bar.
 
 ### Files tabs

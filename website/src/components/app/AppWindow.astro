@@ -62,7 +62,7 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
       data-view-modes={viewMode !== null ? 'true' : undefined}
       data-active={viewMode ?? undefined}
     >
-      <div class="pointer-events-none absolute left-4 top-[13px] z-10 flex gap-2">
+      <div class="pointer-events-none absolute left-4 top-[11px] z-10 flex gap-2">
         <span class="traffic-light rounded-full bg-[#ff5f57]"></span>
         <span class="traffic-light rounded-full bg-[#febc2e]"></span>
         <span class="traffic-light rounded-full bg-[#28c840]"></span>
@@ -87,7 +87,7 @@ const chatStyle = `bottom:${terminalOpen ? `${TERMINAL_DEFAULT_HEIGHT}px` : '0'}
         >
           {
             page ? (
-              <div class="h-10 shrink-0" />
+              <div class="h-9 shrink-0" />
             ) : (
               <SessionToolbar
                 title={title}

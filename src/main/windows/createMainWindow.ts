@@ -29,8 +29,8 @@ export function createMainWindow({ backgroundColor }: { backgroundColor: string 
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hiddenInset',
-    // Keeps the 12px lights 1px above the centre of the 40px header, as before.
-    trafficLightPosition: { x: 16, y: 13 },
+    // Keeps the 12px lights 1px above the centre of the 36px header, as before.
+    trafficLightPosition: { x: 16, y: 11 },
     ...(process.platform === 'darwin'
       ? { vibrancy: 'menu', backgroundColor: '#00000000' }
       : { backgroundColor }),

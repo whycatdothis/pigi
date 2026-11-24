@@ -16,7 +16,7 @@
   --spacing: calc(0.25rem * var(--font-ui-scale));
 }
 
-/* The same for the 40px header, which is pinned to the native traffic lights
+/* The same for the 36px header, which is pinned to the native traffic lights
    and cannot grow: its contents follow the text size up to a 17px UI size. */
 @utility follows-text-size-capped {
   --font-ui-scale: min(var(--app-font-ui-scale, 1), calc(17 / 15));

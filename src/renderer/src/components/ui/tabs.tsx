@@ -34,8 +34,8 @@ const tabsListVariants = cva(
         editor:
           'items-stretch gap-0 rounded-none bg-transparent p-0 group-data-[orientation=horizontal]/tabs:h-full',
         // Tabs that fill the height of the band they sit in, as in a header:
-        // square, split by one vertical hairline, the active one on a muted
-        // fill. They draw no horizontal edge, because the band already has one.
+        // square, split by one vertical hairline. They draw no horizontal edge,
+        // because the band already has one.
         divided:
           'items-stretch gap-0 rounded-none bg-transparent p-0 group-data-[orientation=horizontal]/tabs:h-full',
       },
@@ -71,11 +71,12 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
         'group-data-[variant=editor]/tabs-list:h-full group-data-[variant=editor]/tabs-list:rounded-none group-data-[variant=editor]/tabs-list:border-0 group-data-[variant=editor]/tabs-list:border-r-[0.5px] group-data-[variant=editor]/tabs-list:border-foreground/27 group-data-[variant=editor]/tabs-list:bg-foreground/4 group-data-[variant=editor]/tabs-list:after:hidden group-data-[variant=editor]/tabs-list:data-[state=active]:bg-background group-data-[variant=editor]/tabs-list:data-[state=active]:shadow-none dark:group-data-[variant=editor]/tabs-list:data-[state=active]:border-foreground/27 dark:group-data-[variant=editor]/tabs-list:data-[state=active]:bg-background',
         // Tabs that fill the height of the band they sit in, as in a header:
         // square, split by one vertical hairline on each tab's right, the active
-        // one on a muted fill. No horizontal edge: the band already has one. The
-        // dark pair repeats the fill and the divider colour, because the shared
-        // active rule below paints `--input` across all four sides in dark mode,
-        // which would make the active tab's divider a different colour.
-        'group-data-[variant=divided]/tabs-list:h-full group-data-[variant=divided]/tabs-list:rounded-none group-data-[variant=divided]/tabs-list:border-0 group-data-[variant=divided]/tabs-list:border-r-[0.5px] group-data-[variant=divided]/tabs-list:border-r-foreground/27 group-data-[variant=divided]/tabs-list:bg-transparent group-data-[variant=divided]/tabs-list:after:hidden group-data-[variant=divided]/tabs-list:data-[state=active]:bg-muted group-data-[variant=divided]/tabs-list:data-[state=active]:text-foreground group-data-[variant=divided]/tabs-list:data-[state=active]:shadow-none dark:group-data-[variant=divided]/tabs-list:data-[state=active]:border-r-foreground/27 dark:group-data-[variant=divided]/tabs-list:data-[state=active]:bg-muted dark:group-data-[variant=divided]/tabs-list:data-[state=active]:text-foreground',
+        // one marked by the bar its own class names draw. They draw no horizontal
+        // edge, because the band already has one. Both the light and the dark
+        // rule empty the fill and restate the divider: the shared active rules
+        // below paint `--background` in light and `--input` across all four
+        // sides in dark, and this variant wants neither.
+        'group-data-[variant=divided]/tabs-list:h-full group-data-[variant=divided]/tabs-list:rounded-none group-data-[variant=divided]/tabs-list:border-0 group-data-[variant=divided]/tabs-list:border-r-[0.5px] group-data-[variant=divided]/tabs-list:border-r-foreground/27 group-data-[variant=divided]/tabs-list:bg-transparent group-data-[variant=divided]/tabs-list:after:hidden group-data-[variant=divided]/tabs-list:data-[state=active]:bg-transparent group-data-[variant=divided]/tabs-list:data-[state=active]:text-foreground group-data-[variant=divided]/tabs-list:data-[state=active]:shadow-none dark:group-data-[variant=divided]/tabs-list:data-[state=active]:border-r-foreground/27 dark:group-data-[variant=divided]/tabs-list:data-[state=active]:bg-transparent',
         'group-data-[variant=chip]/tabs-list:rounded-control-sm group-data-[variant=chip]/tabs-list:after:hidden group-data-[variant=chip]/tabs-list:data-[state=active]:bg-muted group-data-[variant=chip]/tabs-list:data-[state=active]:shadow-none dark:group-data-[variant=chip]/tabs-list:data-[state=active]:border-transparent dark:group-data-[variant=chip]/tabs-list:data-[state=active]:bg-muted',
         'data-[state=active]:bg-background data-[state=active]:text-foreground dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 dark:data-[state=active]:text-foreground',
         'after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100',

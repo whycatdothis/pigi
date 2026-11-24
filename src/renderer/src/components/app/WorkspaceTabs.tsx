@@ -37,10 +37,15 @@ const TAB_ITEMS = [
 }[];
 
 /** A header tab that fills the bar it sits in; the right sidebar's tabs use it
- *  too, so both headers read the same. Its hairlines and fill come from the
- *  `divided` variant. */
+ *  too, so both headers read the same. Its hairlines come from the `divided`
+ *  variant. The active tab is marked by a bar inside its left edge: a fill would
+ *  read as a button sitting in the band, and a weight change would nudge the two
+ *  tabs beside it on every switch. The bar is in `--system-accent`, the token for
+ *  accent marks on the page, not `--primary`, the fill token: on a near-black
+ *  label the fill only has to reach 1.5:1 (Yellow is 1.9:1 on white), which a 2px
+ *  mark disappears into. */
 export const HEADER_TAB_CLASS_NAME =
-  'follows-text-size-capped h-full gap-1.5 px-3 text-ui font-normal text-foreground dark:text-foreground';
+  'follows-text-size-capped h-full gap-1.5 px-3 text-ui font-normal text-foreground dark:text-foreground data-[state=active]:before:absolute data-[state=active]:before:top-1/2 data-[state=active]:before:left-0 data-[state=active]:before:h-4/5 data-[state=active]:before:w-0.5 data-[state=active]:before:-translate-y-1/2 data-[state=active]:before:bg-system-accent';
 
 // The tabs fill the header's height and are split by one hairline each, so the
 // band's own bottom rule is the only horizontal line and the first tab sits
@@ -164,12 +169,15 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
             return (
               <div
                 key={tab}
+                // Not Radix state: the tab is a plain div while renaming, so this
+                // is what keeps `data-[state=active]` matching the class names
+                // below, and with them the bar that marks the selected tab.
+                data-state={value === WORKSPACE_TABS.chat ? 'active' : 'inactive'}
                 className={cn(
                   TAB_CLASS_NAME,
                   CHAT_TAB_CLASS_NAME,
                   TAB_HAIRLINE_CLASS_NAME,
-                  'flex items-center',
-                  value === WORKSPACE_TABS.chat && 'bg-muted',
+                  'relative flex items-center',
                 )}
               >
                 <input
@@ -264,7 +272,7 @@ export const WorkspaceHeader = memo(function WorkspaceHeader({
   return (
     <div
       className={cn(
-        'flex h-10 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 pr-3 transition-[padding] @container @max-[320px]:pr-2 @max-[220px]:pr-1 [-webkit-app-region:drag]',
+        'flex h-9 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 pr-3 transition-[padding] @container @max-[320px]:pr-2 @max-[220px]:pr-1 [-webkit-app-region:drag]',
         SIDEBAR_TRANSITION_CLASS_NAME,
       )}
       style={{ paddingLeft: titleInset }}
