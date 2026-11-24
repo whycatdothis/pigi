@@ -5,6 +5,9 @@
 ### Changed
 
 - The header is 36px, and its Chat / Files / Git tabs, and the right sidebar's Quotes tab, are full-height square tabs split by a single hairline — the active one marked by its label at full strength while the rest sit at the muted text colour, instead of a fill
+- A new session is auto-titled as soon as its first prompt is sent instead of after three messages, so the name shows up right away
+- Auto-titles are written in the language of the user's messages instead of whatever the titling model defaults to
+- Auto-titles are written in the language of the user's messages instead of whatever the titling model defaults to
 
 ## [0.6.17] - 2026-11-23
 

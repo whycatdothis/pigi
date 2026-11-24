@@ -441,7 +441,7 @@ function autoRenameOnce(
   }
 
   snippets.push({ role: msg.role, text });
-  if (snippets.length < 3) {
+  if (msg.role !== 'user') {
     return;
   }
 

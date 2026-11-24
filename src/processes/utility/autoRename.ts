@@ -15,7 +15,7 @@ interface Message {
   text: string;
 }
 
-const SYSTEM_PROMPT = `You are a session title generator. Given conversation messages, output a concise title (max 10 words). Only capitalize the first letter of the title. Output ONLY the title, no quotes, no explanation.`;
+const SYSTEM_PROMPT = `You are a session title generator. Given conversation messages, output a concise title (max 10 words) in the same language as the user's messages. Only capitalize the first letter of the title. Output ONLY the title, no quotes, no explanation.`;
 
 /** APIs that only work with tools / coding workflows — not suitable for simple text gen. */
 const EXCLUDED_APIS = new Set(['openai-codex-responses']);
