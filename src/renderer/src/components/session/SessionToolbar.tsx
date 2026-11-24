@@ -163,7 +163,7 @@ export default React.memo(function SessionToolbar({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center gap-2 pr-3 h-9 border-b-[0.5px] border-foreground/27 transition-[padding] @container @max-[320px]:pr-2 @max-[220px]:pr-1 [-webkit-app-region:drag]',
+        'flex shrink-0 items-center gap-2 pr-3 h-8 border-b-[0.5px] border-foreground/27 transition-[padding] @container @max-[320px]:pr-2 @max-[220px]:pr-1 [-webkit-app-region:drag]',
         SIDEBAR_TRANSITION_CLASS_NAME,
       )}
       style={{ paddingLeft: titleInset }}

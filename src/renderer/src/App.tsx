@@ -1957,7 +1957,7 @@ function App(): React.JSX.Element {
                     // New chat and the welcome/empty states are single centered
                     // compositions; the strip keeps the window draggable where
                     // the toolbar was. Files/Git keep the header for their tabs.
-                    <div className="h-9 shrink-0 [-webkit-app-region:drag]" />
+                    <div className="h-8 shrink-0 [-webkit-app-region:drag]" />
                   ) : (
                     <WorkspaceHeader
                       title={workspaceTitle}
@@ -2204,7 +2204,7 @@ function App(): React.JSX.Element {
             // order, so the toolbar's drag rect would otherwise swallow the click.
             <SidebarToggle
               shortcutBinding={shortcutBindings?.get('sidebar.toggle')}
-              className="fixed top-1 z-30 animate-in fade-in-0 duration-300"
+              className="fixed top-0.5 z-30 animate-in fade-in-0 duration-300"
               style={{ left: sidebarToggleLeft(platform) }}
             />
           )}

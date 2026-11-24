@@ -118,7 +118,7 @@ tab carries the session title (double-click to rename), so the toolbar has no
 separate title. While another tab is open, the Chat tab shows a spinner while
 the agent runs and a dot once it finishes unseen (`unreadSessionPaths`, which
 only clears when the session is shown in Chat). Welcome and new-chat screens hide the header but keep an
-invisible 36px drag strip; no-session Files/Git use `WorkspaceHeader`, which
+invisible 32px drag strip; no-session Files/Git use `WorkspaceHeader`, which
 hosts the tabs without session actions. Files and Git mount on selection and
 unmount on leave. Chat stays mounted and laid out while another tab shows,
 with only its paint skipped (`invisible absolute inset-0`). Do not replace that
@@ -127,7 +127,7 @@ so a reader following the bottom comes back off the bottom by about 146px. The
 invisible layer also keeps the composer and its draft state alive. Switching
 back resizes the box, which re-glues a following reader.
 
-The tabs fill the 36px header and are split by one 0.5px hairline on each tab's
+The tabs fill the 32px header and are split by one 0.5px hairline on each tab's
 right edge (the last one's line is the divider before the header's actions), and
 the active one is marked by an accent bar inside its left edge instead of a
 fill — a fill reads as a button sitting in the band, and a weight change would
@@ -143,14 +143,14 @@ when one appears, and the keycap replaces it on hover. The list is
 the Chat tab's `shrink` is dead code. The tabs query the header's content box,
 not the viewport: below 600px the Chat tab may shrink and the keycaps go, below 500px Files and
 Git drop their labels, below 320px Chat swaps its title for an icon (each tab
-32px), and below 220px padding tightens to 24px per tab (about 72px for all
-three). Every tab keeps its `aria-label`. The session
+32px wide), and below 220px padding tightens to 24px per tab (about 72px for
+all three). Every tab keeps its `aria-label`. The session
 toolbar keeps the tree, terminal, view-mode and right-sidebar actions inline
 while there is room; below 430px of header content they move into a `...` menu,
 because the session tree has no other entry point. The right-sidebar toggle
 also hides below 220px, but stays in that menu.
 
-The right sidebar's Quotes tab is the same `divided` band in a 36px header, so
+The right sidebar's Quotes tab is the same `divided` band in a 32px header, so
 the two headers read as one bar.
 
 ### Files tabs
