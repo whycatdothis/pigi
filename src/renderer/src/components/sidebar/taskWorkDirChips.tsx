@@ -156,7 +156,7 @@ export function TaskWorkDirChips({
           // pl-1.5, not the rows' usual pl-2: the chips' own px-1.5 then puts
           // their text on the task icon's glyph (x≈20) instead of 2px right
           // of it; the chip fill's 2px overhang is invisible (no row hover bg).
-          className="relative flex h-6 cursor-default items-center gap-1 pr-1 pl-1.5"
+          className="relative flex h-6 cursor-pointer items-center gap-1 pr-1 pl-1.5"
         >
           {task.workDirs.length === 0 ? (
             <span

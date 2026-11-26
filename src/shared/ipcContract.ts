@@ -95,6 +95,10 @@ export interface TaskInfo {
  */
 export const TASK_NAME_PATTERN = /^[^/.][^/]{0,63}$/;
 
+/** User-facing explanation of TASK_NAME_PATTERN, shared by every input that validates a name. */
+export const TASK_NAME_ERROR =
+  'Task names cannot contain / or start with a dot (max 64 characters).';
+
 /** Edits a task's directory lists; every field optional, applied in one write. */
 export interface TaskUpdate {
   /** Explicit adds (editor, or dirs the user's prompt named): clears any tombstone. */

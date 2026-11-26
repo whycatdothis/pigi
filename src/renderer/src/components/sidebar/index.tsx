@@ -15,6 +15,7 @@ import {
 } from '@tabler/icons-react';
 import { SidebarToggle } from './sidebarToggle';
 import {
+  TASK_NAME_ERROR,
   TASK_NAME_PATTERN,
   type PiSessionInfo,
   type TaskResult,
@@ -52,8 +53,6 @@ import { getProjectSessions as getOrderedProjectSessions } from '../../lib/proje
 
 const EXPANDED_PROJECTS_STORAGE_KEY = 'pigi.expandedProjects';
 
-const TASK_NAME_ERROR = 'Task names cannot contain / or start with a dot (max 64 characters).';
-
 /**
  * The inline create row under the Tasks header; replaces a dialog so naming a
  * task happens where the task will appear. Enter creates, Escape or clicking
@@ -75,11 +74,14 @@ function NewTaskInput({
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // State lags a rapid second Enter; the ref is what actually dedupes submits.
+  const busyRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const submit = async (): Promise<void> => {
     const name = value.trim();
-    if (name === '' || busy) return;
+    if (name === '' || busyRef.current) return;
     if (!TASK_NAME_PATTERN.test(name)) {
       setError(TASK_NAME_ERROR);
       return;
@@ -88,6 +90,7 @@ function NewTaskInput({
       setError(`A task named "${name}" already exists.`);
       return;
     }
+    busyRef.current = true;
     setBusy(true);
     const result = await onCreateTask(name);
     if (result.success && emoji !== null) {
@@ -95,9 +98,15 @@ function NewTaskInput({
       const emojiResult = await onUpdateTask(result.task.path, { setEmoji: emoji });
       if (!emojiResult.success) console.error('Failed to set the task emoji:', emojiResult.error);
     }
+    busyRef.current = false;
     setBusy(false);
-    if (result.success) onCancel();
-    else setError(result.error);
+    if (result.success) {
+      onCancel();
+    } else {
+      setError(result.error);
+      // Disabled blurred the input; give the focus back for fixing the name.
+      inputRef.current?.focus();
+    }
   };
 
   return (
@@ -110,7 +119,7 @@ function NewTaskInput({
           // input first; by the next tick focus has landed, and only a target
           // outside both this row and the (portaled) picker really cancels.
           window.setTimeout(() => {
-            if (busy) return;
+            if (busyRef.current) return;
             const active = document.activeElement;
             if (active instanceof HTMLElement) {
               if (containerRef.current?.contains(active)) return;
@@ -141,6 +150,7 @@ function NewTaskInput({
           </button>
         </TaskEmojiPicker>
         <Input
+          ref={inputRef}
           type="text"
           value={value}
           placeholder="Task name"
@@ -458,10 +468,12 @@ export default memo(function Sidebar({
                       title={showHiddenTasks ? 'Hide hidden tasks' : 'Show hidden tasks'}
                       aria-label={showHiddenTasks ? 'Hide hidden tasks' : 'Show hidden tasks'}
                       onClick={() => setShowHiddenTasks((current) => !current)}
+                      // Always visible while hidden tasks exist: a hover-only
+                      // button is the only way back, and nobody can find it.
                       className={
                         showHiddenTasks
                           ? `${HEADER_BUTTON_CLASS} text-foreground`
-                          : `${HEADER_BUTTON_CLASS} opacity-0 group-hover/tasks-header:opacity-100`
+                          : HEADER_BUTTON_CLASS
                       }
                     >
                       {showHiddenTasks ? (

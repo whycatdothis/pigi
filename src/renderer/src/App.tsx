@@ -278,13 +278,14 @@ function App(): React.JSX.Element {
     return task ? { task: { path: task.path, name: task.name }, workDirs: task.workDirs } : null;
   }, [tasks, activeTaskCwd]);
   // The new-session composer's task workspaces; hidden tasks stay out of it.
-  const pickerTasks = useMemo(
-    () =>
-      tasks
-        .filter((task) => !task.hidden)
-        .map((task) => ({ path: task.path, name: task.name, emoji: task.emoji })),
-    [tasks],
-  );
+  const pickerTasks = useMemo(() => tasks.filter((task) => !task.hidden), [tasks]);
+  // The composer's project chip names a picked task by its display name, not
+  // the directory's birth name.
+  const composerProject = useMemo(() => {
+    if (!activeProject) return activeProject;
+    const task = tasks.find((candidate) => candidate.path === activeProject.path);
+    return task ? { ...activeProject, name: task.name } : activeProject;
+  }, [activeProject, tasks]);
   // What the session works in. Quotes from another project need an absolute
   // reference, because the agent resolves relative paths against this one.
   const sessionProjectPath = activeSession?.cwd ?? activeProjectPath;
@@ -2220,7 +2221,7 @@ function App(): React.JSX.Element {
                               isNewSession
                               recentProjects={recentProjects}
                               pickerTasks={pickerTasks}
-                              activeProject={activeProject}
+                              activeProject={composerProject}
                               onSelectProject={handleSelectProject}
                             />
                           </div>

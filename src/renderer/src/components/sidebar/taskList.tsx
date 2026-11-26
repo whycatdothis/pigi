@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   IconEye,
   IconEyeOff,
@@ -7,6 +7,7 @@ import {
   IconPencil,
 } from '@tabler/icons-react';
 import {
+  TASK_NAME_ERROR,
   TASK_NAME_PATTERN,
   type PiSessionInfo,
   type TaskInfo,
@@ -27,8 +28,6 @@ import { TaskEmojiPicker } from './taskEmojiPicker';
 import { TaskWorkDirChips } from './taskWorkDirChips';
 
 const NEW_TASK_SESSION_LABEL = 'New chat';
-
-const RENAME_NAME_ERROR = 'Task names cannot contain / or start with a dot (max 64 characters).';
 
 interface TaskItemProps {
   task: TaskInfo;
@@ -65,6 +64,7 @@ function TaskItem({
   const [editValue, setEditValue] = useState('');
   const [renameError, setRenameError] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const hasHiddenUnread = useAppStore(
     (state) =>
       !isExpanded &&
@@ -90,7 +90,8 @@ function TaskItem({
       return;
     }
     if (!TASK_NAME_PATTERN.test(name)) {
-      setRenameError(RENAME_NAME_ERROR);
+      setRenameError(TASK_NAME_ERROR);
+      inputRef.current?.focus();
       return;
     }
     const result = await onUpdateTask(task.path, { renameTo: name });
@@ -98,7 +99,10 @@ function TaskItem({
       setIsEditing(false);
       setRenameError(null);
     } else {
+      // A blur submit failed: keep editing and put the cursor back so the
+      // error can be fixed without clicking the row again.
       setRenameError(result.error);
+      inputRef.current?.focus();
     }
   }, [editValue, task.name, task.path, onUpdateTask]);
 
@@ -118,58 +122,43 @@ function TaskItem({
     <SidebarMenuItem className={cn('group/task', isExpanded && 'mb-3')}>
       <ContextMenuRoot>
         <ContextMenuTrigger asChild>
-          <SidebarMenuButton
-            onClick={onToggleExpand}
-            title={task.path}
-            className={cn('text-sidebar-foreground/80', task.hidden && 'opacity-60')}
-          >
-            <TaskEmojiPicker
-              open={emojiOpen}
-              onOpenChange={setEmojiOpen}
-              current={task.emoji}
-              onSelect={(emoji) => void onUpdateTask(task.path, { setEmoji: emoji })}
+          {isEditing ? (
+            // A div in the row's clothes: an input inside the row's <button>
+            // would be nested interactive content, which HTML forbids.
+            <SidebarMenuButton
+              asChild
+              title={task.path}
+              className={cn('text-sidebar-foreground/80', task.hidden && 'opacity-60')}
             >
-              {/* A span, not a button: the row itself is already a button and
-                  buttons must not nest. The keydown opens the picker since a
-                  span gets no native Enter/Space activation. */}
-              <span
-                role="button"
-                tabIndex={0}
-                title="Pick an emoji"
-                className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-inline text-body leading-none hover:bg-foreground/10"
-                onClick={(event) => event.stopPropagation()}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setEmojiOpen(true);
-                  }
-                }}
-              >
-                {task.emoji ?? (
-                  <IconListCheck className="size-4 text-muted-foreground" aria-hidden />
-                )}
-              </span>
-            </TaskEmojiPicker>
-            {isEditing ? (
-              <input
-                type="text"
-                value={editValue}
-                aria-invalid={renameError !== null}
-                autoFocus
-                onChange={(event) => {
-                  setEditValue(event.target.value);
-                  setRenameError(null);
-                }}
-                onBlur={() => void handleFinishRename()}
-                onKeyDown={handleRenameKeyDown}
-                onClick={(event) => event.stopPropagation()}
-                className="min-w-0 flex-1 bg-transparent text-body outline-none caret-foreground"
-              />
-            ) : (
+              <div>
+                <span className="size-6 shrink-0" aria-hidden />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={editValue}
+                  aria-invalid={renameError !== null}
+                  autoFocus
+                  onChange={(event) => {
+                    setEditValue(event.target.value);
+                    setRenameError(null);
+                  }}
+                  onBlur={() => void handleFinishRename()}
+                  onKeyDown={handleRenameKeyDown}
+                  className="min-w-0 flex-1 bg-transparent text-body outline-none caret-foreground"
+                />
+              </div>
+            </SidebarMenuButton>
+          ) : (
+            <SidebarMenuButton
+              onClick={onToggleExpand}
+              title={task.path}
+              className={cn('text-sidebar-foreground/80', task.hidden && 'opacity-60')}
+            >
+              {/* Spacer under the absolutely-positioned emoji button below. */}
+              <span className="size-6 shrink-0" aria-hidden />
               <span onDoubleClick={handleStartRename}>{task.name}</span>
-            )}
-          </SidebarMenuButton>
+            </SidebarMenuButton>
+          )}
         </ContextMenuTrigger>
         <ContextMenuContent className="menu-content">
           <ContextMenuItem onClick={handleStartRename}>
@@ -184,6 +173,27 @@ function TaskItem({
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenuRoot>
+      {/* Sibling of the row button, not a child: interactive content inside
+          a <button> is invalid HTML, so the trigger sits over the row's icon
+          spot like SidebarMenuAction does on the right. */}
+      <TaskEmojiPicker
+        open={emojiOpen}
+        onOpenChange={setEmojiOpen}
+        current={task.emoji}
+        onSelect={(emoji) => void onUpdateTask(task.path, { setEmoji: emoji })}
+      >
+        <button
+          type="button"
+          title="Pick an emoji"
+          aria-label="Pick an emoji"
+          className={cn(
+            'absolute top-1 left-2 flex size-6 items-center justify-center rounded-inline text-body leading-none outline-hidden hover:bg-foreground/10 focus-visible:ring-2 ring-sidebar-ring',
+            task.hidden && 'opacity-60',
+          )}
+        >
+          {task.emoji ?? <IconListCheck className="size-4 text-muted-foreground" aria-hidden />}
+        </button>
+      </TaskEmojiPicker>
       {renameError !== null && (
         <div className="px-2 pt-0.5 text-caption text-destructive">{renameError}</div>
       )}

@@ -16,6 +16,9 @@ import {
 
 const MAX_VISIBLE_SESSIONS = 20;
 
+/** CommandItem values are flat strings; a task entry is told apart by this prefix. */
+const TASK_VALUE_PREFIX = 'task:';
+
 interface FlattenedSession {
   path: string;
   title: string;
@@ -83,6 +86,10 @@ export default function SessionSwitcher({
     }
   }, [open]);
 
+  // Sessions inside a task are subtitled with its display name, not the
+  // directory's birth name.
+  const taskNames = useMemo(() => new Map(tasks.map((task) => [task.path, task.name])), [tasks]);
+
   const allSessions = useMemo((): FlattenedSession[] => {
     const historyOrder = new Map<string, number>();
     const historySet = new Set<string>();
@@ -106,7 +113,7 @@ export default function SessionSwitcher({
         flattened.push({
           path: session.path,
           title: session.name || session.firstMessage || 'Untitled',
-          projectName: getProjectName(session.cwd),
+          projectName: taskNames.get(session.cwd) ?? getProjectName(session.cwd),
           modified: session.modified || session.created,
           cwd: session.cwd,
           isActive: session.path === activeSessionPath,
@@ -128,7 +135,7 @@ export default function SessionSwitcher({
     });
 
     return flattened;
-  }, [projectSessions, navigationBackStack, navigationForwardStack, activeSessionPath]);
+  }, [projectSessions, navigationBackStack, navigationForwardStack, activeSessionPath, taskNames]);
 
   const searchTargets = useMemo(
     () =>
@@ -179,17 +186,19 @@ export default function SessionSwitcher({
   useEffect(() => {
     if (!open) return;
     requestAnimationFrame(() => {
-      if (autoSelectPrevious) {
-        const secondPath = filteredSessions[1]?.path;
-        if (secondPath) {
-          setSelectedValue(secondPath);
-        }
-      } else {
-        const firstPath = filteredSessions[0]?.path ?? '';
-        setSelectedValue(firstPath);
+      if (autoSelectPrevious && filteredSessions.length > 0) {
+        // MRU: preselect the row under the active one.
+        setSelectedValue(filteredSessions[1]?.path ?? filteredSessions[0].path);
+        return;
       }
+      // A query that matches only tasks must still preselect one, or Enter
+      // has no selected item to fire.
+      setSelectedValue(
+        filteredSessions[0]?.path ??
+          (filteredTasks[0] ? `${TASK_VALUE_PREFIX}${filteredTasks[0].path}` : ''),
+      );
     });
-  }, [open, filteredSessions, autoSelectPrevious]);
+  }, [open, filteredSessions, filteredTasks, autoSelectPrevious]);
 
   useEffect(() => {
     if (open) {
@@ -246,13 +255,16 @@ export default function SessionSwitcher({
   useEffect(() => {
     if (!open || !autoSelectPrevious) return;
     const handleKeyUp = (event: KeyboardEvent): void => {
-      if (event.key === 'Control' && selectedValue) {
+      if (event.key !== 'Control' || selectedValue === '') return;
+      if (selectedValue.startsWith(TASK_VALUE_PREFIX)) {
+        handleSelectTask(selectedValue.slice(TASK_VALUE_PREFIX.length));
+      } else {
         handleSelect(selectedValue);
       }
     };
     window.addEventListener('keyup', handleKeyUp);
     return () => window.removeEventListener('keyup', handleKeyUp);
-  }, [open, autoSelectPrevious, selectedValue, handleSelect]);
+  }, [open, autoSelectPrevious, selectedValue, handleSelect, handleSelectTask]);
 
   return (
     <CommandDialog
@@ -327,7 +339,7 @@ export default function SessionSwitcher({
                     return (
                       <CommandItem
                         key={task.path}
-                        value={`task:${task.path}`}
+                        value={`${TASK_VALUE_PREFIX}${task.path}`}
                         onSelect={() => handleSelectTask(task.path)}
                         showCheckIcon={false}
                         className={cn('px-2 py-1.5', task.hidden && 'opacity-60')}

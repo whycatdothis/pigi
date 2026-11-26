@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import fuzzysort from 'fuzzysort';
 import { IconChevronDown, IconFolderOpen, IconListCheck } from '@tabler/icons-react';
-import type { ProjectDirectory } from '../../../shared/ipcContract';
+import type { ProjectDirectory, TaskInfo } from '../../../shared/ipcContract';
 import {
   Command,
   CommandEmpty,
@@ -21,13 +21,6 @@ const PROJECT_EMPTY_TEXT = 'No projects found';
 export interface TaskPickerProjects {
   task: ProjectDirectory;
   workDirs: string[];
-}
-
-/** A task the picker offers as a workspace to switch to (new-session composer). */
-export interface TaskPickerItem {
-  path: string;
-  name: string;
-  emoji: string | null;
 }
 
 interface PickerEntry {
@@ -60,7 +53,7 @@ export function ProjectPicker({
   recentProjects: ProjectDirectory[];
   taskProjects?: TaskPickerProjects | null;
   /** Tasks offered as workspaces (the new-session composer); searchable by name. */
-  pickerTasks?: TaskPickerItem[];
+  pickerTasks?: TaskInfo[];
   /** Marks the list's current entry; the sidebar also shows it as the trigger title. */
   selectedProjectPath?: string | null;
   onSelectProject: (path: string) => void;

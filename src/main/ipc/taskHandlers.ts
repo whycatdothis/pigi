@@ -50,7 +50,9 @@ function parseTaskUpdate(value: unknown): TaskUpdate | null {
   }
   if ('setEmoji' in value) {
     const emoji = value.setEmoji;
-    if (emoji !== null && (typeof emoji !== 'string' || emoji.length > 16)) return null;
+    if (emoji !== null && (typeof emoji !== 'string' || emoji.length === 0 || emoji.length > 16)) {
+      return null;
+    }
     update.setEmoji = emoji;
   }
   return update;

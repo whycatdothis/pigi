@@ -5,6 +5,7 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 
 import {
+  TASK_NAME_ERROR,
   TASK_NAME_PATTERN,
   type TaskDirSource,
   type TaskInfo,
@@ -81,7 +82,7 @@ function parseConfig(raw: string): TaskConfig | null {
       // Optional identity fields: a wrong type drops the field, not the file.
       ...(typeof name === 'string' && TASK_NAME_PATTERN.test(name) ? { name } : {}),
       ...(typeof hidden === 'boolean' ? { hidden } : {}),
-      ...(typeof emoji === 'string' || emoji === null ? { emoji } : {}),
+      ...((typeof emoji === 'string' && emoji.length > 0) || emoji === null ? { emoji } : {}),
     };
   } catch {
     return null;
@@ -184,7 +185,10 @@ async function gitInit(taskDir: string): Promise<void> {
     await execFileAsync('git', ['init'], { cwd: taskDir });
   } catch (error) {
     // The task still works without history; the file map just loses diffs.
-    console.warn(`[tasks] git init failed in ${taskDir}:`, (error as Error).message);
+    console.warn(
+      `[tasks] git init failed in ${taskDir}:`,
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 
@@ -327,7 +331,7 @@ export async function createTask(
   root: string = DEFAULT_TASKS_ROOT,
 ): Promise<TaskInfo> {
   if (!TASK_NAME_PATTERN.test(name)) {
-    throw new Error('Task names cannot contain / or start with a dot (max 64 characters).');
+    throw new Error(TASK_NAME_ERROR);
   }
   // Case-insensitive duplicate check: macOS and Windows file systems are.
   // Display-name overrides collide too, or two rows would show the same name.
@@ -335,6 +339,17 @@ export async function createTask(
     throw new Error(`A task named "${name}" already exists.`);
   }
   const taskDir = join(root, name);
+  await mkdir(root, { recursive: true });
+  try {
+    // Non-recursive on purpose: a create racing an identical name loses here
+    // instead of opening the winner's directory and overwriting its task.json.
+    await mkdir(taskDir);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
+      throw new Error(`A task named "${name}" already exists.`);
+    }
+    throw error;
+  }
   await mkdir(join(taskDir, STATE_DIR), { recursive: true });
   try {
     const config = emptyConfig();
@@ -398,7 +413,7 @@ export async function updateTask(
       const name = update.renameTo.trim();
       const dirName = basename(taskDir);
       if (!TASK_NAME_PATTERN.test(name)) {
-        throw new Error('Task names cannot contain / or start with a dot (max 64 characters).');
+        throw new Error(TASK_NAME_ERROR);
       }
       if (
         name.toLowerCase() !== config.name?.toLowerCase() &&

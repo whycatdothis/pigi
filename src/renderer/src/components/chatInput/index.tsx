@@ -20,6 +20,7 @@ import type {
   ProjectDirectory,
   PromptInput,
   SkillSlashCommand,
+  TaskInfo,
   ThinkingLevel,
 } from '../../../../shared/ipcContract';
 import type { SessionEntry } from '../../state/appStore';
@@ -53,7 +54,7 @@ import {
 import { pathTokenDirectory } from '../../lib/pathReferences';
 import { formatContextUsage, UNKNOWN_STATUS } from './formatters';
 import { ContextUsageTooltip } from './contextUsageTooltip';
-import { ProjectPicker, type TaskPickerItem } from '../projectPicker';
+import { ProjectPicker } from '../projectPicker';
 import GitBranchPicker from '../git/GitBranchPicker';
 import { ModelSettingsPicker } from './modelSettingsPicker';
 import { SlashCommandPopover } from './slashCommandPopover';
@@ -103,7 +104,7 @@ interface ChatInputProps {
   isNewSession?: boolean;
   recentProjects?: ProjectDirectory[];
   /** Tasks the new session can start in, shown above the projects. */
-  pickerTasks?: TaskPickerItem[];
+  pickerTasks?: TaskInfo[];
   activeProject?: ProjectDirectory | null;
   onSelectProject?: (path: string) => void;
 }

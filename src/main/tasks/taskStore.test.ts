@@ -58,6 +58,28 @@ describe('createTask', () => {
     expect(names).toContain('订正 数据');
     await expect(createTask('订正 数据', root)).rejects.toThrow('already exists');
   });
+
+  it('two creates racing the same name produce exactly one task', async () => {
+    // Both name checks resolve before either mkdir starts, so the loser's
+    // non-recursive mkdir is what stops it — with the friendly error, and
+    // without opening the winner's directory.
+    const results = await Promise.allSettled([
+      createTask('task-race', root),
+      createTask('task-race', root),
+    ]);
+
+    const fulfilled = results.filter((result) => result.status === 'fulfilled');
+    const rejected = results.filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].reason).toBeInstanceOf(Error);
+    expect(String(rejected[0].reason)).toMatch('already exists');
+
+    const listed = await listTasks(root);
+    expect(listed.map((task) => task.name)).toEqual(['task-race']);
+  });
 });
 
 describe('listTasks', () => {
