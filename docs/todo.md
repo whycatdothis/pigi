@@ -21,6 +21,14 @@ Deferred from `feat/tasks`:
 - A task's AGENTS.md prose is written once at creation (only the marked
   work-dirs block is managed), so template wording improvements never reach
   existing tasks.
+- Dragging a task or project row downward shows the drop line above the
+  target but the splice inserts after it — indicator and result disagree
+  (`taskList.tsx`, `projectList.tsx` share the math).
+- `dragOverPath` in `taskList.tsx` never clears on `dragleave`, so the drop
+  line can linger on the previous target until drop or dragend.
+- Selecting a task session from the switcher (Ctrl+R) while the Tasks group
+  is collapsed reveals nothing: the auto-reveal effect only expands
+  per-project rows, never the group.
 
 ## Security
 

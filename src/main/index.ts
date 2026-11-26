@@ -7,6 +7,7 @@
  */
 import { app, BrowserWindow, ipcMain, nativeTheme, net, protocol, shell } from 'electron';
 import { electronApp } from '@electron-toolkit/utils';
+import { homedir } from 'node:os';
 import { refreshApplicationMenu, setupApplicationMenu } from './menus/applicationMenu';
 import { createMainWindow, getMainWindow } from './windows/createMainWindow';
 import {
@@ -94,6 +95,11 @@ app.whenReady().then(() => {
   // sandboxed preload has no `process.cwd()`.
   ipcMain.on(PiChannel.GetAppCwd, (event) => {
     event.returnValue = process.cwd();
+  });
+
+  // Display-only tilde shortening in the renderer; a sandboxed preload has no `os`.
+  ipcMain.on(PiChannel.GetHomeDir, (event) => {
+    event.returnValue = homedir();
   });
 
   // The path is one encodeURIComponent'd segment, so a literal `?` can only start

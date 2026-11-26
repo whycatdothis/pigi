@@ -1,5 +1,7 @@
-import { memo, useEffect, useState, useCallback, useRef } from 'react';
+import { memo, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
+  IconChevronDown,
+  IconChevronRight,
   IconEye,
   IconEyeOff,
   IconFolderPlus,
@@ -34,7 +36,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
@@ -50,6 +51,7 @@ import { ProjectList } from './projectList';
 import { TaskEmojiPicker } from './taskEmojiPicker';
 import { TaskList } from './taskList';
 import { getProjectSessions as getOrderedProjectSessions } from '../../lib/projectSessions';
+import { loadTaskOrder, saveTaskOrder, sortTasksByOrder } from '../../lib/taskOrder';
 
 const EXPANDED_PROJECTS_STORAGE_KEY = 'pigi.expandedProjects';
 
@@ -142,7 +144,7 @@ function NewTaskInput({
             className={cn(
               'flex size-7 shrink-0 items-center justify-center rounded-control border text-lg leading-none',
               emoji === null
-                ? 'border-dashed border-input hover:border-foreground/40'
+                ? 'border-dashed border-foreground/40'
                 : 'border-transparent hover:bg-foreground/10',
             )}
           >
@@ -173,7 +175,9 @@ function NewTaskInput({
               onCancel();
             }
           }}
-          className="h-7"
+          // No focus ring: the row is already the active thing on screen,
+          // a second outline only shouts.
+          className="h-7 focus-visible:border-input focus-visible:ring-0"
         />
       </div>
       {error !== null && <div className="px-1 pt-0.5 text-caption text-destructive">{error}</div>}
@@ -181,14 +185,62 @@ function NewTaskInput({
   );
 }
 
+// The 20px square buttons on the Tasks/Projects group headers.
 const HEADER_BUTTON_CLASS =
-  'flex size-5 items-center justify-center rounded-chip text-muted-foreground transition-opacity hover:text-foreground';
+  'flex size-5 items-center justify-center rounded-chip text-sidebar-foreground transition-opacity';
+
+/**
+ * Folds a whole sidebar group, on the label's left like a session row's
+ * CollapseToggle. Always visible: a collapsed group's only way back open.
+ */
+function GroupCollapseToggle({
+  collapsed,
+  label,
+  onToggle,
+}: {
+  collapsed: boolean;
+  label: string;
+  onToggle: () => void;
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-label={collapsed ? `Expand ${label}` : `Collapse ${label}`}
+      aria-expanded={!collapsed}
+      // The header row toggles too; keep the click from doing it twice.
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      className="ml-1 flex size-5 shrink-0 items-center justify-center rounded-control text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+    >
+      {collapsed ? (
+        <IconChevronRight className="size-3.5" />
+      ) : (
+        <IconChevronDown className="size-3.5" />
+      )}
+    </button>
+  );
+}
+
+const COLLAPSED_GROUPS_STORAGE_KEY = 'pigi.collapsedGroups';
 
 function loadExpandedProjects(): Set<string> {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(EXPANDED_PROJECTS_STORAGE_KEY) ?? '[]');
     return Array.isArray(parsed)
       ? new Set(parsed.filter((path): path is string => typeof path === 'string'))
+      : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function loadCollapsedGroups(): Set<string> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(COLLAPSED_GROUPS_STORAGE_KEY) ?? '[]');
+    return Array.isArray(parsed)
+      ? new Set(parsed.filter((id): id is string => typeof id === 'string'))
       : new Set();
   } catch {
     return new Set();
@@ -221,9 +273,35 @@ export default memo(function Sidebar({
   const [expandedProjects, setExpandedProjects] = useState(loadExpandedProjects);
   const [creatingTask, setCreatingTask] = useState(false);
   const [showHiddenTasks, setShowHiddenTasks] = useState(false);
+  // Dragged task order; cosmetic display state, same tier as expandedProjects.
+  const [taskOrder, setTaskOrder] = useState(loadTaskOrder);
+  const handleReorderTasks = useCallback((paths: string[]) => {
+    setTaskOrder(paths);
+    saveTaskOrder(paths);
+  }, []);
+  const orderedTasks = useMemo(() => sortTasksByOrder(tasks, taskOrder), [tasks, taskOrder]);
+  // Which group headers (tasks/projects) are collapsed; persisted like expandedProjects.
+  const [collapsedGroups, setCollapsedGroups] = useState(loadCollapsedGroups);
+  const toggleGroupCollapsed = useCallback((group: 'tasks' | 'projects') => {
+    setCollapsedGroups((previous) => {
+      const next = new Set(previous);
+      if (next.has(group)) {
+        next.delete(group);
+      } else {
+        next.add(group);
+      }
+      return next;
+    });
+  }, []);
+  const tasksCollapsed = collapsedGroups.has('tasks');
+  const projectsCollapsed = collapsedGroups.has('projects');
+  const tasksGroupVisible = tasks.length > 0 || creatingTask;
   useEffect(() => {
     localStorage.setItem(EXPANDED_PROJECTS_STORAGE_KEY, JSON.stringify([...expandedProjects]));
   }, [expandedProjects]);
+  useEffect(() => {
+    localStorage.setItem(COLLAPSED_GROUPS_STORAGE_KEY, JSON.stringify([...collapsedGroups]));
+  }, [collapsedGroups]);
   const visibleWhenCollapsedSessionIds = useAppStore(
     (state) => state.visibleWhenCollapsedSessionIds,
   );
@@ -392,7 +470,12 @@ export default memo(function Sidebar({
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton
-                onClick={() => setCreatingTask(true)}
+                onClick={() => {
+                  // Same as the group header's +: the input renders inside
+                  // the group, so a collapsed group has to open first.
+                  if (tasksCollapsed) toggleGroupCollapsed('tasks');
+                  setCreatingTask(true);
+                }}
                 data-testid="sidebar-new-task"
               >
                 <IconListCheck data-icon="inline-start" />
@@ -424,77 +507,89 @@ export default memo(function Sidebar({
           </SidebarMenu>
         </SidebarHeader>
 
-        <SidebarContent className="overflow-hidden">
-          {(tasks.length > 0 || creatingTask) && (
-            <SidebarGroup className="shrink-0">
-              <div className="group/tasks-header flex items-center">
-                <SidebarGroupLabel className="font-semibold text-sidebar-foreground/60">
+        {/* One plain list: both groups take their natural height and the
+            column scrolls, instead of each group claiming half the space. */}
+        <SidebarContent className="overflow-x-hidden overflow-y-auto no-scrollbar">
+          {tasksGroupVisible && (
+            // No bottom padding: the Projects group's top padding alone is
+            // enough of a gap between the two sections.
+            <SidebarGroup className="shrink-0 pb-0">
+              {/* The whole bar toggles; the buttons on it stopPropagation. */}
+              <div
+                className="group/tasks-header flex cursor-pointer items-center"
+                onClick={() => toggleGroupCollapsed('tasks')}
+              >
+                <GroupCollapseToggle
+                  collapsed={tasksCollapsed}
+                  label="tasks"
+                  onToggle={() => toggleGroupCollapsed('tasks')}
+                />
+                <SidebarGroupLabel className="pl-0 font-semibold text-sidebar-foreground/60">
                   Tasks
                 </SidebarGroupLabel>
-                <div className="ml-auto flex items-center gap-1.5 pr-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label="What is a task"
-                        className={`${HEADER_BUTTON_CLASS} opacity-0 group-hover/tasks-header:opacity-100`}
-                      >
-                        <IconHelp className="size-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="bottom"
-                      align="end"
-                      className="max-w-64 flex-col items-start gap-1.5 text-left"
-                    >
-                      <span>
-                        A task is a workspace on its own, not tied to one project: its sessions are
-                        grouped here in the sidebar.
-                      </span>
-                      <span>
-                        As you chat, pigi adds directories you mention to the task&apos;s working
-                        directories and suggests ones it notices; wrong ones can be edited or
-                        dismissed by hand.
-                      </span>
-                      <span>
-                        The task has its own git directory for plans, reviews and notes that belong
-                        to no single repo.
-                      </span>
-                    </TooltipContent>
-                  </Tooltip>
-                  {(showHiddenTasks || tasks.some((task) => task.hidden)) && (
+                {/* The help button belongs to the label, not the action cluster. */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
                     <button
                       type="button"
-                      title={showHiddenTasks ? 'Hide hidden tasks' : 'Show hidden tasks'}
-                      aria-label={showHiddenTasks ? 'Hide hidden tasks' : 'Show hidden tasks'}
-                      onClick={() => setShowHiddenTasks((current) => !current)}
-                      // Always visible while hidden tasks exist: a hover-only
-                      // button is the only way back, and nobody can find it.
-                      className={
-                        showHiddenTasks
-                          ? `${HEADER_BUTTON_CLASS} text-foreground`
-                          : HEADER_BUTTON_CLASS
-                      }
+                      aria-label="What is a task"
+                      onClick={(event) => event.stopPropagation()}
+                      className={`${HEADER_BUTTON_CLASS} -ml-1 opacity-0 group-hover/tasks-header:opacity-100`}
                     >
-                      {showHiddenTasks ? (
-                        <IconEye className="size-4" />
-                      ) : (
-                        <IconEyeOff className="size-4" />
-                      )}
+                      <IconHelp className="size-4" />
                     </button>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="bottom"
+                    align="start"
+                    className="max-w-64 flex-col items-start gap-1.5 text-left"
+                  >
+                    <span>A task groups chats around a job, not a project.</span>
+                    <span>Mention a directory and it becomes a working directory of the task.</span>
+                    <span>Its own folder is a git repo, handy for notes and plans.</span>
+                  </TooltipContent>
+                </Tooltip>
+                <div className="ml-auto flex items-center gap-1.5 pr-3">
+                  {(showHiddenTasks || tasks.some((task) => task.hidden)) && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={showHiddenTasks ? 'Hide hidden tasks' : 'Show hidden tasks'}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setShowHiddenTasks((current) => !current);
+                          }}
+                          className={`${HEADER_BUTTON_CLASS} opacity-0 group-hover/tasks-header:opacity-100`}
+                        >
+                          {showHiddenTasks ? (
+                            <IconEye className="size-4" />
+                          ) : (
+                            <IconEyeOff className="size-4" />
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" align="end">
+                        {showHiddenTasks ? 'Hide hidden tasks' : 'Show hidden tasks'}
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                   <button
                     type="button"
                     title="New task"
                     aria-label="New task"
-                    onClick={() => setCreatingTask(true)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (tasksCollapsed) toggleGroupCollapsed('tasks');
+                      setCreatingTask(true);
+                    }}
                     className={`${HEADER_BUTTON_CLASS} opacity-0 group-hover/tasks-header:opacity-100`}
                   >
                     <IconPlus className="size-4" />
                   </button>
                 </div>
               </div>
-              {creatingTask && (
+              {creatingTask && !tasksCollapsed && (
                 <NewTaskInput
                   existingNames={tasks.map((task) => task.name)}
                   onCreateTask={onCreateTask}
@@ -502,58 +597,78 @@ export default memo(function Sidebar({
                   onCancel={() => setCreatingTask(false)}
                 />
               )}
-              <SidebarGroupContent className="max-h-72 overflow-x-hidden overflow-y-auto no-scrollbar">
-                <TaskList
-                  tasks={tasks}
-                  showHidden={showHiddenTasks}
+              {!tasksCollapsed && (
+                <SidebarGroupContent className="overflow-x-hidden">
+                  <TaskList
+                    tasks={orderedTasks}
+                    showHidden={showHiddenTasks}
+                    sessions={sessions}
+                    selectedSessionPath={selectedSessionPath}
+                    relativeTimeBase={relativeTimeBase}
+                    expandedProjects={expandedProjects}
+                    visibleWhenCollapsedSessionIdsByPath={visibleWhenCollapsedSessionIds}
+                    onToggleExpand={toggleProjectExpand}
+                    onNewSessionForProject={handleNewSessionForProject}
+                    onResumeSession={handleResumeSessionFromList}
+                    onRenameSession={onRenameSession}
+                    getProjectSessions={getProjectSessions}
+                    onUpdateTask={onUpdateTask}
+                    onSelectWorkDir={onSelectTaskWorkDir}
+                    onReorderTasks={handleReorderTasks}
+                  />
+                </SidebarGroupContent>
+              )}
+            </SidebarGroup>
+          )}
+          <SidebarGroup className={cn('shrink-0', tasksGroupVisible && tasksCollapsed && 'pt-0')}>
+            {/* The whole bar toggles; the buttons on it stopPropagation. */}
+            <div
+              className="group/projects-header flex cursor-pointer items-center"
+              onClick={() => toggleGroupCollapsed('projects')}
+            >
+              <GroupCollapseToggle
+                collapsed={projectsCollapsed}
+                label="projects"
+                onToggle={() => toggleGroupCollapsed('projects')}
+              />
+              <SidebarGroupLabel className="pl-0 font-semibold text-sidebar-foreground/60">
+                Projects
+              </SidebarGroupLabel>
+              <div className="ml-auto flex items-center gap-1.5 pr-3">
+                <button
+                  type="button"
+                  title="Open project"
+                  aria-label="Open project"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onOpenProject();
+                  }}
+                  className={`${HEADER_BUTTON_CLASS} opacity-0 group-hover/projects-header:opacity-100`}
+                >
+                  <IconFolderPlus className="size-4" />
+                </button>
+              </div>
+            </div>
+            {!projectsCollapsed && (
+              <SidebarGroupContent className="overflow-x-hidden">
+                <ProjectList
                   sessions={sessions}
+                  recentProjects={recentProjects}
                   selectedSessionPath={selectedSessionPath}
                   relativeTimeBase={relativeTimeBase}
                   expandedProjects={expandedProjects}
                   visibleWhenCollapsedSessionIdsByPath={visibleWhenCollapsedSessionIds}
-                  onToggleExpand={toggleProjectExpand}
+                  onToggleProjectExpand={toggleProjectExpand}
                   onNewSessionForProject={handleNewSessionForProject}
                   onResumeSession={handleResumeSessionFromList}
+                  onOpenProject={onOpenProject}
+                  onRemoveProject={onRemoveProject}
+                  onReorderProjects={onReorderProjects}
                   onRenameSession={onRenameSession}
                   getProjectSessions={getProjectSessions}
-                  onUpdateTask={onUpdateTask}
-                  onSelectWorkDir={onSelectTaskWorkDir}
                 />
               </SidebarGroupContent>
-            </SidebarGroup>
-          )}
-          <SidebarGroup className="min-h-0 flex-1">
-            <div className="group/projects-header">
-              <SidebarGroupLabel className="font-semibold text-sidebar-foreground/60">
-                Projects
-              </SidebarGroupLabel>
-              <SidebarGroupAction
-                onClick={onOpenProject}
-                title="Open project"
-                className="opacity-0 group-hover/projects-header:opacity-100 transition-opacity"
-              >
-                <IconFolderPlus />
-                <span className="sr-only">Open project</span>
-              </SidebarGroupAction>
-            </div>
-            <SidebarGroupContent className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto no-scrollbar content-fade-bottom">
-              <ProjectList
-                sessions={sessions}
-                recentProjects={recentProjects}
-                selectedSessionPath={selectedSessionPath}
-                relativeTimeBase={relativeTimeBase}
-                expandedProjects={expandedProjects}
-                visibleWhenCollapsedSessionIdsByPath={visibleWhenCollapsedSessionIds}
-                onToggleProjectExpand={toggleProjectExpand}
-                onNewSessionForProject={handleNewSessionForProject}
-                onResumeSession={handleResumeSessionFromList}
-                onOpenProject={onOpenProject}
-                onRemoveProject={onRemoveProject}
-                onReorderProjects={onReorderProjects}
-                onRenameSession={onRenameSession}
-                getProjectSessions={getProjectSessions}
-              />
-            </SidebarGroupContent>
+            )}
           </SidebarGroup>
         </SidebarContent>
 

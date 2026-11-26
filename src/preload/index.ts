@@ -70,6 +70,8 @@ import type { PigiSettingsChange, PigiSettingsReadResult } from '../shared/pigiS
 // Read once, so a render-time call stays free: main's cwd is the renderer's
 // fallback project path, and a sandboxed preload has no `process.cwd()`.
 const appCwd: string = ipcRenderer.sendSync(PiChannel.GetAppCwd);
+// Home directory, for tilde-shortening display paths; same sandbox reason as above.
+const homeDir: string = ipcRenderer.sendSync(PiChannel.GetHomeDir);
 
 interface PendingCommand {
   resolve: (value: unknown) => void;
@@ -549,6 +551,9 @@ const piApi = {
 
   /** Get the app's working directory (for session creation). */
   getCwd: (): string => appCwd,
+
+  /** Get the user's home directory (for tilde-shortening display paths). */
+  getHomeDir: (): string => homeDir,
 
   /** Read pi settings (global + project) for a project cwd. */
   getPiSettings: (cwd: string): Promise<PiSettingsResult> =>

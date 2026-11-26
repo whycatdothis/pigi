@@ -813,6 +813,8 @@ export enum PiChannel {
   ReadPigiSettings = 'pi:read_pigi_settings',
   /** renderer → main: the process working directory, answered synchronously */
   GetAppCwd = 'pi:get_app_cwd',
+  /** renderer → main: the user's home directory, answered synchronously */
+  GetHomeDir = 'pi:get_home_dir',
   /** renderer → main: a prompt, a feature used or an uncaught error, for telemetry (main decides whether to send) */
   ReportTelemetry = 'pi:report_telemetry',
   /** renderer → main: get all keyboard shortcut definitions with current bindings */

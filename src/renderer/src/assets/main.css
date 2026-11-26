@@ -726,17 +726,6 @@
     width: 12px;
   }
 
-  .content-fade-bottom {
-    mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent);
-    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent);
-  }
-
-  /* A sticky Show less footer replaces the fade. */
-  .content-fade-bottom:has([data-show-all]) {
-    mask-image: none;
-    -webkit-mask-image: none;
-  }
-
   .menu-content {
     border-radius: var(--radius-surface);
     padding: calc(var(--spacing) * 1);

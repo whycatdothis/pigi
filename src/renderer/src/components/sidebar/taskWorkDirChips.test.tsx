@@ -5,14 +5,16 @@ import '../../testing/jsdomSetup';
 
 vi.mock('../../services/piAgentClient', () => ({
   pickDirectory: vi.fn(),
+  getHomeDir: vi.fn(() => '/home/test'),
 }));
 
 import type { TaskInfo, TaskResult } from '../../../../shared/ipcContract';
-import { pickDirectory } from '../../services/piAgentClient';
+import { getHomeDir, pickDirectory } from '../../services/piAgentClient';
 import { useAppStore } from '../../state/appStore';
 import { TaskWorkDirChips } from './taskWorkDirChips';
 
 const pickDirectoryMock = vi.mocked(pickDirectory);
+const getHomeDirMock = vi.mocked(getHomeDir);
 
 const task: TaskInfo = {
   name: 'demo',
@@ -52,6 +54,7 @@ async function openEditor(): Promise<HTMLElement> {
 }
 
 beforeEach(() => {
+  getHomeDirMock.mockReturnValue('/home/test');
   useAppStore.setState({
     recentProjects: [
       { path: '/repo/alpha', name: 'alpha' },
@@ -64,7 +67,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('TaskWorkDirChips editor', () => {
-  it('shows the dropdown only after typing, dirs ending with the native picker', async () => {
+  it('shows the dropdown only after typing, with the native picker pinned first', async () => {
     renderChips();
     const input = await openEditor();
 
@@ -73,12 +76,12 @@ describe('TaskWorkDirChips editor', () => {
 
     fireEvent.change(input, { target: { value: 'repo' } });
     const options = screen.getAllByRole('option');
-    // /repo/alpha is already a chip; the open row always comes last.
-    expect(options.at(-1)).toHaveTextContent('Open directory…');
-    const dirs = options.slice(0, -1).map((option) => option.textContent);
+    // /repo/alpha is already a chip; the open row is pinned above the matches.
+    expect(options[0]).toHaveTextContent('Open directory…');
+    const dirs = options.slice(1).map((option) => option.textContent);
     expect(dirs.sort()).toEqual(['/repo/beta', '/repo/from-other-task']);
     // Middle truncation splits parent and folder name; hover keeps the full path.
-    expect(options[0]).toHaveAttribute('title', options[0].textContent);
+    expect(options[1]).toHaveAttribute('title', options[1].textContent);
     expect(input).toHaveAttribute('aria-expanded', 'true');
   });
 
@@ -134,6 +137,25 @@ describe('TaskWorkDirChips editor', () => {
     fireEvent.click(screen.getByRole('option', { name: /Open directory/ }));
     await vi.waitFor(() => expect(pickDirectoryMock).toHaveBeenCalled());
     expect(onUpdateTask).not.toHaveBeenCalled();
+  });
+
+  it('tilde-shortens home paths in matches and suggestions', async () => {
+    getHomeDirMock.mockReturnValue('/repo');
+    render(
+      <TaskWorkDirChips
+        task={{ ...task, suggestedDirs: ['/repo/deep/nested/dir'] }}
+        onUpdateTask={vi.fn(() => Promise.resolve(okResult()))}
+        onSelectWorkDir={vi.fn()}
+      />,
+    );
+    const input = await openEditor();
+    // The suggestion shows the shortened path; the end is never truncated.
+    expect(screen.getByTitle('Add ~/deep/nested/dir')).toHaveTextContent('~/deep/nested/dir');
+
+    fireEvent.change(input, { target: { value: 'beta' } });
+    const option = screen.getByRole('option', { name: /beta/ });
+    expect(option).toHaveAttribute('title', '~/beta');
+    expect(option).toHaveTextContent('~/beta');
   });
 
   it('Escape closes the dropdown but keeps the editor open', async () => {

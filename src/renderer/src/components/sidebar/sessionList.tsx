@@ -25,7 +25,10 @@ import { SpinningIcon } from '../ui/spinningIcon';
 import { formatRelativeTime } from '../../lib/utils';
 import { formatDateTime, getSessionTitle, isSessionRunning } from './utils';
 
-const SESSION_ROW_CLASS_NAME = 'w-full justify-start pl-6 text-left text-sidebar-foreground/85';
+// pl-7.5 (30px) puts the session title under the parent row's name text:
+// button px-2 (8) + icon (16) + gap-1.5 (6). The CollapseToggle gutter keeps
+// working: it is absolutely positioned, not in this padding.
+const SESSION_ROW_CLASS_NAME = 'w-full justify-start pl-7.5 text-left text-sidebar-foreground/85';
 
 interface SessionItemProps {
   row: SessionLineageRow;
@@ -246,7 +249,9 @@ function CollapseToggle({ row }: { row: SessionLineageRow }): React.JSX.Element 
       aria-expanded={!row.collapsed}
       aria-label={row.collapsed ? 'Show forks and subagents' : 'Hide forks and subagents'}
       onClick={() => setCollapsed([row.session.path], !row.collapsed)}
-      className="absolute left-1 top-1/2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+      // left-1.5, not left-1: centers the 20px box on the parent rows' 16px
+      // icon slot (row px-2 + 8).
+      className="absolute left-1.5 top-1/2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
     >
       <Chevron className="size-3.5" />
     </button>
@@ -440,7 +445,7 @@ export function SessionList({
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
                   asChild
-                  className="w-full justify-start pl-6 text-left text-muted-foreground"
+                  className="w-full justify-start pl-7.5 text-left text-muted-foreground"
                 >
                   <span aria-disabled>No chats yet</span>
                 </SidebarMenuSubButton>
@@ -471,7 +476,7 @@ export function SessionList({
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton
                   asChild
-                  className="w-full justify-start pl-6 text-left text-muted-foreground"
+                  className="w-full justify-start pl-7.5 text-left text-muted-foreground"
                 >
                   <button type="button" onClick={() => setShowAll(true)}>
                     <span>Show more</span>
@@ -483,14 +488,11 @@ export function SessionList({
         </div>
       </div>
       {showList && showAll && rows.length > collapsedRowCount && !isCollapsedWithPinned && (
-        <SidebarMenuSub
-          data-show-all
-          className="sticky bottom-0 z-10 mx-0 border-l-0 px-0 py-0 gap-0 bg-muted rounded-control hover:bg-accent"
-        >
+        <SidebarMenuSub className="sticky bottom-0 z-10 mx-0 border-l-0 px-0 py-0 gap-0 bg-muted rounded-control hover:bg-accent">
           <SidebarMenuSubItem>
             <SidebarMenuSubButton
               asChild
-              className="w-full justify-start pl-6 text-left text-muted-foreground hover:bg-transparent"
+              className="w-full justify-start pl-7.5 text-left text-muted-foreground hover:bg-transparent"
             >
               <button type="button" onClick={() => setShowAll(false)}>
                 <span>Show less</span>

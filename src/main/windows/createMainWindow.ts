@@ -43,7 +43,13 @@ export function createMainWindow({ backgroundColor }: { backgroundColor: string 
   });
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow?.show();
+    // Scripted dev restarts (CDP smoke runs) set PIGI_NO_FOCUS so the window
+    // appears without raising over whatever the user is doing.
+    if (process.env['PIGI_NO_FOCUS'] === '1') {
+      mainWindow?.showInactive();
+    } else {
+      mainWindow?.show();
+    }
   });
 
   guardWindowNavigation(mainWindow.webContents, join(__dirname, '../renderer/index.html'));

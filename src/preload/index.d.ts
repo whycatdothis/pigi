@@ -132,6 +132,7 @@ interface PiApi {
   onProcessExit: (callback: (data: { sessionPath: string; code: number }) => void) => () => void;
 
   getCwd: () => string;
+  getHomeDir: () => string;
   openExternal: (url: string) => void;
   previewFile: (path: string) => void;
   getModelCatalog: () => Promise<ModelCatalogSnapshot>;

@@ -179,6 +179,11 @@ export async function pickDirectory(): Promise<PickDirectoryResult> {
   return window.piApi.pickDirectory();
 }
 
+/** Home directory, for tilde-shortening display paths. */
+export function getHomeDir(): string {
+  return window.piApi.getHomeDir();
+}
+
 /** cwds recently sent to the session worker; cleared after a short TTL */
 const pendingListCwds = new Set<string>();
 
