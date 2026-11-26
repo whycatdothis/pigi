@@ -9,6 +9,10 @@
 - Auto-titles are written in the language of the user's messages instead of whatever the titling model defaults to
 - Auto-titles are written in the language of the user's messages instead of whatever the titling model defaults to
 
+### Fixed
+
+- A session created or addressed with a differently-cased path spelling (typing `~/work/...` when the disk has `~/Work/...`) no longer gets a second identity: the session list shows its real running state, prompting it continues the running session instead of starting a parallel agent on the same transcript, and abort reaches it
+
 ## [0.6.17] - 2026-11-23
 
 ### Changed

@@ -12,6 +12,7 @@ import { ipcMain, MessageChannelMain } from 'electron';
 import { getMainWindow } from '../windows/createMainWindow';
 import { createSessionWorkerProcess } from '../processes/createPiAgentProcess';
 import { initializeShellEnv } from '../processes/shellEnvResolver';
+import { canonicalizePathCase } from '../pathCase';
 import { PiAgentProcessPool } from './piAgentProcessPool';
 import {
   PiChannel,
@@ -358,14 +359,17 @@ async function listProjectSessions(cwds: string[]): Promise<SessionListResult> {
   }
 
   const requestId = `session-list-${++sessionWorkerRequestId}`;
+  // Listed paths derive from the cwd string; they must carry the disk
+  // spelling, or they mismatch the canonical process/busy keys.
+  const canonicalCwds = [...new Set(await Promise.all(cwds.map(canonicalizePathCase)))];
   const command: ListProjectSessionsCommand = {
     type: 'list_project_sessions',
     requestId,
-    cwds: [...new Set(cwds)],
+    cwds: canonicalCwds,
   };
   proc.postMessage(command);
   // Prewarm services in the warm process for these cwds
-  processPool.ensureWarmProcess(cwds);
+  processPool.ensureWarmProcess(canonicalCwds);
   return { success: true, requestId };
 }
 
@@ -548,7 +552,7 @@ export function registerIpcHandlers(): void {
       }
       return spawnSessionProcess({
         type: 'create_session',
-        cwd,
+        cwd: await canonicalizePathCase(cwd),
         parentSessionPath,
         options: parsedOptions,
       });
@@ -559,9 +563,12 @@ export function registerIpcHandlers(): void {
     if (!sessionPath || typeof sessionPath !== 'string' || sessionPath.trim().length === 0) {
       return { success: false, error: 'sessionPath must be a non-empty string' };
     }
-    const existing = processPool.findBySessionPath(sessionPath);
+    // The pool and the busy set key by path string; a differently-cased
+    // spelling of the same file must hit the same entry, not spawn again.
+    const canonicalPath = await canonicalizePathCase(sessionPath);
+    const existing = processPool.findBySessionPath(canonicalPath);
     if (existing) {
-      processPool.touchSessionProcess(sessionPath);
+      processPool.touchSessionProcess(canonicalPath);
 
       // Re-establish MessagePorts (renderer may have reloaded)
       const controlChannel = new MessageChannelMain();
@@ -571,29 +578,29 @@ export function registerIpcHandlers(): void {
 
       const win = getMainWindow();
       if (win && !win.isDestroyed()) {
-        win.webContents.postMessage(PiChannel.SessionPort, { sessionPath }, [
+        win.webContents.postMessage(PiChannel.SessionPort, { sessionPath: canonicalPath }, [
           controlChannel.port2,
           dataChannel.port2,
         ]);
       }
 
-      return { success: true, sessionPath };
+      return { success: true, sessionPath: canonicalPath };
     }
-    return spawnSessionProcess({ type: 'resume_session', sessionPath });
+    return spawnSessionProcess({ type: 'resume_session', sessionPath: canonicalPath });
   });
 
   ipcMain.handle(PiChannel.DestroySession, async (_e, sessionPath: string) => {
     if (!sessionPath || typeof sessionPath !== 'string') {
       return { success: false, error: 'sessionPath must be a non-empty string' };
     }
-    return { success: processPool.destroySessionProcess(sessionPath) };
+    return { success: processPool.destroySessionProcess(await canonicalizePathCase(sessionPath)) };
   });
 
   ipcMain.handle(PiChannel.TouchSession, async (_e, sessionPath: string) => {
     if (!sessionPath || typeof sessionPath !== 'string') {
       return { success: false, error: 'sessionPath must be a non-empty string' };
     }
-    return { success: processPool.touchSessionProcess(sessionPath) };
+    return { success: processPool.touchSessionProcess(await canonicalizePathCase(sessionPath)) };
   });
 
   ipcMain.handle(PiChannel.GetBusySessions, () => processPool.busySessionPaths());
