@@ -71,9 +71,10 @@ export interface ProjectDirectory {
  * file: they are the store's private memory, nothing the renderer shows.
  */
 export interface TaskInfo {
-  /** Directory name; unique per tasks root, doubles as the display name. */
+  /** Display name: the rename stored in task.json, or the directory name. */
   name: string;
-  /** Absolute path of the task directory. */
+  /** Absolute path of the task directory. The directory keeps its birth name:
+      identity and session grouping key off it, so a rename never moves it. */
   path: string;
   /** Directories the task works in, absolute. */
   workDirs: string[];
@@ -81,10 +82,18 @@ export interface TaskInfo {
   suggestedDirs: string[];
   /** The work dir Files/Git open for this task; null opens the task directory. */
   activeWorkDir: string | null;
+  /** Hidden tasks leave the sidebar's default list but stay searchable. */
+  hidden: boolean;
+  /** The task's sidebar icon; null falls back to the generic task icon. */
+  emoji: string | null;
 }
 
-/** Legal task names: no separators, no leading dot, bounded for the sidebar. */
-export const TASK_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+/**
+ * Legal task names: anything but a slash, no leading dot (hidden dir),
+ * bounded for the sidebar. Spaces, CJK, emoji are all fine — a name doubles
+ * as the directory name under the tasks root, which APFS takes as-is.
+ */
+export const TASK_NAME_PATTERN = /^[^/.][^/]{0,63}$/;
 
 /** Edits a task's directory lists; every field optional, applied in one write. */
 export interface TaskUpdate {
@@ -96,10 +105,20 @@ export interface TaskUpdate {
   ignoreSuggestedDirs?: string[];
   /** Must be null (the task directory) or one of the resulting workDirs. */
   setActiveWorkDir?: string | null;
+  /** Display-name override; the directory itself is never renamed. */
+  renameTo?: string;
+  setHidden?: boolean;
+  /** Null clears a picked emoji back to the generic icon. */
+  setEmoji?: string | null;
 }
 
 export type ListTasksResult =
   | { success: true; tasks: TaskInfo[] }
+  | { success: false; error: string };
+
+/** The native directory picker: the chosen path, or null when canceled. */
+export type PickDirectoryResult =
+  | { success: true; path: string | null }
   | { success: false; error: string };
 
 export type TaskResult = { success: true; task: TaskInfo } | { success: false; error: string };
@@ -754,6 +773,8 @@ export enum PiChannel {
   UpdateTask = 'pi:update_task',
   /** renderer → main: dirs seen in a task session; prompt dirs add, tool dirs suggest */
   ReportTaskDirs = 'pi:report_task_dirs',
+  /** renderer → main: native directory picker with no side effects (task work dirs) */
+  PickDirectory = 'pi:pick_directory',
   /** renderer → main: rename a persisted (non-running) session */
   RenamePersistedSession = 'pi:rename_persisted_session',
   /** renderer → main: read messages from a session file without spawning a utility process */

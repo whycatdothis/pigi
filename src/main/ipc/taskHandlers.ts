@@ -1,12 +1,14 @@
-import { ipcMain } from 'electron';
+import { dialog, ipcMain } from 'electron';
 import {
   PiChannel,
   type ListTasksResult,
+  type PickDirectoryResult,
   type TaskDirSource,
   type TaskResult,
   type TaskUpdate,
 } from '../../shared/ipcContract';
 import { createTask, listTasks, reportTaskDirs, updateTask } from '../tasks/taskStore';
+import { getMainWindow } from '../windows/createMainWindow';
 
 function errorResult(error: unknown): { success: false; error: string } {
   return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -37,6 +39,19 @@ function parseTaskUpdate(value: unknown): TaskUpdate | null {
     const activeWorkDir = value.setActiveWorkDir;
     if (activeWorkDir !== null && typeof activeWorkDir !== 'string') return null;
     update.setActiveWorkDir = activeWorkDir;
+  }
+  if ('renameTo' in value) {
+    if (typeof value.renameTo !== 'string') return null;
+    update.renameTo = value.renameTo;
+  }
+  if ('setHidden' in value) {
+    if (typeof value.setHidden !== 'boolean') return null;
+    update.setHidden = value.setHidden;
+  }
+  if ('setEmoji' in value) {
+    const emoji = value.setEmoji;
+    if (emoji !== null && (typeof emoji !== 'string' || emoji.length > 16)) return null;
+    update.setEmoji = emoji;
   }
   return update;
 }
@@ -97,4 +112,19 @@ export function registerTaskHandlers(): void {
       }
     },
   );
+
+  // Unlike OpenProjectDirectory this adds nothing to the recent projects: the
+  // caller decides what the picked directory is for.
+  ipcMain.handle(PiChannel.PickDirectory, async (): Promise<PickDirectoryResult> => {
+    try {
+      const win = getMainWindow();
+      const options = { properties: ['openDirectory' as const] };
+      const result = win
+        ? await dialog.showOpenDialog(win, options)
+        : await dialog.showOpenDialog(options);
+      return { success: true, path: result.canceled ? null : (result.filePaths[0] ?? null) };
+    } catch (error) {
+      return errorResult(error);
+    }
+  });
 }

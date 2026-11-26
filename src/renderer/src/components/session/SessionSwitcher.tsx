@@ -1,6 +1,7 @@
 import { useState, useMemo, useDeferredValue, useCallback, useRef, useEffect } from 'react';
-import type { PiSessionInfo } from '../../../../shared/ipcContract';
+import type { PiSessionInfo, TaskInfo } from '../../../../shared/ipcContract';
 import fuzzysort from 'fuzzysort';
+import { IconEyeOff, IconListCheck } from '@tabler/icons-react';
 import { cn, formatRelativeTime } from '../../lib/utils';
 import { OVERLAY_BG } from '../../lib/layoutConstants';
 import {
@@ -30,6 +31,10 @@ interface SessionSwitcherProps {
   navigationForwardStack: string[];
   activeSessionPath: string | null;
   onSwitch: (sessionPath: string) => void;
+  /** Tasks join the search results, hidden ones included but dimmed. */
+  tasks?: TaskInfo[];
+  /** Picking a task opens it: its latest session, or a new one when it has none. */
+  onSelectTask?: (taskPath: string) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Portal target; the main area when opened from the app. */
@@ -59,6 +64,8 @@ export default function SessionSwitcher({
   navigationForwardStack,
   activeSessionPath,
   onSwitch,
+  tasks = [],
+  onSelectTask,
   open,
   onOpenChange,
   container,
@@ -157,6 +164,18 @@ export default function SessionSwitcher({
     return { filteredSessions: sessions, highlightMap: map };
   }, [deferredQuery, allSessions, searchTargets]);
 
+  // Tasks only join a search; the empty query stays the session recency list.
+  const { filteredTasks, taskHighlightMap } = useMemo(() => {
+    const trimmed = deferredQuery.trim();
+    if (!trimmed || !onSelectTask) {
+      return { filteredTasks: [], taskHighlightMap: new Map<string, Fuzzysort.Result>() };
+    }
+    const results = fuzzysort.go(trimmed, tasks, { key: 'name', limit: 5 });
+    const map = new Map<string, Fuzzysort.Result>();
+    for (const result of results) map.set(result.obj.path, result);
+    return { filteredTasks: results.map((result) => result.obj), taskHighlightMap: map };
+  }, [deferredQuery, tasks, onSelectTask]);
+
   useEffect(() => {
     if (!open) return;
     requestAnimationFrame(() => {
@@ -187,6 +206,15 @@ export default function SessionSwitcher({
       setQuery('');
     },
     [onSwitch, onOpenChange],
+  );
+
+  const handleSelectTask = useCallback(
+    (taskPath: string) => {
+      onSelectTask?.(taskPath);
+      onOpenChange(false);
+      setQuery('');
+    },
+    [onSelectTask, onOpenChange],
   );
 
   const handleOpenChange = useCallback(
@@ -254,41 +282,82 @@ export default function SessionSwitcher({
           inputGroupClassName="h-[44px]"
         />
         <CommandList ref={commandListRef} className="max-h-96 pt-1">
-          {filteredSessions.length === 0 ? (
+          {filteredSessions.length === 0 && filteredTasks.length === 0 ? (
             <CommandEmpty>
               {allSessions.length === 0 ? 'No sessions yet, create a session first.' : 'No results'}
             </CommandEmpty>
           ) : (
-            <CommandGroup>
-              {filteredSessions.slice(0, MAX_VISIBLE_SESSIONS).map((session) => {
-                const results = highlightMap.get(session.path);
-                return (
-                  <CommandItem
-                    key={session.path}
-                    value={session.path}
-                    onSelect={() => handleSelect(session.path)}
-                    showCheckIcon={false}
-                    className="px-2 py-1.5"
-                  >
-                    <div className="flex min-w-0 flex-1 items-center gap-2">
-                      <div className="flex min-w-0 flex-1 flex-col gap-0">
-                        <span className="min-w-0 flex-1 truncate text-body">
-                          {results ? highlightResult(results[0], session.title) : session.title}
-                        </span>
-                        <span className="text-caption text-muted-foreground">
-                          {results
-                            ? highlightResult(results[1], session.projectName)
-                            : session.projectName}
-                        </span>
-                      </div>
-                      <span className="shrink-0 text-caption text-muted-foreground">
-                        {formatRelativeTime(session.modified, relativeTimeBase)}
-                      </span>
-                    </div>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
+            <>
+              {filteredSessions.length > 0 && (
+                <CommandGroup>
+                  {filteredSessions.slice(0, MAX_VISIBLE_SESSIONS).map((session) => {
+                    const results = highlightMap.get(session.path);
+                    return (
+                      <CommandItem
+                        key={session.path}
+                        value={session.path}
+                        onSelect={() => handleSelect(session.path)}
+                        showCheckIcon={false}
+                        className="px-2 py-1.5"
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="flex min-w-0 flex-1 flex-col gap-0">
+                            <span className="min-w-0 flex-1 truncate text-body">
+                              {results ? highlightResult(results[0], session.title) : session.title}
+                            </span>
+                            <span className="text-caption text-muted-foreground">
+                              {results
+                                ? highlightResult(results[1], session.projectName)
+                                : session.projectName}
+                            </span>
+                          </div>
+                          <span className="shrink-0 text-caption text-muted-foreground">
+                            {formatRelativeTime(session.modified, relativeTimeBase)}
+                          </span>
+                        </div>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              )}
+              {filteredTasks.length > 0 && (
+                <CommandGroup heading="Tasks">
+                  {filteredTasks.map((task) => {
+                    const result = taskHighlightMap.get(task.path);
+                    return (
+                      <CommandItem
+                        key={task.path}
+                        value={`task:${task.path}`}
+                        onSelect={() => handleSelectTask(task.path)}
+                        showCheckIcon={false}
+                        className={cn('px-2 py-1.5', task.hidden && 'opacity-60')}
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          {task.emoji === null ? (
+                            <IconListCheck className="size-4 shrink-0 text-muted-foreground" />
+                          ) : (
+                            <span className="size-4 shrink-0 text-center leading-none">
+                              {task.emoji}
+                            </span>
+                          )}
+                          <div className="flex min-w-0 flex-1 flex-col gap-0">
+                            <span className="min-w-0 flex-1 truncate text-body">
+                              {result ? highlightResult(result, task.name) : task.name}
+                            </span>
+                            <span className="text-caption text-muted-foreground">
+                              {task.hidden ? 'Hidden task' : 'Task'}
+                            </span>
+                          </div>
+                          {task.hidden && (
+                            <IconEyeOff className="size-4 shrink-0 text-muted-foreground" />
+                          )}
+                        </div>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              )}
+            </>
           )}
         </CommandList>
       </Command>

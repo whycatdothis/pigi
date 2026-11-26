@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { mkdir, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { promisify } from 'node:util';
 
 import {
   TASK_NAME_PATTERN,
@@ -27,6 +28,10 @@ interface TaskConfig {
   removedDirs: string[];
   suggestedDirs: string[];
   activeWorkDir: string | null;
+  /** Display-name override; absent means the directory name. */
+  name?: string;
+  hidden?: boolean;
+  emoji?: string | null;
 }
 
 const emptyConfig = (): TaskConfig => ({
@@ -54,7 +59,7 @@ function parseConfig(raw: string): TaskConfig | null {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed)) return null;
-    const { workDirs, removedDirs, suggestedDirs, activeWorkDir } = parsed;
+    const { workDirs, removedDirs, suggestedDirs, activeWorkDir, name, hidden, emoji } = parsed;
     if (
       !isStringList(workDirs) ||
       !isStringList(removedDirs) ||
@@ -73,6 +78,10 @@ function parseConfig(raw: string): TaskConfig | null {
       suggestedDirs: cleanDirs(suggestedDirs).filter((dir) => !cleanWorkDirs.includes(dir)),
       // An active dir that is no longer a work dir has nothing to point at.
       activeWorkDir: cleanActive && cleanWorkDirs.includes(cleanActive) ? cleanActive : null,
+      // Optional identity fields: a wrong type drops the field, not the file.
+      ...(typeof name === 'string' && TASK_NAME_PATTERN.test(name) ? { name } : {}),
+      ...(typeof hidden === 'boolean' ? { hidden } : {}),
+      ...(typeof emoji === 'string' || emoji === null ? { emoji } : {}),
     };
   } catch {
     return null;
@@ -166,11 +175,17 @@ async function syncAgentsFile(
   await writeFileAtomic(file, replaceWorkDirsBlock(current, workDirs));
 }
 
-function gitInit(taskDir: string): void {
-  execFile('git', ['init'], { cwd: taskDir }, (error) => {
+const execFileAsync = promisify(execFile);
+
+// Awaited by createTask: returning before git finishes would let a delete
+// (or a test's cleanup) race git still writing .git.
+async function gitInit(taskDir: string): Promise<void> {
+  try {
+    await execFileAsync('git', ['init'], { cwd: taskDir });
+  } catch (error) {
     // The task still works without history; the file map just loses diffs.
-    if (error) console.warn(`[tasks] git init failed in ${taskDir}:`, error.message);
-  });
+    console.warn(`[tasks] git init failed in ${taskDir}:`, (error as Error).message);
+  }
 }
 
 async function ensureGitignore(taskDir: string): Promise<void> {
@@ -186,14 +201,34 @@ async function ensureGitignore(taskDir: string): Promise<void> {
   await writeFile(file, `${current}${separator}${STATE_DIR}/\n`, 'utf8');
 }
 
-function toTaskInfo(name: string, taskDir: string, config: TaskConfig): TaskInfo {
+function toTaskInfo(dirName: string, taskDir: string, config: TaskConfig): TaskInfo {
   return {
-    name,
+    name: config.name ?? dirName,
     path: taskDir,
     workDirs: config.workDirs,
     suggestedDirs: config.suggestedDirs,
     activeWorkDir: config.activeWorkDir,
+    hidden: config.hidden ?? false,
+    emoji: config.emoji ?? null,
   };
+}
+
+/** Every name a task answers to: its directory name and its display override. */
+async function takenTaskNames(root: string, excludeDir?: string): Promise<Set<string>> {
+  const names = new Set<string>();
+  let entries: string[] = [];
+  try {
+    entries = await readdir(root);
+  } catch {
+    return names;
+  }
+  for (const entry of entries) {
+    if (entry === excludeDir || !TASK_NAME_PATTERN.test(entry)) continue;
+    names.add(entry.toLowerCase());
+    const config = await readConfig(join(root, entry));
+    if (config.name) names.add(config.name.toLowerCase());
+  }
+  return names;
 }
 
 // A task path must name a directory directly inside the tasks root and keep
@@ -292,18 +327,11 @@ export async function createTask(
   root: string = DEFAULT_TASKS_ROOT,
 ): Promise<TaskInfo> {
   if (!TASK_NAME_PATTERN.test(name)) {
-    throw new Error(
-      'Task names start with a letter or digit and use letters, digits, dot, dash, underscore (max 64).',
-    );
+    throw new Error('Task names cannot contain / or start with a dot (max 64 characters).');
   }
   // Case-insensitive duplicate check: macOS and Windows file systems are.
-  let existing: string[] = [];
-  try {
-    existing = await readdir(root);
-  } catch {
-    // Root does not exist yet; mkdir below creates it.
-  }
-  if (existing.some((entry) => entry.toLowerCase() === name.toLowerCase())) {
+  // Display-name overrides collide too, or two rows would show the same name.
+  if ((await takenTaskNames(root)).has(name.toLowerCase())) {
     throw new Error(`A task named "${name}" already exists.`);
   }
   const taskDir = join(root, name);
@@ -313,7 +341,7 @@ export async function createTask(
     await writeConfig(taskDir, config);
     await ensureGitignore(taskDir);
     await syncAgentsFile(taskDir, name, config.workDirs);
-    gitInit(taskDir);
+    await gitInit(taskDir);
     return toTaskInfo(name, taskDir, config);
   } catch (error) {
     await rm(taskDir, { recursive: true, force: true });
@@ -366,6 +394,31 @@ export async function updateTask(
       addToConfig(config, normalized);
     }
 
+    if (update.renameTo !== undefined) {
+      const name = update.renameTo.trim();
+      const dirName = basename(taskDir);
+      if (!TASK_NAME_PATTERN.test(name)) {
+        throw new Error('Task names cannot contain / or start with a dot (max 64 characters).');
+      }
+      if (
+        name.toLowerCase() !== config.name?.toLowerCase() &&
+        name.toLowerCase() !== dirName.toLowerCase() &&
+        (await takenTaskNames(root, dirName)).has(name.toLowerCase())
+      ) {
+        throw new Error(`A task named "${name}" already exists.`);
+      }
+      // Renaming back to the directory name drops the override.
+      if (name === dirName) delete config.name;
+      else config.name = name;
+    }
+    if (update.setHidden !== undefined) {
+      if (update.setHidden) config.hidden = true;
+      else delete config.hidden;
+    }
+    if (update.setEmoji !== undefined) {
+      if (update.setEmoji === null) delete config.emoji;
+      else config.emoji = update.setEmoji;
+    }
     if (update.setActiveWorkDir !== undefined) {
       const active = update.setActiveWorkDir;
       if (active !== null && !config.workDirs.includes(normalizeDir(active))) {

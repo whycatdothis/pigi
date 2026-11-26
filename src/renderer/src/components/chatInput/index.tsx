@@ -53,7 +53,7 @@ import {
 import { pathTokenDirectory } from '../../lib/pathReferences';
 import { formatContextUsage, UNKNOWN_STATUS } from './formatters';
 import { ContextUsageTooltip } from './contextUsageTooltip';
-import { ProjectPicker } from '../projectPicker';
+import { ProjectPicker, type TaskPickerItem } from '../projectPicker';
 import GitBranchPicker from '../git/GitBranchPicker';
 import { ModelSettingsPicker } from './modelSettingsPicker';
 import { SlashCommandPopover } from './slashCommandPopover';
@@ -102,6 +102,8 @@ interface ChatInputProps {
   /** New session mode: centers input, enables project switching via # */
   isNewSession?: boolean;
   recentProjects?: ProjectDirectory[];
+  /** Tasks the new session can start in, shown above the projects. */
+  pickerTasks?: TaskPickerItem[];
   activeProject?: ProjectDirectory | null;
   onSelectProject?: (path: string) => void;
 }
@@ -170,6 +172,7 @@ export default memo(function ChatInput({
   userHistory,
   isNewSession = false,
   recentProjects = [],
+  pickerTasks = [],
   activeProject = null,
   onSelectProject,
 }: ChatInputProps): React.JSX.Element {
@@ -850,12 +853,13 @@ export default memo(function ChatInput({
         </h1>
       )}
       <div className="relative mx-auto w-full" style={{ maxWidth: `${CHAT_INPUT_MAX_WIDTH}px` }}>
-        {isNewSession && recentProjects.length > 0 && (
+        {isNewSession && (recentProjects.length > 0 || pickerTasks.length > 0) && (
           <div className="pl-2.5 pt-3 pb-1">
             <ProjectPicker
               projectName={projectLabel}
               hashActive={hashMode}
               recentProjects={recentProjects}
+              pickerTasks={pickerTasks}
               onSelectProject={(path) => {
                 setHashMode(false);
                 // App rereads the branch whenever the project's cwd changes,

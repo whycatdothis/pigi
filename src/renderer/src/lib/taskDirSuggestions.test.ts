@@ -24,6 +24,8 @@ const task: TaskInfo = {
   workDirs: [],
   suggestedDirs: [],
   activeWorkDir: null,
+  hidden: false,
+  emoji: null,
 };
 const sessionPath = '/sessions/one.jsonl';
 

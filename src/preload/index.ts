@@ -43,6 +43,7 @@ import {
   type ProjectSessionsChunk,
   type ProjectStateResult,
   type ListTasksResult,
+  type PickDirectoryResult,
   type TaskDirSource,
   type TaskResult,
   type TaskUpdate,
@@ -423,6 +424,9 @@ const piApi = {
 
   reportTaskDirs: (taskPath: string, paths: string[], source: TaskDirSource): Promise<TaskResult> =>
     ipcRenderer.invoke(PiChannel.ReportTaskDirs, taskPath, paths, source),
+
+  /** Native directory picker with no side effects; the caller owns the picked path. */
+  pickDirectory: (): Promise<PickDirectoryResult> => ipcRenderer.invoke(PiChannel.PickDirectory),
 
   /** Rename a persisted (non-running) session by appending a session_info entry. */
   renamePersistedSession: (

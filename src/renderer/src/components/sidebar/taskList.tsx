@@ -1,17 +1,34 @@
-import { IconListCheck, IconMessageCirclePlus } from '@tabler/icons-react';
-import type {
-  PiSessionInfo,
-  TaskInfo,
-  TaskResult,
-  TaskUpdate,
+import { useCallback, useState } from 'react';
+import {
+  IconEye,
+  IconEyeOff,
+  IconListCheck,
+  IconMessageCirclePlus,
+  IconPencil,
+} from '@tabler/icons-react';
+import {
+  TASK_NAME_PATTERN,
+  type PiSessionInfo,
+  type TaskInfo,
+  type TaskResult,
+  type TaskUpdate,
 } from '../../../../shared/ipcContract';
 import { useAppStore, type SessionEntry } from '../../state/appStore';
 import { cn } from '../../lib/utils';
 import { SidebarMenu, SidebarMenuAction, SidebarMenuButton, SidebarMenuItem } from '../ui/sidebar';
+import {
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuRoot,
+  ContextMenuTrigger,
+} from '../ui/context-menu';
 import { SessionList } from './sessionList';
+import { TaskEmojiPicker } from './taskEmojiPicker';
 import { TaskWorkDirChips } from './taskWorkDirChips';
 
 const NEW_TASK_SESSION_LABEL = 'New chat';
+
+const RENAME_NAME_ERROR = 'Task names cannot contain / or start with a dot (max 64 characters).';
 
 interface TaskItemProps {
   task: TaskInfo;
@@ -44,6 +61,10 @@ function TaskItem({
   onUpdateTask,
   onSelectWorkDir,
 }: TaskItemProps): React.JSX.Element {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const hasHiddenUnread = useAppStore(
     (state) =>
       !isExpanded &&
@@ -55,16 +76,117 @@ function TaskItem({
       ),
   );
 
+  const handleStartRename = useCallback(() => {
+    setEditValue(task.name);
+    setRenameError(null);
+    setIsEditing(true);
+  }, [task.name]);
+
+  const handleFinishRename = useCallback(async () => {
+    const name = editValue.trim();
+    if (name === '' || name === task.name) {
+      setIsEditing(false);
+      setRenameError(null);
+      return;
+    }
+    if (!TASK_NAME_PATTERN.test(name)) {
+      setRenameError(RENAME_NAME_ERROR);
+      return;
+    }
+    const result = await onUpdateTask(task.path, { renameTo: name });
+    if (result.success) {
+      setIsEditing(false);
+      setRenameError(null);
+    } else {
+      setRenameError(result.error);
+    }
+  }, [editValue, task.name, task.path, onUpdateTask]);
+
+  const handleRenameKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (event.nativeEvent.isComposing || event.key === 'Process') return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      void handleFinishRename();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setIsEditing(false);
+      setRenameError(null);
+    }
+  };
+
   return (
     <SidebarMenuItem className={cn('group/task', isExpanded && 'mb-3')}>
-      <SidebarMenuButton
-        onClick={onToggleExpand}
-        title={task.path}
-        className="text-sidebar-foreground/80"
-      >
-        <IconListCheck data-icon="inline-start" />
-        <span>{task.name}</span>
-      </SidebarMenuButton>
+      <ContextMenuRoot>
+        <ContextMenuTrigger asChild>
+          <SidebarMenuButton
+            onClick={onToggleExpand}
+            title={task.path}
+            className={cn('text-sidebar-foreground/80', task.hidden && 'opacity-60')}
+          >
+            <TaskEmojiPicker
+              open={emojiOpen}
+              onOpenChange={setEmojiOpen}
+              current={task.emoji}
+              onSelect={(emoji) => void onUpdateTask(task.path, { setEmoji: emoji })}
+            >
+              {/* A span, not a button: the row itself is already a button and
+                  buttons must not nest. The keydown opens the picker since a
+                  span gets no native Enter/Space activation. */}
+              <span
+                role="button"
+                tabIndex={0}
+                title="Pick an emoji"
+                className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-inline text-body leading-none hover:bg-foreground/10"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setEmojiOpen(true);
+                  }
+                }}
+              >
+                {task.emoji ?? (
+                  <IconListCheck className="size-4 text-muted-foreground" aria-hidden />
+                )}
+              </span>
+            </TaskEmojiPicker>
+            {isEditing ? (
+              <input
+                type="text"
+                value={editValue}
+                aria-invalid={renameError !== null}
+                autoFocus
+                onChange={(event) => {
+                  setEditValue(event.target.value);
+                  setRenameError(null);
+                }}
+                onBlur={() => void handleFinishRename()}
+                onKeyDown={handleRenameKeyDown}
+                onClick={(event) => event.stopPropagation()}
+                className="min-w-0 flex-1 bg-transparent text-body outline-none caret-foreground"
+              />
+            ) : (
+              <span onDoubleClick={handleStartRename}>{task.name}</span>
+            )}
+          </SidebarMenuButton>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="menu-content">
+          <ContextMenuItem onClick={handleStartRename}>
+            <IconPencil />
+            Rename task…
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => void onUpdateTask(task.path, { setHidden: !task.hidden })}
+          >
+            {task.hidden ? <IconEye /> : <IconEyeOff />}
+            {task.hidden ? 'Unhide task' : 'Hide task'}
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenuRoot>
+      {renameError !== null && (
+        <div className="px-2 pt-0.5 text-caption text-destructive">{renameError}</div>
+      )}
       {hasHiddenUnread && (
         <span
           role="status"
@@ -104,6 +226,8 @@ function TaskItem({
 
 interface TaskListProps {
   tasks: TaskInfo[];
+  /** Show hidden tasks (styled dimmed) instead of filtering them out. */
+  showHidden: boolean;
   sessions: Map<string, SessionEntry>;
   selectedSessionPath: string | null;
   relativeTimeBase: number;
@@ -121,6 +245,7 @@ interface TaskListProps {
 /** The sidebar's task section. Tasks reuse the project's expand/session plumbing keyed by path. */
 export function TaskList({
   tasks,
+  showHidden,
   sessions,
   selectedSessionPath,
   relativeTimeBase,
@@ -136,26 +261,28 @@ export function TaskList({
 }: TaskListProps): React.JSX.Element {
   return (
     <SidebarMenu>
-      {tasks.map((task) => (
-        <TaskItem
-          key={task.path}
-          task={task}
-          sessions={sessions}
-          projectSessions={getProjectSessions(task.path)}
-          visibleWhenCollapsedSessionIds={
-            visibleWhenCollapsedSessionIdsByPath[task.path] ?? new Set()
-          }
-          selectedSessionPath={selectedSessionPath}
-          relativeTimeBase={relativeTimeBase}
-          isExpanded={expandedProjects.has(task.path)}
-          onToggleExpand={() => onToggleExpand(task.path)}
-          onNewSession={() => onNewSessionForProject(task.path)}
-          onResumeSession={onResumeSession}
-          onRenameSession={onRenameSession}
-          onUpdateTask={onUpdateTask}
-          onSelectWorkDir={onSelectWorkDir}
-        />
-      ))}
+      {tasks
+        .filter((task) => showHidden || !task.hidden)
+        .map((task) => (
+          <TaskItem
+            key={task.path}
+            task={task}
+            sessions={sessions}
+            projectSessions={getProjectSessions(task.path)}
+            visibleWhenCollapsedSessionIds={
+              visibleWhenCollapsedSessionIdsByPath[task.path] ?? new Set()
+            }
+            selectedSessionPath={selectedSessionPath}
+            relativeTimeBase={relativeTimeBase}
+            isExpanded={expandedProjects.has(task.path)}
+            onToggleExpand={() => onToggleExpand(task.path)}
+            onNewSession={() => onNewSessionForProject(task.path)}
+            onResumeSession={onResumeSession}
+            onRenameSession={onRenameSession}
+            onUpdateTask={onUpdateTask}
+            onSelectWorkDir={onSelectWorkDir}
+          />
+        ))}
     </SidebarMenu>
   );
 }

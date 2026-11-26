@@ -316,9 +316,10 @@ describe('workspace project per session', () => {
       name: 'task-foo',
       path: '/tasks/task-foo',
       workDirs: ['/repo/a', '/repo/b'],
-      removedDirs: [],
       suggestedDirs: [],
       activeWorkDir: '/repo/b',
+      hidden: false,
+      emoji: null,
     };
     const session: SessionEntry = {
       sessionPath: '/s/a.jsonl',

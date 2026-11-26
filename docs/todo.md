@@ -9,9 +9,8 @@ user-visible also adds a line to the CHANGELOG.
 
 Deferred from `feat/tasks`:
 
-- No way to delete or rename a task in the UI (the directory can be removed or
-  renamed by hand; a rename only changes the display name, since the config
-  lives inside).
+- No way to delete a task in the UI (the directory can be removed by hand;
+  the task vanishes from the list on the next read).
 - The dir watcher extracts only POSIX-absolute paths (`/…`, `~/…`); Windows
   paths in prompts and tool calls are never reported.
 - Suggested dirs come from heuristics, not a model: batching the candidates

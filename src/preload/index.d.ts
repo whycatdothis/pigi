@@ -30,6 +30,7 @@ import type {
   PathCompletionResult,
   ProjectStateResult,
   ListTasksResult,
+  PickDirectoryResult,
   TaskDirSource,
   TaskResult,
   TaskUpdate,
@@ -102,6 +103,7 @@ interface PiApi {
   createTask: (name: string) => Promise<TaskResult>;
   updateTask: (taskPath: string, update: TaskUpdate) => Promise<TaskResult>;
   reportTaskDirs: (taskPath: string, paths: string[], source: TaskDirSource) => Promise<TaskResult>;
+  pickDirectory: () => Promise<PickDirectoryResult>;
   pickAttachments: (kind: ChatAttachmentKind) => Promise<PickAttachmentsResult>;
   getPathForFile: (file: File) => string;
   renamePersistedSession: (

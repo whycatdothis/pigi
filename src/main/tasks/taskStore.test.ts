@@ -49,6 +49,15 @@ describe('createTask', () => {
     await expect(createTask('.hidden', root)).rejects.toThrow('Task names');
     await expect(createTask('', root)).rejects.toThrow('Task names');
   });
+
+  it('creates directories with spaces and CJK names verbatim', async () => {
+    const task = await createTask('订正 数据', root);
+    expect(task.path).toBe(join(root, '订正 数据'));
+    expect(task.name).toBe('订正 数据');
+    const names = (await listTasks(root)).map((listed) => listed.name);
+    expect(names).toContain('订正 数据');
+    await expect(createTask('订正 数据', root)).rejects.toThrow('already exists');
+  });
 });
 
 describe('listTasks', () => {
@@ -128,6 +137,67 @@ describe('updateTask', () => {
     await expect(updateTask(workA, { addWorkDirs: [workB] }, root)).rejects.toThrow(
       'Not a task directory',
     );
+  });
+
+  it('renames the display name without moving the directory', async () => {
+    const task = await createTask('task-foo', root);
+
+    const renamed = await updateTask(task.path, { renameTo: 'roadmap 二期 🚀' }, root);
+    expect(renamed.name).toBe('roadmap 二期 🚀');
+    expect(renamed.path).toBe(task.path);
+
+    await expect(updateTask(task.path, { renameTo: '.dot' }, root)).rejects.toThrow('Task names');
+    await expect(updateTask(task.path, { renameTo: 'a/b' }, root)).rejects.toThrow('Task names');
+
+    // The rename is persisted; the directory name is not.
+    const [listed] = await listTasks(root);
+    expect(listed.name).toBe('roadmap 二期 🚀');
+    expect(listed.path).toBe(task.path);
+
+    // Renaming back to the directory name drops the override.
+    const back = await updateTask(task.path, { renameTo: 'task-foo' }, root);
+    expect(back.name).toBe('task-foo');
+    expect(
+      JSON.parse(readFileSync(join(task.path, '.pigi', 'task.json'), 'utf8')),
+    ).not.toHaveProperty('name');
+  });
+
+  it('rejects renames that collide with another task, in either name', async () => {
+    const task = await createTask('task-foo', root);
+    const other = await createTask('task-bar', root);
+    await updateTask(other.path, { renameTo: 'roadmap' }, root);
+
+    await expect(updateTask(task.path, { renameTo: 'Task-Bar' }, root)).rejects.toThrow(
+      'already exists',
+    );
+    await expect(updateTask(task.path, { renameTo: 'ROADMAP' }, root)).rejects.toThrow(
+      'already exists',
+    );
+    await expect(updateTask(task.path, { renameTo: 'a/b' }, root)).rejects.toThrow('Task names');
+    // The current own name and a fresh name pass.
+    await expect(updateTask(task.path, { renameTo: 'TASK-FOO' }, root)).resolves.toMatchObject({
+      name: 'TASK-FOO',
+    });
+    await expect(createTask('task-foo-2', root)).resolves.toBeTruthy();
+    await expect(createTask('roadmap', root)).rejects.toThrow('already exists');
+  });
+
+  it('hides and emotes a task, persisting both', async () => {
+    const task = await createTask('task-foo', root);
+    expect(task.hidden).toBe(false);
+    expect(task.emoji).toBeNull();
+
+    const hidden = await updateTask(task.path, { setHidden: true, setEmoji: '🚀' }, root);
+    expect(hidden.hidden).toBe(true);
+    expect(hidden.emoji).toBe('🚀');
+
+    const [listed] = await listTasks(root);
+    expect(listed.hidden).toBe(true);
+    expect(listed.emoji).toBe('🚀');
+
+    const cleared = await updateTask(task.path, { setHidden: false, setEmoji: null }, root);
+    expect(cleared.hidden).toBe(false);
+    expect(cleared.emoji).toBeNull();
   });
 });
 

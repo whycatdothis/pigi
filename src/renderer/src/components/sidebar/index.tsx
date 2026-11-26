@@ -1,6 +1,9 @@
 import { memo, useEffect, useState, useCallback, useRef } from 'react';
 import {
+  IconEye,
+  IconEyeOff,
   IconFolderPlus,
+  IconHelp,
   IconListCheck,
   IconMessageCirclePlus,
   IconPlus,
@@ -11,14 +14,20 @@ import {
   IconCube,
 } from '@tabler/icons-react';
 import { SidebarToggle } from './sidebarToggle';
-import type { PiSessionInfo } from '../../../../shared/ipcContract';
+import {
+  TASK_NAME_PATTERN,
+  type PiSessionInfo,
+  type TaskResult,
+  type TaskUpdate,
+} from '../../../../shared/ipcContract';
 import { formatShortcutLabel } from '../../shortcuts/formatShortcutLabel';
 import type { ShortcutBinding } from '../../../../shared/ipcContract';
 import { Kbd, MENU_ROW_KBD_CLASS_NAME } from '../ui/kbd';
 import { isSessionRunning } from './utils';
 import { useAppStore } from '../../state/appStore';
 import { listProjectSessions } from '../../services/piAgentClient';
-import { TooltipProvider } from '../ui/tooltip';
+import { Input } from '../ui/input';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -34,13 +43,136 @@ import {
 } from '../ui/sidebar';
 import { MenuItem } from '../app/MenuItem';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { cn } from '../../lib/utils';
 import type { SidebarProps } from './types';
 import { ProjectList } from './projectList';
+import { TaskEmojiPicker } from './taskEmojiPicker';
 import { TaskList } from './taskList';
-import { NewTaskDialog } from './newTaskDialog';
 import { getProjectSessions as getOrderedProjectSessions } from '../../lib/projectSessions';
 
 const EXPANDED_PROJECTS_STORAGE_KEY = 'pigi.expandedProjects';
+
+const TASK_NAME_ERROR = 'Task names cannot contain / or start with a dot (max 64 characters).';
+
+/**
+ * The inline create row under the Tasks header; replaces a dialog so naming a
+ * task happens where the task will appear. Enter creates, Escape or clicking
+ * away cancels, and the value survives a failed create for fixing.
+ */
+function NewTaskInput({
+  existingNames,
+  onCreateTask,
+  onUpdateTask,
+  onCancel,
+}: {
+  existingNames: string[];
+  onCreateTask: (name: string) => Promise<TaskResult>;
+  onUpdateTask: (taskPath: string, update: TaskUpdate) => Promise<TaskResult>;
+  onCancel: () => void;
+}): React.JSX.Element {
+  const [value, setValue] = useState('');
+  const [emoji, setEmoji] = useState<string | null>(null);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const submit = async (): Promise<void> => {
+    const name = value.trim();
+    if (name === '' || busy) return;
+    if (!TASK_NAME_PATTERN.test(name)) {
+      setError(TASK_NAME_ERROR);
+      return;
+    }
+    if (existingNames.some((existing) => existing.toLowerCase() === name.toLowerCase())) {
+      setError(`A task named "${name}" already exists.`);
+      return;
+    }
+    setBusy(true);
+    const result = await onCreateTask(name);
+    if (result.success && emoji !== null) {
+      // Cosmetic: the task already exists, so a failed emoji save only drops the icon.
+      const emojiResult = await onUpdateTask(result.task.path, { setEmoji: emoji });
+      if (!emojiResult.success) console.error('Failed to set the task emoji:', emojiResult.error);
+    }
+    setBusy(false);
+    if (result.success) onCancel();
+    else setError(result.error);
+  };
+
+  return (
+    <div className="pb-1">
+      <div
+        ref={containerRef}
+        className="flex items-center gap-1.5"
+        onBlur={() => {
+          // Deferred: clicking the emoji slot or a picker button blurs the
+          // input first; by the next tick focus has landed, and only a target
+          // outside both this row and the (portaled) picker really cancels.
+          window.setTimeout(() => {
+            if (busy) return;
+            const active = document.activeElement;
+            if (active instanceof HTMLElement) {
+              if (containerRef.current?.contains(active)) return;
+              if (active.closest('[data-slot="popover-content"]') !== null) return;
+            }
+            onCancel();
+          });
+        }}
+      >
+        <TaskEmojiPicker
+          open={emojiPickerOpen}
+          onOpenChange={setEmojiPickerOpen}
+          current={emoji}
+          onSelect={setEmoji}
+        >
+          <button
+            type="button"
+            title="Pick an emoji"
+            aria-label="Pick an emoji"
+            className={cn(
+              'flex size-7 shrink-0 items-center justify-center rounded-control border text-lg leading-none',
+              emoji === null
+                ? 'border-dashed border-input hover:border-foreground/40'
+                : 'border-transparent hover:bg-foreground/10',
+            )}
+          >
+            {emoji}
+          </button>
+        </TaskEmojiPicker>
+        <Input
+          type="text"
+          value={value}
+          placeholder="Task name"
+          aria-label="Task name"
+          aria-invalid={error !== null}
+          disabled={busy}
+          autoFocus
+          spellCheck={false}
+          onChange={(event) => {
+            setValue(event.target.value);
+            setError(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing || event.key === 'Process') return;
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              void submit();
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              onCancel();
+            }
+          }}
+          className="h-7"
+        />
+      </div>
+      {error !== null && <div className="px-1 pt-0.5 text-caption text-destructive">{error}</div>}
+    </div>
+  );
+}
+
+const HEADER_BUTTON_CLASS =
+  'flex size-5 items-center justify-center rounded-chip text-muted-foreground transition-opacity hover:text-foreground';
 
 function loadExpandedProjects(): Set<string> {
   try {
@@ -77,7 +209,8 @@ export default memo(function Sidebar({
   onOpenSettings,
 }: SidebarProps): React.JSX.Element {
   const [expandedProjects, setExpandedProjects] = useState(loadExpandedProjects);
-  const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [showHiddenTasks, setShowHiddenTasks] = useState(false);
   useEffect(() => {
     localStorage.setItem(EXPANDED_PROJECTS_STORAGE_KEY, JSON.stringify([...expandedProjects]));
   }, [expandedProjects]);
@@ -249,7 +382,7 @@ export default memo(function Sidebar({
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton
-                onClick={() => setNewTaskOpen(true)}
+                onClick={() => setCreatingTask(true)}
                 data-testid="sidebar-new-task"
               >
                 <IconListCheck data-icon="inline-start" />
@@ -282,24 +415,85 @@ export default memo(function Sidebar({
         </SidebarHeader>
 
         <SidebarContent className="overflow-hidden">
-          {tasks.length > 0 && (
+          {(tasks.length > 0 || creatingTask) && (
             <SidebarGroup className="shrink-0">
-              <div className="group/tasks-header">
+              <div className="group/tasks-header flex items-center">
                 <SidebarGroupLabel className="font-semibold text-sidebar-foreground/60">
                   Tasks
                 </SidebarGroupLabel>
-                <SidebarGroupAction
-                  onClick={() => setNewTaskOpen(true)}
-                  title="New task"
-                  className="opacity-0 group-hover/tasks-header:opacity-100 transition-opacity"
-                >
-                  <IconPlus />
-                  <span className="sr-only">New task</span>
-                </SidebarGroupAction>
+                <div className="ml-auto flex items-center gap-1.5 pr-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="What is a task"
+                        className={`${HEADER_BUTTON_CLASS} opacity-0 group-hover/tasks-header:opacity-100`}
+                      >
+                        <IconHelp className="size-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      align="end"
+                      className="max-w-64 flex-col items-start gap-1.5 text-left"
+                    >
+                      <span>
+                        A task is a workspace on its own, not tied to one project: its sessions are
+                        grouped here in the sidebar.
+                      </span>
+                      <span>
+                        As you chat, pigi adds directories you mention to the task&apos;s working
+                        directories and suggests ones it notices; wrong ones can be edited or
+                        dismissed by hand.
+                      </span>
+                      <span>
+                        The task has its own git directory for plans, reviews and notes that belong
+                        to no single repo.
+                      </span>
+                    </TooltipContent>
+                  </Tooltip>
+                  {(showHiddenTasks || tasks.some((task) => task.hidden)) && (
+                    <button
+                      type="button"
+                      title={showHiddenTasks ? 'Hide hidden tasks' : 'Show hidden tasks'}
+                      aria-label={showHiddenTasks ? 'Hide hidden tasks' : 'Show hidden tasks'}
+                      onClick={() => setShowHiddenTasks((current) => !current)}
+                      className={
+                        showHiddenTasks
+                          ? `${HEADER_BUTTON_CLASS} text-foreground`
+                          : `${HEADER_BUTTON_CLASS} opacity-0 group-hover/tasks-header:opacity-100`
+                      }
+                    >
+                      {showHiddenTasks ? (
+                        <IconEye className="size-4" />
+                      ) : (
+                        <IconEyeOff className="size-4" />
+                      )}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    title="New task"
+                    aria-label="New task"
+                    onClick={() => setCreatingTask(true)}
+                    className={`${HEADER_BUTTON_CLASS} opacity-0 group-hover/tasks-header:opacity-100`}
+                  >
+                    <IconPlus className="size-4" />
+                  </button>
+                </div>
               </div>
+              {creatingTask && (
+                <NewTaskInput
+                  existingNames={tasks.map((task) => task.name)}
+                  onCreateTask={onCreateTask}
+                  onUpdateTask={onUpdateTask}
+                  onCancel={() => setCreatingTask(false)}
+                />
+              )}
               <SidebarGroupContent className="max-h-72 overflow-x-hidden overflow-y-auto no-scrollbar">
                 <TaskList
                   tasks={tasks}
+                  showHidden={showHiddenTasks}
                   sessions={sessions}
                   selectedSessionPath={selectedSessionPath}
                   relativeTimeBase={relativeTimeBase}
@@ -407,12 +601,6 @@ export default memo(function Sidebar({
           </SidebarMenu>
         </SidebarFooter>
       </ShadcnSidebar>
-      <NewTaskDialog
-        open={newTaskOpen}
-        onOpenChange={setNewTaskOpen}
-        existingNames={tasks.map((task) => task.name)}
-        onCreateTask={onCreateTask}
-      />
     </TooltipProvider>
   );
 });

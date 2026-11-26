@@ -27,6 +27,7 @@ import type {
   ProjectSessionsChunk,
   ProjectStateResult,
   ListTasksResult,
+  PickDirectoryResult,
   TaskDirSource,
   TaskResult,
   TaskUpdate,
@@ -171,6 +172,11 @@ export async function reportTaskDirs(
   source: TaskDirSource,
 ): Promise<TaskResult> {
   return window.piApi.reportTaskDirs(taskPath, paths, source);
+}
+
+/** Native directory picker with no side effects; null path means canceled. */
+export async function pickDirectory(): Promise<PickDirectoryResult> {
+  return window.piApi.pickDirectory();
 }
 
 /** cwds recently sent to the session worker; cleared after a short TTL */

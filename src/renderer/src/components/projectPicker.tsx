@@ -23,10 +23,18 @@ export interface TaskPickerProjects {
   workDirs: string[];
 }
 
+/** A task the picker offers as a workspace to switch to (new-session composer). */
+export interface TaskPickerItem {
+  path: string;
+  name: string;
+  emoji: string | null;
+}
+
 interface PickerEntry {
   path: string;
   name: string;
-  section: 'workdir' | 'task' | 'project';
+  emoji?: string | null;
+  section: 'workdir' | 'task' | 'tasklist' | 'project';
 }
 
 /**
@@ -40,6 +48,7 @@ export function ProjectPicker({
   hashActive = false,
   recentProjects,
   taskProjects = null,
+  pickerTasks = [],
   selectedProjectPath,
   onSelectProject,
   forceOpen,
@@ -50,6 +59,8 @@ export function ProjectPicker({
   hashActive?: boolean;
   recentProjects: ProjectDirectory[];
   taskProjects?: TaskPickerProjects | null;
+  /** Tasks offered as workspaces (the new-session composer); searchable by name. */
+  pickerTasks?: TaskPickerItem[];
   /** Marks the list's current entry; the sidebar also shows it as the trigger title. */
   selectedProjectPath?: string | null;
   onSelectProject: (path: string) => void;
@@ -81,19 +92,23 @@ export function ProjectPicker({
       section: 'workdir' as const,
     }));
     const task = taskProjects ? [{ ...taskProjects.task, section: 'task' as const }] : [];
-    // A recent project that is also a task work dir shows once, in the task section.
     const taskPaths = new Set([
       ...(taskProjects?.workDirs ?? []),
       ...(taskProjects ? [taskProjects.task.path] : []),
     ]);
+    // Other tasks join as workspaces, skipping the one already shown above.
+    const otherTasks = pickerTasks
+      .filter((pickerTask) => !taskPaths.has(pickerTask.path))
+      .map((pickerTask) => ({ ...pickerTask, section: 'tasklist' as const }));
+    // A recent project that is also a task work dir shows once, in the task section.
     const projects = recentProjects
       .filter((project) => !taskPaths.has(project.path))
       .map((project) => ({
         ...project,
         section: 'project' as const,
       }));
-    return [...workDirs, ...task, ...projects];
-  }, [taskProjects, recentProjects]);
+    return [...workDirs, ...task, ...otherTasks, ...projects];
+  }, [taskProjects, pickerTasks, recentProjects]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return entries;
@@ -113,8 +128,12 @@ export function ProjectPicker({
         handleOpenChange(false);
       }}
     >
-      {entry.section === 'task' ? (
-        <IconListCheck className="size-4 shrink-0 text-muted-foreground" />
+      {entry.section === 'task' || entry.section === 'tasklist' ? (
+        entry.section === 'tasklist' && entry.emoji ? (
+          <span className="size-4 shrink-0 text-center text-body leading-none">{entry.emoji}</span>
+        ) : (
+          <IconListCheck className="size-4 shrink-0 text-muted-foreground" />
+        )
       ) : (
         <IconFolderOpen
           className={cn(
@@ -183,7 +202,7 @@ export function ProjectPicker({
               <CommandGroup>{filtered.map(renderEntry)}</CommandGroup>
             ) : (
               <>
-                {taskProjects && (
+                {filtered.some((entry) => entry.section !== 'project') && (
                   <>
                     <CommandGroup>
                       {filtered.filter((entry) => entry.section !== 'project').map(renderEntry)}

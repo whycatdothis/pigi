@@ -277,6 +277,14 @@ function App(): React.JSX.Element {
     const task = tasks.find((candidate) => candidate.path === activeTaskCwd);
     return task ? { task: { path: task.path, name: task.name }, workDirs: task.workDirs } : null;
   }, [tasks, activeTaskCwd]);
+  // The new-session composer's task workspaces; hidden tasks stay out of it.
+  const pickerTasks = useMemo(
+    () =>
+      tasks
+        .filter((task) => !task.hidden)
+        .map((task) => ({ path: task.path, name: task.name, emoji: task.emoji })),
+    [tasks],
+  );
   // What the session works in. Quotes from another project need an absolute
   // reference, because the agent resolves relative paths against this one.
   const sessionProjectPath = activeSession?.cwd ?? activeProjectPath;
@@ -1671,6 +1679,18 @@ function App(): React.JSX.Element {
     [handleUpdateTask],
   );
 
+  /** A switcher task pick: resume its latest chat, or start one when it has none. */
+  const handleSelectTaskFromSwitcher = useCallback(
+    (taskPath: string) => {
+      const latest = (projectSessions[taskPath] ?? [])
+        .filter((session) => !session.isSubagent)
+        .sort((a, b) => (b.modified || b.created).localeCompare(a.modified || a.created))[0];
+      if (latest) void handleResumeSession(latest);
+      else handleNewSessionForProject(taskPath);
+    },
+    [projectSessions, handleResumeSession, handleNewSessionForProject],
+  );
+
   const handleLogin = useCallback(async () => {
     let sessionPath = activeSessionPath;
     if (!sessionPath) {
@@ -2199,6 +2219,7 @@ function App(): React.JSX.Element {
                               userHistory={draftUserHistory}
                               isNewSession
                               recentProjects={recentProjects}
+                              pickerTasks={pickerTasks}
                               activeProject={activeProject}
                               onSelectProject={handleSelectProject}
                             />
@@ -2319,6 +2340,8 @@ function App(): React.JSX.Element {
                 void handleResumeSession(session);
               }
             }}
+            tasks={tasks}
+            onSelectTask={handleSelectTaskFromSwitcher}
             open={switcherOpen}
             onOpenChange={setSwitcherOpen}
             container={switcherContainer}
