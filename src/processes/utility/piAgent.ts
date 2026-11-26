@@ -450,7 +450,7 @@ function autoRenameOnce(
   const capturedSessionManager = session.sessionManager;
   const capturedCwd = process.cwd();
   const capturedSnippets = snippets;
-  void generateSessionTitle(capturedSnippets, rt.services.modelRuntime, sessionProvider).then(
+  void generateSessionTitle(capturedSnippets, rt.services.modelRuntime, sessionProvider, session.extensionRunner).then(
     (title) => {
       if (title && runtime?.session.sessionManager === capturedSessionManager) {
         capturedSessionManager.appendSessionInfo(title);
