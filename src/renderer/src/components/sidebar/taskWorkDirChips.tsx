@@ -55,8 +55,8 @@ export function TaskWorkDirChips({
   }, [newDir, onUpdateTask, task.path]);
 
   return (
-    <div className="relative flex h-6 items-center pr-1 pl-6">
-      <div ref={chipsRef} className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+    <div className="relative flex h-6 items-center gap-1 pr-1 pl-6">
+      <div ref={chipsRef} className="flex min-w-0 items-center gap-1 overflow-hidden">
         {task.workDirs.map((dir) => (
           <button
             key={dir}
@@ -66,8 +66,8 @@ export function TaskWorkDirChips({
             className={cn(
               CHIP_CLASS_NAME,
               task.activeWorkDir === dir
-                ? 'bg-accent-subtle font-medium text-[var(--system-accent)]'
-                : 'bg-muted/60 text-[var(--system-accent)] hover:bg-muted',
+                ? 'bg-[var(--system-accent)] font-medium text-[var(--system-accent-foreground)]'
+                : 'bg-accent-subtle/70 text-[var(--system-accent)] hover:bg-accent-subtle',
             )}
           >
             <span className="truncate">{baseName(dir)}</span>
@@ -93,7 +93,7 @@ export function TaskWorkDirChips({
               title="Edit working directories"
               className={cn(
                 CHIP_CLASS_NAME,
-                'ml-1 text-muted-foreground hover:bg-muted hover:text-foreground',
+                'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground',
               )}
             >
               {overflowing ? '…' : <IconPlus className="size-3.5" />}

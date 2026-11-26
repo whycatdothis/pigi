@@ -1,10 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
-import { IconLoader2 } from '@tabler/icons-react';
+import { IconHelp, IconLoader2 } from '@tabler/icons-react';
 import { TASK_NAME_PATTERN, type TaskResult } from '../../../../shared/ipcContract';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { SpinningIcon } from '../ui/spinningIcon';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
 interface NewTaskDialogProps {
   open: boolean;
@@ -65,7 +66,38 @@ export function NewTaskDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm" aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>New task</DialogTitle>
+          <div className="flex items-center gap-1.5">
+            <DialogTitle>New task</DialogTitle>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="What is a task"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <IconHelp className="size-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="right"
+                className="max-w-64 flex-col items-start gap-1.5 text-left"
+              >
+                <span>
+                  A task is a workspace on its own, not tied to one project: its sessions are
+                  grouped here in the sidebar.
+                </span>
+                <span>
+                  As you chat, pigi adds directories you mention to the task&apos;s working
+                  directories and suggests ones it notices; wrong ones can be edited or dismissed by
+                  hand.
+                </span>
+                <span>
+                  The task has its own git directory for plans, reviews and notes that belong to no
+                  single repo.
+                </span>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </DialogHeader>
         <div>
           <Input

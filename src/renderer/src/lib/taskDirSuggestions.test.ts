@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../services/piAgentClient', () => ({
   reportTaskDirs: vi.fn(),
@@ -38,8 +38,8 @@ const userNode = (text: string, sentAt: number, filePaths?: string[]): Transcrip
 const toolNode = (
   args: unknown,
   startedAt: number | undefined,
-  status: 'success' | 'cancelled' = 'success',
-): TranscriptNode => ({
+  status: 'running' | 'success' | 'cancelled' = 'success',
+): Extract<TranscriptNode, { role: 'tool' }> => ({
   id: `t${nodeId++}`,
   role: 'tool',
   toolCallId: `c${nodeId}`,
@@ -69,6 +69,10 @@ beforeEach(() => {
   reportMock.mockResolvedValue({ success: true, task });
   useAppStore.setState({ sessions: new Map(), tasks: [task] });
   useAppStore.getState().addSession(sessionPath, task.path);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('startTaskDirSuggestions', () => {
@@ -120,6 +124,58 @@ describe('startTaskDirSuggestions', () => {
 
     expect(reportMock).toHaveBeenCalledTimes(1);
     expect(reportMock).toHaveBeenCalledWith('/tasks/demo', ['/work/beta/src/index.ts'], 'tool');
+  });
+
+  it('reports mid-run on the interval, once per path, and nothing again at run end', async () => {
+    vi.useFakeTimers();
+    const nodes: TranscriptNode[] = [userNode('look at /work/alpha', Date.now())];
+    peekMock.mockReturnValue(controllerWith(nodes));
+    const stop = startTaskDirSuggestions();
+
+    const store = useAppStore.getState();
+    store.updateSession(sessionPath, { status: 'streaming' });
+    await vi.advanceTimersByTimeAsync(1_600);
+    // Still running, yet the prompt's dir is already on its way to main.
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    expect(reportMock).toHaveBeenCalledWith('/tasks/demo', ['/work/alpha'], 'prompt');
+
+    // A dir the tools touch mid-run follows on the next tick.
+    nodes.push(toolNode({ command: 'cat /work/beta/index.ts' }, Date.now()));
+    await vi.advanceTimersByTimeAsync(1_600);
+    expect(reportMock).toHaveBeenCalledTimes(2);
+    expect(reportMock).toHaveBeenCalledWith('/tasks/demo', ['/work/beta/index.ts'], 'tool');
+
+    // A dir that lands after the last tick is still caught by the run-end scan.
+    nodes.push(userNode('one more: /work/gamma', Date.now()));
+    store.updateSession(sessionPath, { status: 'idle' });
+    expect(reportMock).toHaveBeenCalledTimes(3);
+    expect(reportMock).toHaveBeenCalledWith('/tasks/demo', ['/work/gamma'], 'prompt');
+
+    stop();
+    // Teardown clears the interval: a live timer would report this late node.
+    nodes.push(userNode('late /work/delta', Date.now()));
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(reportMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('holds a running tool call until its args finish streaming', async () => {
+    vi.useFakeTimers();
+    const running = toolNode({ command: 'cat /work/alpha/index.ts' }, Date.now(), 'running');
+    const nodes: TranscriptNode[] = [running];
+    peekMock.mockReturnValue(controllerWith(nodes));
+    const stop = startTaskDirSuggestions();
+
+    const store = useAppStore.getState();
+    store.updateSession(sessionPath, { status: 'streaming' });
+    await vi.advanceTimersByTimeAsync(3_200);
+    // Two ticks passed; a running call's args may still be truncated.
+    expect(reportMock).not.toHaveBeenCalled();
+
+    running.status = 'success';
+    await vi.advanceTimersByTimeAsync(1_600);
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    expect(reportMock).toHaveBeenCalledWith('/tasks/demo', ['/work/alpha/index.ts'], 'tool');
+    stop();
   });
 
   it('does nothing for sessions without a transcript controller or a matching task', async () => {

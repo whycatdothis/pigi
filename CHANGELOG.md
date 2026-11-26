@@ -4,7 +4,7 @@
 
 ### Added
 
-- Tasks: a New task button (under New chat) creates a git-initialised directory in ~/.pigi/tasks whose sessions coordinate work across several working directories. The task's sidebar row shows them as accent chips (overflow behind …); the popover edits them and offers directories seen in sessions, which the user accepts or permanently dismisses. Directories the prompt names join outright. A managed block in the task's AGENTS.md tells sessions to treat each working directory as their cwd and to write task documents into the task directory; Files/Git open the task's active working directory, and their project picker lists the task's directories ahead of projects.
+- Tasks: a New task button (under New chat) creates a git-initialised directory in ~/.pigi/tasks whose sessions coordinate work across several working directories. The task's sidebar row shows them as filled accent chips (overflow behind …, the active one solid); the popover edits them and offers directories seen in sessions, which the user accepts or permanently dismisses. Directories the prompt names join outright, appearing within a couple of seconds of the message that mentions them instead of when the run ends. A managed block in the task's AGENTS.md tells sessions to treat each working directory as their cwd and to write task documents into the task directory; Files/Git open the task's active working directory, and their project picker lists the task's directories ahead of projects.
 
 ### Changed
 

@@ -5,10 +5,10 @@
  * sidebar editor offers. Main re-validates everything against disk and the
  * task's tombstones, so extraction here can stay cheap and heuristic.
  *
- * Only nodes from the witnessed run are scanned: a wall-clock watermark at
- * run start, because hydrated history carries its original (old) timestamps
- * while live nodes are stamped with Date.now(). An index cursor would break
- * whenever hydration prepends history mid-run.
+ * Scanning follows the run live on a short interval, so a dir shows up right
+ * after the message that mentioned it instead of at run end. A wall-clock
+ * watermark decides what counts as new: hydrated history carries its original
+ * (old) timestamps while live nodes are stamped with Date.now().
  */
 import { isAgentBusy, useAppStore, type AgentStatus } from '../state/appStore';
 import { peekTranscriptController } from '../hooks/useTranscript';
@@ -20,9 +20,18 @@ const MAX_PATHS_PER_REPORT = 50;
 const MAX_ARGS_DEPTH = 4;
 // The optimistic user node lands in the transcript just before the session
 // status flips to busy, so the watermark must reach slightly into the past.
-// History is hours old; a few seconds of over-reach only re-reports dirs the
-// main side dedupes anyway.
+// History is hours old; the over-reach only re-reports the previous run's
+// tail, which main dedupes against the task's existing lists.
 const RUN_START_GRACE_MS = 10_000;
+const SCAN_INTERVAL_MS = 1_500;
+
+/** One run being followed: how far we scanned and what we already sent. */
+interface RunWatch {
+  watermark: number;
+  reported: Set<string>;
+  timer: ReturnType<typeof setInterval>;
+  scanning: boolean;
+}
 
 function extractFromText(text: string, into: Set<string>): void {
   for (const match of text.matchAll(PATH_TOKEN_PATTERN)) {
@@ -47,40 +56,68 @@ function extractFromArgs(args: unknown, into: Set<string>, depth = 0): void {
   }
 }
 
-async function scanRun(taskPath: string, sessionPath: string, runStartedAt: number): Promise<void> {
+async function scan(taskPath: string, sessionPath: string, watch: RunWatch): Promise<void> {
   const controller = peekTranscriptController(sessionPath);
-  if (!controller) return;
-  const since = runStartedAt - RUN_START_GRACE_MS;
-  const promptPaths = new Set<string>();
-  const toolPaths = new Set<string>();
-  for (const node of controller.state.nodes) {
-    if (node.role === 'user') {
-      if (node.sentAt < since) continue;
-      extractFromText(node.text, promptPaths);
-      for (const filePath of node.filePaths ?? []) promptPaths.add(filePath);
-    } else if (node.role === 'tool' && node.status !== 'cancelled') {
-      if (node.startedAt === undefined || node.startedAt < since) continue;
-      extractFromArgs(node.args, toolPaths);
+  // A slow report must not stack ticks: paths are marked reported only after
+  // the round trip, so two overlapping scans would double-report.
+  if (!controller || watch.scanning) return;
+  watch.scanning = true;
+  try {
+    const promptPaths = new Set<string>();
+    const toolPaths = new Set<string>();
+    let watermark = Date.now();
+    for (const node of controller.state.nodes) {
+      if (node.role === 'user') {
+        if (node.sentAt < watch.watermark) continue;
+        extractFromText(node.text, promptPaths);
+        for (const filePath of node.filePaths ?? []) promptPaths.add(filePath);
+      } else if (node.role === 'tool' && node.status !== 'cancelled') {
+        if (node.startedAt === undefined || node.startedAt < watch.watermark) continue;
+        // Tool args stream in while the call runs; scanning one now would read
+        // truncated args and the watermark would never come back to it.
+        if (node.status === 'running') {
+          watermark = Math.min(watermark, node.startedAt);
+          continue;
+        }
+        extractFromArgs(node.args, toolPaths);
+      }
     }
-  }
-  const cap = (paths: Set<string>): string[] => [...paths].slice(0, MAX_PATHS_PER_REPORT);
-  for (const [paths, source] of [
-    [cap(promptPaths), 'prompt'],
-    [cap(toolPaths), 'tool'],
-  ] as const) {
-    if (paths.length === 0) continue;
-    const result = await reportTaskDirs(taskPath, paths, source);
-    if (result.success) useAppStore.getState().upsertTask(result.task);
+    let settled = true;
+    for (const [paths, source] of [
+      [[...promptPaths], 'prompt'],
+      [[...toolPaths], 'tool'],
+    ] as const) {
+      const fresh = paths
+        .filter((path) => !watch.reported.has(`${source}:${path}`))
+        .slice(0, MAX_PATHS_PER_REPORT);
+      if (fresh.length === 0) continue;
+      const result = await reportTaskDirs(taskPath, fresh, source);
+      if (result.success) {
+        for (const path of fresh) watch.reported.add(`${source}:${path}`);
+        useAppStore.getState().upsertTask(result.task);
+      } else {
+        settled = false;
+      }
+    }
+    // A failed report keeps the old watermark so its paths are retried.
+    if (settled) watch.watermark = watermark;
+  } finally {
+    watch.scanning = false;
   }
 }
 
 /** Subscribes to session status changes; returns the unsubscribe for tests. */
 export function startTaskDirSuggestions(): () => void {
-  // Wall-clock start of the run being watched, per session.
-  const runStartedAtBySession = new Map<string, number>();
+  const watchBySession = new Map<string, RunWatch>();
   const statusBySession = new Map<string, AgentStatus>();
 
-  return useAppStore.subscribe((state, previous) => {
+  const dropWatch = (sessionPath: string): void => {
+    const watch = watchBySession.get(sessionPath);
+    if (watch) clearInterval(watch.timer);
+    watchBySession.delete(sessionPath);
+  };
+
+  const unsubscribe = useAppStore.subscribe((state, previous) => {
     if (state.sessions === previous.sessions) return;
     for (const [sessionPath, entry] of state.sessions) {
       const status = statusBySession.get(sessionPath) ?? 'idle';
@@ -88,18 +125,29 @@ export function startTaskDirSuggestions(): () => void {
       const task = state.tasks.find((candidate) => candidate.path === entry.cwd);
       if (!task || status === entry.status) continue;
       if (isAgentBusy(entry.status) && !isAgentBusy(status)) {
-        runStartedAtBySession.set(sessionPath, Date.now());
+        dropWatch(sessionPath);
+        const watch: RunWatch = {
+          watermark: Date.now() - RUN_START_GRACE_MS,
+          reported: new Set(),
+          timer: setInterval(() => void scan(task.path, sessionPath, watch), SCAN_INTERVAL_MS),
+          scanning: false,
+        };
+        watchBySession.set(sessionPath, watch);
       } else if (!isAgentBusy(entry.status) && isAgentBusy(status)) {
-        const runStartedAt = runStartedAtBySession.get(sessionPath);
-        runStartedAtBySession.delete(sessionPath);
-        if (runStartedAt !== undefined) void scanRun(task.path, sessionPath, runStartedAt);
+        const watch = watchBySession.get(sessionPath);
+        dropWatch(sessionPath);
+        if (watch) void scan(task.path, sessionPath, watch);
       }
     }
     for (const sessionPath of statusBySession.keys()) {
       if (!state.sessions.has(sessionPath)) {
         statusBySession.delete(sessionPath);
-        runStartedAtBySession.delete(sessionPath);
+        dropWatch(sessionPath);
       }
     }
   });
+  return () => {
+    unsubscribe();
+    for (const sessionPath of [...watchBySession.keys()]) dropWatch(sessionPath);
+  };
 }
