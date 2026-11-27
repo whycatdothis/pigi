@@ -109,4 +109,15 @@ describe('writePiSettingsDocument', () => {
     // umask's 0644.
     expect(statSync(path).mode & 0o777).toBe(0o600);
   });
+
+  it('tightens a temp file left behind by a killed write', async () => {
+    // `mode` only applies when the file is created, so a stale `.tmp` would
+    // carry the old permissions through the rename.
+    const path = settingsFile('{}');
+    writeFileSync(`${path}.tmp`, '', { mode: 0o644 });
+
+    await writePiSettingsDocument(path, [{ field: 'compaction.reserveTokens', value: 1 }]);
+
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+  });
 });

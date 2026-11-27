@@ -23,21 +23,49 @@ const LAYERS = [
   { prefix: 'src/cli/', name: 'cli' },
 ];
 
+/** Node builtins, bare or `node:`-prefixed; `fs/promises` counts as `fs`. */
+const NODE_BUILTINS = new Set([
+  'assert',
+  'buffer',
+  'child_process',
+  'crypto',
+  'fs',
+  'http',
+  'https',
+  'net',
+  'os',
+  'path',
+  'process',
+  'stream',
+  'tls',
+  'url',
+  'util',
+  'worker_threads',
+  'zlib',
+]);
+
+function isBuiltin(specifier) {
+  return specifier.startsWith('node:') || NODE_BUILTINS.has(specifier.split('/')[0]);
+}
+
 const RULES = [
   {
     layer: 'renderer',
-    packages: ['electron', 'node:fs', 'node:path', 'node:child_process', 'node:os'],
+    builtins: true,
+    packages: ['electron'],
     forbid: ['src/main/', 'src/preload/', 'src/processes/', 'src/cli/'],
     why: 'the renderer is sandboxed: it reaches the system only through the preload bridge',
   },
   {
     layer: 'shared',
+    builtins: true,
     packages: ['electron'],
     forbid: ['src/main/', 'src/renderer/', 'src/preload/', 'src/processes/', 'src/cli/'],
     why: 'shared code is compiled into both processes and must stay platform-free',
   },
   {
     layer: 'preload',
+    builtins: true,
     forbid: ['src/renderer/', 'src/main/', 'src/processes/', 'src/cli/'],
     why: 'the preload exposes the shared contract, not either side of it',
   },
@@ -50,6 +78,11 @@ const RULES = [
     layer: 'processes',
     forbid: ['src/renderer/', 'src/main/'],
     why: 'a utility process runs the SDK and answers its own port, not the window',
+  },
+  {
+    layer: 'cli',
+    forbid: ['src/renderer/', 'src/preload/'],
+    why: 'the CLI talks to the running app over its socket, not to either side of it',
   },
 ];
 
@@ -66,12 +99,22 @@ function sourceFiles(directory) {
   return files;
 }
 
-/** Every specifier the file imports, from `import`/`export ... from` forms. */
+/**
+ * Every specifier the file imports: `import`/`export ... from`, a bare `import`,
+ * and the dynamic forms. The dynamic ones are the way around a layering rule
+ * that only reads static syntax, and the repository forbids them anyway.
+ */
 function imports(source) {
   const specifiers = [];
   const pattern = /(?:^|\n)\s*(?:import|export)\b[^'"()]*?from\s+['"]([^'"]+)['"]/g;
   for (const match of source.matchAll(pattern)) specifiers.push(match[1]);
   for (const match of source.matchAll(/(?:^|\n)\s*import\s+['"]([^'"]+)['"]/g)) {
+    specifiers.push(match[1]);
+  }
+  for (const match of source.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g)) {
+    specifiers.push(match[1]);
+  }
+  for (const match of source.matchAll(/\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g)) {
     specifiers.push(match[1]);
   }
   return specifiers;
@@ -98,7 +141,9 @@ for (const file of sourceFiles(SOURCE_ROOT)) {
           .split(sep)
           .join('/')
       : null;
-    const badPackage = rule.packages?.includes(packageName) ?? false;
+    const badPackage =
+      (rule.packages?.includes(packageName) ?? false) ||
+      (rule.builtins === true && isBuiltin(specifier));
     const badPath =
       target !== null && (rule.forbid ?? []).some((prefix) => target.startsWith(prefix));
     if (badPackage || badPath) {

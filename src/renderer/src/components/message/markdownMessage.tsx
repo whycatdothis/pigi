@@ -167,6 +167,14 @@ function MarkdownSpan({
   );
 }
 
+/**
+ * `react-markdown` parses inside its own render, so it re-parses whenever it is
+ * rendered — even when the text it is handed did not change. `memo` gives the
+ * streaming throttle something to hold onto: props equal (the plugins are
+ * module constants, the text is the throttled value) and the parse is skipped.
+ */
+const ParsedMarkdown = memo(Markdown);
+
 const markdownComponents: Components = {
   a: MarkdownLink,
   img: MarkdownImage,
@@ -384,6 +392,9 @@ export default memo(function MarkdownMessage({
   // Every batch re-parses the whole message, and the parse is linear in its
   // length; the throttle sizes the interval from the text so a long answer
   // costs a fixed share of the frame budget instead of stalling every frame.
+  // The element is memoized on the drawn text as well: react-markdown parses
+  // inside its own render, so throttling only the input would still pay a
+  // parse per batch while the text stands still.
   const drawnText = useStreamingThrottledValue(
     text,
     isStreaming,
@@ -394,13 +405,13 @@ export default memo(function MarkdownMessage({
       <MarkdownStreamingContext.Provider value={isStreaming}>
         <MarkdownSourceContext.Provider value={drawnText}>
           <MarkdownProjectFileContext.Provider value={projectFile ?? null}>
-            <Markdown
+            <ParsedMarkdown
               remarkPlugins={REMARK_PLUGINS}
               rehypePlugins={linksFilePaths ? CHAT_REHYPE_PLUGINS : REHYPE_PLUGINS}
               components={markdownComponents}
             >
               {drawnText}
-            </Markdown>
+            </ParsedMarkdown>
           </MarkdownProjectFileContext.Provider>
         </MarkdownSourceContext.Provider>
       </MarkdownStreamingContext.Provider>

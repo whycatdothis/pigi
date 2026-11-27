@@ -447,6 +447,24 @@ describe('TranscriptController stream batches', () => {
     expect(toolNode(controller).args).toEqual({ path: '/tmp/a.txt', content: 'hello world' });
   });
 
+  it('ignores an output tail that arrives after the tool finished', () => {
+    const controller = new TranscriptController();
+    startBash(controller);
+    controller.applyStreamBatch({ toolOutput: { 'call-1': 'partial' } });
+    controller.processEvent({
+      type: 'tool_execution_end',
+      toolCallId: 'call-1',
+      toolName: 'bash',
+      result: { content: [{ type: 'text', text: 'final' }] },
+      isError: false,
+    });
+
+    // The card holds the result now; a tail measured from the stream would grow it.
+    controller.applyStreamBatch({ toolOutputDelta: { 'call-1': 'late' } });
+
+    expect(toolNode(controller).output).toBe('final');
+  });
+
   it('ignores a delta for a tool that already finished', () => {
     const controller = new TranscriptController();
     startBash(controller);

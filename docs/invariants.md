@@ -27,8 +27,9 @@ only when something fails when it is broken. The last row is the process.
 | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | The renderer entry, its largest chunk and all JavaScript stay inside their gzip caps           | `node scripts/checkBundleBudget.mjs` (caps in `scripts/bundleBudget.json`)                           |
 | No source file may grow past 800 lines, and none of the files that already did may grow at all | `node scripts/checkFileSize.mjs` (baseline in `scripts/fileSizeBudget.json`)                         |
-| A streaming message is not re-parsed on every batch; the interval scales with the text         | `src/renderer/src/hooks/useStreamingThrottledValue.test.ts`                                          |
+| A streaming message is parsed at most once per throttle interval, and never for unchanged text | `src/renderer/src/components/message/markdownMessageReparse.test.tsx`                                |
 | A streaming code block is tokenized at most once per throttle interval                         | `src/renderer/src/components/message/markdownMessage.test.tsx`                                       |
+| The throttle hook returns the live value the moment streaming stops                            | `src/renderer/src/hooks/useStreamingThrottledValue.test.ts`                                          |
 | Stream batches carry only a tail, never the same value twice, and a truncation replaces it     | `src/processes/utility/streamBatcher.test.ts`, `src/renderer/src/state/transcriptController.test.ts` |
 
 ## Known gaps — reviewed by hand, not checked

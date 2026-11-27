@@ -626,12 +626,22 @@ not an extension of the last one (bash truncates the middle once a command
 passes 2000 lines) replaces the value whole, and the two fields never carry the
 same tool call in one batch, so the renderer can apply them in either order.
 
+A tail is only sent when the renderer holds the value it extends: the first
+snapshot of a tool call travels whole, and a value still waiting in the current
+batch is replaced rather than turned into a tail against a baseline the renderer
+never received (a `write`'s path and its first content land in the same 8ms
+window). After `tool_execution_end` the sending side forgets the call, so its
+next snapshot starts over as a replacement — a tail measured from nothing would
+grow the result the card already holds.
+
 Markdown is the renderer's expensive consumer of these batches: a parse costs
 time linear in the message (41ms at 148KB, measured), so `MarkdownMessage`
 throttles the text it parses while streaming (`useStreamingThrottledValue`,
-80–400ms by length) and draws the live text as soon as streaming stops. Code
-blocks add their own throttle on top, because the write preview highlights
-without a markdown parse in front of it.
+80–400ms by length) and draws the live text as soon as streaming stops. The
+element is also memoized on that drawn text: `react-markdown` parses inside its
+own render, so throttling the input without it would still pay one parse per
+batch while the text stood still. Code blocks add their own throttle on top,
+because the write preview highlights without a markdown parse in front of it.
 
 ### Prompt attachment text contract
 

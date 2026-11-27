@@ -28,6 +28,26 @@ describe('renderer web preferences', () => {
   });
 });
 
+/** The windows that create a renderer; both must take the flags above. */
+const WINDOW_SOURCES = [
+  new URL('./createMainWindow.ts', import.meta.url),
+  new URL('./createUpdateProgressWindow.ts', import.meta.url),
+];
+
+describe('window construction', () => {
+  it('spreads the shared preferences into every renderer window', () => {
+    for (const source of WINDOW_SOURCES) {
+      const text = readFileSync(source, 'utf8');
+      const preferences = text.slice(text.indexOf('webPreferences: {'));
+      expect(preferences).toContain('...RENDERER_SECURITY_PREFERENCES');
+      // A literal in the same object would win over the spread.
+      expect(preferences).not.toMatch(
+        /\b(sandbox|contextIsolation|nodeIntegration|webSecurity|allowRunningInsecureContent):/,
+      );
+    }
+  });
+});
+
 describe('content security policy', () => {
   it('loads scripts only from the app itself', () => {
     const directives = policy();

@@ -3,8 +3,8 @@
  * A file-size ratchet for the four files that already grew until nobody could
  * hold them in their head (`App.tsx`, `transcriptController.ts`, `piAgent.ts`,
  * `chatInput`). A hard 800-line limit would demand a refactor nobody scheduled;
- * a ratchet demands only that nothing gets worse, and it tightens itself as
- * files shrink.
+ * a ratchet demands only that nothing gets worse. Shrinking is recorded by
+ * `--update`, so the new, lower number is a reviewed line in the diff.
  *
  * A new file may not start over the limit, and an existing one may not grow
  * past the number recorded here. `--update` records the current sizes — a

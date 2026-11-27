@@ -9,7 +9,7 @@
  * build, so getting bigger is a deliberate edit to `bundleBudget.json` in the
  * diff — a reviewed decision instead of drift.
  */
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
@@ -22,7 +22,7 @@ const HEADROOM = 1.03;
 /** Gzip bytes of every JavaScript asset, and the entry chunk's own. */
 export function measureBundle() {
   const entryMatch = readFileSync(INDEX_HTML, 'utf8').match(/assets\/(index-[^"']+\.js)/);
-  if (!entryMatch) throw new Error('no entry chunk in out/renderer/index.html');
+  if (!entryMatch) throw new Error(`no entry chunk in ${INDEX_HTML}: run "npm run build" first`);
   const entry = entryMatch[1];
   const chunks = [];
   for (const name of readdirSync(ASSETS_DIRECTORY)) {
@@ -57,7 +57,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       largestChunkGzipBytes: Math.ceil(measured.largest.gzipBytes * HEADROOM),
       totalGzipBytes: Math.ceil(measured.totalGzipBytes * HEADROOM),
     };
-    const { writeFileSync } = await import('node:fs');
     writeFileSync(BUDGET_PATH, `${JSON.stringify(budget, null, 2)}\n`);
     console.log(`Wrote ${BUDGET_PATH.pathname}`);
   }

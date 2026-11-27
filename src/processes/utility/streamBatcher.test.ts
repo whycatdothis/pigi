@@ -26,8 +26,8 @@ describe('tool output', () => {
 
     batcher.setToolOutput('call-1', 'line 1\n');
     batcher.flushNow();
-    // The first snapshot has nothing to extend, so it travels whole.
-    expect(sent).toEqual([{ type: 'stream_batch', toolOutputDelta: { 'call-1': 'line 1\n' } }]);
+    // The first snapshot is the baseline the tails are measured from.
+    expect(sent).toEqual([{ type: 'stream_batch', toolOutput: { 'call-1': 'line 1\n' } }]);
 
     batcher.setToolOutput('call-1', 'line 1\nline 2\n');
     batcher.flushNow();
@@ -49,12 +49,31 @@ describe('tool output', () => {
   it('keeps only the newest value per tool call in one batch', () => {
     const { batcher, sent } = batcherWithPort();
 
+    // Nothing has been flushed, so the renderer has no baseline: the second
+    // value must replace the first in the batch rather than grow a tail onto it.
     batcher.setToolOutput('call-1', 'a');
     batcher.setToolOutput('call-1', 'abc');
     batcher.flushNow();
 
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toEqual({ type: 'stream_batch', toolOutputDelta: { 'call-1': 'abc' } });
+    expect(sent[0]).toEqual({ type: 'stream_batch', toolOutput: { 'call-1': 'abc' } });
+  });
+
+  it('sends a whole value again after the tool it belongs to was forgotten', () => {
+    const { batcher, sent } = batcherWithPort();
+
+    batcher.setToolOutput('call-1', 'line 1\n');
+    batcher.flushNow();
+    // The end event carries the result; the baseline goes with it.
+    batcher.forgetTool('call-1');
+    batcher.setToolOutput('call-1', 'line 1\nline 2\n');
+    batcher.flushNow();
+
+    // A tail here would be appended to the final result by the renderer.
+    expect(sent.at(-1)).toEqual({
+      type: 'stream_batch',
+      toolOutput: { 'call-1': 'line 1\nline 2\n' },
+    });
   });
 });
 
@@ -83,6 +102,25 @@ describe('write args', () => {
       type: 'stream_batch',
       toolArgsContentDelta: { 'call-1': ';' },
     });
+  });
+
+  it('keeps the path when the content arrives in the same batch', () => {
+    const { batcher, sent } = batcherWithPort();
+
+    // The two calls land inside one 8ms window: the first value never left, so
+    // a tail would reach a card that has no args (and no path) at all.
+    batcher.setWriteArgs('call-1', { path: '/tmp/a.ts' });
+    batcher.setWriteArgs('call-1', { path: '/tmp/a.ts', content: 'const abc' });
+    batcher.flushNow();
+
+    expect(sent).toEqual([
+      {
+        type: 'stream_batch',
+        toolArgs: {
+          'call-1': { name: 'write', args: { path: '/tmp/a.ts', content: 'const abc' } },
+        },
+      },
+    ]);
   });
 
   it('sends a whole value again when the arguments are rewritten', () => {

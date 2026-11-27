@@ -262,6 +262,9 @@ Documented, not handled:
   example a permission gate).
 - macOS privacy grants belong to the app: a caller can reach what pigi was
   granted (Documents, Downloads).
+- A request the renderer has taken and not answered holds its slot until the
+  caller disconnects or the window reloads: the in-flight cap turns that into
+  "later callers are refused", not into a timeout.
 
 pi's bash tool is already unrestricted, so the CLI adds little an injected agent
 could not do without it.

@@ -36,7 +36,7 @@ function sourceFiles(directory) {
     const path = join(directory, entry);
     if (statSync(path).isDirectory()) {
       files.push(...sourceFiles(path));
-    } else if (/\.(tsx?|mjs)$/.test(entry)) {
+    } else if (/\.(tsx?|mjs|cjs)$/.test(entry)) {
       files.push(path);
     }
   }

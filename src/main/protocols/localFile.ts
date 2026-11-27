@@ -1,4 +1,5 @@
 import { stat } from 'node:fs/promises';
+import { isAbsolute } from 'node:path';
 
 /**
  * `local-file:` serves images the renderer names — a message's file, a tool's
@@ -23,7 +24,9 @@ export function localFileUrlPath(url: string): string | null {
   } catch {
     return null;
   }
-  return path.startsWith('/') ? path : null;
+  // `isAbsolute` so a Windows drive path (`C:\\…`) is served as well; a
+  // relative one would resolve against the app's own directory.
+  return isAbsolute(path) ? path : null;
 }
 
 /** The path to serve, or null when the URL does not name a readable regular file. */

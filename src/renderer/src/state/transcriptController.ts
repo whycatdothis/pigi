@@ -1068,7 +1068,8 @@ export class TranscriptController {
     if (batch.toolOutputDelta) {
       for (const [toolCallId, delta] of Object.entries(batch.toolOutputDelta)) {
         const found = locateTool(toolCallId);
-        if (found && delta) {
+        // A tail that arrives after the end event would grow the final result.
+        if (found && delta && found.node.status === 'running') {
           this._state.nodes[found.index] = { ...found.node, output: found.node.output + delta };
           changed = true;
         }
@@ -1400,8 +1401,7 @@ export class TranscriptController {
   }
 
   private handleToolUpdate(event: SdkToolExecUpdate): void {
-    // Tool output is handled via StreamBatcher (toolOutput field)
-    // But handle here as fallback
+    // Output arrives through StreamBatcher while a tool runs; this covers the rest.
     if (!event.partialResult) return;
     const text = extractToolResultText(event.partialResult);
     // A codemode script publishes only details while it runs, so the calls it

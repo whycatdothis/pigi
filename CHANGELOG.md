@@ -9,19 +9,18 @@
 
 ### Changed
 
-- A long answer no longer makes the window stutter while it streams: the markdown is re-parsed on an interval sized from its length instead of on every batch (41ms per parse at 148KB, against a 16ms render interval). The text still appears as it arrives; only the re-parse is throttled.
+- A long answer no longer makes the window stutter while it streams: the markdown is parsed on an interval sized from its length instead of on every batch (41ms per parse at 148KB, against a 16ms render interval), and a batch that does not change the drawn text costs no parse at all. The text still appears as it arrives; only the re-parse is throttled.
 - Tool output and the `write` preview send only the text that grew since the last batch. A command printing 50KB and a file being written used to re-send the whole thing tens of times a second.
 - Changing a pi setting no longer forks a new warm session process per click: the stale process is dropped at once, and the replacement is forked once the changes settle.
-- The packages page reuses its health check (updates, load errors) for ten minutes, and re-checks after an install, a removal or an explicit refresh, instead of forking two workers and asking every registry on every visit.
-- A minimal-view session keeps its off-screen turns out of layout and paint, so a long session no longer pays for every row on every frame.
+- The packages page reuses its health check (updates, load errors) for ten minutes, and re-checks after an install, a removal or an explicit refresh, instead of asking every registry and loading every extension on every visit.
 
 ### Fixed
 
-- `local-file://` serves only regular files of at most 64MB: a model-named path or a symlink in a cloned repository could name a device or a multi-gigabyte file and stall the main process while it read it.
-- A package's `pi.image` can no longer point the main process at a private address: loopback, link-local, unique-local and `.local` hosts are refused, and the final URL is checked again after a redirect.
+- `local-file://` serves only regular files of at most 64MB: a model-named path or a symlink in a cloned repository could name a device or a multi-gigabyte file and stall the main process while it read it. On Windows it still serves a drive path, which the first version refused.
+- A package's `pi.image` can no longer point the main process at a private address: loopback, link-local, unique-local and `.local` hosts are refused, including an IPv4 address mapped onto IPv6, and the final URL is checked again after a redirect.
 - The page asks for no web permission it does not need (notifications, geolocation, media, USB): only the clipboard's sanitized write is granted, which is what the copy buttons use.
 - The content security policy forbids objects, frames, form posts and a rewritten base URL, so a markdown or Mermaid bug has less to stand on.
-- pi's settings file is written readable by its owner only; the rename used to publish it with whatever the umask allowed.
+- pi's settings file is written readable by its owner only; the rename used to publish it with whatever the umask allowed, and a temp file left by a killed write kept its old permissions.
 - The CLI socket refuses a caller that parks unbounded work: at most 64 requests wait for a window and 256 are in flight, past which the request is answered instead of held.
 
 ## [0.6.14] - 2026-11-18

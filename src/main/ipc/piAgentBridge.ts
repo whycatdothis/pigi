@@ -703,8 +703,10 @@ export function registerIpcHandlers(): void {
       }));
       // The warm process read the settings file when it started, and a session
       // claimed from it selects its tools and model from that snapshot; drop it
-      // so the next session sees what was just written.
-      if (result.success) {
+      // so the next session sees what was just written. Not while quitting: the
+      // replacement is forked after a debounce, and a fork started during
+      // shutdown outlives the window.
+      if (result.success && !isShuttingDown) {
         processPool.recycleWarmProcess();
       }
       return result;

@@ -6,7 +6,15 @@
  * proper-lockfile scheme the pi TUI uses: a concurrent TUI cannot lose updates,
  * unrelated keys are preserved, and a crash mid-write cannot truncate the file.
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname } from 'node:path';
 import lockfile from 'proper-lockfile';
 import { setPiSettingValue, type PiSettingUpdate } from '../../shared/piSettings';
@@ -61,13 +69,15 @@ export async function writePiSettingsDocument(
     // Written beside the target and renamed into place: a crash mid-write must
     // not leave pi with a truncated config. Mode 0600 from the start: pi's
     // settings can name an API key, and the rename would otherwise publish
-    // whatever the umask allows.
+    // whatever the umask allows. `mode` only applies when the file is created,
+    // so a `.tmp` left behind by a killed write is chmod'ed as well.
     const temporaryPath = `${path}.tmp`;
     try {
       writeFileSync(temporaryPath, JSON.stringify(document, null, 2), {
         encoding: 'utf-8',
         mode: 0o600,
       });
+      chmodSync(temporaryPath, 0o600);
       renameSync(temporaryPath, path);
     } catch (error) {
       // A failed write must not leave the half-written file next to the real one.

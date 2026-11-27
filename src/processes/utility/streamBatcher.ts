@@ -50,13 +50,23 @@ export class StreamBatcher {
   }
 
   setToolOutput(id: string, output: string): void {
-    const previous = this.sentToolOutput.get(id) ?? '';
+    const previous = this.sentToolOutput.get(id);
     this.sentToolOutput.set(id, output);
     // A tool's output is cumulative; a snapshot that extends the last one only
     // needs its tail. A truncated snapshot (bash keeps head and tail) is not an
     // extension and replaces the whole value, as before. Only the newest value
     // travels per tool call, so the two fields never disagree in one batch.
-    if (output.startsWith(previous)) {
+    // The first snapshot is a replacement too: it is the baseline the tails
+    // are appended to, and after forgetTool there is no baseline again — a tail
+    // measured from nothing would duplicate the whole output on the other side.
+    // A value still waiting in this batch never reached the renderer, so a tail
+    // measured from it would be appended to nothing: keep the whole one.
+    if (this.batch.toolOutput?.[id] !== undefined) {
+      this.batch.toolOutput[id] = output;
+      this.markDirty();
+      return;
+    }
+    if (previous !== undefined && output.startsWith(previous)) {
       if (this.batch.toolOutput) delete this.batch.toolOutput[id];
       if (!this.batch.toolOutputDelta) this.batch.toolOutputDelta = {};
       this.batch.toolOutputDelta[id] =
@@ -75,6 +85,12 @@ export class StreamBatcher {
     const previous = this.sentWriteArgs.get(toolCallId);
     const path = args.path ?? previous?.path;
     this.sentWriteArgs.set(toolCallId, { path, content });
+    // Nothing of this call's args has reached the renderer yet, so there is no
+    // baseline to grow a tail onto: the newest value replaces the pending one.
+    if (this.batch.toolArgs?.[toolCallId] !== undefined) {
+      this.setToolArgs(toolCallId, { name: 'write', args: { path, content } });
+      return;
+    }
     if (
       previous !== undefined &&
       path === previous.path &&

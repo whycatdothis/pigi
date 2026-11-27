@@ -247,11 +247,28 @@ export function isFetchableImageUrl(value: string): boolean {
   return /^https?:$/.test(url.protocol) && !isPrivateHostname(url.hostname);
 }
 
-/** Literal private addresses and the names that always resolve to one. */
+/**
+ * Literal private addresses and the names that always resolve to one. Hostnames
+ * only: whether a public name resolves to a private address is a question only
+ * the network can answer, and this runs before the request.
+ */
 function isPrivateHostname(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) {
     return true;
+  }
+  // IPv4 mapped onto IPv6 reaches the same stack as the plain address. The URL
+  // parser normalizes `[::ffff:127.0.0.1]` to `[::ffff:7f00:1]`, so the last
+  // two groups are the four octets. Anything else in this form is refused too:
+  // no public image is served from an IPv4-mapped literal.
+  if (host.startsWith('::ffff:')) {
+    const [high, low] = host.slice('::ffff:'.length).split(':');
+    const highValue = Number.parseInt(high ?? '', 16);
+    const lowValue = Number.parseInt(low ?? '', 16);
+    if (!Number.isFinite(highValue) || !Number.isFinite(lowValue)) return true;
+    return isPrivateHostname(
+      [highValue >> 8, highValue & 0xff, lowValue >> 8, lowValue & 0xff].join('.'),
+    );
   }
   const octets = host.split('.');
   if (octets.length === 4 && octets.every((part) => /^\d{1,3}$/.test(part))) {

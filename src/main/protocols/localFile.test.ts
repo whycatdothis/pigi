@@ -23,6 +23,13 @@ describe('localFileUrlPath', () => {
     expect(localFileUrlPath(`${url('/a/b c.png')}?v=2`)).toBe('/a/b c.png');
   });
 
+  it('lets the platform decide what is absolute', () => {
+    // The renderer appends whatever path it was given: on Windows that is
+    // `C:\Users\…`, and a POSIX-only prefix check 404s every image there.
+    const drivePath = localFileUrlPath(url('C:\\Users\\me\\shot.png'));
+    expect(drivePath === null).toBe(process.platform !== 'win32');
+  });
+
   it('refuses other schemes, relative paths and malformed escapes', () => {
     expect(localFileUrlPath('file:///etc/passwd')).toBeNull();
     expect(localFileUrlPath('local-file://')).toBeNull();
