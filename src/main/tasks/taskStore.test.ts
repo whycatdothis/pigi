@@ -261,6 +261,67 @@ describe('reportTaskDirs', () => {
   });
 });
 
+describe('dirLog', () => {
+  it('records directory-list changes with action and source, newest last', async () => {
+    const task = await createTask('task-foo', root);
+    const workC = mkdtempSync(join(tmpdir(), 'pigi-work-c-'));
+    const suggested = join(workA, 'sub');
+    mkdirSync(suggested);
+
+    await updateTask(task.path, { addWorkDirs: [workA] }, root);
+    await reportTaskDirs(task.path, [workB], 'prompt', root);
+    await reportTaskDirs(task.path, [workC], 'model', root);
+    await reportTaskDirs(task.path, [suggested], 'tool', root);
+    await updateTask(task.path, { ignoreSuggestedDirs: [suggested] }, root);
+    await updateTask(task.path, { removeWorkDirs: [workA] }, root);
+
+    const [listed] = await listTasks(root);
+    const events = listed.dirLog.map(({ dir, action, source }) => ({ dir, action, source }));
+    expect(events).toEqual([
+      { dir: workA, action: 'added', source: 'manual' },
+      { dir: workB, action: 'added', source: 'prompt' },
+      { dir: workC, action: 'added', source: 'model' },
+      { dir: suggested, action: 'dismissed', source: 'manual' },
+      { dir: workA, action: 'removed', source: 'manual' },
+    ]);
+    rmSync(workC, { recursive: true, force: true });
+  });
+
+  it('caps the log at fifty entries, keeping the newest', async () => {
+    const task = await createTask('task-foo', root);
+    for (let i = 0; i < 55; i++) {
+      await updateTask(task.path, { addWorkDirs: [workA] }, root);
+    }
+    const [listed] = await listTasks(root);
+    expect(listed.dirLog).toHaveLength(50);
+  });
+
+  it('drops malformed log entries but keeps the rest of the file readable', async () => {
+    const taskPath = join(root, 'logged');
+    mkdirSync(join(taskPath, '.pigi'), { recursive: true });
+    writeFileSync(
+      join(taskPath, '.pigi', 'task.json'),
+      JSON.stringify({
+        workDirs: [],
+        removedDirs: [],
+        suggestedDirs: [],
+        activeWorkDir: null,
+        dirLog: [
+          { dir: '/ok', action: 'added', source: 'manual', at: 1 },
+          { dir: '/bad-action', action: 'exploded', source: 'manual', at: 2 },
+          { dir: '/bad-source', action: 'added', source: 'ghost', at: 3 },
+          { dir: 42, action: 'added', source: 'manual', at: 4 },
+          'junk',
+        ],
+      }),
+      'utf8',
+    );
+
+    const [listed] = await listTasks(root);
+    expect(listed.dirLog).toEqual([{ dir: '/ok', action: 'added', source: 'manual', at: 1 }]);
+  });
+});
+
 describe('replaceWorkDirsBlock', () => {
   it('replaces between markers and appends when they are gone', () => {
     const withMarkers =

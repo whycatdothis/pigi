@@ -3,19 +3,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../services/piAgentClient', () => ({
   reportTaskDirs: vi.fn(),
+  classifyTaskDirs: vi.fn(),
 }));
 vi.mock('../hooks/useTranscript', () => ({
   peekTranscriptController: vi.fn(),
 }));
 
 import { peekTranscriptController } from '../hooks/useTranscript';
-import { reportTaskDirs } from '../services/piAgentClient';
+import { classifyTaskDirs, reportTaskDirs } from '../services/piAgentClient';
 import { useAppStore } from '../state/appStore';
 import type { TaskInfo } from '../../../shared/ipcContract';
 import type { TranscriptController, TranscriptNode } from '../state/transcriptController';
 import { startTaskDirSuggestions } from './taskDirSuggestions';
 
 const reportMock = vi.mocked(reportTaskDirs);
+const classifyMock = vi.mocked(classifyTaskDirs);
 const peekMock = vi.mocked(peekTranscriptController);
 
 const task: TaskInfo = {
@@ -24,6 +26,7 @@ const task: TaskInfo = {
   workDirs: [],
   suggestedDirs: [],
   activeWorkDir: null,
+  dirLog: [],
   hidden: false,
   emoji: null,
 };
@@ -53,6 +56,19 @@ const toolNode = (
   startedAt,
 });
 
+const assistantNode = (
+  text: string,
+  startedAt: number | undefined,
+  isStreaming = false,
+): Extract<TranscriptNode, { role: 'assistant' }> => ({
+  id: `a${nodeId++}`,
+  role: 'assistant',
+  text,
+  thinking: '',
+  isStreaming,
+  messageStartedAt: startedAt,
+});
+
 function controllerWith(nodes: TranscriptNode[]): TranscriptController {
   // The watcher only reads state.nodes; a real controller needs session plumbing.
   return { state: { nodes } } as TranscriptController;
@@ -69,6 +85,8 @@ function runSession(): void {
 beforeEach(() => {
   vi.clearAllMocks();
   reportMock.mockResolvedValue({ success: true, task });
+  // The default verdict promotes nothing, so the heuristic-only assertions hold.
+  classifyMock.mockResolvedValue({ success: true, verdicts: [] });
   useAppStore.setState({ sessions: new Map(), tasks: [task] });
   useAppStore.getState().addSession(sessionPath, task.path);
 });
@@ -191,5 +209,118 @@ describe('startTaskDirSuggestions', () => {
     stop();
 
     expect(reportMock).not.toHaveBeenCalled();
+  });
+
+  it('suggests assistant-mentioned dirs and feeds them to the classifier with context', async () => {
+    peekMock.mockReturnValue(
+      controllerWith([assistantNode('我先修改 /work/beta 里的模块，再跑测试', Date.now())]),
+    );
+    const stop = startTaskDirSuggestions();
+    runSession();
+    // The classify chain (scan → classify → maybe report) is all microtasks.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    stop();
+
+    expect(reportMock).toHaveBeenCalledWith('/tasks/demo', ['/work/beta'], 'tool');
+    expect(classifyMock).toHaveBeenCalledTimes(1);
+    expect(classifyMock).toHaveBeenCalledWith(sessionPath, {
+      taskName: 'demo',
+      workDirs: [],
+      historyDirs: [],
+      dirLog: [],
+      candidates: [
+        {
+          dir: '/work/beta',
+          seenIn: 'assistant',
+          context: '我先修改 /work/beta 里的模块，再跑测试',
+        },
+      ],
+    });
+  });
+
+  it('holds a streaming assistant message until the text settles', async () => {
+    vi.useFakeTimers();
+    const streaming = assistantNode('working in /work/alpha', Date.now(), true);
+    const nodes: TranscriptNode[] = [streaming];
+    peekMock.mockReturnValue(controllerWith(nodes));
+    const stop = startTaskDirSuggestions();
+
+    const store = useAppStore.getState();
+    store.updateSession(sessionPath, { status: 'streaming' });
+    await vi.advanceTimersByTimeAsync(3_200);
+    // Two ticks passed; a streaming message's tail may still be missing.
+    expect(reportMock).not.toHaveBeenCalled();
+
+    streaming.isStreaming = false;
+    await vi.advanceTimersByTimeAsync(1_600);
+    expect(reportMock).toHaveBeenCalledWith('/tasks/demo', ['/work/alpha'], 'tool');
+    stop();
+  });
+
+  it('promotes confident verdicts to working directories at run end', async () => {
+    peekMock.mockReturnValue(
+      controllerWith([
+        userNode('hello', Date.now()),
+        toolNode({ command: 'cd /work/alpha && npm test' }, Date.now()),
+      ]),
+    );
+    classifyMock.mockResolvedValue({
+      success: true,
+      verdicts: [
+        { dir: '/work/alpha', p: 0.9 },
+        // A hallucinated dir: confident, but never observed, so never promoted.
+        { dir: '/work/alpha-never-seen', p: 0.95 },
+      ],
+    });
+    const stop = startTaskDirSuggestions();
+    runSession();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    stop();
+
+    expect(classifyMock).toHaveBeenCalledTimes(1);
+    expect(classifyMock).toHaveBeenCalledWith(sessionPath, {
+      taskName: 'demo',
+      workDirs: [],
+      historyDirs: [],
+      dirLog: [],
+      candidates: [{ dir: '/work/alpha', seenIn: 'tool', context: 'cd /work/alpha && npm test' }],
+    });
+    expect(reportMock).toHaveBeenCalledWith('/tasks/demo', ['/work/alpha'], 'model');
+  });
+
+  it('keeps only the heuristic suggestions when classification fails', async () => {
+    peekMock.mockReturnValue(controllerWith([toolNode({ command: 'ls /work/alpha' }, Date.now())]));
+    classifyMock.mockResolvedValue({ success: false, error: 'no model available' });
+    const stop = startTaskDirSuggestions();
+    runSession();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    stop();
+
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    expect(reportMock).toHaveBeenCalledWith('/tasks/demo', ['/work/alpha'], 'tool');
+  });
+
+  it('does not classify a dir the run itself already added', async () => {
+    // The prompt names /work/alpha (auto-added); a tool call touches it too,
+    // so it sits in both buckets by run end.
+    peekMock.mockReturnValue(
+      controllerWith([
+        userNode('fix /work/alpha', Date.now()),
+        toolNode({ command: 'cd /work/alpha && ls' }, Date.now()),
+      ]),
+    );
+    // Main returns the accumulated task each time; upserting a stale shape
+    // would clobber the prompt's add before the classifier reads the store.
+    let workDirs: string[] = [];
+    reportMock.mockImplementation(async (_taskPath, paths, source) => {
+      if (source === 'prompt' || source === 'model') workDirs = [...workDirs, ...paths];
+      return { success: true, task: { ...task, workDirs } };
+    });
+    const stop = startTaskDirSuggestions();
+    runSession();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    stop();
+
+    expect(classifyMock).not.toHaveBeenCalled();
   });
 });

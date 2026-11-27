@@ -50,6 +50,7 @@ import type {
 } from '../../shared/ipcContract';
 import { toModelInfo } from '../../shared/modelInfo';
 import { generateSessionTitle } from './autoRename';
+import { classifyTaskDirs } from './taskDirClassifier';
 import { createModelRuntime } from './fileCredentialStore';
 import { collectCacheWarmEntries } from './sessionEntries';
 import { buildPromptContent, hasPromptContent, type BuiltPromptContent } from './promptAttachments';
@@ -450,14 +451,17 @@ function autoRenameOnce(
   const capturedSessionManager = session.sessionManager;
   const capturedCwd = process.cwd();
   const capturedSnippets = snippets;
-  void generateSessionTitle(capturedSnippets, rt.services.modelRuntime, sessionProvider, session.extensionRunner).then(
-    (title) => {
-      if (title && runtime?.session.sessionManager === capturedSessionManager) {
-        capturedSessionManager.appendSessionInfo(title);
-        push({ type: 'auto_title', title, cwd: capturedCwd });
-      }
-    },
-  );
+  void generateSessionTitle(
+    capturedSnippets,
+    rt.services.modelRuntime,
+    sessionProvider,
+    session.extensionRunner,
+  ).then((title) => {
+    if (title && runtime?.session.sessionManager === capturedSessionManager) {
+      capturedSessionManager.appendSessionInfo(title);
+      push({ type: 'auto_title', title, cwd: capturedCwd });
+    }
+  });
 }
 
 function subscribeToSession(rt: AgentSessionRuntime, port: Port, batch: StreamBatcher): () => void {
@@ -877,6 +881,27 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
       }
       runtime.session.sessionManager.appendSessionInfo(command.name.trim());
       return { success: true };
+    }
+
+    case 'classify_task_dirs': {
+      // A side call, not a turn: the run just ended, so the provider path is
+      // warm and the session is idle. Failure only means the caller keeps its
+      // heuristic suggestions.
+      const verdicts = await classifyTaskDirs(
+        {
+          taskName: command.taskName,
+          workDirs: command.workDirs,
+          historyDirs: command.historyDirs,
+          dirLog: command.dirLog,
+          candidates: command.candidates,
+        },
+        runtime.services.modelRuntime,
+        runtime.session.model?.provider,
+        runtime.session.extensionRunner,
+      );
+      return verdicts
+        ? { success: true, verdicts }
+        : { success: false, error: 'classification unavailable' };
     }
 
     case 'debug': {

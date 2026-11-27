@@ -28,6 +28,9 @@ import type {
   ProjectStateResult,
   ListTasksResult,
   PickDirectoryResult,
+  ClassifyTaskDirsResult,
+  TaskDirCandidate,
+  TaskDirEvent,
   TaskDirSource,
   TaskResult,
   TaskUpdate,
@@ -172,6 +175,24 @@ export async function reportTaskDirs(
   source: TaskDirSource,
 ): Promise<TaskResult> {
   return window.piApi.reportTaskDirs(taskPath, paths, source);
+}
+
+/**
+ * One batched LLM call on the session's own worker, scoring how likely each
+ * candidate dir belongs to the task's working set. Fired at run end, when the
+ * provider path is warm; a failure result means "keep the heuristics".
+ */
+export async function classifyTaskDirs(
+  sessionPath: string,
+  request: {
+    taskName: string;
+    workDirs: string[];
+    historyDirs: string[];
+    dirLog: TaskDirEvent[];
+    candidates: TaskDirCandidate[];
+  },
+): Promise<ClassifyTaskDirsResult> {
+  return send<ClassifyTaskDirsResult>(sessionPath, { type: 'classify_task_dirs', ...request });
 }
 
 /** Native directory picker with no side effects; null path means canceled. */

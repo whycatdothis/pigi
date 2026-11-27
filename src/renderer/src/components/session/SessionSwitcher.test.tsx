@@ -11,6 +11,7 @@ const task: TaskInfo = {
   workDirs: [],
   suggestedDirs: [],
   activeWorkDir: null,
+  dirLog: [],
   hidden: false,
   emoji: '🚀',
 };

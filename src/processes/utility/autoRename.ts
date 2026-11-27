@@ -20,10 +20,10 @@ const SYSTEM_PROMPT = `You are a session title generator. Given conversation mes
 /** APIs that only work with tools / coding workflows — not suitable for simple text gen. */
 const EXCLUDED_APIS = new Set(['openai-codex-responses']);
 
-const MAX_GLOBAL_ATTEMPTS = 2;
+export const MAX_GLOBAL_ATTEMPTS = 2;
 
 /** Cheapest first, but models with a non-zero cost come before zero-cost ones. */
-function getCandidatesByCost(available: readonly Model<Api>[]): Model<Api>[] {
+export function getCandidatesByCost(available: readonly Model<Api>[]): Model<Api>[] {
   const candidates = available.filter((m) => {
     if (!m.input.includes('text')) return false;
     if (EXCLUDED_APIS.has(m.api)) return false;
@@ -42,7 +42,7 @@ function getCandidatesByCost(available: readonly Model<Api>[]): Model<Api>[] {
   return candidates;
 }
 
-function getCheapestSameProvider(
+export function getCheapestSameProvider(
   candidates: Model<Api>[],
   sessionProvider: string,
 ): Model<Api> | null {

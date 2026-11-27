@@ -7,6 +7,8 @@ import { promisify } from 'node:util';
 import {
   TASK_NAME_ERROR,
   TASK_NAME_PATTERN,
+  type TaskDirEvent,
+  type TaskDirEventSource,
   type TaskDirSource,
   type TaskInfo,
   type TaskUpdate,
@@ -29,17 +31,23 @@ interface TaskConfig {
   removedDirs: string[];
   suggestedDirs: string[];
   activeWorkDir: string | null;
+  /** Append-only feedback for the classifier; capped, newest last. */
+  dirLog: TaskDirEvent[];
   /** Display-name override; absent means the directory name. */
   name?: string;
   hidden?: boolean;
   emoji?: string | null;
 }
 
+// Enough to teach the classifier, small enough that task.json stays a note.
+const MAX_DIR_LOG = 50;
+
 const emptyConfig = (): TaskConfig => ({
   workDirs: [],
   removedDirs: [],
   suggestedDirs: [],
   activeWorkDir: null,
+  dirLog: [],
 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -56,11 +64,35 @@ function normalizeDir(dir: string): string {
 
 const dedupe = (dirs: string[]): string[] => [...new Set(dirs)];
 
+const isDirEventAction = (value: unknown): value is TaskDirEvent['action'] =>
+  value === 'added' || value === 'removed' || value === 'dismissed';
+
+const isDirEventSource = (value: unknown): value is TaskDirEventSource =>
+  value === 'manual' || value === 'prompt' || value === 'model';
+
+// Malformed entries drop individually: the log is advisory, never worth
+// rebuilding the whole file over.
+function parseDirLog(value: unknown): TaskDirEvent[] {
+  if (!Array.isArray(value)) return [];
+  const events: TaskDirEvent[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) continue;
+    const { dir, action, source, at } = entry;
+    if (typeof dir !== 'string' || typeof at !== 'number') continue;
+    if (!isDirEventAction(action) || !isDirEventSource(source)) continue;
+    const normalized = normalizeDir(dir);
+    if (!isAbsolute(normalized)) continue;
+    events.push({ dir: normalized, action, source, at });
+  }
+  return events.slice(-MAX_DIR_LOG);
+}
+
 function parseConfig(raw: string): TaskConfig | null {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed)) return null;
-    const { workDirs, removedDirs, suggestedDirs, activeWorkDir, name, hidden, emoji } = parsed;
+    const { workDirs, removedDirs, suggestedDirs, activeWorkDir, dirLog, name, hidden, emoji } =
+      parsed;
     if (
       !isStringList(workDirs) ||
       !isStringList(removedDirs) ||
@@ -79,6 +111,7 @@ function parseConfig(raw: string): TaskConfig | null {
       suggestedDirs: cleanDirs(suggestedDirs).filter((dir) => !cleanWorkDirs.includes(dir)),
       // An active dir that is no longer a work dir has nothing to point at.
       activeWorkDir: cleanActive && cleanWorkDirs.includes(cleanActive) ? cleanActive : null,
+      dirLog: parseDirLog(dirLog),
       // Optional identity fields: a wrong type drops the field, not the file.
       ...(typeof name === 'string' && TASK_NAME_PATTERN.test(name) ? { name } : {}),
       ...(typeof hidden === 'boolean' ? { hidden } : {}),
@@ -205,6 +238,20 @@ async function ensureGitignore(taskDir: string): Promise<void> {
   await writeFile(file, `${current}${separator}${STATE_DIR}/\n`, 'utf8');
 }
 
+// The classifier's feedback loop: every mutation of the directory lists
+// appends one event, so the next run's verdicts see what the user kept and
+// what they threw out.
+function recordDirEvent(
+  config: TaskConfig,
+  dir: string,
+  action: TaskDirEvent['action'],
+  source: TaskDirEventSource,
+): void {
+  config.dirLog.push({ dir, action, source, at: Date.now() });
+  if (config.dirLog.length > MAX_DIR_LOG)
+    config.dirLog.splice(0, config.dirLog.length - MAX_DIR_LOG);
+}
+
 function toTaskInfo(dirName: string, taskDir: string, config: TaskConfig): TaskInfo {
   return {
     name: config.name ?? dirName,
@@ -212,6 +259,7 @@ function toTaskInfo(dirName: string, taskDir: string, config: TaskConfig): TaskI
     workDirs: config.workDirs,
     suggestedDirs: config.suggestedDirs,
     activeWorkDir: config.activeWorkDir,
+    dirLog: config.dirLog,
     hidden: config.hidden ?? false,
     emoji: config.emoji ?? null,
   };
@@ -399,14 +447,17 @@ export async function updateTask(
       tombstone(config, dir);
       config.workDirs = config.workDirs.filter((entry) => entry !== dir);
       config.suggestedDirs = config.suggestedDirs.filter((entry) => entry !== dir);
+      recordDirEvent(config, dir, 'removed', 'manual');
     }
     for (const dir of (update.ignoreSuggestedDirs ?? []).map(normalizeDir)) {
       tombstone(config, dir);
       config.suggestedDirs = config.suggestedDirs.filter((entry) => entry !== dir);
+      recordDirEvent(config, dir, 'dismissed', 'manual');
     }
     for (const dir of update.addWorkDirs ?? []) {
       const normalized = await prepareAdd(dir, taskDir);
       addToConfig(config, normalized);
+      recordDirEvent(config, normalized, 'added', 'manual');
     }
 
     if (update.renameTo !== undefined) {
@@ -474,8 +525,9 @@ export async function reportTaskDirs(
       if (await includesDir(config.workDirs, dir)) continue;
       if (config.workDirs.some((workDir) => isUnder(dir, workDir))) continue;
 
-      if (source === 'prompt') {
+      if (source === 'prompt' || source === 'model') {
         addToConfig(config, dir);
+        recordDirEvent(config, dir, 'added', source);
         workDirsChanged = true;
       } else {
         if (config.suggestedDirs.includes(dir)) continue;

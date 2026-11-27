@@ -22,6 +22,7 @@ const task: TaskInfo = {
   workDirs: ['/repo/alpha'],
   suggestedDirs: [],
   activeWorkDir: null,
+  dirLog: [],
   hidden: false,
   emoji: null,
 };
@@ -32,6 +33,7 @@ const otherTask: TaskInfo = {
   workDirs: ['/repo/from-other-task'],
   suggestedDirs: [],
   activeWorkDir: null,
+  dirLog: [],
   hidden: false,
   emoji: null,
 };

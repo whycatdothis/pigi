@@ -82,6 +82,8 @@ export interface TaskInfo {
   suggestedDirs: string[];
   /** The work dir Files/Git open for this task; null opens the task directory. */
   activeWorkDir: string | null;
+  /** Recent changes to the directory lists, newest last; the classifier's feedback loop. */
+  dirLog: TaskDirEvent[];
   /** Hidden tasks leave the sidebar's default list but stay searchable. */
   hidden: boolean;
   /** The task's sidebar icon; null falls back to the generic task icon. */
@@ -127,8 +129,48 @@ export type PickDirectoryResult =
 
 export type TaskResult = { success: true; task: TaskInfo } | { success: false; error: string };
 
-/** Where a reported path was seen: the user's own words add outright, tool calls only suggest. */
-export type TaskDirSource = 'prompt' | 'tool';
+/**
+ * Where a reported path was seen: the user's own words add outright, the
+ * run-end classifier's confident picks add outright too, and anything only
+ * observed (tool calls, assistant messages) becomes a suggestion.
+ */
+export type TaskDirSource = 'prompt' | 'tool' | 'model';
+
+/** Who changed a task's directory lists: the user's hand, a prompt's words, or the classifier. */
+export type TaskDirEventSource = 'manual' | 'prompt' | 'model';
+
+/**
+ * One change to a task's directory lists, kept as classifier feedback: adds
+ * are confirmed ground truth, removals and dismissals are negative examples.
+ */
+export interface TaskDirEvent {
+  dir: string;
+  action: 'added' | 'removed' | 'dismissed';
+  source: TaskDirEventSource;
+  /** Epoch ms. */
+  at: number;
+}
+
+/**
+ * A directory the run-end classifier judges, with the evidence that raised it.
+ */
+export interface TaskDirCandidate {
+  dir: string;
+  /** Tool args or assistant prose — prompt-mentioned dirs never need classifying. */
+  seenIn: 'tool' | 'assistant';
+  /** Short snippet around the mention, so the model sees how the dir was used. */
+  context: string;
+}
+
+/** The classifier's verdict for one candidate: probability it is a working directory. */
+export interface TaskDirVerdict {
+  dir: string;
+  p: number;
+}
+
+export type ClassifyTaskDirsResult =
+  | { success: true; verdicts: TaskDirVerdict[] }
+  | { success: false; error: string };
 
 export type ChatAttachmentKind = 'image' | 'file';
 
@@ -563,7 +605,24 @@ export type PiCommand =
   | { type: 'login_oauth'; providerId: string }
   | { type: 'login_api_key'; providerId: string; apiKey: string }
   | { type: 'logout'; providerId: string }
-  | { type: 'debug' };
+  | { type: 'debug' }
+  /**
+   * Scores a run's candidate directories in one batched LLM call on this
+   * session's own worker: the provider path is already warm from the run and
+   * auto-rename, so the verdicts cost one ordinary-latency request. Carries
+   * everything the model sees, because task state lives in the main process
+   * and the transcript in the renderer — the worker only owns the model.
+   */
+  | {
+      type: 'classify_task_dirs';
+      taskName: string;
+      workDirs: string[];
+      /** Working directories the user keeps across other tasks: what "a working dir" looks like. */
+      historyDirs: string[];
+      /** This task's past adds/removals/dismissals, newest last. */
+      dirLog: TaskDirEvent[];
+      candidates: TaskDirCandidate[];
+    };
 
 /** Wire format for a command request (renderer → utility via port) */
 export interface PiRequest {

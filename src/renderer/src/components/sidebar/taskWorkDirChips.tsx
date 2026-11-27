@@ -224,10 +224,14 @@ export function TaskWorkDirChips({
           }
         }}
       >
-        {/* -mb-1 tightens the gap to the input box below: the title labels
-            that box, so it sits closer to it than the other sections do. */}
-        <div className="-mb-1 pt-0.5 text-caption font-medium text-muted-foreground">
+        {/* Negative margins pull the title, its hint and the input box into
+            one unit: the gap inside a labeled group reads smaller than the
+            gap between sections. */}
+        <div className="-mb-1.5 pt-0.5 text-caption font-medium text-muted-foreground">
           Working directories
+        </div>
+        <div className="-mb-1 text-2xs text-muted-foreground/80">
+          Collected automatically from sessions — edit only to fix mistakes.
         </div>
         <div className="flex max-h-24 min-h-16 flex-wrap content-start items-start gap-1 overflow-y-auto rounded-control border border-input px-2 py-1.5">
           {task.workDirs.map((dir) => (

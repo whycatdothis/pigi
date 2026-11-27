@@ -318,6 +318,7 @@ describe('workspace project per session', () => {
       workDirs: ['/repo/a', '/repo/b'],
       suggestedDirs: [],
       activeWorkDir: '/repo/b',
+      dirLog: [],
       hidden: false,
       emoji: null,
     };

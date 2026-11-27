@@ -103,8 +103,8 @@ export function registerTaskHandlers(): void {
       if (!Array.isArray(paths) || paths.some((path) => typeof path !== 'string')) {
         return { success: false, error: 'paths must be a string array' };
       }
-      if (source !== 'prompt' && source !== 'tool') {
-        return { success: false, error: 'source must be "prompt" or "tool"' };
+      if (source !== 'prompt' && source !== 'tool' && source !== 'model') {
+        return { success: false, error: 'source must be "prompt", "tool" or "model"' };
       }
       const dirSource: TaskDirSource = source;
       try {

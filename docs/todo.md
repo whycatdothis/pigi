@@ -13,9 +13,6 @@ Deferred from `feat/tasks`:
   the task vanishes from the list on the next read).
 - The dir watcher extracts only POSIX-absolute paths (`/…`, `~/…`); Windows
   paths in prompts and tool calls are never reported.
-- Suggested dirs come from heuristics, not a model: batching the candidates
-  through a cheap LLM at run end is the upgrade path if the noise turns out
-  high.
 - The chip editor's add input validates against disk but has no path
   completion; `CompletePath` already exists for the composer.
 - A task's AGENTS.md prose is written once at creation (only the marked
