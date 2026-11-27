@@ -59,10 +59,15 @@ export async function writePiSettingsDocument(
       setPiSettingValue(document, update.field, update.value === null ? undefined : update.value);
     }
     // Written beside the target and renamed into place: a crash mid-write must
-    // not leave pi with a truncated config.
+    // not leave pi with a truncated config. Mode 0600 from the start: pi's
+    // settings can name an API key, and the rename would otherwise publish
+    // whatever the umask allows.
     const temporaryPath = `${path}.tmp`;
     try {
-      writeFileSync(temporaryPath, JSON.stringify(document, null, 2), 'utf-8');
+      writeFileSync(temporaryPath, JSON.stringify(document, null, 2), {
+        encoding: 'utf-8',
+        mode: 0o600,
+      });
       renameSync(temporaryPath, path);
     } catch (error) {
       // A failed write must not leave the half-written file next to the real one.

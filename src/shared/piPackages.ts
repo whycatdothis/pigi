@@ -226,14 +226,53 @@ export function imageUrlFromManifest(manifest: Record<string, unknown> | null): 
   const pi = manifest?.['pi'];
   const image = typeof pi === 'object' && pi !== null && 'image' in pi ? pi.image : null;
   if (typeof image !== 'string') return null;
+  if (!isFetchableImageUrl(image)) return null;
+  const url = new URL(image);
+  return /\.(png|jpe?g|gif|webp)$/i.test(url.pathname) ? url.toString() : null;
+}
+
+/**
+ * Whether an image may be fetched by the main process: http(s) at a public
+ * address. A manifest is written by whoever published the package, so without
+ * this a card in the catalog could make the app request `127.0.0.1` or a
+ * link-local metadata endpoint — an SSRF from a page the user is only browsing.
+ */
+export function isFetchableImageUrl(value: string): boolean {
+  let url: URL;
   try {
-    const url = new URL(image);
-    return /^https?:$/.test(url.protocol) && /\.(png|jpe?g|gif|webp)$/i.test(url.pathname)
-      ? url.toString()
-      : null;
+    url = new URL(value);
   } catch {
-    return null;
+    return false;
   }
+  return /^https?:$/.test(url.protocol) && !isPrivateHostname(url.hostname);
+}
+
+/** Literal private addresses and the names that always resolve to one. */
+function isPrivateHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) {
+    return true;
+  }
+  const octets = host.split('.');
+  if (octets.length === 4 && octets.every((part) => /^\d{1,3}$/.test(part))) {
+    const [first, second] = octets.map(Number);
+    return (
+      first === 0 ||
+      first === 10 ||
+      first === 127 ||
+      (first === 100 && second >= 64 && second <= 127) ||
+      (first === 169 && second === 254) ||
+      (first === 172 && second >= 16 && second <= 31) ||
+      (first === 192 && second === 168)
+    );
+  }
+  // Loopback, unspecified, unique-local and link-local IPv6.
+  return (
+    host === '::1' ||
+    host === '::' ||
+    /^f[cd][0-9a-f]{2}:/.test(host) ||
+    /^fe[89ab][0-9a-f]:/.test(host)
+  );
 }
 
 export type PiSourceType = 'npm' | 'git' | 'local';

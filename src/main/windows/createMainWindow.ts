@@ -3,6 +3,7 @@ import { join } from 'path';
 import { is } from '@electron-toolkit/utils';
 import icon from '../../../resources/icon.png?asset';
 import { openDebugPanel } from '../debugConfig';
+import { RENDERER_SECURITY_PREFERENCES } from './rendererSecurityPreferences';
 import { guardWindowNavigation } from './windowNavigation';
 
 let mainWindow: BrowserWindow | null = null;
@@ -35,9 +36,9 @@ export function createMainWindow({ backgroundColor }: { backgroundColor: string 
       : { backgroundColor }),
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
+      ...RENDERER_SECURITY_PREFERENCES,
       scrollBounce: process.platform === 'darwin',
       preload: join(__dirname, '../preload/index.cjs'),
-      sandbox: true,
     },
   });
 

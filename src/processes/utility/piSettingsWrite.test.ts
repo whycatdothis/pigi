@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -98,5 +98,15 @@ describe('writePiSettingsDocument', () => {
     await writePiSettingsDocument(path, [{ field: 'retry.maxRetries', value: 3 }]);
 
     expect(readdirSync(join(path, '..')).sort()).toEqual(['settings.json']);
+  });
+
+  it('creates the file readable by its owner only', async () => {
+    const path = settingsFile();
+
+    await writePiSettingsDocument(path, [{ field: 'retry.maxRetries', value: 3 }]);
+
+    // The settings can name an API key; the rename must not publish it with the
+    // umask's 0644.
+    expect(statSync(path).mode & 0o777).toBe(0o600);
   });
 });
