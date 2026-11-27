@@ -672,15 +672,19 @@ export type StreamBatchToolArgs =
   | { name: 'write'; args: Partial<WriteToolInput> }
   | { name: 'edit'; args: Pick<EditToolInput, 'path'> };
 
-/** Batched streaming data, flushed every 16ms */
+/** Batched streaming data, flushed every 8ms by the utility's StreamBatcher. */
 export interface StreamBatch {
   type: 'stream_batch';
   text?: string;
   thinking?: string;
   toolOutput?: Record<string, string>;
+  /** Only the text a tool output grew by since the last batch; the renderer appends it. */
+  toolOutputDelta?: Record<string, string>;
   /** Partial tool details, last write wins; codemode publishes its calls this way. */
   toolDetails?: Record<string, Record<string, unknown>>;
   toolArgs?: Record<string, StreamBatchToolArgs>;
+  /** Only the content a streaming `write` grew by; the renderer appends it. */
+  toolArgsContentDelta?: Record<string, string>;
 }
 
 // =============================================================================

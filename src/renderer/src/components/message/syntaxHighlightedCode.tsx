@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import {
   cacheHighlightedCode,
   normalizeLanguage,
@@ -7,6 +7,7 @@ import {
   useCodeTheme,
   type HighlightedState,
 } from './codeHighlighting';
+import { useStreamingThrottledValue } from '../../hooks/useStreamingThrottledValue';
 import type { LineRange } from '../../lib/filePathCandidates';
 
 const STREAMING_HIGHLIGHT_THROTTLE_MS = 60;
@@ -149,48 +150,6 @@ const PlainSourceLines = memo(function PlainSourceLines({
   return <>{plainSourceLineNodes(code, gutter)}</>;
 });
 
-/**
- * Throttles code updates so a downstream (expensive) computation runs at most
- * once per interval while streaming. Passes the value through immediately when
- * not streaming, and flushes the latest value once streaming stops.
- */
-function useStreamingThrottledCode(code: string, isStreaming: boolean, intervalMs: number): string {
-  const [throttledCode, setThrottledCode] = useState(code);
-  const latestCodeRef = useRef(code);
-  const lastEmitAtRef = useRef(0);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    latestCodeRef.current = code;
-    if (!isStreaming) {
-      if (timerRef.current !== null) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      return;
-    }
-    // Trailing throttle: coalesce bursts into at most one emit per interval.
-    // setState runs only inside the timer (async), never synchronously here.
-    if (timerRef.current === null) {
-      const wait = Math.max(0, intervalMs - (Date.now() - lastEmitAtRef.current));
-      timerRef.current = setTimeout(() => {
-        timerRef.current = null;
-        lastEmitAtRef.current = Date.now();
-        setThrottledCode(latestCodeRef.current);
-      }, wait);
-    }
-  }, [code, isStreaming, intervalMs]);
-
-  useEffect(
-    () => () => {
-      if (timerRef.current !== null) clearTimeout(timerRef.current);
-    },
-    [],
-  );
-
-  return isStreaming ? throttledCode : code;
-}
-
 export default function SyntaxHighlightedCode({
   code,
   language,
@@ -208,7 +167,7 @@ export default function SyntaxHighlightedCode({
     () => ({ firstLineNumber, markedLines, className: gutterClassName, onOpenLine }),
     [firstLineNumber, markedLines, gutterClassName, onOpenLine],
   );
-  const highlightInput = useStreamingThrottledCode(
+  const highlightInput = useStreamingThrottledValue(
     code,
     isStreaming,
     STREAMING_HIGHLIGHT_THROTTLE_MS,

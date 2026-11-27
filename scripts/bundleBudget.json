@@ -1,0 +1,6 @@
+{
+  "note": "Gzip caps; re-baselining is a deliberate commit (see checkBundleBudget.mjs).",
+  "entryGzipBytes": 788426,
+  "largestChunkGzipBytes": 788426,
+  "totalGzipBytes": 3524340
+}

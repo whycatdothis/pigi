@@ -515,15 +515,33 @@ and a window never navigates away from its own page
   Node integration, so a renderer exploit lands inside Chromium's OS sandbox
   rather than with the user's full rights. A sandboxed preload cannot be an ES
   module, so the preload is built as CommonJS (`electron.vite.config.ts`) and the
-  windows load `preload/index.cjs`.
+  windows load `preload/index.cjs`. Those flags live in
+  `windows/rendererSecurityPreferences.ts` and are asserted by
+  `rendererSecurityPreferences.test.ts`, together with the CSP below: a change
+  that relaxes one of them fails a test instead of shipping.
 - The preload exposes `piApi` only. It has no filesystem access: the app's cwd
   is answered once at preload load and pigi's settings from the settings
   store's module init, both by `ipcMain.on` handlers that set
   `event.returnValue`, and both before the first paint.
+- No web permission is granted except the clipboard's sanitized write (the copy
+  buttons). With no handler, Electron approves every request a page makes for
+  notifications, geolocation, media or USB.
+- The CSP in `renderer/index.html` loads scripts only from the app itself
+  (`wasm-unsafe-eval` for shiki and Mermaid), forbids objects, frames and form
+  posts (`object-src`, `frame-src`, `form-action`, `base-uri` all `'none'`), and
+  loads images from the app, `data:`, `package-image:` and `local-file:`.
 - `local-file://` reads any path the renderer names, but the scheme is
   registered with no privileges: no `bypassCSP`, no `supportFetchAPI`, and the
   page's CSP allows it in `img-src` only. A script in the renderer could not
-  read a local file through it.
+  read a local file through it. The handler only serves a regular file of at
+  most 64MB (`protocols/localFile.ts`): a model-authored path, or a symlink in a
+  cloned repo, could otherwise name `/dev/zero` or a multi-gigabyte file and
+  stall the main process while it reads it.
+- `package-image://` fetches a manifest's image on the main process's behalf, so
+  the URL must be http(s) at a public address (`isFetchableImageUrl`), checked
+  again on the response's final URL: a package the user is only browsing must
+  not be able to make the app request `127.0.0.1` or a link-local metadata
+  endpoint.
 - The chat bundle is minified in production and has two entries
   (`index.html`, `updateProgress.html`): the 400px update dialog does not parse
   the chat app, its terminal and its diagram renderer to show a progress bar.
@@ -634,9 +652,34 @@ Everything after handshake flows over two direct MessagePorts per session. Split
 **Utility → Renderer (data port stream batches, high-frequency):**
 
 ```ts
-{ type: 'stream_batch', text?, thinking?, toolOutput? }
-// Flushed every 16ms by StreamBatcher
+{ type: 'stream_batch', text?, thinking?, toolOutput?, toolOutputDelta?, toolDetails?, toolArgs?, toolArgsContentDelta? }
+// Flushed every 8ms by StreamBatcher
 ```
+
+A tool's output and a `write`'s content arrive as **tail-only deltas**
+(`toolOutputDelta`, `toolArgsContentDelta`): both grow by appends, so a snapshot
+per batch would copy the whole 50KB output (or the whole file being written) tens
+of times a second — tens of megabytes over one long command. A snapshot that is
+not an extension of the last one (bash truncates the middle once a command
+passes 2000 lines) replaces the value whole, and the two fields never carry the
+same tool call in one batch, so the renderer can apply them in either order.
+
+A tail is only sent when the renderer holds the value it extends: the first
+snapshot of a tool call travels whole, and a value still waiting in the current
+batch is replaced rather than turned into a tail against a baseline the renderer
+never received (a `write`'s path and its first content land in the same 8ms
+window). After `tool_execution_end` the sending side forgets the call, so its
+next snapshot starts over as a replacement — a tail measured from nothing would
+grow the result the card already holds.
+
+Markdown is the renderer's expensive consumer of these batches: a parse costs
+time linear in the message (41ms at 148KB, measured), so `MarkdownMessage`
+throttles the text it parses while streaming (`useStreamingThrottledValue`,
+80–400ms by length) and draws the live text as soon as streaming stops. The
+element is also memoized on that drawn text: `react-markdown` parses inside its
+own render, so throttling the input without it would still pay one parse per
+batch while the text stood still. Code blocks add their own throttle on top,
+because the write preview highlights without a markdown parse in front of it.
 
 ### Prompt attachment text contract
 

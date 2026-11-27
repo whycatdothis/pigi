@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { net } from 'electron';
 import {
   imageUrlFromManifest,
+  isFetchableImageUrl,
   parsePackageImageUrl,
   type PackageImageTarget,
 } from '../../shared/piPackages';
@@ -78,6 +79,9 @@ async function loadImage(target: PackageImageTarget): Promise<PackageImage | nul
   const url = imageUrlFromManifest(manifest);
   if (!url) return null;
   const response = await net.fetch(url, { signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS) });
+  // The manifest was checked before the request, but a redirect can land
+  // anywhere: a public host it points at must not hand back a private response.
+  if (!isFetchableImageUrl(response.url)) return null;
   const type = response.headers.get('content-type') ?? '';
   if (!response.ok || !type.startsWith('image/')) return null;
   // Refuse before reading when the server says how big it is; the read below

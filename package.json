@@ -8,7 +8,7 @@
   "license": "Apache-2.0",
   "homepage": "https://pigi.pink",
   "scripts": {
-    "check": "npm run typecheck && node scripts/checkDesignTokens.mjs && node scripts/checkLockfileRegistry.mjs && npm run lint:fix && npm run format",
+    "check": "npm run typecheck && node scripts/checkDesignTokens.mjs && node scripts/checkLockfileRegistry.mjs && node scripts/checkImports.mjs && node scripts/checkFileSize.mjs && node scripts/checkDangerousApis.mjs && npm run lint:fix && npm run format",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint --cache .",
@@ -22,14 +22,15 @@
     "test:watch": "vitest",
     "start": "electron-vite preview",
     "dev": "electron-vite dev --inspect 9229",
-    "build": "npm run typecheck && node scripts/checkDesignTokens.mjs && electron-vite build && node scripts/checkCssMediaQueries.mjs",
+    "build": "npm run typecheck && node scripts/checkDesignTokens.mjs && electron-vite build && node scripts/checkCssMediaQueries.mjs && node scripts/checkBundleBudget.mjs",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir -c.mac.notarize=false",
     "build:win": "npm run build && electron-builder --win",
     "deploy": "pkill -f 'pigi.app/Contents/MacOS' || true; sleep 2; rm -rf ~/Applications/pigi.app && cp -R dist/mac-arm64/pigi.app ~/Applications/",
     "build:linux": "electron-vite build && electron-builder --linux",
     "build:mac:dev": "electron-vite build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --dir -c.mac.notarize=false -c.mac.identity=null -c.mac.hardenedRuntime=false",
-    "build:mac:dist": "electron-vite build && electron-builder --mac"
+    "build:mac:dist": "electron-vite build && electron-builder --mac",
+    "report": "node scripts/report.mjs"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "^1.5.0",

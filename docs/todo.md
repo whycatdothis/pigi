@@ -45,7 +45,8 @@ Deferred from `feat/tasks`:
   renderer, and `local-file://` serves any path. That is the documented trust
   model (see "Renderer Security Model"); a capability-based handoff (the main
   process remembers which paths the user picked or the agent mentioned) would
-  retire the assumption.
+  retire the assumption. `local-file` now refuses anything but a regular file
+  of at most 64MB, so the unbounded read is closed; the path question is not.
 
 ## Performance
 
@@ -59,6 +60,12 @@ Deferred from `feat/tasks`:
   several interactive shells sourcing the same config write shared state
   (`.zcompdump`, `.zsh_history`) on exit, so it needs a plan for that first.
   The window does not wait for it, which is why this is not urgent.
+- Session lists are still re-parsed whole: the cache is all-or-nothing per cwd,
+  and `SessionManager.list` has no per-file entry point, so one turn's append
+  costs a full directory parse (measured 1.5s at 337 sessions / 825MB). Either
+  upstream a per-file cache (`buildSessionInfo` is not exported, and copying its
+  rules — header versions, `migrateSessionEntries`, message counting — would
+  drift) or expose one; until then the all-or-nothing cache is the honest limit.
 - `App.tsx` still holds the session lifecycle, the file/workspace plumbing and
   the remote-control surface. `useGitBranch` and `useUpdateInstall` were pulled
   out; the file-open cluster (`fileRevision`, `fileLineTarget`,

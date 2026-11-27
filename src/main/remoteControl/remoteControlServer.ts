@@ -36,6 +36,8 @@ const RENDERER_READY_TIMEOUT_MS = 30 * 1000;
 const PROBE_TIMEOUT_MS = 1000;
 /** Requests a runaway script may park before it is told to back off. */
 const MAX_QUEUED_REQUESTS = 64;
+/** Requests the renderer has taken and not answered; each holds a socket write. */
+const MAX_IN_FLIGHT_REQUESTS = 256;
 
 interface RemoteControlHost {
   getWindow: () => BrowserWindow | null;
@@ -138,6 +140,18 @@ function relay(pending: PendingRequest): void {
   const contents = readyContents;
   if (!contents || contents.isDestroyed()) {
     enqueue(pending);
+    return;
+  }
+  // The ready queue is capped, but requests taken by the renderer were not: a
+  // script that never waits for an answer could park an unbounded number of
+  // them here and in the renderer's handlers.
+  if (relayed.size >= MAX_IN_FLIGHT_REQUESTS) {
+    write(
+      pending.socket,
+      encode(pending.request.id, {
+        error: remoteError('APP_NOT_READY', 'too many requests are in flight for the window'),
+      }),
+    );
     return;
   }
   relayed.set(pending.request.requestId, pending);

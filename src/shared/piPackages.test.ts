@@ -69,6 +69,33 @@ describe('package images', () => {
     expect(imageUrlFromManifest({ pi: { image: 'file:///etc/a.png' } })).toBeNull();
     expect(imageUrlFromManifest({ pi: { video: 'https://x.dev/a.mp4' } })).toBeNull();
   });
+
+  it('refuses private addresses a manifest could point the main process at', () => {
+    for (const host of [
+      '127.0.0.1',
+      'localhost',
+      '10.1.2.3',
+      '172.20.0.1',
+      '192.168.1.1',
+      '169.254.169.254',
+      '100.64.0.1',
+      '[::1]',
+      '[fd00::1]',
+      // IPv4 mapped onto IPv6: `new URL` normalizes it to `[::ffff:7f00:1]`,
+      // which is the same host to the socket layer.
+      '[::ffff:127.0.0.1]',
+      '[::ffff:169.254.169.254]',
+    ]) {
+      expect(imageUrlFromManifest({ pi: { image: `http://${host}/a.png` } })).toBeNull();
+    }
+    expect(imageUrlFromManifest({ pi: { image: 'https://registry.npmjs.org/a.png' } })).toBe(
+      'https://registry.npmjs.org/a.png',
+    );
+    // A mapped address of a public one is still a public one.
+    expect(imageUrlFromManifest({ pi: { image: 'http://[::ffff:93.184.216.34]/a.png' } })).toBe(
+      'http://[::ffff:5db8:d822]/a.png',
+    );
+  });
 });
 
 describe('authorFromManifest', () => {

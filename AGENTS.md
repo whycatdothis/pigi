@@ -12,6 +12,11 @@ changes, fix or delete its comment.
 
 - Do NOT commit unless asked. Commit and release workflow: `pigi-release` skill.
 - Run `npm run check` after significant changes and read the full output.
+- `docs/invariants.md` lists what this repo refuses to break and the check that
+  refuses it: before changing an area, look up its row and run that check.
+- A quality rule that is only prose does not exist. When something breaks once,
+  add the check that makes it impossible to break again, then add its row to
+  `docs/invariants.md`.
 - Deferred follow-ups live in `docs/todo.md`: check it before working in an area it names, delete the entry when it lands.
 - Automated debugging must not steal focus: start the dev app with `PIGI_NO_FOCUS=1` (the window shows without activating; see `createMainWindow.ts`).
 

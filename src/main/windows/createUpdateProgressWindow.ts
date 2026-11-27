@@ -13,6 +13,7 @@ import { join } from 'path';
 import { is } from '@electron-toolkit/utils';
 import { PiChannel } from '../../shared/ipcContract';
 import { getMainWindow } from './createMainWindow';
+import { RENDERER_SECURITY_PREFERENCES } from './rendererSecurityPreferences';
 import { guardWindowNavigation } from './windowNavigation';
 
 const WIDTH = 400;
@@ -132,8 +133,8 @@ export function openUpdateProgressWindow(): BrowserWindow {
     useContentSize: true,
     ...(liveParent !== null ? { parent: liveParent } : {}),
     webPreferences: {
+      ...RENDERER_SECURITY_PREFERENCES,
       preload: join(__dirname, '../preload/index.cjs'),
-      sandbox: true,
     },
   });
 

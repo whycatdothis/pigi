@@ -249,6 +249,10 @@ trusted (VS Code's CLI socket has no auth either). What is handled:
   Node named pipe on Windows is still unverified (Windows is not released).
 - **Malformed input**: main parses every request strictly and answers errors
   with a JSON-RPC error; it must never throw out of the handler.
+- **Runaway callers**: a caller that never waits for an answer can park at most
+  `MAX_QUEUED_REQUESTS` requests before a window is ready and
+  `MAX_IN_FLIGHT_REQUESTS` in it afterwards; past either, the request is
+  answered with `APP_NOT_READY` instead of being held.
 
 Documented, not handled:
 
@@ -258,6 +262,9 @@ Documented, not handled:
   example a permission gate).
 - macOS privacy grants belong to the app: a caller can reach what pigi was
   granted (Documents, Downloads).
+- A request the renderer has taken and not answered holds its slot until the
+  caller disconnects or the window reloads: the in-flight cap turns that into
+  "later callers are refused", not into a timeout.
 
 pi's bash tool is already unrestricted, so the CLI adds little an injected agent
 could not do without it.

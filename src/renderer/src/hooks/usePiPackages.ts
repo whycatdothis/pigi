@@ -42,34 +42,46 @@ export interface PiPackagesController {
 }
 
 const lastSnapshotByCwd = new Map<string, PiPackagesSnapshot>();
-const lastHealthByCwd = new Map<string, PiPackagesHealth>();
+const lastHealthByCwd = new Map<string, { health: PiPackagesHealth; checkedAt: number }>();
+/** Opening the page again within this window reuses the check instead of forking for it. */
+const HEALTH_TTL_MS = 10 * 60_000;
 
 export function usePiPackages(cwd: string | null): PiPackagesController {
   const cacheKey = cwd ?? '';
   const [snapshot, setSnapshot] = useState(() => lastSnapshotByCwd.get(cacheKey) ?? null);
-  const [health, setHealth] = useState(() => lastHealthByCwd.get(cacheKey) ?? null);
+  const [health, setHealth] = useState(() => lastHealthByCwd.get(cacheKey)?.health ?? null);
   const [listError, setListError] = useState<string | null>(null);
   const activity = usePackageActivity((state) => state.activity);
   const completed = usePackageActivity((state) => state.completed);
   // A list or check that lands after a newer one started is dropped.
   const loadTokenRef = useRef(0);
 
-  const load = useCallback(async () => {
-    const token = ++loadTokenRef.current;
-    const result = await window.piApi.listPiPackages(cwd);
-    if (token !== loadTokenRef.current) return;
-    if (!result.success) {
-      setListError(result.error);
-      return;
-    }
-    lastSnapshotByCwd.set(cacheKey, result.snapshot);
-    setSnapshot(result.snapshot);
-    setListError(null);
-    const check = await window.piApi.checkPiPackages(cwd);
-    if (token !== loadTokenRef.current || !check.success) return;
-    lastHealthByCwd.set(cacheKey, check.health);
-    setHealth(check.health);
-  }, [cacheKey, cwd]);
+  const load = useCallback(
+    async (force = false) => {
+      const token = ++loadTokenRef.current;
+      const result = await window.piApi.listPiPackages(cwd);
+      if (token !== loadTokenRef.current) return;
+      if (!result.success) {
+        setListError(result.error);
+        return;
+      }
+      lastSnapshotByCwd.set(cacheKey, result.snapshot);
+      setSnapshot(result.snapshot);
+      setListError(null);
+      // The check loads every extension and asks each package's registry; a page
+      // that only opened again shows the answer it already had.
+      const cached = lastHealthByCwd.get(cacheKey);
+      if (!force && cached && Date.now() - cached.checkedAt < HEALTH_TTL_MS) {
+        setHealth(cached.health);
+        return;
+      }
+      const check = await window.piApi.checkPiPackages(cwd);
+      if (token !== loadTokenRef.current || !check.success) return;
+      lastHealthByCwd.set(cacheKey, { health: check.health, checkedAt: Date.now() });
+      setHealth(check.health);
+    },
+    [cacheKey, cwd],
+  );
 
   useEffect(() => {
     // A microtask keeps the effect body free of synchronous setState (the
@@ -115,10 +127,13 @@ export function usePiPackages(cwd: string | null): PiPackagesController {
           if (cached) {
             const next = {
               ...cached,
-              updates: cached.updates.filter((source) => source !== operation.source),
+              health: {
+                ...cached.health,
+                updates: cached.health.updates.filter((source) => source !== operation.source),
+              },
             };
             lastHealthByCwd.set(cacheKey, next);
-            setHealth(next);
+            setHealth(next.health);
           }
         }
       }
@@ -126,6 +141,8 @@ export function usePiPackages(cwd: string | null): PiPackagesController {
         activity: state.activity?.status === 'failed' ? state.activity : null,
         completed: done > 0 ? state.completed + 1 : state.completed,
       }));
+      // The installed set changed, so what the last check saw no longer holds.
+      if (done > 0) lastHealthByCwd.delete(cacheKey);
       return { done, loadErrors };
     },
     [cacheKey, cwd],
@@ -139,7 +156,7 @@ export function usePiPackages(cwd: string | null): PiPackagesController {
     [runAll],
   );
 
-  const reload = useCallback(() => void load(), [load]);
+  const reload = useCallback(() => void load(true), [load]);
   const dismissActivity = useCallback(() => usePackageActivity.setState({ activity: null }), []);
 
   return { snapshot, listError, health, activity, reload, run, runAll, dismissActivity };

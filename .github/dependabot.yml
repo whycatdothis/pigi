@@ -1,0 +1,34 @@
+version: 2
+
+# Weekly, so an advisory lands as one reviewable PR instead of an outage.
+# Grouped by ecosystem: one PR for the npm tree keeps the noise down, but a
+# major bump is always its own PR — that is where the breaking changes live.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+    ignore:
+      # Electron majors carry Chromium majors: they are a scheduled migration,
+      # not a merge Monday.
+      - dependency-name: electron
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: npm
+    directory: /website
+    schedule:
+      interval: monthly
+    groups:
+      website:
+        patterns: ['*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

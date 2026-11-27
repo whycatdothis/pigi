@@ -5,7 +5,7 @@
  * - Sessions are created on-demand from renderer
  * - Each session gets control/data MessagePorts for commands and streaming
  */
-import { app, BrowserWindow, ipcMain, nativeTheme, net, protocol, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme, net, protocol, session, shell } from 'electron';
 import { electronApp } from '@electron-toolkit/utils';
 import { homedir } from 'node:os';
 import { refreshApplicationMenu, setupApplicationMenu } from './menus/applicationMenu';
@@ -45,6 +45,7 @@ import { initializeTelemetry, setTelemetryEnabled } from './telemetry';
 import { pathToFileURL } from 'node:url';
 import { PACKAGE_IMAGE_SCHEME } from '../shared/piPackages';
 import { handlePackageImageRequest } from './packages/packageImages';
+import { resolveLocalFile } from './protocols/localFile';
 
 configureDebugPanel();
 installMainDebugHandle({ piAgent: getPiAgentDebugSnapshot });
@@ -102,11 +103,11 @@ app.whenReady().then(() => {
     event.returnValue = homedir();
   });
 
-  // The path is one encodeURIComponent'd segment, so a literal `?` can only start
-  // a query: a cache-busting one the renderer adds when a file changes on disk.
-  protocol.handle('local-file', (request) => {
-    const [encodedPath] = request.url.slice('local-file://'.length).split('?');
-    return net.fetch(pathToFileURL(decodeURIComponent(encodedPath)).toString());
+  // An image's file, never more: see protocols/localFile.ts for what is served.
+  protocol.handle('local-file', async (request) => {
+    const path = await resolveLocalFile(request.url);
+    if (path === null) return new Response(null, { status: 404 });
+    return net.fetch(pathToFileURL(path).toString());
   });
 
   protocol.handle(PACKAGE_IMAGE_SCHEME, handlePackageImageRequest);
@@ -126,6 +127,7 @@ app.whenReady().then(() => {
   registerPiPackageHandlers();
   registerTerminalHandlers();
   registerCliInstallHandlers();
+  denyUnneededWebPermissions();
   initializeUpdateManager();
   // After the updater: the menu's one update item renders the current status.
   setupApplicationMenu();
@@ -195,4 +197,19 @@ function openMainWindow(backgroundColor: string): void {
     stopTerminalProcess();
     stopProjectFileWatch();
   });
+}
+
+/**
+ * The page needs no web permission — notifications, geolocation, media, USB —
+ * and with no handler Electron grants whatever is asked for. The copy buttons
+ * use the clipboard's sanitized write, which is the one exception.
+ */
+function denyUnneededWebPermissions(): void {
+  const allowed = new Set<string>(['clipboard-sanitized-write']);
+  session.defaultSession.setPermissionRequestHandler((_contents, permission, callback) => {
+    callback(allowed.has(permission));
+  });
+  session.defaultSession.setPermissionCheckHandler((_contents, permission) =>
+    allowed.has(permission),
+  );
 }

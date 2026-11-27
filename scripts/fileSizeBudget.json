@@ -1,0 +1,10 @@
+{
+  "src/main/projects/gitDiff.ts": 863,
+  "src/processes/utility/piAgent.ts": 1217,
+  "src/renderer/src/App.tsx": 2425,
+  "src/renderer/src/components/chatInput/index.tsx": 1064,
+  "src/renderer/src/services/remoteCommands.ts": 877,
+  "src/renderer/src/state/appStore.ts": 915,
+  "src/renderer/src/state/transcriptController.ts": 1739,
+  "src/shared/ipcContract.ts": 1164
+}
