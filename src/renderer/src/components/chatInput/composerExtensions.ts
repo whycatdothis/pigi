@@ -11,7 +11,7 @@ import Text from '@tiptap/extension-text';
 import HardBreak from '@tiptap/extension-hard-break';
 import Mention, { type MentionNodeAttrs } from '@tiptap/extension-mention';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
-import { PluginKey, type EditorState } from '@tiptap/pm/state';
+import { PluginKey, Selection, type EditorState } from '@tiptap/pm/state';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 import {
@@ -31,6 +31,7 @@ import {
   pathCompletionLabel,
 } from '../../lib/pathReferences';
 import {
+  composerDocumentFromText,
   REFERENCE_TRIGGERS,
   referenceKindForTrigger,
   serializeReference,
@@ -298,6 +299,84 @@ const PathMention = Mention.extend({
     return ReactNodeViewRenderer(PathChip, { as: 'span' });
   },
 });
+
+/** Bounds of the line holding `position`; hard breaks delimit lines. */
+export function composerLineBounds(
+  doc: ProseMirrorNode,
+  position: number,
+): { from: number; to: number } {
+  const $position = doc.resolve(position);
+  const start = $position.start();
+  const end = $position.end();
+  let from = start;
+  let to: number | null = null;
+  $position.parent.forEach((node, offset) => {
+    if (node.type.name !== 'hardBreak') return;
+    const breakPosition = start + offset;
+    if (breakPosition < position) from = breakPosition + 1;
+    else if (to === null) to = breakPosition;
+  });
+  return { from, to: to ?? end };
+}
+
+/** Move the caret, or the selection's head, to the line edge. */
+export function moveCaretToLineEdge(editor: Editor, edge: 'start' | 'end', extend = false): void {
+  const { selection } = editor.state;
+  const bounds = composerLineBounds(editor.state.doc, selection.head);
+  const head = edge === 'start' ? bounds.from : bounds.to;
+  editor
+    .chain()
+    .setTextSelection(extend ? { from: selection.anchor, to: head } : head)
+    .scrollIntoView()
+    .run();
+}
+
+/**
+ * The line edge a macOS line or paragraph motion asks for, or null for every
+ * other key. In this one-paragraph composer those motions can only reach the
+ * ends of the whole prompt, so they are mapped to the caret's line instead.
+ */
+export function lineEdgeForKey(event: KeyboardEvent): 'start' | 'end' | null {
+  if (event.ctrlKey && !event.metaKey && !event.altKey) {
+    const letter = event.key.toLowerCase();
+    return letter === 'a' ? 'start' : letter === 'e' ? 'end' : null;
+  }
+  if (event.metaKey && !event.ctrlKey && !event.altKey) {
+    return event.key === 'ArrowLeft' ? 'start' : event.key === 'ArrowRight' ? 'end' : null;
+  }
+  if (event.altKey && !event.ctrlKey && !event.metaKey) {
+    return event.key === 'ArrowUp' ? 'start' : event.key === 'ArrowDown' ? 'end' : null;
+  }
+  return null;
+}
+
+/**
+ * Replace the whole composer with `text`, put the caret on its first or last
+ * line, and close any picker the old text had opened.
+ */
+export function replaceComposerText(
+  editor: Editor,
+  text: string,
+  commandNames: ReadonlySet<string>,
+  caret: 'start' | 'end',
+): void {
+  editor
+    .chain()
+    .setContent(composerDocumentFromText(text, commandNames), { emitUpdate: false })
+    // `setContent` keeps the selection at the end of the replaced document,
+    // and `focus('start')` skips setting it when the old caret already sits
+    // there, so place the selection on the new document explicitly.
+    .command(({ tr, dispatch }) => {
+      if (dispatch) {
+        tr.setSelection(caret === 'start' ? Selection.atStart(tr.doc) : Selection.atEnd(tr.doc));
+      }
+      return true;
+    })
+    .scrollIntoView()
+    .focus()
+    .run();
+  exitReferenceSuggestions(editor.view);
+}
 
 /** Drop a working-directory chip at the caret; the trailing space commits it. */
 export function insertDirectoryChip(editor: Editor, dir: string): void {
