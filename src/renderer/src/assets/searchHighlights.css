@@ -19,3 +19,9 @@
 ::highlight(pi-quote-selection) {
   background-color: Highlight;
 }
+
+/* The word a Cmd/Ctrl+click in the file viewer would jump from, styled as a link. */
+::highlight(pi-definition-link) {
+  color: var(--system-accent);
+  text-decoration: underline;
+}

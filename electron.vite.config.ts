@@ -28,6 +28,7 @@ export default defineConfig({
           'processes/utility/sessionWorker': resolve('src/processes/utility/sessionWorker.ts'),
           'processes/utility/terminal': resolve('src/processes/utility/terminal.ts'),
           'processes/utility/packageWorker': resolve('src/processes/utility/packageWorker.ts'),
+          'processes/utility/codeNavigation': resolve('src/processes/utility/codeNavigation.ts'),
           // The `pigi` CLI; resources/bin/pigi runs it with Electron in Node mode.
           cli: resolve('src/cli/pigi.ts'),
         },

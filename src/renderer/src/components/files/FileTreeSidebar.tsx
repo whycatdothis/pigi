@@ -28,7 +28,8 @@ import {
   SidebarMenuItem,
 } from '../ui/sidebar';
 import { SidebarToggle } from '../sidebar/sidebarToggle';
-import { ProjectPicker } from '../projectPicker';
+import { FileHistoryButtons } from './fileHistoryButtons';
+import { ProjectPicker, type TaskPickerProjects } from '../projectPicker';
 import { FileIcon } from '../fileIcon';
 
 const INDENT_STEP_PX = 12;
@@ -47,6 +48,8 @@ interface FileTreeSidebarProps {
   projectPath: string;
   projectName: string;
   projects: ProjectDirectory[];
+  /** The active session's task section for the picker; null outside task sessions. */
+  taskProjects: TaskPickerProjects | null;
   selectedFilePath: string | null;
   /** A folder a link pointed at: the tree opens to it, and to nothing else. */
   revealedDirectory: { projectPath: string; path: string } | null;
@@ -54,6 +57,7 @@ interface FileTreeSidebarProps {
   onOpenFile: (path: string) => void;
   onOpenSettings: () => void;
   onActiveFileChanged: () => void;
+  onStepFileHistory: (step: -1 | 1) => void;
   shortcutBindings: Map<string, ShortcutBinding> | null;
 }
 
@@ -97,12 +101,14 @@ export default memo(function FileTreeSidebar({
   projectPath,
   projectName,
   projects,
+  taskProjects,
   selectedFilePath,
   revealedDirectory,
   onSelectProject,
   onOpenFile,
   onOpenSettings,
   onActiveFileChanged,
+  onStepFileHistory,
   shortcutBindings,
 }: FileTreeSidebarProps): React.JSX.Element {
   const [directories, setDirectories] = useState<Map<string, DirectoryContent>>(() => new Map());
@@ -413,8 +419,13 @@ export default memo(function FileTreeSidebar({
 
   return (
     <ShadcnSidebar collapsible="none" data-testid="file-tree-sidebar" className="w-full">
-      <SidebarHeader className="pb-0 [-webkit-app-region:drag]">
-        <div className="flex h-10 items-start justify-end">
+      <SidebarHeader className="pt-1 pb-0 [-webkit-app-region:drag]">
+        <div className="flex h-7 items-center justify-end">
+          <FileHistoryButtons
+            projectPath={projectPath}
+            shortcutBindings={shortcutBindings}
+            onStep={onStepFileHistory}
+          />
           <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
         </div>
         <div className="flex min-w-0 items-center gap-1.5 px-2 pb-1">
@@ -423,6 +434,7 @@ export default memo(function FileTreeSidebar({
             projectName={projectName}
             selectedProjectPath={projectPath}
             recentProjects={projects}
+            taskProjects={taskProjects}
             onSelectProject={onSelectProject}
           />
           {findFileBinding && (

@@ -9,9 +9,11 @@ description: Start dev server, debug via CDP, take screenshots. Use when startin
 
 Kill this checkout's Electron and start fresh. The pattern is scoped to the
 repo path: a bare `Electron` also matches helpers of Slack, Cursor, 1Password, etc. **Stop here** — do NOT wait or verify unless asked.
+`PIGI_NO_FOCUS=1` keeps the window from raising over the user's work
+(AGENTS.md: automated debugging must not steal focus).
 
 ```bash
-pkill -9 -f "$PWD/node_modules/electron" || true; nohup npm run dev > /tmp/pigi-dev.log 2>&1 &
+pkill -9 -f "$PWD/node_modules/electron" || true; PIGI_NO_FOCUS=1 nohup npm run dev > /tmp/pigi-dev.log 2>&1 &
 ```
 
 Dev exposes renderer CDP on 9222 and the main-process Node inspector on 9229
@@ -107,7 +109,7 @@ Some problems only show in the production bundle (Tailwind's dev plugin keeps
 stale class candidates; minification and chunking differ).
 
 ```bash
-pkill -9 -f "$PWD/node_modules/electron" || true; nohup npm run start -- -- --inspect=9229 > /tmp/pigi-preview.log 2>&1 &
+pkill -9 -f "$PWD/node_modules/electron" || true; PIGI_NO_FOCUS=1 nohup npm run start -- -- --inspect=9229 > /tmp/pigi-preview.log 2>&1 &
 ```
 
 `electron-vite preview` is unpackaged, so `is.dev` stays true in main: 9222 and

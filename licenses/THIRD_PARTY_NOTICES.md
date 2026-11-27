@@ -78,3 +78,56 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## TypeScript server
+
+Go to definition ships [TypeScript](https://github.com/microsoft/TypeScript)
+6.0.3's tsserver (`typescript`, Apache-2.0) and
+[typescript-language-server](https://github.com/typescript-language-server/typescript-language-server)
+6.1.0 (Apache-2.0) in `Resources/typescriptServer`, each with its own license
+file (TypeScript also with its `ThirdPartyNoticeText.txt`).
+
+## Tree-sitter grammars and queries
+
+Go to definition (`docs/goToDefinition.md`) bundles these grammars under
+`resources/treeSitter/`, all MIT. The `.wasm` files are the grammars' release
+assets, except Vue, which no release ships: it was built with
+`tree-sitter build --wasm` (tree-sitter CLI 0.26.13) at the listed commit. The
+queries under `resources/treeSitter/queries/` are derived from the grammars'
+`queries/tags.scm` at the same versions, and the Perl one from
+[rgctl](https://github.com/rgctl/rgctl)'s
+`crates/rgctl-lang-perl/queries/tags.scm`.
+
+| File                          | Source                                                                                          | Version  | Copyright                    |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- | -------- | ---------------------------- |
+| `tree-sitter-typescript.wasm` | [tree-sitter/tree-sitter-typescript](https://github.com/tree-sitter/tree-sitter-typescript)     | v0.23.2  | 2017 Max Brunsfeld           |
+| `tree-sitter-tsx.wasm`        | [tree-sitter/tree-sitter-typescript](https://github.com/tree-sitter/tree-sitter-typescript)     | v0.23.2  | 2017 Max Brunsfeld           |
+| `tree-sitter-javascript.wasm` | [tree-sitter/tree-sitter-javascript](https://github.com/tree-sitter/tree-sitter-javascript)     | v0.25.0  | 2014 Max Brunsfeld           |
+| `tree-sitter-python.wasm`     | [tree-sitter/tree-sitter-python](https://github.com/tree-sitter/tree-sitter-python)             | v0.25.0  | 2016 Max Brunsfeld           |
+| `tree-sitter-go.wasm`         | [tree-sitter/tree-sitter-go](https://github.com/tree-sitter/tree-sitter-go)                     | v0.25.0  | 2014 Max Brunsfeld           |
+| `tree-sitter-rust.wasm`       | [tree-sitter/tree-sitter-rust](https://github.com/tree-sitter/tree-sitter-rust)                 | v0.24.2  | 2017 Maxim Sokolov           |
+| `tree-sitter-java.wasm`       | [tree-sitter/tree-sitter-java](https://github.com/tree-sitter/tree-sitter-java)                 | v0.23.5  | 2017 Ayman Nadeem            |
+| `tree-sitter-perl.wasm`       | [tree-sitter-perl/tree-sitter-perl](https://github.com/tree-sitter-perl/tree-sitter-perl)       | v2.0.6   | 2025 Avishai "Veesh" Goldman |
+| `tree-sitter-vue.wasm`        | [tree-sitter-grammars/tree-sitter-vue](https://github.com/tree-sitter-grammars/tree-sitter-vue) | ce8011a4 | 2024 Amaan Qureshi           |
+| `queries/perl.scm`            | [rgctl/rgctl](https://github.com/rgctl/rgctl)                                                   | main     | 2026 rgctl Contributors      |
+
+Each is distributed under the MIT License:
+
+```
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```

@@ -24,10 +24,16 @@ import type {
   ProjectDirectoryResult,
   ExistingPath,
   ProjectFileResult,
+  FindDefinitionResult,
   ProjectFilesChanged,
   ProjectFileSearchResult,
   PathCompletionResult,
   ProjectStateResult,
+  ListTasksResult,
+  PickDirectoryResult,
+  TaskDirSource,
+  TaskResult,
+  TaskUpdate,
   RendererTelemetryReport,
   SessionListResult,
   ShortcutBinding,
@@ -82,11 +88,22 @@ interface PiApi {
   watchProjectFiles: (cwd: string, directories: string[], filePath: string | null) => void;
   onProjectFilesChanged: (callback: (change: ProjectFilesChanged) => void) => () => void;
   readProjectFile: (cwd: string, path: string) => Promise<ProjectFileResult>;
+  findDefinition: (
+    cwd: string,
+    path: string,
+    line: number,
+    column: number,
+  ) => Promise<FindDefinitionResult>;
   resolveExistingPaths: (cwd: string, paths: string[]) => Promise<(ExistingPath | null)[]>;
   setActiveProject: (path: string) => Promise<ProjectStateResult>;
   openProjectDirectory: () => Promise<ProjectStateResult>;
   removeProject: (path: string) => Promise<ProjectStateResult>;
   reorderProjects: (paths: string[]) => Promise<ProjectStateResult>;
+  listTasks: () => Promise<ListTasksResult>;
+  createTask: (name: string) => Promise<TaskResult>;
+  updateTask: (taskPath: string, update: TaskUpdate) => Promise<TaskResult>;
+  reportTaskDirs: (taskPath: string, paths: string[], source: TaskDirSource) => Promise<TaskResult>;
+  pickDirectory: () => Promise<PickDirectoryResult>;
   pickAttachments: (kind: ChatAttachmentKind) => Promise<PickAttachmentsResult>;
   getPathForFile: (file: File) => string;
   renamePersistedSession: (
@@ -115,6 +132,7 @@ interface PiApi {
   onProcessExit: (callback: (data: { sessionPath: string; code: number }) => void) => () => void;
 
   getCwd: () => string;
+  getHomeDir: () => string;
   openExternal: (url: string) => void;
   previewFile: (path: string) => void;
   getModelCatalog: () => Promise<ModelCatalogSnapshot>;

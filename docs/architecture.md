@@ -118,7 +118,7 @@ tab carries the session title (double-click to rename), so the toolbar has no
 separate title. While another tab is open, the Chat tab shows a spinner while
 the agent runs and a dot once it finishes unseen (`unreadSessionPaths`, which
 only clears when the session is shown in Chat). Welcome and new-chat screens hide the header but keep an
-invisible 44px drag strip; no-session Files/Git use `WorkspaceHeader`, which
+invisible 36px drag strip; no-session Files/Git use `WorkspaceHeader`, which
 hosts the tabs without session actions. Files and Git mount on selection and
 unmount on leave. Chat stays mounted and laid out while another tab shows,
 with only its paint skipped (`invisible absolute inset-0`). Do not replace that
@@ -127,22 +127,57 @@ so a reader following the bottom comes back off the bottom by about 146px. The
 invisible layer also keeps the composer and its draft state alive. Switching
 back resizes the box, which re-glues a following reader.
 
-The tabs are 32px chips in the 44px header, 15px text, the active one on a
-muted fill. Chat has no icon, so its title gets the room, at a fixed 320px so
+The tabs fill the 36px header and are split by one 0.5px hairline on each tab's
+right edge (the last one's line is the divider before the header's actions). The
+active tab is marked by its label alone: the others take the muted text colour,
+the one under the pointer darkens to 80% of the foreground, and the selected one
+is at full strength. Not a fill or an edge mark — a fill reads as a button
+sitting in the band, and a mark on the edge draws the eye more than the title it
+points at. Chat's title is 15px; Files and Git are 14px.
+They draw no top or bottom edge of their own: the header's own bottom rule is
+the only horizontal line, so nothing doubles. Chat has no icon, so its title
+gets the room, at a fixed 320px so
 Files and Git sit in the same place whatever the title is. Every tab reserves
 room for its keycap; Chat's slot, at its right end, also holds the agent's
 spinner or unread dot while another tab is open, so the title does not shift
 when one appears, and the keycap replaces it on hover. The list is
 `max-w-full`, not only `w-fit`: with `w-fit` it keeps its max-content width and
-the Chat chip's `shrink` is dead code. The tabs query the header's content box,
-not the viewport: below 600px the Chat chip may shrink and the keycaps go, below 500px Files and
+the Chat tab's `shrink` is dead code. The tabs query the header's content box,
+not the viewport: below 600px the Chat tab may shrink and the keycaps go, below 500px Files and
 Git drop their labels, below 320px Chat swaps its title for an icon (each tab
-32px), and below 220px padding tightens to 24px per tab (about 72px for all
-three). Every tab keeps its `aria-label`. The session
+32px wide), and below 220px padding tightens to 24px per tab (about 72px for
+all three). Every tab keeps its `aria-label`. The session
 toolbar keeps the tree, terminal, view-mode and right-sidebar actions inline
 while there is room; below 430px of header content they move into a `...` menu,
 because the session tree has no other entry point. The right-sidebar toggle
 also hides below 220px, but stays in that menu.
+
+The right sidebar's Quotes tab is the same `divided` band in a 36px header, so
+the two headers read as one bar.
+
+### Files tabs
+
+The Files tab keeps up to eight open files per project as a strip of editor-style
+tabs above the reader, the active one's full path in the bar under it. A new
+file opens to the right of the active tab; past eight, the tab shown longest
+ago goes (the history says which), never the active one. Closing the active tab
+activates its right neighbour, else its left. The list is persisted with the
+active file, so a project reopens as it was left. The strip scrolls sideways
+without a scrollbar and stops overscroll at its ends, so a trackpad flick cannot
+bounce the whole tab bar.
+
+⌘[ and ⌘] step a per-project history of file visits (50 of them, this run only)
+while the Files tab is showing; elsewhere they step sessions. A visit records the
+line it was opened at, so Back returns to that line. History starts from the file
+already on screen, and a go-to-definition jump records the line it left before it
+follows. The same two steps are buttons beside the file-tree toggle and the
+mouse's side buttons over the reader.
+
+Opening a file reads and highlights it out of sight while the previous file stays
+on screen, and swaps once it is ready (or after 400ms). Without that, every open
+painted the old file, a spinner, uncoloured text and then the colours, because
+highlighting is asynchronous. A bitmap waits for its own load, so a picture does
+not flash an empty pane either.
 
 ### Files freshness
 
@@ -203,10 +238,13 @@ The default base is the branch `origin/HEAD` points at, so a `trunk` or
 since main" and every fallback still produces a useful answer. The base picker lists branches and commits on separate tabs and takes
 any typed ref (`HEAD~3`, a SHA, a tag); it lists every local branch but only
 the 200 most recently committed remote branches, because a large repository
-can carry tens of thousands. Sorting them by date reads every branch's tip
-commit (0.7s warm, 3.5s cold with 89k remote branches), so the list is read
-when the picker opens, not with every summary refresh. The base is deliberately not persisted per project: a branch selected in
-one repo rarely exists in another.
+can carry tens of thousands. Both lists run newest commit first — the branch
+picked next is usually the one last worked on — so the current branch, marked
+as such, sits where its date puts it rather than at the top. Sorting by date
+reads every branch's tip commit (0.7s warm, 3.5s cold with 89k remote
+branches), so the list is read when the picker opens, not with every summary
+refresh. The base is deliberately not persisted per project: a branch selected
+in one repo rarely exists in another.
 
 The branch is switchable too, not just named: the branch under the composer and
 the one at the top of the Git tab are one picker, and choosing a row runs `git
@@ -1133,6 +1171,8 @@ src/
 │   │   └── applicationMenu.ts  # App menu; the items that follow runtime state (update, pigi command)
 │   ├── processes/
 │   │   └── createPiAgentProcess.ts  # Utility process spawner
+│   ├── tasks/
+│   │   └── taskStore.ts          # ~/.pigi/tasks: task.json, managed AGENTS.md block, git init
 │   └── windows/
 │       ├── createMainWindow.ts
 │       └── createUpdateProgressWindow.ts  # titled, content-sized update window (see auto-update.md)
@@ -1155,7 +1195,7 @@ src/
         │   ├── rightSidebar/     # tabbed right sidebar
         │   ├── session/          # sidebar entry, session toolbar, switcher
         │   ├── sessionTree/      # tree dialog, rows, branch lines, help
-        │   ├── sidebar/          # project and session lists
+        │   ├── sidebar/          # project, task and session lists (task chips, new-task dialog)
         │   ├── terminal/         # terminal panel, controller, theme
         │   ├── transcript/       # message list, its rows, search, mini-map
         │   ├── update/           # the standalone update progress window (see auto-update.md)

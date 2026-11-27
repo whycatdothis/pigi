@@ -57,7 +57,11 @@ import {
   refreshModelCatalog,
   onModelCatalogUpdated,
   abortBranchSummary,
+  listTasks,
+  createTask,
+  updateTask,
 } from './services/piAgentClient';
+import { startTaskDirSuggestions } from './lib/taskDirSuggestions';
 import type {
   AuthProviderInfo,
   ModelCatalogSnapshot,
@@ -66,6 +70,7 @@ import type {
   ProjectDirectory,
   PromptInput,
   SkillSlashCommand,
+  TaskUpdate,
   ThinkingLevel,
 } from '../../shared/ipcContract';
 import { clampThinkingLevelTo } from '../../shared/thinkingLevels';
@@ -94,6 +99,7 @@ import { SessionTreeHelpContext } from './components/sessionTree/sessionTreeHelp
 import SessionTreeHelpDialog from './components/sessionTree/SessionTreeHelpDialog';
 import TerminalPanel from './components/terminal/TerminalPanel';
 import ChatInput, { type ChatInputHandle } from './components/chatInput';
+import { buildWorkdirPickerSections } from './lib/workdirPickerSections';
 import RightSidebar from './components/rightSidebar/RightSidebar';
 import StreamingQueue from './components/transcript/StreamingQueue';
 import LoginDialog from './components/app/LoginDialog';
@@ -189,6 +195,7 @@ function App(): React.JSX.Element {
     workspaceTab,
     lastFileByProject,
     workspaceProjectBySession,
+    tasks,
   } = useAppStore(
     useShallow((state) => ({
       activeSessionPath: state.activeSessionPath,
@@ -199,6 +206,7 @@ function App(): React.JSX.Element {
       removeSession: state.removeSession,
       activeProject: state.activeProject,
       recentProjects: state.recentProjects,
+      tasks: state.tasks,
       projectSessions: state.projectSessions,
       setProjectSessionList: state.setProjectSessionList,
       mergeProjectSessionList: state.mergeProjectSessionList,
@@ -260,8 +268,25 @@ function App(): React.JSX.Element {
     activeProject,
     activeSessionPath,
     workspaceProjectBySession,
+    tasks,
+    sessions,
   });
   const workspaceProjectPath = workspaceProject?.path ?? null;
+  // The task section the Files/Git project picker shows for a task session.
+  const activeTaskCwd = activeSession?.cwd;
+  const taskProjects = useMemo(() => {
+    const task = tasks.find((candidate) => candidate.path === activeTaskCwd);
+    return task ? { task: { path: task.path, name: task.name }, workDirs: task.workDirs } : null;
+  }, [tasks, activeTaskCwd]);
+  // The new-session composer's task workspaces; hidden tasks stay out of it.
+  const pickerTasks = useMemo(() => tasks.filter((task) => !task.hidden), [tasks]);
+  // The composer's project chip names a picked task by its display name, not
+  // the directory's birth name.
+  const composerProject = useMemo(() => {
+    if (!activeProject) return activeProject;
+    const task = tasks.find((candidate) => candidate.path === activeProject.path);
+    return task ? { ...activeProject, name: task.name } : activeProject;
+  }, [activeProject, tasks]);
   // What the session works in. Quotes from another project need an absolute
   // reference, because the agent resolves relative paths against this one.
   const sessionProjectPath = activeSession?.cwd ?? activeProjectPath;
@@ -270,6 +295,12 @@ function App(): React.JSX.Element {
     enabled: workspaceTab === WORKSPACE_TABS.git,
   });
   const activeCwd = activeSession?.cwd ?? activeProjectPath ?? window.piApi.getCwd();
+  // The composer's "Add directory" list, for sessions running inside a task
+  // (and a new chat whose picked project is a task).
+  const workdirPicker = useMemo(
+    () => buildWorkdirPickerSections(tasks, activeCwd, recentProjects),
+    [tasks, activeCwd, recentProjects],
+  );
   const findSessionByPath = useCallback(
     (path: string): PiSessionInfo | undefined => {
       for (const cwd of Object.keys(projectSessions)) {
@@ -592,7 +623,18 @@ function App(): React.JSX.Element {
         void refreshProjectSessions(result.recentProjects);
       }
     });
+    void listTasks().then((result) => {
+      if (result.success) {
+        useAppStore.getState().setTasks(result.tasks);
+        // Task sessions list under the task directory, exactly like a project.
+        void listProjectSessions(result.tasks.map((task) => task.path));
+      }
+    });
   }, [refreshProjectSessions]);
+
+  // Watches task sessions and turns the directories they touch into work dirs
+  // (prompt-mentioned) or suggestions (tool-touched).
+  useEffect(() => startTaskDirSuggestions(), []);
 
   useEffect(() => {
     // Warm the fuzzy indices for the session's project and the one Files/Git
@@ -1356,7 +1398,12 @@ function App(): React.JSX.Element {
   }, []);
 
   const openFileInProject = useCallback(
-    async (project: ProjectDirectory, path: string, lines?: LineRange | null) => {
+    async (
+      project: ProjectDirectory,
+      path: string,
+      lines?: LineRange | null,
+      { fromHistory = false } = {},
+    ) => {
       const store = useAppStore.getState();
       const filePath = projectRelativePath(project.path, path);
       // A link to a folder has no file to read: open the tree at it instead.
@@ -1378,6 +1425,7 @@ function App(): React.JSX.Element {
         store.activeSessionPath,
         project.path === store.activeProject?.path ? null : project.path,
       );
+      if (!fromHistory) store.recordFileVisit(project.path, { filePath, lines: lines ?? null });
       store.setLastFile(project.path, filePath);
       // A folder revealed earlier would keep winning over this file.
       setRevealedDirectory(null);
@@ -1408,13 +1456,59 @@ function App(): React.JSX.Element {
     [openFileInProject],
   );
 
-  const handleSelectWorkspaceProject = useCallback((path: string) => {
-    const store = useAppStore.getState();
-    store.setWorkspaceProject(
-      store.activeSessionPath,
-      path === store.activeProject?.path ? null : path,
-    );
+  const handleStepFileHistory = useCallback(
+    (step: -1 | 1) => {
+      const store = useAppStore.getState();
+      const project = workspaceProjectForSession(store);
+      const visit = project && store.stepFileHistory(project.path, step);
+      if (project && visit) {
+        void openFileInProject(project, visit.filePath, visit.lines, { fromHistory: true });
+      }
+    },
+    [openFileInProject],
+  );
+
+  const handleUpdateTask = useCallback(async (taskPath: string, update: TaskUpdate) => {
+    const result = await updateTask(taskPath, update);
+    if (result.success) useAppStore.getState().upsertTask(result.task);
+    return result;
   }, []);
+
+  const handleSelectWorkspaceProject = useCallback(
+    (path: string) => {
+      const store = useAppStore.getState();
+      const apply = (): void => {
+        store.setWorkspaceProject(
+          store.activeSessionPath,
+          path === store.activeProject?.path ? null : path,
+        );
+      };
+      // Inside a task session the pick doubles as the task's active work dir;
+      // persist first so the UI never points at a dir the task rejected.
+      const activeCwd = store.activeSessionPath
+        ? store.sessions.get(store.activeSessionPath)?.cwd
+        : undefined;
+      const task = activeCwd
+        ? store.tasks.find((candidate) => candidate.path === activeCwd)
+        : undefined;
+      const update: TaskUpdate | null = task
+        ? task.workDirs.includes(path)
+          ? { setActiveWorkDir: path }
+          : path === task.path
+            ? { setActiveWorkDir: null }
+            : null
+        : null;
+      if (!task || !update) {
+        apply();
+        return;
+      }
+      void handleUpdateTask(task.path, update).then((result) => {
+        if (result.success) apply();
+        else console.error('Failed to set the task working directory:', result.error);
+      });
+    },
+    [handleUpdateTask],
+  );
 
   const chatFiles = useMemo<ChatFiles>(
     () => ({ cwd: activeCwd, onOpenFile: handleOpenFile }),
@@ -1474,6 +1568,11 @@ function App(): React.JSX.Element {
       },
       'navigation.prev': () => {
         closeSettings();
+        // The Files tab has its own history; the session one stays put there.
+        if (useAppStore.getState().workspaceTab === WORKSPACE_TABS.files) {
+          handleStepFileHistory(-1);
+          return;
+        }
         const targetPath = useAppStore.getState().navigateBack();
         if (targetPath) {
           const session = findSessionByPath(targetPath);
@@ -1484,6 +1583,10 @@ function App(): React.JSX.Element {
       },
       'navigation.next': () => {
         closeSettings();
+        if (useAppStore.getState().workspaceTab === WORKSPACE_TABS.files) {
+          handleStepFileHistory(1);
+          return;
+        }
         const targetPath = useAppStore.getState().navigateForward();
         if (targetPath) {
           const session = findSessionByPath(targetPath);
@@ -1514,6 +1617,7 @@ function App(): React.JSX.Element {
       handleCycleProjectSession,
       handleSelectWorkspaceTab,
       handleOpenFileSearch,
+      handleStepFileHistory,
       findSessionByPath,
       toggleTerminal,
       openSettings,
@@ -1549,6 +1653,51 @@ function App(): React.JSX.Element {
       useAppStore.getState().setProjects(result.recentProjects, result.activeProject);
     }
   }, []);
+
+  const handleCreateTask = useCallback(
+    async (name: string) => {
+      const result = await createTask(name);
+      if (result.success) {
+        useAppStore.getState().upsertTask(result.task);
+        void listProjectSessions([result.task.path]);
+        handleNewSessionForProject(result.task.path);
+      }
+      return result;
+    },
+    [handleNewSessionForProject],
+  );
+
+  /** A chip click: remembers the choice and points Files/Git at it for this session. */
+  const handleSelectTaskWorkDir = useCallback(
+    (taskPath: string, dir: string | null) => {
+      void handleUpdateTask(taskPath, { setActiveWorkDir: dir }).then((result) => {
+        if (!result.success) {
+          console.error('Failed to set the task working directory:', result.error);
+          return;
+        }
+        const store = useAppStore.getState();
+        const activeCwd = store.activeSessionPath
+          ? store.sessions.get(store.activeSessionPath)?.cwd
+          : undefined;
+        if (activeCwd === taskPath) {
+          store.setWorkspaceProject(store.activeSessionPath, dir ?? taskPath);
+        }
+      });
+    },
+    [handleUpdateTask],
+  );
+
+  /** A switcher task pick: resume its latest chat, or start one when it has none. */
+  const handleSelectTaskFromSwitcher = useCallback(
+    (taskPath: string) => {
+      const latest = (projectSessions[taskPath] ?? [])
+        .filter((session) => !session.isSubagent)
+        .sort((a, b) => (b.modified || b.created).localeCompare(a.modified || a.created))[0];
+      if (latest) void handleResumeSession(latest);
+      else handleNewSessionForProject(taskPath);
+    },
+    [projectSessions, handleResumeSession, handleNewSessionForProject],
+  );
 
   const handleLogin = useCallback(async () => {
     let sessionPath = activeSessionPath;
@@ -1824,6 +1973,7 @@ function App(): React.JSX.Element {
                   projectPath={workspaceProject.path}
                   projectName={workspaceProject.name}
                   projects={recentProjects}
+                  taskProjects={taskProjects}
                   selectedFilePath={selectedFilePath}
                   revealedDirectory={
                     revealedDirectory?.projectPath === workspaceProjectPath
@@ -1834,6 +1984,7 @@ function App(): React.JSX.Element {
                   onOpenFile={handleOpenWorkspaceFile}
                   onOpenSettings={openSettings}
                   onActiveFileChanged={handleActiveFileChanged}
+                  onStepFileHistory={handleStepFileHistory}
                   shortcutBindings={shortcutBindings}
                 />
               ) : workspaceTab === WORKSPACE_TABS.git && workspaceProject ? (
@@ -1842,6 +1993,7 @@ function App(): React.JSX.Element {
                   projectPath={workspaceProject.path}
                   projectName={workspaceProject.name}
                   projects={recentProjects}
+                  taskProjects={taskProjects}
                   onSelectProject={handleSelectWorkspaceProject}
                   workspace={gitWorkspace}
                   onGitBranchChanged={refreshGitBranch}
@@ -1855,10 +2007,14 @@ function App(): React.JSX.Element {
                   // The packages page is the selection while it shows.
                   selectedSessionPath={packagesOpen ? null : selectedSessionPath}
                   recentProjects={recentProjects}
+                  tasks={tasks}
                   projectSessions={projectSessions}
                   shortcutBindings={shortcutBindings}
                   onNewSession={handleNewSession}
                   onNewSessionForProject={handleNewSessionForProject}
+                  onCreateTask={handleCreateTask}
+                  onUpdateTask={handleUpdateTask}
+                  onSelectTaskWorkDir={handleSelectTaskWorkDir}
                   onResumeSession={handleResumeSession}
                   onOpenProject={handleOpenProject}
                   onRemoveProject={handleRemoveProject}
@@ -1928,7 +2084,7 @@ function App(): React.JSX.Element {
                     // New chat and the welcome/empty states are single centered
                     // compositions; the strip keeps the window draggable where
                     // the toolbar was. Files/Git keep the header for their tabs.
-                    <div className="h-11 shrink-0 [-webkit-app-region:drag]" />
+                    <div className="h-9 shrink-0 [-webkit-app-region:drag]" />
                   ) : (
                     <WorkspaceHeader
                       title={workspaceTitle}
@@ -1960,6 +2116,7 @@ function App(): React.JSX.Element {
                           findFileShortcut={shortcutBindings?.get('files.search')}
                           onFindFile={handleOpenFileSearch}
                           onOpenFile={handleOpenWorkspaceFile}
+                          onStepFileHistory={handleStepFileHistory}
                           onOpenProject={handleOpenProject}
                         />
                       )}
@@ -2039,6 +2196,7 @@ function App(): React.JSX.Element {
                             onSelectThinkingLevel={handleSelectThinkingLevel}
                             onRequestModelRefresh={handleRequestModelRefresh}
                             userHistory={userHistory}
+                            workdirPicker={workdirPicker}
                           />
                         </div>
                       </div>
@@ -2070,8 +2228,10 @@ function App(): React.JSX.Element {
                               userHistory={draftUserHistory}
                               isNewSession
                               recentProjects={recentProjects}
-                              activeProject={activeProject}
+                              pickerTasks={pickerTasks}
+                              activeProject={composerProject}
                               onSelectProject={handleSelectProject}
+                              workdirPicker={workdirPicker}
                             />
                           </div>
                         ) : (
@@ -2100,6 +2260,7 @@ function App(): React.JSX.Element {
                                 onSelectThinkingLevel={handleSelectThinkingLevel}
                                 onRequestModelRefresh={handleRequestModelRefresh}
                                 userHistory={draftUserHistory}
+                                workdirPicker={workdirPicker}
                               />
                             </div>
                           </>
@@ -2174,7 +2335,7 @@ function App(): React.JSX.Element {
             // order, so the toolbar's drag rect would otherwise swallow the click.
             <SidebarToggle
               shortcutBinding={shortcutBindings?.get('sidebar.toggle')}
-              className="fixed top-2 z-30 animate-in fade-in-0 duration-300"
+              className="fixed top-1 z-30 animate-in fade-in-0 duration-300"
               style={{ left: sidebarToggleLeft(platform) }}
             />
           )}
@@ -2190,6 +2351,8 @@ function App(): React.JSX.Element {
                 void handleResumeSession(session);
               }
             }}
+            tasks={tasks}
+            onSelectTask={handleSelectTaskFromSwitcher}
             open={switcherOpen}
             onOpenChange={setSwitcherOpen}
             container={switcherContainer}

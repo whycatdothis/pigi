@@ -30,7 +30,8 @@ export function createMainWindow({ backgroundColor }: { backgroundColor: string 
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 15 },
+    // Keeps the 12px lights 1px above the centre of the 36px header, as before.
+    trafficLightPosition: { x: 16, y: 11 },
     ...(process.platform === 'darwin'
       ? { vibrancy: 'menu', backgroundColor: '#00000000' }
       : { backgroundColor }),
@@ -43,7 +44,13 @@ export function createMainWindow({ backgroundColor }: { backgroundColor: string 
   });
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow?.show();
+    // Scripted dev restarts (CDP smoke runs) set PIGI_NO_FOCUS so the window
+    // appears without raising over whatever the user is doing.
+    if (process.env['PIGI_NO_FOCUS'] === '1') {
+      mainWindow?.showInactive();
+    } else {
+      mainWindow?.show();
+    }
   });
 
   guardWindowNavigation(mainWindow.webContents, join(__dirname, '../renderer/index.html'));

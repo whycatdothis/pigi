@@ -8,14 +8,23 @@ import type {
   ModelInfo,
   PiSessionInfo,
   ProjectDirectory,
+  TaskInfo,
   ThinkingLevel,
   UpdateStatus,
 } from '../../../shared/ipcContract';
 import type { Platform } from '../../../shared/platform';
 import { createPersistedSessionMap } from '../lib/persistedSessionMap';
+import { baseName } from '../lib/utils';
 import { parseStoredQuotes, type MessageQuote, type QuoteContent } from '../lib/messageQuotes';
 import { RIGHT_SIDEBAR_TABS, type RightSidebarTab } from '../lib/rightSidebarTabs';
 import { WORKSPACE_TABS, type WorkspaceTab } from '../lib/workspaceTabs';
+import {
+  addFileVisit,
+  EMPTY_FILE_HISTORY,
+  moveInFileHistory,
+  type FileHistory,
+  type FileVisit,
+} from '../lib/fileHistory';
 import type { AgentStatus } from './transcriptController';
 
 export type { AgentStatus };
@@ -58,6 +67,11 @@ interface AppState {
 
   recentProjects: ProjectDirectory[];
   activeProject: ProjectDirectory | null;
+  /** Pigi tasks (~/.pigi/tasks), newest first; loaded once at startup, updated per action. */
+  tasks: TaskInfo[];
+  setTasks: (tasks: TaskInfo[]) => void;
+  /** Inserts or replaces one task after a create/update/report reply. */
+  upsertTask: (task: TaskInfo) => void;
   projectSessions: Record<string, PiSessionInfo[]>;
   /**
    * The project Files and Git browse per session (sessionPath, or '' before the
@@ -110,9 +124,20 @@ interface AppState {
   // Workspace views in the main area. The tabs are fixed and never close.
   workspaceTab: WorkspaceTab;
   setWorkspaceTab: (tab: WorkspaceTab) => void;
-  /** The file each project last opened in the Files tab, persisted per project. */
+  /** The file each project last opened in the Files tab, persisted per project: its active tab. */
   lastFileByProject: Map<string, string>;
+  /** Shows the file, opening a tab for it right of the active one if it has none. */
   setLastFile: (projectPath: string, path: string) => void;
+  /** The Files tab's open files per project, in tab order, persisted; past the cap, the least recent tab goes. */
+  openFilesByProject: Map<string, readonly string[]>;
+  /** Closing the active tab activates its right neighbour, else its left one. */
+  closeFile: (projectPath: string, path: string) => void;
+  /** Files tab back/forward per project, for this run only. */
+  fileHistoryByProject: Map<string, FileHistory>;
+  /** Call before showing the file: a project's first visit starts from the file on screen. */
+  recordFileVisit: (projectPath: string, visit: FileVisit) => void;
+  /** The visit to show, or null at either end. */
+  stepFileHistory: (projectPath: string, step: -1 | 1) => FileVisit | null;
 
   // Bottom terminal panel. `terminalMounted` stays true after first open so the
   // xterm instance (and its PTY) persist while the panel is toggled hidden.
@@ -289,6 +314,52 @@ const storedLastFiles = createPersistedSessionMap<string>({
   parse: (value) => (typeof value === 'string' && value.length > 0 ? value : undefined),
 });
 
+export const OPEN_FILES_STORAGE_KEY = 'pigi.openFilesByProject';
+
+const storedOpenFiles = createPersistedSessionMap<readonly string[]>({
+  storageKey: OPEN_FILES_STORAGE_KEY,
+  saveDelayMs: 300,
+  parse: (value) =>
+    Array.isArray(value) && value.every((path) => typeof path === 'string' && path.length > 0)
+      ? value
+      : undefined,
+});
+
+const MAX_OPEN_FILES = 8;
+
+/**
+ * The tab to drop past the cap: never the active one, else the one shown
+ * longest ago. Files not shown this run (history is in memory) go first,
+ * leftmost first.
+ */
+function leastRecentTab(
+  tabs: readonly string[],
+  active: string | undefined,
+  history: FileHistory | undefined,
+): string | undefined {
+  let dropped: string | undefined;
+  let oldest = Infinity;
+  for (const tab of tabs) {
+    if (tab === active) continue;
+    const shown = history?.visits.findLastIndex((visit) => visit.filePath === tab) ?? -1;
+    if (shown < oldest) {
+      oldest = shown;
+      dropped = tab;
+    }
+  }
+  return dropped;
+}
+
+/** The active file always has a tab, also when its tab list expired before it. */
+function loadOpenFiles(lastFiles: ReadonlyMap<string, string>): Map<string, readonly string[]> {
+  const openFiles = storedOpenFiles.load();
+  for (const [projectPath, path] of lastFiles) {
+    const tabs = openFiles.get(projectPath) ?? [];
+    if (!tabs.includes(path)) openFiles.set(projectPath, [...tabs, path]);
+  }
+  return openFiles;
+}
+
 function withSessionQuotes(
   quotesBySession: Map<string, MessageQuote[]>,
   sessionPath: string,
@@ -318,22 +389,50 @@ function withPaths(
   return next;
 }
 
+function toProjectDirectory(path: string, name?: string): ProjectDirectory {
+  return { path, name: name ?? baseName(path) };
+}
+
+/** The task a path belongs to: its directory or one of its working directories. */
+function taskForPath(tasks: TaskInfo[], path: string): TaskInfo | undefined {
+  return tasks.find((task) => task.path === path || task.workDirs.includes(path));
+}
+
 /** The Files/Git project of a session: its own choice while that project still exists, else the active one. */
 export function workspaceProjectForSession({
   recentProjects,
   activeProject,
   activeSessionPath,
   workspaceProjectBySession,
+  tasks,
+  sessions,
 }: {
   recentProjects: ProjectDirectory[];
   activeProject: ProjectDirectory | null;
   activeSessionPath: string | null;
   workspaceProjectBySession: Map<string, string>;
+  tasks: TaskInfo[];
+  sessions: Map<string, SessionEntry>;
 }): ProjectDirectory | null {
   const chosenPath = workspaceProjectBySession.get(activeSessionPath ?? '');
   if (chosenPath) {
     const chosen = recentProjects.find((project) => project.path === chosenPath);
     if (chosen) return chosen;
+    const chosenTask = taskForPath(tasks, chosenPath);
+    if (chosenTask) {
+      return chosenTask.path === chosenPath
+        ? toProjectDirectory(chosenTask.path, chosenTask.name)
+        : toProjectDirectory(chosenPath);
+    }
+  }
+  // A task session with no explicit choice browses the task's active working
+  // directory, or the task directory itself (its documents) when none is set.
+  const cwd = activeSessionPath ? sessions.get(activeSessionPath)?.cwd : undefined;
+  const task = cwd ? tasks.find((candidate) => candidate.path === cwd) : undefined;
+  if (task) {
+    return task.activeWorkDir
+      ? toProjectDirectory(task.activeWorkDir)
+      : toProjectDirectory(task.path, task.name);
   }
   return activeProject;
 }
@@ -367,6 +466,8 @@ function withPatchedSession(
   next[index] = { ...current, modified, name };
   return { ...projectSessions, [cwd]: next };
 }
+
+const initialLastFiles = storedLastFiles.load();
 
 const createAppState: StateCreator<AppState> = (set) => ({
   sessions: new Map(),
@@ -458,6 +559,18 @@ const createAppState: StateCreator<AppState> = (set) => ({
     }),
 
   setProjects: (recentProjects, activeProject) => set({ recentProjects, activeProject }),
+
+  tasks: [],
+  setTasks: (tasks) => set({ tasks }),
+  upsertTask: (task) =>
+    set((state) => {
+      const index = state.tasks.findIndex((candidate) => candidate.path === task.path);
+      if (index === -1) return { tasks: [task, ...state.tasks] };
+      const tasks = state.tasks.slice();
+      tasks[index] = task;
+      return { tasks };
+    }),
+
   setProjectSessions: (projectSessions) => set({ projectSessions }),
   setProjectSessionList: (cwd, sessions) =>
     set((state) => ({
@@ -509,14 +622,74 @@ const createAppState: StateCreator<AppState> = (set) => ({
       packagesOpen: false,
       ...markSeen(state, state.activeSessionPath, workspaceTab),
     })),
-  lastFileByProject: storedLastFiles.load(),
+  lastFileByProject: initialLastFiles,
   setLastFile: (projectPath, path) =>
     set((state) => {
-      if (state.lastFileByProject.get(projectPath) === path) return {};
-      const lastFileByProject = new Map(state.lastFileByProject);
-      lastFileByProject.set(projectPath, path);
-      return { lastFileByProject };
+      const active = state.lastFileByProject.get(projectPath);
+      const tabs = state.openFilesByProject.get(projectPath) ?? [];
+      const hasTab = tabs.includes(path);
+      if (active === path && hasTab) return {};
+      const activeIndex = active === undefined ? -1 : tabs.indexOf(active);
+      const insertAt = activeIndex === -1 ? tabs.length : activeIndex + 1;
+      const lastFileByProject = new Map(state.lastFileByProject).set(projectPath, path);
+      if (hasTab) return { lastFileByProject };
+      const dropped =
+        tabs.length < MAX_OPEN_FILES
+          ? undefined
+          : leastRecentTab(tabs, active, state.fileHistoryByProject.get(projectPath));
+      const opened = tabs.toSpliced(insertAt, 0, path).filter((tab) => tab !== dropped);
+      return {
+        lastFileByProject,
+        openFilesByProject: new Map(state.openFilesByProject).set(projectPath, opened),
+      };
     }),
+  openFilesByProject: loadOpenFiles(initialLastFiles),
+  closeFile: (projectPath, path) =>
+    set((state) => {
+      const tabs = state.openFilesByProject.get(projectPath) ?? [];
+      const index = tabs.indexOf(path);
+      if (index === -1) return {};
+      const remaining = tabs.toSpliced(index, 1);
+      const openFilesByProject = new Map(state.openFilesByProject).set(projectPath, remaining);
+      if (state.lastFileByProject.get(projectPath) !== path) return { openFilesByProject };
+      const lastFileByProject = new Map(state.lastFileByProject);
+      const next = remaining[index] ?? remaining[index - 1];
+      if (next === undefined) {
+        lastFileByProject.delete(projectPath);
+        return { openFilesByProject, lastFileByProject };
+      }
+      lastFileByProject.set(projectPath, next);
+      // The tab that comes forward is a visit, so Back returns to the closed file.
+      const history = state.fileHistoryByProject.get(projectPath) ?? EMPTY_FILE_HISTORY;
+      const fileHistoryByProject = new Map(state.fileHistoryByProject).set(
+        projectPath,
+        addFileVisit(history, { filePath: next, lines: null }),
+      );
+      return { openFilesByProject, lastFileByProject, fileHistoryByProject };
+    }),
+  fileHistoryByProject: new Map(),
+  recordFileVisit: (projectPath, visit) =>
+    set((state) => {
+      const shown = state.lastFileByProject.get(projectPath);
+      const history =
+        state.fileHistoryByProject.get(projectPath) ??
+        (shown ? addFileVisit(EMPTY_FILE_HISTORY, { filePath: shown, lines: null }) : null) ??
+        EMPTY_FILE_HISTORY;
+      const next = addFileVisit(history, visit);
+      if (next === history) return {};
+      return { fileHistoryByProject: new Map(state.fileHistoryByProject).set(projectPath, next) };
+    }),
+  stepFileHistory: (projectPath, step) => {
+    let visit: FileVisit | null = null;
+    set((state) => {
+      const history = state.fileHistoryByProject.get(projectPath);
+      const next = history && moveInFileHistory(history, step);
+      if (!next) return {};
+      visit = next.visits[next.index] ?? null;
+      return { fileHistoryByProject: new Map(state.fileHistoryByProject).set(projectPath, next) };
+    });
+    return visit;
+  },
 
   terminalOpen: false,
   terminalMounted: false,
@@ -732,6 +905,9 @@ useAppStore.subscribe((state, previous) => {
   }
   if (state.globalCommentBySession !== previous.globalCommentBySession) {
     storedGlobalComments.save(state.globalCommentBySession);
+  }
+  if (state.openFilesByProject !== previous.openFilesByProject) {
+    storedOpenFiles.save(state.openFilesByProject);
   }
   if (state.lastFileByProject !== previous.lastFileByProject) {
     storedLastFiles.save(state.lastFileByProject);

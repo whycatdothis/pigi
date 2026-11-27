@@ -26,6 +26,14 @@ import type {
   GitDiffSummaryResult,
   ProjectSessionsChunk,
   ProjectStateResult,
+  ListTasksResult,
+  PickDirectoryResult,
+  ClassifyTaskDirsResult,
+  TaskDirCandidate,
+  TaskDirEvent,
+  TaskDirSource,
+  TaskResult,
+  TaskUpdate,
   PromptAttachment,
   SessionOptions,
   SessionState,
@@ -147,6 +155,55 @@ export async function removeProject(path: string): Promise<ProjectStateResult> {
 
 export async function reorderProjects(paths: string[]): Promise<ProjectStateResult> {
   return window.piApi.reorderProjects(paths);
+}
+
+export async function listTasks(): Promise<ListTasksResult> {
+  return window.piApi.listTasks();
+}
+
+export async function createTask(name: string): Promise<TaskResult> {
+  return window.piApi.createTask(name);
+}
+
+export async function updateTask(taskPath: string, update: TaskUpdate): Promise<TaskResult> {
+  return window.piApi.updateTask(taskPath, update);
+}
+
+export async function reportTaskDirs(
+  taskPath: string,
+  paths: string[],
+  source: TaskDirSource,
+): Promise<TaskResult> {
+  return window.piApi.reportTaskDirs(taskPath, paths, source);
+}
+
+/**
+ * One batched LLM call on the session's own worker, scoring how likely each
+ * candidate dir belongs to the task's working set. Fired mid-run in batches
+ * and once at run end, on the provider path the run already warmed; a failure
+ * result means "keep the heuristics".
+ */
+export async function classifyTaskDirs(
+  sessionPath: string,
+  request: {
+    taskName: string;
+    workDirs: string[];
+    historyDirs: string[];
+    dirLog: TaskDirEvent[];
+    candidates: TaskDirCandidate[];
+  },
+): Promise<ClassifyTaskDirsResult> {
+  return send<ClassifyTaskDirsResult>(sessionPath, { type: 'classify_task_dirs', ...request });
+}
+
+/** Native directory picker with no side effects; null path means canceled. */
+export async function pickDirectory(): Promise<PickDirectoryResult> {
+  return window.piApi.pickDirectory();
+}
+
+/** Home directory, for tilde-shortening display paths. */
+export function getHomeDir(): string {
+  return window.piApi.getHomeDir();
 }
 
 /** cwds recently sent to the session worker; cleared after a short TTL */

@@ -63,6 +63,119 @@ export interface ProjectDirectory {
   name: string;
 }
 
+/**
+ * A pigi task: a directory under ~/.pigi/tasks that coordinates work across
+ * several working directories. The task directory is the session cwd; the
+ * state below lives in `<task>/.pigi/task.json` (gitignored, validated on
+ * read, rebuilt empty when corrupt). Tombstones (`removedDirs`) stay in that
+ * file: they are the store's private memory, nothing the renderer shows.
+ */
+export interface TaskInfo {
+  /** Display name: the rename stored in task.json, or the directory name. */
+  name: string;
+  /** Absolute path of the task directory. The directory keeps its birth name:
+      identity and session grouping key off it, so a rename never moves it. */
+  path: string;
+  /** Directories the task works in, absolute. */
+  workDirs: string[];
+  /** Dirs pigi noticed in tool calls, waiting for the user to accept or dismiss. */
+  suggestedDirs: string[];
+  /** The work dir Files/Git open for this task; null opens the task directory. */
+  activeWorkDir: string | null;
+  /** Recent changes to the directory lists, newest last; the classifier's feedback loop. */
+  dirLog: TaskDirEvent[];
+  /** Hidden tasks leave the sidebar's default list but stay searchable. */
+  hidden: boolean;
+  /** The task's sidebar icon; null falls back to the generic task icon. */
+  emoji: string | null;
+}
+
+/**
+ * Legal task names: anything but a slash, no leading dot (hidden dir),
+ * bounded for the sidebar. Spaces, CJK, emoji are all fine — a name doubles
+ * as the directory name under the tasks root, which APFS takes as-is.
+ */
+export const TASK_NAME_PATTERN = /^[^/.][^/]{0,63}$/;
+
+/** User-facing explanation of TASK_NAME_PATTERN, shared by every input that validates a name. */
+export const TASK_NAME_ERROR =
+  'Task names cannot contain / or start with a dot (max 64 characters).';
+
+/** Edits a task's directory lists; every field optional, applied in one write. */
+export interface TaskUpdate {
+  /** Explicit adds (editor, or dirs the user's prompt named): clears any tombstone. */
+  addWorkDirs?: string[];
+  /** Removes a work dir and records a tombstone so it is not auto-added back. */
+  removeWorkDirs?: string[];
+  /** Dismisses suggestions, recording tombstones for them. */
+  ignoreSuggestedDirs?: string[];
+  /** Must be null (the task directory) or one of the resulting workDirs. */
+  setActiveWorkDir?: string | null;
+  /** Display-name override; the directory itself is never renamed. */
+  renameTo?: string;
+  setHidden?: boolean;
+  /** Null clears a picked emoji back to the generic icon. */
+  setEmoji?: string | null;
+}
+
+export type ListTasksResult =
+  | { success: true; tasks: TaskInfo[] }
+  | { success: false; error: string };
+
+/** The native directory picker: the chosen path, or null when canceled. */
+export type PickDirectoryResult =
+  | { success: true; path: string | null }
+  | { success: false; error: string };
+
+export type TaskResult = { success: true; task: TaskInfo } | { success: false; error: string };
+
+/**
+ * Where a reported path was seen: the user's own words add outright, the
+ * run-end classifier's confident picks add outright too, and anything only
+ * observed (tool calls, assistant messages) becomes a suggestion.
+ */
+export type TaskDirSource = 'prompt' | 'tool' | 'model';
+
+/** Who changed a task's directory lists: the user's hand, a prompt's words, or the classifier. */
+export type TaskDirEventSource = 'manual' | 'prompt' | 'model';
+
+/**
+ * One change to a task's directory lists, kept as classifier feedback: adds
+ * are confirmed ground truth, removals and dismissals are negative examples.
+ */
+export interface TaskDirEvent {
+  dir: string;
+  action: 'added' | 'removed' | 'dismissed';
+  source: TaskDirEventSource;
+  /** Epoch ms. */
+  at: number;
+}
+
+/**
+ * A directory the run-end classifier judges, with the evidence that raised it.
+ */
+export interface TaskDirCandidate {
+  dir: string;
+  /** Where the mention happened. Dirs typed into the prompt are added
+     outright and never become candidates; attached files do. */
+  seenIn: 'tool' | 'assistant' | 'prompt';
+  /** Short snippet around the mention, so the model sees how the dir was used. */
+  context: string;
+}
+
+/** One classification call scores at most this many candidates. */
+export const TASK_DIR_CLASSIFY_MAX_CANDIDATES = 30;
+
+/** The classifier's verdict for one candidate: probability it is a working directory. */
+export interface TaskDirVerdict {
+  dir: string;
+  p: number;
+}
+
+export type ClassifyTaskDirsResult =
+  | { success: true; verdicts: TaskDirVerdict[] }
+  | { success: false; error: string };
+
 export type ChatAttachmentKind = 'image' | 'file';
 
 /**
@@ -110,6 +223,19 @@ export type PickAttachmentsResult =
 /** Best matches for an inline @ file reference query in the chat input. */
 export type ProjectFileSearchResult =
   | { success: true; files: string[] }
+  | { success: false; error: string };
+
+/** A definition go to definition found; `filePath` is project-relative, or absolute outside the project. */
+export interface CodeDefinition {
+  filePath: string;
+  /** 1-based. */
+  line: number;
+  lineContent: string;
+}
+
+/** `symbol` is null when the position is not on an identifier. */
+export type FindDefinitionResult =
+  | { success: true; symbol: string | null; definitions: CodeDefinition[] }
   | { success: false; error: string };
 
 /** One filesystem entry offered while completing a typed path. */
@@ -483,7 +609,24 @@ export type PiCommand =
   | { type: 'login_oauth'; providerId: string }
   | { type: 'login_api_key'; providerId: string; apiKey: string }
   | { type: 'logout'; providerId: string }
-  | { type: 'debug' };
+  | { type: 'debug' }
+  /**
+   * Scores a run's candidate directories in one batched LLM call on this
+   * session's own worker: the provider path is already warm from the run and
+   * auto-rename, so the verdicts cost one ordinary-latency request. Carries
+   * everything the model sees, because task state lives in the main process
+   * and the transcript in the renderer — the worker only owns the model.
+   */
+  | {
+      type: 'classify_task_dirs';
+      taskName: string;
+      workDirs: string[];
+      /** Working directories the user keeps across other tasks: what "a working dir" looks like. */
+      historyDirs: string[];
+      /** This task's past adds/removals/dismissals, newest last. */
+      dirLog: TaskDirEvent[];
+      candidates: TaskDirCandidate[];
+    };
 
 /** Wire format for a command request (renderer → utility via port) */
 export interface PiRequest {
@@ -693,6 +836,16 @@ export enum PiChannel {
   RemoveProject = 'pi:remove_project',
   /** renderer → main: reorder recent projects */
   ReorderProjects = 'pi:reorder_projects',
+  /** renderer → main: list pigi tasks (~/.pigi/tasks) */
+  ListTasks = 'pi:list_tasks',
+  /** renderer → main: create a task directory (git init, AGENTS.md, task.json) */
+  CreateTask = 'pi:create_task',
+  /** renderer → main: edit a task's directory lists (TaskUpdate) */
+  UpdateTask = 'pi:update_task',
+  /** renderer → main: dirs seen in a task session; prompt dirs add, tool dirs suggest */
+  ReportTaskDirs = 'pi:report_task_dirs',
+  /** renderer → main: native directory picker with no side effects (task work dirs) */
+  PickDirectory = 'pi:pick_directory',
   /** renderer → main: rename a persisted (non-running) session */
   RenamePersistedSession = 'pi:rename_persisted_session',
   /** renderer → main: read messages from a session file without spawning a utility process */
@@ -715,6 +868,8 @@ export enum PiChannel {
   ProjectFilesChanged = 'pi:project_files_changed',
   /** renderer → main: read a project file for the workspace viewer */
   ReadProjectFile = 'pi:read_project_file',
+  /** renderer → main: where the identifier at a position in a project file is defined */
+  FindDefinition = 'pi:find_definition',
   /** renderer → main: which paths named in chat exist */
   ResolveExistingPaths = 'pi:resolve_existing_paths',
   /** renderer → main: the app theme, so window materials follow it */
@@ -725,6 +880,8 @@ export enum PiChannel {
   ReadPigiSettings = 'pi:read_pigi_settings',
   /** renderer → main: the process working directory, answered synchronously */
   GetAppCwd = 'pi:get_app_cwd',
+  /** renderer → main: the user's home directory, answered synchronously */
+  GetHomeDir = 'pi:get_home_dir',
   /** renderer → main: a prompt, a feature used or an uncaught error, for telemetry (main decides whether to send) */
   ReportTelemetry = 'pi:report_telemetry',
   /** renderer → main: get all keyboard shortcut definitions with current bindings */
@@ -947,6 +1104,24 @@ export type PackageWorkerResponse =
   | { type: 'check_result'; result: PiPackagesHealthResult }
   /** The worker leaves a failure's `log` empty; main fills in the npm/git output. */
   | { type: 'operate_result'; result: PiPackageOperationResult };
+
+// =============================================================================
+// Internal: Main ↔ code navigation process
+// =============================================================================
+
+/** `line` is 1-based, `column` 0-based in UTF-16 code units. */
+export interface CodeNavigationRequest {
+  requestId: number;
+  cwd: string;
+  filePath: string;
+  line: number;
+  column: number;
+}
+
+export interface CodeNavigationResponse {
+  requestId: number;
+  result: FindDefinitionResult;
+}
 
 // =============================================================================
 // Internal: Main → Utility (parentPort, lifecycle only)

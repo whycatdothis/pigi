@@ -51,6 +51,18 @@ export function cn(...inputs: ClassValue[]): string {
   return mergeClassName(clsx(inputs));
 }
 
+/** Last segment of a POSIX path; the display name of a directory. */
+export function baseName(path: string): string {
+  return path.split('/').filter(Boolean).pop() ?? path;
+}
+
+/** `/Users/jane/work` → `~/work` for display; anything outside home passes through. */
+export function tildePath(path: string, homeDir: string): string {
+  if (path === homeDir) return '~';
+  if (homeDir !== '' && path.startsWith(`${homeDir}/`)) return `~${path.slice(homeDir.length)}`;
+  return path;
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

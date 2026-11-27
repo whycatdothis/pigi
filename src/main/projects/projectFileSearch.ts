@@ -35,7 +35,7 @@ const initialScanAwaited = new WeakSet<FileFinder>();
  * 0.11.1-nightly.51649e1 build for it. TODO: move to the latest stable
  * release once 0.11.1 is out.
  */
-function pointToUnpackedLibrary(): void {
+export function pointToUnpackedLibrary(): void {
   if (!app.isPackaged || process.env[LIBRARY_PATH_ENV]) return;
   const libraryPath = findBinary();
   if (libraryPath?.includes(ASAR_SEGMENT)) {

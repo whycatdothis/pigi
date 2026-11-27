@@ -16,11 +16,18 @@
   --spacing: calc(0.25rem * var(--font-ui-scale));
 }
 
-/* The same for the 44px header, which is pinned to the native traffic lights
+/* The same for the 36px header, which is pinned to the native traffic lights
    and cannot grow: its contents follow the text size up to a 17px UI size. */
 @utility follows-text-size-capped {
   --font-ui-scale: min(var(--app-font-ui-scale, 1), calc(17 / 15));
   --spacing: calc(0.25rem * var(--font-ui-scale));
+}
+
+/* A tab bar's bottom rule (the header's border colour). An inset shadow paints
+   under the children, so the active editor tab (TabsList variant="editor")
+   covers it and joins the view below; a border would draw over the tab. */
+@utility tab-bar-rule {
+  box-shadow: inset 0 -0.5px 0 color-mix(in oklab, var(--foreground) 27%, transparent);
 }
 
 /* Focus rings only for keyboard navigation; see lib/focusModality.ts. */
@@ -664,6 +671,13 @@
 }
 
 @layer utilities {
+  /* With the Add-directory button before the editor, the composer's own left
+     padding is the button-to-text gap; trim it to the usual inline gap. Must
+     live in the utilities layer to beat the composer's px-4. */
+  [data-workdir-button] .chat-composer {
+    padding-left: calc(var(--spacing) * 1.5);
+  }
+
   .no-scrollbar {
     scrollbar-width: none;
   }
@@ -717,17 +731,6 @@
   .thin-scrollbar-thumb:hover,
   .thin-scrollbar[data-dragging='true'] .thin-scrollbar-thumb {
     width: 12px;
-  }
-
-  .content-fade-bottom {
-    mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent);
-    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 16px), transparent);
-  }
-
-  /* A sticky Show less footer replaces the fade. */
-  .content-fade-bottom:has([data-show-all]) {
-    mask-image: none;
-    -webkit-mask-image: none;
   }
 
   .menu-content {

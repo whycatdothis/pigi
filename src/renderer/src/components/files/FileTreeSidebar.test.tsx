@@ -39,10 +39,12 @@ function renderSidebar(
         projectPath="/repo"
         projectName="repo"
         projects={[{ path: '/repo', name: 'repo' }]}
+        taskProjects={null}
         selectedFilePath={selectedFilePath}
         revealedDirectory={revealedDirectory}
         onSelectProject={vi.fn()}
         onOpenFile={vi.fn()}
+        onStepFileHistory={vi.fn()}
         onOpenSettings={vi.fn()}
         onActiveFileChanged={onActiveFileChanged}
         shortcutBindings={null}

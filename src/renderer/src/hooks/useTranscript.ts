@@ -43,6 +43,11 @@ export function getTranscriptController(sessionPath: string): TranscriptControll
   return controller;
 }
 
+/** The existing controller, if any. Callers that only observe must not create one. */
+export function peekTranscriptController(sessionPath: string): TranscriptController | undefined {
+  return controllersBySession.get(sessionPath);
+}
+
 export function ensureTranscriptSession(sessionPath: string): TranscriptController {
   const controller = getTranscriptController(sessionPath);
   ensureSessionSubscription(sessionPath, controller);

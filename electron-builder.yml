@@ -13,6 +13,18 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
   - '!docs'
   - '!.pi'
+# Go to definition's TypeScript server, as plain files for the child processes
+# that run it. Packed from node_modules, it would lose the lib*.d.ts files
+# tsserver needs (electron-builder drops *.d.ts there); only tsserver ships, not
+# the compiler, locales or typings installer. `lib*.d.ts` covers lib.d.ts too,
+# which a target below ES2015 loads.
+extraResources:
+  - from: node_modules
+    to: typescriptServer
+    filter:
+      - typescript-language-server/{package.json,LICENSE,lib/cli.mjs}
+      - typescript-for-navigation/{package.json,LICENSE.txt,ThirdPartyNoticeText.txt}
+      - typescript-for-navigation/lib/{tsserver.js,_tsserver.js,typescript.js,typesMap.json,watchGuard.js,lib*.d.ts}
 asarUnpack:
   - resources/**
   # Native module: its .node binary must live outside the asar to be require-able.

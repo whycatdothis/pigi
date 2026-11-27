@@ -303,7 +303,8 @@ async function createBackgroundSession(
     isSubagent: extra.subagent,
     status: 'idle',
     title: extra.title ?? 'New chat',
-    cwd,
+    // The process reports the disk spelling; the typed cwd may differ in case.
+    cwd: state.cwd,
     createdAt: new Date().toISOString(),
     model: state.model,
     thinkingLevel: state.thinkingLevel,
@@ -350,7 +351,9 @@ function openSession(path: string): Promise<void> {
 
 async function attachSession(path: string): Promise<void> {
   try {
-    await resumeSession(path);
+    // Ports and the process pool live under the canonical path main returns;
+    // everything below must key by it, not the spelling we were called with.
+    path = await resumeSession(path);
     keepSelectedSessionInView();
     markSessionHydrated(path);
     const controller = ensureTranscriptSession(path);

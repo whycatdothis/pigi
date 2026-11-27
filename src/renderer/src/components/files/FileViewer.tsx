@@ -18,11 +18,14 @@ import { sourceLineRangeFromSelection } from '../../lib/sourceLineSelection';
 import { MESSAGE_LIST_MAX_WIDTH } from '../../lib/layoutConstants';
 import MarkdownMessage from '../message/markdownMessage';
 import SyntaxHighlightedCode from '../message/syntaxHighlightedCode';
+import { cacheHighlightedCode, normalizeLanguage, useCodeTheme } from '../message/codeHighlighting';
 import QuoteSelectionPopover from '../quotes/QuoteSelectionPopover';
+import GoToDefinition from './GoToDefinition';
 import ContainerFind from '../ui/containerFind';
 import { ZoomableImage } from '../zoomableImage';
 import { localFileUrl } from '../../lib/chatAttachments';
-import { projectAbsolutePath } from '../../lib/projectFileLinks';
+import { isAbsoluteFilePath, projectAbsolutePath } from '../../lib/projectFileLinks';
+import { codeLanguageForPath } from '../../../../shared/codeNavigation';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { useBottomAnchoredScroll } from '../../hooks/useBottomAnchoredScroll';
@@ -31,6 +34,8 @@ import { useRememberedScroll } from '../../hooks/useRememberedScroll';
 
 /** A text view with this many lines is already well past reading; the rest is cut and announced. */
 const MAX_RENDERED_LINES = 5000;
+/** How long a read file waits for its highlight before it shows as plain text. */
+const HIGHLIGHT_WAIT_MS = 300;
 
 type FileState =
   | { status: 'loading' }
@@ -87,6 +92,22 @@ function ViewModeToggle({
   );
 }
 
+function visibleSource(content: string): {
+  content: string;
+  hiddenLines: number;
+  totalLines: number;
+} {
+  const lines = content.split('\n');
+  if (lines.length <= MAX_RENDERED_LINES) {
+    return { content, hiddenLines: 0, totalLines: lines.length };
+  }
+  return {
+    content: lines.slice(0, MAX_RENDERED_LINES).join('\n'),
+    hiddenLines: lines.length - MAX_RENDERED_LINES,
+    totalLines: lines.length,
+  };
+}
+
 function FileStateMessage({
   error,
   loading,
@@ -95,7 +116,13 @@ function FileStateMessage({
   loading?: boolean;
 }): React.JSX.Element {
   return (
-    <div className="flex h-full items-center justify-center px-6 text-center">
+    <div
+      className={cn(
+        'flex h-full items-center justify-center px-6 text-center',
+        // Most files are read before this shows; then it never flashes.
+        loading && 'animate-in fade-in-0 delay-300 fill-mode-backwards',
+      )}
+    >
       <div className="flex max-w-md items-center gap-2 text-caption text-muted-foreground">
         {loading ? (
           <SpinningIcon>
@@ -112,7 +139,16 @@ function FileStateMessage({
 
 // Both wrappers fill the pane so `scale-down` can fit a large image to it; a
 // small one keeps its own size.
-function FileImage({ src, alt }: { src: string; alt: string }): React.JSX.Element {
+function FileImage({
+  src,
+  alt,
+  onSettled,
+}: {
+  src: string;
+  alt: string;
+  /** Absent for an SVG preview, whose file is already read. */
+  onSettled?: () => void;
+}): React.JSX.Element {
   return (
     <div className="h-full p-6 [&_[data-rmiz-content]]:block [&_[data-rmiz-content]]:size-full [&_[data-rmiz]]:block [&_[data-rmiz]]:size-full">
       <ZoomableImage
@@ -120,10 +156,15 @@ function FileImage({ src, alt }: { src: string; alt: string }): React.JSX.Elemen
         alt={alt}
         className="size-full object-scale-down"
         draggable={false}
+        onLoad={onSettled}
+        onError={onSettled}
       />
     </div>
   );
 }
+
+const MOUSE_BACK_BUTTON = 3;
+const MOUSE_FORWARD_BUTTON = 4;
 
 /**
  * The Files tab's reading pane. Source mode quotes a line range; rendered
@@ -138,6 +179,8 @@ export default function FileViewer({
   lineTarget,
   sessionPath,
   onOpenFile,
+  onStepFileHistory,
+  onReady,
 }: {
   projectPath: string;
   /** The session's own project; another project's quotes need absolute references. */
@@ -147,9 +190,16 @@ export default function FileViewer({
   lineTarget: FileLineTarget | null;
   sessionPath: string | null;
   onOpenFile: (path: string, lines?: LineRange | null) => void;
+  onStepFileHistory: (step: -1 | 1) => void;
+  /** The file is read and highlighted (or failed): it can replace the one on screen. */
+  onReady?: () => void;
 }): React.JSX.Element {
+  const codeTheme = useCodeTheme();
   const isBitmap = isBitmapImagePath(filePath);
   const [fileState, setFileState] = useState<FileState>({ status: 'loading' });
+  // A bitmap has no read: it is ready once the image itself has loaded or failed.
+  const [imageSettled, setImageSettled] = useState(false);
+  const settleImage = useCallback(() => setImageSettled(true), []);
   const isMarkdown = isMarkdownPath(filePath);
   const isSvg = isSvgPath(filePath);
   // Line numbers exist only in the source view. Opening a file there at its
@@ -191,7 +241,25 @@ export default function FileViewer({
     let cancelled = false;
     window.piApi
       .readProjectFile(projectPath, filePath)
-      .then((result) => {
+      .then(async (result) => {
+        if (result.success) {
+          // Highlighted text is drawn at once rather than plain first.
+          const content = visibleSource(result.content).content;
+          const language = normalizeLanguage(languageForFile(filePath, content));
+          if (language) {
+            await Promise.race([
+              cacheHighlightedCode(
+                content,
+                language,
+                codeTheme.name,
+                codeTheme.background,
+                codeTheme.surface,
+                codeTheme.codeThemeId,
+              ).catch(() => null),
+              new Promise((resolve) => setTimeout(resolve, HIGHLIGHT_WAIT_MS)),
+            ]);
+          }
+        }
         if (cancelled) return;
         setFileState(
           result.success
@@ -210,22 +278,20 @@ export default function FileViewer({
     return () => {
       cancelled = true;
     };
-  }, [projectPath, filePath, fileRevision, isBitmap]);
+  }, [projectPath, filePath, fileRevision, isBitmap, codeTheme]);
 
-  const source = useMemo(() => {
-    if (fileState.status !== 'ready') {
-      return { content: '', hiddenLines: 0, totalLines: 0 };
-    }
-    const lines = fileState.content.split('\n');
-    if (lines.length <= MAX_RENDERED_LINES) {
-      return { content: fileState.content, hiddenLines: 0, totalLines: lines.length };
-    }
-    return {
-      content: lines.slice(0, MAX_RENDERED_LINES).join('\n'),
-      hiddenLines: lines.length - MAX_RENDERED_LINES,
-      totalLines: lines.length,
-    };
-  }, [fileState]);
+  const ready = isBitmap ? imageSettled : fileState.status !== 'loading';
+  useLayoutEffect(() => {
+    if (ready) onReady?.();
+  }, [ready, onReady]);
+
+  const source = useMemo(
+    () =>
+      fileState.status === 'ready'
+        ? visibleSource(fileState.content)
+        : { content: '', hiddenLines: 0, totalLines: 0 },
+    [fileState],
+  );
   const language = languageForFile(filePath, source.content);
 
   useLayoutEffect(() => {
@@ -253,6 +319,12 @@ export default function FileViewer({
     [quoteFilePath],
   );
   const formatQuoteContent = showsPreview ? formatPreviewQuote : formatSourceQuote;
+  // Files outside the project have no finder or language server root to search from.
+  const navigable =
+    fileState.status === 'ready' &&
+    !showsPreview &&
+    !isAbsoluteFilePath(filePath) &&
+    codeLanguageForPath(filePath) !== null;
 
   const notice =
     fileState.status === 'ready' && fileState.truncated
@@ -262,7 +334,13 @@ export default function FileViewer({
         : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div
+      className="flex min-h-0 flex-1 flex-col"
+      onMouseUp={(event) => {
+        if (event.button === MOUSE_BACK_BUTTON) onStepFileHistory(-1);
+        if (event.button === MOUSE_FORWARD_BUTTON) onStepFileHistory(1);
+      }}
+    >
       <div className="flex h-8 shrink-0 items-center gap-2 px-3">
         <FileIcon path={filePath} className="size-4" />
         <div className="group/path flex min-w-0 flex-1 items-center gap-1">
@@ -294,10 +372,10 @@ export default function FileViewer({
           tabIndex={0}
           aria-label="File content"
           data-testid="file-viewer"
-          className="h-full overflow-auto bg-background select-text outline-none"
+          className="h-full overflow-auto bg-background select-text outline-none data-[definition-armed]:cursor-pointer data-[definition-pending]:cursor-progress"
         >
           {isBitmap ? (
-            <FileImage src={imageSource} alt={filePath} />
+            <FileImage src={imageSource} alt={filePath} onSettled={settleImage} />
           ) : fileState.status === 'loading' ? (
             <FileStateMessage loading />
           ) : fileState.status === 'error' ? (
@@ -332,6 +410,13 @@ export default function FileViewer({
           )}
         </div>
         <ContainerFind containerRef={containerRef} active placeholder="Find in file…" />
+        <GoToDefinition
+          containerRef={containerRef}
+          projectPath={projectPath}
+          filePath={filePath}
+          enabled={navigable}
+          onOpenFile={onOpenFile}
+        />
         {sessionPath && (
           <QuoteSelectionPopover
             // Another session remounts it, so an open comment saves to the session it was for.

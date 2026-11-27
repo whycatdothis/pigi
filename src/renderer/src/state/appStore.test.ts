@@ -7,6 +7,7 @@ import {
   QUOTES_STORAGE_KEY,
   useAppStore,
   workspaceProjectForSession,
+  type SessionEntry,
 } from './appStore';
 
 const backgroundPath = '/sessions/background.jsonl';
@@ -190,6 +191,82 @@ describe('last opened file', () => {
   });
 });
 
+describe('open file tabs', () => {
+  beforeEach(() => {
+    useAppStore.setState({ lastFileByProject: new Map(), openFilesByProject: new Map() });
+  });
+
+  const tabs = (): readonly string[] | undefined =>
+    useAppStore.getState().openFilesByProject.get('/p');
+  const active = (): string | undefined => useAppStore.getState().lastFileByProject.get('/p');
+
+  it('opens a tab right of the active one, and reuses an open tab', () => {
+    const store = useAppStore.getState();
+    store.setLastFile('/p', 'a.ts');
+    store.setLastFile('/p', 'b.ts');
+    store.setLastFile('/p', 'a.ts');
+    store.setLastFile('/p', 'c.ts');
+    expect(tabs()).toEqual(['a.ts', 'c.ts', 'b.ts']);
+    expect(active()).toBe('c.ts');
+  });
+
+  it('drops the tab shown longest ago past eight', () => {
+    useAppStore.setState({ fileHistoryByProject: new Map() });
+    const store = useAppStore.getState();
+    const open = (path: string): void => {
+      store.recordFileVisit('/p', { filePath: path, lines: null });
+      store.setLastFile('/p', path);
+    };
+    for (const path of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) open(path);
+    open('a');
+    open('i');
+    expect(tabs()).toEqual(['a', 'i', 'c', 'd', 'e', 'f', 'g', 'h']);
+  });
+
+  it('drops the leftmost tab not shown this run, never the active one', () => {
+    useAppStore.setState({ fileHistoryByProject: new Map() });
+    const store = useAppStore.getState();
+    const paths = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    for (const path of paths) store.setLastFile('/p', path);
+    useAppStore.setState({ fileHistoryByProject: new Map() });
+    store.setLastFile('/p', 'a');
+    store.setLastFile('/p', 'i');
+    expect([tabs(), active()]).toEqual([['a', 'i', 'c', 'd', 'e', 'f', 'g', 'h'], 'i']);
+  });
+
+  it('activates the right neighbour of a closed active tab, else the left one', () => {
+    const store = useAppStore.getState();
+    for (const path of ['a.ts', 'b.ts', 'c.ts']) store.setLastFile('/p', path);
+    store.setLastFile('/p', 'b.ts');
+    store.closeFile('/p', 'b.ts');
+    expect([tabs(), active()]).toEqual([['a.ts', 'c.ts'], 'c.ts']);
+    store.closeFile('/p', 'c.ts');
+    expect([tabs(), active()]).toEqual([['a.ts'], 'a.ts']);
+    store.closeFile('/p', 'a.ts');
+    expect([tabs(), active()]).toEqual([[], undefined]);
+  });
+
+  it('starts history from the file on screen, and records the tab a close brings forward', () => {
+    useAppStore.setState({ fileHistoryByProject: new Map() });
+    const store = useAppStore.getState();
+    // Restored from the last run: on screen, but never visited in this one.
+    store.setLastFile('/p', 'a.ts');
+    store.recordFileVisit('/p', { filePath: 'b.ts', lines: null });
+    store.setLastFile('/p', 'b.ts');
+    store.closeFile('/p', 'b.ts');
+    const history = useAppStore.getState().fileHistoryByProject.get('/p');
+    expect(history?.visits.map((visit) => visit.filePath)).toEqual(['a.ts', 'b.ts', 'a.ts']);
+    expect(useAppStore.getState().stepFileHistory('/p', -1)?.filePath).toBe('b.ts');
+  });
+
+  it('keeps the active tab when another one closes', () => {
+    const store = useAppStore.getState();
+    for (const path of ['a.ts', 'b.ts']) store.setLastFile('/p', path);
+    store.closeFile('/p', 'a.ts');
+    expect([tabs(), active()]).toEqual([['b.ts'], 'b.ts']);
+  });
+});
+
 describe('workspace project per session', () => {
   it('keeps the Files/Git project per session without touching the active project', () => {
     useAppStore.setState({
@@ -219,6 +296,8 @@ describe('workspace project per session', () => {
         ['/s/a.jsonl', '/project-b'],
         ['/s/b.jsonl', '/project-removed'],
       ]),
+      tasks: [],
+      sessions: new Map(),
     };
 
     expect(workspaceProjectForSession({ ...state, activeSessionPath: '/s/a.jsonl' })).toEqual(
@@ -230,6 +309,53 @@ describe('workspace project per session', () => {
     expect(workspaceProjectForSession({ ...state, activeSessionPath: '/s/b.jsonl' })).toEqual(
       projects[0],
     );
+  });
+
+  it('resolves a task session to its active working directory, else the task directory', () => {
+    const task = {
+      name: 'task-foo',
+      path: '/tasks/task-foo',
+      workDirs: ['/repo/a', '/repo/b'],
+      suggestedDirs: [],
+      activeWorkDir: '/repo/b',
+      dirLog: [],
+      hidden: false,
+      emoji: null,
+    };
+    const session: SessionEntry = {
+      sessionPath: '/s/a.jsonl',
+      persistedSessionId: 'a',
+      status: 'idle',
+      title: 'chat',
+      cwd: task.path,
+      createdAt: 'now',
+      model: null,
+      thinkingLevel: null,
+      contextUsage: null,
+      autoCompactionEnabled: false,
+      messageCount: 0,
+      error: null,
+    };
+    const state = {
+      recentProjects: [],
+      activeProject: { path: '/project-a', name: 'a' },
+      activeSessionPath: '/s/a.jsonl',
+      workspaceProjectBySession: new Map(),
+      tasks: [task],
+      sessions: new Map([['/s/a.jsonl', session]]),
+    };
+
+    expect(workspaceProjectForSession(state)).toEqual({ path: '/repo/b', name: 'b' });
+    expect(
+      workspaceProjectForSession({ ...state, tasks: [{ ...task, activeWorkDir: null }] }),
+    ).toEqual({ path: task.path, name: task.name });
+    // An explicit choice inside the task wins over the default.
+    expect(
+      workspaceProjectForSession({
+        ...state,
+        workspaceProjectBySession: new Map([['/s/a.jsonl', '/repo/a']]),
+      }),
+    ).toEqual({ path: '/repo/a', name: 'a' });
   });
 });
 

@@ -18,6 +18,7 @@ changes, fix or delete its comment.
   add the check that makes it impossible to break again, then add its row to
   `docs/invariants.md`.
 - Deferred follow-ups live in `docs/todo.md`: check it before working in an area it names, delete the entry when it lands.
+- Automated debugging must not steal focus: start the dev app with `PIGI_NO_FOCUS=1` (the window shows without activating; see `createMainWindow.ts`).
 
 ## Code Quality
 

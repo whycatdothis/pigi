@@ -19,7 +19,7 @@ import { GIT_DIFF_STATUS_BADGES } from '../../lib/gitDiffLabels';
 import { buildGitDiffTree, type GitDiffTreeDirectory } from '../../lib/gitDiffTree';
 import { cn, formatTimeAgo } from '../../lib/utils';
 import { SidebarToggle } from '../sidebar/sidebarToggle';
-import { ProjectPicker } from '../projectPicker';
+import { ProjectPicker, type TaskPickerProjects } from '../projectPicker';
 import { FileIcon } from '../fileIcon';
 import { SpinningIcon } from '../ui/spinningIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
@@ -525,6 +525,7 @@ const GitSidebar = memo(function GitSidebar({
   projectPath,
   projectName,
   projects,
+  taskProjects,
   onSelectProject,
   workspace,
   onGitBranchChanged,
@@ -533,6 +534,8 @@ const GitSidebar = memo(function GitSidebar({
   projectPath: string;
   projectName: string;
   projects: ProjectDirectory[];
+  /** The active session's task section for the picker; null outside task sessions. */
+  taskProjects: TaskPickerProjects | null;
   onSelectProject: (path: string) => void;
   workspace: GitWorkspace;
   /** The composer shows a branch too, and this tab may have changed it. */
@@ -547,8 +550,8 @@ const GitSidebar = memo(function GitSidebar({
   return (
     <TooltipProvider delayDuration={400}>
       <ShadcnSidebar collapsible="none" data-testid="git-sidebar" className="w-full">
-        <SidebarHeader className="gap-0 border-b-[0.5px] border-foreground/15 pb-0 [-webkit-app-region:drag]">
-          <div className="flex h-10 items-start justify-end">
+        <SidebarHeader className="gap-0 border-b-[0.5px] border-foreground/15 pt-1 pb-0 [-webkit-app-region:drag]">
+          <div className="flex h-7 items-center justify-end">
             <SidebarToggle shortcutBinding={shortcutBindings?.get('sidebar.toggle')} />
           </div>
           <div className="mt-2 flex min-w-0 items-center gap-1.5 px-2">
@@ -557,6 +560,7 @@ const GitSidebar = memo(function GitSidebar({
               projectName={projectName}
               selectedProjectPath={projectPath}
               recentProjects={projects}
+              taskProjects={taskProjects}
               onSelectProject={onSelectProject}
             />
           </div>

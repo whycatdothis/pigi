@@ -36,17 +36,32 @@ const TAB_ITEMS = [
   icon: typeof IconMessageCircle | typeof FolderOpen;
 }[];
 
-/** A header chip tab; the right sidebar's tabs use it too, so both headers match. */
+/** A header tab that fills the bar it sits in; the right sidebar's tabs use it
+ *  too, so both headers read the same. Its hairlines come from the `divided`
+ *  variant. The active tab is marked by its label alone: the others take the
+ *  muted text colour, the one under the pointer darkens to 80% of the
+ *  foreground, and the selected one is at full strength. Nothing else changes —
+ *  a fill reads as a button sitting in the band, a mark on the edge draws the
+ *  eye more than the title it points at, and a weight change would nudge the two
+ *  tabs beside it on every switch. The resting colour is the muted token, not an
+ *  alpha of the foreground: 55% of `#1a1c1f` on white is 3.85:1, under the 4.5:1
+ *  that secondary text is held to (docs/appearance.md). */
 export const HEADER_TAB_CLASS_NAME =
-  'follows-text-size-capped h-8 gap-1.5 px-3 text-ui font-normal text-foreground dark:text-foreground';
+  'follows-text-size-capped h-full gap-1.5 px-3 text-ui font-normal text-muted-foreground hover:text-foreground/80 dark:hover:text-foreground/80 data-[state=active]:text-foreground';
 
+// The tabs fill the header's height and are split by one hairline each, so the
+// band's own bottom rule is the only horizontal line and the first tab sits
+// flush against the window edge.
 const TAB_CLASS_NAME = `${HEADER_TAB_CLASS_NAME} @max-[320px]:px-2 @max-[220px]:px-1`;
 
-// The header has no left padding of its own; Chat's left margin keeps the
-// active chip off the header edge, and the title sits where it does unselected.
-// At the default text size, 312px plus the 8px margin is the 320px Chat takes.
+// A tab's own right hairline: the same one the `divided` variant draws, restated
+// for the rename field, which is a plain div rather than a trigger and so is not
+// matched by that variant's `group-data` rules.
+const TAB_HAIRLINE_CLASS_NAME = 'border-r-[0.5px] border-r-foreground/27';
+
+// Chat keeps the default 320px so Files and Git stay put whatever the title is.
 const CHAT_TAB_CLASS_NAME =
-  'ml-2 pl-2 text-body w-78 min-w-36 shrink basis-auto justify-start @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none';
+  'text-body w-78 min-w-36 shrink basis-auto justify-start @max-[600px]:min-w-0 @max-[320px]:w-auto @max-[320px]:flex-none';
 
 /**
  * The main window's fixed views. Chat carries no icon so its title gets the
@@ -144,12 +159,9 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
       onValueChange={(next) => {
         if (isWorkspaceTab(next)) onChange(next);
       }}
-      className={cn('min-w-0 gap-0', className)}
+      className={cn('min-w-0 gap-0 h-full', className)}
     >
-      <TabsList
-        variant="chip"
-        className="max-w-full min-w-0 @max-[220px]:gap-0 [-webkit-app-region:no-drag]"
-      >
+      <TabsList variant="divided" className="max-w-full min-w-0 [-webkit-app-region:no-drag]">
         {TAB_ITEMS.map(({ tab, label: defaultLabel, shortcutId, icon: Icon }) => {
           const isChat = tab === WORKSPACE_TABS.chat;
           const label = isChat && chatTitle?.trim() ? chatTitle.trim() : defaultLabel;
@@ -159,12 +171,15 @@ const WorkspaceTabs = memo(function WorkspaceTabs({
             return (
               <div
                 key={tab}
+                // Not Radix state: the tab is a plain div while renaming, so this
+                // is what keeps `data-[state=active]` matching the class names
+                // above and the selected label at full strength.
+                data-state={value === WORKSPACE_TABS.chat ? 'active' : 'inactive'}
                 className={cn(
                   TAB_CLASS_NAME,
                   CHAT_TAB_CLASS_NAME,
-                  'flex items-center rounded-control-sm',
-                  'text-foreground',
-                  value === WORKSPACE_TABS.chat && 'bg-muted',
+                  TAB_HAIRLINE_CLASS_NAME,
+                  'relative flex items-center',
                 )}
               >
                 <input
@@ -259,7 +274,7 @@ export const WorkspaceHeader = memo(function WorkspaceHeader({
   return (
     <div
       className={cn(
-        'flex h-11 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 pr-3 transition-[padding] @container @max-[320px]:pr-2 @max-[220px]:pr-1 [-webkit-app-region:drag]',
+        'flex h-9 shrink-0 items-center gap-2 border-b-[0.5px] border-foreground/27 pr-3 transition-[padding] @container @max-[320px]:pr-2 @max-[220px]:pr-1 [-webkit-app-region:drag]',
         SIDEBAR_TRANSITION_CLASS_NAME,
       )}
       style={{ paddingLeft: titleInset }}

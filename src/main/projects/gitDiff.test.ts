@@ -18,20 +18,28 @@ import {
 
 const execFileAsync = promisify(execFile);
 
+const GIT_IDENTITY = [
+  '-c',
+  'user.name=Diff Test',
+  '-c',
+  'user.email=diff@example.com',
+  '-c',
+  'commit.gpgsign=false',
+];
+
 async function git(cwd: string, ...args: string[]): Promise<void> {
-  await execFileAsync(
-    'git',
-    [
-      '-c',
-      'user.name=Diff Test',
-      '-c',
-      'user.email=diff@example.com',
-      '-c',
-      'commit.gpgsign=false',
-      ...args,
-    ],
-    { cwd },
-  );
+  await execFileAsync('git', [...GIT_IDENTITY, ...args], { cwd });
+}
+
+/**
+ * `git` with a fixed committer date, the date a branch is ordered by: commits
+ * made back to back can share a second and leave the order to the name.
+ */
+async function gitDated(cwd: string, date: string, ...args: string[]): Promise<void> {
+  await execFileAsync('git', [...GIT_IDENTITY, ...args], {
+    cwd,
+    env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
+  });
 }
 
 describe('git diff parsers', () => {
@@ -139,18 +147,6 @@ describe('getGitDiffSummary', () => {
     expect(result.summary.source).toEqual({ kind: 'commit', commit: result.summary.base });
   });
 
-  it('lists branches for the base picker, the current one first', async () => {
-    await git(root, 'branch', 'feature');
-    const result = await listGitBranches(root, true);
-    expect(result).toEqual({
-      success: true,
-      branches: [
-        { name: 'main', current: true, local: true },
-        { name: 'feature', current: false, local: true },
-      ],
-    });
-  });
-
   it('builds a patch for an untracked file', async () => {
     const result = await getGitDiffSummary(root, { kind: 'uncommitted' });
     expect(result.success).toBe(true);
@@ -178,6 +174,59 @@ describe('getGitDiffSummary', () => {
     if (!diff.success) return;
     expect(diff.patch).toContain('+two');
     expect(diff.patch).not.toContain('+three');
+  });
+});
+
+describe('listGitBranches', () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await mkdtemp(join(tmpdir(), 'pigi-git-branches-'));
+    await git(root, 'init', '-q', '-b', 'main');
+    await writeFile(join(root, 'a.txt'), 'one\n');
+    await git(root, 'add', 'a.txt');
+    // Each branch's name runs against its date, and the checked-out one holds
+    // the oldest commit: a list read by name, or with the current branch on
+    // top, comes out differently in both tests below.
+    await gitDated(root, '2024-01-01T00:00:00Z', 'commit', '-qm', 'one');
+    await git(root, 'switch', '-q', '-c', 'alpha-old');
+    await writeFile(join(root, 'a.txt'), 'one\ntwo\n');
+    await gitDated(root, '2024-02-01T00:00:00Z', 'commit', '-qam', 'two');
+    await git(root, 'switch', '-q', '-c', 'zeta-new');
+    await writeFile(join(root, 'a.txt'), 'one\ntwo\nthree\n');
+    await gitDated(root, '2024-03-01T00:00:00Z', 'commit', '-qam', 'three');
+    await git(root, 'switch', '-q', 'main');
+    await git(root, 'update-ref', 'refs/remotes/origin/alpha-old', 'alpha-old');
+    await git(root, 'update-ref', 'refs/remotes/origin/zeta-new', 'zeta-new');
+    await git(root, 'update-ref', 'refs/remotes/origin/HEAD', 'zeta-new');
+  });
+
+  afterAll(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('lists every local branch, newest commit first, the current one where its date puts it', async () => {
+    expect(await listGitBranches(root, false)).toEqual({
+      success: true,
+      branches: [
+        { name: 'zeta-new', current: false, local: true },
+        { name: 'alpha-old', current: false, local: true },
+        { name: 'main', current: true, local: true },
+      ],
+    });
+  });
+
+  it('lists the remote branches after the local ones, newest first, without the remote HEAD', async () => {
+    expect(await listGitBranches(root, true)).toEqual({
+      success: true,
+      branches: [
+        { name: 'zeta-new', current: false, local: true },
+        { name: 'alpha-old', current: false, local: true },
+        { name: 'main', current: true, local: true },
+        { name: 'origin/zeta-new', current: false, local: false },
+        { name: 'origin/alpha-old', current: false, local: false },
+      ],
+    });
   });
 });
 
@@ -380,13 +429,13 @@ describe('switchGitBranch', () => {
   });
 
   it('lists the local branches a switch can pick from, without the remotes', async () => {
-    expect(await listGitBranches(root, false)).toEqual({
-      success: true,
-      branches: [
-        { name: 'main', current: true, local: true },
-        { name: 'feature', current: false, local: true },
-      ],
-    });
+    const result = await listGitBranches(root, false);
+    expect(
+      result.success && result.branches.map((branch) => [branch.name, branch.current]),
+    ).toEqual([
+      ['feature', false],
+      ['main', true],
+    ]);
   });
 
   it('switches the working tree and reads the new branch as current', async () => {

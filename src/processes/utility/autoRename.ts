@@ -7,23 +7,23 @@
  * Routes the LLM call through ModelRuntime.completeSimple, which resolves auth
  * and provider routing the same way the real agent does.
  */
-import type { Api, Model } from '@earendil-works/pi-ai';
-import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
+import type { Api, Model, ProviderHeaders } from '@earendil-works/pi-ai';
+import type { ExtensionRunner, ModelRuntime } from '@earendil-works/pi-coding-agent';
 
 interface Message {
   role: 'user' | 'assistant';
   text: string;
 }
 
-const SYSTEM_PROMPT = `You are a session title generator. Given conversation messages, output a concise title (max 10 words). Only capitalize the first letter of the title. Output ONLY the title, no quotes, no explanation.`;
+const SYSTEM_PROMPT = `You are a session title generator. Given conversation messages, output a concise title (max 10 words) in the same language as the user's messages. Only capitalize the first letter of the title. Output ONLY the title, no quotes, no explanation.`;
 
 /** APIs that only work with tools / coding workflows — not suitable for simple text gen. */
 const EXCLUDED_APIS = new Set(['openai-codex-responses']);
 
-const MAX_GLOBAL_ATTEMPTS = 2;
+export const MAX_GLOBAL_ATTEMPTS = 2;
 
 /** Cheapest first, but models with a non-zero cost come before zero-cost ones. */
-function getCandidatesByCost(available: readonly Model<Api>[]): Model<Api>[] {
+export function getCandidatesByCost(available: readonly Model<Api>[]): Model<Api>[] {
   const candidates = available.filter((m) => {
     if (!m.input.includes('text')) return false;
     if (EXCLUDED_APIS.has(m.api)) return false;
@@ -42,7 +42,7 @@ function getCandidatesByCost(available: readonly Model<Api>[]): Model<Api>[] {
   return candidates;
 }
 
-function getCheapestSameProvider(
+export function getCheapestSameProvider(
   candidates: Model<Api>[],
   sessionProvider: string,
 ): Model<Api> | null {
@@ -53,6 +53,7 @@ async function tryGenerate(
   model: Model<Api>,
   conversationText: string,
   modelRuntime: ModelRuntime,
+  transformHeaders?: (headers: ProviderHeaders) => Promise<ProviderHeaders>,
 ): Promise<string | null> {
   try {
     const result = await modelRuntime.completeSimple(
@@ -64,6 +65,7 @@ async function tryGenerate(
       {
         maxTokens: 30,
         temperature: 0.3,
+        transformHeaders,
       },
     );
 
@@ -86,10 +88,18 @@ export async function generateSessionTitle(
   messages: Message[],
   modelRuntime: ModelRuntime,
   sessionProvider?: string,
+  extensionRunner?: ExtensionRunner,
 ): Promise<string | null> {
   const available = await modelRuntime.getAvailable();
   const candidates = getCandidatesByCost(available);
   if (candidates.length === 0) return null;
+
+  // Providers like Cursor reject bare completeSimple calls unless the request
+  // went through their before_provider_headers handler (same as the agent loop).
+  const transformHeaders =
+    extensionRunner && extensionRunner.hasHandlers('before_provider_headers')
+      ? (headers: ProviderHeaders) => extensionRunner.emitBeforeProviderHeaders(headers)
+      : undefined;
 
   const conversationText = messages
     .slice(0, 4)
@@ -106,7 +116,7 @@ export async function generateSessionTitle(
     tried.add(key);
     attempts++;
 
-    const title = await tryGenerate(model, conversationText, modelRuntime);
+    const title = await tryGenerate(model, conversationText, modelRuntime, transformHeaders);
     if (title) return title;
   }
 
@@ -114,7 +124,7 @@ export async function generateSessionTitle(
   if (sessionProvider) {
     const fallback = getCheapestSameProvider(candidates, sessionProvider);
     if (fallback && !tried.has(fallback.provider + '/' + fallback.id)) {
-      return tryGenerate(fallback, conversationText, modelRuntime);
+      return tryGenerate(fallback, conversationText, modelRuntime, transformHeaders);
     }
   }
 

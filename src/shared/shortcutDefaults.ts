@@ -38,12 +38,12 @@ export const SHORTCUT_DEFAULTS: ShortcutEntry[] = [
   },
   {
     id: 'navigation.prev',
-    label: 'Previous session',
+    label: 'Previous session (previous file in Files)',
     defaultBinding: { key: '[', meta: true },
   },
   {
     id: 'navigation.next',
-    label: 'Next session',
+    label: 'Next session (next file in Files)',
     defaultBinding: { key: ']', meta: true },
   },
   {

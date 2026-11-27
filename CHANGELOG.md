@@ -23,6 +23,52 @@
 - pi's settings file is written readable by its owner only; the rename used to publish it with whatever the umask allowed, and a temp file left by a killed write kept its old permissions.
 - The CLI socket refuses a caller that parks unbounded work: at most 64 requests wait for a window and 256 are in flight, past which the request is answered instead of held.
 
+## [0.6.19] - 2026-11-27
+
+### Fixed
+
+- A long session list's "Show less" button pins to the bottom of the sidebar while scrolling again — Tasks section included — instead of sinking to the end of the list
+
+## [0.6.18] - 2026-11-27
+
+### Added
+
+- Tasks: a New task button (under New chat) creates a git-initialised directory in ~/.pigi/tasks whose sessions coordinate work across several working directories. Naming happens inline in the sidebar with free-form names (spaces, CJK and emoji welcome), not in a dialog. An expanded task tucks its directories into its own row as small accent chips right under the task's name; clicking them opens an editor the size of a small textarea — chips with a hover X, Backspace deletes from the end — where typing fuzzy-searches recent projects and every directory any task uses, with a native directory picker pinned above the matches. Paths display shortened to ~ and long ones ellipsise in the middle, so the end of a path is always visible. Directories typed into the prompt join outright, appearing within a couple of seconds of the message that mentions them instead of when the run ends. A managed block in the task's AGENTS.md tells sessions to treat each working directory as their cwd and to write task documents into the task directory — pigi rewrites only that block, and only when the directories change, so the rest of the file (or its deletion) survives renames and emoji edits; Files/Git open the task's active working directory, and their project picker lists the task's directories ahead of projects.
+- Working directories now promote themselves: as a task's session runs, every ten directories it touches (in tool calls, assistant messages and attached files, each kept with the sentence that mentioned it) go through one batched model call on the session's own worker — the provider path already warm from the run, so no cold start — with a final pass on whatever remains when the run ends. The ones the model scores at 0.8 or higher join the working directories outright; the rest stay invisible rather than piling up as suggestions. The call sees the task's name, its current and historical (cross-task) working directories, and the task's edit history: every add, removal and dismissal is logged in the task's state file and feeds the next verdict. A failed classification changes nothing, and the editor explains that directories collect on their own.
+- A task's composer grows an inline Add directory button pinned to its front — typed text always lands after it (also in a new chat pointed at a task). It opens an upward picker — the task's own directories on top, every other directory (other tasks', then recent projects) merged below, each listed once, and a directory removed from the task stays out of its list — and the pick lands as a directory chip you can keep typing after; an Open button inside the filter input opens the system directory dialog. The button stays for the next one.
+- Tasks can be renamed (right-click → Rename; the directory itself keeps its birth name), given an emoji icon from a picker whose palette is yours to edit (add, remove, drag to reorder), dragged into your own order in the sidebar, and hidden — hidden tasks leave the sidebar list until the eye toggle in the Tasks header shows them dimmed, and right-click → Unhide brings one back. The session switcher (Ctrl+R) searches tasks too, hidden ones included and marked; picking one resumes its latest chat or starts a new one. The new-chat composer can also start a session inside a task: its project picker lists tasks ahead of projects.
+
+### Changed
+
+- The sidebar's Tasks and Projects sections each collapse from a chevron on their header bar (the whole bar toggles, the state persists), and the sidebar scrolls as one plain list — both sections take their natural height instead of splitting the column in half
+- The header is 36px, and its Chat / Files / Git tabs, and the right sidebar's Quotes tab, are full-height square tabs split by a single hairline — the active one marked by its label at full strength while the rest sit at the muted text colour, instead of a fill
+- A new session is auto-titled as soon as its first prompt is sent instead of after three messages, so the name shows up right away
+- Auto-titles are written in the language of the user's messages instead of whatever the titling model defaults to
+
+### Fixed
+
+- A session created or addressed with a differently-cased path spelling (typing `~/work/...` when the disk has `~/Work/...`) no longer gets a second identity: the session list shows its real running state, prompting it continues the running session instead of starting a parallel agent on the same transcript, and abort reaches it
+
+## [0.6.17] - 2026-11-23
+
+### Changed
+
+- Both branch pickers list branches newest commit first, local and remote, instead of the current branch on top and the rest by name: the branch picked next is usually the one last worked on
+
+## [0.6.16] - 2026-11-23
+
+### Changed
+
+- The header's Chat / Files / Git tabs, and the right sidebar's Quotes tab, are full-height square tabs split by a single hairline, on a 40px header — the active one on a light fill with the same text colour as the rest
+
+## [0.6.15] - 2026-11-23
+
+### Added
+
+- Files tab: open several files as tabs (up to eight, remembered per project), step back and forward through the files you have read with ⌘[ and ⌘], and ⌘-click an identifier to jump to its definition — a language server answers first, and a tree-sitter search of the project answers when there is none
+- ⌘-hover underlines the identifier a click would follow
+- Opening a file no longer flickers: the file on screen stays until the next one is read and coloured
+
 ## [0.6.14] - 2026-11-18
 
 ### Added

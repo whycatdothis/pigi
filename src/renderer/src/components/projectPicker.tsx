@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import fuzzysort from 'fuzzysort';
-import { IconChevronDown, IconFolderOpen } from '@tabler/icons-react';
-import type { ProjectDirectory } from '../../../shared/ipcContract';
+import { IconChevronDown, IconFolderOpen, IconListCheck } from '@tabler/icons-react';
+import type { ProjectDirectory, TaskInfo } from '../../../shared/ipcContract';
 import {
   Command,
   CommandEmpty,
@@ -9,22 +9,39 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from './ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { cn } from '../lib/utils';
+import { baseName, cn } from '../lib/utils';
 
 const PROJECT_SEARCH_PLACEHOLDER = 'Search projects';
 const PROJECT_EMPTY_TEXT = 'No projects found';
 
+/** What the picker's task section shows for a task session. */
+export interface TaskPickerProjects {
+  task: ProjectDirectory;
+  workDirs: string[];
+}
+
+interface PickerEntry {
+  path: string;
+  name: string;
+  emoji?: string | null;
+  section: 'workdir' | 'task' | 'tasklist' | 'project';
+}
+
 /**
  * The searchable project list. The composer uses it as a `#` chip; the Files
  * and Git sidebars use it as their title, to browse another project without
- * leaving the session.
+ * leaving the session. A task session prepends its working directories
+ * (accent) and its own directory, divided from the ordinary projects.
  */
 export function ProjectPicker({
   projectName,
   hashActive = false,
   recentProjects,
+  taskProjects = null,
+  pickerTasks = [],
   selectedProjectPath,
   onSelectProject,
   forceOpen,
@@ -34,6 +51,9 @@ export function ProjectPicker({
   projectName: string;
   hashActive?: boolean;
   recentProjects: ProjectDirectory[];
+  taskProjects?: TaskPickerProjects | null;
+  /** Tasks offered as workspaces (the new-session composer); searchable by name. */
+  pickerTasks?: TaskInfo[];
   /** Marks the list's current entry; the sidebar also shows it as the trigger title. */
   selectedProjectPath?: string | null;
   onSelectProject: (path: string) => void;
@@ -58,11 +78,70 @@ export function ProjectPicker({
     [onClose],
   );
 
+  const entries = useMemo<PickerEntry[]>(() => {
+    const workDirs = (taskProjects?.workDirs ?? []).map((path) => ({
+      path,
+      name: baseName(path),
+      section: 'workdir' as const,
+    }));
+    const task = taskProjects ? [{ ...taskProjects.task, section: 'task' as const }] : [];
+    const taskPaths = new Set([
+      ...(taskProjects?.workDirs ?? []),
+      ...(taskProjects ? [taskProjects.task.path] : []),
+    ]);
+    // Other tasks join as workspaces, skipping the one already shown above.
+    const otherTasks = pickerTasks
+      .filter((pickerTask) => !taskPaths.has(pickerTask.path))
+      .map((pickerTask) => ({ ...pickerTask, section: 'tasklist' as const }));
+    // A recent project that is also a task work dir shows once, in the task section.
+    const projects = recentProjects
+      .filter((project) => !taskPaths.has(project.path))
+      .map((project) => ({
+        ...project,
+        section: 'project' as const,
+      }));
+    return [...workDirs, ...task, ...otherTasks, ...projects];
+  }, [taskProjects, pickerTasks, recentProjects]);
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return recentProjects;
-    const results = fuzzysort.go(search, recentProjects, { key: 'name' });
+    if (!search.trim()) return entries;
+    const results = fuzzysort.go(search, entries, { key: 'name' });
     return results.map((r) => r.obj);
-  }, [search, recentProjects]);
+  }, [search, entries]);
+
+  const renderEntry = (entry: PickerEntry): React.JSX.Element => (
+    <CommandItem
+      key={entry.path}
+      value={entry.path}
+      title={entry.path}
+      data-checked={entry.path === selectedProjectPath}
+      className="h-8"
+      onSelect={() => {
+        onSelectProject(entry.path);
+        handleOpenChange(false);
+      }}
+    >
+      {entry.section === 'task' || entry.section === 'tasklist' ? (
+        entry.section === 'tasklist' && entry.emoji ? (
+          <span className="size-4 shrink-0 text-center text-body leading-none">{entry.emoji}</span>
+        ) : (
+          <IconListCheck className="size-4 shrink-0 text-muted-foreground" />
+        )
+      ) : (
+        <IconFolderOpen
+          className={cn(
+            'size-4 shrink-0',
+            entry.section === 'workdir' ? 'text-[var(--system-accent)]' : 'text-muted-foreground',
+          )}
+        />
+      )}
+      <span
+        className={cn('truncate', entry.section === 'workdir' && 'text-[var(--system-accent)]')}
+      >
+        {entry.name}
+      </span>
+    </CommandItem>
+  );
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -112,24 +191,23 @@ export function ProjectPicker({
           />
           <CommandList className="max-h-56">
             <CommandEmpty>{PROJECT_EMPTY_TEXT}</CommandEmpty>
-            <CommandGroup>
-              {filtered.map((project) => (
-                <CommandItem
-                  key={project.path}
-                  value={project.path}
-                  title={project.path}
-                  data-checked={project.path === selectedProjectPath}
-                  className="h-8"
-                  onSelect={() => {
-                    onSelectProject(project.path);
-                    handleOpenChange(false);
-                  }}
-                >
-                  <IconFolderOpen className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{project.name}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {search.trim() ? (
+              <CommandGroup>{filtered.map(renderEntry)}</CommandGroup>
+            ) : (
+              <>
+                {filtered.some((entry) => entry.section !== 'project') && (
+                  <>
+                    <CommandGroup>
+                      {filtered.filter((entry) => entry.section !== 'project').map(renderEntry)}
+                    </CommandGroup>
+                    <CommandSeparator className="mx-2 my-1 bg-foreground/10" />
+                  </>
+                )}
+                <CommandGroup>
+                  {filtered.filter((entry) => entry.section === 'project').map(renderEntry)}
+                </CommandGroup>
+              </>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

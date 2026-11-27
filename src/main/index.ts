@@ -7,6 +7,7 @@
  */
 import { app, BrowserWindow, ipcMain, nativeTheme, net, protocol, session, shell } from 'electron';
 import { electronApp } from '@electron-toolkit/utils';
+import { homedir } from 'node:os';
 import { refreshApplicationMenu, setupApplicationMenu } from './menus/applicationMenu';
 import { createMainWindow, getMainWindow } from './windows/createMainWindow';
 import {
@@ -15,6 +16,7 @@ import {
   getPiAgentDebugSnapshot,
 } from './ipc/piAgentBridge';
 import { registerProjectHandlers } from './ipc/projectHandlers';
+import { registerTaskHandlers } from './ipc/taskHandlers';
 import { registerAttachmentHandlers } from './ipc/attachmentHandlers';
 import { registerShortcutHandlers } from './ipc/shortcutHandlers';
 import { registerPiPackageHandlers } from './ipc/piPackageHandlers';
@@ -96,6 +98,11 @@ app.whenReady().then(() => {
     event.returnValue = process.cwd();
   });
 
+  // Display-only tilde shortening in the renderer; a sandboxed preload has no `os`.
+  ipcMain.on(PiChannel.GetHomeDir, (event) => {
+    event.returnValue = homedir();
+  });
+
   // An image's file, never more: see protocols/localFile.ts for what is served.
   protocol.handle('local-file', async (request) => {
     const path = await resolveLocalFile(request.url);
@@ -114,6 +121,7 @@ app.whenReady().then(() => {
   });
   registerIpcHandlers();
   registerProjectHandlers();
+  registerTaskHandlers();
   registerAttachmentHandlers();
   registerShortcutHandlers();
   registerPiPackageHandlers();

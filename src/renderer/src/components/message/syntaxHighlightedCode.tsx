@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import {
   cacheHighlightedCode,
   normalizeLanguage,
+  settledHighlight,
   tokenStyle,
   useCodeTheme,
   type HighlightedState,
@@ -128,7 +129,9 @@ function plainSourceLineNodes(code: string, gutter: GutterOptions): React.JSX.El
         className={codeLineClassName(true, marked)}
       >
         <SourceLineNumber lineNumber={lineNumber} marked={marked} gutter={gutter} />
-        <span className="min-w-0 whitespace-pre">{line}</span>
+        <span data-source-content className="min-w-0 whitespace-pre">
+          {line}
+        </span>
       </span>
     );
   });
@@ -169,7 +172,18 @@ export default function SyntaxHighlightedCode({
     isStreaming,
     STREAMING_HIGHLIGHT_THROTTLE_MS,
   );
-  const [highlightedState, setHighlightedState] = useState<HighlightedState | null>(null);
+  const [loadedState, setHighlightedState] = useState<HighlightedState | null>(null);
+  const settledLines = useMemo(
+    () =>
+      normalizedLanguage
+        ? settledHighlight(highlightInput, normalizedLanguage, codeTheme.name)
+        : undefined,
+    [highlightInput, normalizedLanguage, codeTheme.name],
+  );
+  // A highlight already in the cache is drawn on the first render instead of
+  // after a frame of plain text.
+  const highlightedState =
+    settledLines === undefined ? loadedState : { source: highlightInput, lines: settledLines };
   // Stale-while-revalidate: keep the last successful highlight on screen while
   // the next one computes, so streaming updates never flash back to plain text.
   const highlightedLines = highlightedState?.lines ?? null;
@@ -212,7 +226,13 @@ export default function SyntaxHighlightedCode({
               gutter={gutter}
             />
           )}
-          {lineNumbers ? <span className="min-w-0 whitespace-pre">{tokens}</span> : tokens}
+          {lineNumbers ? (
+            <span data-source-content className="min-w-0 whitespace-pre">
+              {tokens}
+            </span>
+          ) : (
+            tokens
+          )}
         </span>
       );
     });
@@ -295,7 +315,9 @@ export default function SyntaxHighlightedCode({
                 className={codeLineClassName(true, marked)}
               >
                 <SourceLineNumber lineNumber={lineNumber} marked={marked} gutter={gutter} />
-                <span className="min-w-0 whitespace-pre">{line}</span>
+                <span data-source-content className="min-w-0 whitespace-pre">
+                  {line}
+                </span>
               </span>
             );
           })

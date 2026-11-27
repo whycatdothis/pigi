@@ -153,14 +153,14 @@ export const SIDEBAR_MENU_BUTTON = {
 
 export const SESSION_ROW = {
   classes:
-    'flex h-7 min-w-0 items-center gap-1.5 overflow-hidden rounded-control px-2 outline-hidden hover:bg-primary/5 hover:text-sidebar-accent-foreground data-active:bg-primary/10 data-active:text-sidebar-accent-foreground w-full justify-start pl-6 text-left text-sidebar-foreground/85',
+    'flex h-7 min-w-0 items-center gap-1.5 overflow-hidden rounded-control px-2 outline-hidden hover:bg-primary/5 hover:text-sidebar-accent-foreground data-active:bg-primary/10 data-active:text-sidebar-accent-foreground w-full justify-start pl-7.5 text-left text-sidebar-foreground/85',
   source: `${UI}/sidebar.tsx`,
   alsoFrom: [`${RENDERER}/sidebar/sessionList.tsx`],
 } satisfies CopiedClasses;
 
 export const SESSION_COLLAPSE_TOGGLE = {
   classes:
-    'absolute left-1 top-1/2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+    'absolute left-1.5 top-1/2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
   source: `${RENDERER}/sidebar/sessionList.tsx`,
 } satisfies CopiedClasses;
 
@@ -170,9 +170,28 @@ export const CHIP_TABS = {
   source: `${UI}/tabs.tsx`,
 } satisfies CopiedClasses;
 
-export const CHIP_TAB = {
+// A header band's tabs: full height, one hairline on each tab's right, so the
+// band's own bottom rule is the only horizontal line. The page's div stands in
+// for the app's Tabs root and its `divided` list at once — it carries
+// `group/tabs-list` and `data-variant="divided"`, the attributes Radix would
+// give them — so the variant rules on the tab below match as they do in the app.
+export const HEADER_TABS = {
   classes:
-    "relative inline-flex items-center rounded-control-sm border border-transparent py-0.5 whitespace-nowrap transition-all hover:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 group-data-[variant=chip]/tabs-list:data-[state=active]:bg-muted dark:group-data-[variant=chip]/tabs-list:data-[state=active]:bg-muted h-8 gap-1.5 px-3 font-normal text-foreground",
+    'group/tabs-list inline-flex w-fit items-stretch justify-center gap-0 rounded-none bg-transparent p-0 text-muted-foreground h-full max-w-full min-w-0 shrink',
+  source: `${UI}/tabs.tsx`,
+  alsoFrom: [`${RENDERER}/app/WorkspaceTabs.tsx`],
+} satisfies CopiedClasses;
+
+// The app's trigger with WorkspaceTabs' `HEADER_TAB_CLASS_NAME` folded in, the
+// way its `cn()` resolves the two. Left out: `justify-center` and `text-body`,
+// which Chat overrides — writing both would leave two sizes to stylesheet
+// order, and this page has no tailwind-merge to settle them — and the focus and
+// disabled rules, since these are spans that never take either. The app's
+// `follows-text-size-capped` is its own utility; the page's text size is fixed.
+// The muted resting colour, the 80% hover and the full-strength selected one
+// are the app's.
+export const HEADER_TAB = {
+  classes: `relative inline-flex h-full items-center gap-1.5 border border-transparent px-3 py-0.5 font-normal whitespace-nowrap text-muted-foreground transition-all hover:text-foreground/80 dark:hover:text-foreground/80 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 group-data-[variant=divided]/tabs-list:rounded-none group-data-[variant=divided]/tabs-list:border-0 group-data-[variant=divided]/tabs-list:border-r-[0.5px] group-data-[variant=divided]/tabs-list:border-r-foreground/27 group-data-[variant=divided]/tabs-list:bg-transparent group-data-[variant=divided]/tabs-list:after:hidden group-data-[variant=divided]/tabs-list:data-[state=active]:bg-transparent group-data-[variant=divided]/tabs-list:data-[state=active]:text-foreground group-data-[variant=divided]/tabs-list:data-[state=active]:shadow-none dark:group-data-[variant=divided]/tabs-list:data-[state=active]:border-r-foreground/27 dark:group-data-[variant=divided]/tabs-list:data-[state=active]:bg-transparent data-[state=active]:text-foreground`,
   source: `${UI}/tabs.tsx`,
   alsoFrom: [`${RENDERER}/app/WorkspaceTabs.tsx`],
 } satisfies CopiedClasses;
@@ -281,8 +300,9 @@ export const APP_UI_GROUPS: Record<string, CopiedClasses> = {
   SIDEBAR_MENU_BUTTON,
   SESSION_ROW,
   SESSION_COLLAPSE_TOGGLE,
+  HEADER_TABS,
+  HEADER_TAB,
   CHIP_TABS,
-  CHIP_TAB,
   PACKAGES_TAB,
   TREE_ROW,
   TREE_ROW_IDLE,

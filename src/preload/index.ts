@@ -36,11 +36,17 @@ import {
   type ProjectDirectoryResult,
   type ExistingPath,
   type ProjectFileResult,
+  type FindDefinitionResult,
   type ProjectFilesChanged,
   type ProjectFileSearchResult,
   type PathCompletionResult,
   type ProjectSessionsChunk,
   type ProjectStateResult,
+  type ListTasksResult,
+  type PickDirectoryResult,
+  type TaskDirSource,
+  type TaskResult,
+  type TaskUpdate,
   type SessionListResult,
   type ShortcutBinding,
   type RendererTelemetryReport,
@@ -64,6 +70,8 @@ import type { PigiSettingsChange, PigiSettingsReadResult } from '../shared/pigiS
 // Read once, so a render-time call stays free: main's cwd is the renderer's
 // fallback project path, and a sandboxed preload has no `process.cwd()`.
 const appCwd: string = ipcRenderer.sendSync(PiChannel.GetAppCwd);
+// Home directory, for tilde-shortening display paths; same sandbox reason as above.
+const homeDir: string = ipcRenderer.sendSync(PiChannel.GetHomeDir);
 
 interface PendingCommand {
   resolve: (value: unknown) => void;
@@ -363,6 +371,15 @@ const piApi = {
   readProjectFile: (cwd: string, path: string): Promise<ProjectFileResult> =>
     ipcRenderer.invoke(PiChannel.ReadProjectFile, cwd, path),
 
+  /** Where the identifier at a 1-based line and 0-based UTF-16 column is defined. */
+  findDefinition: (
+    cwd: string,
+    path: string,
+    line: number,
+    column: number,
+  ): Promise<FindDefinitionResult> =>
+    ipcRenderer.invoke(PiChannel.FindDefinition, cwd, path, line, column),
+
   /** Each entry that names an existing file or directory, made absolute, else null. */
   resolveExistingPaths: (cwd: string, paths: string[]): Promise<(ExistingPath | null)[]> =>
     ipcRenderer.invoke(PiChannel.ResolveExistingPaths, cwd, paths),
@@ -399,6 +416,19 @@ const piApi = {
 
   reorderProjects: (paths: string[]): Promise<ProjectStateResult> =>
     ipcRenderer.invoke(PiChannel.ReorderProjects, paths),
+
+  listTasks: (): Promise<ListTasksResult> => ipcRenderer.invoke(PiChannel.ListTasks),
+
+  createTask: (name: string): Promise<TaskResult> => ipcRenderer.invoke(PiChannel.CreateTask, name),
+
+  updateTask: (taskPath: string, update: TaskUpdate): Promise<TaskResult> =>
+    ipcRenderer.invoke(PiChannel.UpdateTask, taskPath, update),
+
+  reportTaskDirs: (taskPath: string, paths: string[], source: TaskDirSource): Promise<TaskResult> =>
+    ipcRenderer.invoke(PiChannel.ReportTaskDirs, taskPath, paths, source),
+
+  /** Native directory picker with no side effects; the caller owns the picked path. */
+  pickDirectory: (): Promise<PickDirectoryResult> => ipcRenderer.invoke(PiChannel.PickDirectory),
 
   /** Rename a persisted (non-running) session by appending a session_info entry. */
   renamePersistedSession: (
@@ -521,6 +551,9 @@ const piApi = {
 
   /** Get the app's working directory (for session creation). */
   getCwd: (): string => appCwd,
+
+  /** Get the user's home directory (for tilde-shortening display paths). */
+  getHomeDir: (): string => homeDir,
 
   /** Read pi settings (global + project) for a project cwd. */
   getPiSettings: (cwd: string): Promise<PiSettingsResult> =>
