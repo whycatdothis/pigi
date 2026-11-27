@@ -30,8 +30,7 @@ interface TaskWorkDirChipsProps {
  * a tag input the size of a textarea: chips with a hover X, Backspace deletes
  * from the end. Once you type, a dropdown fuzzy-searches every recent project
  * and every directory any task uses, with the native directory picker pinned
- * on top. Suggestions watcher collected sit below; clicking one adds it, its
- * X tombstones it.
+ * on top.
  */
 export function TaskWorkDirChips({
   task,
@@ -42,8 +41,8 @@ export function TaskWorkDirChips({
   const [newDir, setNewDir] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  // null = no explicit arrow/hover yet; Enter then takes the first match, or
-  // the typed text when nothing matches. Points past the last dir = the
+  // null = no explicit arrow/hover yet: the first match then reads and acts
+  // as selected (see activeIndex). Points past the last dir = the
   // "Open directory…" row.
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const chipsRef = useRef<HTMLDivElement>(null);
@@ -70,6 +69,9 @@ export function TaskWorkDirChips({
       .map((result) => result.target);
   }, [query, candidates]);
   const rowCount = filtered.length + 1;
+  // Before any arrow/hover, the first match reads as selected — which Enter
+  // already did implicitly. No matches: nothing is selected.
+  const activeIndex = highlighted ?? (filtered.length > 0 ? 0 : null);
   // The dropdown exists only once there is a query to match against.
   const dropdownVisible = dropdownOpen && query !== '';
 
@@ -120,7 +122,7 @@ export function TaskWorkDirChips({
       event.preventDefault();
       setDropdownOpen(true);
       setHighlighted((current) => {
-        const base = current ?? (event.key === 'ArrowDown' ? -1 : rowCount);
+        const base = current ?? activeIndex ?? (event.key === 'ArrowDown' ? -1 : rowCount);
         return (base + (event.key === 'ArrowDown' ? 1 : rowCount - 1)) % rowCount;
       });
       return;
@@ -211,8 +213,12 @@ export function TaskWorkDirChips({
         align="start"
         sideOffset={4}
         // ! because .menu-content lives in @layer utilities and its own
-        // padding would otherwise win the source-order tie against px/py.
-        className="menu-content follows-text-size flex w-80 flex-col gap-2.5 px-4! py-2.5!"
+        // padding would otherwise win the source-order tie against p-3.
+        className="menu-content follows-text-size flex w-80 flex-col gap-2.5 p-3!"
+        // Portal events bubble through the React tree, not the DOM tree:
+        // without this stop, any click in the editor reaches the task row's
+        // toggle handler and collapses the task.
+        onClick={(event) => event.stopPropagation()}
         onEscapeKeyDown={(event) => {
           // Radix listens for Esc on document capture, ahead of any input
           // handler, so the first Esc lands here: spend it on the dropdown
@@ -224,26 +230,33 @@ export function TaskWorkDirChips({
           }
         }}
       >
-        {/* Negative margins pull the title, its hint and the input box into
-            one unit: the gap inside a labeled group reads smaller than the
-            gap between sections. */}
-        <div className="-mb-1.5 pt-0.5 text-caption font-medium text-muted-foreground">
-          Working directories
-        </div>
-        <div className="-mb-1 text-2xs text-muted-foreground/80">
-          Collected automatically from sessions — edit only to fix mistakes.
+        {/* Title and hint form one block; the popover's own gap separates
+            the block from the input box below it. */}
+        <div className="pt-0.5">
+          <div className="text-caption font-medium text-muted-foreground">Working directories</div>
+          {/* -mt-1 spends part of the generous line-height of both lines:
+              the glyph gap drops from ~8px to ~4px, close but not touching. */}
+          <div className="-mt-1 text-2xs text-muted-foreground/80">
+            Collected automatically as sessions run — edit if wrong.
+          </div>
         </div>
         <div className="flex max-h-24 min-h-16 flex-wrap content-start items-start gap-1 overflow-y-auto rounded-control border border-input px-2 py-1.5">
           {task.workDirs.map((dir) => (
             <span
               key={dir}
-              className="group/chip flex h-5 max-w-full items-center gap-0.5 rounded-chip bg-accent-subtle pl-1.5 pr-0.5 text-caption text-[var(--system-accent)]"
+              className={cn(
+                // Same text style as the chips in the task row, and the same
+                // active cue too: weight is uniform, the active directory
+                // carries the stronger fill.
+                'group/chip flex h-5 max-w-full items-center gap-0.5 rounded-chip bg-accent-subtle/70 pl-1.5 pr-0.5 font-medium text-2xs text-[var(--system-accent)]',
+                task.activeWorkDir === dir && 'bg-accent-subtle',
+              )}
             >
               <button
                 type="button"
                 title={`${tildePath(dir, homeDir)} — click to make it the active directory`}
                 onClick={() => onSelectWorkDir(task.path, dir)}
-                className={cn('min-w-0 truncate', task.activeWorkDir === dir && 'font-medium')}
+                className="min-w-0 truncate"
               >
                 {baseName(dir)}
               </button>
@@ -293,14 +306,14 @@ export function TaskWorkDirChips({
             <button
               type="button"
               role="option"
-              aria-selected={highlighted === filtered.length}
-              data-highlighted={highlighted === filtered.length}
+              aria-selected={activeIndex === filtered.length}
+              data-highlighted={activeIndex === filtered.length}
               onMouseDown={(event) => event.preventDefault()}
               onMouseEnter={() => setHighlighted(filtered.length)}
               onClick={() => void handlePickDirectory()}
               className={cn(
                 'flex w-full items-center gap-1.5 px-2 py-1.5 text-left',
-                highlighted === filtered.length && 'bg-muted',
+                activeIndex === filtered.length && 'bg-muted',
               )}
             >
               <IconFolderPlus className="size-3.5 shrink-0 text-muted-foreground" />
@@ -327,15 +340,15 @@ export function TaskWorkDirChips({
                     type="button"
                     role="option"
                     title={display}
-                    aria-selected={highlighted === index}
-                    data-highlighted={highlighted === index}
+                    aria-selected={activeIndex === index}
+                    data-highlighted={activeIndex === index}
                     // Keep the input focused; the click handler still fires.
                     onMouseDown={(event) => event.preventDefault()}
                     onMouseEnter={() => setHighlighted(index)}
                     onClick={() => void addDir(dir)}
                     className={cn(
                       'flex w-full items-center gap-1.5 rounded-inline px-2 py-1.5 text-left',
-                      highlighted === index && 'bg-muted',
+                      activeIndex === index && 'bg-muted',
                     )}
                   >
                     <FolderClosed className="size-3.5 shrink-0 text-muted-foreground" />
@@ -349,47 +362,6 @@ export function TaskWorkDirChips({
               })}
             </div>
           </div>
-        )}
-        {task.suggestedDirs.length > 0 && (
-          <>
-            <div className="text-caption text-muted-foreground">
-              Seen in sessions — click to add
-            </div>
-            <div className="flex max-h-32 flex-col overflow-y-auto">
-              {task.suggestedDirs.map((dir) => {
-                const display = tildePath(dir, homeDir);
-                const name = baseName(dir);
-                // Same middle-ellipsis split as the dropdown rows above.
-                const parent = display.slice(0, display.length - name.length);
-                const nameMid = Math.ceil(name.length / 2);
-                return (
-                  <div
-                    key={dir}
-                    className="group/suggestion flex h-7 shrink-0 items-center rounded-control hover:bg-muted/50"
-                  >
-                    <button
-                      type="button"
-                      title={`Add ${display}`}
-                      onClick={() => void onUpdateTask(task.path, { addWorkDirs: [dir] })}
-                      className="flex min-w-0 flex-1 items-center px-1.5 text-left text-body"
-                    >
-                      <span className="min-w-0 shrink-[1000] truncate">{parent}</span>
-                      <span className="min-w-0 truncate">{name.slice(0, nameMid)}</span>
-                      <span className="shrink-0">{name.slice(nameMid)}</span>
-                    </button>
-                    <button
-                      type="button"
-                      title={`Dismiss ${name}`}
-                      onClick={() => void onUpdateTask(task.path, { ignoreSuggestedDirs: [dir] })}
-                      className="shrink-0 px-1.5 text-muted-foreground opacity-0 transition-opacity group-hover/suggestion:opacity-100 hover:text-foreground focus-visible:opacity-100"
-                    >
-                      <IconX className="size-3.5" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </>
         )}
       </PopoverContent>
     </Popover>

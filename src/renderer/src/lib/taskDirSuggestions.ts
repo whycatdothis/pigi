@@ -11,9 +11,10 @@
  * watermark decides what counts as new: hydrated history carries its original
  * (old) timestamps while live nodes are stamped with Date.now().
  *
- * When the run ends, the observed dirs — each with the snippet of text that
- * mentioned it — go through one batched LLM classification on the session's
- * own worker (provider already warm from the run). Verdicts above
+ * Classification doesn't wait for the run: every CLASSIFY_BATCH_SIZE
+ * unclassified candidates trigger one batched call on the session's own
+ * worker (a side call beside the running agent, provider already warm), and
+ * whatever is left gets a forced pass at run end. Verdicts above
  * AUTO_ADD_PROBABILITY are reported as 'model' adds; everything below simply
  * stays a suggestion, and a failed classification changes nothing, so the
  * heuristics alone are the floor.
@@ -31,6 +32,8 @@ const MAX_ARGS_DEPTH = 4;
 const CONTEXT_RADIUS = 120;
 /** Verdicts at or above this probability become working directories outright. */
 const AUTO_ADD_PROBABILITY = 0.8;
+/** Unclassified candidates that trigger a mid-run batch, so long runs promote as they go. */
+const CLASSIFY_BATCH_SIZE = 10;
 // The optimistic user node lands in the transcript just before the session
 // status flips to busy, so the watermark must reach slightly into the past.
 // History is hours old; the over-reach only re-reports the previous run's
@@ -42,8 +45,12 @@ const SCAN_INTERVAL_MS = 1_500;
 interface RunWatch {
   watermark: number;
   reported: Set<string>;
-  /** Observed dirs with their first-seen context, accumulated for the run-end classification. */
+  /** Observed dirs with their first-seen context, accumulated for classification. */
   candidates: Map<string, TaskDirCandidate>;
+  /** Dirs sent (or being sent) for classification; never sent twice in one run. */
+  classified: Set<string>;
+  classifying: boolean;
+  runEnded: boolean;
   timer: ReturnType<typeof setInterval>;
   scanning: boolean;
 }
@@ -160,20 +167,26 @@ async function scan(taskPath: string, sessionPath: string, watch: RunWatch): Pro
 }
 
 /**
- * The run-end pass: score everything the run observed in one batched call and
- * promote the confident ones. Conservative by construction — verdicts below
- * the threshold and failed calls both leave the heuristic suggestions as-is.
+ * One batched scoring pass over a subset of the run's candidates, promoting
+ * the confident ones. Conservative by construction — verdicts below the
+ * threshold, failed calls and dirs the model invented all leave the
+ * heuristic suggestions as-is.
  */
-async function classifyRun(sessionPath: string, taskPath: string, watch: RunWatch): Promise<void> {
-  if (watch.candidates.size === 0) return;
+async function classifyRun(
+  sessionPath: string,
+  taskPath: string,
+  dirs: string[],
+  candidates: Map<string, TaskDirCandidate>,
+): Promise<void> {
   const state = useAppStore.getState();
   // The run's own reports already mutated the task, so read it fresh.
   const task = state.tasks.find((candidate) => candidate.path === taskPath);
   if (!task) return;
-  const candidates = [...watch.candidates.values()].filter(
-    (candidate) => !task.workDirs.includes(candidate.dir),
-  );
-  if (candidates.length === 0) return;
+  const batch = dirs.flatMap((dir) => {
+    const candidate = candidates.get(dir);
+    return candidate && !task.workDirs.includes(candidate.dir) ? [candidate] : [];
+  });
+  if (batch.length === 0) return;
   const historyDirs = [
     ...new Set(
       state.tasks.filter((other) => other.path !== taskPath).flatMap((other) => other.workDirs),
@@ -185,19 +198,41 @@ async function classifyRun(sessionPath: string, taskPath: string, watch: RunWatc
     workDirs: task.workDirs,
     historyDirs,
     dirLog: task.dirLog,
-    candidates,
+    candidates: batch,
   }).catch(() => null);
   if (!result?.success) return;
   // Only observed dirs can be promoted: a confident hallucination stays a no-op.
-  const candidateDirs = new Set(candidates.map((candidate) => candidate.dir));
+  const batchDirs = new Set(batch.map((candidate) => candidate.dir));
   const promoted = result.verdicts
-    .filter((verdict) => verdict.p >= AUTO_ADD_PROBABILITY && candidateDirs.has(verdict.dir))
+    .filter((verdict) => verdict.p >= AUTO_ADD_PROBABILITY && batchDirs.has(verdict.dir))
     .map((verdict) => verdict.dir);
   if (promoted.length === 0) return;
   // 'model' goes through the same disk/tombstone validation as the user's own
   // words; main is the last word on what actually lands.
-  const reported = await reportTaskDirs(taskPath, promoted, 'model');
-  if (reported.success) useAppStore.getState().upsertTask(reported.task);
+  const reported = await reportTaskDirs(taskPath, promoted, 'model').catch(() => null);
+  if (reported?.success) useAppStore.getState().upsertTask(reported.task);
+}
+
+/**
+ * Fires a batch when enough unclassified candidates piled up — or when forced
+ * at run end, however small the tail. One call in flight at a time; a run
+ * that ended under an in-flight batch gets its tail scored right after.
+ */
+function maybeClassify(
+  sessionPath: string,
+  taskPath: string,
+  watch: RunWatch,
+  force: boolean,
+): void {
+  if (watch.classifying) return;
+  const pending = [...watch.candidates.keys()].filter((dir) => !watch.classified.has(dir));
+  if (pending.length === 0 || (!force && pending.length < CLASSIFY_BATCH_SIZE)) return;
+  watch.classifying = true;
+  for (const dir of pending) watch.classified.add(dir);
+  void classifyRun(sessionPath, taskPath, pending, watch.candidates).finally(() => {
+    watch.classifying = false;
+    if (watch.runEnded) maybeClassify(sessionPath, taskPath, watch, true);
+  });
 }
 
 /** Subscribes to session status changes; returns the unsubscribe for tests. */
@@ -224,7 +259,14 @@ export function startTaskDirSuggestions(): () => void {
           watermark: Date.now() - RUN_START_GRACE_MS,
           reported: new Set(),
           candidates: new Map(),
-          timer: setInterval(() => void scan(task.path, sessionPath, watch), SCAN_INTERVAL_MS),
+          classified: new Set(),
+          classifying: false,
+          runEnded: false,
+          timer: setInterval(() => {
+            void scan(task.path, sessionPath, watch).then(() =>
+              maybeClassify(sessionPath, task.path, watch, false),
+            );
+          }, SCAN_INTERVAL_MS),
           scanning: false,
         };
         watchBySession.set(sessionPath, watch);
@@ -232,8 +274,9 @@ export function startTaskDirSuggestions(): () => void {
         const watch = watchBySession.get(sessionPath);
         dropWatch(sessionPath);
         if (watch) {
+          watch.runEnded = true;
           void scan(task.path, sessionPath, watch).then(() =>
-            classifyRun(sessionPath, task.path, watch),
+            maybeClassify(sessionPath, task.path, watch, true),
           );
         }
       }

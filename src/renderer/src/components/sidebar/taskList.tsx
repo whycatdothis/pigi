@@ -143,7 +143,9 @@ function TaskItem({
   return (
     <SidebarMenuItem
       className={cn(
-        'group/task',
+        // [&_…]:pt-0 kills the session sub-list's own top padding, scoped to
+        // task rows: the chips row above already provides the separation.
+        'group/task [&_[data-slot=sidebar-menu-sub]]:pt-0',
         isExpanded && 'mb-3',
         isDragOver && 'border-t-2 border-[var(--system-accent)]',
       )}
@@ -195,7 +197,9 @@ function TaskItem({
                 asChild
                 title={task.path}
                 className={cn(
-                  'h-auto flex-col items-stretch gap-0 text-sidebar-foreground/80',
+                  // pb-0.5 tightens the chips→sessions gap: the chips read as
+                  // part of the row, so the row's own padding can shrink.
+                  'h-auto flex-col items-stretch gap-0 pb-0.5 text-sidebar-foreground/80',
                   task.hidden && 'opacity-60',
                 )}
               >

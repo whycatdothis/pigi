@@ -12,7 +12,7 @@ vi.mock('../hooks/useTranscript', () => ({
 import { peekTranscriptController } from '../hooks/useTranscript';
 import { classifyTaskDirs, reportTaskDirs } from '../services/piAgentClient';
 import { useAppStore } from '../state/appStore';
-import type { TaskInfo } from '../../../shared/ipcContract';
+import type { ClassifyTaskDirsResult, TaskInfo } from '../../../shared/ipcContract';
 import type { TranscriptController, TranscriptNode } from '../state/transcriptController';
 import { startTaskDirSuggestions } from './taskDirSuggestions';
 
@@ -322,5 +322,69 @@ describe('startTaskDirSuggestions', () => {
     stop();
 
     expect(classifyMock).not.toHaveBeenCalled();
+  });
+
+  it('classifies mid-run once ten candidates pile up, not waiting for run end', async () => {
+    vi.useFakeTimers();
+    const nodes: TranscriptNode[] = [userNode('hello', Date.now())];
+    peekMock.mockReturnValue(controllerWith(nodes));
+    const stop = startTaskDirSuggestions();
+
+    const store = useAppStore.getState();
+    store.updateSession(sessionPath, { status: 'streaming' });
+
+    // Nine dirs: below the batch size, nothing fires.
+    for (let i = 0; i < 9; i++) {
+      nodes.push(toolNode({ command: `ls /work/d${i}` }, Date.now()));
+    }
+    await vi.advanceTimersByTimeAsync(1_600);
+    expect(classifyMock).not.toHaveBeenCalled();
+
+    // The tenth tips it — while the run is still going.
+    nodes.push(toolNode({ command: 'ls /work/d9' }, Date.now()));
+    await vi.advanceTimersByTimeAsync(1_600);
+    expect(classifyMock).toHaveBeenCalledTimes(1);
+    expect(classifyMock.mock.calls[0][1].candidates).toHaveLength(10);
+    stop();
+  });
+
+  it('scores the tail once a batch in flight at run end lands', async () => {
+    vi.useFakeTimers();
+    const nodes: TranscriptNode[] = [userNode('hello', Date.now())];
+    for (let i = 0; i < 10; i++) {
+      nodes.push(toolNode({ command: `ls /work/d${i}` }, Date.now()));
+    }
+    peekMock.mockReturnValue(controllerWith(nodes));
+
+    let resolveFirst: (result: ClassifyTaskDirsResult) => void = () => {};
+    classifyMock.mockImplementationOnce(
+      () =>
+        new Promise<ClassifyTaskDirsResult>((resolve) => {
+          resolveFirst = resolve;
+        }),
+    );
+    const stop = startTaskDirSuggestions();
+    const store = useAppStore.getState();
+
+    store.updateSession(sessionPath, { status: 'streaming' });
+    await vi.advanceTimersByTimeAsync(1_600);
+    expect(classifyMock).toHaveBeenCalledTimes(1);
+
+    // The run ends with two more candidates arriving at the last moment; the
+    // forced pass must wait for the in-flight batch.
+    nodes.push(toolNode({ command: 'ls /work/tail1' }, Date.now()));
+    nodes.push(toolNode({ command: 'ls /work/tail2' }, Date.now()));
+    store.updateSession(sessionPath, { status: 'idle' });
+    await vi.advanceTimersByTimeAsync(1);
+    expect(classifyMock).toHaveBeenCalledTimes(1);
+
+    resolveFirst({ success: true, verdicts: [] });
+    await vi.advanceTimersByTimeAsync(1);
+    expect(classifyMock).toHaveBeenCalledTimes(2);
+    expect(classifyMock.mock.calls[1][1].candidates.map((candidate) => candidate.dir)).toEqual([
+      '/work/tail1',
+      '/work/tail2',
+    ]);
+    stop();
   });
 });

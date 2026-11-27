@@ -117,8 +117,8 @@ describe('TaskWorkDirChips editor', () => {
     const input = await openEditor();
 
     fireEvent.change(input, { target: { value: 'repo' } });
-    // Two dirs + the picker row: down, down, down lands on the picker.
-    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    // The first match reads as selected already, so two downs move past the
+    // second dir onto the picker row.
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -141,18 +141,10 @@ describe('TaskWorkDirChips editor', () => {
     expect(onUpdateTask).not.toHaveBeenCalled();
   });
 
-  it('tilde-shortens home paths in matches and suggestions', async () => {
+  it('tilde-shortens home paths in matches', async () => {
     getHomeDirMock.mockReturnValue('/repo');
-    render(
-      <TaskWorkDirChips
-        task={{ ...task, suggestedDirs: ['/repo/deep/nested/dir'] }}
-        onUpdateTask={vi.fn(() => Promise.resolve(okResult()))}
-        onSelectWorkDir={vi.fn()}
-      />,
-    );
+    renderChips();
     const input = await openEditor();
-    // The suggestion shows the shortened path; the end is never truncated.
-    expect(screen.getByTitle('Add ~/deep/nested/dir')).toHaveTextContent('~/deep/nested/dir');
 
     fireEvent.change(input, { target: { value: 'beta' } });
     const option = screen.getByRole('option', { name: /beta/ });
