@@ -384,7 +384,7 @@ const TurnSection = React.memo(function TurnSection({
   return (
     <section
       ref={sectionRef}
-      className={cn('mt-8 first:mt-0', isPureSystemTurn && 'mt-2')}
+      className={cn('lazy-row mt-8 first:mt-0', isPureSystemTurn && 'mt-2')}
       data-testid="minimal-turn"
       data-turn-id={turn.id}
     >

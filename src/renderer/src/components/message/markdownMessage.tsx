@@ -18,6 +18,10 @@ import {
   type LineRange,
 } from '../../lib/filePathCandidates';
 import { useExistingFile } from '../../lib/existingPaths';
+import {
+  streamingMarkdownIntervalMs,
+  useStreamingThrottledValue,
+} from '../../hooks/useStreamingThrottledValue';
 import rehypeFilePaths, { markedFileLocation } from '../../lib/rehypeFilePaths';
 import { ChatFilesContext } from './chatFiles';
 import { FileLink } from './fileLink';
@@ -377,17 +381,25 @@ export default memo(function MarkdownMessage({
   // Paths in a message that is still arriving are half-written; they are
   // looked up once the text settles.
   const linksFilePaths = chatFiles !== null && !projectFile && !isStreaming;
+  // Every batch re-parses the whole message, and the parse is linear in its
+  // length; the throttle sizes the interval from the text so a long answer
+  // costs a fixed share of the frame budget instead of stalling every frame.
+  const drawnText = useStreamingThrottledValue(
+    text,
+    isStreaming,
+    streamingMarkdownIntervalMs(text.length),
+  );
   return (
     <div className="markdown-body text-body">
       <MarkdownStreamingContext.Provider value={isStreaming}>
-        <MarkdownSourceContext.Provider value={text}>
+        <MarkdownSourceContext.Provider value={drawnText}>
           <MarkdownProjectFileContext.Provider value={projectFile ?? null}>
             <Markdown
               remarkPlugins={REMARK_PLUGINS}
               rehypePlugins={linksFilePaths ? CHAT_REHYPE_PLUGINS : REHYPE_PLUGINS}
               components={markdownComponents}
             >
-              {text}
+              {drawnText}
             </Markdown>
           </MarkdownProjectFileContext.Provider>
         </MarkdownSourceContext.Provider>

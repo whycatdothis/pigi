@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CacheWarmEntry } from '../../../shared/ipcContract';
-import { TranscriptController, type SystemNode } from './transcriptController';
+import { TranscriptController, type SystemNode, type ToolNode } from './transcriptController';
 
 function imageOnlyUserStart(): unknown {
   return {
@@ -396,5 +396,70 @@ describe('codemode tool results', () => {
     expect(controller.state.nodes).toMatchObject([
       { role: 'tool', status: 'error', output: 'worker crashed', details: { calls: [call] } },
     ]);
+  });
+});
+
+/**
+ * The stream batch contract for tool text: the utility sends either the whole
+ * value or only the tail it grew by, never both for the same tool call, and a
+ * truncated snapshot replaces what the renderer had. Getting this wrong shows
+ * up as duplicated or missing output in a card that is still running.
+ */
+function toolNode(controller: TranscriptController): ToolNode {
+  const node = controller.state.nodes.find((candidate) => candidate.role === 'tool');
+  if (!node || node.role !== 'tool') throw new Error('no tool node');
+  return node;
+}
+
+describe('TranscriptController stream batches', () => {
+  function startBash(controller: TranscriptController): void {
+    controller.processEvent({
+      type: 'tool_execution_start',
+      toolCallId: 'call-1',
+      toolName: 'bash',
+      args: { command: 'make' },
+    });
+  }
+
+  it('appends a tool output delta and replaces on a snapshot', () => {
+    const controller = new TranscriptController();
+    startBash(controller);
+
+    controller.applyStreamBatch({ toolOutputDelta: { 'call-1': 'one\n' } });
+    controller.applyStreamBatch({ toolOutputDelta: { 'call-1': 'two\n' } });
+    expect(toolNode(controller).output).toBe('one\ntwo\n');
+
+    // A snapshot that is not an extension of what the card holds (bash keeps
+    // head and tail once a command passes its line limit) replaces it whole.
+    controller.applyStreamBatch({ toolOutput: { 'call-1': 'head\ntail\n' } });
+    expect(toolNode(controller).output).toBe('head\ntail\n');
+  });
+
+  it('appends write content deltas onto the args the card already has', () => {
+    const controller = new TranscriptController();
+    startBash(controller);
+    controller.applyStreamBatch({
+      toolArgs: { 'call-1': { name: 'write', args: { path: '/tmp/a.txt', content: '' } } },
+    });
+    controller.applyStreamBatch({ toolArgsContentDelta: { 'call-1': 'hello ' } });
+    controller.applyStreamBatch({ toolArgsContentDelta: { 'call-1': 'world' } });
+
+    expect(toolNode(controller).args).toEqual({ path: '/tmp/a.txt', content: 'hello world' });
+  });
+
+  it('ignores a delta for a tool that already finished', () => {
+    const controller = new TranscriptController();
+    startBash(controller);
+    controller.processEvent({
+      type: 'tool_execution_end',
+      toolCallId: 'call-1',
+      toolName: 'bash',
+      result: { content: [{ type: 'text', text: 'done' }] },
+      isError: false,
+    });
+
+    controller.applyStreamBatch({ toolArgsContentDelta: { 'call-1': 'late' } });
+
+    expect(toolNode(controller).args).toEqual({ command: 'make' });
   });
 });

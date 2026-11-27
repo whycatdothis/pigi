@@ -26,6 +26,15 @@
 /* Focus rings only for keyboard navigation; see lib/focusModality.ts. */
 @custom-variant focus-visible (&:focus-visible:not([data-pointer-focus]));
 
+/* A feed row that is off screen skips layout and paint, which is what keeps a
+   long minimal-view session cheap: it is not virtualized, so without this every
+   row is laid out on every streaming frame. `auto` lets a row that has been
+   drawn keep its own height as the estimate, so scrolling back does not jump. */
+@utility lazy-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 80px;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

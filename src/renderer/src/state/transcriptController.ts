@@ -1015,7 +1015,16 @@ export class TranscriptController {
    * each batch can update React state and let the virtualizer measure real heights.
    */
   applyStreamBatch(
-    batch: Pick<StreamBatch, 'text' | 'thinking' | 'toolOutput' | 'toolDetails' | 'toolArgs'>,
+    batch: Pick<
+      StreamBatch,
+      | 'text'
+      | 'thinking'
+      | 'toolOutput'
+      | 'toolOutputDelta'
+      | 'toolDetails'
+      | 'toolArgs'
+      | 'toolArgsContentDelta'
+    >,
   ): void {
     let changed = false;
     // A batch usually carries several updates for the same call (args, then
@@ -1053,6 +1062,19 @@ export class TranscriptController {
       }
     }
 
+    // Deltas first: a batch can carry a delta for one update and the whole
+    // value for the next (an output that was truncated), and the whole value
+    // is the newer one.
+    if (batch.toolOutputDelta) {
+      for (const [toolCallId, delta] of Object.entries(batch.toolOutputDelta)) {
+        const found = locateTool(toolCallId);
+        if (found && delta) {
+          this._state.nodes[found.index] = { ...found.node, output: found.node.output + delta };
+          changed = true;
+        }
+      }
+    }
+
     if (batch.toolOutput) {
       for (const [toolCallId, output] of Object.entries(batch.toolOutput)) {
         const found = locateTool(toolCallId);
@@ -1071,6 +1093,20 @@ export class TranscriptController {
           this._state.nodes[found.index] = { ...found.node, details };
           changed = true;
         }
+      }
+    }
+
+    if (batch.toolArgsContentDelta) {
+      for (const [toolCallId, delta] of Object.entries(batch.toolArgsContentDelta)) {
+        const found = locateTool(toolCallId);
+        if (!found || !delta || found.node.status !== 'running') continue;
+        const existing = (found.node.args ?? {}) as Record<string, unknown>;
+        const content = typeof existing.content === 'string' ? existing.content : '';
+        this._state.nodes[found.index] = {
+          ...found.node,
+          args: { ...existing, content: content + delta },
+        };
+        changed = true;
       }
     }
 

@@ -32,6 +32,7 @@ import {
   type ExtensionUIContext,
 } from '@earendil-works/pi-coding-agent';
 import { codemodeToolModifiers, recordCodemode } from '../../shared/piSettings';
+import { StreamBatcher, type Port } from './streamBatcher';
 import { writePiSettingsDocument } from './piSettingsWrite';
 import type {
   AuthProviderInfo,
@@ -43,8 +44,6 @@ import type {
   PiResult,
   PromptInput,
   ControlPortMessage,
-  StreamBatch,
-  StreamBatchToolArgs,
   UtilityCommand,
   UtilityResponse,
 } from '../../shared/ipcContract';
@@ -67,92 +66,6 @@ import {
   SUBAGENT_ENTRY_TYPE,
   type SubagentEntryData,
 } from '../../shared/remoteCommandContract';
-
-// Compatible with Electron's MessagePortMain.
-interface Port {
-  postMessage(message: unknown): void;
-  start(): void;
-  close(): void;
-  on(event: 'message', listener: (messageEvent: { data: unknown }) => void): unknown;
-}
-
-class StreamBatcher {
-  private static readonly MIN_INTERVAL_MS = 8;
-  private batch: StreamBatch = { type: 'stream_batch' };
-  private dirty = false;
-  private scheduled = false;
-  private lastFlushAt = 0;
-  private flushTimer: ReturnType<typeof setTimeout> | null = null;
-  private port: Port | null = null;
-
-  start(port: Port): void {
-    this.port = port;
-  }
-
-  stop(): void {
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
-    this.flush();
-  }
-
-  appendText(delta: string): void {
-    this.batch.text = (this.batch.text || '') + delta;
-    this.markDirty();
-  }
-
-  appendThinking(delta: string): void {
-    this.batch.thinking = (this.batch.thinking || '') + delta;
-    this.markDirty();
-  }
-
-  setToolOutput(id: string, output: string): void {
-    if (!this.batch.toolOutput) this.batch.toolOutput = {};
-    this.batch.toolOutput[id] = output;
-    this.markDirty();
-  }
-
-  setToolDetails(toolCallId: string, details: Record<string, unknown>): void {
-    if (!this.batch.toolDetails) this.batch.toolDetails = {};
-    this.batch.toolDetails[toolCallId] = details;
-    this.markDirty();
-  }
-
-  setToolArgs(toolCallId: string, entry: StreamBatchToolArgs): void {
-    if (!this.batch.toolArgs) this.batch.toolArgs = {};
-    this.batch.toolArgs[toolCallId] = entry;
-    this.markDirty();
-  }
-
-  /** Call before any push event so buffered deltas reach the renderer first. */
-  flushNow(): void {
-    this.flush();
-  }
-
-  private markDirty(): void {
-    this.dirty = true;
-    if (this.scheduled) return;
-    this.scheduled = true;
-
-    const elapsed = performance.now() - this.lastFlushAt;
-    const delay = Math.max(1, StreamBatcher.MIN_INTERVAL_MS - elapsed);
-    this.flushTimer = setTimeout(() => this.flush(), delay);
-  }
-
-  private flush(): void {
-    this.scheduled = false;
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
-    if (!this.dirty || !this.port) return;
-    this.lastFlushAt = performance.now();
-    this.port.postMessage(this.batch);
-    this.batch = { type: 'stream_batch' };
-    this.dirty = false;
-  }
-}
 
 /**
  * Skills shipped with the app (`resources/skills`), a sibling of `out/` in the
@@ -502,8 +415,7 @@ function subscribeToSession(rt: AgentSessionRuntime, port: Port, batch: StreamBa
           if (content.type === 'toolCall' && content.id && content.name) {
             if (content.name === 'write') {
               // Full args: the card previews the content while it streams.
-              const args = content.arguments as Partial<WriteToolInput>;
-              batch.setToolArgs(content.id, { name: 'write', args });
+              batch.setWriteArgs(content.id, content.arguments as Partial<WriteToolInput>);
             } else if (content.name === 'edit') {
               // Path only: the edits array is large and not shown while streaming.
               const args = content.arguments as Partial<EditToolInput>;
@@ -545,6 +457,7 @@ function subscribeToSession(rt: AgentSessionRuntime, port: Port, batch: StreamBa
         // may still be buffered; the renderer must see it before the result
         // replaces the node.
         batch.flushNow();
+        batch.forgetTool(event.toolCallId);
         push({ type: 'event', event });
         break;
 

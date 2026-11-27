@@ -15,6 +15,8 @@ interface WarmProcess {
 }
 
 const MAX_IDLE_SESSION_PROCESS_COUNT = 3;
+/** A burst of settings writes is served by one warm process, not one per write. */
+const WARM_RESTART_DEBOUNCE_MS = 500;
 
 export class PiAgentProcessPool {
   private readonly sessionProcesses = new Map<string, SessionProcess>();
@@ -23,6 +25,7 @@ export class PiAgentProcessPool {
   private warmSpawn: { cancelled: boolean } | null = null;
   private activeSessionPath: string | null = null;
   private warmCwds: string[] = [];
+  private warmRestartTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly onSessionProcessExit: (sessionPath: string, code: number) => void) {}
 
@@ -59,12 +62,20 @@ export class PiAgentProcessPool {
 
   /** Its services were built from the old resources; a fresh one reads the current ones. */
   recycleWarmProcess(): void {
+    // Dropped now, not after the debounce: a session claimed from a warm
+    // process must never run on the settings the user just replaced.
     this.warmProcess?.process.kill();
     this.warmProcess = null;
     // A fork still waiting on the shell env would land with the old services
     // too, so drop it and start one that reads the new resources.
     this.cancelPendingWarmSpawn();
-    this.spawnWarmProcess();
+    // A number stepper writes on every click, and each fork reads every
+    // extension and the model catalog; the burst settles into one fork.
+    if (this.warmRestartTimer !== null) clearTimeout(this.warmRestartTimer);
+    this.warmRestartTimer = setTimeout(() => {
+      this.warmRestartTimer = null;
+      this.spawnWarmProcess();
+    }, WARM_RESTART_DEBOUNCE_MS);
   }
 
   createFreshProcess(): Electron.UtilityProcess {
@@ -168,6 +179,10 @@ export class PiAgentProcessPool {
     // Without this the pending fork lands after shutdown and leaves a process
     // behind.
     this.cancelPendingWarmSpawn();
+    if (this.warmRestartTimer !== null) {
+      clearTimeout(this.warmRestartTimer);
+      this.warmRestartTimer = null;
+    }
     if (this.warmProcess) {
       this.warmProcess.process.kill();
       this.warmProcess = null;

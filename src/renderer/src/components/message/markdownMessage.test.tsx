@@ -75,10 +75,14 @@ test('highlights a streaming code block once per interval, not once per chunk', 
     }
     expect(highlighter.codeToTokens).toHaveBeenCalledTimes(1);
 
-    // The interval passes: one highlight catches the block up, with the text it
-    // has by then rather than the text it had when the throttle started.
+    // The intervals pass, one stage at a time: the message's own parse throttle
+    // first, then the highlight's. One highlight catches the block up, with the
+    // text it has by then rather than the text it had when the throttle started.
     await act(async () => {
-      vi.advanceTimersByTime(60);
+      vi.advanceTimersByTime(120);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(120);
     });
     expect(highlighter.codeToTokens).toHaveBeenCalledTimes(2);
     expect(highlighter.codeToTokens).toHaveBeenLastCalledWith(
@@ -115,16 +119,25 @@ test('highlights a block in a message that is not streaming', async () => {
 });
 
 test('keeps the text that arrived since the last highlight visible', async () => {
-  const { rerender } = render(
-    <MarkdownMessage text={messageWithChunk('tail', grownLines(1))} isStreaming />,
-  );
-  await act(async () => {});
+  vi.useFakeTimers();
+  try {
+    const { rerender } = render(
+      <MarkdownMessage text={messageWithChunk('tail', grownLines(1))} isStreaming />,
+    );
+    await act(async () => {});
 
-  rerender(<MarkdownMessage text={messageWithChunk('tail', grownLines(2))} isStreaming />);
-  // The highlight on screen is still the one for the shorter text; what arrived
-  // since is drawn as plain text after it, so the reader watches the file grow
-  // instead of waiting for the next highlight.
-  expect(plainTail()).toContain('// 1');
+    // What the message draws is throttled too: one stage to re-parse it with the
+    // line that arrived, and the highlight is still the one for the shorter text.
+    rerender(<MarkdownMessage text={messageWithChunk('tail', grownLines(2))} isStreaming />);
+    await act(async () => {
+      vi.advanceTimersByTime(120);
+    });
+    // So the new line is drawn as plain text after the highlight, and the reader
+    // watches the file grow instead of waiting for the next highlight.
+    expect(plainTail()).toContain('// 1');
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test('moves the plain tail into the highlight when the next one lands', async () => {
@@ -135,17 +148,50 @@ test('moves the plain tail into the highlight when the next one lands', async ()
     );
     await act(async () => {});
     rerender(<MarkdownMessage text={messageWithChunk('catching', grownLines(2))} isStreaming />);
+    await act(async () => {
+      vi.advanceTimersByTime(120);
+    });
     expect(plainTail()).toContain('// 1');
 
     await act(async () => {
-      vi.advanceTimersByTime(60);
+      vi.advanceTimersByTime(120);
     });
-    await act(async () => {});
+    await act(async () => {
+      vi.advanceTimersByTime(120);
+    });
     // The tail is gone: the line it held is part of the highlight now.
     expect(plainTail()).toBeNull();
   } finally {
     vi.useRealTimers();
   }
+});
+
+test('draws raw HTML in a message as text, never as markup', () => {
+  // Model output is the untrusted input this renderer was built around: a reply
+  // that echoes a page can contain the very tags that would run.
+  render(
+    <MarkdownMessage
+      text={[
+        '<script>alert(1)</script>',
+        '',
+        '<img src=x onerror="alert(2)">',
+        '',
+        '[link](javascript:alert(3))',
+      ].join('\n')}
+    />,
+  );
+
+  expect(document.querySelector('script')).toBeNull();
+  expect(document.querySelector('img')).toBeNull();
+  // A `javascript:` href is dropped by the sanitizer; the anchor may survive
+  // without one, so what matters is that no anchor can run a script.
+  for (const anchor of document.querySelectorAll('a')) {
+    expect(anchor.getAttribute('href') ?? '').not.toMatch(/^(javascript|data|vbscript):/i);
+  }
+  // The tags are not escaped into the text either: react-markdown without
+  // rehype-raw drops raw HTML nodes, and the reply renders only its prose.
+  expect(document.body.textContent).not.toContain('alert(1)');
+  expect(document.body.textContent).toContain('link');
 });
 
 beforeEach(() => {
