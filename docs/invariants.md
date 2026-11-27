@@ -32,6 +32,12 @@ only when something fails when it is broken. The last row is the process.
 | The throttle hook returns the live value the moment streaming stops                            | `src/renderer/src/hooks/useStreamingThrottledValue.test.ts`                                          |
 | Stream batches carry only a tail, never the same value twice, and a truncation replaces it     | `src/processes/utility/streamBatcher.test.ts`, `src/renderer/src/state/transcriptController.test.ts` |
 
+## Rendering
+
+| Invariant                                                                                                                                             | Checked by                                                     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| In a task's composer, the first line clears the Add-directory button, later lines start at the composer's left edge, and the button wins the hit test | `src/renderer/src/components/chatInput/index.browser.test.tsx` |
+
 ## Known gaps — reviewed by hand, not checked
 
 Listed so they are decisions rather than oversights. Each one is a candidate for
