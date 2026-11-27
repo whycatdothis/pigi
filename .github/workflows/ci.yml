@@ -54,6 +54,24 @@ jobs:
 
       - run: node scripts/checkCssMediaQueries.mjs
 
+      # The renderer bundle is measured, not reviewed: a cap that breaks a merge
+      # is the only thing that keeps a one-time optimization from eroding.
+      - run: npx electron-vite build
+
+      - run: node scripts/checkBundleBudget.mjs
+
+      # Boundaries, size budgets and the dangerous-API allowlist: rules that
+      # lived in AGENTS.md until they became checks.
+      - run: node scripts/checkImports.mjs
+
+      - run: node scripts/checkFileSize.mjs
+
+      - run: node scripts/checkDangerousApis.mjs
+
+      # Known CVEs in what actually ships. Dev dependencies are excluded: they
+      # run on this machine, not on a user's.
+      - run: npm audit --omit=dev --audit-level=high
+
       - run: npm test
 
   website:
