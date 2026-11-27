@@ -153,14 +153,14 @@ export const SIDEBAR_MENU_BUTTON = {
 
 export const SESSION_ROW = {
   classes:
-    'flex h-7 min-w-0 items-center gap-1.5 overflow-hidden rounded-control px-2 outline-hidden hover:bg-primary/5 hover:text-sidebar-accent-foreground data-active:bg-primary/10 data-active:text-sidebar-accent-foreground w-full justify-start pl-6 text-left text-sidebar-foreground/85',
+    'flex h-7 min-w-0 items-center gap-1.5 overflow-hidden rounded-control px-2 outline-hidden hover:bg-primary/5 hover:text-sidebar-accent-foreground data-active:bg-primary/10 data-active:text-sidebar-accent-foreground w-full justify-start pl-7.5 text-left text-sidebar-foreground/85',
   source: `${UI}/sidebar.tsx`,
   alsoFrom: [`${RENDERER}/sidebar/sessionList.tsx`],
 } satisfies CopiedClasses;
 
 export const SESSION_COLLAPSE_TOGGLE = {
   classes:
-    'absolute left-1 top-1/2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+    'absolute left-1.5 top-1/2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
   source: `${RENDERER}/sidebar/sessionList.tsx`,
 } satisfies CopiedClasses;
 
