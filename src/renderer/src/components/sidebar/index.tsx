@@ -597,8 +597,10 @@ export default memo(function Sidebar({
                   onCancel={() => setCreatingTask(false)}
                 />
               )}
+              {/* Same sticky constraint as the Projects group below: no
+                  overflow here, or "Show less" never sticks. */}
               {!tasksCollapsed && (
-                <SidebarGroupContent className="overflow-x-hidden">
+                <SidebarGroupContent>
                   <TaskList
                     tasks={orderedTasks}
                     showHidden={showHiddenTasks}
@@ -649,8 +651,11 @@ export default memo(function Sidebar({
                 </button>
               </div>
             </div>
+            {/* No overflow on the group content: any value makes it the
+                sticky container and "Show less" never sticks; SidebarContent
+                already clips x. */}
             {!projectsCollapsed && (
-              <SidebarGroupContent className="overflow-x-hidden">
+              <SidebarGroupContent>
                 <ProjectList
                   sessions={sessions}
                   recentProjects={recentProjects}

@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- A long session list's "Show less" button pins to the bottom of the sidebar while scrolling again — Tasks section included — instead of sinking to the end of the list
+
 ## [0.6.18] - 2026-11-27
 
 ### Added
