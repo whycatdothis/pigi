@@ -156,11 +156,15 @@ export interface TaskDirEvent {
  */
 export interface TaskDirCandidate {
   dir: string;
-  /** Tool args or assistant prose — prompt-mentioned dirs never need classifying. */
-  seenIn: 'tool' | 'assistant';
+  /** Where the mention happened. Dirs typed into the prompt are added
+     outright and never become candidates; attached files do. */
+  seenIn: 'tool' | 'assistant' | 'prompt';
   /** Short snippet around the mention, so the model sees how the dir was used. */
   context: string;
 }
+
+/** One classification call scores at most this many candidates. */
+export const TASK_DIR_CLASSIFY_MAX_CANDIDATES = 30;
 
 /** The classifier's verdict for one candidate: probability it is a working directory. */
 export interface TaskDirVerdict {

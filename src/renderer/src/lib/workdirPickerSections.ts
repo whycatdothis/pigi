@@ -40,3 +40,27 @@ export function buildWorkdirPickerSections(
   );
   return { taskDirs: task.workDirs, historyDirs, projects };
 }
+
+const sameStrings = (left: string[], right: string[]): boolean =>
+  left.length === right.length && left.every((dir, index) => dir === right[index]);
+
+const sameProjects = (left: ProjectDirectory[], right: ProjectDirectory[]): boolean =>
+  left.length === right.length &&
+  left.every((project, index) => project.path === right[index].path);
+
+/**
+ * Content equality for ChatInput's memo: task upserts streaming in during a
+ * run rebuild the sections object without changing what the picker shows.
+ */
+export function sameWorkdirPickerSections(
+  left: WorkdirPickerSections | null | undefined,
+  right: WorkdirPickerSections | null | undefined,
+): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  return (
+    sameStrings(left.taskDirs, right.taskDirs) &&
+    sameStrings(left.historyDirs, right.historyDirs) &&
+    sameProjects(left.projects, right.projects)
+  );
+}

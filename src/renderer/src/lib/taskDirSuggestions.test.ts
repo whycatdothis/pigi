@@ -348,6 +348,81 @@ describe('startTaskDirSuggestions', () => {
     stop();
   });
 
+  it('chains the run-end scan behind an in-flight scan instead of dropping it', async () => {
+    vi.useFakeTimers();
+    const nodes: TranscriptNode[] = [userNode('hello', Date.now())];
+    peekMock.mockReturnValue(controllerWith(nodes));
+
+    // Park the first interval scan inside its report round trip.
+    let resolveReport: (value: { success: true; task: TaskInfo }) => void = () => {};
+    reportMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveReport = resolve;
+        }),
+    );
+    const stop = startTaskDirSuggestions();
+    const store = useAppStore.getState();
+
+    store.updateSession(sessionPath, { status: 'streaming' });
+    nodes.push(toolNode({ command: 'ls /work/first' }, Date.now()));
+    await vi.advanceTimersByTimeAsync(1_600);
+    expect(reportMock).toHaveBeenCalledTimes(1);
+
+    // The run ends while that scan is parked; one more dir lands meanwhile.
+    nodes.push(toolNode({ command: 'ls /work/late' }, Date.now()));
+    store.updateSession(sessionPath, { status: 'idle' });
+    await vi.advanceTimersByTimeAsync(1);
+    // Queued, not dropped: nothing new reported yet.
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    expect(classifyMock).not.toHaveBeenCalled();
+
+    resolveReport({ success: true, task });
+    await vi.advanceTimersByTimeAsync(1);
+    expect(reportMock).toHaveBeenCalledWith('/tasks/demo', ['/work/late'], 'tool');
+    // The forced pass then sees the whole tail, not the stale candidate list.
+    expect(classifyMock).toHaveBeenCalledTimes(1);
+    expect(classifyMock.mock.calls[0][1].candidates.map((candidate) => candidate.dir)).toEqual([
+      '/work/first',
+      '/work/late',
+    ]);
+    stop();
+  });
+
+  it('scores a run-end tail of more than thirty candidates in capped batches', async () => {
+    const nodes: TranscriptNode[] = [];
+    for (let i = 0; i < 35; i++) {
+      nodes.push(toolNode({ command: `ls /work/d${i}` }, Date.now()));
+    }
+    peekMock.mockReturnValue(controllerWith(nodes));
+    const stop = startTaskDirSuggestions();
+    runSession();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    stop();
+
+    expect(classifyMock).toHaveBeenCalledTimes(2);
+    expect(classifyMock.mock.calls[0][1].candidates).toHaveLength(30);
+    expect(classifyMock.mock.calls[1][1].candidates).toHaveLength(5);
+  });
+
+  it('classifies attached files instead of promoting them outright', async () => {
+    peekMock.mockReturnValue(
+      controllerWith([userNode('why does this crash', Date.now(), ['/work/alpha/crash.log'])]),
+    );
+    const stop = startTaskDirSuggestions();
+    runSession();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    stop();
+
+    // Suggestions, not workDirs — and the classifier gets to judge.
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    expect(reportMock).toHaveBeenCalledWith('/tasks/demo', ['/work/alpha/crash.log'], 'tool');
+    expect(classifyMock).toHaveBeenCalledTimes(1);
+    expect(classifyMock.mock.calls[0][1].candidates).toEqual([
+      { dir: '/work/alpha/crash.log', seenIn: 'prompt', context: 'attached file' },
+    ]);
+  });
+
   it('scores the tail once a batch in flight at run end lands', async () => {
     vi.useFakeTimers();
     const nodes: TranscriptNode[] = [userNode('hello', Date.now())];

@@ -62,7 +62,10 @@ import { AttachmentChips, AttachmentPickerButton } from './attachmentPicker';
 import { FileMentionPopover } from './fileMentionPopover';
 import { PathMentionPopover } from './pathMentionPopover';
 import { WorkdirPicker } from './workdirPicker';
-import type { WorkdirPickerSections } from '../../lib/workdirPickerSections';
+import {
+  sameWorkdirPickerSections,
+  type WorkdirPickerSections,
+} from '../../lib/workdirPickerSections';
 import {
   COMPOSER_TEXT_START,
   createComposerExtensions,
@@ -135,16 +138,19 @@ interface ComposerHandlers {
 }
 
 /** Props are stable while a turn streams except the prompt history, which the
- *  transcript rebuilds on every batch: compare that one by content, so a token
- *  arriving does not reconcile the whole composer. */
+ *  transcript rebuilds on every batch, and the workdir picker sections, which
+ *  task upserts rebuild on every report: compare those two by content, so a
+ *  token arriving does not reconcile the whole composer. */
 function sameProps(previous: ChatInputProps, next: ChatInputProps): boolean {
   const keys = Object.keys(next) as (keyof ChatInputProps)[];
   if (keys.length !== Object.keys(previous).length) return false;
-  return keys.every((key) =>
-    key === 'userHistory'
-      ? sameStrings(previous.userHistory, next.userHistory)
-      : Object.is(previous[key], next[key]),
-  );
+  return keys.every((key) => {
+    if (key === 'userHistory') return sameStrings(previous.userHistory, next.userHistory);
+    if (key === 'workdirPicker') {
+      return sameWorkdirPickerSections(previous.workdirPicker, next.workdirPicker);
+    }
+    return Object.is(previous[key], next[key]);
+  });
 }
 
 function sameStrings(left: string[], right: string[]): boolean {

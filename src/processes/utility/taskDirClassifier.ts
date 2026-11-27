@@ -13,6 +13,7 @@
 import type { Api, Model, ProviderHeaders } from '@earendil-works/pi-ai';
 import type { ExtensionRunner, ModelRuntime } from '@earendil-works/pi-coding-agent';
 import type { TaskDirCandidate, TaskDirEvent, TaskDirVerdict } from '../../shared/ipcContract';
+import { TASK_DIR_CLASSIFY_MAX_CANDIDATES } from '../../shared/ipcContract';
 import { getCandidatesByCost, getCheapestSameProvider, MAX_GLOBAL_ATTEMPTS } from './autoRename';
 
 export interface ClassifyTaskDirsInput {
@@ -23,9 +24,8 @@ export interface ClassifyTaskDirsInput {
   candidates: TaskDirCandidate[];
 }
 
-// Beyond these caps the prompt grows faster than the verdicts improve; the
-// renderer stays under them anyway, so hitting them here means a buggy caller.
-const MAX_CANDIDATES = 30;
+// Beyond these caps the prompt grows faster than the verdicts improve. The
+// renderer batches candidates to the shared cap; slicing here is the belt.
 const MAX_DIR_LOG_EVENTS = 20;
 const MAX_HISTORY_DIRS = 30;
 const MAX_VERDICT_TOKENS = 1024;
@@ -50,7 +50,7 @@ function formatCandidates(candidates: TaskDirCandidate[]): string {
 }
 
 function buildPrompt(input: ClassifyTaskDirsInput): string {
-  const candidates = input.candidates.slice(0, MAX_CANDIDATES);
+  const candidates = input.candidates.slice(0, TASK_DIR_CLASSIFY_MAX_CANDIDATES);
   return [
     `Task: "${input.taskName}"`,
     '',

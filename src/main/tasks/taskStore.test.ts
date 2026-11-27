@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -159,6 +159,28 @@ describe('updateTask', () => {
     await expect(updateTask(workA, { addWorkDirs: [workB] }, root)).rejects.toThrow(
       'Not a task directory',
     );
+  });
+
+  it('leaves AGENTS.md alone when the work dirs did not change', async () => {
+    const task = await createTask('task-foo', root);
+    await updateTask(task.path, { addWorkDirs: [workA] }, root);
+    // The user takes the file over; a rewrite would re-append the managed block.
+    writeFileSync(join(task.path, 'AGENTS.md'), '# my own notes\n', 'utf8');
+
+    await updateTask(task.path, { renameTo: 'renamed', setHidden: true, setEmoji: '🐛' }, root);
+
+    expect(readFileSync(join(task.path, 'AGENTS.md'), 'utf8')).toBe('# my own notes\n');
+  });
+
+  it('does not recreate a deleted AGENTS.md until the work dirs change', async () => {
+    const task = await createTask('task-foo', root);
+    rmSync(join(task.path, 'AGENTS.md'));
+
+    await updateTask(task.path, { setEmoji: '🐛' }, root);
+    expect(existsSync(join(task.path, 'AGENTS.md'))).toBe(false);
+
+    await updateTask(task.path, { addWorkDirs: [workA] }, root);
+    expect(readFileSync(join(task.path, 'AGENTS.md'), 'utf8')).toContain(`- ${workA}`);
   });
 
   it('renames the display name without moving the directory', async () => {
@@ -334,5 +356,29 @@ describe('replaceWorkDirsBlock', () => {
     const appended = replaceWorkDirsBlock('user content\n', ['/a']);
     expect(appended).toContain('user content');
     expect(appended).toContain('- /a');
+  });
+
+  it('drops an orphaned end marker instead of appending a new block every sync', () => {
+    const orphanEnd = 'notes\n<!-- pigi:workdirs:end -->\n';
+    const once = replaceWorkDirsBlock(orphanEnd, ['/a']);
+    expect(once).toContain('notes');
+    expect(once.match(/pigi:workdirs:start/g)).toHaveLength(1);
+    expect(once.match(/pigi:workdirs:end/g)).toHaveLength(1);
+
+    // The next sync replaces in place; before the pairing fix it appended
+    // another block each time.
+    expect(replaceWorkDirsBlock(once, ['/a'])).toBe(once);
+  });
+
+  it('drops an orphaned start marker without swallowing the user content after it', () => {
+    const orphanStart = 'notes\n<!-- pigi:workdirs:start -->\nuser list\n';
+    const once = replaceWorkDirsBlock(orphanStart, ['/a']);
+    expect(once).toContain('user list');
+
+    // Before the fix, this second sync replaced everything between the orphan
+    // START and the appended block's END — deleting "user list".
+    const twice = replaceWorkDirsBlock(once, ['/a']);
+    expect(twice).toBe(once);
+    expect(twice).toContain('user list');
   });
 });

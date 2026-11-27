@@ -26,6 +26,14 @@ Deferred from `feat/tasks`:
 - Selecting a task session from the switcher (Ctrl+R) while the Tasks group
   is collapsed reveals nothing: the auto-reveal effect only expands
   per-project rows, never the group.
+- Removal tombstones live in `dirLog`, which is capped at 50 events: after
+  50 later edits, an old removal is forgotten and the dir can reappear in
+  the composer's Add-directory picker via another task or the recent
+  projects. Benign and self-healing (removing it again re-tombstones), but
+  a durable `removedDirs` set (main-private today) would make it exact.
+- Two tasks renamed to the same display name in the same tick both pass
+  the taken-name check (per-task queues don't span tasks). Narrow enough
+  to leave; needs a root-level lock if it ever bites.
 
 ## Security
 

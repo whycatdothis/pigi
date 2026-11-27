@@ -161,17 +161,31 @@ const workDirsList = (workDirs: string[]): string =>
     ? '(none yet — add working directories from the task sidebar)'
     : workDirs.map((dir) => `- ${dir}`).join('\n');
 
+// A marker line outside the managed block is hand-edit residue; leaving it
+// would poison the pairing below (an orphan END swallows the next block, an
+// orphan START the text before it).
+function stripOrphanMarkers(text: string): string {
+  return text
+    .split('\n')
+    .filter((line) => line.trim() !== WORKDIRS_START && line.trim() !== WORKDIRS_END)
+    .join('\n');
+}
+
 // Only the block between the markers is pigi-managed; everything around it is
-// the user's and survives work-dir edits.
+// the user's and survives work-dir edits. Markers pair as the first START
+// with the first END after it.
 export function replaceWorkDirsBlock(current: string, workDirs: string[]): string {
   const block = `${WORKDIRS_START}\n${workDirsList(workDirs)}\n${WORKDIRS_END}`;
   const start = current.indexOf(WORKDIRS_START);
-  const end = current.indexOf(WORKDIRS_END);
-  if (start !== -1 && end !== -1 && end > start) {
-    return `${current.slice(0, start)}${block}${current.slice(end + WORKDIRS_END.length)}`;
+  const end = start === -1 ? -1 : current.indexOf(WORKDIRS_END, start);
+  if (start !== -1 && end !== -1) {
+    const before = stripOrphanMarkers(current.slice(0, start));
+    const after = stripOrphanMarkers(current.slice(end + WORKDIRS_END.length));
+    return `${before}${block}${after}`;
   }
-  if (current === '') return `${block}\n`;
-  const trimmed = current.endsWith('\n') ? current : `${current}\n`;
+  const stripped = stripOrphanMarkers(current);
+  if (stripped === '') return `${block}\n`;
+  const trimmed = stripped.endsWith('\n') ? stripped : `${stripped}\n`;
   return `${trimmed}\n${block}\n`;
 }
 
@@ -203,7 +217,7 @@ async function syncAgentsFile(
   } catch (error) {
     // Only a missing file gets the template; an unreadable one must not be
     // overwritten, losing the user's content.
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
     current = agentsTemplate(taskName);
   }
   await writeFileAtomic(file, replaceWorkDirsBlock(current, workDirs));
@@ -442,6 +456,8 @@ export async function updateTask(
   const taskDir = await resolveTaskDir(taskPath, root);
   return enqueue(taskDir, async () => {
     const config = await readConfig(taskDir);
+    // A copy: addToConfig mutates the list in place.
+    const workDirsBefore = [...config.workDirs];
 
     for (const dir of (update.removeWorkDirs ?? []).map(normalizeDir)) {
       tombstone(config, dir);
@@ -497,7 +513,12 @@ export async function updateTask(
     }
 
     await writeConfig(taskDir, config);
-    await syncAgentsFile(taskDir, basename(taskDir), config.workDirs);
+    // AGENTS.md only mirrors the work-dir block: a rename or an emoji edit
+    // must not touch the file (least of all recreate one the user deleted).
+    const workDirsChanged =
+      workDirsBefore.length !== config.workDirs.length ||
+      workDirsBefore.some((dir, index) => dir !== config.workDirs[index]);
+    if (workDirsChanged) await syncAgentsFile(taskDir, basename(taskDir), config.workDirs);
     return toTaskInfo(basename(taskDir), taskPath, config);
   });
 }

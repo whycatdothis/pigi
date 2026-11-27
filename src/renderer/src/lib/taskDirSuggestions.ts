@@ -1,10 +1,10 @@
 /**
  * Turns the directories a task session touches into the task's directory
- * lists. Paths the user wrote (prompt text, attached files) become working
- * directories outright; paths observed in tool calls and assistant messages
- * become suggestions the sidebar editor offers. Main re-validates everything
- * against disk and the task's tombstones, so extraction here can stay cheap
- * and heuristic.
+ * lists. Paths the user typed into the prompt become working directories
+ * outright; attached files and paths observed in tool calls and assistant
+ * messages are classified first, with heuristic suggestions as the floor.
+ * Main re-validates everything against disk and the task's tombstones, so
+ * extraction here can stay cheap and heuristic.
  *
  * Scanning follows the run live on a short interval, so a dir shows up right
  * after the message that mentioned it instead of at run end. A wall-clock
@@ -23,6 +23,7 @@ import { isAgentBusy, useAppStore, type AgentStatus } from '../state/appStore';
 import { peekTranscriptController } from '../hooks/useTranscript';
 import { classifyTaskDirs, reportTaskDirs } from '../services/piAgentClient';
 import type { TaskDirCandidate } from '../../../shared/ipcContract';
+import { TASK_DIR_CLASSIFY_MAX_CANDIDATES } from '../../../shared/ipcContract';
 
 /** A path token in free text or a shell command: `/x/y` or `~/x/y`. */
 const PATH_TOKEN_PATTERN = /(?:^|[\s"'`(=,])((?:\/|~\/)[^\s"'`)=,;&|]+)/g;
@@ -53,6 +54,8 @@ interface RunWatch {
   runEnded: boolean;
   timer: ReturnType<typeof setInterval>;
   scanning: boolean;
+  /** Scans run strictly in order behind this promise; see enqueueScan. */
+  scanChain: Promise<void>;
 }
 
 function extractFromText(text: string, into: Set<string>): void {
@@ -119,7 +122,18 @@ async function scan(taskPath: string, sessionPath: string, watch: RunWatch): Pro
       if (node.role === 'user') {
         if (node.sentAt < watch.watermark) continue;
         extractFromText(node.text, promptPaths);
-        for (const filePath of node.filePaths ?? []) promptPaths.add(filePath);
+        // An attached file is weaker evidence than a typed path: it goes to
+        // the classifier, never to an outright add.
+        for (const filePath of node.filePaths ?? []) {
+          observedPaths.add(filePath);
+          if (!watch.candidates.has(filePath)) {
+            watch.candidates.set(filePath, {
+              dir: filePath,
+              seenIn: 'prompt',
+              context: 'attached file',
+            });
+          }
+        }
       } else if (node.role === 'tool' && node.status !== 'cancelled') {
         if (node.startedAt === undefined || node.startedAt < watch.watermark) continue;
         // Tool args stream in while the call runs; scanning one now would read
@@ -164,6 +178,21 @@ async function scan(taskPath: string, sessionPath: string, watch: RunWatch): Pro
   } finally {
     watch.scanning = false;
   }
+}
+
+/**
+ * Scans run strictly in order: a scan's early return while another is in
+ * flight would strand the run-end scan (the tail between the in-flight
+ * scan's start and the idle flip would never be scanned or classified), so
+ * a caller finding a scan in flight queues behind it. With none in flight
+ * the scan starts synchronously, exactly like a direct call.
+ */
+function enqueueScan(taskPath: string, sessionPath: string, watch: RunWatch): Promise<void> {
+  const next = watch.scanning
+    ? watch.scanChain.then(() => scan(taskPath, sessionPath, watch))
+    : Promise.resolve(scan(taskPath, sessionPath, watch));
+  watch.scanChain = next.catch(() => undefined);
+  return watch.scanChain;
 }
 
 /**
@@ -228,8 +257,11 @@ function maybeClassify(
   const pending = [...watch.candidates.keys()].filter((dir) => !watch.classified.has(dir));
   if (pending.length === 0 || (!force && pending.length < CLASSIFY_BATCH_SIZE)) return;
   watch.classifying = true;
-  for (const dir of pending) watch.classified.add(dir);
-  void classifyRun(sessionPath, taskPath, pending, watch.candidates).finally(() => {
+  // The classifier caps its prompt; the overflow stays unclassified for the
+  // next batch (or the forced run-end pass) instead of being silently dropped.
+  const batch = pending.slice(0, TASK_DIR_CLASSIFY_MAX_CANDIDATES);
+  for (const dir of batch) watch.classified.add(dir);
+  void classifyRun(sessionPath, taskPath, batch, watch.candidates).finally(() => {
     watch.classifying = false;
     if (watch.runEnded) maybeClassify(sessionPath, taskPath, watch, true);
   });
@@ -263,11 +295,12 @@ export function startTaskDirSuggestions(): () => void {
           classifying: false,
           runEnded: false,
           timer: setInterval(() => {
-            void scan(task.path, sessionPath, watch).then(() =>
+            void enqueueScan(task.path, sessionPath, watch).then(() =>
               maybeClassify(sessionPath, task.path, watch, false),
             );
           }, SCAN_INTERVAL_MS),
           scanning: false,
+          scanChain: Promise.resolve(),
         };
         watchBySession.set(sessionPath, watch);
       } else if (!isAgentBusy(entry.status) && isAgentBusy(status)) {
@@ -275,7 +308,7 @@ export function startTaskDirSuggestions(): () => void {
         dropWatch(sessionPath);
         if (watch) {
           watch.runEnded = true;
-          void scan(task.path, sessionPath, watch).then(() =>
+          void enqueueScan(task.path, sessionPath, watch).then(() =>
             maybeClassify(sessionPath, task.path, watch, true),
           );
         }

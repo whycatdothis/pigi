@@ -884,9 +884,9 @@ async function handleCommand(command: PiCommand): Promise<unknown> {
     }
 
     case 'classify_task_dirs': {
-      // A side call, not a turn: the run just ended, so the provider path is
-      // warm and the session is idle. Failure only means the caller keeps its
-      // heuristic suggestions.
+      // A side call, not a turn: fired beside the running agent (and once
+      // more at its end), reusing the provider path the run already warmed.
+      // Failure only means the caller keeps its heuristic suggestions.
       const verdicts = await classifyTaskDirs(
         {
           taskName: command.taskName,

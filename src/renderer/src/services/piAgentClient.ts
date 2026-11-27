@@ -179,8 +179,9 @@ export async function reportTaskDirs(
 
 /**
  * One batched LLM call on the session's own worker, scoring how likely each
- * candidate dir belongs to the task's working set. Fired at run end, when the
- * provider path is warm; a failure result means "keep the heuristics".
+ * candidate dir belongs to the task's working set. Fired mid-run in batches
+ * and once at run end, on the provider path the run already warmed; a failure
+ * result means "keep the heuristics".
  */
 export async function classifyTaskDirs(
   sessionPath: string,
