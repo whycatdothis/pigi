@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { EditorContent, useEditor, type EditorEvents, type EditorOptions } from '@tiptap/react';
 import { toast } from 'sonner';
-import { IconArrowUp, IconSquare } from '@tabler/icons-react';
+import { IconArrowUp, IconFolderPlus, IconSquare } from '@tabler/icons-react';
 import type {
   ChatAttachmentKind,
   ModelInfo,
@@ -61,6 +61,8 @@ import { SlashCommandPopover } from './slashCommandPopover';
 import { AttachmentChips, AttachmentPickerButton } from './attachmentPicker';
 import { FileMentionPopover } from './fileMentionPopover';
 import { PathMentionPopover } from './pathMentionPopover';
+import { WorkdirPicker } from './workdirPicker';
+import type { WorkdirPickerSections } from '../../lib/workdirPickerSections';
 import {
   COMPOSER_TEXT_START,
   createComposerExtensions,
@@ -68,6 +70,7 @@ import {
   exitReferenceSuggestion,
   exitReferenceSuggestions,
   hasActiveSuggestion,
+  insertDirectoryChip,
   type ComposerSuggestion,
   type PathSuggestion,
 } from './composerExtensions';
@@ -107,6 +110,8 @@ interface ChatInputProps {
   pickerTasks?: TaskInfo[];
   activeProject?: ProjectDirectory | null;
   onSelectProject?: (path: string) => void;
+  /** Task context: shows the inline "Add directory" button at the caret. */
+  workdirPicker?: WorkdirPickerSections | null;
 }
 
 const MODEL_FALLBACK = 'Model';
@@ -176,6 +181,7 @@ export default memo(function ChatInput({
   pickerTasks = [],
   activeProject = null,
   onSelectProject,
+  workdirPicker = null,
 }: ChatInputProps): React.JSX.Element {
   // Which input box currently owns the composer: the active session's path, or
   // NEW_CHAT_DRAFT_KEY while composing the first message of a new chat.
@@ -229,6 +235,9 @@ export default memo(function ChatInput({
     paste: () => false,
     drop: () => false,
   });
+
+  // The "Add directory" picker's anchor: the button that opened it.
+  const [workdirAnchor, setWorkdirAnchor] = useState<HTMLElement | null>(null);
 
   const handleSuggestionChange = useCallback(
     (kind: ChatReferenceKind, next: ComposerSuggestion | null) => {
@@ -914,6 +923,20 @@ export default memo(function ChatInput({
                 onHover={setSelectedSuggestionIndex}
               />
             )}
+            {workdirPicker && workdirAnchor && (
+              <WorkdirPicker
+                anchor={workdirAnchor}
+                sections={workdirPicker}
+                onPick={(path) => {
+                  setWorkdirAnchor(null);
+                  insertDirectoryChip(editor, path);
+                }}
+                onClose={() => {
+                  setWorkdirAnchor(null);
+                  editor.commands.focus();
+                }}
+              />
+            )}
             <InputGroup
               className={cn(
                 // `dark:bg-background` cancels the input group's translucent
@@ -926,7 +949,32 @@ export default memo(function ChatInput({
               )}
               data-has-attachments={attachments.length > 0 || undefined}
             >
-              <EditorContent editor={editor} className="w-full" />
+              {/* The Add-directory button sits outside the editor: inside, a
+                  ProseMirror widget pins Chrome's caret to the widget's own
+                  box (hugging the button, at the button's height); as a flex
+                  sibling the paragraph stays a plain empty paragraph and the
+                  caret behaves natively — right where the text starts, at
+                  text height. main.css trims the composer's left padding via
+                  data-workdir-button so the text follows the button closely. */}
+              <div
+                className="flex w-full items-baseline"
+                data-workdir-button={workdirPicker ? '' : undefined}
+              >
+                {workdirPicker && (
+                  <button
+                    type="button"
+                    title="Add directory"
+                    aria-label="Add directory"
+                    className="ml-4 inline-flex h-5.5 shrink-0 cursor-pointer items-center gap-1 rounded-chip bg-muted px-1.5 text-ui text-foreground"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={(event) => setWorkdirAnchor(event.currentTarget)}
+                  >
+                    <IconFolderPlus className="size-3.5 shrink-0" />
+                    Add directory
+                  </button>
+                )}
+                <EditorContent editor={editor} className="min-w-0 flex-1" />
+              </div>
               {attachments.length > 0 && (
                 <AttachmentChips attachments={attachments} onRemove={handleRemoveAttachment} />
               )}

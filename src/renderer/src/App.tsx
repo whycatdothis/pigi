@@ -99,6 +99,7 @@ import { SessionTreeHelpContext } from './components/sessionTree/sessionTreeHelp
 import SessionTreeHelpDialog from './components/sessionTree/SessionTreeHelpDialog';
 import TerminalPanel from './components/terminal/TerminalPanel';
 import ChatInput, { type ChatInputHandle } from './components/chatInput';
+import { buildWorkdirPickerSections } from './lib/workdirPickerSections';
 import RightSidebar from './components/rightSidebar/RightSidebar';
 import StreamingQueue from './components/transcript/StreamingQueue';
 import LoginDialog from './components/app/LoginDialog';
@@ -294,6 +295,12 @@ function App(): React.JSX.Element {
     enabled: workspaceTab === WORKSPACE_TABS.git,
   });
   const activeCwd = activeSession?.cwd ?? activeProjectPath ?? window.piApi.getCwd();
+  // The composer's "Add directory" list, for sessions running inside a task
+  // (and a new chat whose picked project is a task).
+  const workdirPicker = useMemo(
+    () => buildWorkdirPickerSections(tasks, activeCwd, recentProjects),
+    [tasks, activeCwd, recentProjects],
+  );
   const findSessionByPath = useCallback(
     (path: string): PiSessionInfo | undefined => {
       for (const cwd of Object.keys(projectSessions)) {
@@ -2189,6 +2196,7 @@ function App(): React.JSX.Element {
                             onSelectThinkingLevel={handleSelectThinkingLevel}
                             onRequestModelRefresh={handleRequestModelRefresh}
                             userHistory={userHistory}
+                            workdirPicker={workdirPicker}
                           />
                         </div>
                       </div>
@@ -2223,6 +2231,7 @@ function App(): React.JSX.Element {
                               pickerTasks={pickerTasks}
                               activeProject={composerProject}
                               onSelectProject={handleSelectProject}
+                              workdirPicker={workdirPicker}
                             />
                           </div>
                         ) : (
@@ -2251,6 +2260,7 @@ function App(): React.JSX.Element {
                                 onSelectThinkingLevel={handleSelectThinkingLevel}
                                 onRequestModelRefresh={handleRequestModelRefresh}
                                 userHistory={draftUserHistory}
+                                workdirPicker={workdirPicker}
                               />
                             </div>
                           </>

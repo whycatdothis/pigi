@@ -299,6 +299,15 @@ const PathMention = Mention.extend({
   },
 });
 
+/** Drop a working-directory chip at the caret; the trailing space commits it. */
+export function insertDirectoryChip(editor: Editor, dir: string): void {
+  editor
+    .chain()
+    .focus()
+    .insertContent([pathChipContent(dir, 'directory', ''), { type: 'text', text: ' ' }])
+    .run();
+}
+
 /**
  * Plain-text composer: a single paragraph with hard breaks, reference chips,
  * undo history and a placeholder. No marks or block formatting.
