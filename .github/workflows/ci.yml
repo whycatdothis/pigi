@@ -31,7 +31,7 @@ jobs:
 
       # `npm test` ends in the browser layer, which needs a real Chromium. The
       # download is per Playwright version, so the lockfile is the right key.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
@@ -100,7 +100,7 @@ jobs:
       # The page's interactive parts, driven in a real browser: `verify` reads the
       # build output, so it runs after the build. Playwright's Chromium is per
       # version, so the lockfile is the cache key, as it is for the app's tests.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-website-${{ runner.os }}-${{ hashFiles('website/package-lock.json') }}
