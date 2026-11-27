@@ -671,13 +671,6 @@
 }
 
 @layer utilities {
-  /* With the Add-directory button before the editor, the composer's own left
-     padding is the button-to-text gap; trim it to the usual inline gap. Must
-     live in the utilities layer to beat the composer's px-4. */
-  [data-workdir-button] .chat-composer {
-    padding-left: calc(var(--spacing) * 1.5);
-  }
-
   .no-scrollbar {
     scrollbar-width: none;
   }

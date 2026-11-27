@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- In a task's composer, only the first line starts to the right of the Add directory button; lines typed after it start under the button instead of staying indented for the whole prompt
+- On macOS, the composer's line and paragraph motions (Ctrl+A/E, Cmd+←/→, Option+↑/↓) move the caret to the start and end of the current line instead of the whole prompt
+- Arrow-key history recall puts the caret on the first line when going up and on the last line when going down, so a multi-line prompt can be stepped through
+
 ## [0.6.19] - 2026-11-27
 
 ### Fixed

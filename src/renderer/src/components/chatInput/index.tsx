@@ -46,11 +46,8 @@ import {
 } from '../../lib/chatAttachments';
 import { useInputHistory, type HistoryComposer } from '../../hooks/useInputHistory';
 import type { ChatReferenceKind } from '../../lib/chatReferences';
-import {
-  composerDocumentFromText,
-  inlineContentFromText,
-  REFERENCE_TRIGGERS,
-} from '../../lib/composerContent';
+import { inlineContentFromText, REFERENCE_TRIGGERS } from '../../lib/composerContent';
+import { detectPlatform } from '../../lib/platform';
 import { pathTokenDirectory } from '../../lib/pathReferences';
 import { formatContextUsage, UNKNOWN_STATUS } from './formatters';
 import { ContextUsageTooltip } from './contextUsageTooltip';
@@ -74,6 +71,9 @@ import {
   exitReferenceSuggestions,
   hasActiveSuggestion,
   insertDirectoryChip,
+  lineEdgeForKey,
+  moveCaretToLineEdge,
+  replaceComposerText,
   type ComposerSuggestion,
   type PathSuggestion,
 } from './composerExtensions';
@@ -126,6 +126,8 @@ const NO_COMMANDS: ReadonlySet<string> = new Set();
 const EMPTY_FILE_MATCHES: string[] = [];
 const EMPTY_PATH_ENTRIES: PathCompletionEntry[] = [];
 const TEXT_BLOCK_SEPARATOR = '\n';
+/** Cocoa's caret motions move by paragraph; the composer's lines are hard breaks. */
+const IS_MAC = detectPlatform() === 'mac';
 /** Send and stop share one look so the button does not change colour mid-run. */
 const PRIMARY_ACTION_CLASS_NAME =
   'rounded-full bg-primary text-primary-foreground hover:bg-primary-hover';
@@ -268,7 +270,7 @@ export default memo(function ChatInput({
   const [editorProps] = useState<EditorOptions['editorProps']>(() => ({
     attributes: {
       class: cn(
-        'chat-composer max-h-[17.5vh] overflow-y-auto px-4 pb-2 pt-4 text-body leading-6 outline-none',
+        'chat-composer px-4 pb-2 pt-4 text-body leading-6 outline-none',
         // Attachments sit right under the text instead of below the empty min height.
         isNewSession ? 'min-h-24' : 'min-h-16',
         'in-data-has-attachments:min-h-0',
@@ -314,14 +316,7 @@ export default memo(function ChatInput({
     () => ({
       getText: () => editor.getText({ blockSeparator: TEXT_BLOCK_SEPARATOR }),
       setText: (text, caret) => {
-        editor
-          .chain()
-          .setContent(composerDocumentFromText(text, commandNamesRef.current), {
-            emitUpdate: false,
-          })
-          .focus(caret === 'start' ? 'start' : 'end')
-          .run();
-        exitReferenceSuggestions(editor.view);
+        replaceComposerText(editor, text, commandNamesRef.current, caret ?? 'end');
       },
       isCaretOnFirstLine: () => {
         const { selection } = editor.state;
@@ -746,6 +741,15 @@ export default memo(function ChatInput({
     (event: KeyboardEvent): boolean => {
       if (event.isComposing || event.key === 'Process') return false;
 
+      // Cocoa's paragraph and line motions (Ctrl+A/E, Cmd+←/→, Option+↑/↓)
+      // can only reach the ends of this one-paragraph document, i.e. the whole
+      // prompt; give them the line the caret is on, as a textarea does.
+      const lineEdge = IS_MAC ? lineEdgeForKey(event) : null;
+      if (lineEdge) {
+        moveCaretToLineEdge(editor, lineEdge, event.shiftKey);
+        return true;
+      }
+
       // A picker navigation takes priority over history and the send shortcut.
       // Escape is left to the suggestion plugin, which closes the picker.
       if (pathSuggestion && event.key === 'ArrowRight') {
@@ -955,23 +959,27 @@ export default memo(function ChatInput({
               )}
               data-has-attachments={attachments.length > 0 || undefined}
             >
-              {/* The Add-directory button sits outside the editor: inside, a
-                  ProseMirror widget pins Chrome's caret to the widget's own
-                  box (hugging the button, at the button's height); as a flex
-                  sibling the paragraph stays a plain empty paragraph and the
-                  caret behaves natively — right where the text starts, at
-                  text height. main.css trims the composer's left padding via
-                  data-workdir-button so the text follows the button closely. */}
+              {/* The Add-directory button floats in the composer's scroll
+                  container, before the editor: the first line starts to its
+                  right, and every line after a hard break starts at the
+                  composer's left edge, under it. h-5.5 plus mt-4 stays inside
+                  the editor's pt-4 + leading-6 first line, so only that line
+                  is shortened. It must stay out of the editor itself: a
+                  ProseMirror widget there pins Chrome's caret to the widget's
+                  box. */}
               <div
-                className="flex w-full items-baseline"
-                data-workdir-button={workdirPicker ? '' : undefined}
+                className={cn(
+                  'max-h-[17.5vh] w-full overflow-y-auto',
+                  isNewSession ? 'min-h-24' : 'min-h-16',
+                  'in-data-has-attachments:min-h-0',
+                )}
               >
                 {workdirPicker && (
                   <button
                     type="button"
                     title="Add directory"
                     aria-label="Add directory"
-                    className="ml-4 inline-flex h-5.5 shrink-0 cursor-pointer items-center gap-1 rounded-chip bg-muted px-1.5 text-ui text-foreground"
+                    className="relative z-10 float-left ml-4 mr-1.5 mt-4 flex h-5.5 cursor-pointer items-center gap-1 rounded-chip bg-muted px-1.5 text-ui text-foreground"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={(event) => setWorkdirAnchor(event.currentTarget)}
                   >
@@ -979,7 +987,7 @@ export default memo(function ChatInput({
                     Add directory
                   </button>
                 )}
-                <EditorContent editor={editor} className="min-w-0 flex-1" />
+                <EditorContent editor={editor} className="w-full" />
               </div>
               {attachments.length > 0 && (
                 <AttachmentChips attachments={attachments} onRemove={handleRemoveAttachment} />
