@@ -37,7 +37,7 @@
     "@earendil-works/pi-ai": "^1.5.0",
     "@earendil-works/pi-coding-agent": "^1.5.0",
     "@electron-toolkit/utils": "^4.0.0",
-    "@ff-labs/fff-node": "0.11.1-nightly.51649e1",
+    "@ff-labs/fff-node": "0.11.1-nightly.9771025",
     "@tabler/icons-react": "^3.41.1",
     "@tanstack/react-virtual": "^3.14.26",
     "@tiptap/core": "^3.32.0",
